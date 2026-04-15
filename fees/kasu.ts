@@ -48,6 +48,11 @@ const FULL_PERCENT = 10_000n;
 // `amount` passed to emitFees() is already the performance-fee portion of gross interest.
 const FeesEmittedEvent = 'event FeesEmitted(address indexed lendingPoolAddress, uint256 ecosystemFeeAmount, uint256 protocolFeeAmount)';
 
+const PROTOCOL_SPLIT = "Performance Fees To Protocol";
+const HOLDERS_SPLIT = "Performance Fees To rKSU Holders";
+const SUPPLY_SIDE_SPLIT = "Borrow Interest To Lenders";
+const TOKEN_LOCKER_DISTRIBUTIONS = "Token Locker Distributions";
+
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -82,12 +87,14 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         ? totalFee * (FULL_PERCENT - performanceFee) / performanceFee
         : 0n;
 
-      dailyFees.add(paymentToken, totalFee, METRIC.PERFORMANCE_FEES);
-      dailyRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
-      dailyRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
-      dailyProtocolRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
-      dailyHoldersRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
-      dailySupplySideRevenue.add(paymentToken, supplySide, METRIC.BORROW_INTEREST);
+      const grossInterest = totalFee + supplySide;
+
+      dailyFees.add(paymentToken, grossInterest, METRIC.BORROW_INTEREST);
+      dailyRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
+      dailyRevenue.add(paymentToken, ecosystemFee, HOLDERS_SPLIT);
+      dailyProtocolRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
+      dailyHoldersRevenue.add(paymentToken, ecosystemFee, TOKEN_LOCKER_DISTRIBUTIONS);
+      dailySupplySideRevenue.add(paymentToken, supplySide, SUPPLY_SIDE_SPLIT);
     }
   }));
 
@@ -95,19 +102,19 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Performance fees collected from lending pool interest accruals (the protocol's cut of gross interest paid by borrowers).",
-  UserFees: "Same as Fees.",
-  Revenue: "Protocol's share of performance fees, sent to the protocol fee receiver.",
-  ProtocolRevenue: "Same as Revenue.",
-  HoldersRevenue: "Ecosystem share of performance fees, distributed to KSU token lockers (rKSU holders).",
-  SupplySideRevenue: "Interest earned by lenders after performance fees are deducted.",
+  Fees: "Gross interest paid by borrowers across Kasu lending pools.",
+  UserFees: "Same as Fees - borrowers pay interest on borrowed assets.",
+  Revenue: "Performance fees retained by the protocol: the sum of the protocol-receiver share and the rKSU-holder share.",
+  ProtocolRevenue: "Performance fees sent to the protocol fee receiver.",
+  HoldersRevenue: "Performance fees distributed to KSU token lockers (rKSU holders).",
+  SupplySideRevenue: "Interest earned by lenders (gross borrower interest minus performance fees).",
 };
 
 const adapter: SimpleAdapter = {
@@ -130,20 +137,20 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol from borrower interest",
+      [METRIC.BORROW_INTEREST]: "Gross interest paid by borrowers",
     },
     Revenue: {
-      [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
-      "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders",
+      [PROTOCOL_SPLIT]: "Share of performance fees routed to the protocol fee receiver",
+      [HOLDERS_SPLIT]: "Share of performance fees routed to rKSU holders",
     },
     ProtocolRevenue: {
-      [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
+      [PROTOCOL_SPLIT]: "Share of performance fees routed to the protocol fee receiver",
     },
     HoldersRevenue: {
-      "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders",
+      [TOKEN_LOCKER_DISTRIBUTIONS]: "Performance fees distributed to KSU token lockers (rKSU holders)",
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: "Interest earned by lenders after performance fees are deducted",
+      [SUPPLY_SIDE_SPLIT]: "Interest earned by lenders after performance fees are deducted",
     },
   },
 };
