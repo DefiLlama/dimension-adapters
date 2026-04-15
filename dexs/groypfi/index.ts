@@ -1,3 +1,8 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
+
 /**
  * GroypFi — DEX Aggregator on TON
  *
@@ -19,132 +24,94 @@
  * Website: https://groypfi.io
  */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+const FEE_RECIPIENT = "0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594";
 
-const FEE_WALLET_RAW =
-  "0:eee0084ffffc92aea4f46679ded118172103f723e2e206619a9eddf42b8845d4";
-const TON_API = "https://tonapi.io/v2";
-
-interface TonTransaction {
-  hash: string;
-  lt: string;
-  utime: number;
-  success: boolean;
-  in_msg?: {
-    value: number;
-    msg_type: string;
-    source?: { address: string };
-  };
-}
-
-interface TxPage {
-  transactions: TonTransaction[];
-}
-
-interface RatesResponse {
-  rates: Record<string, { prices: Record<string, number> }>;
-}
-
-async function fetchDayTransactions(
-  startTs: number,
-  endTs: number,
-): Promise<TonTransaction[]> {
-  const collected: TonTransaction[] = [];
-  let beforeLt: string | undefined;
-  const limit = 256;
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    let url = `${TON_API}/blockchain/accounts/${FEE_WALLET_RAW}/transactions?limit=${limit}&sort_order=desc`;
-    if (beforeLt) url += `&before_lt=${beforeLt}`;
-
-    const page: TxPage = await httpGet(url);
-    const txs = page.transactions ?? [];
-    if (txs.length === 0) break;
-
-    for (const tx of txs) {
-      if (tx.utime < startTs) return collected;
-      if (tx.utime < endTs && tx.utime >= startTs) {
-        collected.push(tx);
-      }
-    }
-
-    beforeLt = txs[txs.length - 1].lt;
-    if (txs.length < limit) break;
-  }
-
-  return collected;
-}
-
-async function getTonPrice(): Promise<number> {
-  const ratesUrl = `${TON_API}/rates?tokens=ton&currencies=usd`;
-  const rates: RatesResponse = await httpGet(ratesUrl);
-  const price = rates.rates?.TON?.prices?.USD;
-
-  if (price === undefined || price === null || price <= 0) {
-    throw new Error(
-      "groypfi: Unable to fetch TON/USD price from TonAPI",
-    );
-  }
-
-  return price;
-}
-
-function nanoToTon(nano: bigint): number {
-  const whole = nano / 1_000_000_000n;
-  const remainder = nano % 1_000_000_000n;
-  return Number(whole) + Number(remainder) / 1e9;
-}
+const toBigInt = (v: any) => {
+  if (v === null || v === undefined) return 0n;
+  if (typeof v === "string") return BigInt(v);
+  if (typeof v === "number") return BigInt(Math.trunc(v));
+  return 0n;
+};
 
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp } = options;
+  const dailyFees = options.createBalances();
 
-  try {
-    const tonPrice = await getTonPrice();
-    const txs = await fetchDayTransactions(startTimestamp, endTimestamp);
+  const start = options.startTimestamp;
+  const end = options.endTimestamp;
 
-    let feeNano = 0n;
+  let total = 0n;
+  let before_lt: string | undefined;
+  let before_hash: string | undefined;
+
+  const seen = new Set<string>();
+
+  while (true) {
+    const url = `https://tonapi.io/v2/blockchain/accounts/${FEE_RECIPIENT}/transactions?limit=1000&sort_order=desc${before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : ""}`;
+    let data: any;
+    try {
+      data = await fetchURL(url);
+    } catch (e) {
+      throw new Error(`Failed to fetch transactions: ${e}`);
+    }
+
+    const txs = data.transactions;
+    if (!txs.length) break;
+
+    let reachedBeforeStart = false;
 
     for (const tx of txs) {
+      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (tx.utime < start) {
+        reachedBeforeStart = true;
+        break;
+      }
+
+      if (tx.utime >= end) continue; // exclusive upper bound
       if (!tx.success) continue;
-      if (tx.in_msg && tx.in_msg.value > 0) {
-        feeNano += BigInt(tx.in_msg.value);
+
+      if (tx.in_msg.destination.address === FEE_RECIPIENT) {
+        total += toBigInt(tx.in_msg.value);
       }
     }
 
-    // Volume = fee / 0.01  (1% fee → multiply by 100)
-    const volumeNano = feeNano * 100n;
-    const volumeTon = nanoToTon(volumeNano);
-    const dailyVolumeUSD = volumeTon * tonPrice;
+    if (reachedBeforeStart) break;
 
-    return {
-      dailyVolume: dailyVolumeUSD,
-    };
-  } catch (error) {
-    console.error("groypfi dexs fetch error:", error);
-    return {
-      dailyVolume: 0,
-    };
+    const lastTx = txs[txs.length - 1];
+    if (lastTx?.lt == null || lastTx?.hash == null) break;
+
+    before_lt = String(lastTx.lt);
+    before_hash = String(lastTx.hash);
+
+    await sleep(120);
   }
+
+  dailyFees.addGasToken(total.toString());
+  const dailyVolume = dailyFees.clone(100);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const methodology = {
-  Volume:
-    "DEX aggregation volume reverse-calculated from the 1% platform fee collected at the house fee wallet. " +
-    "Includes volume from Swap Widget, Terminal Quick Buy, Launchpad trading, and @groypfi_bot Telegram bot.",
+  Volume: "DEX aggregation volume reverse-calculated from the 1% platform fee collected at the house fee wallet.",
+  Fees: "All the inflows to protcol wallet is considered as fees",
+  Revenue: "All the inflows to protcol wallet is considered as revenue",
+  ProtocolRevenue: "All the inflows to protcol wallet is considered as protocol revenue",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.TON]: {
-      fetch,
-      start: "2025-01-01",
-      meta: { methodology },
-    },
-  },
+  fetch,
+  chains: [CHAIN.TON],
+  start: "2025-01-04",
+  methodology,
 };
 
 export default adapter;
