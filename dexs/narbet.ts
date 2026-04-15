@@ -108,6 +108,64 @@ const games = [
     target: "0xb0279eB0cD894f9964c1945D9543FD6fc5C929fE",
     eventAbi: "event Limbo_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, uint256[] limboOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
   },
+
+  // ===== V3 contracts (oracle-secured redeployment, April 2026) =====
+
+  // Coin Flip v3
+  {
+    target: "0x8c78813943b922Cf22C05d78b7111581CDe26470",
+    eventAbi: "event CoinFlip_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint8[] coinOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Range v3
+  {
+    target: "0x7d122332D2a8C101E04413ADcE65800E14FBE7CA",
+    eventAbi: "event Range_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, bool isOver, uint256[] rangeOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Rock Paper Scissors v3
+  {
+    target: "0x17e16003642fadADD35D5932D99CDb5db440762c",
+    eventAbi: "event RockPaperScissors_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint8[] outcomes, uint8[] randomActions, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Slots v3
+  {
+    target: "0xC217163660b556290718F61BCB73709473ceFcFD",
+    eventAbi: "event Slots_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint16[] slotIDs, uint256[] multipliers, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Mines v3
+  {
+    target: "0x2AF15C945e0FaC4D11912f8BCCe527A1B6d6F5f0",
+    eventAbi: "event Mines_End_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint256 numMines, bool[25] revealedTiles, uint256 multiplier )",
+  },
+  // Plinko v3
+  {
+    target: "0x9d0f00aCC5f3Cb1D78D074f6b6e630f29fE7fcB7",
+    eventAbi: "event Plinko_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint16[] paths, uint8 numRows, uint8 risk, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Video Poker v3
+  {
+    target: "0x028485Da1612602f5D3B41f1BB9B68d2Fcf32508",
+    eventAbi: "event VideoPoker_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, (uint8,uint8)[5] playerHand, uint256 outcome, uint64 sequenceNumber, uint64 sequenceNumberStart )",
+  },
+  // Baccarat v3
+  {
+    target: "0x6EdCaA21083B97526EC388E26cEb9f4C2Cf118cC",
+    eventAbi: "event Baccarat_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256[5] wager, uint256 totalPayout, address tokenAddress, (uint8,uint8)[6] playerHand, (uint8,uint8)[3] bankerCards, (uint8,uint8)[3] playerCards, uint256[3] outcome, uint256[5] payouts, uint64 sequenceNumber )",
+  },
+  // Roulette v3
+  {
+    target: "0xbc796462ebbb625dE027465fe004faFAAA893B18",
+    eventAbi: "event Roulette_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256 totalPayout, address tokenAddress, uint256[] wager, uint256[] rouletteType, uint256[] payouts, uint256 outcome, uint64 sequenceNumber )",
+  },
+  // Fish Prawn Crab v3
+  {
+    target: "0x41E6675d9Ae2F9803ccF1DdeC81304fE256fE9c0",
+    eventAbi: "event FishPrawnCrab_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256 totalPayout, address tokenAddress, uint256[] wager, uint256[] fishPrawnCrabType, uint256[] payouts, uint256[3] outcome, uint64 sequenceNumber )",
+  },
+  // Limbo v3
+  {
+    target: "0x87F70cC2492688675228D89BCA894f855A5dbF50",
+    eventAbi: "event Limbo_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, uint256[] limboOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
 ];
 
 const fetch = async (options: FetchOptions) => {
