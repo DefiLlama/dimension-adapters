@@ -186,7 +186,7 @@ const adapter: SimpleAdapter = {
       start: '2023-05-11',
     },
     [CHAIN.PLASMA]: {
-      start: '2023-05-11',
+      start: '2025-09-29',
     },
   },
 };
