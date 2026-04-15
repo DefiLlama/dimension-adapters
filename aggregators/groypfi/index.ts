@@ -100,7 +100,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "DEX aggregation volume reverse-calculated from the 1% platform fee collected at the house fee wallet.",
+  Volume: "DEX aggregation volume reverse-calculated from the 1% platform fee collected at the house fee wallet."+
+  "Sources: Swap Widget (web app), Terminal Quick Buy (web app), Launchpad token trading (web app), @groypfi_bot (Telegram trading bot)",
   Fees: "All the inflows to protcol wallet is considered as fees",
   Revenue: "All the inflows to protcol wallet is considered as revenue",
   ProtocolRevenue: "All the inflows to protcol wallet is considered as protocol revenue",
