@@ -12,6 +12,7 @@ const poolTokenSetEvent =
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
 
   const poolCreationLogs = await options.getLogs({
     target: rainFactory,
@@ -41,6 +42,12 @@ const fetch = async (options: FetchOptions) => {
       decimals: Number(log.tokenDecimals),
     };
   });
+  
+  // bug fix missing log
+  poolTokenMap['0x1cd385293d30d2b77ba9fa777ef1470b5312dae9'] = {
+    token: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+    decimals: 6,
+  }
 
   await options.streamLogs({
     noTarget: true,
@@ -53,12 +60,13 @@ const fetch = async (options: FetchOptions) => {
         const pool = log.address.toLowerCase();
         const tokenInfo = poolTokenMap[pool]
         if (!tokenInfo) throw new Error(`Token info not found for pool ${pool}`);
-          dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
+        dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
+        dailyNotionalVolume.addToken(tokenInfo.token, log.args.optionAmount);
       })
     }
   })
 
-  return { dailyVolume, }
+  return { dailyVolume, dailyNotionalVolume };
 };
 
 const methodology = {

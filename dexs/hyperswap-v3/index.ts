@@ -3,7 +3,7 @@ import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const GRAPH_URL = 'https://api.goldsky.com/api/public/project_cm97l77ib0cz601wlgi9wb0ec/subgraphs/hyperswap-v3/1.0.19/gn'
+const GRAPH_URL = 'https://api.goldsky.com/api/public/project_cm97l77ib0cz601wlgi9wb0ec/subgraphs/hyperswap-v3/1.0.23/gn'
 // const SWAP_TOKEN = '0x03832767bdf9a8ef007449942125ad605acfadb8';
 // const BURN_ADDRESS = "0x0000000000000000000000000000000000000000";
 

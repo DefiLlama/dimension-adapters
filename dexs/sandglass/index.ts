@@ -51,6 +51,7 @@ const adapter: SimpleAdapter = {
       fetch,
     },
   },
+  deadFrom: '2025-12-01', //sunset
 };
 
 export default adapter;

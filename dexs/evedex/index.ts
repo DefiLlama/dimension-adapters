@@ -18,9 +18,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     await PromisePool.withConcurrency(1)
         .for(markets)
         .process(async (market) => {
-            const ohlcvData = await fetchURLAutoHandleRateLimit(`${OHLCV_ENDPOINT}/${market}/list?after=${after}&before=${before}&group=1d`);
+            const ohlcvData = await fetchURLAutoHandleRateLimit(`${OHLCV_ENDPOINT}/${market}/list?after=${after}&before=${before}&group=1h`);
             const todaysData = ohlcvData.filter(data => data[0] >= options.startOfDay * 1000 && data[0] < options.endTimestamp * 1000);
-            dailyVolume.addUSDValue((todaysData[0]?.[5] ?? 0) / 2); //They count both maker and taker volume in candles
+            dailyVolume.addUSDValue(todaysData.reduce((acc: number, data: any) => acc + data[5] / 2, 0)); //They count both maker and taker volume in candles
             await sleep(1000);
         });
 

@@ -32,6 +32,7 @@ export const ALLIUM_CHAIN_MAP: Record<string, string> = {
   [CHAIN.ROOTSTOCK]: 'rootstock',
   [CHAIN.WC]: 'worldchain',
   [CHAIN.MANTA]: 'manta_pacific',
+  [CHAIN.HYPERLIQUID]: 'hyperevm',
 }
 
 export function getAlliumChain(chain: string): string {

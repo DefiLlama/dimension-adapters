@@ -287,6 +287,7 @@ type UniV3Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   start?: number | string,
+  deadFrom?: number | string,
   blacklistPools?: Array<string>,
   pools?: string[], // alternative to providing factory
 }
@@ -327,10 +328,12 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
     if (swapEvent) chainConfig.swapEvent = swapEvent
     const fetch: any = getUniV3LogAdapter(chainConfig)
     exportObject[chain] = { fetch, start: chainConfig.start }
+    if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
     exportObjectV1[chain] = {
       fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
+    if (chainConfig.deadFrom) exportObjectV1[chain].deadFrom = chainConfig.deadFrom
   })
 
   if (runAsV1)

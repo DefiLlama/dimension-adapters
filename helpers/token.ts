@@ -734,19 +734,21 @@ type GetEVMTokenTransfersParams = {
  * Use cases:
  * - Track token burns: filter transfers to zero address
  * - Track protocol revenue: filter transfers to treasury addresses
+ * - Track routed volume: filter transfers from router addresses
  * - Track user payments: filter by transaction sender addresses
  * - Exclude internal transfers: blacklist protocol contract addresses
  * 
- * @param params.toAddresses - Required. Filter transfers to these addresses (Transfer event 'to')
- * @param params.fromAddresses - Optional. Filter transfers from these addresses (Transfer event 'from')
+ * @param params.toAddresses - Filter transfers to these addresses (Transfer event 'to')
+ * @param params.fromAddresses - Filter transfers from these addresses (Transfer event 'from')
+ * @param params.txFromAddresses - Filter by transaction sender (tx.from)
+ * @param params.txToAddresses - Filter by transaction receiver (tx.to)
  * @param params.tokens - Optional. Filter specific token addresses
- * @param params.txFromAddresses - Optional. Filter by transaction sender (tx.from)
- * @param params.txToAddresses - Optional. Filter by transaction receiver (tx.to)
  * @param params.blacklistFromAddresses - Optional. Exclude transfers from these addresses
  * @param params.blacklistToAddresses - Optional. Exclude transfers to these addresses
  * @param params.blacklistTxFromAddresses - Optional. Exclude transactions from these addresses
  * @param params.blacklistTxToAddresses - Optional. Exclude transactions to these addresses
  * @returns Balances object with aggregated token amounts
+ * @throws Error if none of toAddresses, fromAddresses, txFromAddresses, or txToAddresses is provided
  */
 export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
   const {
@@ -765,14 +767,14 @@ export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
 
   const balances = inputBalances || options.createBalances();
 
-  if (!toAddresses.length) {
-    throw new Error('toAddresses is required');
+  if (!toAddresses.length && !fromAddresses.length && !txFromAddresses.length && !txToAddresses.length) {
+    throw new Error('At least one of toAddresses, fromAddresses, txFromAddresses, or txToAddresses is required');
   }
 
   const normalizeAddresses = (addrs: string[]) => 
     [...new Set(addrs.map(a => a.toLowerCase()))];
 
-  const toAddrs = normalizeAddresses(toAddresses);
+  const toAddrs = toAddresses.length ? normalizeAddresses(toAddresses) : [];
   const fromAddrs = fromAddresses.length ? normalizeAddresses(fromAddresses) : [];
   const tokenAddrs = tokens.length ? normalizeAddresses(tokens) : [];
   const txFromAddrs = txFromAddresses.length ? normalizeAddresses(txFromAddresses) : [];
@@ -795,9 +797,12 @@ export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
     FROM crosschain.assets.transfers
     WHERE 
     chain = '${chainKey}'
-    AND to_address IN ${formatList(toAddrs)}
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
+
+  if (toAddrs.length) {
+    query += `\n    AND to_address IN ${formatList(toAddrs)}`;
+  }
 
   if (fromAddrs.length) {
     query += `\n    AND from_address IN ${formatList(fromAddrs)}`;

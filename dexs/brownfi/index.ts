@@ -97,7 +97,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyRevenue: dailyRevenue,
     dailySupplySideRevenue: dailyFees,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: "0",
   };
 };
 

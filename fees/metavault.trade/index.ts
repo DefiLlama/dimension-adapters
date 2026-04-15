@@ -3,11 +3,11 @@ import { Chain } from "../../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
-import { POLYGON } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -50,11 +50,12 @@ const adapter: Adapter = {
   },
   version: 1,
   adapter: {
-    [POLYGON]: {
-      fetch: graphs(endpoints)(POLYGON),
+    [CHAIN.POLYGON]: {
+      fetch: graphs(endpoints)(CHAIN.POLYGON),
       start: '2022-06-01',
     },
   },
+  deadFrom: "2025-06-04",
 };
 
 export default adapter;

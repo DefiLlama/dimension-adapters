@@ -2,10 +2,14 @@
 
 These guidelines apply to ALL adapters in this repository.
 
+## PR Description
+
+- Always provide Website and twitter links in the description
+
 ## Code Structure
 
 - Use on-chain data/event logs where possible. We are stricter about on-chain for chains where we maintain our own indexer, or where there is significant volume/fees, or where you suspect wash trading
-- Use `pullHourly: true` to avoid recomputing data for the same time period and provide more granular data
+- Use `pullHourly: true`, wherever evm logs and allium queries are used to avoid recomputing data for the same time period and provide more granular data
 - Never swallow errors silently. For recoverable chain-specific failures, return 0 and log the error so the adapter continues for other chains. For system-level or critical errors, throw/propagate to fail fast
 - Use/add helper code when multiple adapters use similar logic - check `helpers/` folder first
 - Do NOT add npm dependencies - this leads to bloat

@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { FetchOptions, FetchResult, SimpleAdapter } from '../adapters/types';
 import fetchURL from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import * as sdk from "@defillama/sdk";
@@ -41,10 +41,11 @@ interface GetPolymarketVolumeProps {
   currency: string;
 }
 
-export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<{ dailyVolume: sdk.Balances }> {
+export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<FetchResult> {
   const { options, exchanges, currency } = props;
   
   const dailyVolume = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
   
   const OrderFilledLogs = await options.getLogs({
     targets: exchanges,
@@ -54,16 +55,16 @@ export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Prom
 
   for (const log of OrderFilledLogs) {
     if (log.makerAssetId.toString() === '0') {
-      const volumeInWei = BigInt(log.makerAmountFilled) / 2n;
-      dailyVolume.add(currency, volumeInWei);
+      dailyVolume.add(currency, BigInt(log.makerAmountFilled) / 2n);
+      dailyNotionalVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
     }
     else if (log.takerAssetId.toString() === '0') {
-      const volumeInWei = BigInt(log.takerAmountFilled) / 2n;
-      dailyVolume.add(currency, volumeInWei);
+      dailyVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
+      dailyNotionalVolume.add(currency, BigInt(log.makerAmountFilled) / 2n)
     }
   }
 
-  return { dailyVolume };
+  return { dailyVolume, dailyNotionalVolume };
 }
 
 

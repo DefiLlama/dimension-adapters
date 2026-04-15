@@ -115,6 +115,7 @@ const adapter: Adapter = {
       fetch: graphs(endpoints)(CHAIN.ZETA) as any,
     }, 
   },
+  deadFrom: "2025-10-11",
 };
 
 export default adapter;

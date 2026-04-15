@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const MARKETS = {
+const MARKETS:any = {
   [CHAIN.ABSTRACT]: '0x3e0F5F8F5Fb043aBFA475C0308417Bf72c463289',
   [CHAIN.LINEA]: '0x39e66ee6b2ddaf4defded3038e0162180dbef340',
   [CHAIN.BSC]: '0x39e66ee6b2ddaf4defded3038e0162180dbef340',
@@ -19,34 +19,51 @@ async function fetch({ createBalances, chain, api, getLogs }: FetchOptions) {
   const dailyFees = createBalances();
   const dailySupplySideRevenue = createBalances();
   const dailyRevenue = createBalances();
+  const dailyNotionalVolume = createBalances();
 
-  const markets = await api.call({ abi: 'uint256[]:getMarkets', target: market });
-  const marketData = await api.multiCall({ target: market, abi: abi.getMarketAltData, calls: markets })
-  const marketFees = (await api.multiCall({ target: market, abi: abi.getMarketFees, calls: markets }))
+  const marketIndex = await api.call({ abi: 'uint256:marketIndex', target: market });
+
   const marketMapping: any = {}
-  markets.forEach((val, idx) => marketMapping[val] = {
-    token: marketData[idx].token,
-    fees: marketFees[idx]
-  })
-
-  marketFees.forEach(i => {
-    i.buyFees = i.buyFees.map(j => Number(j) / 1e18)
-  })
+  let fromIndex = 0;
+  const callSize = 20000;
+  do {
+    let toIndex = fromIndex + callSize;
+    if (toIndex > marketIndex) toIndex = marketIndex;
+    
+    const markets = [];
+    for (let i = fromIndex; i < toIndex; i++) markets.push(i);
+    
+    const marketData = await api.multiCall({ target: market, abi: abi.getMarketAltData, calls: markets })
+    const marketFees = (await api.multiCall({ target: market, abi: abi.getMarketFees, calls: markets }))
+    markets.forEach((val:any, idx:any) => marketMapping[val] = {
+      token: marketData[idx].token,
+      fees: marketFees[idx],
+    })
+    
+    fromIndex += callSize;
+    
+  } while (fromIndex < marketIndex)
+  
   const tradeLogs = await getLogs({ target: market, eventAbi: abi.MarketActionTx, });
 
-  tradeLogs.forEach(({ action, marketId, value }) => {
+  tradeLogs.forEach(({ action, marketId, value, shares }) => {
     value = Number(value)
     action = Number(action)
+    shares = Number(shares)
+
     const { fees, token } = marketMapping[marketId]
     const isBuy = action === 0
     const feeKey = isBuy ? 'buyFees' : 'sellFees'
-    const [fee, treasuryFee, distributorFee] = fees[feeKey]
+    const fee = Number(fees[feeKey][0]) / 1e18
+    const treasuryFee = Number(fees[feeKey][1]) / 1e18
+    const distributorFee = Number(fees[feeKey][2]) / 1e18
     const totalFee = fee + treasuryFee + distributorFee
 
     switch (action) {
       case 0: // buy
       case 1: // sell
         dailyVolume.add(token, value);
+        dailyNotionalVolume.add(token, shares);
         dailyFees.add(token, value * totalFee, isBuy ? 'BuyFee' : 'SellFee')
         dailySupplySideRevenue.add(token, value * distributorFee, 'DistributorFee')
         dailySupplySideRevenue.add(token, value * fee, 'LPFee')
@@ -58,10 +75,10 @@ async function fetch({ createBalances, chain, api, getLogs }: FetchOptions) {
 
   return {
     dailyVolume,
+    dailyNotionalVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
-    dailyHoldersRevenue: 0,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue
   };
 }

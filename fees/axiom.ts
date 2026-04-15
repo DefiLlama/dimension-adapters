@@ -82,7 +82,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 };
 
 
@@ -96,7 +96,6 @@ const adapter: SimpleAdapter = {
     Fees: 'User pays 0.75%-1% fee on each trade',
     Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
     UserFees: 'User pays 0.75%-1% fee on each trade',
-    HoldersRevenue: 'No token holder revenue',
     ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
   },
   breakdownMethodology: {

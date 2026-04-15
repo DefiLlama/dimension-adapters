@@ -76,7 +76,7 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Total trading volume from bonding curve buys and sells on the Printr protocol, tracked via on-chain TokenTrade events. Each trade's cost is denominated in the curve's base pair token (e.g. USDC, WETH, BNB).",
+    "Total trading volume from all Printr tokens across all supported chains (Solana, Base, BNB, Ethereum, Monad, Avalanche, Mantle, Arbitrum), tracked via on-chain trade events, denominated in the base pair token",
   Fees: "Printr charges a 1% fee on all bonding curve swaps.",
   Revenue:
     "75% of trading fees: team (10%), protocol-controlled memecoin reserve (25%), and buyback (40%).",

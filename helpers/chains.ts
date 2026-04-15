@@ -138,6 +138,7 @@ export enum CHAIN {
   ICP = "icp",
   LINEA = "linea",
   BASE = "base",
+  BCYPHER = "bcypher",
   NEON = "neon_evm",
   NEONY = "neony",
   OP_BNB = "op_bnb",
@@ -197,6 +198,7 @@ export enum CHAIN {
   MINT = "mint",
   HELA = "hela",
   KASPLEX = "kasplex",
+  IGRA = "igra",
   FUEL = "fuel",
   REAL = "real",
   CELESTIA = "celestia",
@@ -351,4 +353,7 @@ export enum CHAIN {
   QIEV3 = "qiev3",
   BITTENSOR = "bittensor",
   TEMPO = "tempo",
+  HOTSTUFF = "hotstuff",
+  CHIA = "chia",
+  CANTON = "canton",
 }

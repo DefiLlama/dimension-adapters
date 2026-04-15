@@ -1,8 +1,6 @@
-import { Chain } from "../../adapters/types";
-import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
+import fetchURL from "../../utils/fetchURL";
 
 /**
  * Napier Finance Fees Adapter
@@ -11,158 +9,95 @@ import { addTokensReceived } from "../../helpers/token";
  * and yield tokens (YT). Fees are collected from various activities and split between
  * curators and protocol.
  *
- * Data source: napier-api (pre-computed from subgraph data)
+ * Data source: napier-api (pre-computed from subgraph data with DeFiLlama historical pricing)
  * Methodology:
- * - Reads dailyFeeInUsd from napier-api market list (1 API call per chain)
- * - Fees include: issuance, performance, redemption, post-settlement, and swap fees
+ * - Reads daily fee data from napier-api /v1/market/daily-fees endpoint (1 API call per chain)
+ * - The API accepts a timestamp and returns fees for the UTC day containing that timestamp
+ * - Fees include: issuance, performance, redemption, post-settlement, and AMM swap fees
  * - Splits between curator (supply side) and protocol based on splitFeePercentage
- * - Tracks protocol reward tokens sent to treasury
+ * - Fee events are sporadic (fire on yield collection, not daily) — $0 on quiet days is expected
  */
 
-interface Market {
-  metrics: {
-    dailyFeeInUsd?: number;
-    dailyCuratorFeeInUsd?: number;
-    dailyProtocolFeeInUsd?: number;
-    underlyingRewards: Array<{
-      rewardToken: {
-        address: string;
-      };
-    }>;
-  };
+interface DailyFeeEntry {
+  chainId: number;
+  address: string;
+  dailyFeeInUsd: number;
+  dailyCuratorFeeInUsd: number;
+  dailyProtocolFeeInUsd: number;
 }
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const { createBalances, chain, api } = options;
-    const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
+  const { createBalances, chain, api } = options;
+  const timestamp = options.toTimestamp;
+  const url = `${API_BASE_URL}/v1/market/daily-fees?chainIds=${api.chainId!}&timestamp=${timestamp}`;
 
-    let markets: Market[];
-    try {
-      const res = await axios.get<Market[]>(url);
-      if (!Array.isArray(res.data)) {
-        throw new Error(`Napier API returned non-array payload for chain ${chain} (chainId ${api.chainId})`);
-      }
-      markets = res.data;
-    } catch (e: any) {
-      throw new Error(`Napier API fetch failed for chain ${chain} (chainId ${api.chainId}): ${e?.message ?? e}`);
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
+
+  const entries = await fetchURL(url);
+  if (!entries || !Array.isArray(entries)) {
+    throw new Error(`Napier API returned invalid response for ${chain}`);
+  }
+
+  for (const entry of entries) {
+    if (entry.dailyFeeInUsd > 0) {
+      dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
+      dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Yield & swap fees to curators");
+      dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
     }
+  }
 
-    const dailyFees = createBalances();
-    const dailySupplySideRevenue = createBalances();
-
-    for (const market of markets) {
-      const fee = Number(market.metrics?.dailyFeeInUsd ?? 0);
-      const curatorFee = Number(market.metrics?.dailyCuratorFeeInUsd ?? 0);
-      if (fee > 0) {
-        dailyFees.addUSDValue(fee);
-        dailySupplySideRevenue.addUSDValue(curatorFee);
-      }
-    }
-
-    // Protocol revenue from reward tokens sent to treasury
-    const rewardTokens = [...new Set(
-      markets.flatMap((m) =>
-        (m.metrics?.underlyingRewards ?? []).map((r: any) => r.rewardToken.address)
-      )
-    )];
-    let dailyRevenue = createBalances();
-    if (rewardTokens.length > 0) {
-      dailyRevenue = await addTokensReceived({
-        options,
-        target: chainConfig[chain].treasury,
-        tokens: rewardTokens,
-      });
-    }
-
-    // Add protocol's share of fees (non-curator portion)
-    for (const market of markets) {
-      const protocolFee = Number(market.metrics?.dailyProtocolFeeInUsd ?? 0);
-      if (protocolFee > 0) {
-        dailyRevenue.addUSDValue(protocolFee);
-      }
-    }
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailySupplySideRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-    };
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
-
+};
 
 const methodology = {
-  UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
-  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance).",
-  Revenue: "Revenue governed by two fee distribution ratios: LP-Curator ratio (applies to AMM trading fees, defined per market by curators) and Curator-Protocol/DAO ratio (defined by Napier governance). Plus reward tokens sent to treasury.",
-  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio, plus protocol reward tokens.",
+  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance). Fee events fire on yield collection, not daily.",
+  Revenue: "Protocol/DAO share of fees based on the Curator-Protocol fee distribution ratio, defined by Napier governance.",
+  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio.",
   SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
 };
 
-type Config = {
-  treasury: string;
-  start: string;
+const breakdownMethodology = {
+  Fees: {
+    "Yield & swap fees": "Daily fees from PT/YT operations (issuance, redemption, performance) and AMM swap fees, priced using DeFiLlama historical prices.",
+  },
+  Revenue: {
+    "Protocol/DAO share of yield & swap fees": "Protocol/DAO share of yield and swap fees based on the fee distribution ratio.",
+  },
+  SupplySideRevenue: {
+    "Yield & swap fees to curators": "Curator's share of yield and swap fees.",
+  },
 };
 
-const chainConfig: Record<Chain, Config> = {
-  [CHAIN.ETHEREUM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-02-28",
-  },
-  [CHAIN.BASE]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-02-27",
-  },
-  [CHAIN.SONIC]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-07",
-  },
-  [CHAIN.ARBITRUM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.OPTIMISM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.FRAXTAL]: {
-    treasury: "0x8C244F488A742365ECB5047E78c29Ac2221ac0bf",
-    start: "2024-03-11",
-  },
-  [CHAIN.MANTLE]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.BSC]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.POLYGON]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-12",
-  },
-  [CHAIN.AVAX]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-12",
-  },
-  [CHAIN.HYPERLIQUID]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-13",
-  },
-  [CHAIN.PLUME]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-13",
-  },
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.ETHEREUM]: { start: "2025-02-28" },
+  [CHAIN.BASE]: { start: "2025-02-28" },
+  [CHAIN.SONIC]: { start: "2025-03-10" },
+  [CHAIN.ARBITRUM]: { start: "2025-03-28" },
+  [CHAIN.OPTIMISM]: { start: "2025-03-11" },
+  [CHAIN.FRAXTAL]: { start: "2025-03-29" },
+  [CHAIN.MANTLE]: { start: "2025-03-11" },
+  [CHAIN.BSC]: { start: "2025-03-12" },
+  [CHAIN.POLYGON]: { start: "2025-03-27" },
+  [CHAIN.AVAX]: { start: "2025-03-12" },
+  [CHAIN.HYPERLIQUID]: { start: "2025-05-23" },
+  [CHAIN.PLUME]: { start: "2025-05-28" },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  runAtCurrTime: true,
-  fetch,
   adapter: chainConfig,
+  fetch,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -1,4 +1,4 @@
-import { exportBuilderAdapter, exportHIP3DeployerAdapter } from "../helpers/hyperliquid";
+import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter } from "../helpers/hyperliquid";
 import { createFactoryExports } from "./registry";
 
 interface BuilderConfig {
@@ -11,6 +11,17 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "sushi-perps": {
+    addresses: ["0x12ee177db3ceafedc639d023a29cc8588db3a4b9"],
+    start: "2025-03-30",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      HoldersRevenue: "No fees distributed to SUSHI token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
     start: "2025-06-12",
@@ -456,6 +467,99 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
   }
 };
 
+interface ValidatorConfig {
+  addressesOrNames: string[];
+  methodology?: any;
+}
+
+// Validators staking adapter configs: protocol name -> config
+const validatorConfigs: Record<string, ValidatorConfig> = {
+  "flowdex": {
+    addressesOrNames: ['0x8f02ade62c1c1cf34daa855ccf1245aaf90d3056'],
+  },
+  "validao": {
+    addressesOrNames: ['0x000000000056f99d36b6f2e0c51fd41496bbacb8'],
+  },
+  "hyper-foundation": {
+    addressesOrNames: [
+      '0x5ac99df645f3414876c816caa18b2d234024b487', // Hyper Foundation 1
+      '0xa82fe73bbd768bc15d1ef2f6142a21ff8bd762ad', // Hyper Foundation 2
+      '0x80f0cd23da5bf3a0101110cfd0f89c8a69a1384d', // Hyper Foundation 3
+      '0xdf35aee8ef5658686142acd1e5ab5dbcdf8c51e8', // Hyper Foundation 4
+      '0x66be52ec79f829cc88e5778a255e2cb9492798fd', // Hyper Foundation 5
+    ],
+  },
+  "purrposeful": {
+    addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
+  },
+  "Kinetiq-Hyperion": {
+    addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
+  },
+  "Nansen-HypurrCollective": {
+    addressesOrNames: ['0xb8f45222a3246a2b0104696a1df26842007c5bc5'],
+  },
+  "LiquidSpirit-Hydromancer-RektGang": {
+    addressesOrNames: ['0xb00c116f72eb55f52ca80196b63014a42cc72de1'],
+  },
+  "axsn": {
+    addressesOrNames: ['0xe45c96a6a32318e5df7347477963bf0de38ff7ff'],
+  },
+  "galaxy-digital": {
+    addressesOrNames: ['0xc75a3fc98b0e1af7a95b6a720adf2e23806d2c7b'],
+  },
+  "cp0x": {
+    addressesOrNames: ['0xc56d0c8ae0c387b439226387c54dbedb0aededfb'],
+  },
+  "red-pond": {
+    addressesOrNames: ['0xb01934de2e25e57a6a91b3411a7544be2e06f392'],
+  },
+  "hypurrscanning": {
+    addressesOrNames: ['0xabcdeff4b3727b83a23697500eef089020df2cd2'],
+  },
+  "infinitefieldxyz": {
+    addressesOrNames: ['0xa23b4556090260828ff3f939d2dbdd4f318b5f1f'],
+  },
+  "hyperstake": {
+    addressesOrNames: ['0x8b8c3966870321866e7b7091c382308a6a97e9b1'],
+  },
+  "Imperator-HypeRPC": {
+    addressesOrNames: ['0x8a5dbdf69b282bf2e8fb9f29fd34891f79c5dfd4'],
+  },
+  "HyperCN-hlscan": {
+    addressesOrNames: ['0x68e6b8995d0ea3ebe829bd66e9437eaf536aff9c'],
+  },
+  "hypurr-corea": {
+    addressesOrNames: ['0x65baa675fa9e5f6c7ae4541ebdb16c526de06f1f'],
+  },
+  "cmi-hype-staking": {
+    addressesOrNames: ['0x4e256d24da830290d10f425b44f3e9439394385a'],
+  },
+  "Hyperbeat-P2P-Hypio": {
+    addressesOrNames: ['0x497beec89958848126c2ea65934ce430e1410ad2'],
+  },
+  "USDT0-Luganodes": {
+    addressesOrNames: ['0x48f1da3e3ec2814fbb3dcf57125001089b067402'],
+  },
+  "anchorage-by-figment": {
+    addressesOrNames: ['0x420a4ed7b6bb361da586868adec2f2bb9ab75e66'],
+  },
+  "alphaticks": {
+    addressesOrNames: ['0x3e5b2598a32ebf003ad5a7254faa3d04ff41d9fe'],
+  },
+  "bitwise-hl-staking": {
+    addressesOrNames: ['0x30c66ebc7f5ef4f340b424a26e4d944f60129815'],
+  },
+  "b-harvest": {
+    addressesOrNames: ['0x15458aed3c7a49b215fbfa863c6ff550c31e1a31'],
+  },
+  "meria": {
+    addressesOrNames: [
+      '0x950f8dd5e5030e1fa6ad2cdc4295809d185925d0', // Meria
+      '0x914d7f841b5ee14d1cd3852c7b2601b6ff6a8c52', // Enigma-Hypedexer-Meria-HypurrFi
+    ],
+  },
+}
+
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
 const hip3DexConfigs: Record<string, { dexId: string; start: string; methodologyName: string }> = {
   "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
@@ -464,6 +568,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
   // "kinetiq-markets": { dexId: "km", start: "2025-12-16", methodologyName: "Kinetiq Markets" },
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
+  "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
 // HIP3 deployer OI configs: protocol name -> dexId
@@ -474,6 +579,7 @@ const hip3OiConfigs: Record<string, string> = {
   // "kinetiq-markets-oi": "km",
   "tradexyz-oi": "xyz",
   "ventuals-oi": "vntl",
+  "paragon-oi": "para",
 };
 
 function hip3Methodology(name: string) {
@@ -513,6 +619,12 @@ for (const [name, config] of Object.entries(builderFeesConfigs)) {
   });
 }
 
+// Build fees protocols (validators staking fees)
+const feesValidators: Record<string, any> = {};
+for (const [name, config] of Object.entries(validatorConfigs)) {
+  feesValidators[name] = exportValidatorStakingAdapter(config);
+}
+
 // Build OI protocols (HIP3 OI)
 const oiProtocols: Record<string, any> = {};
 for (const [name, dexId] of Object.entries(hip3OiConfigs)) {
@@ -523,5 +635,7 @@ for (const [name, dexId] of Object.entries(hip3OiConfigs)) {
 export const { protocolList, getAdapter } = createFactoryExports(dexsProtocols);
 // Named export: fees (builder fees)
 export const fees = createFactoryExports(feesProtocols);
+// Named export: validatorsFees ( fees)
+export const validatorFees = createFactoryExports(feesValidators);
 // Named export: oi (HIP3 open interest)
 export const oi = createFactoryExports(oiProtocols);

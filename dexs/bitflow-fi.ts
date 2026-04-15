@@ -36,7 +36,10 @@ const getTokenPricesMap = async () => {
 
   const tokenPricesMap: { [tokenContract: string]: number } = {};
   for (const token of tokens) {
-    tokenPricesMap[token.tokenContract] = token.priceData.last_price;
+    if (!token.priceData)
+      tokenPricesMap[token.tokenContract] = 0;
+    else
+      tokenPricesMap[token.tokenContract] = token.priceData.last_price;
   }
   return tokenPricesMap;
 };
