@@ -30,28 +30,36 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   for (const node of queryResult.platformTotalVolumesByPeriod.nodes) {
     dailyVolume.addUSDValue(Number(node.totalVolNorm));
     dailyFees.addUSDValue(Number(node.xykpoolFeeVolNorm), 'XYK Pools Fees');
     dailyFees.addUSDValue(Number(node.stableswapFeeVolNorm), 'StableSwap Fees');
-    dailyFees.addUSDValue(Number(node.omnipoolFeeVolNorm), 'Omni Pool Fees');
-    
+    dailyFees.addUSDValue(Number(node.omnipoolFeeVolNorm), 'Omnipool Fees');
+
+    // XYK and Stableswap fees go 100% to LPs
     dailySupplySideRevenue.addUSDValue(Number(node.xykpoolFeeVolNorm), 'XYK Pools Fees To LPs');
     dailySupplySideRevenue.addUSDValue(Number(node.stableswapFeeVolNorm), 'StableSwap Fees To LPs');
-    dailySupplySideRevenue.addUSDValue(Number(node.omnipoolFeeVolNorm) * 0.8, 'Omni Pool Fees To LPs');
-    
-    const revenue = Number(node.omnipoolFeeVolNorm) * 0.2;
-    const amountH2OBurn = Number(node.omnipoolFeeVolNorm) * 0.2 * 0.5;
-    const revenueProtocol = revenue - amountH2OBurn;
-    
-    // H2O is not DEX gov token, count it as supply-side
-    dailySupplySideRevenue.addUSDValue(amountH2OBurn, 'H2O Token Burnt');
 
-    dailyRevenue.addUSDValue(revenueProtocol, 'Omni Pool Fees To Hydration DEX');
+    // Omnipool has two independent fee types combined in omnipoolFeeVolNorm:
+    //   Asset fee  (≈80% of total): 50% stays in pool → LPs, 50% → Referral pallet (stakers/referrers/traders)
+    //   Protocol fee (≈20% of total): 100% → Treasury (BurnProtocolFee = 0% in runtime)
+    // Ratio approximated from fee ranges: asset 0.15-5%, protocol 0.05-0.25%
+    const omnipoolFee = Number(node.omnipoolFeeVolNorm);
+    const assetFee    = omnipoolFee * 0.8;
+    const protocolFee = omnipoolFee * 0.2;
 
-    dailyProtocolRevenue.addUSDValue(revenueProtocol, 'Omni Pool Fees To Hydration DEX');
+    dailySupplySideRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To LPs');
+    dailyHoldersRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
+
+    // BurnProtocolFee = 0% in runtime (hydration-node/runtime/hydradx/src/assets.rs)
+    // 100% of protocol fee goes to Treasury; nothing is burned currently
+    dailyProtocolRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
+
+    dailyRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
+    dailyRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
   }
 
   return {
@@ -59,7 +67,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue,
     dailyProtocolRevenue,
   };
 };
@@ -76,29 +84,32 @@ const adapter: SimpleAdapter = {
   
   // https://docs.hydration.net/products/trading/fees#protocol-fee
   methodology: {
-    Fees: 'All fees paid by users for swaps on Hydration.',
-    Revenue: 'Approx 1/5th of fees is distributed to the protocol',
-    SupplySideRevenue: 'All fees paid to liquidity providers for stableswap and xykpool. For omnipool, approx 80%. of the fees',
-    ProtocolRevenue: 'Approx 1/10th of fees is distributed to the protocol treasury',
-    HoldersRevenue: 'Paid in H2O tokens, are burnt',
+    Fees: 'All fees paid by users for swaps on Hydration (asset fees + protocol fees across all pool types).',
+    Revenue: '50% of Omnipool asset fees distributed to HDX stakers & referrals, plus 50% of Omnipool protocol fees sent to Treasury.',
+    SupplySideRevenue: '100% of XYK and Stableswap fees go to LPs. For Omnipool, 50% of the asset fee (≈40% of total Omnipool fees) stays in the pool for LPs.',
+    ProtocolRevenue: '100% of Omnipool protocol fees (≈20% of total Omnipool fees) sent to Treasury. BurnProtocolFee is set to 0% in the runtime (no H2O burn currently active).',
+    HoldersRevenue: '50% of Omnipool asset fees (≈40% of total Omnipool fees) distributed via the Referral pallet to HDX stakers, referrers, and traders.',
   },
   breakdownMethodology: {
     Fees: {
       'XYK Pools Fees': 'All fees collected from XYK pools.',
       'StableSwap Fees': 'All fees collected from stable swap pools.',
-      'Omni Pool Fees': 'All fees collected from omni pool.',
+      'Omnipool Fees': 'All fees collected from Omnipool (asset fee + protocol fee combined).',
     },
     Revenue: {
-      'Omni Pool Fees To Hydration DEX': 'Share of 50% from 20% all Omni Pool Fees.',
+      'Omnipool Asset Fees To Stakers & Referrals': '50% of Omnipool asset fees distributed via the Referral pallet.',
+      'Omnipool Protocol Fees To Treasury': '100% of Omnipool protocol fees sent to Treasury (BurnProtocolFee = 0% in runtime).',
     },
     ProtocolRevenue: {
-      'Omni Pool Fees To Hydration DEX': 'Share of 50% from 20% all Omni Pool Fees.',
+      'Omnipool Protocol Fees To Treasury': '100% of Omnipool protocol fees sent to Treasury (BurnProtocolFee = 0% in runtime).',
     },
     SupplySideRevenue: {
-      'XYK Pools Fees To LPs': 'All fees collected from XYK pools to LPs.',
-      'StableSwap Fees To LPs': 'All fees collected from stable swap pools to LPs.',
-      'Omni Pool Fees To LPs': '80% of Omni pool fees share to LPs',
-      'H2O Token Burnt': 'All fees were paid in H2O were burnt.',
+      'XYK Pools Fees To LPs': 'All fees collected from XYK pools go to LPs.',
+      'StableSwap Fees To LPs': 'All fees collected from Stableswap pools go to LPs.',
+      'Omnipool Asset Fees To LPs': '50% of Omnipool asset fees stay in the pool for LPs.',
+    },
+    HoldersRevenue: {
+      'Omnipool Asset Fees To Stakers & Referrals': '50% of Omnipool asset fees distributed via the Referral pallet to HDX stakers, referrers, and traders.',
     },
   }
 };
