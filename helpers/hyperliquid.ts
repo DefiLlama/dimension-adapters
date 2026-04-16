@@ -242,6 +242,9 @@ interface QueryIndexerResult {
   // spot fees = sport revenue + unit revenue
   dailySpotRevenue: Balances;
   dailyUnitRevenue: Balances;
+  
+  // priority fees
+  dailyPriorityFeesUsd: Balances;
 
   currentPerpOpenInterest?: number;
 
@@ -286,6 +289,7 @@ export async function queryHyperliquidIndexer(
   const dailySpotRevenue = options.createBalances();
   const dailyBuildersRevenue = options.createBalances();
   const dailyUnitRevenue = options.createBalances();
+  const dailyPriorityFeesUsd = options.createBalances();
   const hip3Deployers: Record<string, Hip3DeployerMetrics> = {};
 
   let currentPerpOpenInterest: number | undefined = undefined;
@@ -297,6 +301,7 @@ export async function queryHyperliquidIndexer(
   for (const item of houyItems) {
     dailyPerpVolume.addCGToken("usd-coin", item.perpsVolumeUsd);
     dailySpotVolume.addCGToken("usd-coin", item.spotVolumeUsd);
+    dailyPriorityFeesUsd.addCGToken("usd-coin", item.priorityFeeUsd ? item.priorityFeeUsd : 0);
 
     // add fees from perps trading
     for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
@@ -377,6 +382,7 @@ export async function queryHyperliquidIndexer(
     dailySpotRevenue,
     dailyBuildersRevenue,
     dailyUnitRevenue,
+    dailyPriorityFeesUsd,
     currentPerpOpenInterest,
     hip3Deployers,
   };
