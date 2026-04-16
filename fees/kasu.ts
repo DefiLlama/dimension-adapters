@@ -87,11 +87,6 @@ const rateAtBlock = (
   return value;
 };
 
-const PROTOCOL_SPLIT = "Performance Fees To Protocol";
-const HOLDERS_SPLIT = "Performance Fees To rKSU Holders";
-const SUPPLY_SIDE_SPLIT = "Borrow Interest To Lenders";
-const TOKEN_LOCKER_DISTRIBUTIONS = "Token Locker Distributions";
-
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -120,8 +115,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     // 2. Read current rate configuration as fallback + rate-change history so
     // historical events can be priced with the rate that was active at their
     // block (performanceFee and feeRates are mutable post-deployment).
-    const lookbackFromBlock = await getBlock(lookbackStart, options.chain as any, {});
-    const toBlock = Number(options.toApi.block);
+    const lookbackFromBlock = await getBlock(lookbackStart, options.chain);
 
     const [currentPerformanceFee, currentFeeRates, perfFeeUpdateLogs, feeRatesUpdateLogs] = await Promise.all([
       options.api.call({
@@ -136,14 +130,12 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         target: systemVariables,
         eventAbi: PerformanceFeeUpdatedEvent,
         fromBlock: factoryStartBlock,
-        toBlock,
         cacheInCloud: true,
       }),
       options.getLogs({
         target: systemVariables,
         eventAbi: FeeRatesUpdatedEvent,
         fromBlock: factoryStartBlock,
-        toBlock,
         cacheInCloud: true,
       }),
     ]);
@@ -164,7 +156,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       targets: pools,
       eventAbi: FeesOwedIncreasedEvent,
       fromBlock: lookbackFromBlock,
-      toBlock,
     });
 
     for (const log of feeLogs) {
@@ -208,11 +199,11 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       const grossInterest = allocatedFee + supplySide;
 
       dailyFees.add(paymentToken, grossInterest, METRIC.BORROW_INTEREST);
-      dailyRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
-      dailyRevenue.add(paymentToken, ecosystemFee, HOLDERS_SPLIT);
-      dailyProtocolRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
-      dailyHoldersRevenue.add(paymentToken, ecosystemFee, TOKEN_LOCKER_DISTRIBUTIONS);
-      dailySupplySideRevenue.add(paymentToken, supplySide, SUPPLY_SIDE_SPLIT);
+      dailyRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
+      dailyProtocolRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
+      dailyHoldersRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
+      dailySupplySideRevenue.add(paymentToken, supplySide, METRIC.BORROW_INTEREST);
     }
   }));
 
@@ -258,17 +249,17 @@ const adapter: SimpleAdapter = {
       [METRIC.BORROW_INTEREST]: "Gross interest paid by borrowers before the lender/protocol split",
     },
     Revenue: {
-      [PROTOCOL_SPLIT]: "Share of performance fees routed to the protocol fee receiver",
-      [HOLDERS_SPLIT]: "Share of performance fees routed to rKSU holders",
+      [METRIC.PERFORMANCE_FEES]: "Share of performance fees routed to the protocol fee receiver",
+      ["Ecosystem fees"]: "Share of performance fees routed to rKSU holders",
     },
     ProtocolRevenue: {
-      [PROTOCOL_SPLIT]: "Share of performance fees routed to the protocol fee receiver",
+      [METRIC.PERFORMANCE_FEES]: "Share of performance fees routed to the protocol fee receiver",
     },
     HoldersRevenue: {
-      [TOKEN_LOCKER_DISTRIBUTIONS]: "Performance fees distributed to KSU token lockers (rKSU holders)",
+      ["Ecosystem fees"]: "Performance fees distributed to KSU token lockers (rKSU holders)",
     },
     SupplySideRevenue: {
-      [SUPPLY_SIDE_SPLIT]: "Interest earned by lenders after performance fees are deducted",
+      [METRIC.BORROW_INTEREST]: "Interest earned by lenders after performance fees are deducted",
     },
   },
 };
