@@ -445,10 +445,9 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   if (addresses.length === 0) return balances;
 
   let fromAddressesCondition = '';
-  if (fromAddress)
-    fromAddresses = [fromAddress];
-  if (fromAddresses && fromAddresses.length > 0) {
-    fromAddressesCondition = `AND from_address IN (${fromAddresses.map(addr => `'${addr}'`).join(', ')})`;
+  const combinedFromAddresses = fromAddress ? [fromAddress, ...(fromAddresses || [])] : fromAddresses;
+  if (combinedFromAddresses && combinedFromAddresses.length > 0) {
+    fromAddressesCondition = `AND from_address IN (${combinedFromAddresses.map(addr => `'${addr}'`).join(', ')})`;
   }
 
   // Build SQL condition to include only mints tokens
@@ -554,10 +553,9 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   if (addresses.length === 0) return balances;
 
   let fromAddressesCondition = '';
-  if (fromAddress)
-    fromAddresses = [fromAddress];
-  if (fromAddresses && fromAddresses.length > 0) {
-    fromAddressesCondition = `AND from_owner IN (${fromAddresses.map(addr => `'${addr}'`).join(', ')})`;
+  const combinedFromAddresses = fromAddress ? [fromAddress, ...(fromAddresses || [])] : fromAddresses;
+  if (combinedFromAddresses && combinedFromAddresses.length > 0) {
+    fromAddressesCondition = `AND from_owner IN (${combinedFromAddresses.map(addr => `'${addr}'`).join(', ')})`;
   }
 
   // Build SQL condition to exclude blacklisted sender addresses
