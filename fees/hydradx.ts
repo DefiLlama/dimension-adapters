@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import AaveAbis from '../helpers/aave/abi';
+import { METRIC } from "../helpers/metrics";
 
 const FEES_API = "https://hydration-metrics-aggregator.indexer.hydration.cloud/api/v1/fees/charts"
 
@@ -9,9 +10,9 @@ const FEES_API = "https://hydration-metrics-aggregator.indexer.hydration.cloud/a
 // - pepl_liquidation_profit: 100% protocol revenue from PEPL liquidations
 // - hsm_revenue: HSM arb profits + yield from yield-bearing stablecoins
 const EXTRA_PROTOCOL_STREAMS = [
-  { productType: "money-market", streamType: "liquidation_penalty",     label: "Liquidation Penalty",     revenueLabel: "Liquidation Penalty To Treasury"     },
+  { productType: "money-market", streamType: "liquidation_penalty", label: "Liquidation Fees", revenueLabel: "Liquidation Penalty To Treasury" },
   { productType: "money-market", streamType: "pepl_liquidation_profit", label: "PEPL Liquidation Profit", revenueLabel: "PEPL Liquidation Profit To Treasury" },
-  { productType: "hollar",       streamType: "hsm_revenue",             label: "HSM Revenue",             revenueLabel: "HSM Revenue To Treasury"             },
+  { productType: "hollar", streamType: "hsm_revenue", label: "HSM Revenue", revenueLabel: "HSM Revenue To Treasury" },
 ] as const
 
 async function fetchProtocolStream(productType: string, streamType: string, startTime: string, endTime: string): Promise<number> {
@@ -62,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
     target: pool.dataProvider,
     calls: reservesList,
   })
-  
+
   // get reserves factors
   const reserveFactors: Array<number> = reserveConfigs.map((config: any) => Number(config.reserveFactor))
 
@@ -90,7 +91,7 @@ const fetch = async (options: FetchOptions) => {
     if (totalDebt > 0 && borrowRate > 0) {
       const dailyInterest = totalDebt * borrowRate / BigInt(365) / LiquidityIndexDecimals
       const dailyInterestUSD = Number(dailyInterest) / 1e18
-      dailyFees.addUSDValue(dailyInterestUSD, 'Borrow Interest')
+      dailyFees.addUSDValue(dailyInterestUSD, METRIC.BORROW_INTEREST)
       dailyProtocolRevenue.addUSDValue(dailyInterestUSD, 'Borrow Interest To Treasury')
     }
   }
@@ -153,7 +154,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Add protocol-only streams not captured by the liquidity index approach above
   const startTime = new Date(options.fromTimestamp * 1000).toISOString()
-  const endTime   = new Date(options.toTimestamp   * 1000).toISOString()
+  const endTime = new Date(options.toTimestamp * 1000).toISOString()
   const extraAmounts = await Promise.all(
     EXTRA_PROTOCOL_STREAMS.map(({ productType, streamType }) =>
       fetchProtocolStream(productType, streamType, startTime, endTime)
@@ -183,16 +184,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'Borrow Interest':        'Interest paid by borrowers across all money market reserves.',
-      'Liquidation Penalty':    "Treasury's 10% cut from money market liquidations.",
-      'PEPL Liquidation Profit':'Protocol revenue from PEPL (Peg Enforcement Protection Liquidation) liquidations.',
-      'HSM Revenue':            'Hollar Stability Module arb profits and yield from yield-bearing stablecoins.',
+      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers across all money market reserves.',
+      [METRIC.LIQUIDATION_FEES]: "Treasury's 10% cut from money market liquidations.",
+      'PEPL Liquidation Profit': 'Protocol revenue from PEPL (Peg Enforcement Protection Liquidation) liquidations.',
+      'HSM Revenue': 'Hollar Stability Module arb profits and yield from yield-bearing stablecoins.',
     },
     ProtocolRevenue: {
-      'Borrow Interest To Treasury':        'HOLLAR borrow interest — CDP stablecoin where 100% goes to Treasury.',
-      'Liquidation Penalty To Treasury':    "Treasury's 10% cut from money market liquidations.",
-      'PEPL Liquidation Profit To Treasury':'100% of PEPL liquidation proceeds to Treasury.',
-      'HSM Revenue To Treasury':            'Hollar Stability Module revenue to Treasury.',
+      'Borrow Interest To Treasury': 'HOLLAR borrow interest — CDP stablecoin where 100% goes to Treasury.',
+      'Liquidation Penalty To Treasury': "Treasury's 10% cut from money market liquidations.",
+      'PEPL Liquidation Profit To Treasury': '100% of PEPL liquidation proceeds to Treasury.',
+      'HSM Revenue To Treasury': 'Hollar Stability Module revenue to Treasury.',
     },
   },
 }
