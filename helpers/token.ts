@@ -596,6 +596,7 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
+    ${fromAddressesCondition}
     GROUP BY token_mint_address
   `;
   // Execute query against Allium database
