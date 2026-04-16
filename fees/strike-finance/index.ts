@@ -7,10 +7,14 @@ const fetch = async (options: FetchOptions) => {
     `https://app.strikefinance.org/api/analytics/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
 
+  const dailyFees = options.createBalances()
+
+  dailyFees.addUSDValue(data.totalFees, 'Trading Fees');
+  
   return {
-    dailyFees: data.totalFees,
-    dailyRevenue: data.totalFees,
-    dailyHoldersRevenue: data.totalFees,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 };
 
@@ -29,7 +33,15 @@ const adapter: Adapter = {
     HoldersRevenue: "100% of all trading fees collected by the platform goes to $STRIKE holders.",
   },
   breakdownMethodology: {
-    "Trading Fees": "Fees collected from trades executed on the Strike Finance.",
+    Fees: {
+      "Trading Fees": "Fees collected from trades executed on the Strike Finance.",
+    },
+    Revenue: {
+      "Trading Fees": "Fees collected from trades executed on the Strike Finance.",
+    },
+    HoldersRevenue: {
+      "Trading Fees": "100% of all trading fees collected by the platform goes to $STRIKE holders.",
+    },
   },
 };
 
