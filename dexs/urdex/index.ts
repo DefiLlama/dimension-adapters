@@ -18,6 +18,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
+      deadFrom: "2024-12-01"
     },
   },
 };

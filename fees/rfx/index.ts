@@ -42,6 +42,7 @@ const adapter: Adapter = {
     [CHAIN.ZKSYNC]: {
       start: '2024-12-05',
       fetch: fetchFees,
+      deadFrom: "2025-08-12",
     },
   },
   version: 1,

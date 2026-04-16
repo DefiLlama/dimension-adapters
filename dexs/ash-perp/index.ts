@@ -28,7 +28,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.ELROND]: {
       fetch,
       runAtCurrTime: true,
-      start: '2024-02-13'
+      start: '2024-02-13',
+      deadFrom: '2025-10-01'
     },
   },
 };

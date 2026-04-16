@@ -21,6 +21,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: '2023-10-24',
+      deadFrom: "2026-02-07",
     },
   },
 };

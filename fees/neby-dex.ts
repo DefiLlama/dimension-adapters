@@ -33,6 +33,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  deadFrom: "2026-02-11",
 };
 
 export default adapter;
