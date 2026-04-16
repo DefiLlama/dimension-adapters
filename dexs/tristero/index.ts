@@ -16,7 +16,8 @@ const ROUTER_SCHEDULE: RouterConfig[] = [
   { address: '0x90000069af5a354cf1dC438dEFbF8e0469d87F02', start: '2026-01-15', end: '2026-01-31' }, // Router v2
   { address: '0x900000D231B9C5c2374415f0974C1F8a377757E9', start: '2026-02-01', end: '2026-02-28' }, // Router v3
   { address: '0x4b000001c0be947f4238620f57cbd07421007f43', start: '2026-03-01', end: '2026-04-01' }, // Router v4
-  { address: '0x4d00000075eFB197178E05aeFF759c5c20d3F32d', start: '2026-04-02' }, // Router v5
+  { address: '0x4d00000075eFB197178E05aeFF759c5c20d3F32d', start: '2026-04-02', end: '2026-04-14' }, // Router v5
+  { address: '0x4e00000193B7Ba7F9e6EB8019373d27e9F0Af80c', start: '2026-04-15' }, // Router v6
 ];
 
 const chainConfig = {
