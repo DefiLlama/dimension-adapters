@@ -1,6 +1,5 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getHydrationBlock } from "../../helpers/getBlock";
 import { request } from "graphql-request";
 
 
