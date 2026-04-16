@@ -37,14 +37,7 @@ async function getMeteoraDLMMPositions(owner: string) {
     });
 
     const accounts = response?.result || [];
-    return accounts.map((acc: any) => {
-        const data = acc.account.data[0];
-        return {
-            pubkey: acc.pubkey,
-            lbPair: extractPubkey(data, 8),
-            owner: extractPubkey(data, 40),
-        };
-    });
+    return accounts.map((acc: any) => extractPubkey(acc.account.data[0], 8));
 }
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
@@ -54,9 +47,13 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
     const data = await getMeteoraDLMMPositions(PRESTOCKS_LP_WALLET);
 
-    for (const position of data) {
-        const poolData = await fetchURL(`https://dlmm.datapi.meteora.ag/pools/${position.lbPair}/volume/history?start_time=${options.startOfDay}&end_time=${options.endTimestamp}`)
+    for (const poolId of data) {
+        const poolData = await fetchURL(`https://dlmm.datapi.meteora.ag/pools/${poolId}/volume/history?start_time=${options.startOfDay}&end_time=${options.endTimestamp}`)
         const todaysData = poolData.data.find((data: any) => data.timestamp === options.startOfDay);
+
+        if(!todaysData) {
+            throw new Error(`No data found for ${options.startOfDay}`);
+        }
 
         dailyFees.addUSDValue(todaysData.fees, METRIC.LP_FEES);
         dailySupplySideRevenue.addUSDValue(todaysData.protocol_fees, METRIC.PROTOCOL_FEES);
