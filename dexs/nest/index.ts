@@ -252,20 +252,24 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     return {
       dailyVolume: dailyVolume.toString(),
-      dailyFees: dailyFees.toString()
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyFees.toString(),
+      dailyProtocolRevenue: 0,
+      dailySupplySideRevenue: 0,
+      dailyHoldersRevenue: dailyFees.toString()
     };
   } catch (error) {
-    console.error(`Error fetching Nest platform data: ${error instanceof Error ? error.message : String(error)}`);
-    return {
-      dailyVolume: "0",
-      dailyFees: "0"
-    };
+    throw new Error(`Error fetching Nest platform data for date ${options.dateString}`);
   }
 };
 
 const methodology = {
-  Volume: "Volume collected from all pools via Blaze API aggregated-volume-sum endpoint",
-  Fees: "Platform fees collected from all pools via Blaze API aggregated-fees-sum endpoint"
+  Volume: "Volume is collected from all pools via the Blaze API aggregated-volume-sum endpoint.",
+  Fees: "Platform fees are collected from all pools via the Blaze API aggregated-fees-sum endpoint.",
+  Revenue: "All fees go to veNest lockers.",
+  ProtocolRevenue: "There is no protocol revenue.",
+  SupplySideRevenue: "LPs do not earn fees; instead, they are compensated with NEST tokens.",
+  HoldersRevenue: "All fees go to veNest lockers."
 };
 
 const adapter: SimpleAdapter = {
