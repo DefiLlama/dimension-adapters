@@ -581,15 +581,17 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
             // hl indexer sotre history snapshots
             const endpoint = getEnv("LLAMA_HL_INDEXER");
             if (options.startOfDay >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
-              const response = await httpGet(`${endpoint}/v1/data/validatorSummarizes/${timestamp}`);
-              validators = response.validators;
+              try {
+                const response = await httpGet(`${endpoint}/v1/data/snapshot/validatorSummaries/${timestamp}`);
+                validators = response.data;
+              } catch (e: any) {}
             }
             
             // curren data can directly fetch from hyperliquid api
             if (!validators) {
               const TWO_DAYS = 48 * 3600;
               const current = Math.floor(new Date().getTime() / 1000);
-              if (timestamp < current - TWO_DAYS) {
+              if (timestamp > current - TWO_DAYS) {
                 await sleep(1); // avoid rate limit
                 validators = await httpPost("https://api.hyperliquid.xyz/info", { type: "validatorSummaries" });
               }
