@@ -425,7 +425,7 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints }: {
+export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints, fromAddress, fromAddresses }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
@@ -434,6 +434,8 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   blacklists?: string[];
   blacklist_signers?: string[];
   blacklist_mints?: string[];
+  fromAddress?: string;
+  fromAddresses?: string[];
 }) {
   // Initialize balances if not provided
   if (!balances) balances = options.createBalances();
@@ -441,6 +443,13 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   // If targets is provided, use that instead of single target
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
+
+  let fromAddressesCondition = '';
+  if (fromAddress)
+    fromAddresses = [fromAddress];
+  if (fromAddresses && fromAddresses.length > 0) {
+    fromAddressesCondition = `AND from_address IN (${fromAddresses.map(addr => `'${addr}'`).join(', ')})`;
+  }
 
   // Build SQL condition to include only mints tokens
   let mintsCondition = '';
@@ -487,6 +496,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
+    ${fromAddressesCondition}
     GROUP BY mint
   `;
 
@@ -525,7 +535,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceivedDune({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints }: {
+export async function getSolanaReceivedDune({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints, fromAddress, fromAddresses }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
@@ -533,6 +543,8 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   blacklists?: string[];
   blacklist_signers?: string[];
   blacklist_mints?: string[];
+  fromAddress?: string;
+  fromAddresses?: string[];
 }) {
   // Initialize balances if not provided
   if (!balances) balances = options.createBalances();
@@ -540,6 +552,13 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   // If targets is provided, use that instead of single target
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
+
+  let fromAddressesCondition = '';
+  if (fromAddress)
+    fromAddresses = [fromAddress];
+  if (fromAddresses && fromAddresses.length > 0) {
+    fromAddressesCondition = `AND from_owner IN (${fromAddresses.map(addr => `'${addr}'`).join(', ')})`;
+  }
 
   // Build SQL condition to exclude blacklisted sender addresses
   let blacklistCondition = '';
