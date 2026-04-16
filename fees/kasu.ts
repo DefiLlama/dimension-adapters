@@ -67,6 +67,26 @@ const PoolCreatedEvent = 'event PoolCreated(address indexed lendingPool, tuple(a
 // during the given `epoch`.
 const FeesOwedIncreasedEvent = 'event FeesOwedIncreased(uint256 indexed epoch, uint256 feesIncreasedAmount)';
 
+// Emitted by SystemVariables when rate configuration changes. Used to look up
+// the historically-correct rate for each FeesOwedIncreased log.
+const PerformanceFeeUpdatedEvent = 'event PerformanceFeeUpdated(uint256 performanceFee)';
+const FeeRatesUpdatedEvent = 'event FeeRatesUpdated(uint256 ecosystemFeeRate, uint256 protocolFeeRate)';
+
+// Resolve a rate value that was active at a given block from a list of
+// rate-change events. Events must already be sorted ascending by blockNumber.
+const rateAtBlock = (
+  events: { blockNumber: number; value: bigint }[],
+  fallback: bigint,
+  blockNumber: number,
+): bigint => {
+  let value = fallback;
+  for (const evt of events) {
+    if (evt.blockNumber > blockNumber) break;
+    value = evt.value;
+  }
+  return value;
+};
+
 const PROTOCOL_SPLIT = "Performance Fees To Protocol";
 const HOLDERS_SPLIT = "Performance Fees To rKSU Holders";
 const SUPPLY_SIDE_SPLIT = "Borrow Interest To Lenders";
@@ -97,9 +117,13 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const pools: string[] = poolLogs.map((log: any) => log.lendingPool);
     if (pools.length === 0) return;
 
-    // 2. Read rate configuration. Rates rarely change within the fetch window,
-    // so a single read at the window boundary is sufficient.
-    const [performanceFee, feeRates] = await Promise.all([
+    // 2. Read current rate configuration as fallback + rate-change history so
+    // historical events can be priced with the rate that was active at their
+    // block (performanceFee and feeRates are mutable post-deployment).
+    const lookbackFromBlock = await getBlock(lookbackStart, options.chain as any, {});
+    const toBlock = Number(options.toApi.block);
+
+    const [currentPerformanceFee, currentFeeRates, perfFeeUpdateLogs, feeRatesUpdateLogs] = await Promise.all([
       options.api.call({
         target: systemVariables,
         abi: 'uint256:performanceFee',
@@ -108,18 +132,39 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         target: systemVariables,
         abi: 'function feeRates() view returns (uint256 ecosystemFeeRate, uint256 protocolFeeRate)',
       }),
+      options.getLogs({
+        target: systemVariables,
+        eventAbi: PerformanceFeeUpdatedEvent,
+        fromBlock: factoryStartBlock,
+        toBlock,
+        cacheInCloud: true,
+      }),
+      options.getLogs({
+        target: systemVariables,
+        eventAbi: FeeRatesUpdatedEvent,
+        fromBlock: factoryStartBlock,
+        toBlock,
+        cacheInCloud: true,
+      }),
     ]);
-    const ecosystemFeeRate = BigInt(feeRates.ecosystemFeeRate ?? feeRates[0]);
+
+    const perfFeeHistory = perfFeeUpdateLogs
+      .map((log: any) => ({ blockNumber: Number(log.blockNumber), value: BigInt(log.performanceFee) }))
+      .sort((a: any, b: any) => a.blockNumber - b.blockNumber);
+    const ecosystemRateHistory = feeRatesUpdateLogs
+      .map((log: any) => ({ blockNumber: Number(log.blockNumber), value: BigInt(log.ecosystemFeeRate) }))
+      .sort((a: any, b: any) => a.blockNumber - b.blockNumber);
+
+    const currentEcosystemRate = BigInt(currentFeeRates.ecosystemFeeRate ?? currentFeeRates[0]);
 
     // 3. Fetch FeesOwedIncreased logs across the lookback window (3 epochs back).
     // Each log represents one epoch's worth of interest, which we spread evenly
     // across the epoch and attribute the overlap with [windowStart, windowEnd].
-    const lookbackFromBlock = await getBlock(lookbackStart, options.chain as any, {});
     const feeLogs = await options.getLogs({
       targets: pools,
       eventAbi: FeesOwedIncreasedEvent,
       fromBlock: lookbackFromBlock,
-      toBlock: Number(options.toApi.block),
+      toBlock,
     });
 
     for (const log of feeLogs) {
@@ -138,9 +183,18 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       const allocatedFee = feesAmount * overlapSec / BigInt(EPOCH_DURATION_SEC);
       if (allocatedFee === 0n) continue;
 
+      // Resolve rates at the log's block — rates are mutable post-deployment, so
+      // applying the current value to historical events would misattribute revenue.
+      const logBlock = Number(log.blockNumber);
+      const performanceFee = rateAtBlock(perfFeeHistory, currentPerformanceFee, logBlock);
+      const ecosystemFeeRate = rateAtBlock(ecosystemRateHistory, currentEcosystemRate, logBlock);
+
       // Split performance fee into ecosystem / protocol per SystemVariables.feeRates().
-      // Note: FeeManager redirects ecosystem fees to the protocol when no rKSU is
-      // eligible. That edge-case is not reflected here.
+      // Known limitation: FeeManager.emitFees redirects the ecosystem portion to
+      // the protocol when no rKSU is eligible (ksuLocking.eligibleRKSUForFees == 0).
+      // That runtime redirection is not modeled here — when it happens,
+      // dailyHoldersRevenue is slightly overstated and dailyProtocolRevenue slightly
+      // understated. Documented in `methodology`.
       const ecosystemFee = allocatedFee * ecosystemFeeRate / FULL_PERCENT;
       const protocolFee = allocatedFee - ecosystemFee;
 
@@ -175,9 +229,9 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Gross interest paid by borrowers across Kasu lending pools (performance fees + lender share). Interest accrued during each epoch is spread evenly across the epoch's days.",
   UserFees: "Same as Fees - borrowers pay interest on borrowed assets.",
-  Revenue: "Performance fees retained by the protocol: sum of the protocol-receiver share and the rKSU-holder share.",
+  Revenue: "Performance fees captured within the Kasu system: the sum of the protocol-receiver share (ProtocolRevenue) and the rKSU-holder share (HoldersRevenue). Neither is paid to external suppliers.",
   ProtocolRevenue: "Performance fees sent to the protocol fee receiver.",
-  HoldersRevenue: "Performance fees distributed to KSU token lockers (rKSU holders).",
+  HoldersRevenue: "Performance fees distributed to KSU token lockers (rKSU holders). When no rKSU is eligible, the FeeManager redirects this share to the protocol at runtime; such redirection is not reflected in the breakdown.",
   SupplySideRevenue: "Interest earned by lenders (gross borrower interest minus performance fees).",
 };
 
