@@ -10,7 +10,9 @@ const fetch: any = async (options: FetchOptions) => {
       '0xc8c0e780960f954c3426a32b6ab453248d632b59',
       '0x147CF09E7373B8FDA6f12021F1b0f98D6da1A566',
       '0x9c87bb379d5Ff2fCbf2F83e619f9fCcb95a40AD9'
-    ], fromAdddesses: routers
+    ], fromAdddesses: [...routers,
+      '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE' // lifi
+    ]
   })
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
