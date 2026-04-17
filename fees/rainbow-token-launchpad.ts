@@ -6,29 +6,47 @@ const LIQUID_FACTORY = '0x04F1a284168743759BE6554f607a10CEBdB77760';
 const WETH = '0x4200000000000000000000000000000000000006';
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyRevenue = options.createBalances()
+  const dailyFees = options.createBalances()
 
   await addTokensReceived({
     options,
     targets: [LIQUID_FACTORY],
     token: WETH,
-    balances: dailyRevenue,
+    balances: dailyFees,
   })
 
-  dailyRevenue.resizeBy(0.5)
+  const dailyRevenue = dailyFees.clone(0.5)
+  const dailySupplySideRevenue = dailyFees.clone(0.5)
 
   return {
-    dailyFees: dailyRevenue,
+    dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
-    Revenue: 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
+    Fees: 'Liquid charges a 0.2% fee on all token deployments via the Liquid Factory contract on Base',
+    Revenue: 'Rainbow receives 50% of the 0.2% deployment fee as protocol revenue',
+    ProtocolRevenue: 'Rainbow receives 50% of the 0.2% deployment fee as protocol revenue',
+    SupplySideRevenue: 'Liquid retains 50% of the 0.2% deployment fee',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Deployment Fees': '0.2% fee charged on all token deployments via the Liquid Factory contract on Base',
+    },
+    Revenue: {
+      'Deployment Fees': 'Rainbow receives 50% of deployment fees',
+    },
+    ProtocolRevenue: {
+      'Deployment Fees': 'Rainbow receives 50% of deployment fees',
+    },
+    SupplySideRevenue: {
+      'Deployment Fees': 'Liquid retains 50% of deployment fees',
+    },
   },
   adapter: {
     [CHAIN.BASE]: {
