@@ -16,36 +16,30 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   })
 
   const dailyRevenue = dailyFees.clone(0.5)
-  const dailySupplySideRevenue = dailyFees.clone(0.5)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'Liquid charges a 0.2% fee on all token deployments via the Liquid Factory contract on Base',
-    Revenue: 'Rainbow receives 50% of the 0.2% deployment fee as protocol revenue',
-    ProtocolRevenue: 'Rainbow receives 50% of the 0.2% deployment fee as protocol revenue',
-    SupplySideRevenue: 'Liquid retains 50% of the 0.2% deployment fee',
+    Fees: 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
+    Revenue: 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
+    ProtocolRevenue: 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
   },
   breakdownMethodology: {
     Fees: {
-      'Deployment Fees': '0.2% fee charged on all token deployments via the Liquid Factory contract on Base',
+      'Deployment Fees': 'Rainbow receives 50% of the 0.2% deployment fee collected by the Liquid Factory contract on Base',
     },
     Revenue: {
       'Deployment Fees': 'Rainbow receives 50% of deployment fees',
     },
     ProtocolRevenue: {
       'Deployment Fees': 'Rainbow receives 50% of deployment fees',
-    },
-    SupplySideRevenue: {
-      'Deployment Fees': 'Liquid retains 50% of deployment fees',
     },
   },
   adapter: {
