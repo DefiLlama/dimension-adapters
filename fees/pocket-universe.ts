@@ -7,7 +7,9 @@ const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options, targets: [
       '0x77777D91c0B8Ec9984a05302E4Ef041dcCf77FeE',
-      '0xc8c0e780960f954c3426a32b6ab453248d632b59'
+      '0xc8c0e780960f954c3426a32b6ab453248d632b59',
+      '0x147CF09E7373B8FDA6f12021F1b0f98D6da1A566',
+      '0x9c87bb379d5Ff2fCbf2F83e619f9fCcb95a40AD9'
     ], fromAdddesses: routers
   })
 
