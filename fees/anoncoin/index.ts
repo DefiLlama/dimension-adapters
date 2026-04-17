@@ -14,6 +14,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+const methodology = {
+  Fees: "Partner trading fees (SOL) claimed by Anoncoin from Meteora bonding curve and DAMM V2 pools.",
+  Revenue: "All the fees are revenue.",
+  ProtocolRevenue: "All the revenue goes to the protocol.",
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -21,9 +27,7 @@ const adapter: SimpleAdapter = {
   start: "2025-06-20",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  methodology: {
-    ProtocolRevenue: "Partner trading fees (SOL) claimed by Anoncoin from Meteora bonding curve and DAMM V2 pools.",
-  },
+  methodology
 };
 
 export default adapter;
