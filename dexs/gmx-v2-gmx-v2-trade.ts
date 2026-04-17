@@ -7,7 +7,7 @@ const volume_subgraphs: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql",
   [CHAIN.AVAX]: "https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql",
   [CHAIN.BOTANIX]: "https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql",
-  [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth@24678a/api/graphql",
+  [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth:prod/api/graphql",
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
