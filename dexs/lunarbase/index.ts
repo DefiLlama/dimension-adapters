@@ -14,6 +14,9 @@ const POOLS = [
 ] as const;
 
 const POOL_ADDRESSES = POOLS.map(({ address }) => address);
+const LEGACY_POOL_ADDRESSES = POOLS
+    .filter(({ feeModel }) => feeModel === "legacy")
+    .map(({ address }) => address);
 
 const poolAbis = {
     tokenX: "address:X",
@@ -52,12 +55,21 @@ const fetch = async (options: FetchOptions) => {
     });
 
     // `options.api` is already pinned to this slice's `toBlock`, so these reads stay historical.
-    const [tokenXs, tokenYs, treasuryShareBpsValues, totalBpsValues] = await Promise.all([
+    const [tokenXs, tokenYs, legacyTreasuryShareBpsValues, legacyTotalBpsValues] = await Promise.all([
         options.api.multiCall({ abi: poolAbis.tokenX, calls: POOL_ADDRESSES, permitFailure: true }),
         options.api.multiCall({ abi: poolAbis.tokenY, calls: POOL_ADDRESSES, permitFailure: true }),
-        options.api.multiCall({ abi: poolAbis.treasuryShareBps, calls: POOL_ADDRESSES, permitFailure: true }),
-        options.api.multiCall({ abi: poolAbis.bps, calls: POOL_ADDRESSES, permitFailure: true }),
+        options.api.multiCall({ abi: poolAbis.treasuryShareBps, calls: LEGACY_POOL_ADDRESSES, permitFailure: true }),
+        options.api.multiCall({ abi: poolAbis.bps, calls: LEGACY_POOL_ADDRESSES, permitFailure: true }),
     ]);
+    const legacyPoolParamsByAddress = new Map(
+        LEGACY_POOL_ADDRESSES.map((address, index) => [
+            address,
+            {
+                treasuryShareBps: legacyTreasuryShareBpsValues[index],
+                totalBps: legacyTotalBpsValues[index],
+            },
+        ]),
+    );
 
     for (let i = 0; i < POOLS.length; i++) {
         const { address: pool, feeModel } = POOLS[i];
@@ -69,14 +81,11 @@ const fetch = async (options: FetchOptions) => {
             throw new Error(`Failed to resolve token pair for ${pool}`);
         }
 
-        const treasuryShareBps = treasuryShareBpsValues[i];
-        const totalBps = totalBpsValues[i];
+        const legacyPoolParams = legacyPoolParamsByAddress.get(pool);
+        const treasuryShareBps = legacyPoolParams?.treasuryShareBps;
+        const totalBps = legacyPoolParams?.totalBps;
         if (feeModel === "legacy" && (isInvalidCallResult(treasuryShareBps) || isInvalidCallResult(totalBps))) {
             console.warn(`Skipping LunarBase pool ${pool} at block ${toBlock}: failed to resolve fee split params`);
-            continue;
-        }
-        if (isInvalidCallResult(totalBps)) {
-            console.warn(`Skipping LunarBase pool ${pool} at block ${toBlock}: failed to resolve BPS`);
             continue;
         }
 
