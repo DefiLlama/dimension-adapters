@@ -81,7 +81,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
     dailyRevenue.add(result.dailyPerpRevenue.clone(holdersShare), 'Perp Fees')
     dailyRevenue.add(result.dailyPriorityFeesUsd, 'Priority Fees')
     dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
-    dailyRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
+    dailyHoldersRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
 
     return {
       dailyVolume,
