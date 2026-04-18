@@ -140,7 +140,7 @@ export default [
         name: "bch",
         chain: CHAIN.BITCOIN_CASH,
         getUsers: coinmetricsData("bch"),
-        id: "bitcoincash"
+        id: "bch"
     },
     // {
     //     name: "bsv",
