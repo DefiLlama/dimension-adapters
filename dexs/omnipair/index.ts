@@ -3,9 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
-const LIQUIDATION_FEES = "Liquidation Fees";
-const FLASHLOAN_FEES = "Flashloan Fees";
-
 async function fetch(_a: any, _b: any, options: FetchOptions) {
     const query = `
     select
@@ -44,65 +41,30 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     data.forEach((row: any) => {
         dailyVolume.add(row.token_mint, row.daily_volume);
 
-        if (row.swap_fees_total !== '0') {
-            dailyFees.add(row.token_mint, row.swap_fees_total, METRIC.SWAP_FEES);
-            dailyUserFees.add(row.token_mint, row.swap_fees_total, METRIC.SWAP_FEES);
-        }
+        dailyFees.add(row.token_mint, row.swap_fees_total, METRIC.SWAP_FEES);
+        dailyUserFees.add(row.token_mint, row.swap_fees_total, METRIC.SWAP_FEES);
+        dailyRevenue.add(row.token_mint, row.swap_fees_protocol, METRIC.SWAP_FEES);
+        dailyProtocolRevenue.add(row.token_mint, row.swap_fees_protocol, METRIC.SWAP_FEES);
+        dailySupplySideRevenue.add(row.token_mint, row.swap_fees_lp, METRIC.SWAP_FEES);
 
-        if (row.swap_fees_protocol !== '0') {
-            dailyRevenue.add(row.token_mint, row.swap_fees_protocol, METRIC.SWAP_FEES);
-            dailyProtocolRevenue.add(row.token_mint, row.swap_fees_protocol, METRIC.SWAP_FEES);
-        }
+        dailyFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST);
+        dailyUserFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST);
+        dailyRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST);
+        dailyProtocolRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue.add(row.token_mint, row.borrow_interest_lp, METRIC.BORROW_INTEREST);
 
-        if (row.swap_fees_lp !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.swap_fees_lp, METRIC.SWAP_FEES);
-        }
+        dailyFees.add(row.token_mint, row.liquidation_fees_total, METRIC.LIQUIDATION_FEES);
+        dailyUserFees.add(row.token_mint, row.liquidation_fees_total, METRIC.LIQUIDATION_FEES);
+        dailyRevenue.add(row.token_mint, row.liquidation_fees_protocol, METRIC.LIQUIDATION_FEES);
+        dailyProtocolRevenue.add(row.token_mint, row.liquidation_fees_protocol, METRIC.LIQUIDATION_FEES);
+        dailySupplySideRevenue.add(row.token_mint, row.liquidation_fees_lp, METRIC.LIQUIDATION_FEES);
+        dailySupplySideRevenue.add(row.token_mint, row.liquidation_fees_liquidators, METRIC.LIQUIDATION_FEES);
 
-        if (row.borrow_interest_total !== '0') {
-            dailyFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST);
-            dailyUserFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST);
-        }
-
-        if (row.borrow_interest_protocol !== '0') {
-            dailyRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST);
-            dailyProtocolRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST);
-        }
-
-        if (row.borrow_interest_lp !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.borrow_interest_lp, METRIC.BORROW_INTEREST);
-        }
-
-        if (row.liquidation_fees_total !== '0') {
-            dailyFees.add(row.token_mint, row.liquidation_fees_total, LIQUIDATION_FEES);
-            dailyUserFees.add(row.token_mint, row.liquidation_fees_total, LIQUIDATION_FEES);
-        }
-
-        if (row.liquidation_fees_protocol !== '0') {
-            dailyRevenue.add(row.token_mint, row.liquidation_fees_protocol, LIQUIDATION_FEES);
-            dailyProtocolRevenue.add(row.token_mint, row.liquidation_fees_protocol, LIQUIDATION_FEES);
-        }
-
-        if (row.liquidation_fees_lp !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.liquidation_fees_lp, LIQUIDATION_FEES);
-        }
-
-        if (row.liquidation_fees_liquidators !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.liquidation_fees_liquidators, LIQUIDATION_FEES);
-        }
-
-        if (row.flashloan_fees_total !== '0') {
-            dailyFees.add(row.token_mint, row.flashloan_fees_total, FLASHLOAN_FEES);
-            dailyUserFees.add(row.token_mint, row.flashloan_fees_total, FLASHLOAN_FEES);
-        }
-
-        if (row.flashloan_fees_protocol !== '0') {
-            dailyRevenue.add(row.token_mint, row.flashloan_fees_protocol, FLASHLOAN_FEES);
-            dailyProtocolRevenue.add(row.token_mint, row.flashloan_fees_protocol, FLASHLOAN_FEES);
-        }
-
-        if (row.flashloan_fees_lp !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.flashloan_fees_lp, FLASHLOAN_FEES);
-        }
+        dailyFees.add(row.token_mint, row.flashloan_fees_total, METRIC.FLASHLOAN_FEES);
+        dailyUserFees.add(row.token_mint, row.flashloan_fees_total, METRIC.FLASHLOAN_FEES);
+        dailyRevenue.add(row.token_mint, row.flashloan_fees_protocol, METRIC.FLASHLOAN_FEES);
+        dailyProtocolRevenue.add(row.token_mint, row.flashloan_fees_protocol, METRIC.FLASHLOAN_FEES);
+        dailySupplySideRevenue.add(row.token_mint, row.flashloan_fees_lp, METRIC.FLASHLOAN_FEES);
     });
 
     return {
@@ -127,32 +89,32 @@ const breakdownMethodology = {
     Fees: {
         [METRIC.SWAP_FEES]: "All swap fees paid by users on Omnipair.",
         [METRIC.BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
-        [LIQUIDATION_FEES]: "All liquidation fees paid by users on Omnipair.",
-        [FLASHLOAN_FEES]: "All flashloan fees paid by users on Omnipair.",
+        [METRIC.LIQUIDATION_FEES]: "All liquidation fees paid by users on Omnipair.",
+        [METRIC.FLASHLOAN_FEES]: "All flashloan fees paid by users on Omnipair.",
     },
     UserFees: {
         [METRIC.SWAP_FEES]: "All swap fees paid by users on Omnipair.",
         [METRIC.BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
-        [LIQUIDATION_FEES]: "All liquidation fees paid by users on Omnipair.",
-        [FLASHLOAN_FEES]: "All flashloan fees paid by users on Omnipair.",
+        [METRIC.LIQUIDATION_FEES]: "All liquidation fees paid by users on Omnipair.",
+        [METRIC.FLASHLOAN_FEES]: "All flashloan fees paid by users on Omnipair.",
     },
     Revenue: {
         [METRIC.SWAP_FEES]: "The protocol_fee portion of swap fees.",
         [METRIC.BORROW_INTEREST]: "The protocol share of borrow interest.",
-        [LIQUIDATION_FEES]: "The protocol share of liquidation fees, if any.",
-        [FLASHLOAN_FEES]: "The protocol share of flashloan fees, if any.",
+        [METRIC.LIQUIDATION_FEES]: "The protocol share of liquidation fees, if any.",
+        [METRIC.FLASHLOAN_FEES]: "The protocol share of flashloan fees, if any.",
     },
     ProtocolRevenue: {
         [METRIC.SWAP_FEES]: "The protocol_fee portion of swap fees.",
         [METRIC.BORROW_INTEREST]: "The protocol share of borrow interest.",
-        [LIQUIDATION_FEES]: "The protocol share of liquidation fees, if any.",
-        [FLASHLOAN_FEES]: "The protocol share of flashloan fees, if any.",
+        [METRIC.LIQUIDATION_FEES]: "The protocol share of liquidation fees, if any.",
+        [METRIC.FLASHLOAN_FEES]: "The protocol share of flashloan fees, if any.",
     },
     SupplySideRevenue: {
         [METRIC.SWAP_FEES]: "The lp_fee portion of swap fees distributed to liquidity providers.",
         [METRIC.BORROW_INTEREST]: "The LP share of borrow interest distributed to liquidity providers.",
-        [LIQUIDATION_FEES]: "The liquidator share and any LP share of liquidation fees.",
-        [FLASHLOAN_FEES]: "The LP share of flashloan fees, if any.",
+        [METRIC.LIQUIDATION_FEES]: "The liquidator share and any LP share of liquidation fees.",
+        [METRIC.FLASHLOAN_FEES]: "The LP share of flashloan fees, if any.",
     },
 };
 
