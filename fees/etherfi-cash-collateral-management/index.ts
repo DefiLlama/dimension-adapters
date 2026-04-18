@@ -3,152 +3,90 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
-async function prefetch(options: FetchOptions) {
-  const duneQuery = `
-    with 
-    
-    time_seq AS (
-        select 
-            sequence(
-            cast('2024-01-01' as timestamp),
-            date_trunc('day', cast(now() as timestamp)),
-            interval '1' day
-            ) as time 
-    ),
-    
-    days AS (
-        select
-            time.time as day
-        from 
-        time_seq
-        cross join unnest(time) AS time(time)
-    ),
-    
-    hours as (
-        select 
-            * 
-        from (
-            select 
-                date_add('hour', hour, day) as hour
-            from (
-                select 
-                    day 
-                from 
-                days 
-            ) cross join unnest(sequence(0, 23)) as h(hour)
-        )
-    ),
-    
-    events as (
-        select 
-            blockchain,
-            date_trunc('hour', block_time) as hour, 
-            sum(case when event_type = 'borrow' then token_amount_usd else -token_amount_usd end) as amount 
-        from 
-        (
-            select 
-            *, 
-            cast(now() as timestamp) as last_updated 
-            from 
-                "query_6819705(start_date='date_trunc(\\'day\\', now() - interval \\'1\\' day)')"
-            
-            union all 
-            
-            select 
-                * 
-            from 
-                dune.ether_fi.result_etherfi_cash_events
-            where block_date < date_trunc('day', now() - interval '1' day)
-        )
-        where event_type in ('borrow', 'repay')
-        and blockchain in ('scroll', 'optimism')
-        group by 1, 2
-    ),
-    
-    tokens_supply_cum as (
-        select 
-            blockchain,
-            hour,
-            sum(amount) over (partition by blockchain order by hour) as token_supply,
-            lead(hour, 1, current_timestamp) over (partition by blockchain order by hour) as next_hour
-        from
-        events
-    ),
-    
-    hourly_balance as (
-        select 
-            t.blockchain,
-            h.hour, 
-            t.token_supply
-        from 
-        tokens_supply_cum t
-        inner join
-        hours h 
-            on t.hour <= h.hour 
-            and h.hour < t.next_hour
-    ),
-    
-    get_values as (
-        select 
-            gv.blockchain,
-            gv.hour,
-            4 as platform_fee, 
-            gv.token_supply,
-            gv.token_supply * 1 as token_supply_type,
-            gv.token_supply * 1 as token_supply_usd, 
-            1 as base_asset_type_price 
-        from 
-        hourly_balance gv 
-    )
-    
-    select 
-        blockchain,
-        day,
-        sum((cast(platform_fee as double)/100 * token_supply_type * base_asset_type_price)/365) as revenue_usd
-    from (
-        select 
-            blockchain,
-            date_trunc('day', hour) as day, 
-            avg(platform_fee) as platform_fee, 
-            avg(token_supply) as token_supply,
-            avg(token_supply_type) as token_supply_type,
-            max_by(base_asset_type_price, hour) as base_asset_type_price
-        from 
-            get_values 
-        where date_trunc('day', hour) = date(from_unixtime(${options.startOfDay}))
-        group by 1, 2
-    )
-    group by 1, 2
-  `
+const OP_DEBT_MANAGER = '0x0078C5a459132e279056B2371fE8A8eC973A9553';
+const APR = 0.04;
+const USD_DECIMALS = 1e6;
+const totalBorrowingAmountsAbi =
+  'function totalBorrowingAmounts() view returns (tuple(address token, uint256 amount)[], uint256)';
 
-  return await queryDuneSql(options, duneQuery)
+async function fetchScroll(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+  const result = await queryDuneSql(options, `
+    with
+
+    target_day as (
+        select cast(from_unixtime(${options.startOfDay}) as timestamp) as day
+    ),
+
+    hours as (
+        select
+            date_add('hour', h.hour, td.day) as hour
+        from target_day td
+        cross join unnest(sequence(0, 23)) as h(hour)
+    ),
+
+    events as (
+        select
+            date_trunc('hour', block_time) as hour,
+            sum(case when event_type = 'borrow' then token_amount_usd else -token_amount_usd end) as amount
+        from query_6819800
+        where event_type in ('borrow', 'repay')
+            and block_time < (select date_add('day', 1, day) from target_day)
+        group by 1
+    ),
+
+    tokens_supply_cum as (
+        select
+            hour,
+            sum(amount) over (order by hour) as token_supply,
+            lead(hour, 1, current_timestamp) over (order by hour) as next_hour
+        from events
+    ),
+
+    hourly_balance as (
+        select
+            h.hour,
+            t.token_supply
+        from tokens_supply_cum t
+        inner join hours h
+            on t.hour <= h.hour
+            and h.hour < t.next_hour
+    )
+
+    select
+        (cast(4 as double) / 100 * avg(token_supply)) / 365 as revenue_usd
+    from hourly_balance
+  `);
+  const revenueUsd = Number(result?.[0]?.revenue_usd ?? 0);
+  dailyFees.addUSDValue(revenueUsd, METRIC.BORROW_INTEREST);
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 };
+}
+
+async function fetchOptimism(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+  const [startState, endState] = await Promise.all([
+    options.fromApi.call({ target: OP_DEBT_MANAGER, abi: totalBorrowingAmountsAbi }),
+    options.toApi.call({ target: OP_DEBT_MANAGER, abi: totalBorrowingAmountsAbi }),
+  ]);
+  const startDebtUsd = Number(startState[1]) / USD_DECIMALS;
+  const endDebtUsd = Number(endState[1]) / USD_DECIMALS;
+  const avgDebtUsd = (startDebtUsd + endDebtUsd) / 2;
+  const dailyRevenueUsd = (avgDebtUsd * APR) / 365;
+
+  dailyFees.addUSDValue(dailyRevenueUsd, METRIC.BORROW_INTEREST);
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 };
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
-  const results = options.preFetchedResults;
-  
-  const chainResult = results.find((r: any) => r.blockchain === options.chain);
-  if (chainResult) {
-    // Borrow interest from cash lending - protocol revenue
-    dailyFees.addUSDValue(chainResult.revenue_usd, METRIC.BORROW_INTEREST);
-  }
-  
-  return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: 0,
-  };
+  if (options.chain === CHAIN.SCROLL) return fetchScroll(options);
+  else return fetchOptimism(options);
 };
 
 const adapter: Adapter = {
   version: 1,
   fetch,
-  prefetch,
   adapter: {
-    [CHAIN.SCROLL]: { start: '2024-11-01' },
+    [CHAIN.SCROLL]: { start: '2024-11-01', deadFrom: "2026-04-07" },
     [CHAIN.OPTIMISM]: { start: '2026-04-08' },
   },
   dependencies: [Dependencies.DUNE],
