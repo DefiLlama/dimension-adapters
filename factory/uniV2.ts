@@ -1228,6 +1228,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
     },
     factoriesName: "factories",
+    deadFrom: "2026-02-11",
   },
   "pyeswap": {
     endpoints: {

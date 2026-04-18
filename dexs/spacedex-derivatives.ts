@@ -55,6 +55,7 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: getFetch(chain),
         start: startTimestamps[chain],
+        deadFrom: "2024-12-10",
       }
     }
   }, {}),

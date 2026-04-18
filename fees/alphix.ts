@@ -19,6 +19,8 @@ const config: Record<string, ChainConfig> = {
       // AlphixLVRFee hook (0x7cBbfF9C4fcd74B221C535F4fB4B1Db04F1B9044) — pure swap fee, no lending
       { id: '0xebb666a5c6449b83536950b975d74deb32aca1537a501b58161a896816b04da6', token: '0x4200000000000000000000000000000000000006' }, // ETH/USDC
       { id: '0x3860784278e9e481ffd0888430ab2af8f2bb1180069f31cde9e1066728bbe73b', token: '0x4200000000000000000000000000000000000006' }, // ETH/cbBTC
+      // AlphixPro hook (0x2f9Cf87A6CbFA53C3F1B184900de17298e3F9080) — asymmetric dynamic fee, no lending
+      { id: '0x2d926f31a3b94ae9e0d22a0606f7684c9dbee8fcf46fae2ea68557ac1c48cb2d', token: '0x4200000000000000000000000000000000000006' }, // ETH/ZFI
       // Alphix rehypothecation hooks
       { id: '0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71', token: '0x820c137fa70c8691f0e44dc420a5e53c168921dc' }, // USDS/USDC
     ],

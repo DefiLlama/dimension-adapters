@@ -53,6 +53,7 @@ const adapter: Adapter = {
     [CHAIN.LINEA]: {
       fetch,
       start: '2024-07-02',
+      deadFrom: '2025-10-31',
     },
   },
 };

@@ -24,6 +24,7 @@ import { CHAIN } from "./chains";
  */
 // hl indexer only supports data from this date
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400;
+export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = 1776211200;
 export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
@@ -241,6 +242,9 @@ interface QueryIndexerResult {
   // spot fees = sport revenue + unit revenue
   dailySpotRevenue: Balances;
   dailyUnitRevenue: Balances;
+  
+  // priority fees
+  dailyPriorityFeesUsd: Balances;
 
   currentPerpOpenInterest?: number;
 
@@ -285,6 +289,7 @@ export async function queryHyperliquidIndexer(
   const dailySpotRevenue = options.createBalances();
   const dailyBuildersRevenue = options.createBalances();
   const dailyUnitRevenue = options.createBalances();
+  const dailyPriorityFeesUsd = options.createBalances();
   const hip3Deployers: Record<string, Hip3DeployerMetrics> = {};
 
   let currentPerpOpenInterest: number | undefined = undefined;
@@ -296,6 +301,7 @@ export async function queryHyperliquidIndexer(
   for (const item of houyItems) {
     dailyPerpVolume.addCGToken("usd-coin", item.perpsVolumeUsd);
     dailySpotVolume.addCGToken("usd-coin", item.spotVolumeUsd);
+    dailyPriorityFeesUsd.addCGToken("usd-coin", item.priorityFeeUsd ? item.priorityFeeUsd : 0);
 
     // add fees from perps trading
     for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
@@ -376,6 +382,7 @@ export async function queryHyperliquidIndexer(
     dailySpotRevenue,
     dailyBuildersRevenue,
     dailyUnitRevenue,
+    dailyPriorityFeesUsd,
     currentPerpOpenInterest,
     hip3Deployers,
   };
@@ -559,7 +566,7 @@ interface ExportValidatorStakingAdapterOptions {
 export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStakingAdapterOptions) => {
   const adapter: SimpleAdapter = {
     version: 1,
-    runAtCurrTime: true,
+    start: LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME, // 2026-04-15
     skipBreakdownValidation: true,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
@@ -568,9 +575,35 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
           const dailyRevenue = options.createBalances();
           const dailySupplySideRevenue = options.createBalances();
 
-          await sleep(1); // avoid rate limit
-          const data = await httpPost("https://api.hyperliquid.xyz/info", { type: "validatorSummaries" });
-          const validators = data.filter((v: any) => exportOptions.addressesOrNames.includes(v.validator) || exportOptions.addressesOrNames.includes(v.name));
+          async function getValidatorSummaries(timestamp: number): Promise<any> {
+            let validators: any = null;
+            
+            // hl indexer sotre history snapshots
+            const endpoint = getEnv("LLAMA_HL_INDEXER");
+            if (options.startOfDay >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
+              try {
+                const response = await httpGet(`${endpoint}/v1/data/snapshot/validatorSummaries/${timestamp}`);
+                validators = response.data;
+              } catch (e: any) {}
+            }
+            
+            // curren data can directly fetch from hyperliquid api
+            if (!validators) {
+              const TWO_DAYS = 48 * 3600;
+              const current = Math.floor(new Date().getTime() / 1000);
+              if (timestamp > current - TWO_DAYS) {
+                await sleep(1); // avoid rate limit
+                validators = await httpPost("https://api.hyperliquid.xyz/info", { type: "validatorSummaries" });
+              }
+            }
+            
+            if (!validators) throw Error(`failed to get validatorSummaries at ${timestamp}`);
+            
+            return validators;
+          }
+          
+          const validatorSummarizes = await getValidatorSummaries(options.startOfDay);
+          const validators = validatorSummarizes.filter((v: any) => exportOptions.addressesOrNames.includes(v.validator) || exportOptions.addressesOrNames.includes(v.name));
           for (const validator of validators) {
             const stakedHype = Number(validator.stake) / 1e8;
             

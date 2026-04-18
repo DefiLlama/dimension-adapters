@@ -83,6 +83,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'polymarket',
     'saddle',
     'alliumSolanaDex',
+    'duneSolanaDex',
     'joeLiquidityBook',
     'curve',
   ],
