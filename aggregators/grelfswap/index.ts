@@ -1,25 +1,24 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchUrl from "../../utils/fetchURL";
 
-const fetchVolume = async ({ startTimestamp }: { startTimestamp: number }) => {
-  const response = await globalThis.fetch(
-    `https://grelfswap.com/api/defillama/volume?startTimestamp=${startTimestamp}`
-  );
-  const data = await response.json();
-  return {
-    dailyVolume: data.dailyVolumeUsd,
-    timestamp: startTimestamp,
-  };
+const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+    const response = await fetchUrl(`https://grelfswap.com/api/defillama/volume?startTimestamp=${options.startTimestamp}`);
+
+    if (!response || response.dailyVolumeUsd === undefined) {
+        throw new Error('No data found');
+    }
+
+    return {
+        dailyVolume: response.dailyVolumeUsd,
+    };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch: fetchVolume,
-      start: 1762473600,
-    },
-  },
+    version: 1,
+    chains: [CHAIN.HEDERA],
+    fetch,
+    start: '2025-11-07',
 };
 
 export default adapter;
