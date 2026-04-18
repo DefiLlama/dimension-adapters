@@ -71,7 +71,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
     // all perp fees
     dailyFees.add(result.dailyPerpRevenue, 'Perp Fees')
     dailyFees.add(result.dailyBuildersRevenue, 'Builder Code Fees')
-    dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
+    // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
 
     // builders fees + 1% revenue
     dailySupplySideRevenue.add(result.dailyPerpRevenue.clone(hlpShare), 'HLP')
@@ -79,9 +79,9 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
     
     // 99% of revenue
     dailyRevenue.add(result.dailyPerpRevenue.clone(holdersShare), 'Perp Fees')
-    dailyRevenue.add(result.dailyPriorityFeesUsd, 'Priority Fees')
+    // dailyRevenue.add(result.dailyPriorityFeesUsd, 'Priority Fees')
     dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
+    // dailyHoldersRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
 
     return {
       dailyVolume,
