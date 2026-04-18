@@ -38,6 +38,7 @@ async function fetch(options: FetchOptions) {
 
     return {
         dailyFees,
+        dailyUserFees: dailyFees,
         dailyRevenue: dailyFees,
         dailyProtocolRevenue: dailyFees,
     }
@@ -45,6 +46,7 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
     Fees: "Fast transfer fees(0-14 BPs) and forward fees charged by CCTP",
+    UserFees: "Fast transfer fees(0-14 BPs) and forward fees paid by users for bridging USDC",
     Revenue: "All the fees are revenue",
     HoldersRevenue: "All the revenue goes to the protocol",
 }
