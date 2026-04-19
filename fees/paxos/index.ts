@@ -81,17 +81,17 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        "Yields from Binanace USD backing": "Yields from Binanace USD backing assets (Tbills, money market funds, repurchase agreements).",
+        "Yields from Binance USD backing": "Yields from Binance USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from PayPal USD backing": "Yields from PayPal USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from Global Dollar backing": "Yields from Global Dollar backing assets (Tbills, money market funds, repurchase agreements).",
     },
     Revenue: {
-        "Yields from Binanace USD backing": "Yields from Binanace USD backing assets (Tbills, money market funds, repurchase agreements).",
+        "Yields from Binance USD backing": "Yields from Binance USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from PayPal USD backing": "Yields from PayPal USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from Global Dollar backing": "Yields from Global Dollar backing assets (Tbills, money market funds, repurchase agreements).",
     },
     ProtocolRevenue: {
-        "Yields from Binanace USD backing": "Yields from Binanace USD backing assets (Tbills, money market funds, repurchase agreements).",
+        "Yields from Binance USD backing": "Yields from Binance USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from PayPal USD backing": "Yields from PayPal USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from Global Dollar backing": "Yields from Global Dollar backing assets (Tbills, money market funds, repurchase agreements).",
     }
