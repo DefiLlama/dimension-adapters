@@ -24,10 +24,16 @@ const stablecoinConfig = {
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
+    const FRED_API_KEY = getEnv("FRED_API_KEY");
+
+    if (!FRED_API_KEY) {
+        throw new Error("FRED_API_KEY is not set");
+    }
+
     const dailyFees = options.createBalances();
 
     const oneMonthAgo = new Date((options.fromTimestamp * 1000) - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const tbillYieldData = await fetchURL(`https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&observation_start=${oneMonthAgo}&observation_end=${options.dateString}&api_key=${getEnv("FRED_API_KEY")}&file_type=json`)
+    const tbillYieldData = await fetchURL(`https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&observation_start=${oneMonthAgo}&observation_end=${options.dateString}&api_key=${FRED_API_KEY}&file_type=json`)
     const latestObservation = tbillYieldData.observations.findLast((obs: any) => obs.value !== '.');
 
     if (!latestObservation) {
