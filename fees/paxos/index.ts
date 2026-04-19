@@ -30,6 +30,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     }
 
     const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const oneMonthAgo = new Date((options.fromTimestamp * 1000) - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const tbillYieldData = await fetchURL(`https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&observation_start=${oneMonthAgo}&observation_end=${options.dateString}&api_key=${FRED_API_KEY}&file_type=json`)
@@ -62,21 +64,29 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
         const fees = circulating * tbillYield * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100)
         dailyFees.addUSDValue(fees, `Yields from ${name} backing`)
+        
+        if(name === "Global Dollar") {
+            dailySupplySideRevenue.addUSDValue(fees, `Yields to Global Dollar partners`)
+        } else {
+            dailyRevenue.addUSDValue(fees, `Yields from ${name} backing`)
+        }
 
         await sleep(500)
     }
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
     }
 }
 
 const methodology = {
     Fees: "Yields from various stablecoins backing assets (Tbills, money market funds, repurchase agreements) issued by Paxos.",
-    Revenue: "All the yields are revenue for Paxos.",
-    ProtocolRevenue: "All the yields go to Paxos."
+    Revenue: "All the yields from Paypal USD and Binance USD backing are revenue for Paxos.",
+    ProtocolRevenue: "All the yields from Paypal USD and Binance USD backing are revenue for Paxos.",
+    SupplySideRevenue: "All the yields from Global Dollar backing are distributed to Global Dollar partners.",
 }
 
 const breakdownMethodology = {
@@ -88,12 +98,13 @@ const breakdownMethodology = {
     Revenue: {
         "Yields from Binance USD backing": "Yields from Binance USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from PayPal USD backing": "Yields from PayPal USD backing assets (Tbills, money market funds, repurchase agreements).",
-        "Yields from Global Dollar backing": "Yields from Global Dollar backing assets (Tbills, money market funds, repurchase agreements).",
     },
     ProtocolRevenue: {
         "Yields from Binance USD backing": "Yields from Binance USD backing assets (Tbills, money market funds, repurchase agreements).",
         "Yields from PayPal USD backing": "Yields from PayPal USD backing assets (Tbills, money market funds, repurchase agreements).",
-        "Yields from Global Dollar backing": "Yields from Global Dollar backing assets (Tbills, money market funds, repurchase agreements).",
+    },
+    SupplySideRevenue: {
+        "Yields to Global Dollar partners": "Yields from Global Dollar backing are distributed to Global Dollar partners.",
     }
 }
 
