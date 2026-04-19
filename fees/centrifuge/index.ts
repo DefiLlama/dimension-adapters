@@ -47,6 +47,7 @@ const expenseRatio = {
 }
 
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
+const USDC_DECIMALS = 6;
 
 async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
@@ -86,14 +87,18 @@ async function fetch(options: FetchOptions) {
             continue;
         }
 
-        const priceBefore = pricePerShareBefore[i] / 1e6;
-        const priceAfter = pricePerShareAfter[i] / 1e6;
+        const currentExpenseRatio = expenseRatio[tokenNames[i]];
+        if (currentExpenseRatio === undefined)
+            throw new Error(`Expense ratio not found for token ${tokenNames[i]}`);
+
+        const priceBefore = pricePerShareBefore[i] / (10 ** USDC_DECIMALS);
+        const priceAfter = pricePerShareAfter[i] / (10 ** USDC_DECIMALS);
         const tokenDecimals = decimals[i];
         const tokenSupply = totalSupplies[i] / (10 ** tokenDecimals);
 
-        const nav = priceBefore * tokenSupply;
+        const nav = priceAfter * tokenSupply;
 
-        const expenseRatioForPeriod = expenseRatio[tokenNames[i]] * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100);
+        const expenseRatioForPeriod = currentExpenseRatio * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100);
         const managementFeesForPeriod = nav * expenseRatioForPeriod;
 
         dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
