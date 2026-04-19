@@ -18,7 +18,6 @@ const stablecoinConfig = {
         id: 286,
         start: '2025-07-12'
     },
-
 }
 
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
@@ -61,7 +60,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
         const circulating = closestCirculatingData.circulating.peggedUSD
 
-        const fees = circulating * tbillYield * (options.fromTimestamp - closestCirculatingData.date) / (ONE_YEAR_IN_SECONDS * 100)
+        const fees = circulating * tbillYield * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100)
         dailyFees.addUSDValue(fees, `Yields from ${name} backing`)
 
         await sleep(500)
