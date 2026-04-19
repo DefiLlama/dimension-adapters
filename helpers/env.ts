@@ -83,6 +83,7 @@ export const ENV_KEYS = new Set([
   'DEEPTRADE_API_KEY',
   'HYPERSWAP_API_KEY',
   'MIRACLETRADE_API_KEY',
+  'FRED_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
