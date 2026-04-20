@@ -43,17 +43,14 @@ function coinmetricsData(assetID: string) {
     }
 }
 
-async function elrondUsers(start: number) {
-    const startTime = start % 86400 === 0 ? start : start + 1
+async function elrondUsers(start: number, end: number) {
     const usersResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/active-users?range=all`)
-    const todayUsersData = usersResult.data.find((d: any) => d.timestamp === startTime)
-
+    const usersDataToday = usersResult.data.find((d: any) => d.timestamp >= start && d.timestamp < end)
     const txcountResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/token-transfers?range=all`)
-    const todayTxcountData = txcountResult.data.find((d: any) => d.timestamp === startTime)
-    
+    const txcountDataToday = txcountResult.data.find((d: any) => d.timestamp >= start && d.timestamp < end)
     return [{
-        usercount: todayUsersData.value,
-        txcount: todayTxcountData.value,
+        usercount: usersDataToday.value,
+        txcount: txcountDataToday.value,
     }];
 }
 
