@@ -70,6 +70,16 @@ const fetch = async (options: FetchOptions) => {
     prizeSum += amt;
   }
 
+  // Invariant: the three fee components must not exceed gross fees. If this
+  // ever trips, the split events are out of sync with Trade (e.g. a new fee
+  // source was added on-chain) and we fail fast rather than publish an
+  // inconsistent income statement.
+  if (referralSum + prizeSum > feeSum) {
+    throw new Error(
+      `TopStrike fee splits exceed collected fees: fees=${feeSum} referral=${referralSum} prize=${prizeSum}`,
+    );
+  }
+
   const protocolShare = feeSum - referralSum - prizeSum;
   if (protocolShare > 0n) dailyProtocolRevenue.addGasToken(protocolShare);
 
