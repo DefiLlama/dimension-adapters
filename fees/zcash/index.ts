@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
@@ -30,6 +30,7 @@ const adapter: SimpleAdapter = {
     start: '2016-12-22',
     chains: [CHAIN.ZEC],
     methodology,
+    protocolType: ProtocolType.CHAIN,
 }
 
 export default adapter
