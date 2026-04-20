@@ -69,9 +69,9 @@ export const chainConfigMap: any = {
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
-  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', },
+  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
-  [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
+  [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18', burnRatio: 0.8 },
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },
@@ -117,7 +117,7 @@ export const chainConfigMap: any = {
   [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
   [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
-  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/' },
+  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2 },
   [CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
@@ -222,9 +222,9 @@ export function blockscoutFeeAdapter2(chain: string) {
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
 
-          if (chain == CHAIN.SOMNIA) {
-            const dailyRevenue = dailyFees.clone(0.5);
-            return  {
+          if(config.burnRatio) {
+            const dailyRevenue = dailyFees.clone(config.burnRatio);
+            return {
               timestamp: startOfDay,
               dailyFees,
               dailyRevenue,
