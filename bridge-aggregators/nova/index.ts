@@ -15,14 +15,14 @@ type Transfer = {
   };
 };
 
-type MynthApiResponse = {
+type NovaApiResponse = {
   contents: {
     transfers: Transfer[];
   };
 };
 
 const prefetch = async (options: FetchOptions) => {
-  const baseUrl = "https://www.mynth.ai/api/liquidity/transfers";
+  const baseUrl = "https://api.novaswap.io/api/liquidity/transfers";
   const end = options.toTimestamp * 1000;
   const start = options.fromTimestamp * 1000;
 
@@ -32,7 +32,7 @@ const prefetch = async (options: FetchOptions) => {
   const limit = 1000;
   for (let page = 1; ; page++) {
     const url = `${baseUrl}?start=${start}&end=${end}&limit=${limit}&page=${page}`;
-    const response: MynthApiResponse = await fetchURL(url);
+    const response: NovaApiResponse = await fetchURL(url);
     transfers.push(...response.contents.transfers);
     if (response.contents.transfers.length < limit) break;
   }
