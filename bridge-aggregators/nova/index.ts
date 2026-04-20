@@ -82,7 +82,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     BridgeVolume:
-      "Sum of token amounts bridged via Mynth for the period, per origin chain. We count all cross-chain transfers where origin and receiving chains are different.",
+      "Sum of token amounts bridged via Nova for the period, per origin chain. We count all cross-chain transfers where origin and receiving chains are different.",
   },
   prefetch,
   start: "2025-06-20",
