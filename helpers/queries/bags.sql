@@ -3,16 +3,16 @@ WITH
        FeeShare V1 and direct
        ========================= */
     v2_fee_authorities AS (
-        SELECT DISTINCT
-            to_base58(bytearray_substring(data, 121, 32)) AS fee_authority
+        SELECT
+            to_base58(bytearray_substring(data, 121, 32)) AS fee_authority,
+            MIN(block_time) AS created_at
         FROM solana.instruction_calls
         WHERE
-            block_slot > 385570223
+            block_slot >  385570223
             AND executing_account = 'FEE2tBhCKAt7shrod19QttSVREUYPiyMzoku1mL1gqVK'
-            AND bytearray_substring(data, 1, 16)
-                = 0xe445a52e51cb9a1d794900d9affc93c1
+            AND bytearray_substring(data, 1, 16) = 0xe445a52e51cb9a1d794900d9affc93c1
+        GROUP BY 1
     ),
-
     dbc_pools AS (
         SELECT DISTINCT
             account_config,
@@ -20,7 +20,6 @@ WITH
         FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
         WHERE call_tx_signer = '{{tx_signer}}'
     ),
-
     config_fees AS (
         SELECT
             config,
@@ -33,7 +32,6 @@ WITH
             ) AS creator_fee_pct
         FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
     ),
-
     v1_swap_events AS (
         SELECT
             p.account_quote_mint AS quote_mint,
@@ -58,9 +56,9 @@ WITH
                 SELECT 1
                 FROM v2_fee_authorities fa
                 WHERE fa.fee_authority = c.fee_claimer
+                  AND s.evt_block_time >= fa.created_at
             )
     ),
-
     v1_revenue AS (
         SELECT
             quote_mint,
