@@ -25,10 +25,6 @@ import { CHAIN } from "../../helpers/chains";
 // Same CREATE2 address on every EVM chain.
 const COLLECTOR = "0x0000000032B93DAf5c6Ff220cB2D03624CB56302";
 
-// Canonical USDC on Ethereum — $1-stable pricing proxy. Collector emits
-// amounts already normalized to 6 decimals, matching USDC's decimals.
-const USDC_ETHEREUM = "0xA0b86991c6218b36c1d19d4a2e9Eb0cE3606eB48";
-
 const DEPOSITED_EVENT =
   "event Deposited(address indexed from, address indexed to, uint64 indexed intentId, uint64 amount, address token)";
 
@@ -59,13 +55,18 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ target: COLLECTOR, eventAbi: CROSSMINT_EVENT }),
   ]);
 
+  // Convert 6-decimal BigInt amounts directly to USD — treats every payment
+  // as $1 stable regardless of source token (sidesteps per-chain price
+  // lookups for USDm/bridged USDC/USDT variants).
   deposits.forEach((log: any) => {
-    dailyFees.add(USDC_ETHEREUM, log.amount, LABEL_CROSS_CHAIN);
-    dailyRevenue.add(USDC_ETHEREUM, log.amount, LABEL_CROSS_CHAIN);
+    const usd = Number(log.amount) / 1e6;
+    dailyFees.addUSDValue(usd, LABEL_CROSS_CHAIN);
+    dailyRevenue.addUSDValue(usd, LABEL_CROSS_CHAIN);
   });
   crossmints.forEach((log: any) => {
-    dailyFees.add(USDC_ETHEREUM, log.normalizedAmount, LABEL_CROSSMINT);
-    dailyRevenue.add(USDC_ETHEREUM, log.normalizedAmount, LABEL_CROSSMINT);
+    const usd = Number(log.normalizedAmount) / 1e6;
+    dailyFees.addUSDValue(usd, LABEL_CROSSMINT);
+    dailyRevenue.addUSDValue(usd, LABEL_CROSSMINT);
   });
 
   return {
