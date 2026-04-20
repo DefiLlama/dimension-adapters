@@ -4,7 +4,7 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 import { CHAIN } from "../../helpers/chains";
 
 const inflatedVolumes = {
-  [CHAIN.ETHEREUM]: ["2026-04-18"],
+  [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19"],
 }
 
 const fetch = async (_t: number, _: ChainBlocks, { chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
