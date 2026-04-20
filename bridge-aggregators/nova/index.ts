@@ -22,7 +22,7 @@ type NovaApiResponse = {
 };
 
 const prefetch = async (options: FetchOptions) => {
-  const baseUrl = "https://api.novaswap.io/api/liquidity/transfers";
+  const baseUrl = "https://api.novaswap.io/liquidity/transfers";
   const end = options.toTimestamp * 1000;
   const start = options.fromTimestamp * 1000;
 
