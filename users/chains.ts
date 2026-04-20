@@ -1,7 +1,5 @@
 import { queryAllium } from "../helpers/allium";
-import { httpGet } from "../utils/fetchURL";
-import axios from "axios";
-import { getEnv } from "../helpers/env";
+import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
 async function solanaUsers(start: number, end: number) {
@@ -46,15 +44,17 @@ function coinmetricsData(assetID: string) {
 }
 
 async function elrondUsers(start: number) {
-    const startDate = new Date(start * 1e3).toISOString().slice(0, 10)
-    const endDate = new Date((start + 86400) * 1e3).toISOString().slice(0, 10)
-    const { data } = await axios.get(`https://tools.multiversx.com/data-api-v2/accounts/count?startDate=${startDate}&endDate=${endDate}&resolution=day`, {
-        headers: {
-            "x-api-key": getEnv('MULTIVERSX_USERS_API_KEY')
-        }
-    })
-    const { value } = data.find((d: any) => d.date.slice(0, 10) === startDate)
-    return value
+    const startTime = start % 86400 === 0 ? start : start + 1
+    const usersResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/active-users?range=all`)
+    const todayUsersData = usersResult.data.find((d: any) => d.timestamp === startTime)
+
+    const txcountResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/token-transfers?range=all`)
+    const todayTxcountData = txcountResult.data.find((d: any) => d.timestamp === startTime)
+    
+    return [{
+        usercount: todayUsersData.value,
+        txcount: todayTxcountData.value,
+    }];
 }
 
 function getAlliumUsersChain(chain: string) {
