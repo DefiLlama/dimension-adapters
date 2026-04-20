@@ -1,8 +1,8 @@
 // NextRare — cross-chain NFT gacha protocol.
 //
-// Tracks daily user payment volume via the Collector contract's own typed
-// events (`Deposited` + `CrossmintPurchase`) emitted by the CREATE2-deployed
-// Collector at the same address on every supported chain.
+// Tracks daily user payments via the Collector contract's own typed events
+// (`Deposited` + `CrossmintPurchase`) emitted by the CREATE2-deployed Collector
+// at the same address on every supported chain.
 //
 // These events are emitted by the Collector — not by the token contract —
 // because Collector uses `transferFrom(user, treasury, amount)` to forward
@@ -14,6 +14,10 @@
 // `_normalize()` function before emission, so every log is priced as canonical
 // USDC @ $1 regardless of source-chain token decimals (handles BSC 18-decimal
 // USDC/USDT and MegaETH 18-decimal USDm uniformly).
+//
+// Economics: user payments for gacha packs are non-refundable and accrue
+// 100% to the NextRare treasury — there is no LP, no external holders, no
+// revenue split. We therefore report Fees == Revenue == ProtocolRevenue.
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -31,6 +35,10 @@ const DEPOSITED_EVENT =
 const CROSSMINT_EVENT =
   "event CrossmintPurchase(address indexed from, address indexed to, uint16 quantity, uint64 normalizedAmount, address token)";
 
+// Labels (must exactly match keys in breakdownMethodology below).
+const LABEL_CROSS_CHAIN = "Cross-chain Deposit";
+const LABEL_CROSSMINT   = "Crossmint Purchase";
+
 // Collector CREATE2-deployed on all chains on 2026-03-23.
 const config: Record<string, { start: string }> = {
   [CHAIN.BASE]:        { start: "2026-03-23" },
@@ -43,19 +51,51 @@ const config: Record<string, { start: string }> = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+  const dailyFees    = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const [deposits, crossmints] = await Promise.all([
     options.getLogs({ target: COLLECTOR, eventAbi: DEPOSITED_EVENT }),
     options.getLogs({ target: COLLECTOR, eventAbi: CROSSMINT_EVENT }),
   ]);
 
-  // Both `amount` and `normalizedAmount` are already 6-decimal-normalized
-  // by Collector._normalize() before emission — price as ethereum-USDC @ $1.
-  deposits.forEach((log: any) => dailyVolume.add(USDC_ETHEREUM, log.amount));
-  crossmints.forEach((log: any) => dailyVolume.add(USDC_ETHEREUM, log.normalizedAmount));
+  deposits.forEach((log: any) => {
+    dailyFees.add(USDC_ETHEREUM, log.amount, LABEL_CROSS_CHAIN);
+    dailyRevenue.add(USDC_ETHEREUM, log.amount, LABEL_CROSS_CHAIN);
+  });
+  crossmints.forEach((log: any) => {
+    dailyFees.add(USDC_ETHEREUM, log.normalizedAmount, LABEL_CROSSMINT);
+    dailyRevenue.add(USDC_ETHEREUM, log.normalizedAmount, LABEL_CROSSMINT);
+  });
 
-  return { dailyVolume };
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  };
+};
+
+const methodology = {
+  Fees: "Gross user payments for gacha pack purchases into the NextRare Collector contract on every supported chain.",
+  Revenue: "User payments are non-refundable and accrue 100% to the NextRare treasury — no LP or external holders.",
+  ProtocolRevenue: "Same as Revenue — the NextRare treasury captures all user payments.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [LABEL_CROSS_CHAIN]:
+      "USDC/USDT on Base/Arbitrum/BSC/Mantle/HyperEVM/Monad (or USDm on MegaETH) paid via Collector.deposit(), settled cross-chain into a MegaETH GiftCard mint.",
+    [LABEL_CROSSMINT]:
+      "Purchases made directly through Crossmint (credit-card / non-crypto checkout) via Collector.mint().",
+  },
+  Revenue: {
+    [LABEL_CROSS_CHAIN]: "Cross-chain deposits accrue to the NextRare treasury.",
+    [LABEL_CROSSMINT]:   "Crossmint purchases accrue to the NextRare treasury.",
+  },
+  ProtocolRevenue: {
+    [LABEL_CROSS_CHAIN]: "Cross-chain deposits accrue to the NextRare treasury.",
+    [LABEL_CROSSMINT]:   "Crossmint purchases accrue to the NextRare treasury.",
+  },
 };
 
 const adapters: Record<string, { fetch: typeof fetch; start: string }> = {};
@@ -66,6 +106,8 @@ Object.keys(config).forEach((chain) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: adapters,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
