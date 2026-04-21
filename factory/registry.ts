@@ -66,6 +66,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'solLst',
     'joeLiquidityBook',
     'curve',
+    'subscan',
   ],
   'dexs': [
     'helpers/crypto-card',
