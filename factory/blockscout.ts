@@ -107,7 +107,7 @@ const protocolChainMap: Record<string, string> = {
   "genesys": CHAIN.GENESYS,
   "grx-chain": CHAIN.GRX,
   "joc": CHAIN.JOC,
-  "karura": CHAIN.KARURA,
+  //"karura": CHAIN.KARURA, tracked in subscan
   "loop": CHAIN.LOOP,
   "cross": CHAIN.CROSS,
   "doma": CHAIN.DOMA,

@@ -8,17 +8,23 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const query = `
     SELECT 
-        sum(gas_fees_mist) as tx_fees
+        sum(gas_fees_mist) as tx_fees,
+        sum(gas_non_refundable_storage_fee) as storage_fee_burnt
     FROM ${options.chain}.raw.transaction_blocks
     where _created_at BETWEEN '${start}' AND '${end}'
   `;
 
   const res = await queryAllium(query);
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('sui', res[0].tx_fees / 10 ** 9)
+  const dailyRevenue = options.createBalances();
+
+  dailyFees.addCGToken('sui', res[0].tx_fees / 10 ** 9);
+  dailyRevenue.addCGToken('sui', res[0].storage_fee_burnt / 10 ** 9);
 
   return {
     dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
   }
 }
 
