@@ -59,7 +59,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
-      start: '2026-01-28',
     },
   },
 };
