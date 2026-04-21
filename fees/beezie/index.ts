@@ -5,7 +5,7 @@ import { addTokensReceived } from "../../helpers/token";
 /**
  * Beezie DefiLlama Dimension Adapter
  *
- * Tracks fees, revenue, and volume from:
+ * Tracks fees from:
  * 1. Claw Machine plays (V1 on Flow, V2 on Base)
  * 2. Secondary market trades via BidRouter (both chains)
  *
@@ -68,9 +68,9 @@ const fetchClawMachineAddresses = async (options: FetchOptions, factoryAddress: 
   return logs.map((log: any) => log.clawMachine);
 };
 
-const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: string[], version: "v1" | "v2") => {
+const fetchClawFees = async (options: FetchOptions, clawMachines: string[], version: "v1" | "v2") => {
   if (!clawMachines.length) {
-    return { dailyVolume: options.createBalances(), dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
+    return { dailyFees: options.createBalances() };
   }
 
   // Get play token for each machine (permitFailure in case some contracts are invalid)
@@ -90,12 +90,10 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
     }
   });
 
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   if (version === "v2") {
-    // V2: Played(user, amount) — entire amount is protocol revenue
+    // V2: Played(user, amount) — entire amount is protocol fee
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV2Abi.played,
@@ -108,9 +106,7 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
       if (!token) continue;
 
       const amount = (log as any).args?.amount ?? log.amount;
-      dailyVolume.add(token, amount, "Claw Machine Plays");
       dailyFees.add(token, amount, "Claw Machine Fees");
-      dailyRevenue.add(token, amount, "Claw Machine Revenue");
     }
   } else {
     // V1: Played(user, amount, commission) — commission goes to protocol
@@ -125,15 +121,12 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      const amount = (log as any).args?.amount ?? log.amount;
       const commission = (log as any).args?.commission ?? log.commission;
-      dailyVolume.add(token, amount, "Claw Machine Plays");
       dailyFees.add(token, commission, "Claw Machine Fees");
-      dailyRevenue.add(token, commission, "Claw Machine Revenue");
     }
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue };
+  return { dailyFees };
 };
 
 const PAYMENT_TOKENS: Record<string, string[]> = {
@@ -191,58 +184,35 @@ const fetch = async (options: FetchOptions) => {
   // 1. Discover all claw machines from factory events
   const clawMachines = await fetchClawMachineAddresses(options, chainConfig.factory, chainConfig.factoryStartBlock);
 
-  // 2. Get claw machine play volume and fees
-  const claw = await fetchClawVolumeAndFees(options, clawMachines, chainConfig.version);
+  // 2. Get claw machine fees
+  const claw = await fetchClawFees(options, clawMachines, chainConfig.version);
 
   // 3. Get BidRouter volume split by swaps vs marketplace
   const bids = await fetchBidRouterVolume(options, chainConfig.bidRouter);
 
-  // 4. Combine volumes (claw pulls + swaps + marketplace)
-  const dailyVolume = options.createBalances();
-  dailyVolume.addBalances(claw.dailyVolume);
-  dailyVolume.addBalances(bids.swapVolume);
-  dailyVolume.addBalances(bids.marketplaceVolume);
-
-  // Daily revenue = claw pulls + marketplace
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(claw.dailyRevenue, "Claw Machine Revenue");
-  dailyRevenue.addBalances(bids.marketplaceVolume, "Marketplace Revenue");
-
-  // Daily fees = 6% of claw swaps + 5% of marketplace
+  // 4. Combine fees
+  // Daily fees = claw fees + 6% of claw swaps + 5% of marketplace
   const dailyFees = options.createBalances();
+  dailyFees.addBalances(claw.dailyFees, "Claw Machine Fees");
   dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
   dailyFees.addBalances(bids.marketplaceVolume.clone(0.05), "Marketplace Fees");
 
-  // Daily volume = claw pulls + swaps + marketplace
-  // Daily fees = 6% of claw swaps + 5% of marketplace
-  // Daily revenue = claw pulls + marketplace
-  // Daily protocol revenue = claw pulls + marketplace
-
   return {
-    dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 // --- Methodology ---
 
 const methodology = {
-  Fees: "Fees collected from claw machine swap and marketplace trades (6% on swaps, 5% on marketplace).",
-  Revenue: "All revenue is claw pulls + marketplace volume — no LP or token holder split.",
-  ProtocolRevenue: "Revenue from claw machine plays plus secondary marketplace trades via BidRouter.",
-  Volume: "Total value of claw machine plays and secondary market trades via BidRouter.",
+  Fees: "Fees from claw machine plays (V1: commission, V2: full amount), 6% on BidRouter swaps, and 5% on marketplace purchases.",
 };
 
 const breakdownMethodology = {
   Fees: {
+    "Claw Machine Fees": "Fees from claw machine plays (V1: commission, V2: full amount)",
     "Swap Fees": "6% fee on BidRouter swaps from claw managers",
     "Marketplace Fees": "5% fee on BidRouter marketplace purchases",
-  },
-  Revenue: {
-    "Claw Machine Revenue": "Revenue from claw machine plays (V1: commission, V2: full amount)",
-    "Marketplace Revenue": "Revenue from secondary marketplace purchases",
   },
 };
 
