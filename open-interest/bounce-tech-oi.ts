@@ -16,42 +16,33 @@ const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
 const USDC = '0xb88339CB7199b77E23DB6E890353E22632Ba630f'; // notionalUsdc precompile always returns 6-decimal USDC
 
 const fetch = async (options: FetchOptions) => {
-  const factory = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
-  const handler = await options.api.call({ abi: 'address:hyperliquidHandler', target: GLOBAL_STORAGE });
+    const factory = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
+    const handler = await options.api.call({ abi: 'address:hyperliquidHandler', target: GLOBAL_STORAGE });
 
-  const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
+    const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
-  const notionals = await options.api.multiCall({ abi: 'function notionalUsdc(address user) returns (uint256)', calls: lts.map(lt => ({ target: handler, params: [lt] })) });
-  const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
+    const notionals = await options.api.multiCall({ abi: 'function notionalUsdc(address user) returns (uint256)', calls: lts.map(lt => ({ target: handler, params: [lt] })) });
+    const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
 
-  const openInterestAtEnd = options.createBalances();
-  const longOpenInterestAtEnd = options.createBalances();
-  const shortOpenInterestAtEnd = options.createBalances();
+    const openInterestAtEnd = options.createBalances();
+    const longOpenInterestAtEnd = options.createBalances();
+    const shortOpenInterestAtEnd = options.createBalances();
 
-  lts.forEach((_lt, i) => {
-    const notional = BigInt(notionals[i]);
-    openInterestAtEnd.add(USDC, notional);
-    if (isLongs[i]) longOpenInterestAtEnd.add(USDC, notional);
-    else shortOpenInterestAtEnd.add(USDC, notional);
-  });
+    lts.forEach((_lt, i) => {
+        const notional = BigInt(notionals[i]);
+        openInterestAtEnd.add(USDC, notional);
+        if (isLongs[i]) longOpenInterestAtEnd.add(USDC, notional);
+        else shortOpenInterestAtEnd.add(USDC, notional);
+    });
 
-  return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
+    return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  methodology: {
-    OpenInterest: "Sum of notional position sizes across all leveraged token contracts on Hyperliquid, representing total actual exposure",
-  },
-  breakdownMethodology: {
-    "Long Open Interest": "Notional exposure of long leveraged token contracts",
-    "Short Open Interest": "Notional exposure of short leveraged token contracts",
-  },
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-    },
-  },
+    version: 2,
+    chains: [CHAIN.HYPERLIQUID],
+    fetch,
+    start: '2026-01-28',
 };
 
 export default adapter;
