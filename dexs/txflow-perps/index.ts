@@ -30,6 +30,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
 }
 
@@ -37,6 +39,8 @@ const methodology = {
     Volume: "Total daily trading volume from all perpetual markets on TxFlow.",
     Fees: 'Fees collected from user trading fees and funding fees on TxFlow perpetual markets.',
     UserFees: 'Fees collected from user trading fees on TxFlow perpetual markets.',
+    Revenue: "All the fees are revenue for the protocol.",
+    ProtocolRevenue: "All the revenue goes to the protocol.",
 }
 
 const breakdownMethodology = {
