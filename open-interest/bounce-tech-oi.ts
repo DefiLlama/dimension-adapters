@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
   const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
   const totalSupplies = await options.api.multiCall({ abi: 'uint256:totalSupply', calls: lts });
-  const exchangeRates = await options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts, permitFailure: true });
+  const exchangeRates = await options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts });
   const leverages = await options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts });
   const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
 
@@ -37,8 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const shortOpenInterestAtEnd = options.createBalances();
 
   lts.forEach((_lt, i) => {
-    const rate = BigInt(exchangeRates[i] ?? 0);
-    if (rate === 0n) return;
+    const rate = BigInt(exchangeRates[i]);
     const supply = BigInt(totalSupplies[i]);
     const leverage = BigInt(leverages[i]);
     const notional = supply * rate * leverage / SCALE;
