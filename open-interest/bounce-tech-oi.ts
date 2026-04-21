@@ -12,6 +12,7 @@
 //   LeveragedToken.totalSupply()    → Outstanding LT supply
 //   LeveragedToken.exchangeRate()   → NAV per LT
 //   LeveragedToken.targetLeverage() → Leverage multiplier per token
+//   LeveragedToken.isLong()         → Long vs short side
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -29,14 +30,18 @@ const fetch = async (options: FetchOptions) => {
   const totalSupplies = await options.api.multiCall({ abi: 'uint256:totalSupply', calls: lts });
   const exchangeRates = await options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts, permitFailure: true });
   const leverages = await options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts });
+  const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
 
   const openInterestAtEnd = options.createBalances();
+
   lts.forEach((_lt, i) => {
     const rate = BigInt(exchangeRates[i] ?? 0);
     if (rate === 0n) return;
     const supply = BigInt(totalSupplies[i]);
     const leverage = BigInt(leverages[i]);
-    openInterestAtEnd.add(baseAsset, supply * rate * leverage / SCALE);
+    const notional = supply * rate * leverage / SCALE;
+    const label = isLongs[i] ? 'Long Open Interest' : 'Short Open Interest';
+    openInterestAtEnd.add(baseAsset, notional, label);
   });
 
   return { openInterestAtEnd };
@@ -47,7 +52,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     OpenInterest: "Sum of totalSupply × exchangeRate × targetLeverage across all leveraged token contracts, representing total notional exposure",
   },
-  fetch,
+  breakdownMethodology: {
+    "Long Open Interest": "Notional exposure of long leveraged token contracts",
+    "Short Open Interest": "Notional exposure of short leveraged token contracts",
+  },
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
