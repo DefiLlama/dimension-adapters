@@ -15,75 +15,58 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ethers } from "ethers";
 
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
 
-const MINT_ABI           = 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)';
-const REDEEM_ABI         = 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)';
+const MINT_ABI = 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)';
+const REDEEM_ABI = 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)';
 const EXECUTE_REDEEM_ABI = 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)';
 
-const mintInterface          = new ethers.Interface([MINT_ABI]);
-const redeemInterface        = new ethers.Interface([REDEEM_ABI]);
-const executeRedeemInterface = new ethers.Interface([EXECUTE_REDEEM_ABI]);
-
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+    const dailyVolume = options.createBalances();
 
-  const factory: string = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
+    const factory: string = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
 
-  const [baseAsset, lts]: [string, string[]] = await Promise.all([
-    options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
-    options.api.call({ abi: 'address[]:lts', target: factory }),
-  ]);
+    const [baseAsset, lts]: [string, string[]] = await Promise.all([
+        options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
+        options.api.call({ abi: 'address[]:lts', target: factory }),
+    ]);
 
-  const [leverages, mintLogs, redeemLogs, executeRedeemLogs] = await Promise.all([
-    options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
-    options.getLogs({ targets: lts, eventAbi: MINT_ABI, entireLog: true }),
-    options.getLogs({ targets: lts, eventAbi: REDEEM_ABI, entireLog: true }),
-    options.getLogs({ targets: lts, eventAbi: EXECUTE_REDEEM_ABI, entireLog: true }),
-  ]);
+    const [leverages, mintLogs, redeemLogs, executeRedeemLogs] = await Promise.all([
+        options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
+        options.getLogs({ targets: lts, eventAbi: MINT_ABI, entireLog: true, parseLog: true }),
+        options.getLogs({ targets: lts, eventAbi: REDEEM_ABI, entireLog: true, parseLog: true }),
+        options.getLogs({ targets: lts, eventAbi: EXECUTE_REDEEM_ABI, entireLog: true, parseLog: true }),
+    ]);
 
-  // Mapping LT address to leverage for subsequent log lookup
-  const leverageByLt: Record<string, bigint> = {};
-  lts.forEach((lt, i) => { leverageByLt[lt.toLowerCase()] = BigInt(leverages[i]); });
+    // Mapping LT address to leverage for subsequent log lookup
+    const leverageByLt: Record<string, bigint> = {};
+    lts.forEach((lt, i) => { leverageByLt[lt.toLowerCase()] = BigInt(leverages[i]); });
 
-  const addNotional = (log: any, iface: ethers.Interface, label: string) => {
-    const leverage = leverageByLt[log.address.toLowerCase()];
-    const parsed = iface.parseLog(log)!;
-    const notional = BigInt(parsed.args.baseAmount) * leverage / 10n ** 18n;
-    dailyVolume.add(baseAsset, notional, label);
-  };
+    const addNotional = (log: any) => {
+        const leverage = leverageByLt[log.address.toLowerCase()];
+        const notional = BigInt(log.args.baseAmount) * leverage / 10n ** 18n;
+        dailyVolume.add(baseAsset, notional);
+    };
 
-  mintLogs.forEach((log: any) => addNotional(log, mintInterface, 'Mint'));
-  redeemLogs.forEach((log: any) => addNotional(log, redeemInterface, 'Redeem'));
-  executeRedeemLogs.forEach((log: any) => addNotional(log, executeRedeemInterface, 'Redeem'));
+    mintLogs.forEach((log: any) => addNotional(log,));
+    redeemLogs.forEach((log: any) => addNotional(log,));
+    executeRedeemLogs.forEach((log: any) => addNotional(log));
 
-  return { dailyVolume };
+    return { dailyVolume };
 };
 
 const methodology = {
-  Volume: 'Notional leveraged exposure created and destroyed via mints and redemptions. Calculated as base asset amount × target leverage per token.',
-};
-
-const breakdownMethodology = {
-  Volume: {
-    'Mint': 'Notional exposure created when users mint leveraged tokens.',
-    'Redeem': 'Notional exposure destroyed when users redeem leveraged tokens (instant and async).',
-  },
+    Volume: 'Notional leveraged exposure created and destroyed via mints and redemptions. Calculated as base asset amount × target leverage per token.',
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2026-01-28',
-    },
-  },
-  methodology,
-  breakdownMethodology,
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.HYPERLIQUID],
+    start: '2026-01-28',
+    methodology,
 };
 
 export default adapter;
