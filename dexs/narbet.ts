@@ -166,6 +166,64 @@ const games = [
     target: "0x87F70cC2492688675228D89BCA894f855A5dbF50",
     eventAbi: "event Limbo_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, uint256[] limboOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
   },
+
+  // ===== V4 contracts (Pyth V2 + UUPS proxy, April 2026) =====
+
+  // CoinFlip v4
+  {
+    target: "0xb82360d08784f0Ff24A740ADaD6b1AC2391C8D57",
+    eventAbi: "event CoinFlip_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint8[] coinOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Range v4
+  {
+    target: "0x0B1E533e33f9E82849E71fb5c0a33F38462D5eD4",
+    eventAbi: "event Range_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, bool isOver, uint256[] rangeOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // RockPaperScissors v4
+  {
+    target: "0x843D62ad75F5d0b383f8520e23d19174b7961b8E",
+    eventAbi: "event RockPaperScissors_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint8[] outcomes, uint8[] randomActions, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Slots v4
+  {
+    target: "0xd6F08aF222C8aa69F99B6099F93C6d96897d378f",
+    eventAbi: "event Slots_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint16[] slotIDs, uint256[] multipliers, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // Mines v4
+  {
+    target: "0x3014d056Db789984552084Db359D7C56A620549b",
+    eventAbi: "event Mines_End_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint256 numMines, bool[25] revealedTiles, uint256 multiplier )",
+  },
+  // Plinko v4
+  {
+    target: "0x5859E2926750F3981f95bbA16b86d8e69cf4334B",
+    eventAbi: "event Plinko_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint16[] paths, uint8 numRows, uint8 risk, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // VideoPoker v4
+  {
+    target: "0xb86A1955E96147665d7bdd70E50bD6Af38E086d1",
+    eventAbi: "event VideoPoker_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, (uint8,uint8)[5] playerHand, uint256 outcome, uint64 sequenceNumber, uint64 sequenceNumberStart )",
+  },
+  // Baccarat v4
+  {
+    target: "0x8261A173DC96e206b8D8621ca1231a3E7bcB851E",
+    eventAbi: "event Baccarat_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256[5] wager, uint256 totalPayout, address tokenAddress, (uint8,uint8)[6] playerHand, (uint8,uint8)[3] bankerCards, (uint8,uint8)[3] playerCards, uint256[3] outcome, uint256[5] payouts, uint64 sequenceNumber )",
+  },
+  // Roulette v4
+  {
+    target: "0x4A050DD00c08856cc3d7C5BD152E4e601ffDaa35",
+    eventAbi: "event Roulette_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256 totalPayout, address tokenAddress, uint256[] wager, uint256[] rouletteType, uint256[] payouts, uint256 outcome, uint64 sequenceNumber )",
+  },
+  // Limbo v4
+  {
+    target: "0xb9e0b5447B92eb5CF246693F7b533d5c84AA8dC5",
+    eventAbi: "event Limbo_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, uint256[] limboOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
+  },
+  // FishPrawnCrab v4
+  {
+    target: "0xbbE3FA39912355C49Aa3ccdD02C51d989Fb33E79",
+    eventAbi: "event FishPrawnCrab_Outcome_Event( address indexed playerAddress, uint256 totalWager, uint256 totalPayout, address tokenAddress, uint256[] wager, uint256[] fishPrawnCrabType, uint256[] payouts, uint256[3] outcome, uint64 sequenceNumber )",
+  },
 ];
 
 const fetch = async (options: FetchOptions) => {
