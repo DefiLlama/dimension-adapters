@@ -45,6 +45,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SCROLL]: {
       fetch: getFetch(CHAIN.SCROLL),
       start: '2024-05-09',
+      deadFrom: '2025-04-15',
     },
   },
 };

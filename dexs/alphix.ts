@@ -23,6 +23,10 @@ const config: Record<string, ChainConfig> = {
         token: "0x4200000000000000000000000000000000000006", // ETH/cbBTC (AlphixLVRFee)
       },
       {
+        id: "0x2d926f31a3b94ae9e0d22a0606f7684c9dbee8fcf46fae2ea68557ac1c48cb2d",
+        token: "0x4200000000000000000000000000000000000006", // ETH/ZFI (AlphixPro)
+      },
+      {
         id: "0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71",
         token: "0x820c137fa70c8691f0e44dc420a5e53c168921dc", // USDS/USDC
       },

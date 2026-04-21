@@ -64,6 +64,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ZKSYNC]: {
       fetch,
       start: 1733356800,
+      deadFrom: "2025-08-12",
     },
   },
   methodology,

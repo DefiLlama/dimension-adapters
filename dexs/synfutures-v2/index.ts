@@ -83,6 +83,7 @@ const adapters: SimpleAdapter = {
       fetch: fetchVolume(CHAIN.POLYGON),
       start: '2022-09-08'
     }
-  }
+  },
+  deadFrom: "2024-03-15",
 }
 export default adapters;

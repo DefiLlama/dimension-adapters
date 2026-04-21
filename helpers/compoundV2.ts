@@ -112,6 +112,7 @@ export function getFeesExport(market: string) {
 }
 
 interface CompoundV2ExportOptions {
+  start?: string | IJSON<string>;
   blacklists?: Array<string>;
   useExchangeRate?: boolean;
   protocolRevenueRatio?: number;
@@ -122,8 +123,12 @@ interface CompoundV2ExportOptions {
 
 export function compoundV2Export(config: IJSON<string>, exportOptions?: CompoundV2ExportOptions) {
   const exportObject: BaseAdapter = {}
+  let starts: IJSON<string> = {}
+  if (typeof exportOptions?.start === 'object')  starts = exportOptions.start
+
   Object.entries(config).map(([chain, market]) => {
     exportObject[chain] = {
+      start: starts[chain],
       fetch: (async (options: FetchOptions) => {
         const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
           ? await getFeesUseExchangeRates(market, options, {
@@ -142,6 +147,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     }
   })
   return {
+    start: typeof exportOptions?.start === 'string' ? exportOptions.start :  undefined,
     adapter: exportObject,
     version: 2,
     methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {

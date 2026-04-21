@@ -17,6 +17,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch,
       start: '2023-09-25',
+      deadFrom: "2025-08-01",
     },
   },
 };
