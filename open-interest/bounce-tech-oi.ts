@@ -1,35 +1,27 @@
 // Bounce - Leveraged Tokens on HyperEVM (Open Interest)
 //
-// Open Interest = sum of (totalSupply × exchangeRate × targetLeverage / (1e18^3 / 10^decimals)) across all tokens
-//   totalSupply    = outstanding LT token supply
-//   exchangeRate   = current NAV per LT token
-//   targetLeverage = leverage multiplier per token
-//   Open Interest  = totalSupply × exchangeRate × targetLeverage / (1e18^3 / 10^decimals) → base asset units
+// Open Interest = sum of notional across all leveraged token contracts
 //
 // Contract resolution chain:
-//   GlobalStorage.factory()         → Factory address
-//   Factory.lts()                   → All deployed LeveragedToken addresses
-//   LeveragedToken.totalSupply()    → Outstanding LT supply
-//   LeveragedToken.exchangeRate()   → NAV per LT
-//   LeveragedToken.targetLeverage() → Leverage multiplier per token
-//   LeveragedToken.isLong()         → Long vs short side
+//   GlobalStorage.factory()                   → Factory address
+//   GlobalStorage.hyperliquidHandler()        → HyperliquidHandler address
+//   Factory.lts()                             → All deployed LeveragedToken addresses
+//   HyperliquidHandler.notionalUsdc(lt)       → Actual position notional per token
+//   LeveragedToken.isLong()                   → Long vs short side
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
+const USDC = '0xb88339CB7199b77E23DB6E890353E22632Ba630f'; // notionalUsdc precompile always returns 6-decimal USDC
 
 const fetch = async (options: FetchOptions) => {
   const factory = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
-  const baseAsset = await options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE });
-  const decimals: number = await options.api.call({ abi: 'uint8:decimals', target: baseAsset });
-  const SCALE = (10n ** 18n) ** 3n / 10n ** BigInt(decimals); // supply[1e18] * rate[1e18] * leverage[1e18], scaled down to base asset decimals
+  const handler = await options.api.call({ abi: 'address:hyperliquidHandler', target: GLOBAL_STORAGE });
 
   const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
-  const totalSupplies = await options.api.multiCall({ abi: 'uint256:totalSupply', calls: lts });
-  const exchangeRates = await options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts });
-  const leverages = await options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts });
+  const notionals = await options.api.multiCall({ abi: 'function notionalUsdc(address user) returns (uint256)', calls: lts.map(lt => ({ target: handler, params: [lt] })) });
   const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
 
   const openInterestAtEnd = options.createBalances();
@@ -37,13 +29,10 @@ const fetch = async (options: FetchOptions) => {
   const shortOpenInterestAtEnd = options.createBalances();
 
   lts.forEach((_lt, i) => {
-    const rate = BigInt(exchangeRates[i]);
-    const supply = BigInt(totalSupplies[i]);
-    const leverage = BigInt(leverages[i]);
-    const notional = supply * rate * leverage / SCALE;
-    openInterestAtEnd.add(baseAsset, notional);
-    if (isLongs[i]) longOpenInterestAtEnd.add(baseAsset, notional);
-    else shortOpenInterestAtEnd.add(baseAsset, notional);
+    const notional = BigInt(notionals[i]);
+    openInterestAtEnd.add(USDC, notional);
+    if (isLongs[i]) longOpenInterestAtEnd.add(USDC, notional);
+    else shortOpenInterestAtEnd.add(USDC, notional);
   });
 
   return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
@@ -52,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    OpenInterest: "Sum of totalSupply × exchangeRate × targetLeverage across all leveraged token contracts, representing total notional exposure",
+    OpenInterest: "Sum of notional position sizes across all leveraged token contracts on Hyperliquid, representing total actual exposure",
   },
   breakdownMethodology: {
     "Long Open Interest": "Notional exposure of long leveraged token contracts",
