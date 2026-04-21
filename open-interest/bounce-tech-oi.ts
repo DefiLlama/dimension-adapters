@@ -33,6 +33,8 @@ const fetch = async (options: FetchOptions) => {
   const isLongs = await options.api.multiCall({ abi: 'bool:isLong', calls: lts });
 
   const openInterestAtEnd = options.createBalances();
+  const longOpenInterestAtEnd = options.createBalances();
+  const shortOpenInterestAtEnd = options.createBalances();
 
   lts.forEach((_lt, i) => {
     const rate = BigInt(exchangeRates[i] ?? 0);
@@ -40,11 +42,12 @@ const fetch = async (options: FetchOptions) => {
     const supply = BigInt(totalSupplies[i]);
     const leverage = BigInt(leverages[i]);
     const notional = supply * rate * leverage / SCALE;
-    const label = isLongs[i] ? 'Long Open Interest' : 'Short Open Interest';
-    openInterestAtEnd.add(baseAsset, notional, label);
+    openInterestAtEnd.add(baseAsset, notional);
+    if (isLongs[i]) longOpenInterestAtEnd.add(baseAsset, notional);
+    else shortOpenInterestAtEnd.add(baseAsset, notional);
   });
 
-  return { openInterestAtEnd };
+  return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
