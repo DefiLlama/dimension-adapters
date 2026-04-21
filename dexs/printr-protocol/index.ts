@@ -87,19 +87,15 @@ const fetchEvm = async ({ getLogs, createBalances, api }: FetchOptions) => {
   };
 };
 
-interface ISolanaVolumeRow {
-  payment_mint: string;
-  payment_amount: string | number;
+interface ISolanaFeeRow {
+  quote_mint: string;
+  total_trading_fees: string | number;
+  total_protocol_fees: string | number;
+  total_referral_fees: string | number;
 }
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
-  // Methodology alignment with EVM:
-  // EVM tracks TokenTrade.cost in the basePair token.
-  // Solana DBC swap events expose the quote mint and quote leg amount directly:
-  //  - trade_direction = 1: user pays quote mint as amount_in
-  //  - trade_direction = 0: user receives quote mint as output_amount
-  // In both cases we accumulate the quote/payment leg by mint.
-  const rows: ISolanaVolumeRow[] = await queryDuneSql(options, `
+const fetchSolana = async (options: FetchOptions) => {
+  const rows: ISolanaFeeRow[] = await queryDuneSql(options, `
     WITH printr_created_mints AS (
       SELECT DISTINCT token_mint_address AS meme_mint
       FROM tokens_solana.transfers
@@ -109,21 +105,18 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
         AND token_mint_address NOT IN ('${SOLANA_WSOL}', '${SOLANA_USDC}')
     ),
     printr_dbc_pools AS (
-      -- account_base_mint is the launched/traded meme token mint for each DBC config.
       SELECT DISTINCT
         account_config,
-        account_quote_mint,
-        account_base_mint AS meme_mint
+        account_quote_mint
       FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
       WHERE account_base_mint IN (SELECT meme_mint FROM printr_created_mints)
     ),
-    printr_swaps AS (
+    swap_events AS (
       SELECT
-        p.account_quote_mint AS payment_mint,
-        CASE
-          WHEN s.trade_direction = 1 THEN COALESCE(s.amount_in, 0)
-          ELSE COALESCE(CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.output_amount') AS DECIMAL(38,0)), 0)
-        END AS payment_amount
+        p.account_quote_mint AS quote_mint,
+        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
+        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
       FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
       JOIN printr_dbc_pools p ON s.config = p.account_config
       WHERE s.evt_executing_account = '${PRINTR_SOLANA_BONDING_CURVE_PROGRAM}'
@@ -131,31 +124,43 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
         AND s.evt_block_time < from_unixtime(${options.endTimestamp})
     )
     SELECT
-      payment_mint,
-      SUM(payment_amount) AS payment_amount
-    FROM printr_swaps
-    GROUP BY payment_mint
+      quote_mint,
+      SUM(COALESCE(trading_fee, 0)) AS total_trading_fees,
+      SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
+      SUM(COALESCE(referral_fee, 0)) AS total_referral_fees
+    FROM swap_events
+    GROUP BY 1
   `)
 
-  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
   rows.forEach((row) => {
-    dailyVolume.add(row.payment_mint, row.payment_amount)
+    dailyFees.add(row.quote_mint, Number(row.total_trading_fees))
+    dailyRevenue.add(row.quote_mint, Number(row.total_protocol_fees))
+    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees))
+    dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees))
   })
 
   return {
-    dailyVolume,
-    ...getFeeBreakdownFromVolume(dailyVolume),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const fetch = async (options: FetchOptions) => {
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(null, null, options)
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
   return fetchEvm(options)
 }
 
 const methodology = {
   Volume:
-    "Total trading volume from Printr bonding curve buys and sells, tracked as payment-side trade cost. On EVM this is TokenTrade.cost in the curve base pair token; on Solana this is the quote/payment mint leg from DBC swap events (amount_in for buys, quote output_amount for sells).",
+    "EVM-only trading volume from Printr bonding curve swaps, denominated in the base pair token via TokenTrade.cost. Solana bonding curve volume is tracked under Meteora and excluded here.",
   Fees: "Printr charges a 1% fee on all bonding curve swaps.",
   Revenue:
     "75% of trading fees: team (10%), protocol-controlled memecoin reserve (25%), and buyback (40%).",
