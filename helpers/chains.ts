@@ -356,5 +356,6 @@ export enum CHAIN {
   HOTSTUFF = "hotstuff",
   CHIA = "chia",
   CANTON = "canton",
+  TXFLOW = "txflow",
   ZEC = "zcash",
 }
