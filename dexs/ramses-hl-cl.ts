@@ -209,38 +209,75 @@ export async function fetchProtocolDayStats(
   };
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
-  const stats = await fetchStats(options);
+type PoolType = 'cl' | 'legacy';
 
-  const dailyVolume = stats.clVolumeUSD;
+interface PoolStats {
+  volumeUSD: number;
+  feesUSD: number;
+  userFeesRevenueUSD: number;
+  protocolRevenueUSD: number;
+  bribeRevenueUSD: number;
+}
 
-  const dailyFees = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-
-  dailyFees.addUSDValue(stats.clFeesUSD, METRIC.SWAP_FEES);
-  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Swap Fees to holders');
-  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Swap Fees to protocol');
-
-  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes');
-  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes to holders');
-
-  const dailyRevenue = dailyProtocolRevenue.clone();
-  dailyRevenue.add(dailyHoldersRevenue);
-
-  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Swap Fees to LPs');
-
+function getPoolStats(stats: IGraphRes, poolType: PoolType): PoolStats {
+  if (poolType === 'legacy') {
+    return {
+      volumeUSD: stats.legacyVolumeUSD,
+      feesUSD: stats.legacyFeesUSD,
+      userFeesRevenueUSD: stats.legacyUserFeesRevenueUSD,
+      protocolRevenueUSD: stats.legacyProtocolRevenueUSD,
+      bribeRevenueUSD: stats.legacyBribeRevenueUSD,
+    };
+  }
   return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyHoldersRevenue,
-    dailyProtocolRevenue,
-    dailyRevenue,
-    dailySupplySideRevenue,
+    volumeUSD: stats.clVolumeUSD,
+    feesUSD: stats.clFeesUSD,
+    userFeesRevenueUSD: stats.clUserFeesRevenueUSD,
+    protocolRevenueUSD: stats.clProtocolRevenueUSD,
+    bribeRevenueUSD: stats.clBribeRevenueUSD,
   };
-};
+}
+
+function createFetchHandler(poolType: PoolType) {
+  return async (_: any, _1: any, options: FetchOptions) => {
+    const stats = await fetchStats(options);
+    const poolStats = getPoolStats(stats, poolType);
+
+    const dailyVolume = poolStats.volumeUSD;
+
+    const dailyFees = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(poolStats.feesUSD, METRIC.SWAP_FEES);
+    dailyHoldersRevenue.addUSDValue(poolStats.userFeesRevenueUSD, 'Swap Fees to holders');
+    dailyProtocolRevenue.addUSDValue(poolStats.protocolRevenueUSD, 'Swap Fees to protocol');
+
+    dailyFees.addUSDValue(poolStats.bribeRevenueUSD, 'Bribes');
+    dailyHoldersRevenue.addUSDValue(poolStats.bribeRevenueUSD, 'Bribes to holders');
+
+    const dailyRevenue = dailyProtocolRevenue.clone();
+    dailyRevenue.add(dailyHoldersRevenue);
+
+    dailySupplySideRevenue.addUSDValue(
+      poolStats.feesUSD - poolStats.userFeesRevenueUSD - poolStats.protocolRevenueUSD,
+      'Swap Fees to LPs'
+    );
+
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyHoldersRevenue,
+      dailyProtocolRevenue,
+      dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  };
+}
+
+const fetch = createFetchHandler('cl');
 
 export const methodology = {
   Fees: "Fees are collected from users on each swap.",
@@ -273,12 +310,28 @@ export const breakdownMethodology = {
   },
 };
 
-const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.HYPERLIQUID],
-  start: '2025-11-08',
-  methodology,
-  breakdownMethodology,
-};
+export function createClAdapter(chain: string, start: string): SimpleAdapter {
+  return {
+    fetch,
+    chains: [chain],
+    start,
+    methodology,
+    breakdownMethodology,
+  };
+}
+
+const legacyFetch = createFetchHandler('legacy');
+
+export function createLegacyAdapter(chain: string, start: string): SimpleAdapter {
+  return {
+    fetch: legacyFetch,
+    chains: [chain],
+    start,
+    methodology,
+    breakdownMethodology,
+  };
+}
+
+const adapter: SimpleAdapter = createClAdapter(CHAIN.HYPERLIQUID, '2025-11-08');
 
 export default adapter;
