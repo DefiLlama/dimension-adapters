@@ -20,7 +20,15 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyVolume = apiRes.data.cumulative_trading_volume_usd[1] - apiRes.data.cumulative_trading_volume_usd[0]; 
 
   if (apiRes.data.cumulative_trading_volume_usd[0] === 0 && options.dateString != '2024-11-19') {
-    throw new Error('Invalid data')
+    //throw new Error('Invalid data')
+    return {
+      dailyVolume: 0,
+      dailyFees: 0,
+      dailySupplySideRevenue: 0,
+      dailyRevenue: 0,
+      dailyHoldersRevenue: 0,
+      dailyProtocolRevenue: 0,
+    }
   }
 
   const cumulative_swap_fee_usd = apiRes.data.cumulative_swap_fee_usd[1] - apiRes.data.cumulative_swap_fee_usd[0];
