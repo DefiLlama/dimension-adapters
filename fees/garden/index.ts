@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 const chainMapper: Record<string, { name: string, start: string, primaryCGToken: string }> = {
     [CHAIN.ETHEREUM]: { name: "ethereum", start: "2023-08-23", primaryCGToken: 'ethereum' },
@@ -124,10 +125,8 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
                 const destUSD = getUSDValue(destination_swap);
                 if (sourceUSD === 0 || destUSD === 0) continue;
                 const fee = sourceUSD - destUSD;
-                if (fee > 0) {
-                    const chain = source_swap.chain;
-                    fees[chain] = (fees[chain] ?? 0) + fee;
-                }
+                const chain = source_swap.chain;
+                fees[chain] = (fees[chain] ?? 0) + fee;
             }
 
             if (insideDateRange && txTimestamp < startTimestamp) {
@@ -152,9 +151,9 @@ const fetch = async (options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
     const chainName = chainMapper[options.chain].name;
     const feeAmount = fees[chainName] ?? 0;
-    dailyFees.addUSDValue(feeAmount);
-    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE);
-    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE);
+    dailyFees.addUSDValue(feeAmount, METRIC.SWAP_FEES);
+    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE, "Solver Fees");
 
     return {
         dailyFees,
@@ -168,8 +167,24 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: "Swap fees paid by users",
     UserFees: "Swap fees paid by users",
-    Revenue: "Percentage of swap fees going to solvers and/or token holders",
-    ProtocolRevenue: "Fees going to treasury",
+    Revenue: "Percentage of swap fees going to protocol treasury",
+    ProtocolRevenue: "Percentage of swap fees going to protocol treasury",
+    SupplySideRevenue: "Percentage of swap fees going to solvers",
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: "Swap fees paid by users",
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: "Percentage of swap fees going to protocol treasury",
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "Percentage of swap fees going to protocol treasury",
+    },
+    SupplySideRevenue: {
+        "Solver Fees": "Percentage of swap fees going to solvers",
+    },
 };
 
 const adapter: SimpleAdapter = {
@@ -177,7 +192,9 @@ const adapter: SimpleAdapter = {
     fetch,
     methodology,
     adapter: chainMapper,
-    prefetch: prefetch as any,
+    prefetch,
+    allowNegativeValue: true,
+    breakdownMethodology,
 };
 
 export default adapter;
