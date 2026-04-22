@@ -100,7 +100,6 @@ async function computeMetrics(options: FetchOptions, config: TokenConfig) {
   // note: distributeReserve does not change accounting.nav (reserve moves to tranches within accounting)
   const deltaNav = Number(navEnd) - Number(navStart);
   const strategyYield = deltaNav - netUserFlows + totalReserveReductionsBaseAssets;
-  const positiveYield = strategyYield > 0 ? strategyYield : 0;
 
   // Performance fee via reserve-diff:
   // reserveNavEnd = reserveNavStart + perfFee + redemptionFeesToReserve
@@ -111,10 +110,10 @@ async function computeMetrics(options: FetchOptions, config: TokenConfig) {
     deltaReserveNav + totalReserveReductionsBaseAssets + distributeReserveTotal - redemptionFeesReserve
   );
 
-  const totalFees = positiveYield + redemptionFeesTotal;
+  const totalFees = strategyYield + redemptionFeesTotal;
   const protocolRevenue = perfFee + redemptionFeesReserve;
   const totalRevenue = perfFee + redemptionFeesReserve;
-  const supplySideRevenue = positiveYield - perfFee + redemptionFeesTranche;
+  const supplySideRevenue = strategyYield - perfFee + redemptionFeesTranche;
 
   return { totalFees, totalRevenue, protocolRevenue, supplySideRevenue };
 }
