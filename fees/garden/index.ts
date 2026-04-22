@@ -151,9 +151,9 @@ const fetch = async (options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
     const chainName = chainMapper[options.chain].name;
     const feeAmount = fees[chainName] ?? 0;
-    dailyFees.addUSDValue(feeAmount, METRIC.SWAP_FEES);
-    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE, "Solver Fees");
+    dailyFees.addUSDValue(feeAmount);
+    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE);
+    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE);
 
     return {
         dailyFees,
@@ -172,20 +172,6 @@ const methodology = {
     SupplySideRevenue: "23% of swap fees go to solvers",
 };
 
-const breakdownMethodology = {
-    Fees: {
-        [METRIC.SWAP_FEES]: "Swap fees paid by users",
-    },
-    Revenue: {
-        [METRIC.PROTOCOL_FEES]: "77% of swap fees go to the protocol treasury",
-    },
-    ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "77% of swap fees go to the protocol treasury",
-    },
-    SupplySideRevenue: {
-        "Solver Fees": "23% of swap fees go to solvers",
-    },
-};
 
 const adapter: SimpleAdapter = {
     version: 2,
@@ -194,7 +180,6 @@ const adapter: SimpleAdapter = {
     adapter: chainMapper,
     prefetch,
     allowNegativeValue: true,
-    breakdownMethodology,
 };
 
 export default adapter;
