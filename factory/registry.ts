@@ -145,6 +145,7 @@ export function getAdapterFromHelpers(
         }
       }
     } catch (error) {
+      // console.log(error)
       // Skip if factory doesn't exist or has errors
       continue;
     }

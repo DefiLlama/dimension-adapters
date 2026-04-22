@@ -31,14 +31,16 @@ export function subscanFeeAdapter(chain: string) {
     if (!subscanName || !CGToken || !start || !decimals) throw new Error(`Invalid subscan config for chain ${chain}`)
     const url = `https://${subscanName}.api.subscan.io/api/v2/scan/daily`
 
-    const apikey = getEnv('SUBSCAN_API_KEY')
-    if (!apikey) throw new Error('SUBSCAN_API_KEY is not set')
 
     const adapter: Adapter = {
         version: 1,
         adapter: {
             [chain]: {
                 fetch: async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+
+                    const apikey = getEnv('SUBSCAN_API_KEY')
+                    if (!apikey) throw new Error('SUBSCAN_API_KEY is not set')
+
                     const dailyFees = options.createBalances()
 
                     const subscanResponse = await httpPost(url, {
