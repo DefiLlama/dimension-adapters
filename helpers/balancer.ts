@@ -204,6 +204,9 @@ const balancerEntries: Record<string, any> = {
   "wavelength-dao": {
     [CHAIN.VELAS]: { vault: '0xa4a48dfcae6490afe9c779bf0f324b48683e488c', revenueRatio: 0.4, holderRevenueRatio: 0.3, protocolRevenueRatio: 0.1, start: '2022-10-20' },
   },
+  'berachain-hub': {
+    [CHAIN.BERACHAIN]: { vault: '0x4Be03f781C497A489E3cB0287833452cA9B9E80B', revenueRatio: 0.5, start: '2025-12-01' },
+  }
 }
 
 const protocols = {} as any;
