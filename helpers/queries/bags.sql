@@ -4,13 +4,11 @@ WITH
        ========================= */
     v2_fee_authorities AS (
         SELECT
-            to_base58(bytearray_substring(data, 121, 32)) AS fee_authority,
-            MIN(block_time) AS created_at
-        FROM solana.instruction_calls
+            fee_authority,
+            MIN(evt_block_time) AS created_at
+        FROM bags_solana.bags_fee_share_evt_feeconfigsnapshotevent
         WHERE
-            block_slot >  385570223
-            AND executing_account = 'FEE2tBhCKAt7shrod19QttSVREUYPiyMzoku1mL1gqVK'
-            AND bytearray_substring(data, 1, 16) = 0xe445a52e51cb9a1d794900d9affc93c1
+            fee_authority IS NOT NULL
         GROUP BY 1
     ),
     dbc_pools AS (
@@ -121,26 +119,17 @@ WITH
         SELECT
             'So11111111111111111111111111111111111111112' AS quote_mint,
             SUM(
-                bytearray_to_uint256(
-                    bytearray_reverse(
-                        bytearray_substring(data, 153, 8)
-                    )
-                )
+                CAST(accumulated AS DECIMAL(38,0))
             ) * 2 AS daily_fees,
             SUM(
-                bytearray_to_uint256(
-                    bytearray_reverse(
-                        bytearray_substring(data, 153, 8)
-                    )
-                )
+                CAST(accumulated AS DECIMAL(38,0))
             ) AS daily_protocol_revenue
-        FROM solana.instruction_calls
+        FROM bags_solana.bags_fee_share_evt_partneraccumulatedevent
         WHERE
-            block_slot > 385570223
-            AND executing_account = 'FEE2tBhCKAt7shrod19QttSVREUYPiyMzoku1mL1gqVK'
-            AND bytearray_substring(data, 1, 16)
-                = 0xe445a52e51cb9a1d876d797eab3e764c
-            AND TIME_RANGE
+            evt_block_slot > 385570223
+            AND accumulated IS NOT NULL
+            AND evt_block_time >= from_unixtime({{start}})
+            AND evt_block_time <  from_unixtime({{end}})
     )
 
 /* =========================
