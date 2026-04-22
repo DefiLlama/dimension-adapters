@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
+import { METRIC } from "../helpers/metrics";
 
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
 const XRAM_TOKEN_CONTRACT = "	0xAE6D5FcE541216BDA471D311425B5412D9f1DEb9";
@@ -98,7 +99,7 @@ async function getBribes(options: FetchOptions) {
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  
+
   // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
     query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
@@ -124,7 +125,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       first,
       skip,
       startOfDay: options.startOfDay,
-    }).then((data) => 
+    }).then((data) =>
       // Transform tokenDayDatas to match expected token format
       data.tokenDayDatas.map((td: any) => ({
         id: td.token.id,
@@ -210,16 +211,25 @@ export async function fetchProtocolDayStats(
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD;
-  const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
-  const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const dailyVolume = stats.clVolumeUSD;
+
+  const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(stats.clFeesUSD, METRIC.SWAP_FEES);
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Swap Fees to holders');
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Swap Fees to protocol');
+
+  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes');
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes to holders');
+
+  const dailyRevenue = dailyProtocolRevenue.clone();
+  dailyRevenue.add(dailyHoldersRevenue);
+
+  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Swap Fees to LPs');
 
   return {
     dailyVolume,
@@ -229,19 +239,38 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyProtocolRevenue,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   };
 };
 
-const methodology = {
+export const methodology = {
   Fees: "Fees are collected from users on each swap.",
   Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xRAM stakers instant exit penalty",
+};
+
+export const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees are collected from users on each swap.",
+    ["Bribes"]: "Bribes paid by protocols",
+  },
+  Revenue: {
+    ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    ["Swap Fees to holders"]: "User fees are distributed among holders.",
+    ["Bribes to holders"]: "Bribes paid by protocols",
+  },
+  ProtocolRevenue: {
+    ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+  },
+  SupplySideRevenue: {
+    ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
+  },
+  HoldersRevenue: {
+    ["Swap Fees to holders"]: "User fees are distributed among holders.",
+    ["Bribes to holders"]: "Bribes paid by protocols",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -249,6 +278,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-11-08',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
