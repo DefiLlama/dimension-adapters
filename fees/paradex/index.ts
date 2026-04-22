@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
 		Fees: "Tracks total fees paid by traders on Paradex.",
-    HoldersRevenue: "DIME purchased with net protocol revenue."
+    HoldersRevenue: "$DIME purchased with net protocol revenue."
 	},
   skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
 };
