@@ -2,6 +2,7 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addTokensReceived } from "../../helpers/token";
 
 const feesEndpoint = "https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/5913/card/5760?parameters=%5B%5D"
 
@@ -32,17 +33,12 @@ const fetchEth = async (options: FetchOptions): Promise<FetchResultV2> => {
   // Buybacks occur continuously but are only withdrawn to L1 on a weekly basis
   // Tokens come straight from the bridge in a single transaction
   // https://etherscan.io/address/0xe80c1286a424B09fB9FC1d82afedAf9d4CE8e5f6#tokentxns
-  const withdrawals = await options.getLogs({
-    target: PARADEX_BRIDGE,
-    eventAbi: 'event Withdrawal(address indexed By, address indexed Recipient, uint256 Amount)',
+  const buybacks = await addTokensReceived({
+    options,
+    tokens: [DIME_TOKEN],
+    targets: [ASSISTANCE_FUND],
+    fromAddressFilter: PARADEX_BRIDGE,
   });
-
-  const buybacks = options.createBalances();
-  for (const log of withdrawals) {
-    if (log.Recipient.toLowerCase() === DIME_TOKEN.toLowerCase() && log.By.toLowerCase() === ASSISTANCE_FUND.toLowerCase()) {
-      buybacks.add(DIME_TOKEN, log.Amount);
-    }
-  }
 
   return {
     dailyHoldersRevenue: buybacks
