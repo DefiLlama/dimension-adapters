@@ -34,7 +34,7 @@ const assetDecimals: Record<string, number> = {
     "base:usdc": 6,
     "unichain:wbtc": 8,
     "unichain:usdc": 6,
-    "berachain:lbtc": 8,
+    "bera:lbtc": 8,
     "hyperliquid:ubtc": 8,
     "bnbchain:btcb": 18,
     "starknet:wbtc": 8,
@@ -52,9 +52,13 @@ const assetDecimals: Record<string, number> = {
     "sui:wbtc": 8,
     "sui:usdc": 6,
     "tron:usdt": 6,
+    "hyperevm:ubtc": 8,
+    "litecoin:ltc": 8,
 };
 
-const DEFAULT_DECIMALS = 18;
+// Garden fee split: solvers earn 7/30, protocol retains 23/30
+const SOLVER_SHARE = 7 / 30;
+const PROTOCOL_SHARE = 23 / 30;
 
 type SwapDetails = {
     chain: string;
@@ -81,10 +85,14 @@ type GardenApiResponse = {
 
 type ChainFees = { [chain: string]: number };
 
-function getUSDValue(swap: SwapDetails, useFilledAmount: boolean): number {
-    const amount = useFilledAmount ? swap.filled_amount : swap.amount;
-    const decimals = assetDecimals[swap.asset.toLowerCase()] ?? DEFAULT_DECIMALS;
-    return (Number(amount) / Math.pow(10, decimals)) * swap.asset_price;
+function getUSDValue(swap: SwapDetails): number {
+    const assetKey = swap.asset.toLowerCase();
+    const decimals = assetDecimals[assetKey];
+    if (decimals === undefined) {
+        console.warn(`garden fees: unknown asset "${swap.asset}", skipping`);
+        return 0;
+    }
+    return (Number(swap.amount) / Math.pow(10, decimals)) * swap.asset_price;
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -112,8 +120,9 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
                 insideDateRange = true;
                 const { source_swap, destination_swap } = tx;
                 if (Number(destination_swap.filled_amount) === 0) continue;
-                const sourceUSD = getUSDValue(source_swap, false);
-                const destUSD = getUSDValue(destination_swap, true);
+                const sourceUSD = getUSDValue(source_swap);
+                const destUSD = getUSDValue(destination_swap);
+                if (sourceUSD === 0 || destUSD === 0) continue;
                 const fee = sourceUSD - destUSD;
                 if (fee > 0) {
                     const chain = source_swap.chain;
@@ -140,16 +149,19 @@ const fetch = async (options: FetchOptions) => {
     const fees = options.preFetchedResults as ChainFees || {};
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const chainName = chainMapper[options.chain].name;
     const feeAmount = fees[chainName] ?? 0;
     dailyFees.addUSDValue(feeAmount);
-    dailyRevenue.addUSDValue(feeAmount * (23 / 30));
+    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE);
+    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE);
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
     };
 };
 
