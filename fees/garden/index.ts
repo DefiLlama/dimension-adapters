@@ -167,9 +167,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: "Swap fees paid by users",
     UserFees: "Swap fees paid by users",
-    Revenue: "Percentage of swap fees going to protocol treasury",
-    ProtocolRevenue: "Percentage of swap fees going to protocol treasury",
-    SupplySideRevenue: "Percentage of swap fees going to solvers",
+    Revenue: "77% of swap fees go to the protocol treasury",
+    ProtocolRevenue: "77% of swap fees go to the protocol treasury",
+    SupplySideRevenue: "23% of swap fees go to solvers",
 };
 
 const breakdownMethodology = {
@@ -177,13 +177,13 @@ const breakdownMethodology = {
         [METRIC.SWAP_FEES]: "Swap fees paid by users",
     },
     Revenue: {
-        [METRIC.PROTOCOL_FEES]: "Percentage of swap fees going to protocol treasury",
+        [METRIC.PROTOCOL_FEES]: "77% of swap fees go to the protocol treasury",
     },
     ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "Percentage of swap fees going to protocol treasury",
+        [METRIC.PROTOCOL_FEES]: "77% of swap fees go to the protocol treasury",
     },
     SupplySideRevenue: {
-        "Solver Fees": "Percentage of swap fees going to solvers",
+        "Solver Fees": "23% of swap fees go to solvers",
     },
 };
 
