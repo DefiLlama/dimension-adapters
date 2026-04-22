@@ -209,14 +209,11 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
       })
       return rows
     } else if (_status === "QUERY_STATE_FAILED") {
-      const data = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
-
       if (query_parameters.fullQuery) {
         console.log(`Dune query: ${query_parameters.fullQuery}`)
       } else {
         console.log("Dune parameters", query_parameters)
       }
-      console.log("Dune query failed", data)
       throw new Error(`Dune query failed: ${queryId}`)
     } else {
       throw new Error(`Dune query failed: ${queryId} unknown state: ${_status}`)
