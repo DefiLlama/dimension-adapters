@@ -26,6 +26,8 @@ const fetchParadex = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     dailyFees,
     dailyUserFees: dailyFees
+    // As there's no reliable source for dailySupplySideRevenue data, in order to
+    // avoid reporting incorrect data we do not return dailyRevenue
   };
 };
 
@@ -61,7 +63,7 @@ const adapter: SimpleAdapter = {
 		Fees: "Tracks total fees paid by traders on Paradex.",
     HoldersRevenue: "$DIME purchased with net protocol revenue."
 	},
-  skipBreakdownValidation: true, // Skipping breakdown validation as we dont have the revenue breakdown
+  skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
 };
 
 export default adapter; 
