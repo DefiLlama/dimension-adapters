@@ -356,7 +356,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BOBA]: { factory: '0x06350499760aa3ea20FEd2837321a84a92417f39', userFeesRatio: 1, revenueRatio: 0 },
   },
   "cl-dex": {
-    [CHAIN.KLAYTN]: { factory: '0x2A4C5eCaafB26460F17d509EA4d15741AF5F5f0a', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
+    [CHAIN.KLAYTN]: { factory: '0x93fa0E1deE99ac4158a617a6EC79cB941bD9a39F', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
   },
   "lynex-v1": {
     [CHAIN.LINEA]: { factory: '0xbc7695fd00e3b32d08124b7a4287493aee99f9ee', start: '2024-02-11', fees: 0.0025, stableFees: 0.0001, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1 },
