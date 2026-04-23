@@ -65,7 +65,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Collect every reserve that has a valid IRM and non zero borrows, then batch
   // the APR reads into a single multiCall to avoid N sequential RPCs.
-  const aprCalls: { target: string; params: [string, string[]] }[] = []
+  const aprCalls: { target: string; params: any[] }[] = []
   const aprIndex: number[] = []
   for (let i = 0; i < reserves.length; i++) {
     const state = states[i]
@@ -93,8 +93,8 @@ const fetch = async (options: FetchOptions) => {
     const aprWad = BigInt(aprs[0])
     const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
     if (interest <= 0n) continue
-    dailyFees.add(reserves[i], interest)
-    dailySupplySideRevenue.add(reserves[i], interest)
+    dailyFees.add(reserves[i], interest, 'Borrow Interest')
+    dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
   }
 
   return {
@@ -114,9 +114,19 @@ const methodology = {
     'Total borrower interest. The on chain reserves accumulator collects interest first, then the protocol uses those fees to buy FT on the open market and distributes the FT to suppliers quarterly through the EpochRewardsVault. FT has a fixed total supply so nothing is minted.',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Borrow Interest': 'Interest paid by borrowers across every reserve, estimated as borrows * IRM.irmSampleAPR(util) * windowSeconds / year.',
+  },
+  SupplySideRevenue: {
+    'Borrow Interest To Lenders': 'Total borrower interest accrues to the on chain reserves accumulator; the protocol then buys FT on the open market with these fees and distributes it to suppliers quarterly through the EpochRewardsVault.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
