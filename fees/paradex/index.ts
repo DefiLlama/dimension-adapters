@@ -61,7 +61,7 @@ const adapter: SimpleAdapter = {
 		Fees: "Tracks total fees paid by traders on Paradex.",
     HoldersRevenue: "$DIME purchased with net protocol revenue."
 	},
-  skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
+  skipBreakdownValidation: true, // Skipping breakdown validation as we dont have the revenue breakdown
 };
 
 export default adapter; 
