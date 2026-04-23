@@ -5,30 +5,40 @@ const CONTRACT = "0xE31eE34E37752d90dF52E251069352ba67284807";
 
 const investmentExecutedAbi = "event InvestmentExecuted(address indexed user, uint256 planIndex, uint256 planId, uint256 amountIn, uint256 amountOut, uint256 feeAmount)";
 const basketInvestmentExecutedAbi = "event BasketInvestmentExecuted(address indexed user, uint256 planIndex, uint256 planId, uint256 amountIn, uint256 feeAmount)";
+const planAbi = "function userSIPPlans(address, uint256) view returns (uint256 amount, uint256 frequency, uint256 lastInvestmentTime, bool active, address stablecoin, address targetToken, uint256 totalInvested, uint256 totalTokensBought, uint256 planId)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { getLogs, createBalances } = options;
+  const { getLogs, createBalances, api } = options;
 
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyUserFees = createBalances();
 
   const [singleLogs, basketLogs] = await Promise.all([
     getLogs({ target: CONTRACT, eventAbi: investmentExecutedAbi }),
     getLogs({ target: CONTRACT, eventAbi: basketInvestmentExecutedAbi }),
   ]);
 
-  for (const log of singleLogs) {
-    dailyFees.addUSDValue(Number(log.feeAmount) / 1e6);
+  const allLogs = [
+    ...singleLogs.map(l => ({ user: l.user, planIndex: l.planIndex, feeAmount: l.feeAmount })),
+    ...basketLogs.map(l => ({ user: l.user, planIndex: l.planIndex, feeAmount: l.feeAmount })),
+  ];
+
+  // Fetch stablecoin address for each log to handle decimals correctly (USDC=6, DAI=18)
+  const plans = await api.multiCall({
+    abi: planAbi,
+    calls: allLogs.map(l => ({ target: CONTRACT, params: [l.user, l.planIndex] })),
+  });
+
+  for (let i = 0; i < allLogs.length; i++) {
+    const stablecoin = plans[i].stablecoin;
+    const feeAmount = allLogs[i].feeAmount;
+    dailyFees.add(stablecoin, feeAmount, "Swap Fees");
+    dailyRevenue.add(stablecoin, feeAmount, "Swap Fees");
+    dailyUserFees.add(stablecoin, feeAmount, "Swap Fees");
   }
 
-  for (const log of basketLogs) {
-    dailyFees.addUSDValue(Number(log.feeAmount) / 1e6);
-  }
-
-  return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyUserFees: dailyFees,
-  };
+  return { dailyFees, dailyRevenue, dailyUserFees };
 };
 
 const methodology = {
