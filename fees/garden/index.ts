@@ -1,106 +1,78 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
-const chainMapper: Record<string, { name: string, start: string, primaryCGToken: string, decimals: number }> = {
-    [CHAIN.ETHEREUM]: {
-        name: "ethereum",
-        start: "2023-08-23",
-        primaryCGToken: 'ethereum',
-        decimals: 18
-    },
-    [CHAIN.BITCOIN]: {
-        name: "bitcoin",
-        start: "2023-08-23",
-        primaryCGToken: 'bitcoin',
-        decimals: 8
-    },
-    [CHAIN.ARBITRUM]: {
-        name: "arbitrum",
-        start: "2023-08-23",
-        primaryCGToken: 'ethereum',
-        decimals: 18
-    },
-    [CHAIN.BASE]: {
-        name: "base",
-        start: "2024-12-11",
-        primaryCGToken: 'ethereum',
-        decimals: 18
-    },
-    [CHAIN.UNICHAIN]: {
-        name: "unichain",
-        start: "2025-04-17",
-        primaryCGToken: 'ethereum',
-        decimals: 18
-    },
-    [CHAIN.BERACHAIN]: {
-        name: "bera",
-        start: "2025-02-10",
-        primaryCGToken: 'ethereum',
-        decimals: 18
-    },
-    [CHAIN.STARKNET]: {
-        name: "starknet",
-        start: "2023-08-23",
-        primaryCGToken: 'starknet',
-        decimals: 18
-    },
-    [CHAIN.HYPERLIQUID]: {
-        name: "hyperliquid",
-        start: "2025-04-17",
-        primaryCGToken: 'hyperliquid',
-        decimals: 18
-    },
-    [CHAIN.BSC]: {
-        name: "bnbchain",
-        start: "2025-07-28",
-        primaryCGToken: 'binancecoin',
-        decimals: 18
-    },
-    [CHAIN.CORN]: {
-        name: "corn",
-        start: "2025-03-30",
-        primaryCGToken: 'corn-3',
-        decimals: 18
-    },
-    [CHAIN.SUI]: {
-        name: "sui",
-        start: "2025-08-14",
-        primaryCGToken: 'sui',
-        decimals: 9
-    },
-    [CHAIN.SOLANA]: {
-        name: "solana",
-        start: "2025-08-07",
-        primaryCGToken: 'solana',
-        decimals: 9
-    },
-    [CHAIN.MONAD]: {
-        name: "monad",
-        start: "2025-11-24",
-        primaryCGToken: 'monad',
-        decimals: 18
-    },
+const chainMapper: Record<string, { name: string, start: string, primaryCGToken: string }> = {
+    [CHAIN.ETHEREUM]: { name: "ethereum", start: "2023-08-23", primaryCGToken: 'ethereum' },
+    [CHAIN.BITCOIN]: { name: "bitcoin", start: "2023-08-23", primaryCGToken: 'bitcoin' },
+    [CHAIN.ARBITRUM]: { name: "arbitrum", start: "2023-08-23", primaryCGToken: 'ethereum' },
+    [CHAIN.BASE]: { name: "base", start: "2024-12-11", primaryCGToken: 'ethereum' },
+    [CHAIN.UNICHAIN]: { name: "unichain", start: "2025-04-17", primaryCGToken: 'ethereum' },
+    [CHAIN.BERACHAIN]: { name: "bera", start: "2025-02-10", primaryCGToken: 'ethereum' },
+    [CHAIN.STARKNET]: { name: "starknet", start: "2023-08-23", primaryCGToken: 'starknet' },
+    [CHAIN.HYPERLIQUID]: { name: "hyperliquid", start: "2025-04-17", primaryCGToken: 'hyperliquid' },
+    [CHAIN.BSC]: { name: "bnbchain", start: "2025-07-28", primaryCGToken: 'binancecoin' },
+    [CHAIN.CORN]: { name: "corn", start: "2025-03-30", primaryCGToken: 'corn-3' },
+    [CHAIN.SUI]: { name: "sui", start: "2025-08-14", primaryCGToken: 'sui' },
+    [CHAIN.SOLANA]: { name: "solana", start: "2025-08-07", primaryCGToken: 'solana' },
+    [CHAIN.MONAD]: { name: "monad", start: "2025-11-24", primaryCGToken: 'monad' },
 };
-const baseUrl = "https://api.garden.finance/orders";
+
+// Decimals for each asset key (chain:token)
+const assetDecimals: Record<string, number> = {
+    "bitcoin:btc": 8,
+    "ethereum:wbtc": 8,
+    "ethereum:cbbtc": 8,
+    "ethereum:ibtc": 8,
+    "ethereum:usdt": 6,
+    "ethereum:usdc": 6,
+    "arbitrum:wbtc": 8,
+    "arbitrum:ibtc": 8,
+    "arbitrum:usdc": 6,
+    "base:cbbtc": 8,
+    "base:cbltc": 8,
+    "base:usdc": 6,
+    "unichain:wbtc": 8,
+    "unichain:usdc": 6,
+    "bera:lbtc": 8,
+    "hyperliquid:ubtc": 8,
+    "bnbchain:btcb": 18,
+    "starknet:wbtc": 8,
+    "solana:sol": 9,
+    "solana:cbbtc": 8,
+    "solana:usdc": 6,
+    "solana:usdt": 6,
+    "solana:cash": 6,
+    "citrea:cbtc": 18,
+    "botanix:btc": 18,
+    "monad:mon": 18,
+    "monad:usdc": 6,
+    "corn:btcn": 18,
+    "megaeth:btc.b": 8,
+    "sui:wbtc": 8,
+    "sui:usdc": 6,
+    "tron:usdt": 6,
+    "hyperevm:ubtc": 8,
+    "litecoin:ltc": 8,
+};
+
+// Garden fee split: solvers earn 7/30, protocol retains 23/30
+const SOLVER_SHARE = 7 / 30;
+const PROTOCOL_SHARE = 23 / 30;
 
 type SwapDetails = {
     chain: string;
+    asset: string;
+    amount: string;
     filled_amount: string;
-    token_address: string;
-    initiate_timestamp: string;
-};
-
-type CreateOrder = {
-    source_chain: string;
-    fee: string;
+    asset_price: number;
 };
 
 type GardenTransaction = {
     created_at: string;
     source_swap: SwapDetails;
     destination_swap: SwapDetails;
-    create_order: CreateOrder;
 };
 
 type GardenApiResponse = {
@@ -109,28 +81,24 @@ type GardenApiResponse = {
         data: GardenTransaction[];
         page: number;
         total_pages: number;
-        total_items: number;
-        per_page: number;
     };
 };
 
-type ChainFees = {
-    [chain: string]: number;
-};
+type ChainFees = { [chain: string]: number };
 
-function addToFees(fees: ChainFees, chain: string, feeAmount: string) {
-    if (!fees[chain]) {
-        fees[chain] = 0;
+function getUSDValue(swap: SwapDetails): number {
+    const assetKey = swap.asset.toLowerCase();
+    const decimals = assetDecimals[assetKey];
+    if (decimals === undefined) {
+        console.warn(`garden fees: unknown asset "${swap.asset}", skipping`);
+        return 0;
     }
-    fees[chain] += Number(feeAmount);
+    return (Number(swap.amount) / Math.pow(10, decimals)) * swap.asset_price;
 }
 
 const prefetch = async (options: FetchOptions) => {
-    return await fetchTransactionsInDateRange(
-        options.startTimestamp,
-        options.endTimestamp
-    );
-}
+    return fetchTransactionsInDateRange(options.startTimestamp, options.endTimestamp);
+};
 
 async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp: number) {
     const fees: ChainFees = {};
@@ -140,32 +108,33 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
 
     while (shouldContinue) {
         const response: GardenApiResponse = await fetchURL(
-            `${baseUrl}/matched?page=${currentPage}&per_page=1000&status=completed`
+            `https://api.garden.finance/v2/orders?status=completed&per_page=500&page=${currentPage}`
         );
-        if (response.status !== "Ok" || !response.result.data.length) {
-            break;
-        }
+        if (response.status !== "Ok" || !response.result.data.length) break;
+
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-            if (!insideDateRange && txTimestamp > endTimestamp) {
-                continue;
-            }
+
+            if (!insideDateRange && txTimestamp > endTimestamp) continue;
+
             if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
-                if (!insideDateRange) {
-                    insideDateRange = true;
-                }
-                const { create_order } = tx;
-                addToFees(
-                    fees,
-                    create_order.source_chain,
-                    create_order.fee,
-                );
+                insideDateRange = true;
+                const { source_swap, destination_swap } = tx;
+                if (Number(destination_swap.filled_amount) === 0) continue;
+                const sourceUSD = getUSDValue(source_swap);
+                const destUSD = getUSDValue(destination_swap);
+                if (sourceUSD === 0 || destUSD === 0) continue;
+                const fee = sourceUSD - destUSD;
+                const chain = source_swap.chain;
+                fees[chain] = (fees[chain] ?? 0) + fee;
             }
+
             if (insideDateRange && txTimestamp < startTimestamp) {
                 shouldContinue = false;
                 break;
             }
         }
+
         if (shouldContinue && currentPage < response.result.total_pages) {
             currentPage++;
         } else {
@@ -178,32 +147,39 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
 const fetch = async (options: FetchOptions) => {
     const fees = options.preFetchedResults as ChainFees || {};
     const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const chainName = chainMapper[options.chain].name;
-
-    const chainFees = fees[chainName] || 0;
-    dailyFees.addUSDValue(chainFees);
+    const feeAmount = fees[chainName] ?? 0;
+    dailyFees.addUSDValue(feeAmount);
+    dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE);
+    dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE);
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
     };
 };
 
 const methodology = {
     Fees: "Swap fees paid by users",
     UserFees: "Swap fees paid by users",
-    Revenue: "Percentage of swap fees going to solvers and/or token holders",
-    ProtocolRevenue: "Fees going to treasury",
-}
+    Revenue: "77% of swap fees go to the protocol treasury",
+    ProtocolRevenue: "77% of swap fees go to the protocol treasury",
+    SupplySideRevenue: "23% of swap fees go to solvers",
+};
+
 
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     methodology,
     adapter: chainMapper,
-    prefetch: prefetch as any
+    prefetch,
+    allowNegativeValue: true,
 };
 
 export default adapter;

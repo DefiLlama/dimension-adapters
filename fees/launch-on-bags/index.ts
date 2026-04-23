@@ -18,7 +18,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   let data: IData[] = [];
-  if (options.startOfDay > 1774656000) {
+  if (options.startOfDay > 1776880000) {
     data = await queryDuneSql(options, query);
   } else {
     const alldata = await queryDuneResult(options, '6926715')
@@ -36,10 +36,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   data.forEach(row => {
     const creatorFees = Number(row.daily_fees) - Number(row.daily_protocol_revenue);
-    dailyFees.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
-    dailyProtocolRevenue.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
+    dailyFees.add(row.quote_mint, Number(row.daily_protocol_revenue), METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.add(row.quote_mint, Number(row.daily_protocol_revenue), METRIC.PROTOCOL_FEES);
     dailyFees.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
-    dailySupplySideRevenue.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
+    dailySupplySideRevenue.add(row.quote_mint, Number(creatorFees), METRIC.CREATOR_FEES);
   });
 
   return {

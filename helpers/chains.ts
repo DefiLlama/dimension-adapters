@@ -356,5 +356,12 @@ export enum CHAIN {
   HOTSTUFF = "hotstuff",
   CHIA = "chia",
   CANTON = "canton",
+  TXFLOW = "txflow",
   ZEC = "zcash",
+  POLKADOT = "polkadot",
+  PENDULUM = "pendulum",
+  NEUROWEB = "neuroweb",
+  MYTHOS = "mythos",
+  HEIMA = "heima",
+  KUSAMA = "kusama",
 }

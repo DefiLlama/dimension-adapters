@@ -4,7 +4,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const chainConfig = {
     [CHAIN.ETHEREUM]: {
-        start: "2025-07-23",
+        start: "2025-07-24",
         vaults: [
             {
                 token: "0x8c213ee79581ff4984583c6a801e5263418c4b86",
@@ -19,7 +19,7 @@ const chainConfig = {
         ]
     },
     [CHAIN.AVAX]: {
-        start: "2025-07-23",
+        start: "2025-07-24",
         vaults: [
             {
                 token: "0x58f93d6b1ef2f44ec379cb975657c132cbed3b6b",

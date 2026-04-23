@@ -19,7 +19,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer' },
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
   [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain', deadFrom: '2026-01-15', },
-  [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com' },
+  [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
   [CHAIN.TELOS]: { explorer: 'https://telostx.com', CGToken: 'telos' },
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
@@ -118,7 +118,7 @@ export const chainConfigMap: any = {
   [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
   [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2 },
-  [CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
+  //[CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
@@ -222,7 +222,7 @@ export function blockscoutFeeAdapter2(chain: string) {
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
 
-          if(config.burnRatio) {
+          if (config.burnRatio !== undefined && config.burnRatio !== null) {
             const dailyRevenue = dailyFees.clone(config.burnRatio);
             return {
               timestamp: startOfDay,
