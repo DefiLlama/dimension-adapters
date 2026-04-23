@@ -127,7 +127,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   breakdownMethodology,
-  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
