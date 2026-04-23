@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), METRIC.STAKING_REWARDS);
 
     const dailySupplySideRevenue = options.createBalances();
-    dailySupplySideRevenue.addUSDValue(parseFloat(data.dailyRaffleRevenue), 'Raffle Pot Rewards');
+    dailySupplySideRevenue.addUSDValue(parseFloat(data.dailyRaffleRevenue ?? '0'), 'Raffle Pot Rewards');
 
     const dailyRevenue = options.createBalances();
     dailyRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), METRIC.PROTOCOL_FEES);
