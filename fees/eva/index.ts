@@ -1,6 +1,7 @@
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const SUBGRAPH_URL = "https://gateway.eva.markets/subgraph";
 
@@ -58,13 +59,14 @@ const fetch = async ({ createBalances, startTimestamp, endTimestamp }: FetchOpti
   const skims = await fetchSkims(startTimestamp, endTimestamp);
   skims.forEach(({ amount, vault }) => {
     const underlying = VAULT_UNDERLYINGS[vault.toLowerCase()];
-    if (underlying) dailyFees.add(underlying, amount);
+    if (underlying) dailyFees.add(underlying, amount, METRIC.ASSETS_YIELDS);
   });
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
   };
 };
 
@@ -77,6 +79,18 @@ const adapter: SimpleAdapter = {
     Fees: "Yield skimmed from eva vault backing after holder obligations are covered.",
     Revenue: "Skimmed yield retained by the eva protocol treasury.",
     ProtocolRevenue: "Skimmed yield retained by the eva protocol treasury.",
+    SupplySideRevenue: "No supply-side revenue is distributed from skimmed yield.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: "Yield skimmed from eva vault backing after holder obligations are covered.",
+    },
+    Revenue: {
+      [METRIC.ASSETS_YIELDS]: "Skimmed yield retained by the eva protocol treasury.",
+    },
+    ProtocolRevenue: {
+      [METRIC.ASSETS_YIELDS]: "Skimmed yield retained by the eva protocol treasury.",
+    },
   },
 };
 
