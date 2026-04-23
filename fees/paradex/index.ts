@@ -17,7 +17,7 @@ const ASSISTANCE_FUND = "0xe80c1286a424B09fB9FC1d82afedAf9d4CE8e5f6";
 const DIME_TOKEN = "0xb32e10022ffbedfe10bc818a1c7e67d9d87e0fa7";
 const PARADEX_BRIDGE = "0xe3cbe3a636ab6a754e9e41b12b09d09ce9e53db3";
 
-const fetchParadex = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetchParadex = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
   const feesData = await fetchURL(feesEndpoint) as IFeesData
   const timestampStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0] + "T00:00:00Z"
   const dailyFees = feesData.data.rows.find(row => row[0] === timestampStr)?.[1]
@@ -31,7 +31,7 @@ const fetchParadex = async (options: FetchOptions): Promise<FetchResultV2> => {
   };
 };
 
-const fetchEth = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetchEth = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
   // Buybacks occur continuously but are only withdrawn to L1 on a weekly basis
   // Tokens come straight from the bridge in a single transaction
   // https://etherscan.io/address/0xe80c1286a424B09fB9FC1d82afedAf9d4CE8e5f6#tokentxns
@@ -48,7 +48,7 @@ const fetchEth = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.PARADEX]: {
       fetch: fetchParadex,
