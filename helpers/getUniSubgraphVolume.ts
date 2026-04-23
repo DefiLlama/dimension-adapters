@@ -112,6 +112,12 @@ function getChainVolume2({
       }
       if (totalFeesField)
         response.dailyFees = totalFees - prevTotalFees
+
+      if (!prevTotalFees || !prevTotal) {
+        response.dailyVolume = 0;
+        response.dailyFees = 0;
+      }
+
       return response
     };
   };
