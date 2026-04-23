@@ -3,6 +3,12 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 
 const LENDING_LENS = '0x3682168023e6ba8d1f995fda1d920827c5a8a43e'
 
+// Reserves are maintained off chain. Flying Tulip's LendingLens does not expose
+// a public enumeration method (no getReserves / allAssets / reservesList). The
+// authoritative list lives in Flying Tulip's backend config and is mirrored by
+// the public API. To refresh this list, call:
+//     curl https://api.flyingtulip.com/mm/lend | jq '.data.chains[0].assets[].address'
+// Contract reference: https://sonicscan.org/address/0x3682168023e6ba8d1f995fda1d920827c5a8a43e
 const RESERVES: Record<string, string[]> = {
   [CHAIN.SONIC]: [
     '0x29219dd400f2bf60e5a23d13be72b486d4038894', // USDC
@@ -28,6 +34,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const reserves = RESERVES[options.chain] || []
   if (reserves.length === 0) {
@@ -35,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
       dailyFees,
       dailyRevenue: dailyProtocolRevenue,
       dailyProtocolRevenue,
-      dailySupplySideRevenue: options.createBalances(),
+      dailySupplySideRevenue,
     }
   }
 
@@ -56,6 +63,10 @@ const fetch = async (options: FetchOptions) => {
 
   const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
 
+  // Collect every reserve that has a valid IRM and non zero borrows, then batch
+  // the APR reads into a single multiCall to avoid N sequential RPCs.
+  const aprCalls: { target: string; params: [string, string[]] }[] = []
+  const aprIndex: number[] = []
   for (let i = 0; i < reserves.length; i++) {
     const state = states[i]
     const cfg = cfgs[i]
@@ -64,39 +75,43 @@ const fetch = async (options: FetchOptions) => {
     if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
     const borrows = BigInt(state[1])
     if (borrows === 0n) continue
-    const utilWad = state[3].toString()
+    aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
+    aprIndex.push(i)
+  }
 
-    const aprs = await options.toApi.call({
-      target: LENDING_LENS,
-      abi: IRM_SAMPLE_APR_ABI,
-      params: [irm, [utilWad]],
-      permitFailure: true,
-    })
+  const aprResults = await options.toApi.multiCall({
+    abi: IRM_SAMPLE_APR_ABI,
+    calls: aprCalls,
+    permitFailure: true,
+  })
+
+  for (let k = 0; k < aprIndex.length; k++) {
+    const i = aprIndex[k]
+    const aprs = aprResults[k]
     if (!aprs || aprs.length === 0 || !aprs[0]) continue
-
+    const borrows = BigInt(states[i][1])
     const aprWad = BigInt(aprs[0])
     const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
     if (interest <= 0n) continue
-
     dailyFees.add(reserves[i], interest)
-    dailyProtocolRevenue.add(reserves[i], interest)
+    dailySupplySideRevenue.add(reserves[i], interest)
   }
 
   return {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue: options.createBalances(),
+    dailySupplySideRevenue,
   }
 }
 
 const methodology = {
-  Fees: 'Interest paid by borrowers estimated as borrows * borrowAPR * windowSeconds / year, read via LendingLens.assetState and IRM.irmSampleAPR.',
+  Fees: 'Interest paid by borrowers across every reserve on Flying Tulip Lend, estimated as borrows * IRM.irmSampleAPR(util) * windowSeconds / year. State and rate samples read via LendingLens.',
   Revenue:
-    'All borrower interest accrues to the protocol reserves accumulator before being redistributed; tracked equal to Fees.',
-  ProtocolRevenue: 'Same as Revenue.',
+    'Protocol retains no reserve factor on chain. All borrower interest is routed back to suppliers as FT denominated rewards, so protocol revenue is 0.',
+  ProtocolRevenue: 'Same as Revenue, tracked as 0.',
   SupplySideRevenue:
-    'Not tracked here. Suppliers earn via FT epoch rewards and via idle liquidity deployed to Aave; those are measured separately.',
+    'Total borrower interest. The on chain reserves accumulator collects interest first, then the protocol uses those fees to buy FT on the open market and distributes the FT to suppliers quarterly through the EpochRewardsVault. FT has a fixed total supply so nothing is minted.',
 }
 
 const adapter: SimpleAdapter = {
