@@ -127,10 +127,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
-      start: '2026-01-15',
+      start: '2026-03-23',
     },
   },
 }
