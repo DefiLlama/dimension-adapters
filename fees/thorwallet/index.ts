@@ -1,7 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { METRIC } from "../../helpers/metrics";
+
+const PROTOCOL_LABEL = 'Affiliate & Perp Close Fees To Treasury';
+const STAKERS_LABEL = 'Affiliate Fees To $TITN Stakers';
+const RAFFLE_LABEL = 'Raffle Pot Rewards To Players';
 
 const fetch = async (options: FetchOptions) => {
     const data = await httpGet('https://api-v2-prod.thorwallet.org/defillama/fees');
@@ -12,17 +15,16 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(parseFloat(breakdown.perpCloseFees), 'Perp Close Fees');
 
     const dailyProtocolRevenue = options.createBalances();
-    dailyProtocolRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), PROTOCOL_LABEL);
 
     const dailyHoldersRevenue = options.createBalances();
-    dailyHoldersRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), METRIC.STAKING_REWARDS);
-
-    const dailySupplySideRevenue = options.createBalances();
-    dailySupplySideRevenue.addUSDValue(parseFloat(data.dailyRaffleRevenue ?? '0'), 'Raffle Pot Rewards');
+    dailyHoldersRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), STAKERS_LABEL);
+    dailyHoldersRevenue.addUSDValue(parseFloat(data.dailyRaffleRevenue ?? '0'), RAFFLE_LABEL);
 
     const dailyRevenue = options.createBalances();
-    dailyRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), METRIC.PROTOCOL_FEES);
-    dailyRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), METRIC.STAKING_REWARDS);
+    dailyRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), PROTOCOL_LABEL);
+    dailyRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), STAKERS_LABEL);
+    dailyRevenue.addUSDValue(parseFloat(data.dailyRaffleRevenue ?? '0'), RAFFLE_LABEL);
 
     return {
         dailyFees,
@@ -30,17 +32,15 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
-        dailySupplySideRevenue,
     };
 };
 
 const methodology = {
     Fees: 'All affiliate fees from swaps (THORChain, Maya, Near Intents, 1inch, Unizen, Chainflip, Harbor, etc.) plus perpetual trading close fees.',
     UserFees: 'Same as Fees - all fees are paid by users.',
-    Revenue: 'Protocol treasury plus $TITN staker revenue.',
+    Revenue: 'Protocol treasury plus distributions to $TITN stakers and raffle pot players.',
     ProtocolRevenue: '45% of THORChain/Maya/Near Intents fees + 100% of 1inch/Unizen/Chainflip/Harbor fees + 100% of perpetual close fees, allocated to protocol treasury.',
-    HoldersRevenue: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers.',
-    SupplySideRevenue: '5% of THORChain/Maya/Near Intents fees distributed to in-game raffle pot players.',
+    HoldersRevenue: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers plus 5% distributed to in-game raffle pot players.',
 };
 
 const breakdownMethodology = {
@@ -49,18 +49,17 @@ const breakdownMethodology = {
         'Perp Close Fees': 'Fees from closing perpetual trading positions.',
     },
     Revenue: {
-        [METRIC.PROTOCOL_FEES]: '45% of THORChain/Maya/Near Intents fees + 100% of other swap fees + 100% of perp close fees, allocated to protocol treasury.',
-        [METRIC.STAKING_REWARDS]: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers.',
+        [PROTOCOL_LABEL]: '45% of THORChain/Maya/Near Intents fees + 100% of other swap fees + 100% of perp close fees, allocated to protocol treasury.',
+        [STAKERS_LABEL]: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers.',
+        [RAFFLE_LABEL]: '5% of THORChain/Maya/Near Intents fees distributed to in-game raffle pot players.',
     },
     ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: '45% of THORChain/Maya/Near Intents fees + 100% of other swap fees + 100% of perp close fees, allocated to protocol treasury.',
+        [PROTOCOL_LABEL]: '45% of THORChain/Maya/Near Intents fees + 100% of other swap fees + 100% of perp close fees, allocated to protocol treasury.',
     },
     HoldersRevenue: {
-        [METRIC.STAKING_REWARDS]: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers.',
+        [STAKERS_LABEL]: '50% of THORChain/Maya/Near Intents fees distributed to $TITN stakers.',
+        [RAFFLE_LABEL]: '5% of THORChain/Maya/Near Intents fees distributed to in-game raffle pot players.',
     },
-    SupplySideRevenue: {
-        'Raffle Pot Rewards': '5% of THORChain/Maya/Near Intents fees distributed to in-game raffle pot players.',
-    }
 };
 
 const adapter: SimpleAdapter = {
