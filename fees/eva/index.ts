@@ -5,22 +5,25 @@ import { METRIC } from "../../helpers/metrics";
 
 const SUBGRAPH_URL = "https://gateway.eva.markets/subgraph";
 
-const VAULT_UNDERLYINGS: Record<string, string> = {
-  "0x741bd193b6b40f8703d2e116fd1965421f290f58": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": "0xdac17f958d2ee523a2206206994597c13d831ec7",
-  "0xdbecd077c1c2fefdcb75f547d1b5a73bf8207e4c": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-};
-
 type VaultSkim = {
   amount: string;
   vault: string;
+};
+
+type Vault = {
+  address: string;
+  underlying: string;
 };
 
 type VaultSkimsResponse = {
   VaultSkim: VaultSkim[];
 };
 
-const query = gql`
+type VaultsResponse = {
+  Vault: Vault[];
+};
+
+const skimsQuery = gql`
   query VaultSkims($start: numeric!, $end: numeric!, $offset: Int!) {
     VaultSkim(
       where: { timestamp: { _gte: $start, _lt: $end } }
@@ -34,12 +37,21 @@ const query = gql`
   }
 `;
 
+const vaultsQuery = gql`
+  query Vaults {
+    Vault(limit: 1000) {
+      address
+      underlying
+    }
+  }
+`;
+
 async function fetchSkims(start: number, end: number) {
   const skims: VaultSkim[] = [];
   let offset = 0;
 
   while (true) {
-    const response = await request<VaultSkimsResponse>(SUBGRAPH_URL, query, {
+    const response = await request<VaultSkimsResponse>(SUBGRAPH_URL, skimsQuery, {
       start: String(start),
       end: String(end),
       offset,
@@ -53,13 +65,24 @@ async function fetchSkims(start: number, end: number) {
   return skims;
 }
 
+async function fetchVaultUnderlyings() {
+  const response = await request<VaultsResponse>(SUBGRAPH_URL, vaultsQuery);
+
+  return Object.fromEntries(response.Vault.map(({ address, underlying }) => [address.toLowerCase(), underlying]));
+}
+
 const fetch = async ({ createBalances, startTimestamp, endTimestamp }: FetchOptions) => {
   const dailyFees = createBalances();
 
-  const skims = await fetchSkims(startTimestamp, endTimestamp);
+  const [skims, vaultUnderlyings] = await Promise.all([
+    fetchSkims(startTimestamp, endTimestamp),
+    fetchVaultUnderlyings(),
+  ]);
+
   skims.forEach(({ amount, vault }) => {
-    const underlying = VAULT_UNDERLYINGS[vault.toLowerCase()];
-    if (underlying) dailyFees.add(underlying, amount, METRIC.ASSETS_YIELDS);
+    const underlying = vaultUnderlyings[vault.toLowerCase()];
+    if (!underlying) throw new Error(`eva: unmapped vault ${vault}`);
+    dailyFees.add(underlying, amount, METRIC.ASSETS_YIELDS);
   });
 
   return {
