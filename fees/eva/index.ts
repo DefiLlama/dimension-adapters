@@ -87,9 +87,9 @@ const fetch = async ({ createBalances, startTimestamp, endTimestamp }: FetchOpti
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: 0,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   };
 };
 
@@ -100,19 +100,16 @@ const adapter: SimpleAdapter = {
   start: "2026-03-24",
   methodology: {
     Fees: "Yield skimmed from eva vault backing after holder obligations are covered.",
-    Revenue: "Skimmed yield retained by the eva protocol treasury.",
-    ProtocolRevenue: "Skimmed yield retained by the eva protocol treasury.",
-    SupplySideRevenue: "No supply-side revenue is distributed from skimmed yield.",
+    Revenue: "eva retains no protocol revenue from skimmed yield.",
+    ProtocolRevenue: "eva retains no protocol revenue from skimmed yield.",
+    SupplySideRevenue: "Skimmed yield is allocated back to users through LP incentives.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.ASSETS_YIELDS]: "Yield skimmed from eva vault backing after holder obligations are covered.",
     },
-    Revenue: {
-      [METRIC.ASSETS_YIELDS]: "Skimmed yield retained by the eva protocol treasury.",
-    },
-    ProtocolRevenue: {
-      [METRIC.ASSETS_YIELDS]: "Skimmed yield retained by the eva protocol treasury.",
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: "Skimmed yield allocated back to users through LP incentives.",
     },
   },
 };
