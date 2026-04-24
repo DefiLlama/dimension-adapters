@@ -1,105 +1,100 @@
-/**
- * Jink (jink.fun) — Volume Adapter for DefiLlama
- *
- * Repo: DefiLlama/dimension-adapters  →  dexs/jink/index.ts
- *
- * Daily volume = sum of notional size (margin × leverage) from
- * PositionOpened + PositionClosed events across all JinkPerps contracts.
- */
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
-import {
-  FetchResultVolume,
-  SimpleAdapter,
-} from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
-
-// ── Deployed contracts (BSC mainnet) ─────────────────────────────
 const FACTORY = "0x56C933DbBE553a271b9b0b1638aA21a618125E1d";
-const FACTORY_DEPLOY_BLOCK = 48000000; // adjust to actual deploy block
+const FACTORY_DEPLOY_BLOCK = 93892105
 
-// ── Event ABIs ───────────────────────────────────────────────────
-const MARKET_CREATED_ABI =
-  "event MarketCreated(address indexed token, address indexed opener, address vault, address perps, address botWallet)";
+const MARKET_CREATED_ABI = "event MarketCreated(address indexed token, address indexed opener, address vault, address perps, address botWallet)";
 
-const POSITION_OPENED_ABI =
-  "event PositionOpened(uint256 indexed id, address indexed trader, bool isLong, uint256 margin, uint8 leverage, uint256 entryPrice, uint256 fee, uint8 marginMode)";
+const POSITION_OPENED_ABI = "event PositionOpened(uint256 indexed id, address indexed trader, bool isLong, uint256 margin, uint8 leverage, uint256 entryPrice, uint256 fee, uint8 marginMode)";
 
-const POSITION_CLOSED_ABI =
-  "event PositionClosed(uint256 indexed id, address indexed trader, int256 pnl, uint256 exitPrice, uint256 fee)";
+const POSITION_CLOSED_ABI = "event PositionClosed(uint256 indexed id, address indexed trader, int256 pnl, uint256 exitPrice, uint256 fee)";
 
-const LIMIT_ORDER_FILLED_ABI =
-  "event LimitOrderFilled(uint256 indexed orderId, uint256 indexed positionId, uint256 fillPrice)";
+const fetch = async (options: FetchOptions) => {
 
-/**
- * Discover all perps contract addresses from Factory events.
- */
-async function getPerpsContracts(api: any): Promise<string[]> {
-  const logs = await api.getLogs({
-    target: FACTORY,
-    fromBlock: FACTORY_DEPLOY_BLOCK,
-    eventAbi: MARKET_CREATED_ABI,
-  });
-  return logs.map((l: any) => l.args.perps || l.perps);
-}
-
-const fetch = async (timestamp: number, _: any, options: any): Promise<FetchResultVolume> => {
-  const { api, fromBlock, toBlock } = options;
-
-  const perpsAddresses = await getPerpsContracts(api);
-
-  if (perpsAddresses.length === 0) {
-    return { dailyVolume: "0", timestamp };
-  }
-
-  let dailyVolume = 0n;
-
-  // ── PositionOpened: volume = margin × leverage (18 decimals USDT) ──
-  for (const perps of perpsAddresses) {
-    const openedLogs = await api.getLogs({
-      target: perps,
-      fromBlock,
-      toBlock,
-      eventAbi: POSITION_OPENED_ABI,
+    const marketCreatedLogs = await options.getLogs({
+        target: FACTORY,
+        fromBlock: FACTORY_DEPLOY_BLOCK,
+        eventAbi: MARKET_CREATED_ABI,
+        cacheInCloud: true,
     });
 
-    for (const log of openedLogs) {
-      const margin = BigInt(log.args.margin || log.margin);
-      const leverage = BigInt(log.args.leverage || log.leverage);
-      dailyVolume += margin * leverage;
+    const perpsAddresses = marketCreatedLogs.map((l: any) => l.perps);
+
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    if (perpsAddresses.length) {
+
+        const [openedLogs, closedLogs] = await Promise.all([
+            options.getLogs({
+                targets: perpsAddresses,
+                eventAbi: POSITION_OPENED_ABI,
+            }),
+            options.getLogs({
+                targets: perpsAddresses,
+                eventAbi: POSITION_CLOSED_ABI,
+            }),
+        ]);
+
+        for (const log of openedLogs) {
+            dailyVolume.addUSDValue(Number(log.margin) * Number(log.leverage) / 1e18);
+
+            dailyFees.addUSDValue(Number(log.fee) / 1e18, METRIC.TRADING_FEES);
+            dailyRevenue.addUSDValue(Number(log.fee) * 0.2 / 1e18, 'Trading Fees To Protocol');
+            dailySupplySideRevenue.addUSDValue(Number(log.fee) * 0.8 / 1e18, 'Trading Fees To Market Creator');
+        }
+
+        for (const log of closedLogs) {
+            dailyVolume.addUSDValue(Number(log.fee) * 1000 / 1e18);
+            dailyFees.addUSDValue(Number(log.fee) / 1e18, METRIC.TRADING_FEES);
+            dailyRevenue.addUSDValue(Number(log.fee) * 0.2 / 1e18, 'Trading Fees To Protocol');
+            dailySupplySideRevenue.addUSDValue(Number(log.fee) * 0.8 / 1e18, 'Trading Fees To Market Creator');
+        }
     }
 
-    // ── PositionClosed: fee × 1000 to reverse the 0.1% fee → notional ──
-    const closedLogs = await api.getLogs({
-      target: perps,
-      fromBlock,
-      toBlock,
-      eventAbi: POSITION_CLOSED_ABI,
-    });
-
-    for (const log of closedLogs) {
-      const fee = BigInt(log.args.fee || log.fee);
-      // fee = max(notional * 0.001, 1 USDT), so notional ≈ fee / 0.001
-      // but we use fee * 1000 as approximation (slightly over-counts $1 min fees)
-      dailyVolume += fee * 1000n;
-    }
-  }
-
-  // Convert from 18 decimals to USD string
-  const dailyVolumeUsd = Number(dailyVolume) / 1e18;
-
-  return {
-    dailyVolume: dailyVolumeUsd.toString(),
-    timestamp,
-  };
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
+    };
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: 1776555678, // adjust to first trade unix timestamp
+const methodology = {
+    Fees: "0.1% of notional trade size (minimum $1 USDT) charged on both open and close of perpetual positions.",
+    Revenue: "20% of all trading fees go to the Jink platform.",
+    ProtocolRevenue: "20% of all trading fees go to the Jink platform.",
+    SupplySideRevenue: "80% of all trading fees go to the market creator (opener) who deployed the perps market.",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.TRADING_FEES]: "0.1% of notional trade size (minimum $1 USDT) charged on both open and close of perpetual positions.",
     },
-  },
+    Revenue: {
+        'Trading Fees To Protocol': "20% of all trading fees go to the Jink platform.",
+    },
+    ProtocolRevenue: {
+        'Trading Fees To Protocol': "20% of all trading fees go to the Jink platform.",
+    },
+    SupplySideRevenue: {
+        'Trading Fees To Market Creator': "80% of all trading fees go to the market creator (opener) who deployed the perps market.",
+    },
+}
+
+const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.BSC],
+    start: '2026-04-21',
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
