@@ -206,6 +206,9 @@ const balancerEntries: Record<string, any> = {
   },
   'berachain-hub': {
     [CHAIN.BERACHAIN]: { vault: '0x4Be03f781C497A489E3cB0287833452cA9B9E80B', revenueRatio: 0.5, start: '2025-12-01' },
+  },
+  'burrbear': {
+    [CHAIN.BERACHAIN]: { vault: '0xBE09E71BDc7b8a50A05F7291920590505e3C7744', revenueRatio: 0.5, start: '2025-12-01' },
   }
 }
 
