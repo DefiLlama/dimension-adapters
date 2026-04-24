@@ -32,7 +32,7 @@ const WAD = 10n ** 18n
 const SECONDS_PER_YEAR = 365n * 24n * 60n * 60n
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
@@ -124,10 +124,9 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // Interests are low, no need to run every hour
   methodology,
   breakdownMethodology,
-  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
