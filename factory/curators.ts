@@ -99,6 +99,11 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.UNICHAIN]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'], start: '2025-10-01' },
       [CHAIN.ARBITRUM]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
       [CHAIN.HEMI]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'], start: '2025-10-01' },
+      [CHAIN.KATANA]: {
+        morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        start: '2025-08-11'
+      },
     },
   },
   "edge-capital": {
@@ -153,6 +158,10 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x16fa314141C76D4a0675f5e8e3CCBE4E0fA22C7c'],
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
+      },
+      [CHAIN.KATANA]: {
+        morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
+        start: '2025-12-22'
       },
     },
   },
@@ -431,6 +440,11 @@ const configs: Record<string, CuratorConfig> = {
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x50b75d586929ab2f75dc15f07e1b921b7c4ba8fa'],
+      },
+      [CHAIN.KATANA]: {
+        start: '2025-06-30',
+        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B'],
+        morphoVaultV2Owners: ['0x75a1253432356f90611546a487b5350CEF08780D'],
       },
     },
   },
