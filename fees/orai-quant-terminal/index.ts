@@ -83,6 +83,14 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true,
     },
   },
+  methodology: {
+    Fees:
+      "Fees is calculated by tracking fees collected from the Quant Terminal vaults.",
+    Revenue:
+      "All the fees are revenue.",
+    ProtocolRevenue:
+      "All the fees are revenue.",
+  },
 };
 
 export default adapter;
