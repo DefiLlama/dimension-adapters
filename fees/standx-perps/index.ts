@@ -45,6 +45,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 

@@ -36,6 +36,7 @@ async function fetchSol(_a: any, _b: any, options: FetchOptions): Promise<FetchR
 
     return {
         dailyFees,
+        dailyRevenue: dailyFees
     }
 }
 
