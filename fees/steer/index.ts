@@ -179,7 +179,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-    Fees: 'Includes swap fees  earned by providing liquidity to various pools of different protocols.',
+    Fees: 'Includes swap fees earned by providing liquidity to various pools of different protocols.',
     Revenue: 'Part of swap fees collected as revenue for the protocol.',
     ProtocolRevenue: 'Part of swap fees collected as revenue for the protocol.',
     SupplySideRevenue: 'Includes strategist share and LPs share of the swap fees.',
@@ -187,7 +187,7 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.SWAP_FEES]: 'Includes swap fees  earned by providing liquidity to various pools of different protocols.',
+        [METRIC.SWAP_FEES]: 'Includes swap fees earned by providing liquidity to various pools of different protocols.',
     },
     Revenue: {
         ['Swap fees to protocol']: 'Part of swap fees collected as revenue for the protocol.',

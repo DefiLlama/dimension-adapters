@@ -70,6 +70,8 @@ async function fetch(options: FetchOptions) {
         const tokenZero = token0[i];
         const tokenOne = token1[i];
 
+        if(!tokenZero || !tokenOne) continue;
+
         feeCollectLogs[i].forEach((log: any) => {
             dailyFees.add(tokenZero, log.feesToVault0 + log.feesToManager0, METRIC.SWAP_FEES);
             dailyFees.add(tokenOne, log.feesToVault1 + log.feesToManager1, METRIC.SWAP_FEES);
