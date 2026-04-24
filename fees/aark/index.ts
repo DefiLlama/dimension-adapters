@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { inflatedMarkets } from "../../dexs/aark";
 
 const usdcAddress = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
 
@@ -15,8 +16,11 @@ const fetch = async (options: FetchOptions) => {
     target: FuturesManager,
     eventAbi: MoonOrderOpenedV2,
   });
-
+  const todaysInflatedMarkets = inflatedMarkets[options.dateString] || [];
   openData.forEach((log: any) => {
+    if(todaysInflatedMarkets.includes(log.marketId)) {
+      return;
+    }
     dailyFees.add(usdcAddress, log.executionFee, METRIC.OPEN_CLOSE_FEES);
     dailyFees.add(usdcAddress, log.openFee, METRIC.OPEN_CLOSE_FEES);
   });
@@ -27,6 +31,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   closeData.forEach((log: any) => {
+    if(todaysInflatedMarkets.includes(log.marketId)) {
+      return;
+    }
     dailyFees.add(usdcAddress, log.closeFee, METRIC.OPEN_CLOSE_FEES);
   });
 
