@@ -5,6 +5,7 @@ const dexsConfigs: Record<string, { builder: string; start: string }> = {
   "based-predict": { builder: "Based", start: "2025-11-18" },
   "betmoar-fun": { builder: "betmoar", start: "2025-10-17" },
   "flowbot-prediction": { builder: "FlowBot", start: "2025-12-31" },
+  "frenflow": { builder: "FrenFlow", start: "2026-02-16" },
   "polycule": { builder: "Polycule", start: "2025-11-03" },
   "polytraderpro": { builder: "polytraderpro", start: "2025-10-22" },
   "stand-trade": { builder: "standtrade", start: "2025-10-10" },
