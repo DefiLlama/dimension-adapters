@@ -7,10 +7,11 @@
  * PositionOpened + PositionClosed events across all JinkPerps contracts.
  */
 
-import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
-import * as sdk from "@defillama/sdk";
+import {
+  FetchResultVolume,
+  SimpleAdapter,
+} from '../../adapters/types';
+import { CHAIN } from '../../helpers/chains';
 
 // ── Deployed contracts (BSC mainnet) ─────────────────────────────
 const FACTORY = "0x56C933DbBE553a271b9b0b1638aA21a618125E1d";
@@ -96,7 +97,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch,
-      start: 1735689600, // adjust to first trade unix timestamp
+      start: 1776555678, // adjust to first trade unix timestamp
     },
   },
 };
