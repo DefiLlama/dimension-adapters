@@ -11,6 +11,10 @@ const POOLS = [
         address: "0x00003bf45Ce34Bf1BeA78669f9A40ee630e11b99",
         feeModel: "dark_pools_v2",
     },
+    {
+        address: "0x0000eFC4ec03a7c47D3a38A9Be7Ff1d52dD01b99",
+        feeModel: "dark_pools_v2",
+    }
 ] as const;
 
 const POOL_ADDRESSES = POOLS.map(({ address }) => address);
