@@ -13,9 +13,7 @@ const GET_CURVE_ABI =
   "function getCurve(address token) view returns (tuple(address basePair, uint16 totalCurves, uint256 maxTokenSupply, uint256 virtualReserve, uint256 reserve, uint256 completionThreshold))";
 
 const PRINTR_SOLANA_BONDING_CURVE_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
-const PRINTR_SOLANA_LAUNCH_PROGRAM = "T8HsGYv7sMk3kTnyaRqZrbRPuntYzdh12evXBkprint";
-const SOLANA_WSOL = "So11111111111111111111111111111111111111112";
-const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const PRINTR_SOLANA_CREATOR = "82VbBzGtb8v5wFx1TM6iaMmLyRSLy8WeqA123orjHGzL";
 
 // 1% total bonding curve swap fee
 // Fee split: 25% creator, 25% memecoin reserve, 40% buyback, 10% team
@@ -97,13 +95,11 @@ interface ISolanaFeeRow {
 const fetchSolana = async (options: FetchOptions) => {
   const rows: ISolanaFeeRow[] = await queryDuneSql(options, `
     WITH printr_created_mints AS (
-      SELECT DISTINCT token_mint_address AS meme_mint
-      FROM tokens_solana.transfers
-      WHERE action = 'mint'
-        AND outer_executing_account = '${PRINTR_SOLANA_LAUNCH_PROGRAM}'
-        AND block_time >= TIMESTAMP '${START}'
-        AND token_mint_address NOT IN ('${SOLANA_WSOL}', '${SOLANA_USDC}')
-    ),
+  SELECT DISTINCT base_mint AS meme_mint
+  FROM meteora_solana.dynamic_bonding_curve_evt_evtinitializepool
+  WHERE creator = '${PRINTR_SOLANA_CREATOR}'
+    AND evt_block_time >= TIMESTAMP '${START}'
+),
     printr_dbc_pools AS (
       SELECT DISTINCT
         account_config,
