@@ -129,7 +129,7 @@ const adapter: SimpleAdapter = {
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
-
+    doublecounted: true, //dexs
 }
 
 export default adapter;

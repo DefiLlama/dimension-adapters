@@ -209,6 +209,7 @@ const adapter: SimpleAdapter = {
     start: '2023-05-30',
     methodology,
     breakdownMethodology,
+    doublecounted: true, //dexs
 }
 
 export default adapter;
