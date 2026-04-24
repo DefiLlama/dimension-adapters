@@ -95,6 +95,7 @@ const fetch = async ({ createBalances, startTimestamp, endTimestamp }: FetchOpti
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2026-03-24",
