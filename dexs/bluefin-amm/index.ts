@@ -5,15 +5,13 @@ import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
     const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
-    const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
-    let spotDailyVolume = 0;
+    let dailyVolume = 0;
     for (const pool of pools) {
-        spotDailyVolume += Number(pool.day.volume);
+        dailyVolume += Number(pool.day.volume);
     }
-    const dailyVolume = spotDailyVolume + Number(rfqStats.volumeUsd);
 
     return {
-        dailyVolume: dailyVolume,
+        dailyVolume,
     }
 };
 
