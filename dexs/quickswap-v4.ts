@@ -29,17 +29,16 @@ const factories: any = {
 }
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
-  const { api, fromTimestamp } = options
-  const dayId = Math.floor(fromTimestamp / 86400).toString()
+  const { api, startOfDay } = options
   if (!chainData[api.chain]) {
-    const data = httpGet('https://api.quickswap.exchange/analytics/chart-data/5/v4?chainId=' + api.chainId)
+    const data = httpGet(`https://api.quickswap.exchange/v2/analytics/chart-data/${api.chainId}?durationIndex=2&version=v4`)
     chainData[api.chain] = data
     chainData[api.chain] = (await data).data[0]
   }
 
-  const dayData = chainData[api.chain].find((day: any) => day.id === dayId)
+  const dayData = chainData[api.chain].find((day: any) => day.date === startOfDay)
   if (!dayData) {
-    console.error('quickswap v4: No data for dayId', dayId, 'on chain', api.chain, 'trying to fetch via logs...')
+    console.error('quickswap v4: No data for date', startOfDay, 'on chain', api.chain, 'trying to fetch via logs...')
     const fetchConfig: any = { factory: factories[api.chain], ...config, }
     if (api.chain === CHAIN.SOMNIA) delete fetchConfig.swapEvent
 
@@ -49,7 +48,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
   const fees = dayData.feesUSD;
   return {
-    dailyVolume: dayData.volumeUSD,
+    dailyVolume: dayData.dailyVolumeUSD,
     dailyFees: fees,
     dailyUserFees: fees,
     dailyRevenue: fees * REVENUE_RATIO,
