@@ -31,24 +31,26 @@ const factories: any = {
 async function fetch(_a: any, _b: any, options: FetchOptions) {
   const { api, startOfDay } = options
   if (!chainData[api.chain]) {
-    const data = httpGet(`https://api.quickswap.exchange/v2/analytics/chart-data/${api.chainId}?durationIndex=2&version=v4`)
+    const data = httpGet(`https://api.quickswap.exchange/v2/analytics/chart-data/${api.chainId}?durationIndex=5&version=v4`)
     chainData[api.chain] = data
     chainData[api.chain] = (await data).data[0]
   }
 
   const dayData = chainData[api.chain].find((day: any) => day.date === startOfDay)
-  if (!dayData) {
-    console.error('quickswap v4: No data for date', startOfDay, 'on chain', api.chain, 'trying to fetch via logs...')
-    const fetchConfig: any = { factory: factories[api.chain], ...config, }
-    if (api.chain === CHAIN.SOMNIA) delete fetchConfig.swapEvent
+  // if (!dayData) {
+  //   // console.error('quickswap v4: No data for date', startOfDay, 'on chain', api.chain, 'trying to fetch via logs...')
+  //   // const fetchConfig: any = { factory: factories[api.chain], ...config, }
+  //   // if (api.chain === CHAIN.SOMNIA) delete fetchConfig.swapEvent
 
-    const fetchAadapter = getUniV3LogAdapter(fetchConfig)
-    return fetchAadapter(options)
-  }
+  //   // const fetchAadapter = getUniV3LogAdapter(fetchConfig)
+  //   // return fetchAadapter(options)
+  // }
 
-  const fees = dayData.feesUSD;
+  const fees = dayData?.feesUSD || 0;
+  const volume = dayData?.dailyVolumeUSD || 0;
+
   return {
-    dailyVolume: dayData.dailyVolumeUSD,
+    dailyVolume: volume,
     dailyFees: fees,
     dailyUserFees: fees,
     dailyRevenue: fees * REVENUE_RATIO,
