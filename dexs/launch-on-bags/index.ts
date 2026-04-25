@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
+    pullHourly: false,
     fetch,
     chains: [CHAIN.SOLANA],
     dependencies: [Dependencies.DUNE],
