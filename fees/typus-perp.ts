@@ -176,6 +176,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;
