@@ -19,7 +19,6 @@ interface IVolumeall {
 
 const fetchAptos = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
   const historicalVolume: IVolumeall[] = (await fetchURL(APTOS_VOLUME_ENDPOINT))?.data.list;
   
   const dailyVolume = historicalVolume
