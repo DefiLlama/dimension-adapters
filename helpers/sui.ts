@@ -12,10 +12,13 @@ export async function getObject(objectId:string) {
   }])).content
 }
 
-export async function queryEvents({ eventType, filter: filterOverride, options, transform = (i:any) => i }:any):Promise<any[]> {
-  let filter:any = {}
-  if (eventType) filter.MoveEventType = eventType
-  else if (filterOverride) filter = filterOverride
+export async function queryEvents({ eventType, eventModule, options, transform = (i:any) => i }:any):Promise<any[]> {
+  let filter: any = {}
+  if (eventModule) {
+    filter.MoveEventModule = eventModule
+  } else if (eventType) {
+    filter = { MoveEventType: eventType }
+  }
   const items:any[] = []
   let cursor = null
   do {
