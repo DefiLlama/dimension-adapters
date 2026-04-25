@@ -38,7 +38,7 @@ const getFeeBreakdownFromVolume = (dailyVolume: ReturnType<FetchOptions["createB
   }
 }
 
-const fetchEvm = async ({ getLogs, createBalances, api }: FetchOptions) => {
+const fetchEvm = async (_a: any, _b: any, { getLogs, createBalances, api }: FetchOptions) => {
   const dailyVolume = createBalances();
 
   const tradeLogs = await getLogs({
@@ -84,16 +84,14 @@ const fetchEvm = async ({ getLogs, createBalances, api }: FetchOptions) => {
   };
 };
 
-interface ISolanaFeeRow {
-printr_fee_total_usd: string | number;
-}
 
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const [row = { printr_fee_total_usd: 0 }] = await queryDuneSql(options, `
     WITH printr_tokens AS (
       SELECT DISTINCT base_mint AS token
       FROM meteora_solana.dynamic_bonding_curve_evt_evtinitializepool
       WHERE creator = '${PRINTR_SOLANA_CREATOR}'
+      AND evt_block_date >= DATE '${START}'
     ),
     trades_dedup AS (
       SELECT
@@ -125,10 +123,10 @@ const fetchSolana = async (options: FetchOptions) => {
   `);
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(Number(row.printr_fee_total_usd));
+  dailyFees.addUSDValue(Number(row.printr_fee_total_usd), METRIC.SWAP_FEES);
 
-  const dailyRevenue = dailyFees.clone();
-  const dailyProtocolRevenue = dailyFees.clone();
+  const dailyRevenue = dailyFees.clone(1, METRIC.PROTOCOL_FEES);
+  const dailyProtocolRevenue = dailyFees.clone(1, METRIC.PROTOCOL_FEES);
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -141,9 +139,9 @@ const fetchSolana = async (options: FetchOptions) => {
   };
 };
 
-const fetch = async (options: FetchOptions) => {
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
-  return fetchEvm(options)
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(_a, _b, options)
+  return fetchEvm(_a, _b, options)
 }
 
 const methodology = {
@@ -182,14 +180,14 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   fetch,
   start: START,
   chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.SOLANA],
   methodology,
   breakdownMethodology,
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
