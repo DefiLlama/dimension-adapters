@@ -8,7 +8,7 @@ import { METRIC } from "../../helpers/metrics";
 // const APTOS_VOLUME_ENDPOINT = "https://aptos-mainnet-api.bluemove.net/api/histogram";
 
 const SUI_PACKAGE = "0xb24b6789e088b876afabca733bed2299fbc9e2d6369be4d1acfa17d8145454d9";
-const SUI_FEE_RATE = 0.003;
+const SUI_FEE_RATE = 0.003; // 0.3%
 const SUI_PROTOCOL_FEE_RATE = 0;
 const SUI_SUPPLY_SIDE_FEE_RATE = SUI_FEE_RATE - SUI_PROTOCOL_FEE_RATE;
 
