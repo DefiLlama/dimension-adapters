@@ -3,60 +3,57 @@ import { CHAIN } from "../../helpers/chains";
 
 const CONTRACT = "0xE31eE34E37752d90dF52E251069352ba67284807";
 
+const sipCreatedAbi = "event SIPCreated(address indexed user, uint256 planIndex, uint256 planId, uint256 amount, uint256 frequency, address stablecoin, address targetToken)";
+const basketCreatedAbi = "event BasketSIPCreated(address indexed user, uint256 planIndex, uint256 planId, uint256 amount, uint256 frequency, address stablecoin, uint256 basketSize)";
 const investmentExecutedAbi = "event InvestmentExecuted(address indexed user, uint256 planIndex, uint256 planId, uint256 amountIn, uint256 amountOut, uint256 feeAmount)";
 const basketInvestmentExecutedAbi = "event BasketInvestmentExecuted(address indexed user, uint256 planIndex, uint256 planId, uint256 amountIn, uint256 feeAmount)";
-const planAbi = "function userSIPPlans(address, uint256) view returns (uint256 amount, uint256 frequency, uint256 lastInvestmentTime, bool active, address stablecoin, address targetToken, uint256 totalInvested, uint256 totalTokensBought, uint256 planId)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { getLogs, createBalances, api } = options;
+  const { getLogs, createBalances } = options;
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
   const dailyUserFees = createBalances();
 
-  const [singleLogs, basketLogs] = await Promise.all([
+  // Build planId → stablecoin map from creation events (immutable at creation time)
+  const [createdLogs, basketCreatedLogs, execLogs, basketExecLogs] = await Promise.all([
+    getLogs({ target: CONTRACT, eventAbi: sipCreatedAbi, fromBlock: 0 }),
+    getLogs({ target: CONTRACT, eventAbi: basketCreatedAbi, fromBlock: 0 }),
     getLogs({ target: CONTRACT, eventAbi: investmentExecutedAbi }),
     getLogs({ target: CONTRACT, eventAbi: basketInvestmentExecutedAbi }),
   ]);
 
-  const allLogs = [
-    ...singleLogs.map(l => ({ user: l.user, planIndex: l.planIndex, feeAmount: l.feeAmount })),
-    ...basketLogs.map(l => ({ user: l.user, planIndex: l.planIndex, feeAmount: l.feeAmount })),
-  ];
+  const stablecoinByPlanId = new Map<string, string>();
+  for (const l of createdLogs) stablecoinByPlanId.set(l.planId.toString(), l.stablecoin);
+  for (const l of basketCreatedLogs) stablecoinByPlanId.set(l.planId.toString(), l.stablecoin);
 
-  // Fetch stablecoin address for each log to handle decimals correctly (USDC=6, DAI=18)
-  const plans = await api.multiCall({
-    abi: planAbi,
-    calls: allLogs.map(l => ({ target: CONTRACT, params: [l.user, l.planIndex] })),
-  });
-
-  for (let i = 0; i < allLogs.length; i++) {
-    const stablecoin = plans[i].stablecoin;
-    const feeAmount = allLogs[i].feeAmount;
-    dailyFees.add(stablecoin, feeAmount, "Swap Fees");
-    dailyRevenue.add(stablecoin, feeAmount, "Swap Fees");
-    dailyUserFees.add(stablecoin, feeAmount, "Swap Fees");
+  for (const l of execLogs) {
+    const stablecoin = stablecoinByPlanId.get(l.planId.toString());
+    if (!stablecoin) continue;
+    dailyFees.add(stablecoin, l.feeAmount);
+    dailyRevenue.add(stablecoin, l.feeAmount);
+    dailyProtocolRevenue.add(stablecoin, l.feeAmount);
+    dailyUserFees.add(stablecoin, l.feeAmount);
   }
 
-  return { dailyFees, dailyRevenue, dailyUserFees };
+  for (const l of basketExecLogs) {
+    const stablecoin = stablecoinByPlanId.get(l.planId.toString());
+    if (!stablecoin) continue;
+    dailyFees.add(stablecoin, l.feeAmount);
+    dailyRevenue.add(stablecoin, l.feeAmount);
+    dailyProtocolRevenue.add(stablecoin, l.feeAmount);
+    dailyUserFees.add(stablecoin, l.feeAmount);
+  }
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyUserFees };
 };
 
 const methodology = {
   Fees: "0.5% platform fee collected on every DCA swap executed through Stackit on Arbitrum.",
   Revenue: "Stackit retains 100% of platform fees — no liquidity providers to share with.",
+  ProtocolRevenue: "All fees go directly to the Stackit protocol (feeCollector address).",
   UserFees: "Fees paid directly by users as a percentage of each scheduled investment swap.",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    "Swap Fees": "0.5% of each DCA swap amount, collected from InvestmentExecuted and BasketInvestmentExecuted events.",
-  },
-  Revenue: {
-    "Swap Fees": "Platform retains all swap fees, sent to feeCollector address.",
-  },
-  UserFees: {
-    "Swap Fees": "End-users pay 0.5% of each scheduled investment.",
-  },
 };
 
 const adapter: SimpleAdapter = {
@@ -66,7 +63,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ARBITRUM],
   start: "2026-04-23",
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
