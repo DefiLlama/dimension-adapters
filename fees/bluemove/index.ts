@@ -37,7 +37,7 @@ const fetchAptos = async (timestamp: number) => {
 
 const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
   const events = await queryEvents({
-    filter: { MoveEventModule: { package: SUI_PACKAGE, module: "swap" } },
+    eventModule: { package: SUI_PACKAGE, module: "swap" },
     options,
   });
 
@@ -69,7 +69,6 @@ const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
   }
 
   return {
-    dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
     timestamp: options.startOfDay,
