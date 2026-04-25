@@ -83,6 +83,19 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
+const methodology = {
+  Fees: "tBTC treasury fees from minting and redemptions, tracked from Bank balance movements to the Bridge treasury. These movements contain the post-rebate amounts, so RebateStaking reductions are excluded.",
+  UserFees: "Same as fees; treasury fees from minting and redemptions.",
+  Revenue: "All tBTC treasury fees paid by minting and redemptions are protocol revenue.",
+  ProtocolRevenue: "All tBTC treasury fees paid by minting and redemptions are protocol revenue.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MINT_REDEEM_FEES]: "tBTC treasury fees from minting and redemptions, tracked from Bank balance movements to the Bridge treasury. These movements contain the post-rebate amounts, so RebateStaking reductions are excluded.",
+  },
+}
+
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -93,11 +106,7 @@ const adapter: SimpleAdapter = {
       start: '2023-01-23',
     }
   },
-  methodology: {
-    Fees: "tBTC treasury fees from minting and redemptions, tracked from Bank balance movements to the Bridge treasury. These movements contain the post-rebate amounts, so RebateStaking reductions are excluded.",
-    UserFees: "Same as fees; treasury fees paid by minters and redeemers.",
-    Revenue: "All tBTC treasury fees are protocol revenue.",
-    ProtocolRevenue: "All tBTC treasury fees are protocol revenue.",
-  },
+  methodology,
+  breakdownMethodology,
 }
 export default adapter;
