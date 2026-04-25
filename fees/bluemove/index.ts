@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { queryEventsByModule } from "../../helpers/sui";
+import { queryEvents } from "../../helpers/sui";
 import { METRIC } from "../../helpers/metrics";
 
 const APTOS_VOLUME_ENDPOINT = "https://aptos-mainnet-api.bluemove.net/api/histogram";
@@ -39,9 +39,8 @@ const fetchAptos = async (timestamp: number) => {
 };
 
 const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
-  const events = await queryEventsByModule({
-    package: SUI_PACKAGE,
-    module: "swap",
+  const events = await queryEvents({
+    filter: { MoveEventModule: { package: SUI_PACKAGE, module: "swap" } },
     options,
   });
 
