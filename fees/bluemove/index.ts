@@ -1,26 +1,25 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-// import fetchURL from "../../utils/fetchURL";
-// import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { queryEvents } from "../../helpers/sui";
 import { METRIC } from "../../helpers/metrics";
 
-// const APTOS_VOLUME_ENDPOINT = "https://aptos-mainnet-api.bluemove.net/api/histogram";
+const APTOS_VOLUME_ENDPOINT = "https://aptos-mainnet-api.bluemove.net/api/histogram";
 
 const SUI_PACKAGE = "0xb24b6789e088b876afabca733bed2299fbc9e2d6369be4d1acfa17d8145454d9";
 const SUI_FEE_RATE = 0.003; // 0.3%
 const SUI_PROTOCOL_FEE_RATE = 0;
 const SUI_SUPPLY_SIDE_FEE_RATE = SUI_FEE_RATE - SUI_PROTOCOL_FEE_RATE;
 
-// Aptos volume endpoint is dead, returning 0 
-// to not block the rest of the adapter
-/*
 interface IVolumeall {
   num: string;
   date: string;
 }
 
 const fetchAptos = async (timestamp: number) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+
   const historicalVolume: IVolumeall[] = (await fetchURL(APTOS_VOLUME_ENDPOINT))?.data.list;
   
   const dailyVolume = historicalVolume
@@ -33,7 +32,6 @@ const fetchAptos = async (timestamp: number) => {
     timestamp: dayTimestamp,
   };
 };
-*/
 
 const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
   const events = await queryEvents({
@@ -94,11 +92,11 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   adapter: {
-    // [CHAIN.APTOS]: {
-    //  fetch: fetchAptos,
-    //  start: '2022-10-20',
-    //  deadFrom: '2024-03-18',
-    // },
+    [CHAIN.APTOS]: {
+      fetch: fetchAptos,
+      start: '2022-10-20',
+      deadFrom: '2024-03-01',
+    },
     [CHAIN.SUI]: {
       fetch: fetchSui,
       start: '2024-03-01',
