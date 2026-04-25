@@ -150,6 +150,7 @@ const adapter: SimpleAdapter = {
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
+    allowNegativeValue: true,
 }
 
 export default adapter;
