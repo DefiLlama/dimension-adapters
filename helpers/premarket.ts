@@ -72,6 +72,8 @@ export type OptionMarket = {
   tokensPerTickSize: string;
   marketType: number;
   isCollateralScaled: boolean;
+  isSpread: boolean;
+  useAbsoluteSpreadCollateral: boolean;
   collateralToken?: { isStable: boolean } | null;
   deliveryToken?: { isStable: boolean } | null;
 };
@@ -216,6 +218,8 @@ const marketsQuery = gql`
         tokensPerTickSize
         marketType
         isCollateralScaled
+        isSpread
+        useAbsoluteSpreadCollateral
         collateralToken {
           isStable
         }
@@ -349,24 +353,39 @@ export function normalizeAddress(address: string) {
   return address.toLowerCase();
 }
 
-function isSameAddress(left: string, right: string) {
-  return normalizeAddress(left) === normalizeAddress(right);
-}
-
 export function prmTokenIdFromAnyTokenId(tokenId: string | null | undefined) {
   if (!tokenId) return undefined;
   return (BigInt(tokenId) & ~1n).toString();
 }
 
-function getCollateralPerUnit(market: OptionMarket, prmInfo: PrmInfo) {
+type TradeType = "buy" | "sell";
+type PendingFill = {
+  fill: OrderFill;
+  amount: FillAmounts;
+};
+
+function parseTradeType(tradeType: string): TradeType | undefined {
+  if (tradeType === "buy" || tradeType === "sell") return tradeType;
+  return undefined;
+}
+
+function getCollateralTickCount(market: OptionMarket) {
+  if (!market.isSpread) return 1n;
+
   const tickSize = BigInt(market.tickSize);
   const tickSpacing = BigInt(market.tickSpacing);
-  const tokensPerTickSize = BigInt(market.tokensPerTickSize);
   const strikeCount = tickSpacing > tickSize ? tickSpacing / tickSize : 1n;
-  let collateralPerUnit = strikeCount * tokensPerTickSize;
+
+  return market.useAbsoluteSpreadCollateral ? strikeCount + 1n : strikeCount;
+}
+
+function getCollateralPerUnit(market: OptionMarket, prmInfo: PrmInfo) {
+  let collateralPerUnit =
+    getCollateralTickCount(market) * BigInt(market.tokensPerTickSize);
 
   if (market.isCollateralScaled) {
-    collateralPerUnit = (BigInt(prmInfo.tick) * collateralPerUnit) / tickSize;
+    collateralPerUnit =
+      (BigInt(prmInfo.tick) * collateralPerUnit) / BigInt(market.tickSize);
   }
 
   return collateralPerUnit;
@@ -390,70 +409,49 @@ export function getFillAmounts(
 ): FillAmounts | undefined {
   if (!market) return undefined;
 
+  const tradeType = parseTradeType(fill.tradeType);
+  if (!tradeType) return undefined;
+
   const makerAsset = normalizeAddress(fill.makerAsset);
   const takerAsset = normalizeAddress(fill.takerAsset);
   const collateral = normalizeAddress(market.collateral);
-  const makingAmount = BigInt(fill.makingAmount);
-  const takingAmount = BigInt(fill.takingAmount);
+  const cashAmount =
+    tradeType === "buy" ? BigInt(fill.makingAmount) : BigInt(fill.takingAmount);
+  const exposureAmount =
+    tradeType === "buy" ? BigInt(fill.takingAmount) : BigInt(fill.makingAmount);
+
+  const collateralOnExpectedSide =
+    tradeType === "buy"
+      ? makerAsset === collateral && takerAsset !== collateral
+      : takerAsset === collateral && makerAsset !== collateral;
+
+  if (!collateralOnExpectedSide) return undefined;
 
   if (market.marketType === ERC20_X_ERC6909_MARKET_TYPE) {
     if (!prmInfo) return undefined;
 
-    if (makerAsset === collateral) {
-      return {
-        volumeToken: collateral,
-        volumeAmount: makingAmount,
-        notionalToken: collateral,
-        notionalAmount: getCollateralNotional(market, prmInfo, takingAmount),
-      };
-    }
-
-    if (takerAsset === collateral) {
-      return {
-        volumeToken: collateral,
-        volumeAmount: takingAmount,
-        notionalToken: collateral,
-        notionalAmount: getCollateralNotional(market, prmInfo, makingAmount),
-      };
-    }
-
-    return undefined;
-  }
-
-  if (makerAsset === collateral) {
     return {
       volumeToken: collateral,
-      volumeAmount: makingAmount,
-      notionalToken: takerAsset,
-      notionalAmount: takingAmount,
+      volumeAmount: cashAmount,
+      notionalToken: collateral,
+      notionalAmount: getCollateralNotional(market, prmInfo, exposureAmount),
     };
   }
 
-  if (takerAsset === collateral) {
-    return {
-      volumeToken: collateral,
-      volumeAmount: takingAmount,
-      notionalToken: makerAsset,
-      notionalAmount: makingAmount,
-    };
-  }
-
+  const exposureToken =
+    tradeType === "buy"
+      ? normalizeAddress(fill.takerAsset)
+      : normalizeAddress(fill.makerAsset);
+  if (exposureToken === collateral) return undefined;
   return {
-    volumeToken: takerAsset,
-    volumeAmount: takingAmount,
-    notionalToken: makerAsset,
-    notionalAmount: makingAmount,
+    volumeToken: collateral,
+    volumeAmount: cashAmount,
+    notionalToken: exposureToken,
+    notionalAmount: exposureAmount,
   };
 }
 
 function combineFillAmounts(left: FillAmounts, right: FillAmounts) {
-  if (
-    left.volumeToken !== right.volumeToken ||
-    left.notionalToken !== right.notionalToken
-  ) {
-    return left;
-  }
-
   return {
     volumeToken: left.volumeToken,
     volumeAmount:
@@ -468,17 +466,41 @@ function combineFillAmounts(left: FillAmounts, right: FillAmounts) {
   };
 }
 
-function isMatchedFillPair(left: OrderFill, right: OrderFill) {
-  return (
-    right.transactionHash === left.transactionHash &&
-    right.marketId === left.marketId &&
-    right.optionTokenId === left.optionTokenId &&
-    right.orderHash !== left.orderHash &&
-    isSameAddress(right.maker, left.taker) &&
-    isSameAddress(right.taker, left.maker) &&
-    isSameAddress(right.makerAsset, left.takerAsset) &&
-    isSameAddress(right.takerAsset, left.makerAsset)
+function buildFillPairKey(fill: OrderFill, reversed = false) {
+  return [
+    fill.transactionHash,
+    fill.marketId ?? "",
+    fill.optionTokenId ?? "",
+    normalizeAddress(reversed ? fill.taker : fill.maker),
+    normalizeAddress(reversed ? fill.maker : fill.taker),
+    normalizeAddress(reversed ? fill.takerAsset : fill.makerAsset),
+    normalizeAddress(reversed ? fill.makerAsset : fill.takerAsset),
+    reversed ? fill.takingAmount : fill.makingAmount,
+    reversed ? fill.makingAmount : fill.takingAmount,
+  ].join("|");
+}
+
+function takePendingFill(
+  pendingByKey: Map<string, PendingFill[]>,
+  key: string,
+  fill: OrderFill,
+) {
+  const pending = pendingByKey.get(key);
+  if (!pending?.length) return undefined;
+
+  const index = pending.findIndex(
+    (candidate) =>
+      candidate.fill.id !== fill.id &&
+      candidate.fill.orderHash !== fill.orderHash,
   );
+  if (index === -1) return undefined;
+
+  const [candidate] = pending.splice(index, 1);
+  if (!pending.length) {
+    pendingByKey.delete(key);
+  }
+
+  return candidate;
 }
 
 export function getDedupedFillAmounts(
@@ -486,13 +508,10 @@ export function getDedupedFillAmounts(
   marketsById: Map<string, OptionMarket>,
   prmInfosById: Map<string, PrmInfo>,
 ) {
-  const consumed = new Set<number>();
+  const pendingByKey = new Map<string, PendingFill[]>();
   const amounts: FillAmounts[] = [];
 
-  for (let i = 0; i < fills.length; i++) {
-    if (consumed.has(i)) continue;
-
-    const fill = fills[i];
+  for (const fill of fills) {
     const marketId = fill.marketId ?? "";
     const market = marketsById.get(marketId);
     const prmInfo = prmInfosById.get(
@@ -501,33 +520,35 @@ export function getDedupedFillAmounts(
     const fillAmounts = getFillAmounts(fill, market, prmInfo);
 
     if (!fillAmounts) {
-      consumed.add(i);
       continue;
     }
 
-    const pairIndex = fills.findIndex((candidate, candidateIndex) => {
-      if (candidateIndex <= i || consumed.has(candidateIndex)) return false;
-      return isMatchedFillPair(fill, candidate);
-    });
+    const reverseKey = buildFillPairKey(fill, true);
+    const pair = takePendingFill(pendingByKey, reverseKey, fill);
 
-    if (pairIndex === -1) {
-      amounts.push(fillAmounts);
-      consumed.add(i);
+    if (!pair) {
+      const forwardKey = buildFillPairKey(fill);
+      const pending = pendingByKey.get(forwardKey) ?? [];
+      pending.push({ fill, amount: fillAmounts });
+      pendingByKey.set(forwardKey, pending);
       continue;
     }
 
-    const pair = fills[pairIndex];
-    const pairMarket = marketsById.get(pair.marketId ?? "");
-    const pairPrmInfo = prmInfosById.get(
-      prmTokenIdFromAnyTokenId(pair.optionTokenId) ?? "",
-    );
-    const pairAmounts = getFillAmounts(pair, pairMarket, pairPrmInfo);
+    if (
+      pair.amount.volumeToken === fillAmounts.volumeToken &&
+      pair.amount.notionalToken === fillAmounts.notionalToken
+    ) {
+      amounts.push(combineFillAmounts(pair.amount, fillAmounts));
+      continue;
+    }
 
-    amounts.push(
-      pairAmounts ? combineFillAmounts(fillAmounts, pairAmounts) : fillAmounts,
-    );
-    consumed.add(i);
-    consumed.add(pairIndex);
+    amounts.push(pair.amount, fillAmounts);
+  }
+
+  for (const pending of pendingByKey.values()) {
+    for (const { amount } of pending) {
+      amounts.push(amount);
+    }
   }
 
   return amounts;
@@ -537,7 +558,9 @@ export function getRedeemFeeToken(market: OptionMarket | undefined) {
   if (!market) return undefined;
 
   if (market.deliveryToken?.isStable) return normalizeAddress(market.delivery);
-  if (market.collateralToken?.isStable) return normalizeAddress(market.collateral);
+  if (market.collateralToken?.isStable) {
+    return normalizeAddress(market.collateral);
+  }
 
   return normalizeAddress(market.delivery);
 }

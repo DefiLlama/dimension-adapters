@@ -23,6 +23,7 @@ const METRICS = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const [orderFees, mintFees, redeemFees, rolloverFees] = await Promise.all([
     fetchOrderFees(options),
@@ -109,6 +110,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
   };
 };
 
@@ -119,6 +121,8 @@ const methodology = {
     "All indexed fees are collected by the Premarket protocol fee receiver.",
   ProtocolRevenue:
     "All indexed fees are treated as protocol revenue until a supply-side or holder revenue split is introduced.",
+  SupplySideRevenue:
+    "No supply-side fee split is currently indexed for Premarket, so supply-side revenue is reported as zero.",
 };
 
 const breakdownMethodology = {
