@@ -69,10 +69,10 @@ const adapter: SimpleAdapter = {
   start: '2024-11-19',
   runAtCurrTime: true,
   methodology: {
-    Fees: "spot trading fees from CLMM pools",
-    Revenue: "protocol fees from spot trading",
-    ProtocolRevenue: "protocol fees from spot trading",
-    SupplySideRevenue: "fees earned by liquidity providers",
+    Fees: "Swap fees collected from Bluefin CLMM spot pools",
+    Revenue: "Protocol's share of CLMM swap fees (per-pool protocolFee, defaulting to 20%)",
+    ProtocolRevenue: "Protocol's share of CLMM swap fees retained by Bluefin",
+    SupplySideRevenue: "Remaining CLMM swap fees distributed to liquidity providers",
   }
 };
 
