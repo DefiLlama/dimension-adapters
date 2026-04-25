@@ -12,10 +12,12 @@ export const investmentExecutedAbi = "event InvestmentExecuted(address indexed u
 export const basketInvestmentExecutedAbi = "event BasketInvestmentExecuted(address indexed user, uint256 planIndex, uint256 planId, uint256 amountIn, uint256 feeAmount)";
 
 export async function getPlanIdToStablecoin(options: FetchOptions): Promise<Map<string, string>> {
-  const { getLogs } = options;
+  const { getLogs, toTimestamp } = options;
+  // Fetch ALL creation events from deploy to end of current slice so plans
+  // created in earlier hours are always in the map.
   const [createdLogs, basketCreatedLogs] = await Promise.all([
-    getLogs({ target: CONTRACT, eventAbi: sipCreatedAbi, fromTimestamp: DEPLOY_TIMESTAMP }),
-    getLogs({ target: CONTRACT, eventAbi: basketCreatedAbi, fromTimestamp: DEPLOY_TIMESTAMP }),
+    getLogs({ target: CONTRACT, eventAbi: sipCreatedAbi, fromTimestamp: DEPLOY_TIMESTAMP, toTimestamp }),
+    getLogs({ target: CONTRACT, eventAbi: basketCreatedAbi, fromTimestamp: DEPLOY_TIMESTAMP, toTimestamp }),
   ]);
   const map = new Map<string, string>();
   for (const l of createdLogs) map.set(l.planId.toString(), l.stablecoin);
