@@ -228,6 +228,7 @@ export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
 interface Hip3DeployerMetrics {
   dailyPerpVolume: Balances;
   dailyPerpFee: Balances;
+  dailyDeployerFee: Balances;
   currentPerpOpenInterest?: number;
 }
 
@@ -340,6 +341,7 @@ export async function queryHyperliquidIndexer(
           hip3Deployers[deployer] = {
             dailyPerpVolume: options.createBalances(),
             dailyPerpFee: options.createBalances(),
+            dailyDeployerFee: options.createBalances(),
           };
         }
 
@@ -354,6 +356,8 @@ export async function queryHyperliquidIndexer(
             Number((metrics as any).perpsVolumeUsd) / 2,
           );
         }
+        
+        hip3Deployers[deployer].dailyDeployerFee.addCGToken('usd-coin', (metrics as any).deployerFeeUsd || 0);
 
         for (const [coin, amount] of Object.entries(
           (metrics as any).perpsFeeTokens,
@@ -459,6 +463,7 @@ export const fetchHIP3DeployerData = async ({
   return {
     dailyPerpVolume: options.createBalances(),
     dailyPerpFee: options.createBalances(),
+    dailyDeployerFee: options.createBalances(),
     currentPerpOpenInterest: 0,
   };
 };
@@ -479,11 +484,31 @@ export const exportHIP3DeployerAdapter = (
           });
 
           if (props.type === "dexs") {
+            const dailyFees = options.createBalances();
+            const dailyRevenue = options.createBalances();
+            const dailySupplySideRevenue = options.createBalances();
+            
+            dailyFees.add(result.dailyPerpFee, 'Perps Trading Fees');
+            
+            // after 2026-03-21, count deployerFee field from node_fills
+            if (options.startOfDay >= 1774051200) {
+              const hyperliquidFees = result.dailyPerpFee.clone(0.5);
+              const discountFees = result.dailyPerpFee.clone(0.5);
+              discountFees.subtract(result.dailyDeployerFee);
+              dailySupplySideRevenue.add(hyperliquidFees, 'Perps Fees To Hyperliquid');
+              dailySupplySideRevenue.add(discountFees, 'Referral & Trading Discounts');
+              dailyRevenue.add(result.dailyDeployerFee, 'Perps Fees To Deployer');
+            } else {
+              dailyRevenue.add(result.dailyPerpFee.clone(0.5), 'Perps Fees To Deployer');
+              dailySupplySideRevenue.add(result.dailyPerpFee.clone(0.5), 'Perps Fees To Hyperliquid');
+            }
+            
             return {
               dailyVolume: result.dailyPerpVolume,
-              dailyFees: result.dailyPerpFee,
-              dailyRevenue: result.dailyPerpFee.clone(0.5),
-              dailyProtocolRevenue: result.dailyPerpFee.clone(0.5),
+              dailyFees,
+              dailySupplySideRevenue,
+              dailyRevenue,
+              dailyProtocolRevenue: dailyRevenue,
             };
           } else {
             return {
@@ -496,6 +521,18 @@ export const exportHIP3DeployerAdapter = (
       },
     },
     methodology: props.methodology,
+    breakdownMethodology: {
+      Fees: {
+        'Perps Trading Fees': 'All fees collected from perps trading via frontend and markets deployed by protocol',
+      },
+      Revenue: {
+        'Perps Fees To Deployer': `Fees collected by deployer after hyperliquid cut, referral, discounts.`,
+      },
+      SupplySideRevenue: {
+        'Perps Fees To Hyperliquid': 'Perps fees paid to hyperliquid.',
+        'Referral & Trading Discounts': 'Perps fees shared to referrals and trading discounts.',
+      }
+    }
   };
 
   return adapter;
