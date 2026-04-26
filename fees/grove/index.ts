@@ -35,7 +35,7 @@ const chainConfig = {
                 priceFeed: "0xd6156F8177aA1a6E0c5278CE437A9BDB32F203ef",
                 feedType: "dailyYieldPercentage",
                 name: "BUIDL-I",
-                tokenDecimals: 18,
+                tokenDecimals: 6,
             },
             {
                 token: "0x51C2d74017390CbBd30550179A16A1c28F7210fc",
@@ -171,6 +171,7 @@ async function addSecuritizeYields(options: FetchOptions, dailyFees: Balances) {
     const securitizeTokens = chainConfig[options.chain].securitizeVaults.map(v => v.token);
     const priceFeeds = chainConfig[options.chain].securitizeVaults.map(v => v.priceFeed);
     const feedTypes = chainConfig[options.chain].securitizeVaults.map(v => v.feedType);
+    const tokenDecimals = chainConfig[options.chain].securitizeVaults.map(v => v.tokenDecimals);
 
     const tokenBalances = await options.api.multiCall({
         abi: "function balanceOf(address account) view returns (uint256)",
@@ -194,7 +195,7 @@ async function addSecuritizeYields(options: FetchOptions, dailyFees: Balances) {
         if (!tokenBalances[i] || !latestAnswerBefore[i] || !latestAnswerAfter[i]) {
             continue;
         }
-        const balance = tokenBalances[i] / (10 ** 6);
+        const balance = tokenBalances[i] / (10 ** tokenDecimals[i]);
         const oracleDataAfter = latestAnswerAfter[i] / (10 ** 8);
         const oracleDataBefore = latestAnswerBefore[i] / (10 ** 8);
         let yieldForPeriod = 0;
@@ -273,17 +274,25 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
     return {
         dailyFees,
+        dailyRevenue: 0,
         dailySupplySideRevenue: dailyFees,
     }
 }
 
 const methodology = {
     Fees: "Includes all the yields earned by allocating assets into various defi protocols",
+    Revenue: "No revenue",
     SupplySideRevenue: "All the yields go to investors"
 }
 
 const breakdownMethodology = {
     Fees: {
+        'Assets Yields - Centrifuge': 'Yields earned by allocating assets into centrifuge vaults',
+        'Assets Yields - Aave Horizon': 'Yields earned by allocating assets into aave horizon vaults',
+        'Assets Yields - Securitize': 'Yields earned by allocating assets into securitize vaults',
+        'Assets Yields - Morpho': 'Yields earned by allocating assets into morpho vaults',
+    },
+    SupplySideRevenue: {
         'Assets Yields - Centrifuge': 'Yields earned by allocating assets into centrifuge vaults',
         'Assets Yields - Aave Horizon': 'Yields earned by allocating assets into aave horizon vaults',
         'Assets Yields - Securitize': 'Yields earned by allocating assets into securitize vaults',
