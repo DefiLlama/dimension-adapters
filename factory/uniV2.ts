@@ -10,6 +10,9 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "katana": {
+    [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
+  },
   'fusionx-v2': {
     [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
   },
@@ -1406,21 +1409,21 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
     },
   },
-  "katana": {
-    endpoints: {
-      [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
-    },
-    factoriesName: "katanaFactories",
-    totalVolume: "totalVolumeUSD",
-    feeConfig: {
-      totalFees: 0.003,
-      protocolFees: 0.0005,
-      supplySideRevenue: 0.0025,
-      revenue: 0.0005,
-      userFees: 0.003,
-    },
-    start: '2021-11-01',
-  },
+  // "katana": {
+  //   endpoints: {
+  //     [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
+  //   },
+  //   factoriesName: "katanaFactories",
+  //   totalVolume: "totalVolumeUSD",
+  //   feeConfig: {
+  //     totalFees: 0.003,
+  //     protocolFees: 0.0005,
+  //     supplySideRevenue: 0.0025,
+  //     revenue: 0.0005,
+  //     userFees: 0.003,
+  //   },
+  //   start: '2021-11-01',
+  // },
   "defi-swap": {
     endpoints: {
       [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('G7W3G1JGcFbWseucNkHHvQorxyjQLEQt7vt9yPN97hri'),
