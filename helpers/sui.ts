@@ -12,9 +12,13 @@ export async function getObject(objectId:string) {
   }])).content
 }
 
-export async function queryEvents({ eventType, options, transform = (i:any) => i }:any):Promise<any[]> {
-  let filter:any = {}
-  if (eventType) filter.MoveEventType = eventType 
+export async function queryEvents({ eventType, eventModule, options, transform = (i:any) => i }:any):Promise<any[]> {
+  let filter: any = {}
+  if (eventModule) {
+    filter.MoveEventModule = eventModule
+  } else if (eventType) {
+    filter.MoveEventType = eventType
+  }
   const items:any[] = []
   let cursor = null
   do {
