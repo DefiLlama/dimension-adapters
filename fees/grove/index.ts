@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const chainConfig = {
     [CHAIN.ETHEREUM]: {
-        start: '2025-01-01',
+        start: '2025-04-01',
         address: "0x491EDFB0B8b608044e227225C715981a30F3A44E",
         centrifugeVaults: [
             {
@@ -68,7 +68,7 @@ const chainConfig = {
         ]
     },
     [CHAIN.PLUME]: {
-        start: '2025-09-18',
+        start: '2025-08-22',
         address: "0x1DB91ad50446a671e2231f77e00948E68876F812",
         centrifugeVaults: [
             {
@@ -81,7 +81,7 @@ const chainConfig = {
         ]
     },
     [CHAIN.BASE]: {
-        start: '2025-10-01',
+        start: '2025-10-29',
         address: "0x9B746dBC5269e1DF6e4193Bcb441C0FbBF1CeCEe",
         morphoVaults: [
             {
@@ -298,6 +298,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     allowNegativeValue: true,
+    doublecounted: true,
 }
 
 export default adapter;
