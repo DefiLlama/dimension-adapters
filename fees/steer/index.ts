@@ -74,13 +74,14 @@ const chainConfig = {
         identifier: 'celo',
         start: '2024-08-04'
     },
-    [CHAIN.FLARE]: {
-        name: 'Flare',
-        subgraphEndpoint: 'https://api.goldsky.com/api/public/project_cm2k9xbkz4qg901vs51bm5uau/subgraphs/steer-protocol-flare/prod/gn',
-        chainId: 14,
-        identifier: 'flare',
-        start: '2024-08-04',
-    },
+    // 429 rpc error
+    // [CHAIN.FLARE]: {
+    //     name: 'Flare',
+    //     subgraphEndpoint: 'https://api.goldsky.com/api/public/project_cm2k9xbkz4qg901vs51bm5uau/subgraphs/steer-protocol-flare/prod/gn',
+    //     chainId: 14,
+    //     identifier: 'flare',
+    //     start: '2024-08-04',
+    // },
     [CHAIN.ETHEREUM]: {
         name: 'Ethereum',
         subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-mainnet/prod/gn',
