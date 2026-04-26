@@ -17,7 +17,7 @@ export async function queryEvents({ eventType, eventModule, options, transform =
   if (eventModule) {
     filter.MoveEventModule = eventModule
   } else if (eventType) {
-    filter = { MoveEventType: eventType }
+    filter.MoveEventType = eventType
   }
   const items:any[] = []
   let cursor = null
