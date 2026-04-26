@@ -205,7 +205,7 @@ async function addSecuritizeYields(options: FetchOptions, dailyFees: Balances) {
             const yieldPercentageForPeriod = (oracleDataAfter - oracleDataBefore) * (options.toTimestamp - options.fromTimestamp) / ONE_DAY_IN_SECONDS;
             yieldForPeriod = balance * yieldPercentageForPeriod;
         }
-        else if (chainConfig[options.chain].securitizeVaults[i].feedType === "price") {
+        else if (feedTypes[i] === "price") {
             yieldForPeriod = balance * (oracleDataAfter - oracleDataBefore);
         }
 
