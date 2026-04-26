@@ -11,18 +11,28 @@ interface IVolumeall {
 
 //https://dune.com/queries/5561137/9053445
 const inflatedApiVolumes: Record<string, { date: string, realVolume: number }[]> = {
-  [CHAIN.SOLANA]: [{
-    date: "2026-03-22",
-    realVolume: 2681396
-  }],
-  [CHAIN.ETHEREUM]: [{
-    date: "2026-04-11",
-    realVolume: 10274944
-  }],
-  [CHAIN.BSC]: [{
-    date: "2026-04-23",
-    realVolume: 1928246
-  }]
+  [CHAIN.SOLANA]: [
+    {
+      date: "2026-03-22",
+      realVolume: 2681396
+    }
+  ],
+  [CHAIN.ETHEREUM]: [
+    {
+      date: "2026-04-11",
+      realVolume: 10274944
+    }
+  ],
+  [CHAIN.BSC]: [
+    {
+      date: "2026-04-23",
+      realVolume: 1928246
+    },
+    {
+      date: "2026-04-26",
+      realVolume: 7203337
+    },
+  ]
 }
 
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
