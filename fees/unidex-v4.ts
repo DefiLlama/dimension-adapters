@@ -2,37 +2,15 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
+import { abs, getUnidexV4Logs, toUSD } from "../helpers/unidex-v4";
 
-const POSITION_VAULT = "0xd8dc5d42c13b8257b97417e89c118cc46056c117";
-const LIQUIDATION_VAULT = "0x8d9db733cfbe8a0da96cb0383233665e93a4caeb";
-// Divide in BigInt space to micro-dollars first, then float — avoids both BigInt truncation and float overflow
-const toUSD = (raw: bigint) => Number(raw / 1_000_000_000_000_000_000_000_000n) / 1e6;
 // Fee split changed on 2024-10-16:
 // Before: Stakers 15% + MOLTEN burn 50% + Dev 15% + USDM 20%
 // After:  Stakers 15% + MOLTEN burn 20% + Dev 15% + USDM 50%
 const SPLIT_TIMESTAMP = new Date("2024-10-16").getTime() / 1000;
 
-const abs = (n: bigint) => (n < 0n ? -n : n);
-
 const fetch = async (options: FetchOptions) => {
-  const [increaseLogs, decreaseLogs, closeLogs, liquidateLogs] = await Promise.all([
-    options.getLogs({
-      target: POSITION_VAULT,
-      eventAbi: "event IncreasePosition(uint256 indexed posId, address indexed account, uint256 indexed tokenId, bool isLong, uint256[5] posData)",
-    }),
-    options.getLogs({
-      target: POSITION_VAULT,
-      eventAbi: "event DecreasePosition(uint256 indexed posId, address indexed account, uint256 indexed tokenId, bool isLong, int256[3] pnlData, uint256[5] posData)",
-    }),
-    options.getLogs({
-      target: POSITION_VAULT,
-      eventAbi: "event ClosePosition(uint256 indexed posId, address indexed account, uint256 indexed tokenId, bool isLong, int256[3] pnlData, uint256[5] posData)",
-    }),
-    options.getLogs({
-      target: LIQUIDATION_VAULT,
-      eventAbi: "event LiquidatePosition(uint256 indexed posId, address indexed account, uint256 indexed tokenId, bool isLong, int256[3] pnlData, uint256[5] posData)",
-    }),
-  ]);
+  const [increaseLogs, decreaseLogs, closeLogs, liquidateLogs] = await getUnidexV4Logs(options);
 
   let feeRaw = BigInt(0);
   let liquidationFeeRaw = BigInt(0);
