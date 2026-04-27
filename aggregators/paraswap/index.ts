@@ -66,7 +66,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   
-  dailyFees.addUSDValue(partnerRev || 0 + protocolRev || 0, 'Token Swap Fees');
+  dailyFees.addUSDValue((partnerRev || 0) + (protocolRev || 0), 'Token Swap Fees');
   dailySupplySideRevenue.addUSDValue(partnerRev || 0, 'Fees To Partners');
   
   const revenue = protocolRev || 0;

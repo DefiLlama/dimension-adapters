@@ -15,6 +15,7 @@ const chainConfig = {
                 token: "0x5a0f93d040de44e78f251b03c43be9cf317dcf64",
                 vault: "0x4880799ee5200fc58da299e965df644fbf46780b",
                 name: "JAAA",
+                badDataDays: ["2025-07-28"]
             },
         ]
     },
@@ -54,6 +55,8 @@ async function fetch(options: FetchOptions) {
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
+    const badDataDays = chainConfig[options.chain].vaults.map((v: any) => v.badDataDays);
+
     const tokenAddresses = chainConfig[options.chain].vaults.map((v: any) => v.token);
     const vaultAddresses = chainConfig[options.chain].vaults.map((v: any) => v.vault);
     const tokenNames = chainConfig[options.chain].vaults.map((v: any) => v.name);
@@ -83,7 +86,7 @@ async function fetch(options: FetchOptions) {
     })
 
     for (let i = 0; i < tokenAddresses.length; i++) {
-        if (!totalSupplies[i] || !pricePerShareBefore[i] || !pricePerShareAfter[i] || !decimals[i]) {
+        if (!totalSupplies[i] || !pricePerShareBefore[i] || !pricePerShareAfter[i] || !decimals[i] || badDataDays[i]?.includes(options.dateString)) {
             continue;
         }
 
