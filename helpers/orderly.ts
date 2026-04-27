@@ -2,30 +2,43 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "./chains";
 
-const statsCache: any = {}
-const defaulyBuilderMethodology = {
+type BuilderDailyStats = {
+  date: string
+  dateString?: string
+  builderFee: string
+  takerVolume: string
+  makerVolume: string
+}
+
+type BuilderMethodology = Record<string, string>
+
+type BuilderConfig = {
+  broker_id: string
+  start?: string
+  revenueRatio?: number,
+  protocolRevenueRatio?: number,
+  holderRevenueRatio?: number,
+  methodology?: BuilderMethodology
+}
+
+const statsCache: Record<string, Promise<Record<string, BuilderDailyStats>>> = {}
+const defaultBuilderMethodology = {
   Volume: 'Maker/taker volume that flow through the interface',
   Fees: "Builder Fees collected from Orderly Network",
   Revenue: "builder fees",
   ProtocolRevenue: "All the revenue go to the protocol",
 }
 
-export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaulyBuilderMethodology, holderRevenueRatio }: {
-  broker_id: string
-  start?: string
-  revenueRatio?: number,
-  protocolRevenueRatio?: number,
-  holderRevenueRatio?: number,
-  methodology?: any
-}): Adapter {
+export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaultBuilderMethodology, holderRevenueRatio }: BuilderConfig): Adapter {
 
   const url = `https://api.orderly.org/md/volume/builder/daily_stats?broker_id=${broker_id}`
 
   async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
-    if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then(data => {
-      const dateDataMap: any = {}
-      data.forEach((i: any) => {
+    if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then((data: BuilderDailyStats[]) => {
+      const dateDataMap: Record<string, BuilderDailyStats> = {}
+      data.forEach((i) => {
         dateDataMap[i.date.slice(0, 10)] = i
+        if (i.dateString) dateDataMap[i.dateString] = i
       })
       return dateDataMap
     })
