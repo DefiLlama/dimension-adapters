@@ -4,7 +4,7 @@ import { queryAllium } from "../../helpers/allium";
 
 const COSMOS_DECIMALS = 6;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const start = new Date(options.fromTimestamp * 1000).toISOString()
     const end = new Date(options.toTimestamp * 1000).toISOString()
 

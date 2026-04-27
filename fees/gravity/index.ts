@@ -4,7 +4,7 @@ import { queryAllium } from "../../helpers/allium";
 
 const GRAVITY_DECIMALS = 18;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
       SELECT 
         SUM(receipt_gas_used * receipt_effective_gas_price) AS l2_fees_wei,

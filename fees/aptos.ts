@@ -4,7 +4,7 @@ import { FetchOptions } from "../adapters/types";
 import { ProtocolType } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
   SELECT 
       SUM(gas_used * gas_unit_price) AS tx_fees
