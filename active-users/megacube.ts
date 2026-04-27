@@ -13,25 +13,22 @@ const fetch = async ({ getLogs }: FetchOptions) => {
     entireLog: true,
   });
 
-  const users = new Set<string>();
   const transactions = new Set<string>();
 
   logs.forEach((log: any) => {
-    const destroyer = log.args?.destroyer;
     const transactionHash = log.transactionHash;
 
-    if (destroyer) users.add(destroyer.toLowerCase());
     if (transactionHash) transactions.add(transactionHash.toLowerCase());
   });
 
   return {
-    dailyActiveUsers: users.size,
     dailyTransactionsCount: transactions.size,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch,
@@ -39,8 +36,6 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    DailyActiveUsers:
-      "Counts unique destroyer addresses that emitted at least one BlockDestroyed event through the MegaCubeV5 contract.",
     DailyTransactionsCount:
       "Counts unique transaction hashes that emitted one or more BlockDestroyed events through the MegaCubeV5 contract. Batch mining operations are counted as one transaction.",
   },
