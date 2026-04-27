@@ -12,6 +12,9 @@ const protocolChainMap: Record<string, string> = {
     "heima": CHAIN.HEIMA,
     "karura": CHAIN.KARURA,
     "kusama": CHAIN.KUSAMA,
+    "hydration-chain": CHAIN.HYDRADX,
+    "robonomics": CHAIN.ROBONOMICS,
+    "darwinia": CHAIN.DARWINIA,
 }
 
 const feesProtocols: Record<string, any> = {};

@@ -28,6 +28,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 }
 
+const methodology = {
+  Fees: "Transaction fees paid by users for executing transactions on the Sui network",
+  Revenue: "Includes non refundable storage fees that are burnt",
+  HoldersRevenue: "Includes non refundable storage fees that are burnt",
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -35,6 +41,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
+  methodology,
 };
 
 export default adapter;

@@ -18,7 +18,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   }
+}
+
+const methodology = {
+  Fees: "Transaction fees paid by users for executing transactions on the Aptos network",
+  Revenue: "All the transaction fees paid are burnt",
+  HoldersRevenue: "All the transaction fees paid are burned",
+  SupplySideRevenue: "All the transaction fees paid are burned",
 }
 
 const adapter: SimpleAdapter = {
@@ -28,6 +37,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   protocolType: ProtocolType.CHAIN,
+  methodology,
 };
 
 export default adapter;
