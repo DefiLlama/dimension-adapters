@@ -96,6 +96,11 @@ const breakdownMethodology = {
     [METRIC.MARGIN_FEES]: "Borrow fees paid by traders for holding leveraged positions.",
     ['Hyperliquid Referral Income']: "Referral fees earned by UniDex from Hyperliquid.",
   },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: "15% of all fees distributed to MOLTEN stakers.",
+    [METRIC.TOKEN_BUY_BACK]: "20% (post Oct-2024) or 50% (pre Oct-2024) of fees used to buy back and burn MOLTEN.",
+    'Dev Fund': "15% of all fees allocated to the UniDex development fund.",
+  },
   HoldersRevenue: {
     [METRIC.STAKING_REWARDS]: "15% of all fees distributed to MOLTEN stakers.",
     [METRIC.TOKEN_BUY_BACK]: "20% (post Oct-2024) or 50% (pre Oct-2024) of fees used to buy back and burn MOLTEN.",
