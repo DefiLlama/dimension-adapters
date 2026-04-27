@@ -1,112 +1,135 @@
-// NextRare — cross-chain NFT gacha protocol.
+// NextRare — cross-chain NFT gacha protocol on MegaETH.
 //
-// Tracks daily user payments via the Collector contract's own typed events
-// (`Deposited` + `CrossmintPurchase`) emitted by the CREATE2-deployed Collector
-// at the same address on every supported chain.
+// Net protocol fees:
+//   dailyFees = (gift cards burned on pack opens × $5) − (USDm sellback payouts)
 //
-// These events are emitted by the Collector — not by the token contract —
-// because Collector uses `transferFrom(user, treasury, amount)` to forward
-// funds directly to the Safe treasury. The ERC-20 Transfer event therefore
-// has `from=user, to=treasury` with no Collector address in topics, so we
-// must hook the typed events.
+// A user buys gift cards (each = $5), opens packs by burning them, and may
+// sell unwanted draws back to the SellbackVault for USDm. The protocol earns
+// nothing on a card that is bought and then sold back, so gross deposits
+// overstate true earnings — this adapter measures the *net*.
 //
-// Both events carry amount fields normalized to 6 decimals by the contract's
-// `_normalize()` function before emission, so every log is priced as canonical
-// USDC @ $1 regardless of source-chain token decimals (handles BSC 18-decimal
-// USDC/USDT and MegaETH 18-decimal USDm uniformly).
+// All flows live on MegaETH. The Collector contract on Base/Arbitrum/BSC/
+// Mantle/HyperEVM/Monad is a cross-chain on-ramp into a MegaETH gift-card
+// mint; it is intentionally not measured here, since deposits there can be
+// fully refunded via sellback after settlement.
 //
-// Economics: user payments for gacha packs are non-refundable and accrue
-// 100% to the NextRare treasury — there is no LP, no external holders, no
-// revenue split. We therefore report Fees == Revenue == ProtocolRevenue.
+// Sources of truth:
+//   Burns    — GiftCard ERC-1155 TransferSingle to address(0), id=1.
+//              BURNER_ROLE is granted only to GachaPool, which only burns on
+//              draws paid in gift cards, so this filter equals "spending".
+//   Sellback — GachaPool.Settled(drawId, kept=false, value) where `value` is
+//              the USDm wei amount paid out. SellbackVault has been redeployed
+//              once, so we enumerate the union of every pool ever authorized
+//              on either vault by replaying their PoolUpdated logs since
+//              deploy. Pools that are now deauthorized still emitted real
+//              Settled events while live and must be counted.
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Same CREATE2 address on every EVM chain.
-const COLLECTOR = "0x0000000032B93DAf5c6Ff220cB2D03624CB56302";
+const GIFT_CARD = "0x7D7d2c07196feFBD334B127136bCA1BD8EafFBF1";
 
-const DEPOSITED_EVENT =
-  "event Deposited(address indexed from, address indexed to, uint64 indexed intentId, uint64 amount, address token)";
+// SellbackVault has been redeployed once. Both vaults paid out real
+// USDm to users while live, so historical sellback is the *union* of
+// payouts via every pool ever authorized on either vault.
+const VAULTS: { addr: string; deployBlock: number }[] = [
+  { addr: "0x6D6A11ED1fA9aEc8c1fAb2d6168Fb33276d634EA", deployBlock: 0xbfd660 }, // 12_572_896
+  { addr: "0xa51eAFEfcCeeBF6970500761F49B9bcBd9F1E68e", deployBlock: 0xcc63c4 }, // 13_394_884
+];
 
-const CROSSMINT_EVENT =
-  "event CrossmintPurchase(address indexed from, address indexed to, uint16 quantity, uint64 normalizedAmount, address token)";
+const GIFT_CARD_TOKEN_ID  = 1;
+const PRICE_PER_CARD_USD  = 5;
+const ZERO                = "0x0000000000000000000000000000000000000000";
 
-// Labels (must exactly match keys in breakdownMethodology below).
-const LABEL_CROSS_CHAIN = "Cross-chain Deposit";
-const LABEL_CROSSMINT   = "Crossmint Purchase";
+const TRANSFER_SINGLE =
+  "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)";
+const POOL_UPDATED =
+  "event PoolUpdated(address indexed pool, bool authorized)";
+const SETTLED =
+  "event Settled(uint64 indexed drawId, bool kept, uint256 value)";
 
-// Collector CREATE2-deployed on all chains on 2026-03-23.
-const config: Record<string, { start: string }> = {
-  [CHAIN.BASE]:        { start: "2026-03-23" },
-  [CHAIN.ARBITRUM]:    { start: "2026-03-23" },
-  [CHAIN.BSC]:         { start: "2026-03-23" },
-  [CHAIN.MANTLE]:      { start: "2026-03-23" },
-  [CHAIN.HYPERLIQUID]: { start: "2026-03-23" },
-  [CHAIN.MONAD]:       { start: "2026-03-23" },
-  [CHAIN.MEGAETH]:     { start: "2026-03-23" },
-};
+const LABEL_PACK_OPEN = "Pack Open";
+const LABEL_SELLBACK  = "Sellback Refund";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees    = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  const [deposits, crossmints] = await Promise.all([
-    options.getLogs({ target: COLLECTOR, eventAbi: DEPOSITED_EVENT }),
-    options.getLogs({ target: COLLECTOR, eventAbi: CROSSMINT_EVENT }),
-  ]);
+  // 1) Pack opens — gift cards burned today, valued at $5 each.
+  const burnLogs = await options.getLogs({
+    target: GIFT_CARD,
+    eventAbi: TRANSFER_SINGLE,
+  });
+  for (const log of burnLogs) {
+    if (String(log.to).toLowerCase() !== ZERO) continue;
+    if (Number(log.id) !== GIFT_CARD_TOKEN_ID) continue;
+    const cards = Number(log.value);
+    dailyFees.addUSDValue(cards * PRICE_PER_CARD_USD, LABEL_PACK_OPEN);
+  }
 
-  // Convert 6-decimal BigInt amounts directly to USD — treats every payment
-  // as $1 stable regardless of source token (sidesteps per-chain price
-  // lookups for USDm/bridged USDC/USDT variants).
-  deposits.forEach((log: any) => {
-    const usd = Number(log.amount) / 1e6;
-    dailyFees.addUSDValue(usd, LABEL_CROSS_CHAIN);
-    dailyRevenue.addUSDValue(usd, LABEL_CROSS_CHAIN);
-  });
-  crossmints.forEach((log: any) => {
-    const usd = Number(log.normalizedAmount) / 1e6;
-    dailyFees.addUSDValue(usd, LABEL_CROSSMINT);
-    dailyRevenue.addUSDValue(usd, LABEL_CROSSMINT);
-  });
+  // 2) Enumerate every GachaPool ever authorized on either vault.
+  //    A pool that's been deauthorized still emitted real Settled events
+  //    while it was live, so we want the union of "ever authorized=true"
+  //    across both vaults — not just currently-active pools. Cheap
+  //    (<20 events total ever) and forward-compatible with the
+  //    deploy-new-pool flow.
+  const everAuthorized = new Set<string>();
+  for (const v of VAULTS) {
+    const poolEvents = await options.getLogs({
+      target: v.addr,
+      eventAbi: POOL_UPDATED,
+      fromBlock: v.deployBlock,
+      cacheInCloud: true,
+    });
+    for (const ev of poolEvents) {
+      if (ev.authorized) everAuthorized.add(String(ev.pool).toLowerCase());
+    }
+  }
+
+  // 3) Sellback refunds — Settled(kept=false, value) from every pool that
+  //    was ever authorized. `value` is USDm wei (18 decimals). USDm trades
+  //    1:1 with USD, so we record it directly as a negative USD amount.
+  for (const pool of everAuthorized) {
+    const settled = await options.getLogs({ target: pool, eventAbi: SETTLED });
+    for (const log of settled) {
+      if (log.kept) continue; // kept=true means NFT mint; `value` is a tokenId, not money.
+      const usd = Number(log.value) / 1e18;
+      dailyFees.addUSDValue(-usd, LABEL_SELLBACK);
+    }
+  }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue:         dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
-  Fees: "Gross user payments for gacha pack purchases into the NextRare Collector contract on every supported chain.",
-  Revenue: "User payments are non-refundable and accrue 100% to the NextRare treasury — no LP or external holders.",
-  ProtocolRevenue: "Same as Revenue — the NextRare treasury captures all user payments.",
+  Fees: "Net protocol fees on MegaETH: gift cards burned on pack opens (× $5 each) minus USDm paid back to users via SellbackVault. The protocol earns nothing on a card that is bought and then sold back, so gross deposits would overstate true earnings.",
+  Revenue:         "Same as Fees — 100% accrues to the NextRare treasury (no LP, no holders, no split).",
+  ProtocolRevenue: "Same as Fees — the NextRare treasury captures the net.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL_CROSS_CHAIN]:
-      "USDC/USDT on Base/Arbitrum/BSC/Mantle/HyperEVM/Monad (or USDm on MegaETH) paid via Collector.deposit(), settled cross-chain into a MegaETH GiftCard mint.",
-    [LABEL_CROSSMINT]:
-      "Purchases made directly through Crossmint (credit-card / non-crypto checkout) via Collector.mint().",
+    [LABEL_PACK_OPEN]: "Gift cards burned by GachaPool.draw() (each card = $5). Detected via ERC-1155 TransferSingle to address(0) on the GiftCard contract, id=1.",
+    [LABEL_SELLBACK]:  "USDm paid out by SellbackVault (current and prior) when a user opts not to keep an NFT. Detected via Settled(kept=false, value) on every GachaPool ever authorized on either vault. Recorded as a negative.",
   },
   Revenue: {
-    [LABEL_CROSS_CHAIN]: "Cross-chain deposits accrue to the NextRare treasury.",
-    [LABEL_CROSSMINT]:   "Crossmint purchases accrue to the NextRare treasury.",
+    [LABEL_PACK_OPEN]: "Pack-open spending accrues to the NextRare treasury.",
+    [LABEL_SELLBACK]:  "Sellback payouts are funded from the treasury via SellbackVault — recorded as a negative.",
   },
   ProtocolRevenue: {
-    [LABEL_CROSS_CHAIN]: "Cross-chain deposits accrue to the NextRare treasury.",
-    [LABEL_CROSSMINT]:   "Crossmint purchases accrue to the NextRare treasury.",
+    [LABEL_PACK_OPEN]: "Pack-open spending accrues to the NextRare treasury.",
+    [LABEL_SELLBACK]:  "Sellback payouts are funded from the treasury via SellbackVault — recorded as a negative.",
   },
 };
 
-const adapters: Record<string, { fetch: typeof fetch; start: string }> = {};
-Object.keys(config).forEach((chain) => {
-  adapters[chain] = { fetch, start: config[chain].start };
-});
-
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: adapters,
+  adapter: {
+    [CHAIN.MEGAETH]: { fetch, start: "2026-03-23" },
+  },
   methodology,
   breakdownMethodology,
 };
