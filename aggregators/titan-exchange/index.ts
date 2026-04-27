@@ -13,8 +13,9 @@ const badDataDays = [
 ]
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  if (badDataDays.some(day => day.date === options.dateString)) {
-    return { dailyVolume: badDataDays.find(day => day.date === options.dateString)!.realVolume };
+  const realVolume = badDataDays.find(day => day.date === options.dateString)?.realVolume;
+  if (realVolume) {
+    return { dailyVolume: realVolume };
   }
   const url = `${API_URL}?start_timestamp=${options.startTimestamp}&end_timestamp=${options.endTimestamp}`;
   const result = await fetchURL(url);
