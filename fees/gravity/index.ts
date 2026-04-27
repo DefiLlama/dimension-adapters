@@ -28,11 +28,11 @@ const methodology = {
     Fees: "Transaction fees paid by users for executing transactions on the Gravity network",
     Revenue: "All the transaction fees paid are burnt",
     HoldersRevenue: "All the transaction fees paid are burnt",
-    SupplySideRevenue: "All the transaction fees paid are burnt",
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.GRAVITY],
     start: '2024-05-18',

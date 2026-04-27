@@ -27,14 +27,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 }
 
+const methodology = {
+    Fees: "Transaction fees paid by users for executing transactions on the Cosmos network",
+    Revenue: 'No revenue',
+    HoldersRevenue: 'None of the transaction fees are burnt',
+}
+
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.COSMOS],
     start: '2021-02-18',
     dependencies: [Dependencies.ALLIUM],
     isExpensiveAdapter: true,
     protocolType: ProtocolType.CHAIN,
+    methodology,
 };
 
 export default adapter;

@@ -27,11 +27,11 @@ const methodology = {
   Fees: "Transaction fees paid by users for executing transactions on the Aptos network",
   Revenue: "All the transaction fees paid are burnt",
   HoldersRevenue: "All the transaction fees paid are burned",
-  SupplySideRevenue: "All the transaction fees paid are burned",
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.APTOS],
   isExpensiveAdapter: true,
