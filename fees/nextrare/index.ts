@@ -1,17 +1,20 @@
-// NextRare — cross-chain NFT gacha protocol on MegaETH.
+// NextRare — TCG gacha protocol on MegaETH.
 //
-// Net protocol fees:
-//   dailyFees = (gift cards burned on pack opens × $5) − (USDm sellback payouts)
+// Income statement:
+//   dailyFees              = gift cards burned on pack opens × $5     (gross spend)
+//   dailySupplySideRevenue = USDm paid back to users via SellbackVault (refund cost)
+//   dailyRevenue           = dailyFees − dailySupplySideRevenue       (net to treasury)
+//   dailyProtocolRevenue   = dailyRevenue                              (no holders/LP split)
 //
 // A user buys gift cards (each = $5), opens packs by burning them, and may
 // sell unwanted draws back to the SellbackVault for USDm. The protocol earns
-// nothing on a card that is bought and then sold back, so gross deposits
-// overstate true earnings — this adapter measures the *net*.
+// nothing on a card that is bought and then sold back, so net revenue is the
+// difference between gross spend and refunds.
 //
 // All flows live on MegaETH. The Collector contract on Base/Arbitrum/BSC/
 // Mantle/HyperEVM/Monad is a cross-chain on-ramp into a MegaETH gift-card
-// mint; it is intentionally not measured here, since deposits there can be
-// fully refunded via sellback after settlement.
+// mint; deposits there are fully refundable via sellback after settlement,
+// so they are not measured as fees here.
 //
 // Sources of truth:
 //   Burns    — GiftCard ERC-1155 TransferSingle to address(0), id=1.
@@ -52,7 +55,9 @@ const LABEL_PACK_OPEN = "Pack Open";
 const LABEL_SELLBACK  = "Sellback Refund";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const dailyFees              = options.createBalances(); // gross
+  const dailySupplySideRevenue = options.createBalances(); // refund cost
+  const dailyRevenue           = options.createBalances(); // net = fees − supply-side
 
   // 1) Pack opens — gift cards burned today, valued at $5 each.
   const burnLogs = await options.getLogs({
@@ -62,8 +67,9 @@ const fetch = async (options: FetchOptions) => {
   for (const log of burnLogs) {
     if (String(log.to).toLowerCase() !== ZERO) continue;
     if (Number(log.id) !== GIFT_CARD_TOKEN_ID) continue;
-    const cards = Number(log.value);
-    dailyFees.addUSDValue(cards * PRICE_PER_CARD_USD, LABEL_PACK_OPEN);
+    const usd = Number(log.value) * PRICE_PER_CARD_USD;
+    dailyFees.addUSDValue(usd, LABEL_PACK_OPEN);
+    dailyRevenue.addUSDValue(usd, LABEL_PACK_OPEN);
   }
 
   // 2) Enumerate every GachaPool ever authorized on either vault.
@@ -86,47 +92,54 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // 3) Sellback refunds — Settled(kept=false, value) from every pool that
-  //    was ever authorized. `value` is USDm wei (18 decimals). USDm trades
-  //    1:1 with USD, so we record it directly as a negative USD amount.
+  //    was ever authorized. `value` is USDm wei (18 decimals); USDm trades
+  //    1:1 with USD. Booked positive on supply-side, negative on revenue.
   for (const pool of everAuthorized) {
     const settled = await options.getLogs({ target: pool, eventAbi: SETTLED });
     for (const log of settled) {
       if (log.kept) continue; // kept=true means NFT mint; `value` is a tokenId, not money.
       const usd = Number(log.value) / 1e18;
-      dailyFees.addUSDValue(-usd, LABEL_SELLBACK);
+      dailySupplySideRevenue.addUSDValue(usd, LABEL_SELLBACK);
+      dailyRevenue.addUSDValue(-usd, LABEL_SELLBACK);
     }
   }
 
   return {
     dailyFees,
-    dailyRevenue:         dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Net protocol fees on MegaETH: gift cards burned on pack opens (× $5 each) minus USDm paid back to users via SellbackVault. The protocol earns nothing on a card that is bought and then sold back, so gross deposits would overstate true earnings.",
-  Revenue:         "Same as Fees — 100% accrues to the NextRare treasury (no LP, no holders, no split).",
-  ProtocolRevenue: "Same as Fees — the NextRare treasury captures the net.",
+  Fees:              "Gross protocol fees on MegaETH: gift cards burned on pack opens (× $5 each).",
+  SupplySideRevenue: "USDm paid back to users via SellbackVault when they choose to sell back rather than keep an NFT — i.e. refunds.",
+  Revenue:           "Net protocol revenue = Fees − SupplySideRevenue. The amount the NextRare treasury actually retains after refunds.",
+  ProtocolRevenue:   "Same as Revenue — 100% accrues to the treasury (no LP, no holders, no split).",
 };
 
 const breakdownMethodology = {
   Fees: {
     [LABEL_PACK_OPEN]: "Gift cards burned by GachaPool.draw() (each card = $5). Detected via ERC-1155 TransferSingle to address(0) on the GiftCard contract, id=1.",
-    [LABEL_SELLBACK]:  "USDm paid out by SellbackVault (current and prior) when a user opts not to keep an NFT. Detected via Settled(kept=false, value) on every GachaPool ever authorized on either vault. Recorded as a negative.",
+  },
+  SupplySideRevenue: {
+    [LABEL_SELLBACK]: "USDm paid out by SellbackVault (current and prior) when a user opts not to keep an NFT. Detected via Settled(kept=false, value) on every GachaPool ever authorized on either vault.",
   },
   Revenue: {
     [LABEL_PACK_OPEN]: "Pack-open spending accrues to the NextRare treasury.",
-    [LABEL_SELLBACK]:  "Sellback payouts are funded from the treasury via SellbackVault — recorded as a negative.",
+    [LABEL_SELLBACK]:  "Sellback refunds reduce net revenue.",
   },
   ProtocolRevenue: {
     [LABEL_PACK_OPEN]: "Pack-open spending accrues to the NextRare treasury.",
-    [LABEL_SELLBACK]:  "Sellback payouts are funded from the treasury via SellbackVault — recorded as a negative.",
+    [LABEL_SELLBACK]:  "Sellback refunds reduce protocol revenue.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  allowNegativeValue: true,
   adapter: {
     [CHAIN.MEGAETH]: { fetch, start: "2026-03-23" },
   },
