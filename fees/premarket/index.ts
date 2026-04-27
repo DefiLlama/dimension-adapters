@@ -108,6 +108,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
+    // Premarket currently routes all indexed fees to the protocol.
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
     dailySupplySideRevenue,
@@ -148,6 +149,8 @@ const breakdownMethodology = {
     [METRICS.redeemFees]: "Redeem fees collected by the protocol fee receiver.",
     [METRICS.rolloverFees]: "Rollover fees collected by the protocol fee receiver.",
   },
+  SupplySideRevenue:
+    "No supply-side fee split is currently indexed for Premarket, so this metric remains zero.",
 };
 
 const adapter: SimpleAdapter = {

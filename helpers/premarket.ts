@@ -270,7 +270,8 @@ async function fetchPaged<T>(
 
     items.push(...page.items);
     totalCount = page.totalCount;
-    offset += PAGE_SIZE;
+    if (!page.items.length) break;
+    offset += page.items.length;
   }
 
   return items;
@@ -307,6 +308,12 @@ function fetchTimeWindow<T>(
   });
 }
 
+/**
+ * Fetches indexed Premarket order fills for the requested DefiLlama time window.
+ *
+ * @param options DefiLlama fetch options containing the inclusive start and exclusive end timestamps.
+ * @returns A promise resolving to chronologically ordered fill rows. Returns an empty array when no fills were indexed in the window.
+ */
 export function fetchOrderFills(options: FetchOptions) {
   return fetchTimeWindow<OrderFill>(
     "orderFillHistorys",
@@ -315,18 +322,42 @@ export function fetchOrderFills(options: FetchOptions) {
   );
 }
 
+/**
+ * Fetches indexed trading fee rows for the requested DefiLlama time window.
+ *
+ * @param options DefiLlama fetch options containing the inclusive start and exclusive end timestamps.
+ * @returns A promise resolving to trading fee rows in raw token units. Returns an empty array when no fees were indexed in the window.
+ */
 export function fetchOrderFees(options: FetchOptions) {
   return fetchTimeWindow<OrderFee>("orderFeeHistorys", orderFeeQuery, options);
 }
 
+/**
+ * Fetches indexed mint fee rows for the requested DefiLlama time window.
+ *
+ * @param options DefiLlama fetch options containing the inclusive start and exclusive end timestamps.
+ * @returns A promise resolving to mint fee rows in collateral token units. Returns an empty array when no mint fees were indexed in the window.
+ */
 export function fetchMintFees(options: FetchOptions) {
   return fetchTimeWindow<MintFee>("mintHistorys", mintFeeQuery, options);
 }
 
+/**
+ * Fetches indexed redeem fee rows for the requested DefiLlama time window.
+ *
+ * @param options DefiLlama fetch options containing the inclusive start and exclusive end timestamps.
+ * @returns A promise resolving to redeem fee rows. Returns an empty array when no redeem fees were indexed in the window.
+ */
 export function fetchRedeemFees(options: FetchOptions) {
   return fetchTimeWindow<RedeemFee>("redeemHistorys", redeemFeeQuery, options);
 }
 
+/**
+ * Fetches indexed rollover fee rows for the requested DefiLlama time window.
+ *
+ * @param options DefiLlama fetch options containing the inclusive start and exclusive end timestamps.
+ * @returns A promise resolving to rollover fee rows in collateral token units. Returns an empty array when no rollover fees were indexed in the window.
+ */
 export function fetchRolloverFees(options: FetchOptions) {
   return fetchTimeWindow<RolloverFee>(
     "rolloverHistorys",
@@ -335,6 +366,12 @@ export function fetchRolloverFees(options: FetchOptions) {
   );
 }
 
+/**
+ * Loads market metadata for the provided Premarket market ids.
+ *
+ * @param ids Market ids referenced by fills or fee rows.
+ * @returns A promise resolving to a map keyed by market id. Missing ids are omitted from the map.
+ */
 export async function fetchMarketsById(ids: Iterable<string>) {
   const markets = await fetchByIds<OptionMarket>(
     "optionMarkets",
@@ -344,15 +381,33 @@ export async function fetchMarketsById(ids: Iterable<string>) {
   return new Map(markets.map((market) => [market.id, market]));
 }
 
+/**
+ * Loads PRM metadata for the provided ids used by Premarket fills and fee rows.
+ *
+ * @param ids PRM-related ids derived from option token ids or fee records.
+ * @returns A promise resolving to a map keyed by the indexed PRM info id. Missing ids are omitted from the map.
+ */
 export async function fetchPrmInfosById(ids: Iterable<string>) {
   const prmInfos = await fetchByIds<PrmInfo>("prmInfos", prmInfosQuery, ids);
   return new Map(prmInfos.map((prmInfo) => [prmInfo.id, prmInfo]));
 }
 
+/**
+ * Normalizes an address-like string to the lowercase form used by the helper maps.
+ *
+ * @param address The address to normalize.
+ * @returns The lowercase address string.
+ */
 export function normalizeAddress(address: string) {
   return address.toLowerCase();
 }
 
+/**
+ * Converts a PRM or oPRM token id into the canonical even PRM token id.
+ *
+ * @param tokenId A token id from a fill or fee row.
+ * @returns The canonical PRM token id, or `undefined` when the input is missing.
+ */
 export function prmTokenIdFromAnyTokenId(tokenId: string | null | undefined) {
   if (!tokenId) return undefined;
   return (BigInt(tokenId) & ~1n).toString();
@@ -402,6 +457,14 @@ export function getCollateralNotional(
   );
 }
 
+/**
+ * Normalizes a raw fill row into cash-side volume and exposure-side notional balances.
+ *
+ * @param fill The raw indexed fill row.
+ * @param market The referenced market metadata, when available.
+ * @param prmInfo The referenced PRM metadata for ERC6909 markets, when available.
+ * @returns Normalized fill amounts, or `undefined` when the fill cannot be classified safely from indexed data.
+ */
 export function getFillAmounts(
   fill: OrderFill,
   market: OptionMarket | undefined,
@@ -452,18 +515,9 @@ export function getFillAmounts(
 }
 
 function combineFillAmounts(left: FillAmounts, right: FillAmounts) {
-  return {
-    volumeToken: left.volumeToken,
-    volumeAmount:
-      right.volumeAmount > left.volumeAmount
-        ? right.volumeAmount
-        : left.volumeAmount,
-    notionalToken: left.notionalToken,
-    notionalAmount:
-      right.notionalAmount > left.notionalAmount
-        ? right.notionalAmount
-        : left.notionalAmount,
-  };
+  // Matched maker/taker rows should normalize to identical amounts. Keep the
+  // first side deterministically so a future mismatch cannot inflate metrics.
+  return left;
 }
 
 function buildFillPairKey(fill: OrderFill, reversed = false) {
@@ -503,6 +557,14 @@ function takePendingFill(
   return candidate;
 }
 
+/**
+ * Deduplicates paired maker/taker fill rows into economic trades and returns normalized amounts.
+ *
+ * @param fills Raw fill rows from the indexed time window.
+ * @param marketsById Market metadata keyed by market id.
+ * @param prmInfosById PRM metadata keyed by indexed PRM info id.
+ * @returns An array of normalized fill amounts. Unpaired fills are preserved and fills lacking enough metadata are skipped.
+ */
 export function getDedupedFillAmounts(
   fills: OrderFill[],
   marketsById: Map<string, OptionMarket>,
@@ -554,6 +616,12 @@ export function getDedupedFillAmounts(
   return amounts;
 }
 
+/**
+ * Chooses the token used to attribute redeem fees for a market.
+ *
+ * @param market The referenced market metadata, when available.
+ * @returns A normalized token address for redeem fee attribution, or `undefined` when the market is missing.
+ */
 export function getRedeemFeeToken(market: OptionMarket | undefined) {
   if (!market) return undefined;
 
