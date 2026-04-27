@@ -35,7 +35,9 @@ const fetch = async (options: FetchOptions) => {
       WHERE date = DATE '${options.dateString}'
     `);
     hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
-  } catch { /* dataset ended 2025-11-08 */ }
+  } catch (e) {
+    console.log("Hyperliquid daily stats query failed:", e);
+  }
 
   const after = options.startTimestamp >= SPLIT_TIMESTAMP;
   // Fee split changed on 2024-10-16:
