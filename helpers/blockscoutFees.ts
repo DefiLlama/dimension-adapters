@@ -205,6 +205,18 @@ export function blockscoutFeeAdapter2(chain: string) {
 
             }
 
+            if (config.burnRatio !== undefined && config.burnRatio !== null) {
+              const dailyFees = todayPrice * todayData;
+              const dailyRevenue = todayPrice * todayData * config.burnRatio;
+
+              return {
+                timestamp: startOfDay,
+                dailyFees,
+                dailyRevenue,
+                dailyHoldersRevenue: dailyRevenue
+              }
+            }
+
             return { timestamp: startOfDay, dailyFees: todayPrice * todayData }
           }
 
