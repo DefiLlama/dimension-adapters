@@ -275,6 +275,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    [CHAIN.REDSTONE]: { factory: '0xece75613Aa9b1680f0421E5B2eF376DF68aa83Bb', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "shapeswap-v3": {
+    [CHAIN.SHAPE]: { factory: '0xeCf9288395797Da137f663a7DD0F0CDF918776F8', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "enosys": {
     [CHAIN.FLARE]: { factory: '0x17AA157AC8C54034381b840Cb8f6bf7Fc355f0de', start: "2025-03-03", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
@@ -429,6 +433,14 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "87.5% of swap fees are distributed to LPs and 5% is distributed to $SPRK stakers",
   },
   "reservoir-tools-clmm": {
+    Fees: "Swap fees paid by users on each trade.",
+    UserFees: "User pays fees on each swap.",
+    Revenue: "Protocol has no revenue.",
+    ProtocolRevenue: "Protocol has no revenue.",
+    SupplySideRevenue: "All user fees are distributed among LPs.",
+    HoldersRevenue: "Holders have no revenue.",
+  },
+  "shapeswap-v3": {
     Fees: "Swap fees paid by users on each trade.",
     UserFees: "User pays fees on each swap.",
     Revenue: "Protocol has no revenue.",
