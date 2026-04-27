@@ -21,7 +21,6 @@ const protocolChainMap: Record<string, string> = {
   "fantom": CHAIN.FANTOM,
   "flare": CHAIN.FLARE,
   "fuse": CHAIN.FUSE,
-  "gravity": CHAIN.GRAVITY,
   "harmony": CHAIN.HARMONY,
   "hashkey": CHAIN.HASHKEY,
   "hemi": CHAIN.HEMI,

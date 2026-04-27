@@ -21,6 +21,9 @@ export const subscanConfigMap: Record<string, SubscanConfig> = {
     [CHAIN.HEIMA]: { subscanName: 'heima', CGToken: 'heima', start: '2025-02-14', decimals: 18, burnRatio: 1 },
     [CHAIN.KARURA]: { subscanName: 'karura', CGToken: 'karura', start: '2021-07-27', decimals: 12, burnRatio: 0.2 },
     [CHAIN.KUSAMA]: { subscanName: 'kusama', CGToken: 'kusama', start: '2020-07-18', decimals: 12, burnRatio: 0.2 },
+    [CHAIN.HYDRADX]: { subscanName: 'hydration', CGToken: 'hydradx', start: '2022-04-07', decimals: 12, burnRatio: 0 },
+    [CHAIN.ROBONOMICS]: { subscanName: 'robonomics', CGToken: 'robonomics-network', start: '2024-12-13', decimals: 9, burnRatio: 0 },
+    [CHAIN.DARWINIA]: { subscanName: 'darwinia', CGToken: 'darwinia-network-native-token', start: '2023-04-26', decimals: 18, burnRatio: 1 },
 }
 
 export function subscanFeeAdapter(chain: string) {
