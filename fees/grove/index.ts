@@ -19,14 +19,16 @@ const chainConfig = {
                 vault: "0x4880799ee5200fc58da299e965df644fbf46780b",
                 name: "JAAA",
                 tokenDecimals: 6,
-                assetDecimals: 6
+                assetDecimals: 6,
+                badDataDays: ["2025-07-28"]
             },
         ],
         aaveHorizonVaults: [
             {
                 aToken: "0xE3190143Eb552456F88464662f0c0C4aC67A77eB",
                 underlying: "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD",
-                name: "Aave Horizon RLUSD"
+                name: "Aave Horizon RLUSD",
+                badDataDays: ["2025-11-04"]
             }
         ],
         securitizeVaults: [
@@ -100,6 +102,7 @@ async function addCentrifugeYields(options: FetchOptions, dailyFees: Balances) {
     const assetDecimals = chainConfig[options.chain].centrifugeVaults.map(v => v.assetDecimals);
     const tokenAddresses = chainConfig[options.chain].centrifugeVaults.map(v => v.token);
     const groveWallet = chainConfig[options.chain].address;
+    const badDataDays = chainConfig[options.chain].centrifugeVaults.map(v => v.badDataDays);
 
     const pricePerShareBefore = await options.fromApi.multiCall({
         abi: "uint256:pricePerShare",
@@ -119,7 +122,7 @@ async function addCentrifugeYields(options: FetchOptions, dailyFees: Balances) {
     })
 
     for (let i = 0; i < vaultAddresses.length; i++) {
-        if (!pricePerShareBefore[i] || !pricePerShareAfter[i] || !tokenDecimals[i] || !assetDecimals[i]) {
+        if (!pricePerShareBefore[i] || !pricePerShareAfter[i] || !tokenDecimals[i] || !assetDecimals[i] || badDataDays[i]?.includes(options.dateString)) {
             continue;
         }
         const priceBefore = pricePerShareBefore[i] / (10 ** assetDecimals[i]);
@@ -134,6 +137,7 @@ async function addCentrifugeYields(options: FetchOptions, dailyFees: Balances) {
 async function addAaveHorizonYields(options: FetchOptions, dailyFees: Balances) {
     const aaveTokens = chainConfig[options.chain].aaveHorizonVaults.map(v => v.aToken);
     const groveWallet = chainConfig[options.chain].address;
+    const badDataDays = chainConfig[options.chain].aaveHorizonVaults.map(v => v.badDataDays);
 
     const scaledBalances = await options.api.multiCall({
         abi: "function scaledBalanceOf(address account) view returns (uint256)",
@@ -154,7 +158,7 @@ async function addAaveHorizonYields(options: FetchOptions, dailyFees: Balances) 
     })
 
     for (let i = 0; i < aaveTokens.length; i++) {
-        if (!scaledBalances[i] || !previousIndexBefore[i] || !previousIndexAfter[i]) {
+        if (!scaledBalances[i] || !previousIndexBefore[i] || !previousIndexAfter[i] || badDataDays[i]?.includes(options.dateString)) {
             continue;
         }
         const scaledBalance = scaledBalances[i] / (10 ** 18);

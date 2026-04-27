@@ -49,67 +49,75 @@ const expenseRatio = {
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 const USDC_DECIMALS = 6;
 
+const badDataDays = {
+    [CHAIN.ETHEREUM]: ["2025-07-28"],
+}
+
 async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    const tokenAddresses = chainConfig[options.chain].vaults.map((v: any) => v.token);
-    const vaultAddresses = chainConfig[options.chain].vaults.map((v: any) => v.vault);
-    const tokenNames = chainConfig[options.chain].vaults.map((v: any) => v.name);
+    const isBadDataDay = badDataDays[options.chain]?.includes(options.dateString);
 
-    const totalSupplies = await options.api.multiCall({
-        abi: "uint256:totalSupply",
-        calls: tokenAddresses,
-        permitFailure: true,
-    })
+    if (!isBadDataDay) {
+        const tokenAddresses = chainConfig[options.chain].vaults.map((v: any) => v.token);
+        const vaultAddresses = chainConfig[options.chain].vaults.map((v: any) => v.vault);
+        const tokenNames = chainConfig[options.chain].vaults.map((v: any) => v.name);
 
-    const decimals = await options.api.multiCall({
-        abi: "uint8:decimals",
-        calls: tokenAddresses,
-        permitFailure: true,
-    })
+        const totalSupplies = await options.api.multiCall({
+            abi: "uint256:totalSupply",
+            calls: tokenAddresses,
+            permitFailure: true,
+        })
 
-    const pricePerShareBefore = await options.fromApi.multiCall({
-        abi: "uint256:pricePerShare",
-        calls: vaultAddresses,
-        permitFailure: true,
-    })
+        const decimals = await options.api.multiCall({
+            abi: "uint8:decimals",
+            calls: tokenAddresses,
+            permitFailure: true,
+        })
 
-    const pricePerShareAfter = await options.toApi.multiCall({
-        abi: "uint256:pricePerShare",
-        calls: vaultAddresses,
-        permitFailure: true,
-    })
+        const pricePerShareBefore = await options.fromApi.multiCall({
+            abi: "uint256:pricePerShare",
+            calls: vaultAddresses,
+            permitFailure: true,
+        })
 
-    for (let i = 0; i < tokenAddresses.length; i++) {
-        if (!totalSupplies[i] || !pricePerShareBefore[i] || !pricePerShareAfter[i] || !decimals[i]) {
-            continue;
+        const pricePerShareAfter = await options.toApi.multiCall({
+            abi: "uint256:pricePerShare",
+            calls: vaultAddresses,
+            permitFailure: true,
+        })
+
+        for (let i = 0; i < tokenAddresses.length; i++) {
+            if (!totalSupplies[i] || !pricePerShareBefore[i] || !pricePerShareAfter[i] || !decimals[i]) {
+                continue;
+            }
+
+            const currentExpenseRatio = expenseRatio[tokenNames[i]];
+            if (currentExpenseRatio === undefined)
+                throw new Error(`Expense ratio not found for token ${tokenNames[i]}`);
+
+            const priceBefore = pricePerShareBefore[i] / (10 ** USDC_DECIMALS);
+            const priceAfter = pricePerShareAfter[i] / (10 ** USDC_DECIMALS);
+            const tokenDecimals = decimals[i];
+            const tokenSupply = totalSupplies[i] / (10 ** tokenDecimals);
+
+            const nav = priceAfter * tokenSupply;
+
+            const expenseRatioForPeriod = currentExpenseRatio * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100);
+            const managementFeesForPeriod = nav * expenseRatioForPeriod;
+
+            dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+            dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+
+            const pricePerShareChange = priceAfter - priceBefore;
+            const yieldForPeriod = pricePerShareChange * tokenSupply;
+
+            dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
+            dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
+
         }
-
-        const currentExpenseRatio = expenseRatio[tokenNames[i]];
-        if (currentExpenseRatio === undefined)
-            throw new Error(`Expense ratio not found for token ${tokenNames[i]}`);
-
-        const priceBefore = pricePerShareBefore[i] / (10 ** USDC_DECIMALS);
-        const priceAfter = pricePerShareAfter[i] / (10 ** USDC_DECIMALS);
-        const tokenDecimals = decimals[i];
-        const tokenSupply = totalSupplies[i] / (10 ** tokenDecimals);
-
-        const nav = priceAfter * tokenSupply;
-
-        const expenseRatioForPeriod = currentExpenseRatio * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100);
-        const managementFeesForPeriod = nav * expenseRatioForPeriod;
-
-        dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-
-        const pricePerShareChange = priceAfter - priceBefore;
-        const yieldForPeriod = pricePerShareChange * tokenSupply;
-
-        dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-
     }
 
     return {
