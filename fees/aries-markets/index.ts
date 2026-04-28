@@ -20,7 +20,7 @@ const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
   return `${rateURL}${input}`;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const reserves = (await fetchURL(reserveURL)).result.data.stats;
 
   let df = 0;
@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
     const borrowApr = Number(dayFeesQuery?.borrowApr);
     const totalBorrowed = Number(matchingReserve?.value?.total_borrowed);
 
-    if(isNaN(borrowApr) || isNaN(totalBorrowed)) {
+    if (isNaN(borrowApr) || isNaN(totalBorrowed)) {
       throw new Error(`Invalid data for date ${options.dateString}`);
     }
 
@@ -86,7 +86,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.APTOS],
   fetch,
   start: "2025-06-15",
