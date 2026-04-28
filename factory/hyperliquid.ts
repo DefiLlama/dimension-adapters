@@ -101,6 +101,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
   },
   "echosync-perps": { addresses: ["0x831ad7eb3e600a3ab8df851ce27df8d8dd6b5d9c"], start: "2025-11-07" },
+  "elfa-perps": {
+    addresses: ["0x9394df21a598f706f2754c8e02aab495609e7618"],
+    start: "2026-04-15",
+    methodology: {
+      Fees: "Trading fees paid by users for perps in ELFA's trading interface.",
+      Revenue: "Builder Code Fees collected by ELFA from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder Code Fees collected by ELFA from Hyperliquid Perps.",
+    },
+  },
   // "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
   "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"] },
   "gemwallet-perps": {
@@ -252,6 +261,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       Fees: "builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "elfa-perps": {
+    addresses: ["0x9394df21a598f706f2754c8e02aab495609e7618"],
+    start: "2026-04-15",
+    methodology: {
+      Fees: "Trading fees paid by users for perps in ELFA's trading interface.",
+      Revenue: "Builder Code Fees collected by ELFA from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder Code Fees collected by ELFA from Hyperliquid Perps.",
     },
   },
   "hyperdash": {
