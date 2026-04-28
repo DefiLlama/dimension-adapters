@@ -1,6 +1,7 @@
 import { PromisePool } from '@supercharge/promise-pool';
 import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { METRIC } from '../helpers/metrics';
 import { postURL } from '../utils/fetchURL';
 
 const CG_TOKEN = 'the-open-network';
@@ -49,12 +50,33 @@ async function fetchRpcTotalFees({ getFromBlock, getToBlock }: FetchOptions) {
 const fetch = async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const fees = await fetchRpcTotalFees(options);
-  dailyFees.addCGToken(CG_TOKEN, Number(fees) / 1e18);
+  dailyFees.addCGToken(CG_TOKEN, Number(fees) / 1e18, METRIC.TRANSACTION_GAS_FEES);
+  const dailyRevenue = dailyFees.clone();
 
   return {
     timestamp: options.startOfDay,
     dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: 0,
   };
+};
+
+const methodology = {
+  Fees: 'Daily fees are the sum of gas used multiplied by effective gas price across DuckChain transaction receipts.',
+  Revenue: 'No protocol or supply-side split is available, so revenue equals daily fees.',
+  SupplySideRevenue: 'No supply-side revenue share is computed.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRANSACTION_GAS_FEES]: 'DuckChain transaction gas fees paid by users.',
+  },
+  Revenue: {
+    [METRIC.TRANSACTION_GAS_FEES]: 'Same amount as transaction gas fees because no protocol cut is separated.',
+  },
+  SupplySideRevenue: {
+    [METRIC.TRANSACTION_GAS_FEES]: 'No supply-side gas-fee share is computed.',
+  },
 };
 
 const adapter: Adapter = {
@@ -65,6 +87,8 @@ const adapter: Adapter = {
     },
   },
   protocolType: ProtocolType.CHAIN,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
