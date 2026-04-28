@@ -42,7 +42,10 @@ async function fetchRpcTotalFees({ getFromBlock, getToBlock }: FetchOptions) {
     .for(blocks)
     .process((blockNumber) => fetchBlockReceiptsTotalFees(blockNumber));
 
-  if (errors.length > 0) throw (errors[0] as any).raw ?? errors[0];
+  if (errors.length > 0) {
+    const firstError = (errors[0] as any).raw ?? errors[0];
+    console.log(`DuckChain RPC receipt fetch skipped ${errors.length}/${blocks.length} blocks`, firstError);
+  }
 
   return (results as bigint[]).reduce((sum, fees) => sum + fees, 0n);
 }
