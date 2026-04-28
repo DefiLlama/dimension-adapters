@@ -54,9 +54,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       start: '2024-09-27',
+      deadFrom: '2025-07-19',
     },
     [CHAIN.ETHEREUM]: {
       start: "2024-11-28",
+      deadFrom: '2025-07-19',
     },
   },
   fetch,
