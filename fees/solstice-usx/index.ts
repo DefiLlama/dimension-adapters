@@ -11,15 +11,23 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
 
   const response = await fetchURL(`${PYTH_EUSX_REDEMPTION_PRICE_API}&from=${options.fromTimestamp}&to=${options.endTimestamp}&resolution=1H&cluster=pythnet`);
 
-  if (!response || response.length < 2)
-    throw new Error("Pyth API returned invalid reposnse");
+  const prices = Array.isArray(response)
+    ? response.map((point: any) => Number(point?.price)).filter(Number.isFinite)
+    : [];
 
-  const totalResponses = response.length;
-  const priceYesterday = response[0].price;
-  const priceToday = response[totalResponses-1].price;
+  if (prices.length < 2)
+    throw new Error("Pyth API returned invalid response");
+
+  const priceYesterday = prices[0];
+  const priceToday = prices[prices.length - 1];
 
   const totalSupply = await getTokenSupply(EUSX)
-  dailyFees.addUSDValue((priceToday - priceYesterday) * totalSupply);
+  const dailyYield = (priceToday - priceYesterday) * totalSupply;
+
+  if (!Number.isFinite(dailyYield))
+    throw new Error("Pyth API returned invalid EUSX redemption prices");
+
+  dailyFees.addUSDValue(dailyYield);
 
   return {
     dailyFees,
@@ -30,6 +38,7 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
 
 const adapters: SimpleAdapter = {
   version: 1,
+  deadFrom: '2026-04-13',
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-10-05',
