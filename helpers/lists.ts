@@ -60,6 +60,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xACB8f52DC63BB752a51186D1c55868ADbFfEe9C1",
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
+    "0x96fb784986284cb6d4a8da6dd50dd7e85ef38f5d",
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",

@@ -127,7 +127,7 @@ const configs: Record<string, CuratorConfig> = {
   "feather": {
     vaults: {
       [CHAIN.SEI]: {
-        morpho: ['0x948FcC6b7f68f4830Cd69dB1481a9e1A142A4923', '0x015F10a56e97e02437D294815D8e079e1903E41C'],
+        morpho: ['0x948FcC6b7f68f4830Cd69dB1481a9e1A142A4923', '0x015F10a56e97e02437D294815D8e079e1903E41C', '0x50715ae180ff0ea799dc8ab635c2d876e528bfe8'],
         start: '2025-10-02',
       },
     },
