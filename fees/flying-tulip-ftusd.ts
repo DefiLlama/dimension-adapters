@@ -32,7 +32,7 @@ const MINTED_EVENT =
 const REDEEMED_EVENT =
     'event Redeemed(address caller, address indexed from, address indexed to, bytes32 ref, address indexed collateralToken, uint256 ftUSDAmount, uint256 feeFtUSDAmount, uint256 collateralAmount, uint256 wrapperPrincipalAfter)'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
     const dailyRevenue = options.createBalances()
     const dailyProtocolRevenue = options.createBalances()
