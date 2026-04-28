@@ -9,6 +9,7 @@ const adapter: Adapter = {
         [CHAIN.SEI]: {
             fetch: getFees as any,
             start: '2024-07-01',
+            deadFrom: '2026-03-05',
         },
     },
 };
