@@ -1,5 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
-import { httpGet } from '../utils/fetchURL';
+import { PromisePool } from '@supercharge/promise-pool';
+import { httpGet, httpPost } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
 
@@ -83,7 +84,7 @@ export const chainConfigMap: any = {
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'adventure-gold', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
   [CHAIN.EARNM]: { CGToken: 'earnm', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
-  [CHAIN.DUCK_CHAIN]: { CGToken: 'the-open-network', explorer: 'https://scan.duckchain.io/' },
+  [CHAIN.DUCK_CHAIN]: { CGToken: 'the-open-network', explorer: 'https://scan.duckchain.io/', useRpcFees: true, rpc: 'https://rpc.duckchain.io' },
   [CHAIN.EDU_CHAIN]: { CGToken: 'EDU', explorer: 'https://educhain.blockscout.com/' },
   [CHAIN.ETHEREAL]: { CGToken: 'ethena-usde', explorer: 'https://explorer.ethereal.trade/' },
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
@@ -146,6 +147,82 @@ async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
 
+const RPC_FEE_FETCH_CONCURRENCY = 5
+const RPC_FEE_FETCH_RETRIES = 5
+
+function toBigInt(value: any) {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') return BigInt(value)
+  if (typeof value === 'string') return BigInt(value)
+  if (value?._hex) return BigInt(value._hex)
+  return BigInt(value.toString())
+}
+
+async function retryRpcCall<T>(fn: () => Promise<T>) {
+  let lastError: any
+  for (let i = 0; i < RPC_FEE_FETCH_RETRIES; i++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error
+      await sleep(1000 * (i + 1))
+    }
+  }
+
+  throw lastError
+}
+
+async function fetchBlockReceiptsTotalFees(rpc: string, blockNumber: number) {
+  const response = await retryRpcCall(() => httpPost(rpc, {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'eth_getBlockReceipts',
+    params: [`0x${blockNumber.toString(16)}`],
+  }))
+  if (response.error) throw new Error(response.error.message ?? `RPC error fetching receipts for block ${blockNumber}`)
+  if (!Array.isArray(response.result)) throw new Error(`Invalid receipts response for block ${blockNumber}`)
+
+  return response.result.reduce((sum: bigint, receipt: any) => {
+    const gasUsed = toBigInt(receipt.gasUsed ?? 0)
+    if (gasUsed === 0n) return sum
+
+    const gasPrice = receipt.effectiveGasPrice ?? receipt.gasPrice
+    if (gasPrice === undefined || gasPrice === null) throw new Error(`Missing gas price for ${receipt.transactionHash}`)
+
+    return sum + gasUsed * toBigInt(gasPrice)
+  }, 0n)
+}
+
+async function fetchRpcTotalFees(chain: string, { getFromBlock, getToBlock }: FetchOptions, rpc?: string) {
+  if (!rpc) throw new Error(`No RPC URL configured for chain ${chain}`)
+
+  const fromBlock = await getFromBlock()
+  const toBlock = await getToBlock()
+  if (fromBlock > toBlock) return '0'
+
+  const blocks = Array.from({ length: toBlock - fromBlock + 1 }, (_, i) => fromBlock + i)
+  const { results, errors } = await PromisePool
+    .withConcurrency(RPC_FEE_FETCH_CONCURRENCY)
+    .for(blocks)
+    .process((blockNumber) => fetchBlockReceiptsTotalFees(rpc, blockNumber))
+
+  if (errors.length > 0) throw (errors[0] as any).raw ?? errors[0]
+
+  return (results as bigint[]).reduce((sum, fees) => sum + fees, 0n).toString()
+}
+
+async function fetchTotalFees(chain: string, url: string, dateString: string, requestConfig: any, config: any, options: FetchOptions) {
+  if (config.useRpcFees) return fetchRpcTotalFees(chain, options, config.rpc)
+
+  const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
+  if (!fees || fees.result === undefined || fees.result === null) {
+    console.log(chain, ' Error fetching fees', fees)
+    throw new Error('Error fetching fees')
+  }
+
+  return fees.result
+}
+
 export function blockscoutFeeAdapter2(chain: string) {
   let config = chainConfigMap[chain]
   if (!config) throw new Error(`No blockscout config for chain ${chain}`)
@@ -157,7 +234,8 @@ export function blockscoutFeeAdapter2(chain: string) {
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+          const { chain, createBalances, startOfDay, } = options
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
@@ -195,8 +273,8 @@ export function blockscoutFeeAdapter2(chain: string) {
             todayData = gasData[chain]?.[dateString]
             todayPrice = bulkStoreCGData[CGToken][dateString]
             if (todayData === undefined) {
-              const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
-              todayData = fees.result / 1e18
+              const fees = await fetchTotalFees(chain, url, dateString, requestConfig, config, options)
+              todayData = Number(fees) / 1e18
             }
 
             if (todayPrice === undefined || todayData === undefined) {
@@ -224,13 +302,9 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          const fees = await httpGet(`${url}&date=${dateString}`)
-          if (!fees || fees.result === undefined || fees.result === null) {
-            console.log(chain, ' Error fetching fees', fees)
-            throw new Error('Error fetching fees')
-          }
-          if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else dailyFees.addGasToken(fees.result)
+          const fees = await fetchTotalFees(chain, url, dateString, requestConfig, config, options)
+          if (CGToken) dailyFees.addCGToken(CGToken, Number(fees) / 1e18)
+          else dailyFees.addGasToken(fees)
 
           if (config.burnRatio !== undefined && config.burnRatio !== null) {
             const dailyRevenue = dailyFees.clone(config.burnRatio);
