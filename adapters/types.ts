@@ -46,6 +46,7 @@ export type FetchOptions = {
   dateString: string,
   preFetchedResults?: any,
   moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)
+  adapterName?: string, // name of the adapter, used for Dune credit attribution
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 

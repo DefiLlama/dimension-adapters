@@ -57,18 +57,17 @@ const _queryRecords: DuneQueryRecord[] = [];
 let _runStartedAt = Math.floor(Date.now() / 1000);
 let _totalCreditsThisRun = 0;
 
-// Adapter name context — set externally before running an adapter
-let _currentAdapterName = 'unknown';
-let _currentChain: string | undefined = undefined;
+// Adapter name context — captured per-call from FetchOptions to avoid race conditions
+// with concurrent Promise.all execution in runAdapter.ts
 
 const EXPENSIVE_CREDIT_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_CREDIT_THRESHOLD ?? 100);
 const EXPENSIVE_DURATION_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_DURATION_THRESHOLD ?? 30);
 const MAX_CREDITS_PER_RUN = Number(process.env.DUNE_MAX_CREDITS_PER_RUN ?? Infinity);
 
-/** Set the current adapter context for credit attribution */
-export function setDuneAdapterContext(adapterName: string, chain?: string): void {
-  _currentAdapterName = adapterName;
-  _currentChain = chain;
+/** @deprecated Use options.adapterName instead. Kept for backward compatibility. */
+export function setDuneAdapterContext(_adapterName: string, _chain?: string): void {
+  // No-op: adapter context is now passed per-call via FetchOptions.adapterName
+  // to avoid race conditions with concurrent adapter execution.
 }
 
 function _recordQuery(record: DuneQueryRecord): void {
@@ -82,6 +81,9 @@ function _recordQuery(record: DuneQueryRecord): void {
       `rows=${record.rowsReturned} chain=${record.chain ?? 'N/A'}`
     );
   }
+
+  // Re-check budget after recording so over-budget is caught immediately
+  _checkBudget();
 }
 
 function _checkBudget(): void {
@@ -274,8 +276,10 @@ const batchedQueries = new Map<string, {
 
 
 export function queryDune(queryId: string, query_parameters: any, options: FetchOptions, { extraUIDKey = '' }: { extraUIDKey?: string } = {}) {
-  // Set adapter context from FetchOptions for credit attribution
-  if (options?.chain) _currentChain = options.chain;
+  // Capture adapter context at call time (not deferred) to avoid race conditions
+  // when multiple adapters run concurrently via Promise.all
+  const adapterName = options?.adapterName ?? 'unknown';
+  const chain = options?.chain;
 
   // Enforce credit budget before executing
   _checkBudget();
@@ -284,7 +288,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
   if (!isBulkMode)
-    return _queryDune(queryId, query_parameters);
+    return _queryDune(queryId, query_parameters, { adapterName, chain });
 
   return batchDuneQueries(queryId, query_parameters, options);
 
@@ -292,7 +296,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
     const moduleUID = options.moduleUID;
 
     if (!moduleUID) {
-      return _queryDune(queryId, query_parameters);
+      return _queryDune(queryId, query_parameters, { adapterName, chain });
     }
 
     const batchKey = `${options.moduleUID}-${queryId}.${options.chain}-${extraUIDKey}`
@@ -305,7 +309,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 
           try {
             if (batch.requests.length === 1) {
-              const result = await _queryDune(queryId, batch.requests[0].parameters);
+              const result = await _queryDune(queryId, batch.requests[0].parameters, { adapterName, chain });
               batch.requests[0].resolve(result);
               return;
             }
@@ -319,7 +323,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
                 .join(' UNION ALL ');
 
               const startTime = Date.now();
-              const results = await _queryDune(queryId, { fullQuery: combinedQuery });
+              const results = await _queryDune(queryId, { fullQuery: combinedQuery }, { adapterName, chain });
               log(`[Dune] Batched query for ${moduleUID} returned ${results.length} rows took ${(Date.now() - startTime) / 1000}s, batchCount: ${batch.requests.length}`);
               // Split results by _batch_index
               const resultsByIndex = results.reduce((acc: Record<number, any[]>, row: any) => {
@@ -338,7 +342,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
             } else {
               // Execute individually if can't combine
               for (const request of batch.requests) {
-                const result = await _queryDune(queryId, request.parameters);
+                const result = await _queryDune(queryId, request.parameters, { adapterName, chain });
                 request.resolve(result);
               }
             }
@@ -366,9 +370,8 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 }
 
 
-const _queryDune = async (queryId: string, query_parameters: any = {}) => {
-  const adapterName = _currentAdapterName;
-  const chain = _currentChain;
+const _queryDune = async (queryId: string, query_parameters: any = {}, context: { adapterName: string; chain?: string } = { adapterName: 'unknown' }) => {
+  const { adapterName, chain } = context;
   const metadata: any = {
     application: "dune",
     adapter: adapterName,
