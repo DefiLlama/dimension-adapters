@@ -59,6 +59,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2023-01-29',
+  deadFrom: '2025-07-17',
   methodology,
   breakdownMethodology,
 };
