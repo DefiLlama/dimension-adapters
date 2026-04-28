@@ -1,72 +1,120 @@
-import { FetchOptions, ProtocolType, Adapter } from "../adapters/types";
+import { Dependencies, SimpleAdapter, ProtocolType, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { queryAllium } from "../helpers/allium";
 import fetchURL from "../utils/fetchURL";
 
-const API_URL = "https://fossil-outlook-levitate-gloomy.cantonscan.com/api/mining-rounds/timeseries?interval=day";
-
-interface DailyData {
-  date: string;
-  burnAmount: number;
-  burnedFromFees: number;
-  burnedFromTrafficPurchases: number;
-  avgAmuletPrice: number;
+const FEE_METRICS: Record<string, { name: string, methodology: string }> = {
+  'TRAFFIC_PURCHASE': {
+    name: 'Traffic Purchase',
+    methodology: 'Canton tokens burned to purchase synchronizer bandwidth.',
+  },
+  'PREAPPROVAL_BURN': {
+    name: 'Preapproval Burn',
+    methodology: 'Canton tokens burned to create a standing authorization for receiving CC transfers without being online.',
+  },
+  'PREAPPROVAL_RENEW_BURN': {
+    name: 'Preapproval Renew Burn',
+    methodology: 'Canton tokens burned to renew an expiring preapproval before it lapses.',
+  },
+  'SETUP_BURN': {
+    name: 'Setup Burn',
+    methodology: 'Canton tokens burned to onboard an external party onto the network.',
+  },
+  'DUST_EXPIRE': {
+    name: 'Dust Expire',
+    methodology: 'Near-zero Amulets whose holding fees exceeded their value, garbage-collected by super validators and burned.',
+  },
+  'HOLDING_FEE': {
+    name: 'Holding Fee',
+    methodology: 'Per-round fee accrued on Amulet UTXOs, charged upon consumption (zero after CIP-0078, Sep 2025).',
+  },
+  'SENDER_CHANGE_FEE': {
+    name: 'Sender Change Fee',
+    methodology: 'Fee for creating the change Amulet sent back to the sender in a transfer (zero after CIP-0078, Sep 2025).',
+  },
 }
 
-let cachedData: Promise<Record<string, DailyData>> | null = null;
+const CANTON_PRICE_API = 'https://fossil-outlook-levitate-gloomy.cantonscan.com/api/mining-rounds/timeseries?interval=day';
+const CANTON_ADDED_TO_CG_TOKEN_ON = '2025-11-12';
 
-function getDataMap(): Promise<Record<string, DailyData>> {
-  if (!cachedData) {
-    cachedData = fetchURL(API_URL).then((res: { data: DailyData[] }) => {
-      const map: Record<string, DailyData> = {};
-      res.data.forEach((entry) => {
-        map[entry.date] = entry;
-      });
-      return map;
-    });
-  }
-  return cachedData;
-}
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const start = new Date(options.fromTimestamp * 1000).toISOString()
+  const end = new Date(options.toTimestamp * 1000).toISOString()
 
-const LABELS = {
-  TokenBurn: "Token Burn",
-};
+  const query = `
+    SELECT
+      transfer_type,
+      SUM(amount) AS total_fees_for_period
+    FROM
+      canton.raw.native_token_transfers
+    WHERE
+      transfer_type IN (${Object.keys(FEE_METRICS).map((metric: string) => `'${metric.toLowerCase()}'`).join(',')})
+      AND record_time BETWEEN '${start}' AND '${end}'
+    GROUP BY
+      transfer_type
+  `;
 
-export const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dataMap = await getDataMap();
-  const dayData = dataMap[options.dateString];
-
-  if (!dayData) throw new Error(`Canton: no data for date ${options.dateString}`);
-
+  const queryResult = await queryAllium(query);
   const dailyFees = options.createBalances();
 
-  const burnUsd = dayData.burnAmount * dayData.avgAmuletPrice;
+  let cantonPrice = 0;
+  if (options.dateString <= CANTON_ADDED_TO_CG_TOKEN_ON) {
+    const cantonPriceResponse = await fetchURL(CANTON_PRICE_API);
+    const todaysData = cantonPriceResponse.data.find((item: any) => item.date === options.dateString);
+    if (!todaysData) {
+      throw new Error(`No data found for date ${options.dateString}`);
+    }
+    cantonPrice = todaysData.avgAmuletPrice;
 
-  dailyFees.addUSDValue(burnUsd, LABELS.TokenBurn);
+  }
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
-};
+  for (const item of queryResult) {
+    if (cantonPrice > 0) {
+      dailyFees.addUSDValue(item.total_fees_for_period * cantonPrice, FEE_METRICS[item.transfer_type.toUpperCase()].name);
+    } else {
+      dailyFees.addCGToken('canton-network', item.total_fees_for_period, FEE_METRICS[item.transfer_type.toUpperCase()].name);
+    }
+  }
 
-// Canton uses a burn-mint equilibrium model where 100% of network fees are permanently burned.
-// Fees come from two sources: transaction fees and validator traffic purchases (bandwidth costs).
-// Since CIP-0078 (Sep 2025), CC transfer fees were removed — traffic purchases now account for ~95% of all burn.
-// https://github.com/global-synchronizer-foundation/cips/blob/main/cip-0078/cip-0078.md
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+  }
+}
 
-const adapter: Adapter = {
+const methodology = {
+  Fees: "Includes traffic purchase, preapproval burn, preapproval renew burn, setup burn, dust expire, holding fee, sender change fees",
+  Revenue: "All the collected fees (traffic purchase, preapproval burn, preapproval renew burn, setup burn, dust expire, holding fee, sender change fees) are burnt",
+  HoldersRevenue: "All the collected fees (traffic purchase, preapproval burn, preapproval renew burn, setup burn, dust expire, holding fee, sender change fees) are burned",
+}
+
+const breakdown = Object.fromEntries(Object.keys(FEE_METRICS).map((metric: string) => {
+  return [FEE_METRICS[metric].name, FEE_METRICS[metric].methodology];
+}));
+
+const breakdownMethodology = {
+  Fees: {
+    ...breakdown,
+  },
+  Revenue: {
+    ...breakdown,
+  },
+  HoldersRevenue: {
+    ...breakdown,
+  },
+}
+
+const adapter: SimpleAdapter = {
   version: 1,
+  start: "2024-06-26",
   fetch,
-  start: '2024-06-26',
   chains: [CHAIN.CANTON],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
-  methodology: {
-    Fees: 'Total CC burned daily from transaction fees and validator traffic purchases',
-    Revenue: 'All burned CC is permanently removed from supply',
-    HoldersRevenue: 'All burned CC benefits token holders by reducing circulating supply',
-  },
-  breakdownMethodology: {
-    Fees: {
-      [LABELS.TokenBurn]: "Total CC burned daily (transaction fee burns + traffic purchase burns)",
-    },
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
