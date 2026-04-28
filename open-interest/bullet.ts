@@ -1,4 +1,3 @@
-import PromisePool from "@supercharge/promise-pool";
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
@@ -6,16 +5,10 @@ import { httpGet } from "../utils/fetchURL";
 const BASE_URL = "https://tradingapi.bullet.xyz";
 
 async function fetch() {
-  const endpoints = [
-    { key: "oi", url: `${BASE_URL}/fapi/v1/openInterest` },
-    { key: "prices", url: `${BASE_URL}/fapi/v1/ticker/price` },
-  ];
-  const data: Record<string, any> = {};
-  const { errors } = await PromisePool.withConcurrency(2)
-    .for(endpoints)
-    .process(async ({ key, url }) => { data[key] = await httpGet(url); });
-  if (errors.length) throw errors[0];
-  const { oi: oiData, prices: priceData } = data;
+  const [oiData, priceData] = await Promise.all([
+    httpGet(`${BASE_URL}/fapi/v1/openInterest`),
+    httpGet(`${BASE_URL}/fapi/v1/ticker/price`),
+  ]);
 
   const priceMap: Record<string, number> = {};
   for (const p of priceData) {
