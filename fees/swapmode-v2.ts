@@ -43,6 +43,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.MODE]: {
       fetch: v2Graph,
       start: '2024-02-01',
+      deadFrom: '2025-09-30',
     },
   },
 };
