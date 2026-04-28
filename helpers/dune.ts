@@ -60,9 +60,18 @@ let _totalCreditsThisRun = 0;
 // Adapter name context — captured per-call from FetchOptions to avoid race conditions
 // with concurrent Promise.all execution in runAdapter.ts
 
-const EXPENSIVE_CREDIT_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_CREDIT_THRESHOLD ?? 100);
-const EXPENSIVE_DURATION_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_DURATION_THRESHOLD ?? 30);
-const MAX_CREDITS_PER_RUN = Number(process.env.DUNE_MAX_CREDITS_PER_RUN ?? Infinity);
+function parseNumericEnv(value: string | undefined, fallback: number, key: string): number {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`[Dune] Invalid numeric env ${key}: "${value}"`);
+  }
+  return parsed;
+}
+
+const EXPENSIVE_CREDIT_THRESHOLD = parseNumericEnv(process.env.DUNE_EXPENSIVE_CREDIT_THRESHOLD, 100, 'DUNE_EXPENSIVE_CREDIT_THRESHOLD');
+const EXPENSIVE_DURATION_THRESHOLD = parseNumericEnv(process.env.DUNE_EXPENSIVE_DURATION_THRESHOLD, 30, 'DUNE_EXPENSIVE_DURATION_THRESHOLD');
+const MAX_CREDITS_PER_RUN = parseNumericEnv(process.env.DUNE_MAX_CREDITS_PER_RUN, Infinity, 'DUNE_MAX_CREDITS_PER_RUN');
 
 /** @deprecated Use options.adapterName instead. Kept for backward compatibility. */
 export function setDuneAdapterContext(_adapterName: string, _chain?: string): void {
