@@ -42,6 +42,7 @@ async function getV3Data(url: string, timestamp: number, chain: Chain) {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-12-08',
   methodology: {
     UserFees:
       "Traders pay taker fees on each trade up to 3% of the option premium.",
