@@ -25,6 +25,7 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2024-06-08",
+      deadFrom: "2025-08-23",
     },
   },
   methodology: {
