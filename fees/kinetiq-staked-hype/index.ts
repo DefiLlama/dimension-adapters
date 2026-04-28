@@ -6,8 +6,9 @@ import { addTokensReceived } from "../../helpers/token";
 const methodology = {
   Fees: 'Total unstaking fees and rewards from staked HYPE.',
   Revenue: 'Total fee through 0.1% KHYPE unstaking fee before 2026-04-09, 10% performance fees after that.',
-  ProtocolRevenue: 'All the revenue goes to the treasury.',
-  SupplySideRevenue: 'All staking rewards distributed to HYPE stakers.',
+  ProtocolRevenue: 'From 2026-04-09, 30% of revenue goes to the treasury, it was 100% before.',
+  SupplySideRevenue: 'From 2026-04-09, 90% staking rewards distributed to HYPE stakers, it was 100% before.',
+  HoldersRevenue: 'From 2026-04-09, 70% of performance fees (which is 10% staking rewards) are used to by back KNTQ.',
 };
 
 const breakdownMethodology = {
