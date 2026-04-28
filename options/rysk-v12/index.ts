@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getTransactions } from "../../helpers/getTxReceipts";
 
 const ABI: any = {
     transferToUser: 'event TransferToUser (address indexed asset,address indexed account, address indexed recipient, uint256 amount)',
@@ -20,17 +21,25 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     const premiumReceivedLogs = await options.getLogs({
         eventAbi: ABI.transferToUser,
-        target: M_MARKET
+        target: M_MARKET,
+        onlyArgs: false,
     });
 
     depositLogs.forEach((deposit: any) => {
         const { asset, amount } = deposit;
         dailyNotionalVolume.add(asset, amount);
     });
+    
+    const selector = "0x778ddcb3" // function ingresso_newUserPosition(bytes calldata payload)
+    const txs: any = await getTransactions(options.chain, premiumReceivedLogs.map((log: any) => log.transactionHash), { cacheKey: 'rysk-v12' })
 
-    premiumReceivedLogs.forEach((premium: any) => {
-        const { asset, amount } = premium;
-        dailyPremiumVolume.add(asset, amount);
+    premiumReceivedLogs.forEach((log: any, index) => {
+        const tx = txs[index];
+        if (!tx) return;
+        if (tx.data.startsWith(selector)) {
+            const { asset, amount } = log.args;
+            dailyPremiumVolume.add(asset, amount);
+        }
     });
 
     return {
