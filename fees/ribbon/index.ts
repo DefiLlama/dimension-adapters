@@ -82,6 +82,7 @@ const fetch = async (
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: '2025-04-22',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
