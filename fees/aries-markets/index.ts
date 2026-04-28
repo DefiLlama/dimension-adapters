@@ -10,24 +10,38 @@ const USDCReserveKey = "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4
 
 const STABLE_COIN_DECIMAL = 6;
 const DAY_IN_YEARS = 365;
+const DAY_IN_SECONDS = 24 * 60 * 60;
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+const getStartOfDay = (timestamp: number) => timestamp - (timestamp % DAY_IN_SECONDS);
+
+const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
+  const input = encodeURIComponent(JSON.stringify({
+    fromTs: timestamp,
+    resolutionInHours: 24,
+    reserveKey,
+  }));
+  return `${rateURL}${input}`;
+};
+
+const fetch = async (options: FetchOptions) => {
   const reserves = (await fetchURL(reserveURL)).result.data.stats;
+  const rateHistoryTimestamp = getStartOfDay(options.endTimestamp - DAY_IN_SECONDS);
 
   let df = 0;
   for (const reserveKey of [USDTReserveKey, USDCReserveKey]) {
-    const dayFeesQuery = (await fetchURL(`${rateURL}{%22fromTs%22:${timestamp},%22resolutionInHours%22:24,%22reserveKey%22:%22${reserveKey}%22}`
-    )).result.data[0];
+    const dayFeesQuery = (await fetchURL(getRateHistoryURL(rateHistoryTimestamp, reserveKey))).result.data[0];
 
     const matchingReserve = reserves.find(
       (reserve) => reserve.key === reserveKey
     );
+    const borrowApr = Number(dayFeesQuery?.borrowApr ?? 0);
+    const totalBorrowed = Number(matchingReserve?.value?.total_borrowed ?? 0);
 
     df +=
-      dayFeesQuery?.borrowApr *
-      (matchingReserve?.value.total_borrowed /
-        10 ** STABLE_COIN_DECIMAL /
-        DAY_IN_YEARS || 0);
+      borrowApr *
+      totalBorrowed /
+      10 ** STABLE_COIN_DECIMAL /
+      DAY_IN_YEARS;
   }
 
   const dpr = df * 0.2;
