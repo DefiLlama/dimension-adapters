@@ -2,7 +2,8 @@
  * Hyperlane core-fee adapter.
  *
  * Accounting model:
- * - dailyFees: gross user-paid interchain delivery fees from InterchainGasPaymaster GasPayment events
+ * - dailyFees: total user-paid Hyperlane fees from InterchainGasPaymaster GasPayment events plus ProtocolFeePaid events
+ * - dailySupplySideRevenue: relayer compensation from InterchainGasPaymaster GasPayment events
  * - dailyRevenue / dailyProtocolRevenue: protocol-retained fees from ProtocolFeePaid events
  *
  * Data sources:
@@ -71,8 +72,6 @@ const HYPERLANE_CHAIN_CANDIDATES = [
   "zora",
 ];
 
-const SUPPORTED_CHAINS = HYPERLANE_CHAIN_CANDIDATES;
-
 const GAS_PAYMENT_EVENT =
   "event GasPayment(bytes32 indexed messageId, uint32 indexed destinationDomain, uint256 gasAmount, uint256 payment)";
 const PROTOCOL_FEE_PAID_EVENT =
@@ -87,14 +86,19 @@ const REQUIRED_REGISTRY_KEYS = new Set(["interchainGasPaymaster", "protocolFee",
 function emptyResponse(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 }
 
+// The Hyperlane registry files currently use a simple scalar YAML shape:
+// exact 2-space indentation, simple key:value pairs, and no multi-line or
+// complex YAML features for the fields this adapter reads.
 function sanitizeYamlLine(rawLine: string) {
   const line = rawLine.replace(/\t/g, "    ");
   let out = "";
@@ -115,10 +119,13 @@ function sanitizeYamlLine(rawLine: string) {
   return out.trimEnd();
 }
 
+// Registry values are expected to be simple quoted/unquoted scalars only.
 function parseScalar(rawValue: string) {
   return rawValue.trim().replace(/^["']|["']$/g, "");
 }
 
+// addresses.yaml is expected to resolve into a flat per-chain object whose
+// relevant scalar fields match REQUIRED_REGISTRY_KEYS / ChainConfig.
 function parseRegistry(yaml: string): Record<string, ChainConfig> {
   const registry: Record<string, ChainConfig> = {};
   let currentChain = "";
@@ -258,7 +265,8 @@ async function fetch(options: FetchOptions) {
   try {
     fromBlock = await options.getStartBlock();
     toBlock = await options.getEndBlock();
-  } catch {
+  } catch (error) {
+    console.error("[hyperlane] block lookup failed", { chain: options.chain, error });
     return emptyResponse(options);
   }
 
@@ -272,9 +280,10 @@ async function fetch(options: FetchOptions) {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   try {
-    // Gross Hyperlane core fees paid by users for message delivery.
+    // Relayer compensation paid by users for message delivery.
     const gasPayments = await options.getLogs({
       fromBlock: effectiveFromBlock,
       toBlock,
@@ -284,6 +293,7 @@ async function fetch(options: FetchOptions) {
 
     gasPayments.forEach((log: any) => {
       dailyFees.addGasToken(log.payment, INTERCHAIN_FEE_LABEL);
+      dailySupplySideRevenue.addGasToken(log.payment, INTERCHAIN_FEE_LABEL);
     });
 
     if (config.protocolFee?.startsWith("0x")) {
@@ -298,43 +308,67 @@ async function fetch(options: FetchOptions) {
         });
 
         protocolFeePayments.forEach((log: any) => {
+          dailyFees.addGasToken(log.fee, PROTOCOL_FEE_LABEL);
           dailyRevenue.addGasToken(log.fee, PROTOCOL_FEE_LABEL);
         });
-      } catch {}
+      } catch (error) {
+        console.error("[hyperlane] ProtocolFeePaid log fetch failed", {
+          chain: options.chain,
+          target: config.protocolFee,
+          event: PROTOCOL_FEE_PAID_EVENT,
+          error,
+        });
+      }
     }
 
     return {
       dailyFees,
       dailyRevenue,
+      dailySupplySideRevenue,
       dailyProtocolRevenue: dailyRevenue,
     };
-  } catch {
+  } catch (error) {
     // Chain-level runtime issues degrade to zero so the rest of the adapter can continue,
     // but registry/metadata parsing failures still surface above because they affect all chains.
+    console.error("[hyperlane] GasPayment log fetch failed", {
+      chain: options.chain,
+      target: config.interchainGasPaymaster,
+      event: GAS_PAYMENT_EVENT,
+      error,
+    });
     return emptyResponse(options);
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: SUPPORTED_CHAINS,
+  chains: HYPERLANE_CHAIN_CANDIDATES,
   start: "2025-01-01",
+  pullHourly: true,
   fetch,
   methodology: {
-    Fees: "Tracks gross user-paid interchain delivery fees by summing Hyperlane InterchainGasPaymaster GasPayment events on each origin chain, with contract addresses loaded dynamically from Hyperlane's registry.",
+    Fees: "Tracks total user-paid Hyperlane fees by summing InterchainGasPaymaster GasPayment events and ProtocolFeePaid events on each origin chain, with contract addresses loaded dynamically from Hyperlane's registry.",
     Revenue:
       "Tracks retained Hyperlane protocol fee revenue by summing ProtocolFeePaid events emitted by Hyperlane's ProtocolFee hook contracts when configured in the Hyperlane registry.",
+    SupplySideRevenue:
+      "Tracks relayer compensation by summing InterchainGasPaymaster GasPayment events, which represent delivery fees paid through Hyperlane's relayer path.",
     ProtocolRevenue:
       "Same as Revenue: sums ProtocolFeePaid events emitted by Hyperlane's ProtocolFee hook contracts when configured in the Hyperlane registry.",
   },
   breakdownMethodology: {
     dailyFees: {
       [INTERCHAIN_FEE_LABEL]:
-        "Sum of payment values emitted in Hyperlane InterchainGasPaymaster GasPayment events.",
+        "Sum of relayer compensation values emitted in Hyperlane InterchainGasPaymaster GasPayment events.",
+      [PROTOCOL_FEE_LABEL]:
+        "Sum of protocol-retained fee values emitted in Hyperlane ProtocolFeePaid events.",
     },
     dailyRevenue: {
       [PROTOCOL_FEE_LABEL]:
         "Sum of fee values emitted in Hyperlane ProtocolFeePaid events.",
+    },
+    dailySupplySideRevenue: {
+      [INTERCHAIN_FEE_LABEL]:
+        "Sum of payment values emitted in Hyperlane InterchainGasPaymaster GasPayment events.",
     },
     dailyProtocolRevenue: {
       [PROTOCOL_FEE_LABEL]:
