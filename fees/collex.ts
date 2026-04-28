@@ -52,6 +52,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.APTOS],
   start: '2025-10-08',
+  deadFrom: '2026-03-13', 
   methodology: {
     Fees: "Fees from the Collex marketplace/trading.",
     Revenue: "Revenue from the Collex marketplace/trading.",
