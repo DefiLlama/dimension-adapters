@@ -7,12 +7,8 @@ const MUTEZ_PER_XTZ = 1e6;
 const ONE_DAY = 24 * 60 * 60;
 const BLOCK_PAGE_SIZE = 10_000;
 
-function getDayIso(timestamp: number) {
-  return new Date(timestamp * 1000).toISOString().slice(0, 10);
-}
-
 function getDayStartIso(timestamp: number) {
-  return `${getDayIso(timestamp)}T00:00:00Z`;
+  return `${new Date(timestamp * 1000).toISOString().slice(0, 10)}T00:00:00Z`;
 }
 
 function getDayStartTimestamp(timestamp: number) {
@@ -66,7 +62,7 @@ async function getDailyBurnedSupply(startOfDay: number) {
   return Math.max(burned, 0);
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targetDay = getDayStartTimestamp(options.startTimestamp);
   const dailyBlockFees = await getDailyBlockFees(targetDay);
   const dailyBurnedSupply = await getDailyBurnedSupply(targetDay);
@@ -85,14 +81,15 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.TEZOS],
   start: '2018-06-30', // Tezos mainnet launch date
   protocolType: ProtocolType.CHAIN,
   methodology: {
     Fees: 'Total transaction fees paid by users for gas + storage fees',
-    Revenue: 'Amount of tez burned, including storage fees, allocation fees, double baking/attestation punishments, etc.'
+    Revenue: 'Amount of tez burned, including storage fees, allocation fees, double baking/attestation punishments, etc.',
+    HoldersRevenue: 'Amount of tez burned, including storage fees, allocation fees, double baking/attestation punishments, etc.'
   }
 };
 
