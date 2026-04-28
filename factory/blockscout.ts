@@ -121,7 +121,9 @@ const protocolChainMap: Record<string, string> = {
 }
 
 const deadFromMap: Record<string, string> = {
+  "duck-chain": "2026-01-23",
   "kroma": "2025-06-30",
+  "xchain": "2026-02-12",
 }
 
 const methodologyMap: Record<string, any> = {
