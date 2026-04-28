@@ -17,7 +17,10 @@ async function fetch() {
 
   const dailyVolume = tickers
     .filter((ticker: any) => perpSymbols.has(ticker.symbol))
-    .reduce((sum: number, ticker: any) => sum + parseFloat(ticker.quoteVolume), 0);
+    .reduce((sum: number, ticker: any) => {
+      const vol = parseFloat(ticker.quoteVolume);
+      return sum + (Number.isFinite(vol) ? vol : 0);
+    }, 0);
 
   return { dailyVolume };
 }

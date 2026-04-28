@@ -16,8 +16,10 @@ async function fetch() {
   }
 
   const openInterestAtEnd = oiData.reduce((sum: number, market: any) => {
-    const price = priceMap[market.symbol] ?? 0;
-    return sum + parseFloat(market.openInterest) * price;
+    const price = priceMap[market.symbol];
+    if (!price) return sum;
+    const oi = parseFloat(market.openInterest);
+    return sum + (Number.isFinite(oi) ? oi * price : 0);
   }, 0);
 
   return { openInterestAtEnd };
