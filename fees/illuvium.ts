@@ -28,6 +28,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.IMMUTABLEX]: {
       fetch: fetchFees,
+      deadFrom: '2026-03-10',
     },
   },
   methodology: {
