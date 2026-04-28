@@ -1,20 +1,14 @@
-import PromisePool from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import { SimpleAdapter } from "../../adapters/types";
 
 const BASE_URL = "https://tradingapi.bullet.xyz";
 
-async function fetch() {
-  const endpoints = [
-    { key: "exchangeInfo", url: `${BASE_URL}/fapi/v1/exchangeInfo` },
-    { key: "tickers", url: `${BASE_URL}/fapi/v1/ticker/24hr` },
-  ];
-  const data: Record<string, any> = {};
-  const { errors } = await PromisePool.withConcurrency(2)
-    .for(endpoints)
-    .process(async ({ key, url }) => { data[key] = await httpGet(url); });
-  if (errors.length) throw errors[0];
-  const { exchangeInfo, tickers } = data;
+async function fetch(_: any) {
+  const [exchangeInfo, tickers] = await Promise.all([
+    httpGet(`${BASE_URL}/fapi/v1/exchangeInfo`),
+    httpGet(`${BASE_URL}/fapi/v1/ticker/24hr`),
+  ]);
 
   const perpSymbols = new Set<string>(
     exchangeInfo.symbols
@@ -33,20 +27,12 @@ async function fetch() {
   return { dailyVolume };
 }
 
-const methodology = {
-  Volume: "Sum of notional quote volume (in USD) across all perpetual markets over the rolling 24-hour window.",
-};
-
-const adapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  methodology,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      runAtCurrTime: true,
-      start: "2026-02-12",
-    },
-  },
-};
+  fetch,
+  chains: [CHAIN.SOLANA],
+  runAtCurrTime: true,
+  start: "2026-02-12",
+}
 
 export default adapter;
