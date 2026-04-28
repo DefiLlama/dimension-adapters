@@ -1,44 +1,32 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import request, { gql } from "graphql-request";
+import { getSaddleVolume } from "../helpers/saddle";
 
-const endpoints: any = {
-  [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/ferro/swap",
-};
-
-interface IVolume {
-  volume: string;
-}
+const pools = [
+  '0xe8d13664a42B338F009812Fa5A75199A865dA5cD',
+  '0xa34C0fE36541fB085677c36B4ff0CCF5fa2B32d6',
+  '0x1578C5CF4f8f6064deb167d1eeAD15dF43185afa',
+  '0x5FA9412C2563c0B13CD9F96F0bd1A971F8eBdF96',
+];
 
 const fetch = async (options: FetchOptions) => {
-  const query = gql`
-    {
-      dailyVolumes(where:{timestamp: "${options.startOfDay}"}){
-        timestamp
-        volume
-      }
-    }
-  `
-  const res:IVolume[] = (await request(endpoints[options.chain], query)).dailyVolumes as IVolume[];
-  const dailyVolume = res.reduce((acc, item) => acc + Number(item.volume), 0);
-  const dailyFees = dailyVolume * (0.04 /100);
-  const dailyUserFees = dailyFees;
-  const dailyRevenue = dailyVolume * (0.02 /100);
-  const dailyHoldersRevenue = dailyVolume * (0.016 /100);
-  const dailySupplySideRevenue = dailyVolume * (0.02 /100);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getSaddleVolume(options, pools);
 
   return {
     dailyFees,
-    dailyUserFees: dailyUserFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: dailyHoldersRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(0.2),
+    dailyHoldersRevenue: dailyRevenue.clone(0.8),
+    dailySupplySideRevenue,
   };
 }
 
 const methodology = {
   Fees: "Ferro charges a 0.04% fee on all swaps",
   Revenue: "0.02% of swap volume goes to the protocol, with 0.016% distributed to token holders and 0.004% to the treasury",
+  ProtocolRevenue: '0.004% of swap volume goes to the protocol',
+  HoldersRevenue: '0.016% of swap volume goes to the token holders',
   SupplySideRevenue: "0.02% of swap volume is distributed to liquidity providers",
 };
 
@@ -62,6 +50,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.CRONOS],
   fetch,
   start: '2022-08-29',
