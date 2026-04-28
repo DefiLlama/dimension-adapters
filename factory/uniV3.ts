@@ -201,7 +201,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SONIC]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
   },
   "beamswap-v3": {
-    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', revenueRatio: 0.16, holdersRevenueRatio: 0, protocolRevenueRatio: 0.16, deadFrom: "2025-08-12" },
+    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', userFeesRatio: 1, revenueRatio: 0.16, protocolRevenueRatio: 0.16, holdersRevenueRatio: 0.02 },
   },
   "2thick": {
     [CHAIN.FANTOM]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
@@ -389,7 +389,7 @@ const methodologyMap: Record<string, any> = {
     UserFees: "User pays 0.01%, 0.05%, 0.3%, or 1% on each swap.",
     ProtocolRevenue: "Protocol receives 16% of fees.",
     SupplySideRevenue: "84% of user fees are distributed among LPs.",
-    HoldersRevenue: "Holders have no revenue.",
+    HoldersRevenue: "2% of fees distributed to GLINT token holders.",
   },
   "2thick": {
     UserFees: "Users pay trade fees on each swap.",
