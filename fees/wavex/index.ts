@@ -19,14 +19,26 @@ const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
   const res = await axios.get(
     `${endpoints[chain]}/stats/fees?timestamp=${todaysTimestamp}`
   );
+  const fees = res.data?.data;
+
+  if (!fees) {
+    return {
+      dailyFees: "0",
+      dailyUserFees: "0",
+      dailyRevenue: "0",
+      dailyProtocolRevenue: "0",
+      dailySupplySideRevenue: "0",
+    };
+  }
+
   const dailyFee =
-    parseInt(res.data.data.mint) +
-    parseInt(res.data.data.burn) +
-    parseInt(res.data.data.marginAndLiquidation) +
-    parseInt(res.data.data.swap);
+    parseInt(fees.mint) +
+    parseInt(fees.burn) +
+    parseInt(fees.marginAndLiquidation) +
+    parseInt(fees.swap);
   const finalDailyFee = dailyFee / 1e30;
   const userFee =
-    parseInt(res.data.data.marginAndLiquidation) + parseInt(res.data.data.swap);
+    parseInt(fees.marginAndLiquidation) + parseInt(fees.swap);
   const finalUserFee = userFee / 1e30;
 
   return {
