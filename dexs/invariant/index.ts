@@ -42,11 +42,13 @@ const adapter: SimpleAdapter = {
       fetch: fetchSolana,
       runAtCurrTime: true,
       start: "2022-03-22",
+      deadFrom: "2025-12-09",
     },
     [CHAIN.ECLIPSE]: {
       fetch: fetchEclipse,
       runAtCurrTime: true,
       start: "2024-12-22",
+      deadFrom: "2025-12-09",
     },
   },
 };
