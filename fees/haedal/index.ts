@@ -15,7 +15,7 @@ const fetchData = () => {
         return {
             dailyFees: res.fee ,
             dailyRevenue: res.revenue,
-            dailyProtocolRevenue: res.revenu,
+            dailyProtocolRevenue: res.revenue,
             timestamp: dayTimestamp,
         };
     };
