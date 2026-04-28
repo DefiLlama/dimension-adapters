@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { METRIC } from "../../helpers/metrics";
 
 const chainMapper: Record<string, { name: string, start: string, primaryCGToken: string }> = {
     [CHAIN.ETHEREUM]: { name: "ethereum", start: "2023-08-23", primaryCGToken: 'ethereum' },
@@ -97,11 +96,16 @@ function getUSDValue(swap: SwapDetails): number {
 }
 
 const prefetch = async (options: FetchOptions) => {
-    return fetchTransactionsInDateRange(options.startTimestamp, options.endTimestamp);
+    const { fees, sameChainVolume } = await fetchTransactionsInDateRange(options.startTimestamp, options.endTimestamp);
+    return {
+        fees: JSON.stringify(fees),
+        sameChainVolume: JSON.stringify(sameChainVolume),
+    };
 };
 
 async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp: number) {
     const fees: ChainFees = {};
+    const sameChainVolume: ChainFees = {};
     let currentPage = 1;
     let insideDateRange = false;
     let shouldContinue = true;
@@ -120,6 +124,9 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
             if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
                 insideDateRange = true;
                 const { source_swap, destination_swap } = tx;
+                const sourceChain = source_swap.chain;
+                const destChain = destination_swap.chain;
+
                 if (Number(destination_swap.filled_amount) === 0) continue;
                 const sourceUSD = getUSDValue(source_swap);
                 const destUSD = getUSDValue(destination_swap);
@@ -127,6 +134,10 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
                 const fee = sourceUSD - destUSD;
                 const chain = source_swap.chain;
                 fees[chain] = (fees[chain] ?? 0) + fee;
+
+                if (sourceChain === destChain) {
+                    sameChainVolume[sourceChain] = (sameChainVolume[sourceChain] ?? 0) + sourceUSD;
+                }
             }
 
             if (insideDateRange && txTimestamp < startTimestamp) {
@@ -141,21 +152,29 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
             break;
         }
     }
-    return fees;
+    return { fees, sameChainVolume };
 }
 
 const fetch = async (options: FetchOptions) => {
-    const fees = options.preFetchedResults as ChainFees || {};
+    const { fees: feesStr, sameChainVolume: sameChainVolumeStr } = options.preFetchedResults || {};
+    const fees: ChainFees = feesStr ? JSON.parse(feesStr) : {};
+    const sameChainVolume: ChainFees = sameChainVolumeStr ? JSON.parse(sameChainVolumeStr) : {};
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const dailyVolume = options.createBalances();
+
     const chainName = chainMapper[options.chain].name;
     const feeAmount = fees[chainName] ?? 0;
+    const sameChainVolumeAmount = sameChainVolume[chainName] ?? 0;
+
+    dailyVolume.addUSDValue(sameChainVolumeAmount);
     dailyFees.addUSDValue(feeAmount);
     dailyRevenue.addUSDValue(feeAmount * PROTOCOL_SHARE);
     dailySupplySideRevenue.addUSDValue(feeAmount * SOLVER_SHARE);
 
     return {
+        dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
