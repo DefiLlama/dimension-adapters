@@ -201,7 +201,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SONIC]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
   },
   "beamswap-v3": {
-    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', userFeesRatio: 1, revenueRatio: 0.16, protocolRevenueRatio: 0.16, holdersRevenueRatio: 0.02 },
+    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', userFeesRatio: 1, revenueRatio: 0.16, protocolRevenueRatio: 0.14, holdersRevenueRatio: 0.02 },
   },
   "2thick": {
     [CHAIN.FANTOM]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
