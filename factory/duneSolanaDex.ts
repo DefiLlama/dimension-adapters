@@ -26,6 +26,10 @@ const dexsConfigs: Record<string, { project: string, start: string }> = {
         "project": "raydium_launchlab",
         "start": "2025-04-15",
     },
+    "manifest": {
+        "project": "manifest",
+        "start": "2026-01-28",
+    },
     "zerofi": {
         "project": "zerofi",
         "start": "2024-12-12",
