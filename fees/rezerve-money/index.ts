@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: "2025-06-13",
-      deadFrom: "2026-04-05",
+      deadFrom: "2026-04-05", // Shadow core-full subgraph deployment no longer exists.
     },
   },
   methodology,
