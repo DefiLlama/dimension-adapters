@@ -4,12 +4,14 @@ import { fetchBond } from "./bonds";
 import { fetchRebases } from "./rebases";
 import { fetchFeesFromShadow } from "./shadow";
 
+const SHADOW_FEES_END = 1761955200; // 2025-11-01
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  await fetchFeesFromShadow(dailyFees, options);
+  if (options.startOfDay < SHADOW_FEES_END) await fetchFeesFromShadow(dailyFees, options);
   await fetchBond(dailyFees, dailyRevenue, options);
   await fetchRebases(dailyHoldersRevenue, options);
 
