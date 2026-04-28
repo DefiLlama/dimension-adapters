@@ -93,7 +93,7 @@ export const chainConfigMap: any = {
   [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
   [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/' },
   [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/' },
-  [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/' },
+  [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/', deadFrom: '2026-01-24' },
   [CHAIN.TAIKO]: { CGToken: 'ethereum', explorer: 'https://blockscoutapi.mainnet.taiko.xyz', start: '2024-05-25' },
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
