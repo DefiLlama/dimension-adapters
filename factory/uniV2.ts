@@ -727,6 +727,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
+  "shapeswap-v2": {
+    [CHAIN.SHAPE]: { factory: '0xb411eAF2f2070822B26E372E3Ea63c5060BA45E6', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
   "hyperjump": {
     [CHAIN.BSC]: { factory: '0xac653ce27e04c6ac565fd87f18128ad33ca03ba2', start: '2020-11-10' },
     [CHAIN.FANTOM]: { factory: '0x991152411A7B5A14A8CF0cDDE8439435328070dF', start: '2021-04-19' },
@@ -1095,6 +1098,14 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: 'Swap fees distributed to LPs.',
   },
   "reservoir-tools-amm": {
+    Fees: 'Swap fees paid by users on each trade.',
+    UserFees: 'User pays fees on each swap.',
+    Revenue: 'Protocol has no revenue.',
+    ProtocolRevenue: 'Protocol has no revenue.',
+    SupplySideRevenue: 'All user fees are distributed among LPs.',
+    HoldersRevenue: 'Holders have no revenue.',
+  },
+  "shapeswap-v2": {
     Fees: 'Swap fees paid by users on each trade.',
     UserFees: 'User pays fees on each swap.',
     Revenue: 'Protocol has no revenue.',
