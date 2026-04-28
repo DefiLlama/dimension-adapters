@@ -40,9 +40,16 @@ const abi = {
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
 };
 
+const FEE_LABELS = {
+  ORDERBOOK: 'Orderbook Fees',
+  AMM: 'AMM Fees',
+};
+
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const ammFees = options.createBalances();
+  const orderbookFees = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
   const fpmmMarkets: any[] = [];
 
@@ -80,12 +87,14 @@ async function fetch(options: FetchOptions) {
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
     dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensBought);
+    ammFees.addToken(collateralToken, log.args.feeAmount);
   })
   sellLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
     dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensSold);
+    ammFees.addToken(collateralToken, log.args.feeAmount);
   })
 
   const orderMatchedLogs = await options.getLogs({
@@ -104,11 +113,14 @@ async function fetch(options: FetchOptions) {
 
   await addTokensReceived({
     options,
-    balances: dailyFees,
+    balances: orderbookFees,
     fromAdddesses: [contracts.CONDITIONAL_TOKENS, contracts.FEE_MODULE, contracts.FEE_MODULE_V2, contracts.FEE_MODULE_V3, contracts.WRAPPED_COLLATERAL_1,contracts.WRAPPED_COLLATERAL_2, contracts.WRAPPED_COLLATERAL_3, contracts.NEG_RISK_FEE_MODULE, contracts.NEG_RISK_FEE_MODULE_V2, contracts.NEG_RISK_FEE_MODULE_V3],
     target: contracts.FEE_RECIPIENT,
     token: ADDRESSES.base.USDC
   });
+
+  dailyFees.addBalances(orderbookFees, FEE_LABELS.ORDERBOOK);
+  dailyFees.addBalances(ammFees, FEE_LABELS.AMM);
 
   return {
     dailyVolume,
@@ -123,16 +135,32 @@ async function fetch(options: FetchOptions) {
 const methodology = {
   Volume: "Limitless exchange orderbook and fpmm volume",
   Fees: "Orderbook and fpmm fee post fee refunds",
-  Revenue: "Orderbook trading fee that goes to the protocol treasury",
-  ProtocolRevenue: "Orderbook trading fee that goes to the protocol treasury",
+  Revenue: "Orderbook and fpmm trading fees that go to the protocol treasury",
+  ProtocolRevenue: "Orderbook and fpmm trading fees that go to the protocol treasury",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees collected by the protocol fee modules post fee refunds",
+    [FEE_LABELS.AMM]: "FPMM (AMM) trading fees from FPMMBuy and FPMMSell events",
+  },
+  Revenue: {
+    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees that go to the protocol treasury",
+    [FEE_LABELS.AMM]: "FPMM (AMM) trading fees that go to the protocol treasury",
+  },
+  ProtocolRevenue: {
+    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees that go to the protocol treasury",
+    [FEE_LABELS.AMM]: "FPMM (AMM) trading fees that go to the protocol treasury",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   methodology,
+  breakdownMethodology,
   start: '2024-04-23'
 };
 
