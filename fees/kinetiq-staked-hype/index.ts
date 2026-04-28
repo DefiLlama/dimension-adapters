@@ -1,7 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
+
+const METRICS = {
+  StakingRewards: 'kHYPE Staking Rewards',
+  StakingRewardsToLPs: 'kHYPE Staking Rewards To Stakers',
+  PerformanceFees: 'kHYPE Performance Fees',
+  UnstakingFees: 'kHYPE Unstaking Fees',
+  TokenByBack: 'Token Buy Back',
+}
 
 const methodology = {
   Fees: 'Total unstaking fees and rewards from staked HYPE.',
@@ -13,22 +20,22 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.STAKING_REWARDS]: 'Total staking rewards from staked HYPE.',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    [METRICS.StakingRewards]: 'Total staking rewards from staked HYPE.',
+    [METRICS.UnstakingFees]: 'Total fees from 0.1% KHYPE unstaking fee.',
   },
   SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: 'All staking rewards distributed to HYPE stakers.',
+    [METRICS.StakingRewardsToLPs]: 'All staking rewards distributed to HYPE stakers.',
   },
   Revenue: {
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
-    [METRIC.PERFORMANCE_FEES]: 'Protocol takes 10% of staking rewards from 2026-04-09',
+    [METRICS.UnstakingFees]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    [METRICS.PerformanceFees]: 'Protocol takes 10% of staking rewards from 2026-04-09',
   },
   ProtocolRevenue: {
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
-    [METRIC.PERFORMANCE_FEES]: 'From 2026-04-09, 30% of performance fees (which is 10% staking rewards) are collected by protocol.',
+    [METRICS.UnstakingFees]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    [METRICS.PerformanceFees]: 'From 2026-04-09, 30% of performance fees (which is 10% staking rewards) are collected by protocol.',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'From 2026-04-09, 70% of performance fees (which is 10% staking rewards) are used to by back KNTQ.',
+    [METRICS.TokenByBack]: 'From 2026-04-09, 70% of performance fees (which is 10% staking rewards) are used to by back KNTQ.',
   }
 };
 
@@ -62,27 +69,28 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // https://x.com/Kinetiq_xyz/status/2041888848595021866
   if (options.startOfDay < 1775692800) {
-    dailyFees.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore), METRIC.STAKING_REWARDS);
-    dailySupplySideRevenue.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore), METRIC.STAKING_REWARDS);
+    dailyFees.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore), METRICS.StakingRewards);
+    dailySupplySideRevenue.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore), METRICS.StakingRewardsToLPs);
   
     const unstakingFees = await addTokensReceived({
       options,
       token: KHYPE,
       target: KHYPE_TREASURY,
     });
-    dailyFees.addBalances(unstakingFees, METRIC.DEPOSIT_WITHDRAW_FEES)
-    dailyRevenue.addBalances(unstakingFees, METRIC.DEPOSIT_WITHDRAW_FEES)
+    dailyFees.addBalances(unstakingFees, METRICS.UnstakingFees)
+    dailyRevenue.addBalances(unstakingFees, METRICS.UnstakingFees)
+    dailyProtocolRevenue.addBalances(unstakingFees, METRICS.UnstakingFees)
   } else {
     const yieldAfterFees = totalSupply * (exchangeRateAfter - exchangeRateBefore)
     const yieldTotal = yieldAfterFees / 0.9
     const protocolRevenue = yieldAfterFees * 0.3
     const holdersRevenue = yieldAfterFees * 0.7
     
-    dailyFees.addCGToken('hyperliquid', yieldTotal, METRIC.STAKING_REWARDS);
-    dailyRevenue.addCGToken('hyperliquid', yieldTotal - yieldAfterFees, METRIC.PERFORMANCE_FEES);
-    dailySupplySideRevenue.addCGToken('hyperliquid', yieldAfterFees, METRIC.STAKING_REWARDS);
-    dailyProtocolRevenue.addCGToken('hyperliquid', protocolRevenue, METRIC.PERFORMANCE_FEES);
-    dailyHoldersRevenue.addCGToken('hyperliquid', holdersRevenue, METRIC.TOKEN_BUY_BACK); 
+    dailyFees.addCGToken('hyperliquid', yieldTotal, METRICS.StakingRewards);
+    dailyRevenue.addCGToken('hyperliquid', yieldTotal - yieldAfterFees, METRICS.PerformanceFees);
+    dailySupplySideRevenue.addCGToken('hyperliquid', yieldAfterFees, METRICS.StakingRewardsToLPs);
+    dailyProtocolRevenue.addCGToken('hyperliquid', protocolRevenue, METRICS.PerformanceFees);
+    dailyHoldersRevenue.addCGToken('hyperliquid', holdersRevenue, METRICS.TokenByBack); 
   }
 
   return {
