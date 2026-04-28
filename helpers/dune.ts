@@ -6,6 +6,187 @@ import { elastic, log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 
+// ==================== Credit Tracking ====================
+
+export interface DuneQueryRecord {
+  queryId: string;
+  adapter: string;
+  chain?: string;
+  creditsUsed: number;
+  durationSeconds: number;
+  rowsReturned: number;
+  timestamp: number;
+  isBatched: boolean;
+  batchSize?: number;
+  executionId?: string;
+}
+
+export interface AdapterCreditSummary {
+  adapter: string;
+  totalCredits: number;
+  queryCount: number;
+  avgCreditsPerQuery: number;
+  avgDurationSeconds: number;
+  totalRows: number;
+}
+
+export interface DuneBillingPeriod {
+  start_date: string;
+  end_date: string;
+  credits_used: number;
+  credits_included: number;
+}
+
+export interface DuneUsageResponse {
+  billingPeriods: DuneBillingPeriod[];
+}
+
+export interface CreditReport {
+  generatedAt: number;
+  runStartedAt: number;
+  totalCreditsUsed: number;
+  totalQueryCount: number;
+  avgCreditsPerQuery: number;
+  topConsumers: AdapterCreditSummary[];
+  recentQueries: DuneQueryRecord[];
+  expensiveQueries: DuneQueryRecord[];
+}
+
+// In-memory credit tracker
+const _queryRecords: DuneQueryRecord[] = [];
+let _runStartedAt = Math.floor(Date.now() / 1000);
+let _totalCreditsThisRun = 0;
+
+// Adapter name context — set externally before running an adapter
+let _currentAdapterName = 'unknown';
+let _currentChain: string | undefined = undefined;
+
+const EXPENSIVE_CREDIT_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_CREDIT_THRESHOLD ?? 100);
+const EXPENSIVE_DURATION_THRESHOLD = Number(process.env.DUNE_EXPENSIVE_DURATION_THRESHOLD ?? 30);
+const MAX_CREDITS_PER_RUN = Number(process.env.DUNE_MAX_CREDITS_PER_RUN ?? Infinity);
+
+/** Set the current adapter context for credit attribution */
+export function setDuneAdapterContext(adapterName: string, chain?: string): void {
+  _currentAdapterName = adapterName;
+  _currentChain = chain;
+}
+
+function _recordQuery(record: DuneQueryRecord): void {
+  _queryRecords.push(record);
+  _totalCreditsThisRun += record.creditsUsed;
+
+  if (record.creditsUsed > EXPENSIVE_CREDIT_THRESHOLD || record.durationSeconds > EXPENSIVE_DURATION_THRESHOLD) {
+    console.warn(
+      `[Dune][EXPENSIVE] adapter=${record.adapter} queryId=${record.queryId} ` +
+      `credits=${record.creditsUsed} duration=${record.durationSeconds.toFixed(1)}s ` +
+      `rows=${record.rowsReturned} chain=${record.chain ?? 'N/A'}`
+    );
+  }
+}
+
+function _checkBudget(): void {
+  if (_totalCreditsThisRun >= MAX_CREDITS_PER_RUN) {
+    throw new Error(
+      `[Dune] Credit budget exceeded: ${_totalCreditsThisRun.toFixed(2)}/${MAX_CREDITS_PER_RUN} credits used`
+    );
+  }
+}
+
+/** Get total credits consumed in this run */
+export function getDuneCreditsUsedThisRun(): number {
+  return _totalCreditsThisRun;
+}
+
+/** Get raw query records */
+export function getDuneQueryRecords(): ReadonlyArray<DuneQueryRecord> {
+  return _queryRecords;
+}
+
+/** Reset tracker between runs */
+export function resetDuneCreditTracker(): void {
+  _queryRecords.length = 0;
+  _totalCreditsThisRun = 0;
+  _runStartedAt = Math.floor(Date.now() / 1000);
+}
+
+/** Generate a full credit report from in-memory data */
+export function generateDuneCreditReport(): CreditReport {
+  const adapterMap = new Map<string, DuneQueryRecord[]>();
+  for (const record of _queryRecords) {
+    if (!adapterMap.has(record.adapter)) adapterMap.set(record.adapter, []);
+    adapterMap.get(record.adapter)!.push(record);
+  }
+
+  const topConsumers: AdapterCreditSummary[] = [];
+  for (const [adapter, queries] of adapterMap.entries()) {
+    const totalCredits = queries.reduce((s, q) => s + q.creditsUsed, 0);
+    const totalDuration = queries.reduce((s, q) => s + q.durationSeconds, 0);
+    const totalRows = queries.reduce((s, q) => s + q.rowsReturned, 0);
+    topConsumers.push({
+      adapter,
+      totalCredits,
+      queryCount: queries.length,
+      avgCreditsPerQuery: queries.length > 0 ? totalCredits / queries.length : 0,
+      avgDurationSeconds: queries.length > 0 ? totalDuration / queries.length : 0,
+      totalRows,
+    });
+  }
+  topConsumers.sort((a, b) => b.totalCredits - a.totalCredits);
+
+  const expensiveQueries = _queryRecords
+    .filter(q => q.creditsUsed > EXPENSIVE_CREDIT_THRESHOLD || q.durationSeconds > EXPENSIVE_DURATION_THRESHOLD)
+    .sort((a, b) => b.creditsUsed - a.creditsUsed);
+
+  const totalCreditsUsed = _queryRecords.reduce((s, q) => s + q.creditsUsed, 0);
+
+  return {
+    generatedAt: Math.floor(Date.now() / 1000),
+    runStartedAt: _runStartedAt,
+    totalCreditsUsed,
+    totalQueryCount: _queryRecords.length,
+    avgCreditsPerQuery: _queryRecords.length > 0 ? totalCreditsUsed / _queryRecords.length : 0,
+    topConsumers: topConsumers.slice(0, 50),
+    recentQueries: _queryRecords.slice(-50).reverse(),
+    expensiveQueries: expensiveQueries.slice(0, 30),
+  };
+}
+
+/** Print a summary table to console */
+export function printDuneCreditSummary(): void {
+  const report = generateDuneCreditReport();
+  console.log('\n========== Dune Credit Usage Summary ==========');
+  console.log(`Total credits used: ${report.totalCreditsUsed.toFixed(2)}`);
+  console.log(`Total queries: ${report.totalQueryCount}`);
+  console.log(`Avg credits/query: ${report.avgCreditsPerQuery.toFixed(2)}`);
+  if (isFinite(MAX_CREDITS_PER_RUN)) {
+    console.log(`Budget: ${report.totalCreditsUsed.toFixed(2)} / ${MAX_CREDITS_PER_RUN} (${(report.totalCreditsUsed / MAX_CREDITS_PER_RUN * 100).toFixed(1)}%)`);
+  }
+  if (report.topConsumers.length > 0) {
+    console.log('\nTop 10 consumers by credits:');
+    console.table(
+      report.topConsumers.slice(0, 10).map(c => ({
+        adapter: c.adapter,
+        credits: c.totalCredits.toFixed(2),
+        queries: c.queryCount,
+        'avg credits': c.avgCreditsPerQuery.toFixed(2),
+        'avg duration(s)': c.avgDurationSeconds.toFixed(1),
+      }))
+    );
+  }
+  console.log('=================================================\n');
+}
+
+/** Fetch billing/usage data directly from Dune API (does not consume credits) */
+export async function getDuneCreditUsage(startDate?: string, endDate?: string): Promise<DuneUsageResponse> {
+  const body: any = {};
+  if (startDate) body.start_date = startDate;
+  if (endDate) body.end_date = endDate;
+  const { data } = await getAxiosDune().post('/usage', body);
+  return data;
+}
+
+// ==================== End Credit Tracking ====================
+
 let _axiosDune: any = null;
 
 // this wrapper is to ensure that secret is set before we try to use it
@@ -93,6 +274,12 @@ const batchedQueries = new Map<string, {
 
 
 export function queryDune(queryId: string, query_parameters: any, options: FetchOptions, { extraUIDKey = '' }: { extraUIDKey?: string } = {}) {
+  // Set adapter context from FetchOptions for credit attribution
+  if (options?.chain) _currentChain = options.chain;
+
+  // Enforce credit budget before executing
+  _checkBudget();
+
   const isBulkMode = getEnv('DUNE_BULK_MODE') === 'true'
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
@@ -180,8 +367,12 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 
 
 const _queryDune = async (queryId: string, query_parameters: any = {}) => {
+  const adapterName = _currentAdapterName;
+  const chain = _currentChain;
   const metadata: any = {
     application: "dune",
+    adapter: adapterName,
+    chain,
     query_parameters,
   }
   let success = false
@@ -198,13 +389,31 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
       const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
       success = true
       let endTime = +Date.now() / 1e3
+      const durationSeconds = endTime - startTime;
+
+      // Extract credits from Dune response metadata (if available)
+      const creditsUsed = (restMetadata as any)?.credits_used ?? (duneMetadata as any)?.credits_used ?? 0;
+
+      // Record query for credit tracking
+      _recordQuery({
+        queryId,
+        adapter: adapterName,
+        chain,
+        creditsUsed,
+        durationSeconds,
+        rowsReturned: rows?.length ?? 0,
+        timestamp: Math.floor(Date.now() / 1000),
+        isBatched: false,
+        executionId: execution_id,
+      });
 
       await elastic.addRuntimeLog({
-        runtime: endTime - startTime, success, metadata: {
+        runtime: durationSeconds, success, metadata: {
           ...restMetadata,
           ...duneMetadata,
           ...metadata,
           rows: rows?.length,
+          creditsUsed,
         },
       })
       return rows

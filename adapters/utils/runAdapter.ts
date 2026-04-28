@@ -6,6 +6,7 @@ import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 import { CHAIN } from '../../helpers/chains';
+import { setDuneAdapterContext } from '../../helpers/dune';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -248,6 +249,9 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
+      // Set Dune adapter context for credit attribution
+      setDuneAdapterContext(name ?? 'unknown', chain);
+
       const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
