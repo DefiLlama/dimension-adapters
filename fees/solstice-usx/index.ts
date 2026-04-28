@@ -4,22 +4,28 @@ import { getTokenSupply } from '../../helpers/solana';
 import fetchURL from "../../utils/fetchURL";
 
 const EUSX = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
-const PYTH_EUSX_REDEMPTION_PRICE_API = 'https://insights.pyth.network/historical-prices?symbol=Crypto.EUSX%2FUSX.RR';
+const PYTH_EUSX_REDEMPTION_PRICE_ID = 'f36e12e65d2969b242fb97d3ebaa32ec55d5794189b64d1a07dc4f41425c9378';
+const PYTH_HERMES_PRICE_API = 'https://hermes.pyth.network/v2/updates/price';
+
+const getRedemptionPrice = async (timestamp: number) => {
+  const response = await fetchURL(`${PYTH_HERMES_PRICE_API}/${timestamp}?ids%5B%5D=${PYTH_EUSX_REDEMPTION_PRICE_ID}`);
+  const pythPrice = response?.parsed?.[0]?.price;
+  const price = Number(pythPrice?.price);
+  const exponent = Number(pythPrice?.expo);
+
+  if (!Number.isFinite(price) || !Number.isInteger(exponent))
+    throw new Error(`Pyth Hermes returned invalid EUSX redemption price for ${timestamp}`);
+
+  return price * 10 ** exponent;
+};
 
 const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
-  const response = await fetchURL(`${PYTH_EUSX_REDEMPTION_PRICE_API}&from=${options.fromTimestamp}&to=${options.endTimestamp}&resolution=1H&cluster=pythnet`);
-
-  const prices = Array.isArray(response)
-    ? response.map((point: any) => Number(point?.price)).filter(Number.isFinite)
-    : [];
-
-  if (prices.length < 2)
-    throw new Error("Pyth API returned invalid response");
-
-  const priceYesterday = prices[0];
-  const priceToday = prices[prices.length - 1];
+  const [priceYesterday, priceToday] = await Promise.all([
+    getRedemptionPrice(options.fromTimestamp),
+    getRedemptionPrice(options.endTimestamp),
+  ]);
 
   const totalSupply = await getTokenSupply(EUSX)
   const dailyYield = (priceToday - priceYesterday) * totalSupply;
@@ -38,7 +44,6 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
 
 const adapters: SimpleAdapter = {
   version: 1,
-  deadFrom: '2026-04-13',
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-10-05',
