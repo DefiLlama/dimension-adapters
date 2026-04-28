@@ -24,8 +24,11 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
-    [METRIC.PERFORMANCE_FEES]: 'Protocol takes 10% of staking rewards from 2026-04-09',
+    [METRIC.PERFORMANCE_FEES]: 'From 2026-04-09, 30% of performance fees (which is 10% staking rewards) are collected by protocol.',
   },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'From 2026-04-09, 70% of performance fees (which is 10% staking rewards) are used to by back KNTQ.',
+  }
 };
 
 const KHYPE = '0xfD739d4e423301CE9385c1fb8850539D657C296D';
@@ -37,6 +40,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const exchangeRateBefore = await options.fromApi.call({
     target: KHYPE_STAKING_ACCOUNTANT,
@@ -69,17 +74,22 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   } else {
     const yieldAfterFees = totalSupply * (exchangeRateAfter - exchangeRateBefore)
     const yieldTotal = yieldAfterFees / 0.9
+    const protocolRevenue = yieldAfterFees * 0.3
+    const holdersRevenue = yieldAfterFees * 0.7
     
     dailyFees.addCGToken('hyperliquid', yieldTotal, METRIC.STAKING_REWARDS);
     dailyRevenue.addCGToken('hyperliquid', yieldTotal - yieldAfterFees, METRIC.PERFORMANCE_FEES);
     dailySupplySideRevenue.addCGToken('hyperliquid', yieldAfterFees, METRIC.STAKING_REWARDS);
+    dailyProtocolRevenue.addCGToken('hyperliquid', protocolRevenue, METRIC.PERFORMANCE_FEES);
+    dailyHoldersRevenue.addCGToken('hyperliquid', holdersRevenue, METRIC.TOKEN_BUY_BACK); 
   }
 
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 }
 
