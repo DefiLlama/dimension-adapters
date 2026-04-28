@@ -10,22 +10,23 @@ const pools = [
 ];
 
 const fetch = async (options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue } = await getSaddleVolume(options, pools);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getSaddleVolume(options, pools);
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(0.2),
     dailyHoldersRevenue: dailyRevenue.clone(0.8),
     dailySupplySideRevenue,
-    dailyVolume,
   };
 }
 
 const methodology = {
   Fees: "Ferro charges a 0.04% fee on all swaps",
   Revenue: "0.02% of swap volume goes to the protocol, with 0.016% distributed to token holders and 0.004% to the treasury",
+  ProtocolRevenue: '0.004% of swap volume goes to the protocol',
+  HoldersRevenue: '0.016% of swap volume goes to the token holders',
   SupplySideRevenue: "0.02% of swap volume is distributed to liquidity providers",
 };
 
@@ -49,6 +50,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.CRONOS],
   fetch,
   start: '2022-08-29',
