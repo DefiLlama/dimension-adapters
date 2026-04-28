@@ -81,6 +81,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: graphs(),
       start: '2021-09-01',
+      deadFrom: '2025-08-01',
     },
   },
   methodology: {
