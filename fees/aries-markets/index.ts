@@ -10,9 +10,6 @@ const USDCReserveKey = "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4
 
 const STABLE_COIN_DECIMAL = 6;
 const DAY_IN_YEARS = 365;
-const DAY_IN_SECONDS = 24 * 60 * 60;
-
-const getStartOfDay = (timestamp: number) => timestamp - (timestamp % DAY_IN_SECONDS);
 
 const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
   const input = encodeURIComponent(JSON.stringify({
@@ -25,17 +22,20 @@ const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
 
 const fetch = async (options: FetchOptions) => {
   const reserves = (await fetchURL(reserveURL)).result.data.stats;
-  const rateHistoryTimestamp = getStartOfDay(options.endTimestamp - DAY_IN_SECONDS);
 
   let df = 0;
   for (const reserveKey of [USDTReserveKey, USDCReserveKey]) {
-    const dayFeesQuery = (await fetchURL(getRateHistoryURL(rateHistoryTimestamp, reserveKey))).result.data[0];
+    const dayFeesQuery = (await fetchURL(getRateHistoryURL(options.startOfDay, reserveKey))).result.data[0];
 
     const matchingReserve = reserves.find(
       (reserve) => reserve.key === reserveKey
     );
-    const borrowApr = Number(dayFeesQuery?.borrowApr ?? 0);
-    const totalBorrowed = Number(matchingReserve?.value?.total_borrowed ?? 0);
+    const borrowApr = Number(dayFeesQuery?.borrowApr);
+    const totalBorrowed = Number(matchingReserve?.value?.total_borrowed);
+
+    if(isNaN(borrowApr) || isNaN(totalBorrowed)) {
+      throw new Error(`Invalid data for date ${options.dateString}`);
+    }
 
     df +=
       borrowApr *
