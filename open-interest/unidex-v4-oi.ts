@@ -24,12 +24,13 @@ const fetch = async (options: FetchOptions) => {
   `);
 
   const row = rows?.[0];
-  if (!row) return {};
 
   return {
-    openInterestAtEnd: row.openInterestUSD,
-    longOpenInterestAtEnd: row.longOpenInterestUSD,
-    shortOpenInterestAtEnd: row.shortOpenInterestUSD,
+    // A handful of datapoints have a negative value, so we guard against that
+    // by rounding those values up to zero
+    openInterestAtEnd: Math.max(0, row?.openInterestUSD ?? 0),
+    longOpenInterestAtEnd: Math.max(0, row?.longOpenInterestUSD ?? 0),
+    shortOpenInterestAtEnd: Math.max(0, row?.shortOpenInterestUSD ?? 0),
   };
 };
 
