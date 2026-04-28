@@ -78,7 +78,7 @@ const PROTOCOL_FEE_PAID_EVENT =
   "event ProtocolFeePaid(address indexed sender, uint256 fee)";
 
 const INTERCHAIN_FEE_LABEL = "Interchain Gas Payments";
-const PROTOCOL_FEE_LABEL = "Protocol Fees";
+const PROTOCOL_FEE_LABEL = "Protocol Fee Hook Fees";
 const REQUIRED_REGISTRY_KEYS = new Set(["interchainGasPaymaster", "protocolFee", "mailbox"]);
 
 // Standard zeroed response used whenever a chain is unsupported, pre-index,
@@ -215,7 +215,10 @@ async function getRegistry() {
       ).length;
       if (!parsedCandidateCount) throw new Error("Failed to parse any Hyperlane candidate chains from addresses.yaml");
       return parsed;
-    })();
+    })().catch((error) => {
+      registryPromise = null;
+      throw error;
+    });
   }
 
   return registryPromise;
@@ -229,7 +232,10 @@ async function getMetadata() {
       const parsed = parseMetadata(data);
       if (!Object.keys(parsed).length) throw new Error("Failed to parse Hyperlane metadata.yaml");
       return parsed;
-    })();
+    })().catch((error) => {
+      metadataPromise = null;
+      throw error;
+    });
   }
 
   return metadataPromise;
