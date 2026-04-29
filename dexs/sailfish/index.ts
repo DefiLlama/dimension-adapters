@@ -18,7 +18,7 @@ const v3Graphs = getGraphDimensions2({
     HoldersRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
     SupplySideRevenue: 50, // 50% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
+    Revenue: 50 // Revenue is 50% of collected fees
   }
 });
 
