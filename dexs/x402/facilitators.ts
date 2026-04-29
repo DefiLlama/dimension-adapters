@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains"
 
 // source: https://github.com/Merit-Systems/x402scan/tree/main/packages/external/facilitators/src/facilitators
+// https://dune.com/queries/6054244
 
 export const facilitators: Record<string, string[]> = {
     "EVM": [
@@ -135,6 +136,10 @@ export const facilitators: Record<string, string[]> = {
         "0xc19829b32324f116ee7f80d193f99e445968499a",
         // xecho
         "0x3be45f576696a2fd5a93c1330cd19f1607ab311d",
+        // b402
+        "0x26e824C08a4547aB90FBD761Fb80065f7e68768e",
+        // pieverse
+        "0x12343e649e6b2b2b77649dfab88f103c02f3c78b",
     ],
     [CHAIN.SOLANA]: [
         // anyspend
