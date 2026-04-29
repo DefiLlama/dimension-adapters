@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const [fees, liquidityRewards, holdingRewards, liquidityRewardsForUsdcWrapping, holdingRewardsForUsdcWrapping] = await Promise.all([
+  const [fees, liquidityRewards, holdingRewards, liquidityDistributorUsdcToPusdWrapping, holdingDistributorUsdcToPusdWrapping] = await Promise.all([
     addTokensReceived({
       options,
       fromAdddesses: [POLYMARKET_ADDRESSES.v1.FeeModule, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleOld, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleNew, POLYMARKET_ADDRESSES.v1.Ctf, POLYMARKET_ADDRESSES.v1.NegRiskCtf, POLYMARKET_ADDRESSES.v1.WrappedCollateral,
@@ -88,9 +88,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   makerRebatesFees.subtract(outFlowToProtocolOrWrapping);
 
   const netLiquidityRewards = liquidityRewards.clone();
-  netLiquidityRewards.subtract(liquidityRewardsForUsdcWrapping);
+  netLiquidityRewards.subtract(liquidityDistributorUsdcToPusdWrapping);
   const netHoldingRewards = holdingRewards.clone();
-  netHoldingRewards.subtract(holdingRewardsForUsdcWrapping);
+  netHoldingRewards.subtract(holdingDistributorUsdcToPusdWrapping);
 
   const revenueFromTakerFees = fees.clone();
 
