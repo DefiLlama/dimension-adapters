@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: number, _b: any, options: FetchOptions) => {
   const rows = await queryDuneSql(options, `
     WITH openInterestChanges AS (
       SELECT *
@@ -35,7 +35,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   chains: [CHAIN.ARBITRUM],
   fetch,
   start: '2024-09-20',
