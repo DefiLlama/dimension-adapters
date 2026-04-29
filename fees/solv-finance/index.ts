@@ -168,9 +168,6 @@ async function fees(options: FetchOptions, contracts: any) {
 
     // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
     let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
-    if (fee.lte(BigNumber(0))) {
-      fee = BigNumber(0);
-    }
 
     dailyFees.add(poolBaseInfo.currency, fee.toNumber(), METRIC.STAKING_REWARDS);
     dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber(), METRIC.STAKING_REWARDS);
@@ -297,7 +294,7 @@ const breakdownMethodology = {
   },
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, methodology, breakdownMethodology };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, methodology, breakdownMethodology, allowNegativeValue: true };
 
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter![chain] = {
