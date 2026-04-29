@@ -1,4 +1,5 @@
 import { queryAllium } from "../helpers/allium";
+import PromisePool from "@supercharge/promise-pool";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
@@ -61,19 +62,34 @@ type BlockscoutStatsChartItem = {
     value: string,
 }
 
+function getBlockscoutChart(data: any, baseUrl: string, from: string, metric: string) {
+    if (!Array.isArray(data?.chart))
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    return data.chart as BlockscoutStatsChartItem[]
+}
+
 // Blockscout stats-service exposes daily tx, active account, and new account series.
 function getBlockscoutUsersChain(baseUrl: string) {
     return async (start: number, end: number) => {
         const from = toDateString(start)
         const to = toDateString(end - 1)
 
-        const [txData, userData] = await Promise.all([
-            httpGet(`${baseUrl}/stats-service/api/v1/lines/newTxns?from=${from}&to=${to}&resolution=DAY`),
-            httpGet(`${baseUrl}/stats-service/api/v1/lines/activeAccounts?from=${from}&to=${to}&resolution=DAY`),
-        ])
+        const { results, errors } = await PromisePool.withConcurrency(2).for([
+            { key: "tx", url: `${baseUrl}/stats-service/api/v1/lines/newTxns?from=${from}&to=${to}&resolution=DAY` },
+            { key: "users", url: `${baseUrl}/stats-service/api/v1/lines/activeAccounts?from=${from}&to=${to}&resolution=DAY` },
+        ]).process(async ({ key, url }) => ({ key, data: await httpGet(url) }))
 
-        const txPoint = (txData.chart as BlockscoutStatsChartItem[]).find((item) => item.date === from)
-        const userPoint = (userData.chart as BlockscoutStatsChartItem[]).find((item) => item.date === from)
+        if (errors.length)
+            throw errors[0]
+
+        const dataByKey = Object.fromEntries((results as { key: string, data: any }[]).map(({ key, data }) => [key, data]))
+        const txData = dataByKey.tx
+        const userData = dataByKey.users
+        const txChart = getBlockscoutChart(txData, baseUrl, from, "stats")
+        const userChart = getBlockscoutChart(userData, baseUrl, from, "stats")
+        const txPoint = txChart.find((item) => item.date === from)
+        const userPoint = userChart.find((item) => item.date === from)
         const txcount = Number(txPoint?.value)
         const usercount = Number(userPoint?.value)
 
@@ -94,7 +110,8 @@ function getBlockscoutNewUsersChain(baseUrl: string) {
         const to = toDateString(end - 1)
 
         const newUserData = await httpGet(`${baseUrl}/stats-service/api/v1/lines/newAccounts?from=${from}&to=${to}&resolution=DAY`)
-        const newUserPoint = (newUserData.chart as BlockscoutStatsChartItem[]).find((item) => item.date === from)
+        const newUserChart = getBlockscoutChart(newUserData, baseUrl, from, "new users")
+        const newUserPoint = newUserChart.find((item) => item.date === from)
         const usercount = Number(newUserPoint?.value)
 
         if (!newUserPoint || !Number.isFinite(usercount))
