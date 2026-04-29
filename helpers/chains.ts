@@ -366,4 +366,5 @@ export enum CHAIN {
   KUSAMA = "kusama",
   ROBONOMICS = "robonomics",
   DARWINIA = "darwinia",
+  DANGO = "dango",
 }
