@@ -42,7 +42,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
   }
 }
 
@@ -59,7 +59,7 @@ const adapter: Adapter = {
     Revenue: '5% staking rewards are charged by Swell Protocol Treasury.',
     SupplySideRevenue: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
     ProtocolRevenue: '5% staking rewards are charged by Swell Protocol Treasury.',
-    HoldersRevenue: 'No revenue share to SWELL token holders.',
+    HoldersRevenue: 'Protocol revenue (5% of staking yield) is allocated to SWELL buybacks via auctions. This is used as a proxy for value returned to token holders.',
   },
 };
 
