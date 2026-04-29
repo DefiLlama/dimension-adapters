@@ -33,11 +33,11 @@ async function potatoswapV3CustomLogic({ pairObject, dailyVolume, dailyFees, fil
   if (!pools.length) {
     return {
       dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue: dailyFees,
+      dailyFees: dailyFees.clone(1, 'Trading fees'),
+      dailyUserFees: dailyFees.clone(1, 'Trading fees'),
+      dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+      dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+      dailySupplySideRevenue: dailyFees.clone(1, 'LP fees'),
     }
   }
 
@@ -72,7 +72,7 @@ async function potatoswapV3CustomLogic({ pairObject, dailyVolume, dailyFees, fil
 
   return {
     dailyVolume,
-    dailyFees,
+    dailyFees: dailyFees.clone(1, 'Trading fees'),
     dailyUserFees: dailyFees.clone(1, 'Trading fees'),
     dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
     dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),
@@ -109,11 +109,11 @@ async function potatoswapV3Fetch(options: FetchOptions) {
   if (!poolAddresses.length) {
     return {
       dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue: dailyFees,
+      dailyFees: dailyFees.clone(1, 'Trading fees'),
+      dailyUserFees: dailyFees.clone(1, 'Trading fees'),
+      dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+      dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+      dailySupplySideRevenue: dailyFees.clone(1, 'LP fees'),
     }
   }
 
@@ -164,7 +164,7 @@ async function potatoswapV3Fetch(options: FetchOptions) {
 
   return {
     dailyVolume,
-    dailyFees,
+    dailyFees: dailyFees.clone(1, 'Trading fees'),
     dailyUserFees: dailyFees.clone(1, 'Trading fees'),
     dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
     dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),

@@ -9,6 +9,22 @@ const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed t
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
+function potatoswapV2CustomLogic({ dailyVolume, dailyFees }: { dailyVolume: any, dailyFees: any }) {
+  const dailyRevenue = dailyFees.clone(0.08 / 0.25, 'Protocol fees')
+  const dailySupplySideRevenue = dailyFees.clone(0.17 / 0.25, 'LP fees')
+  const dailyHoldersRevenue = dailyFees.clone(0.08 / 0.25, 'Tokenholder fees')
+
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, 'Trading fees'),
+    dailyUserFees: dailyFees.clone(1, 'Trading fees'),
+    dailyRevenue,
+    dailyProtocolRevenue: dailyFees.clone(0, 'Protocol fees'),
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+  }
+}
+
 const configs: Record<string, Record<string, any>> = {
   "katana": {
     [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
@@ -1131,10 +1147,7 @@ const feesConfigs: Record<string, Record<string, any>> = {
       start: '2024-04-23',
       fees: 0.003,
       allowReadPairs: true,
-      userFeesRatio: 1,
-      revenueRatio: 0.08 / 0.25,
-      protocolRevenueRatio: 0,
-      holdersRevenueRatio: 0.08 / 0.25,
+      customLogic: potatoswapV2CustomLogic,
     },
   },
   "merchant-moe-dex": {
