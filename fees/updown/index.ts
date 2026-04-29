@@ -81,7 +81,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     dailyFees: { position: "Borrowing + position fees", swap: "Receiver + pool swap fees" },
     dailyRevenue: { position: "Position fees net of pool share", swap: "Receiver share" },
-    ailySupplySideRevenue: { positionPool: "Position fee share to pool", swapPool: "Swap fee share to pool" }
+    dailySupplySideRevenue: { positionPool: "Position fee share to pool", swapPool: "Swap fee share to pool" }
   },
   adapter: {
     [CHAIN.CELO]: { fetch: fetchFees, start: 1769588096 },
