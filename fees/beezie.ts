@@ -48,7 +48,7 @@ const config: Record<
     factoryStartBlock: 40451500,
     bidRouter: "0x80d7C04B738eF379971a6b73f25B1A71ea1c820D",
     version: "v2",
-    start: "2025-01-06",
+    start: "2026-01-06",
     paymentTokens: ["0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"], // USDC
   },
   //flow doesnt have a good rpc to go back this long
