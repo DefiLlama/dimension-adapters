@@ -17,19 +17,39 @@ type StatsResponse = {
 };
 
 const fetch: FetchV2 = async () => {
-  const data = await httpGet(STATS_URL) as StatsResponse;
+  const data = await httpGet(STATS_URL) as Partial<StatsResponse>;
+  const timestamp = Number(data?.timestamp);
+  const dailyVolume = Number(data?.volume?.totalUsd);
+  const openInterest = Number(data?.openInterest?.totalUsd);
+
+  if (!Number.isFinite(timestamp)) {
+    throw new Error("Bulk Trade stats payload missing/invalid timestamp");
+  }
 
   // Bulk's stats endpoint is a live 24h rolling snapshot, so we only trust it
   // when the server timestamp is recent.
-  if (Math.abs(Date.now() - data.timestamp) > ONE_DAY_MS) {
+  if (Math.abs(Date.now() - timestamp) > ONE_DAY_MS) {
     throw new Error("Bulk Trade stats are stale (older than 24h)");
+  }
+
+  if (!Number.isFinite(dailyVolume) || !Number.isFinite(openInterest)) {
+    console.error("Bulk Trade stats payload missing/invalid numeric fields", {
+      dailyVolume: data?.volume?.totalUsd,
+      openInterest: data?.openInterest?.totalUsd,
+      timestamp,
+    });
+
+    return {
+      dailyVolume: 0,
+      openInterestAtEnd: 0,
+    };
   }
 
   return {
     // The API returns exchange-wide USD volume for the trailing 24h window.
-    dailyVolume: data.volume?.totalUsd ?? 0,
+    dailyVolume,
     // Open interest is already normalized to total USD notional.
-    openInterestAtEnd: data.openInterest?.totalUsd ?? 0,
+    openInterestAtEnd: openInterest,
   };
 };
 
@@ -43,7 +63,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.OFF_CHAIN]: {
       fetch,
       runAtCurrTime: true,
-      start: "2025-12-01",
+      start: "2026-03-16",
     },
   },
   methodology: {
