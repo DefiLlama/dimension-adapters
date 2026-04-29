@@ -25,8 +25,8 @@ const fetch = async (options: FetchOptions) => {
   const params = paramsRes?.data?.queryApp?.wasm_smart;
   const protocolFeeRate = Number(params?.protocol_fee_rate);
 
-  if (!Number.isFinite(protocolFeeRate)) {
-    console.error("Missing protocol_fee_rate");
+  if (!Number.isFinite(protocolFeeRate) || protocolFeeRate < 0 || protocolFeeRate > 1) {
+    console.error(`Invalid protocol_fee_rate: ${params?.protocol_fee_rate}`);
     return {
       dailyFees,
       dailyRevenue,
@@ -35,7 +35,6 @@ const fetch = async (options: FetchOptions) => {
     };
   }
 
-  // paginate order_filled events newest-first
   let totalFees = 0;
   let before: string | null = null;
   let page = 0;
@@ -100,7 +99,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.DANGO],
-  start: "2026-04-08",
+  start: "2026-04-07",
   fetch,
   methodology: {
     Fees: "Actual trading fees from order_filled events (taker + maker) across all Dango perp markets.",
