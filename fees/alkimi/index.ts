@@ -8,10 +8,9 @@ const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptio
   const url = `https://api.alkimi.org/api/v1/public/data?startDate=${dateString}&endDate=${dateString}`;
   const resp = await axios.get(url);
   const entry = resp.data?.data?.[0];
-  if (!entry)
-    throw new Error(`No Alkimi revenue data found for ${dateString}`);
+  if (!entry) return {}; // data not yet available (API has 1-2 day lag)
 
-  const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
+  const revenueUsd = parseFloat(entry.alkimiRevenueInUSD || "0");
 
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();
