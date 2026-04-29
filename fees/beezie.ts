@@ -220,7 +220,7 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   skipBreakdownValidation: true,
-  //pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: config,
 };
