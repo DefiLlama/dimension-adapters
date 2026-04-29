@@ -51,14 +51,15 @@ const config: Record<
     start: "2025-02-01",
     paymentTokens: ["0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"], // USDC
   },
-  [CHAIN.FLOW]: {
-    factory: "0xde545660B5EeA686286b578F7491C7E5CEeaf895",
-    factoryStartBlock: 12572646,
-    bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
-    version: "v1",
-    start: "2024-11-01",
-    paymentTokens: ["0xd3bF53DAC106A0290B0483EcBC89d40FcC961f3e"], // PYUSD
-  },
+  //flow doesnt have a good rpc to go back this long
+  // [CHAIN.FLOW]: {
+  //   factory: "0xde545660B5EeA686286b578F7491C7E5CEeaf895",
+  //   factoryStartBlock: 12572646,
+  //   bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
+  //   version: "v1",
+  //   start: "2024-11-01",
+  //   paymentTokens: ["0xd3bF53DAC106A0290B0483EcBC89d40FcC961f3e"], // PYUSD
+  // },
 };
 
 // --- Fetch Logic ---
