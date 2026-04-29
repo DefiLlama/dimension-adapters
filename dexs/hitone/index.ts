@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { getFetch } from "../worldinc-perps/worldinc"
 
 const STATS_URL = "https://api.hit.one/api/public/stats/defillama"
 
@@ -19,14 +20,16 @@ const fetch = async (options: FetchOptions) => {
         throw new Error(`Missing data in Hit One stats response for date ${options.dateString}`)
     }
 
-    const dailyVolume = options.createBalances()
     const dailyFees = options.createBalances()
 
-    dailyVolume.addUSDValue(Number(data.volumeUsd))
     dailyFees.addUSDValue(Number(data.feesUsd))
 
+    // trades on HitOne will be set to World Markets with buyer/seller id 542
+    const fetchAdapter = getFetch('PERPS', 542);
+    const results = await fetchAdapter(options);
+  
     return {
-        dailyVolume,
+        dailyVolume: results.dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: dailyFees,
