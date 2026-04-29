@@ -84,6 +84,20 @@ export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainMetricConfig> = {
   merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250 },
 };
 
+const methodology = {
+  Fees: "Transaction gas fees paid by users.",
+  Revenue: "Transaction gas fees paid by users, reported as chain revenue for chain-level fee adapters.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRANSACTION_GAS_FEES]: "Sum of gasUsed multiplied by effectiveGasPrice, or legacy gasPrice when effectiveGasPrice is unavailable, across all receipts in the day window.",
+  },
+  Revenue: {
+    [METRIC.TRANSACTION_GAS_FEES]: "Same transaction gas fee total reported as chain revenue.",
+  },
+};
+
 /**
  * Splits an inclusive block range into deterministic chunks for batch RPC processing.
  */
@@ -132,6 +146,9 @@ export function hydrateReceiptsWithTransactions(receipts: ReceiptLike[], transac
   });
 }
 
+/**
+ * Aggregates receipt metrics while keeping the user set for later chunk merges.
+ */
 function getReceiptMetricsAccumulator(receipts: Array<ReceiptLike | null | undefined>): EvmChainMetricsAccumulator {
   const users = new Set<string>();
   let totalFeesWei = 0n;
@@ -181,6 +198,9 @@ export async function fetchEvmChainMetrics(config: EvmChainMetricConfig & BlockR
   return toPublicMetrics(totals);
 }
 
+/**
+ * Retrieves all receipts for a block chunk using the fastest safe RPC path.
+ */
 async function getBlockRangeReceipts(config: EvmChainMetricConfig, chunk: BlockRange): Promise<ReceiptLike[]> {
   const blocks: number[] = [];
   for (let block = chunk.fromBlock; block <= chunk.toBlock; block++) blocks.push(block);
@@ -203,6 +223,9 @@ async function getBlockRangeReceipts(config: EvmChainMetricConfig, chunk: BlockR
   return getTransactionReceiptsFallbackForBlocks(config, blocks);
 }
 
+/**
+ * Falls back to per-block receipt loading when an RPC supports single calls but rejects a batch.
+ */
 async function getBlockReceiptsIndividually(config: EvmChainMetricConfig, blocks: number[]): Promise<ReceiptLike[]> {
   const { results, errors } = await PromisePool
     .withConcurrency(config.blockConcurrency ?? DEFAULT_BLOCK_CONCURRENCY)
@@ -213,6 +236,9 @@ async function getBlockReceiptsIndividually(config: EvmChainMetricConfig, blocks
   return results.flat();
 }
 
+/**
+ * Loads a chunk of block receipts using a single JSON-RPC batch request.
+ */
 async function getBatchBlockReceipts(config: EvmChainMetricConfig, blocks: number[]): Promise<ReceiptLike[][]> {
   const receipts = await sendFirstRpcBatch(config, "eth_getBlockReceipts", blocks.map((block) => [toHex(block)]));
   if (!receipts.every(Array.isArray)) {
@@ -221,6 +247,9 @@ async function getBatchBlockReceipts(config: EvmChainMetricConfig, blocks: numbe
   return receipts as ReceiptLike[][];
 }
 
+/**
+ * Loads receipts through block transaction hashes when eth_getBlockReceipts is unavailable.
+ */
 async function getTransactionReceiptsFallbackForBlocks(config: EvmChainMetricConfig, blocks: number[]): Promise<ReceiptLike[]> {
   const hashesByBlock = await getBlockTransactionHashesBatch(config, blocks);
   const hashes = hashesByBlock.flat();
@@ -242,6 +271,9 @@ async function getTransactionReceiptsFallbackForBlocks(config: EvmChainMetricCon
   return hydrateReceiptsBatchIfNeeded(config, nonNullReceipts);
 }
 
+/**
+ * Fetches transaction hashes for each block in a chunk through batched eth_getBlockByNumber calls.
+ */
 async function getBlockTransactionHashesBatch(config: EvmChainMetricConfig, blocks: number[]): Promise<string[][]> {
   const rpcBlocks = await sendFirstRpcBatch(config, "eth_getBlockByNumber", blocks.map((block) => [toHex(block), false]));
   return rpcBlocks.map((rpcBlock) => (rpcBlock?.transactions ?? [])
@@ -249,6 +281,9 @@ async function getBlockTransactionHashesBatch(config: EvmChainMetricConfig, bloc
     .filter(Boolean));
 }
 
+/**
+ * Hydrates missing sender or fee-price receipt fields using batched transaction lookups.
+ */
 async function hydrateReceiptsBatchIfNeeded(config: EvmChainMetricConfig, receipts: ReceiptLike[]): Promise<ReceiptLike[]> {
   if (receipts.every((receipt) => receipt?.from && hasFeePrice(receipt))) return receipts;
 
@@ -283,27 +318,26 @@ export async function fetchEvmChainMetricsFromOptions(options: FetchOptions, con
  */
 export function createEvmChainFeesAdapter(config: EvmChainMetricConfig): SimpleAdapter {
   return {
-    version: 1,
+    version: 2,
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
-    chains: [
-      [config.chain, {
-        start: config.start,
-        fetch: async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
-          const metrics = await fetchEvmChainMetricsFromOptions(options, config);
-          const dailyFees = options.createBalances();
+    chains: [config.chain],
+    start: config.start,
+    methodology,
+    breakdownMethodology,
+    fetch: async (options: FetchOptions) => {
+      const metrics = await fetchEvmChainMetricsFromOptions(options, config);
+      const dailyFees = options.createBalances();
 
-          dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
+      dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
 
-          return {
-            dailyFees,
-            dailyRevenue: dailyFees,
-            dailyTransactionsCount: metrics.transactionCount,
-            dailyGasUsed: metrics.totalGasUsed.toString(),
-          };
-        },
-      }],
-    ],
+      return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyTransactionsCount: metrics.transactionCount,
+        dailyGasUsed: metrics.totalGasUsed.toString(),
+      };
+    },
   };
 }
 
@@ -328,6 +362,9 @@ export function createEvmChainUsersFetcher(config: EvmChainMetricConfig) {
   };
 }
 
+/**
+ * Loads receipts for a single block with block-receipt support detection.
+ */
 async function getBlockReceipts(config: EvmChainMetricConfig, block: number): Promise<ReceiptLike[]> {
   const blockHex = toHex(block);
 
@@ -349,6 +386,9 @@ async function getBlockReceipts(config: EvmChainMetricConfig, block: number): Pr
   return getTransactionReceiptsFallback(config, block);
 }
 
+/**
+ * Single-block fallback used when batched paths cannot be used for a block.
+ */
 async function getTransactionReceiptsFallback(config: EvmChainMetricConfig, block: number): Promise<ReceiptLike[]> {
   const hashes = await getBlockTransactionHashes(config, block);
 
@@ -367,6 +407,9 @@ async function getTransactionReceiptsFallback(config: EvmChainMetricConfig, bloc
   return hydrateReceiptsIfNeeded(config, block, receipts);
 }
 
+/**
+ * Reads transaction hashes from one block without hydrating full transactions.
+ */
 async function getBlockTransactionHashes(config: EvmChainMetricConfig, block: number): Promise<string[]> {
   const rpcBlock = await sendFirstRpc(config, "eth_getBlockByNumber", [toHex(block), false]);
   return (rpcBlock?.transactions ?? [])
@@ -374,6 +417,9 @@ async function getBlockTransactionHashes(config: EvmChainMetricConfig, block: nu
     .filter(Boolean);
 }
 
+/**
+ * Hydrates receipts for a single block when the receipt payload is missing sender or fee price.
+ */
 async function hydrateReceiptsIfNeeded(config: EvmChainMetricConfig, block: number, receipts: ReceiptLike[]): Promise<ReceiptLike[]> {
   if (receipts.every((receipt) => receipt?.from && hasFeePrice(receipt))) return receipts;
   const rpcBlock = await sendFirstRpc(config, "eth_getBlockByNumber", [toHex(block), true]);
@@ -402,6 +448,9 @@ async function hydrateReceiptsIfNeeded(config: EvmChainMetricConfig, block: numb
   );
 }
 
+/**
+ * Fetches one transaction receipt with provider retries before falling back to raw RPC senders.
+ */
 async function getTransactionReceipt(config: EvmChainMetricConfig, txHash: string): Promise<ReceiptLike | null> {
   const provider = getMetricProvider(config);
 
@@ -410,23 +459,32 @@ async function getTransactionReceipt(config: EvmChainMetricConfig, txHash: strin
       provider.getTransactionReceipt(txHash),
       config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
       `${config.chain} getTransactionReceipt`,
-    ).catch(() => null);
+    ).catch((error) => {
+      if (attempt === 2) logRpcFailure(config, "getTransactionReceipt", txHash, error, `attempt ${attempt + 1}`);
+      return null;
+    });
     if (receipt) return receipt as ReceiptLike;
     await sleep(250 * (attempt + 1));
   }
 
-  for (const sender of getRpcSenders(config)) {
+  for (const [index, sender] of getRpcSenders(config).entries()) {
     const receipt = await withTimeout(
       sender.send("eth_getTransactionReceipt", [txHash]),
       config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
       `${config.chain} eth_getTransactionReceipt`,
-    ).catch(() => null);
+    ).catch((error) => {
+      logRpcFailure(config, "eth_getTransactionReceipt", txHash, error, sender.url ?? `sender:${index}`);
+      return null;
+    });
     if (receipt) return receipt as ReceiptLike;
   }
 
   return null;
 }
 
+/**
+ * Fetches one transaction with provider retries before falling back to raw RPC senders.
+ */
 async function getTransaction(config: EvmChainMetricConfig, txHash: string): Promise<TransactionLike | null> {
   const provider = getMetricProvider(config);
 
@@ -435,23 +493,32 @@ async function getTransaction(config: EvmChainMetricConfig, txHash: string): Pro
       provider.getTransaction(txHash),
       config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
       `${config.chain} getTransaction`,
-    ).catch(() => null);
+    ).catch((error) => {
+      if (attempt === 2) logRpcFailure(config, "getTransaction", txHash, error, `attempt ${attempt + 1}`);
+      return null;
+    });
     if (transaction) return transaction as TransactionLike;
     await sleep(250 * (attempt + 1));
   }
 
-  for (const sender of getRpcSenders(config)) {
+  for (const [index, sender] of getRpcSenders(config).entries()) {
     const transaction = await withTimeout(
       sender.send("eth_getTransactionByHash", [txHash]),
       config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
       `${config.chain} eth_getTransactionByHash`,
-    ).catch(() => null);
+    ).catch((error) => {
+      logRpcFailure(config, "eth_getTransactionByHash", txHash, error, sender.url ?? `sender:${index}`);
+      return null;
+    });
     if (transaction) return transaction as TransactionLike;
   }
 
   return null;
 }
 
+/**
+ * Sends a single RPC call through healthy senders, preferring the last successful endpoint.
+ */
 async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params: any[]) {
   const senders = getOrderedRpcSenders(config, method);
   let lastError: any;
@@ -476,6 +543,9 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
   throw methodUnavailableError ?? lastError ?? new Error(`No RPC sender available for ${config.chain}`);
 }
 
+/**
+ * Sends one JSON-RPC batch through healthy URL-backed senders.
+ */
 async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, paramsList: any[][]): Promise<any[]> {
   if (!paramsList.length) return [];
 
@@ -502,6 +572,9 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
   throw methodUnavailableError ?? lastError ?? new Error(`No batch JSON-RPC sender available for ${config.chain}`);
 }
 
+/**
+ * Splits large batch inputs into endpoint-friendly chunks.
+ */
 async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string, paramsList: any[][], chunkSize: number): Promise<any[]> {
   const chunks: any[][][] = [];
   for (let i = 0; i < paramsList.length; i += chunkSize) {
@@ -515,6 +588,9 @@ async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string
   return results;
 }
 
+/**
+ * Executes batch-shaped work through individual RPC calls when no batch URL is available.
+ */
 async function sendRpcBatchViaSingleCalls(config: EvmChainMetricConfig, method: string, paramsList: any[][]): Promise<any[]> {
   const { results, errors } = await PromisePool
     .withConcurrency(config.blockConcurrency ?? DEFAULT_BLOCK_CONCURRENCY)
@@ -525,6 +601,9 @@ async function sendRpcBatchViaSingleCalls(config: EvmChainMetricConfig, method: 
   return results;
 }
 
+/**
+ * Posts a JSON-RPC batch and returns results ordered to match the original request list.
+ */
 async function sendHttpRpcBatch(config: EvmChainMetricConfig, sender: RpcSender, method: string, paramsList: any[][]): Promise<any[]> {
   if (!sender.url) throw new Error(`No batch JSON-RPC URL available for ${config.chain}`);
 
@@ -551,6 +630,9 @@ async function sendHttpRpcBatch(config: EvmChainMetricConfig, sender: RpcSender,
   });
 }
 
+/**
+ * Sends the HTTP request for a JSON-RPC batch with timeout and JSON validation.
+ */
 async function postJsonRpcBatch(url: string, requests: any[], timeoutMs: number, label: string): Promise<any> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -584,6 +666,9 @@ async function postJsonRpcBatch(url: string, requests: any[], timeoutMs: number,
   }
 }
 
+/**
+ * Normalizes one failed JSON-RPC batch item into an Error.
+ */
 function createRpcBatchError(url: string, method: string, error: any) {
   const message = JSON.stringify(error?.error ?? error?.message ?? error);
   const rpcError = new Error(`${method} failed on ${url}: ${message}`);
@@ -591,10 +676,16 @@ function createRpcBatchError(url: string, method: string, error: any) {
   return rpcError;
 }
 
+/**
+ * Returns the injected provider for tests or the SDK provider for production runs.
+ */
 function getMetricProvider(config: EvmChainMetricConfig): ProviderLike {
   return config.provider ?? getProvider(config.chain);
 }
 
+/**
+ * Collects JSON-RPC senders from explicit config or the SDK provider RPC list.
+ */
 function getRpcSenders(config: EvmChainMetricConfig): RpcSender[] {
   if (config.rpcSenders?.length) return config.rpcSenders;
 
@@ -610,6 +701,9 @@ function getRpcSenders(config: EvmChainMetricConfig): RpcSender[] {
   return senders;
 }
 
+/**
+ * Orders senders by cached health for the specific chain and RPC method.
+ */
 function getOrderedRpcSenders(config: EvmChainMetricConfig, method: string, requireUrl = false) {
   const senders = getRpcSenders(config)
     .map((sender, index) => ({
@@ -629,20 +723,32 @@ function getOrderedRpcSenders(config: EvmChainMetricConfig, method: string, requ
   return [...candidates].sort((left, right) => Number(right.key === preferred) - Number(left.key === preferred));
 }
 
+/**
+ * Creates a stable cache key for one RPC sender.
+ */
 function getRpcSenderKey(sender: RpcSender, index: number) {
   return sender.url ?? `sender:${index}`;
 }
 
+/**
+ * Creates a cache namespace for one chain and RPC method.
+ */
 function getRpcMethodCacheKey(config: EvmChainMetricConfig, method: string) {
   return `${config.chain}:${method}`;
 }
 
+/**
+ * Marks a sender as preferred after a successful call.
+ */
 function markRpcSenderSuccess(config: EvmChainMetricConfig, method: string, key: string) {
   const cacheKey = getRpcMethodCacheKey(config, method);
   preferredRpcSender[cacheKey] = key;
   failedRpcSenders[cacheKey]?.delete(key);
 }
 
+/**
+ * Marks a sender as failed so later calls can avoid repeatedly hitting a bad endpoint.
+ */
 function markRpcSenderFailure(config: EvmChainMetricConfig, method: string, key: string) {
   const cacheKey = getRpcMethodCacheKey(config, method);
   if (preferredRpcSender[cacheKey] === key) delete preferredRpcSender[cacheKey];
@@ -650,10 +756,16 @@ function markRpcSenderFailure(config: EvmChainMetricConfig, method: string, key:
   failedRpcSenders[cacheKey]?.add(key);
 }
 
+/**
+ * Extracts the original error from PromisePool wrapper errors.
+ */
 function getPoolError(errors: any[]) {
   return errors[0]?.raw ?? errors[0];
 }
 
+/**
+ * Creates an empty mutable metrics accumulator.
+ */
 function emptyMetricsAccumulator(): EvmChainMetricsAccumulator {
   return {
     activeUsers: 0,
@@ -664,6 +776,9 @@ function emptyMetricsAccumulator(): EvmChainMetricsAccumulator {
   };
 }
 
+/**
+ * Merges one chunk accumulator into the full block-range accumulator.
+ */
 function mergeMetrics(target: EvmChainMetricsAccumulator, source: EvmChainMetricsAccumulator) {
   source.users.forEach((user) => target.users.add(user));
   target.activeUsers = target.users.size;
@@ -672,6 +787,9 @@ function mergeMetrics(target: EvmChainMetricsAccumulator, source: EvmChainMetric
   target.totalGasUsed += source.totalGasUsed;
 }
 
+/**
+ * Removes internal accumulator state before returning public metrics.
+ */
 function toPublicMetrics(metrics: EvmChainMetricsAccumulator): EvmChainMetrics {
   return {
     activeUsers: metrics.users.size,
@@ -681,6 +799,9 @@ function toPublicMetrics(metrics: EvmChainMetricsAccumulator): EvmChainMetrics {
   };
 }
 
+/**
+ * Ensures timestamp-to-block resolution produced a usable inclusive block range.
+ */
 function assertValidBlockRange(chain: string, fromBlock: any, toBlock: any) {
   if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
     throw new Error(`${chain}: unable to resolve block range`);
@@ -690,14 +811,23 @@ function assertValidBlockRange(chain: string, fromBlock: any, toBlock: any) {
   }
 }
 
+/**
+ * Returns the hash field used by either raw JSON-RPC or provider receipt shapes.
+ */
 function getReceiptHash(receipt: ReceiptLike): string | undefined {
   return receipt.transactionHash ?? receipt.hash;
 }
 
+/**
+ * Checks whether a receipt already has enough fee data to compute gas fees.
+ */
 function hasFeePrice(receipt: ReceiptLike): boolean {
   return receipt.effectiveGasPrice !== undefined || receipt.gasPrice !== undefined;
 }
 
+/**
+ * Returns legacy transaction gasPrice only when the transaction is not EIP-1559.
+ */
 function getLegacyTransactionGasPrice(receipt: ReceiptLike, transaction: TransactionLike) {
   if (transaction.gasPrice === undefined) return undefined;
   if (transaction.maxFeePerGas !== undefined || transaction.maxPriorityFeePerGas !== undefined) return undefined;
@@ -705,16 +835,25 @@ function getLegacyTransactionGasPrice(receipt: ReceiptLike, transaction: Transac
   return transaction.gasPrice;
 }
 
+/**
+ * Checks whether receipt hydration needs transaction data.
+ */
 function needsTransactionData(receipt: ReceiptLike): boolean {
   return !receipt.from || !hasFeePrice(receipt);
 }
 
+/**
+ * Detects EIP-1559 transaction type values from provider or raw RPC shapes.
+ */
 function isEip1559Type(value: ReceiptLike["type"]): boolean {
   if (value === undefined || value === null) return false;
   const normalized = value.toString().toLowerCase();
   return normalized === "2" || normalized === "0x2";
 }
 
+/**
+ * Detects whether an RPC error means eth_getBlockReceipts is unsupported.
+ */
 function isMethodUnavailable(error: any) {
   const raw = error?.raw ?? error;
   const message = JSON.stringify([
@@ -731,6 +870,9 @@ function isMethodUnavailable(error: any) {
       || message.includes("-32601"));
 }
 
+/**
+ * Converts hex, decimal, number, bigint, and BigNumber-like values to bigint.
+ */
 function toBigInt(value: ReceiptLike["gasUsed"], field: string): bigint {
   if (value === undefined || value === null) throw new Error(`Receipt is missing ${field}`);
   if (typeof value === "bigint") return value;
@@ -739,10 +881,16 @@ function toBigInt(value: ReceiptLike["gasUsed"], field: string): bigint {
   return BigInt(value.toString());
 }
 
+/**
+ * Converts a block number to a JSON-RPC hex quantity.
+ */
 function toHex(block: number) {
   return `0x${block.toString(16)}`;
 }
 
+/**
+ * Races an RPC promise against a timeout without changing the underlying call.
+ */
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timeout: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
@@ -756,6 +904,23 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
+/**
+ * Delays retry loops with a small backoff.
+ */
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Logs single-call fallback failures without changing retry behavior.
+ */
+function logRpcFailure(config: EvmChainMetricConfig, method: string, txHash: string, error: any, context: string) {
+  log(`${config.chain}: ${method} failed for ${txHash} (${context}): ${formatRpcError(error)}`);
+}
+
+/**
+ * Formats RPC errors into a compact log message.
+ */
+function formatRpcError(error: any) {
+  return error?.message ?? JSON.stringify(error?.info?.error ?? error?.error ?? error);
 }
