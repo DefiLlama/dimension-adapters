@@ -92,11 +92,13 @@ const fetch = async (options: FetchOptions) => {
     // 3) Sellback refunds — Settled(kept=false, value) from every pool that
     //    was ever authorized. `value` is USDm wei (18 decimals); USDm trades
     //    1:1 with USD. Booked positive on supply-side, negative on revenue.
+    if(everAuthorized.size > 0) {
     const settled = await options.getLogs({ targets: [...everAuthorized], eventAbi: SETTLED });
     for (const log of settled) {
-        if (log.kept) continue; // kept=true means NFT mint; `value` is a tokenId, not money.
-        const usd = Number(log.value) / 1e18;
-        dailySupplySideRevenue.addUSDValue(usd, LABEL_SELLBACK);
+            if (log.kept) continue; // kept=true means NFT mint; `value` is a tokenId, not money.
+            const usd = Number(log.value) / 1e18;
+            dailySupplySideRevenue.addUSDValue(usd, LABEL_SELLBACK);
+        }
     }
 
     const revenue = dailyFees.clone();
@@ -141,7 +143,7 @@ const adapter: SimpleAdapter = {
     allowNegativeValue: true,
     fetch,
     chains: [CHAIN.MEGAETH],
-    start: "2026-03-23",
+    start: "2026-04-06",
     methodology,
     breakdownMethodology,
 };
