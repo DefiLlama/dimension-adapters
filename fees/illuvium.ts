@@ -39,6 +39,7 @@ const fetchEthereumFees = async (options: FetchOptions) => {
     target: ETHEREUM_FEE_COLLECTOR,
     skipIndexer: true,
   })
+  const dailySupplySideRevenue = options.createBalances()
 
   const preBalance = await options.fromApi.sumTokens({
     token: nullAddress,
@@ -50,12 +51,18 @@ const fetchEthereumFees = async (options: FetchOptions) => {
     owner: ETHEREUM_FEE_COLLECTOR,
   }) as any
 
-  dailyFees.addBalances(postBalance)
-  dailyFees.subtract(preBalance)
+  const ethDelta = options.createBalances()
+  ethDelta.addBalances(postBalance)
+  ethDelta.subtract(preBalance)
+
+  const nativeDelta = BigInt(ethDelta.getBalances()[nullAddress] ?? 0)
+  if (nativeDelta > 0n) dailyFees.addGasToken(nativeDelta)
+  else if (nativeDelta < 0n) dailySupplySideRevenue.addGasToken(nativeDelta * -1n)
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailySupplySideRevenue,
   }
 }
 
