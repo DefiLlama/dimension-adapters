@@ -4,14 +4,12 @@ import { fetchBond } from "./bonds";
 import { fetchRebases } from "./rebases";
 import { fetchFeesFromShadow } from "./shadow";
 
-const SHADOW_FEES_END = 1761955200; // 2025-11-01
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  if (options.startOfDay < SHADOW_FEES_END) await fetchFeesFromShadow(dailyFees, options);
+  await fetchFeesFromShadow(dailyFees, options);
   await fetchBond(dailyFees, dailyRevenue, options);
   await fetchRebases(dailyHoldersRevenue, options);
 
@@ -34,6 +32,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: "2025-06-13",
+      deadFrom: "2025-11-01"
     },
   },
   methodology,
