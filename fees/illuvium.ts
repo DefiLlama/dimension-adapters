@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions, } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { addTokensReceived } from '../helpers/token';
-import { nullAddress } from '../helpers/token';
 
 // Revenue wallet set verified against the Illuvium Discord treasury/address notes shared by the team.
 // IMX addresses:
@@ -19,6 +18,9 @@ const IMX_FEE_COLLECTORS = [
 // - 0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177: multichain wallet used for Unified Fuel-related payments
 // On Ethereum we track both ERC20 inflows and native ETH balance delta for this address.
 const ETHEREUM_FEE_COLLECTOR = "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177";
+
+const normalizeNativeBalance = (balance: string | [token: string, balance: string]) =>
+  Array.isArray(balance) ? balance[1] : balance;
 
 const fetchImxFees = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
@@ -41,21 +43,10 @@ const fetchEthereumFees = async (options: FetchOptions) => {
   })
   const dailySupplySideRevenue = options.createBalances()
 
-  const preBalance = await options.fromApi.sumTokens({
-    token: nullAddress,
-    owner: ETHEREUM_FEE_COLLECTOR,
-  }) as any
+  const preBalance = normalizeNativeBalance(await options.fromApi.getEthBalance(ETHEREUM_FEE_COLLECTOR))
+  const postBalance = normalizeNativeBalance(await options.toApi.getEthBalance(ETHEREUM_FEE_COLLECTOR))
+  const nativeDelta = BigInt(postBalance) - BigInt(preBalance)
 
-  const postBalance = await options.toApi.sumTokens({
-    token: nullAddress,
-    owner: ETHEREUM_FEE_COLLECTOR,
-  }) as any
-
-  const ethDelta = options.createBalances()
-  ethDelta.addBalances(postBalance)
-  ethDelta.subtract(preBalance)
-
-  const nativeDelta = BigInt(ethDelta.getBalances()[nullAddress] ?? 0)
   if (nativeDelta > 0n) dailyFees.addGasToken(nativeDelta)
   else if (nativeDelta < 0n) dailySupplySideRevenue.addGasToken(nativeDelta * -1n)
 
