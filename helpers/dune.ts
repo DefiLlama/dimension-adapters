@@ -52,13 +52,19 @@ async function randomDelay() {
   return new Promise((resolve) => setTimeout(resolve, delay * 1000))
 }
 
+const executionCostMap: Record<string, number> = {
+}
+
 const inquiryStatus = async (execution_id: string, queryId: string) => {
 
   let _status = undefined;
   do {
     try {
       const { data } = await getAxiosDune().get(`/execution/${execution_id}/status`)
+      
       _status = data.state
+      executionCostMap[queryId] = data.execution_cost_credits
+
       if (['QUERY_STATE_PENDING', 'QUERY_STATE_EXECUTING'].includes(_status)) {
         console.info(`waiting for query id ${queryId} to complete...`)
         await randomDelay() // 1 - 4s
@@ -66,7 +72,7 @@ const inquiryStatus = async (execution_id: string, queryId: string) => {
     } catch (e: any) {
       throw e;
     }
-  } while (_status !== 'QUERY_STATE_COMPLETED' && _status !== 'QUERY_STATE_FAILED');
+  } while (_status !== 'QUERY_STATE_COMPLETED' && _status !== 'QUERY_STATE_FAILED')
   return _status
 }
 
@@ -205,6 +211,7 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
           ...duneMetadata,
           ...metadata,
           rows: rows?.length,
+          executionCostCredits: executionCostMap[queryId],
         },
       })
       return rows
