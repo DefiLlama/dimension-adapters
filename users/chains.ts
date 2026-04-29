@@ -71,7 +71,7 @@ function getBlockscoutChart(data: any, baseUrl: string, from: string, metric: st
 
 function parseBlockscoutValue(point: BlockscoutStatsChartItem | undefined, baseUrl: string, from: string, metric: string) {
     const rawValue = point?.value
-    if (rawValue === null || rawValue === undefined || rawValue === "")
+    if (rawValue === null || rawValue === undefined || (typeof rawValue === "string" && rawValue.trim() === ""))
         throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
 
     const value = Number(rawValue)
