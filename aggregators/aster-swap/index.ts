@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const CONTRACT_ADDRESS = "0x96387Ef9a5138bFDF14Bf8e3BcF65031FC6A63E7";
+const CONTRACT_ADDRESS = "0x268Eaa19eFCd6E7C1e15C76F131Ad8867a256366";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
