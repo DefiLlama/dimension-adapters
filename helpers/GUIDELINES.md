@@ -92,6 +92,7 @@ METRIC.PROTOCOL_FEES         // 'Protocol Fees'
 | `ethereum-builder.ts` | Builder helpers | MEV/builder revenue |
 | `blockscoutFees.ts` | Blockscout queries | Chains using Blockscout |
 | `etherscanFees.ts` | Etherscan queries | Chains using Etherscan |
+| `evmChainFees.ts` | `createEvmChainFeesAdapter`, `createEvmChainUsersFetcher` | Generic EVM chain fees, transactions, gas used, and active users from RPC receipts |
 | `aptos.ts` | Aptos helpers | Aptos chain |
 | `cardano.ts` | Cardano helpers | Cardano chain |
 | `solana.ts` | Solana helpers | Solana chain |
@@ -138,6 +139,50 @@ const data = await options.queryAllium(`SELECT ...`);
 // Via direct import
 import { queryIndexer } from '../helpers/indexer';
 ```
+
+### Adding Generic EVM Chain Metrics
+
+Use `helpers/evmChainFees.ts` when an EVM chain needs chain-level fees, revenue, transaction count, gas used, and active users from RPC receipts.
+
+1. Add the chain config to `EVM_CHAIN_METRIC_CONFIGS`:
+```typescript
+export const EVM_CHAIN_METRIC_CONFIGS = {
+  example: {
+    chain: CHAIN.EXAMPLE,
+    start: '2024-01-01',
+    blockChunkSize: 500,
+  },
+};
+```
+
+2. Add the chain key to `rpcFeesConfigKeys` in `factory/chainTxFees.ts` if the fees adapter can be loaded from the factory.
+
+3. If a dead adapter file already shadows the factory lookup, add an explicit file in `fees/<chain>.ts`:
+```typescript
+import { createEvmChainFeesAdapter, EVM_CHAIN_METRIC_CONFIGS } from "../helpers/evmChainFees";
+
+export default createEvmChainFeesAdapter(EVM_CHAIN_METRIC_CONFIGS.example);
+```
+
+4. Add the same chain key to `evmChainMetricConfigKeys` in `users/chains.ts` so active users, transactions, and gas used are exposed from the same calculation path.
+
+5. Tune `blockChunkSize` against the public RPCs. Prefer the largest batch that completes reliably for `eth_getBlockReceipts`; use a smaller chunk for endpoints that reject or drop large JSON-RPC batches.
+
+Required validation before submitting:
+```bash
+npm run test:evm-chain-fees
+npm run test fees <chain> YYYY-MM-DD
+npm run test active-users <chain> YYYY-MM-DD
+npm run ts-check
+npm run ts-check-cli
+git diff --check
+```
+
+For a production-grade check, run a full UTC day window and verify:
+- `fees/<chain>` completes and returns non-silent output.
+- `active-users/<chain>` completes for the same date.
+- `dailyTransactionsCount` and `dailyGasUsed` match between fees and active-users.
+- A small raw RPC sample matches the helper output for transaction count, gas used, active users, and fees in wei.
 
 ## Code Quality Standards
 

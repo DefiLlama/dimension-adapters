@@ -96,12 +96,14 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
     return {
       dailyActiveUsers: data?.usercount,
       dailyTransactionsCount: data?.txcount,
+      dailyGasUsed: data?.gas,
     }
   }
 
   return {
     version: 1,
     chains: [item.chain],
+    start: item.start,
     fetch: fetch as any,
   }
 }
@@ -120,6 +122,7 @@ function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
   return {
     version: 1,
     chains: [item.chain],
+    start: item.start,
     fetch: fetch as any,
   }
 }
