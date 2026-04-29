@@ -4,7 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints: { [key: string]: string } = {
-  occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn"
+  occ: "https://api.goldsky.com/api/public/project_clzpadk07wbqn01te5wbuhnqw/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn"
 }
 const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
