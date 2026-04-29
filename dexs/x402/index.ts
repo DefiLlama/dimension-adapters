@@ -10,7 +10,6 @@ interface TransferRow {
 }
 
 const DUNE_CHAIN_MAP: Record<string, string> = {
-  [CHAIN.ETHEREUM]: 'ethereum',
   [CHAIN.BASE]: 'base',
   [CHAIN.POLYGON]: 'polygon',
   [CHAIN.ARBITRUM]: 'arbitrum',
