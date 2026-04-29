@@ -24,6 +24,7 @@ interface SubgraphConfig {
     Revenue?: number;
   };
   start?: string;
+  deadFrom?: string;
   methodology?: Record<string, string>;
 }
 
@@ -364,6 +365,7 @@ const configs: Record<string, SubgraphConfig> = {
       factory: "factories",
     },
     start: "2023-11-25",
+    deadFrom: "2026-02-03",
     feesPercent: {
       type: "fees",
       ProtocolRevenue: 0,
@@ -429,7 +431,7 @@ for (const [name, config] of Object.entries(configs)) {
   });
 
   const chains = Object.keys(config.graphUrls);
-  const { start } = config;
+  const { start, deadFrom } = config;
   const methodology = config.methodology ?? computeMethodology(config.feesPercent);
 
   const adapter: SimpleAdapter = {
@@ -440,11 +442,13 @@ for (const [name, config] of Object.entries(configs)) {
       [chain]: {
         fetch,
         ...(start && { start }),
+        ...(deadFrom && { deadFrom }),
       },
     }), {}),
   };
 
   if (start) (adapter as any).start = start;
+  if (deadFrom) (adapter as any).deadFrom = deadFrom;
   if (methodology) adapter.methodology = methodology;
 
   protocols[name] = adapter;
