@@ -49,9 +49,31 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         select * from market_data
     )
     SELECT
-        SUM(volume_usd) as total_volume_usd,
-        SUM(notional_volume) as total_notional_volume
+        SUM(volume_usd) AS total_volume_usd,
+        SUM(notional_volume) AS total_notional_volume
     FROM (
+        SELECT
+            SUM(
+                CASE
+                    WHEN side = 0 THEN makerAmountFilled
+                    WHEN side = 1 THEN takerAmountFilled
+                END
+            ) / 1e6 AS volume_usd,
+            SUM(
+                CASE
+                    WHEN side = 0 THEN takerAmountFilled
+                    WHEN side = 1 THEN makerAmountFilled
+                END
+            ) / 1e6 AS notional_volume
+        FROM
+            polymarket_v2_polygon.ctfexchange_evt_orderfilled a --includes both ctf and negrisk
+        WHERE
+            a.evt_block_number > 85050371
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+
+        UNION ALL
+        
         SELECT
             SUM(CASE
                     WHEN makerAssetId = 0 THEN makerAmountFilled
