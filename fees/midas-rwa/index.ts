@@ -394,6 +394,14 @@ async function safeCall(api: any, target: string, abi: string): Promise<any | nu
   }
 }
 
+async function safeMultiCall(api: any, params: { abi: string; calls: any[]; permitFailure: true }): Promise<any[]> {
+  try {
+    return await api.multiCall(params);
+  } catch {
+    return new Array(params.calls.length).fill(null);
+  }
+}
+
 function getOracleAnswer(raw: any): bigint | null {
   if (!raw) return null;
   const answer = Array.isArray(raw) ? raw[1] : raw?.answer;
@@ -420,9 +428,9 @@ async function loadCurrentOracleState(api: any, products: ResolvedProduct[]) {
   // Pull live precision from both the NAV oracles and the mTokens so fee/yield
   // math never relies on a hardcoded decimal assumption.
   const [ratesAfter, oracleDecimals, mTokenDecimals] = await Promise.all([
-    Promise.all(uniqueOracles.map((oracle) => safeCall(api, oracle, ABI.latestRoundData))),
-    Promise.all(uniqueOracles.map((oracle) => safeCall(api, oracle, ABI.decimals))),
-    Promise.all(uniqueMTokens.map((mToken) => safeCall(api, mToken, ABI.decimals))),
+    safeMultiCall(api, { abi: ABI.latestRoundData, calls: uniqueOracles, permitFailure: true }),
+    safeMultiCall(api, { abi: ABI.decimals, calls: uniqueOracles, permitFailure: true }),
+    safeMultiCall(api, { abi: ABI.decimals, calls: uniqueMTokens, permitFailure: true }),
   ]);
 
   uniqueOracles.forEach((oracle, index) => {
@@ -567,8 +575,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       dailyFees,
       dailySupplySideRevenue,
     );
-  } catch {
+  } catch (error) {
     // best effort: APY/yield should never suppress redeem fee tracking
+    console.error(`[midas-rwa] addSupplySideYield failed on ${options.chain}`, error);
   }
 
   const getLogs = (eventAbi: string) =>
@@ -691,7 +700,6 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   fetch,
   chains: [
     CHAIN.ETHEREUM,
