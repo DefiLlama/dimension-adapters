@@ -1,78 +1,34 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { postURL } from "../../utils/fetchURL";
 
 const GRAPHQL = "https://api-mainnet.dango.zone/graphql";
 
-const PAIRS = [
-  "perp/btcusd",
-  "perp/ethusd",
-  "perp/solusd",
-  "perp/hypeusd",
-];
-
-const query = `
-  query perpsCandles(
-    $pairId: String!
-    $interval: CandleInterval!
-    $earlierThan: DateTime
-  ) {
-    perpsCandles(
-      first: 2
-      pairId: $pairId
-      interval: $interval
-      earlierThan: $earlierThan
-    ) {
-      nodes {
-        volumeUsd
-      }
-    }
-  }
-`;
-
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+
+  const res = await postURL(GRAPHQL, {
+    query: `{ allPerpsPairStats { pairId volume24H } }`,
+  });
+
+  const markets = res?.data?.allPerpsPairStats || [];
   let totalVolume = 0;
-
-  const earlierThan = new Date(options.endTimestamp * 1000).toISOString();
-
-  for (const pairId of PAIRS) {
-    try {
-      const res = await globalThis.fetch(GRAPHQL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query,
-          variables: {
-            pairId,
-            interval: "ONE_DAY",
-            earlierThan,
-          },
-        }),
-      }).then((r) => r.json());
-
-      const nodes = res?.data?.perpsCandles?.nodes || [];
-
-      if (nodes.length > 0) {
-        totalVolume += Number(nodes[0].volumeUsd || 0);
-      }
-    } catch (e) {
-      console.error(`Dango volume fetch failed for ${pairId}`, e);
-    }
+  for (const market of markets) {
+    totalVolume += Number(market.volume24H || 0);
   }
 
   dailyVolume.addUSDValue(totalVolume);
-
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.DANGO], 
-  start: "2026-01-01",
+  chains: [CHAIN.DANGO],
+  start: "2026-04-07",
   fetch,
+  runAtCurrTime: true,
   methodology: {
-    Volume:
-      "Total perp trading volume on Dango aggregated from perpsCandles (daily USD volume across all perp markets).",
+    Volume: "24h perp trading volume across all Dango markets (BTC, ETH, SOL, HYPE).",
   },
 };
 
