@@ -11,6 +11,17 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "trust-wallet-perps": {
+    addresses: ["0x5af1b5f44207784dcb850bbb4143c5dcd1885f71"],
+    start: "2026-04-08",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      HoldersRevenue: "No fees distributed to TWT token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
   "sushi-perps": {
     addresses: ["0x12ee177db3ceafedc639d023a29cc8588db3a4b9"],
     start: "2025-03-30",
