@@ -69,6 +69,18 @@ function getBlockscoutChart(data: any, baseUrl: string, from: string, metric: st
     return data.chart as BlockscoutStatsChartItem[]
 }
 
+function parseBlockscoutValue(point: BlockscoutStatsChartItem | undefined, baseUrl: string, from: string, metric: string) {
+    const rawValue = point?.value
+    if (rawValue === null || rawValue === undefined || rawValue === "")
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    const value = Number(rawValue)
+    if (!Number.isFinite(value))
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    return value
+}
+
 // Blockscout stats-service exposes daily tx, active account, and new account series.
 function getBlockscoutUsersChain(baseUrl: string) {
     return async (start: number, end: number) => {
@@ -90,10 +102,10 @@ function getBlockscoutUsersChain(baseUrl: string) {
         const userChart = getBlockscoutChart(userData, baseUrl, from, "stats")
         const txPoint = txChart.find((item) => item.date === from)
         const userPoint = userChart.find((item) => item.date === from)
-        const txcount = Number(txPoint?.value)
-        const usercount = Number(userPoint?.value)
+        const txcount = parseBlockscoutValue(txPoint, baseUrl, from, "stats")
+        const usercount = parseBlockscoutValue(userPoint, baseUrl, from, "stats")
 
-        if (!txPoint || !userPoint || !Number.isFinite(txcount) || !Number.isFinite(usercount))
+        if (!txPoint || !userPoint)
             throw new Error(`Malformed Blockscout stats payload for ${baseUrl} on ${from}`)
 
         return [{
@@ -112,9 +124,9 @@ function getBlockscoutNewUsersChain(baseUrl: string) {
         const newUserData = await httpGet(`${baseUrl}/stats-service/api/v1/lines/newAccounts?from=${from}&to=${to}&resolution=DAY`)
         const newUserChart = getBlockscoutChart(newUserData, baseUrl, from, "new users")
         const newUserPoint = newUserChart.find((item) => item.date === from)
-        const usercount = Number(newUserPoint?.value)
+        const usercount = parseBlockscoutValue(newUserPoint, baseUrl, from, "new users")
 
-        if (!newUserPoint || !Number.isFinite(usercount))
+        if (!newUserPoint)
             throw new Error(`Malformed Blockscout new users payload for ${baseUrl} on ${from}`)
 
         return [{
