@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 
 const GRAPHQL = "https://api-mainnet.dango.zone/graphql";
-const PROTOCOL_FEE_RATE = 0.1;
+const PERPS_CONTRACT = "0x90bc84df68d1aa59a857e04ed529e9a26edbea4f";
 const MAX_PAGES = 200;
 
 const fetch = async (options: FetchOptions) => {
@@ -11,16 +11,41 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // fetch protocol_fee_rate dynamically from chain
+  const paramsRes = await postURL(GRAPHQL, {
+    query: `{
+      queryApp(request: {
+        wasm_smart: {
+          contract: "${PERPS_CONTRACT}"
+          msg: { param: {} }
+        }
+      })
+    }`,
+  });
+  const params = paramsRes?.data?.queryApp?.wasm_smart;
+  const protocolFeeRate = Number(params?.protocol_fee_rate);
+
+  if (!Number.isFinite(protocolFeeRate)) {
+    console.error("Missing protocol_fee_rate");
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  }
+
+  // paginate order_filled events newest-first
   let totalFees = 0;
   let before: string | null = null;
   let page = 0;
+  let reachedLowerBound = false;
 
   const startTs = options.startTimestamp;
   const endTs = options.endTimestamp;
 
   while (page < MAX_PAGES) {
     page++;
-
     const beforeClause = before ? `before: "${before}"` : "";
 
     const res = await postURL(GRAPHQL, {
@@ -40,35 +65,29 @@ const fetch = async (options: FetchOptions) => {
     const nodes = res?.data?.perpsEvents?.nodes || [];
     const pageInfo = res?.data?.perpsEvents?.pageInfo;
 
-    if (!nodes.length) break;
-
-    let shouldStop = false;
+    if (!nodes.length) { reachedLowerBound = true; break; }
 
     for (const node of [...nodes].reverse()) {
       const ts = Math.floor(new Date(node.createdAt).getTime() / 1000);
-
-      if (ts >= endTs) continue;  
-      if (ts < startTs) {          
-        shouldStop = true;
-        break;
-      }
-
-      const fee = Math.abs(Number(node.data?.fee || 0));
-      totalFees += fee;
+      if (ts >= endTs) continue;
+      if (ts < startTs) { reachedLowerBound = true; break; }
+      totalFees += Math.abs(Number(node.data?.fee || 0));
     }
 
-    if (shouldStop) break;
-    if (!pageInfo?.hasPreviousPage) break;
-
+    if (reachedLowerBound) break;
+    if (!pageInfo?.hasPreviousPage) { reachedLowerBound = true; break; }
     before = pageInfo.startCursor;
   }
 
-  const protocolRevenue = totalFees * PROTOCOL_FEE_RATE;
-  const supplySideRevenue = totalFees * (1 - PROTOCOL_FEE_RATE);
+  if (!reachedLowerBound) {
+    throw new Error(
+      `Dango fees: pagination hit MAX_PAGES (${MAX_PAGES}) before reaching startTs ${startTs}. Fees would be truncated — aborting.`
+    );
+  }
 
   dailyFees.addUSDValue(totalFees, "Trading Fees");
-  dailyRevenue.addUSDValue(protocolRevenue, "Trading Fees");
-  dailySupplySideRevenue.addUSDValue(supplySideRevenue, "Trading Fees");
+  dailyRevenue.addUSDValue(totalFees * protocolFeeRate, "Trading Fees");
+  dailySupplySideRevenue.addUSDValue(totalFees * (1 - protocolFeeRate), "Trading Fees");
 
   return {
     dailyFees,
@@ -81,26 +100,26 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.DANGO],
-  start: "2026-04-07",
+  start: "2026-04-08",
   fetch,
   methodology: {
-    Fees: "All trading fees from order_filled events (taker + maker) across all Dango perp markets.",
-    Revenue: "10% of trading fees retained by Dango protocol treasury (protocol_fee_rate).",
-    ProtocolRevenue: "10% of trading fees allocated to the Dango treasury.",
-    SupplySideRevenue: "90% of trading fees distributed to vault liquidity providers.",
+    Fees: "Actual trading fees from order_filled events (taker + maker) across all Dango perp markets.",
+    Revenue: "Protocol share of fees per on-chain protocol_fee_rate.",
+    ProtocolRevenue: "Protocol share allocated to Dango treasury.",
+    SupplySideRevenue: "Remaining fees distributed to vault LPs.",
   },
   breakdownMethodology: {
     Fees: {
-      "Trading Fees": "Taker and maker fees from order_filled events across all Dango perp markets.",
+      "Trading Fees": "Taker and maker fees from order_filled events.",
     },
     Revenue: {
-      "Trading Fees": "10% of all trading fees routed to Dango protocol treasury.",
+      "Trading Fees": "Protocol share of trading fees per on-chain protocol_fee_rate.",
     },
     ProtocolRevenue: {
-      "Trading Fees": "10% of all trading fees allocated to Dango treasury.",
+      "Trading Fees": "Protocol share allocated to Dango treasury.",
     },
     SupplySideRevenue: {
-      "Trading Fees": "90% of all trading fees distributed to vault LPs.",
+      "Trading Fees": "Fees distributed to vault LPs.",
     },
   },
 };
