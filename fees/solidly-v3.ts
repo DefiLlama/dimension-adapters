@@ -92,7 +92,7 @@ const adapter: Adapter = {
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: '2023-25-12',
+      start: '2023-12-25',
     }
   }, 
 }
