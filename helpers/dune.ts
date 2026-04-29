@@ -103,7 +103,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
   if (!isBulkMode)
-    return _queryDune(queryId, query_parameters);
+    return _queryDune(queryId, query_parameters, options);
 
   return batchDuneQueries(queryId, query_parameters, options);
 
@@ -111,7 +111,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
     const moduleUID = options.moduleUID;
 
     if (!moduleUID) {
-      return _queryDune(queryId, query_parameters);
+      return _queryDune(queryId, query_parameters, options);
     }
 
     const batchKey = `${options.moduleUID}-${queryId}.${options.chain}-${extraUIDKey}`
@@ -124,7 +124,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 
           try {
             if (batch.requests.length === 1) {
-              const result = await _queryDune(queryId, batch.requests[0].parameters);
+              const result = await _queryDune(queryId, batch.requests[0].parameters, options);
               batch.requests[0].resolve(result);
               return;
             }
@@ -185,13 +185,14 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 }
 
 
-const _queryDune = async (queryId: string, query_parameters: any = {}) => {
+const _queryDune = async (queryId: string, query_parameters: any = {}, options?: FetchOptions) => {
   const metadata: any = {
     application: "dune",
     query_parameters,
   }
   let success = false
   let startTime = +Date.now() / 1e3
+  const dimensionProtocolMetadata = options?.metadata ?? {}
 
   try {
     if (Object.keys(query_parameters).length === 0) {
@@ -207,6 +208,7 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
 
       await elastic.addRuntimeLog({
         runtime: endTime - startTime, success, metadata: {
+          ...dimensionProtocolMetadata,
           ...restMetadata,
           ...duneMetadata,
           ...metadata,
