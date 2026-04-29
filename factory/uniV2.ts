@@ -754,6 +754,7 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const optionsMap: Record<string, any> = {
+  "potatoswap": { pullHourly: false },
   // replaced with pullHourly
   // "dyorswap": { runAsV1: true },
 }
@@ -1124,6 +1125,18 @@ const deadFromMap: Record<string, string> = {
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
 const feesConfigs: Record<string, Record<string, any>> = {
+  "potatoswap": {
+    [CHAIN.XLAYER]: {
+      factory: '0x630db8e822805c82ca40a54dae02dd5ac31f7fcf',
+      start: '2024-04-23',
+      fees: 0.003,
+      allowReadPairs: true,
+      userFeesRatio: 1,
+      revenueRatio: 0.08 / 0.25,
+      protocolRevenueRatio: 0,
+      holdersRevenueRatio: 0.08 / 0.25,
+    },
+  },
   "merchant-moe-dex": {
     [CHAIN.MANTLE]: { factory: '0x5bef015ca9424a7c07b68490616a4c1f094bedec', revenueRatio: 0.05 / 0.3 },
   },
@@ -1185,6 +1198,14 @@ const feesConfigs: Record<string, Record<string, any>> = {
 }
 
 const feesMethodologyMap: Record<string, any> = {
+  "potatoswap": {
+    Fees: "Swap fees are reconstructed from on-chain Swap logs across all PotatoSwap v2 pairs discovered from the V2 factory on X Layer, using a fixed 0.3% fee rate.",
+    UserFees: "Users pay a 0.3% fee on swaps across all PotatoSwap v2 pairs.",
+    Revenue: "32% of reconstructed PotatoSwap v2 swap fees are attributed to vePOT holders, preserving the existing split.",
+    ProtocolRevenue: "No direct protocol revenue is assigned in the PotatoSwap v2 adapter.",
+    HoldersRevenue: "32% of reconstructed PotatoSwap v2 swap fees are attributed to vePOT holders.",
+    SupplySideRevenue: "68% of reconstructed PotatoSwap v2 swap fees are attributed to liquidity providers.",
+  },
   "abcdefx": {
     UserFees: "Users pay a Trading fee on each swap, including Flash Loans.",
     Fees: "Net Trading fees paid by all ABcDeFx users.",
@@ -1199,6 +1220,26 @@ const feesMethodologyMap: Record<string, any> = {
     Revenue: "90% of the fees (0.9% of volume) goes to protocol treasury",
     ProtocolRevenue: "0.9% of trading volume goes to protocol treasury at 0x87b8F64BE420353d927aBF149EA62B68d45e8CE8",
     SupplySideRevenue: "10% of the fees (0.1% of volume) is distributed to liquidity providers",
+  },
+}
+
+const feesBreakdownMethodologyMap: Record<string, any> = {
+  "potatoswap": {
+    Fees: {
+      "Trading fees": "Swap fees reconstructed from on-chain Swap logs across all PotatoSwap v2 pairs discovered from the V2 factory, using a fixed 0.3% fee rate.",
+    },
+    Revenue: {
+      "Protocol fees": "32% of reconstructed PotatoSwap v2 swap fees are attributed to vePOT holders under the existing split.",
+    },
+    ProtocolRevenue: {
+      "Protocol fees": "No direct protocol revenue is assigned in the PotatoSwap v2 adapter.",
+    },
+    SupplySideRevenue: {
+      "LP fees": "68% of reconstructed PotatoSwap v2 swap fees are attributed to liquidity providers under the existing split.",
+    },
+    HoldersRevenue: {
+      "Tokenholder fees": "vePOT holders receive 32% of reconstructed PotatoSwap v2 swap fees under the existing split.",
+    },
   },
 }
 
@@ -1647,8 +1688,9 @@ for (const [name, config] of Object.entries(subgraphConfigs)) {
 // Build fees protocols
 const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
-  const adapter = uniV2Exports(config)
+  const adapter = uniV2Exports(config, optionsMap[name])
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
+  if (feesBreakdownMethodologyMap[name]) adapter.breakdownMethodology = feesBreakdownMethodologyMap[name]
   feesProtocols[name] = adapter
 }
 

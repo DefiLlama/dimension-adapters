@@ -1,4 +1,7 @@
+import { ethers } from "ethers";
+import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { addOneToken } from "../helpers/prices";
 import { uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 
@@ -6,6 +9,168 @@ const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
+const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+const potatoswapV3PoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
+const potatoswapV3Slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)'
+const potatoswapV3FeeAbi = 'function fee() view returns (uint24)'
+const potatoswapV3Factory = '0xa1415fAe79c4B196d087F02b8aD5a622B8A827E5'
+const potatoswapV3FactoryFromBlock = 38145900
+
+function getPotatoswapProtocolRevenueRatio(slot0: any, token0In: boolean): number {
+  const feeProtocolValue = Number(slot0?.feeProtocol ?? 0);
+  const denominator = token0In
+    ? (feeProtocolValue & 0x0f)
+    : ((feeProtocolValue >> 4) & 0x0f);
+
+  return denominator > 0 ? 1 / denominator : 0;
+}
+
+async function potatoswapV3CustomLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions }: { pairObject: Record<string, string[]>, dailyVolume: any, dailyFees: any, filteredPairs: Record<string, number>, fetchOptions: FetchOptions }) {
+  const pools = Object.keys(filteredPairs)
+  const { chain, api, getLogs } = fetchOptions
+  const dailyRevenue = fetchOptions.createBalances()
+
+  if (!pools.length) {
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailyFees,
+    }
+  }
+
+  const [feeResults, slot0Results, logsByPool] = await Promise.all([
+    api.multiCall({ abi: potatoswapV3FeeAbi, calls: pools, permitFailure: true }),
+    api.multiCall({ abi: potatoswapV3Slot0Abi, calls: pools, permitFailure: true }),
+    getLogs({ targets: pools, eventAbi: defaultV3SwapEvent, flatten: false }),
+  ])
+
+  pools.forEach((pool, index) => {
+    const logs = logsByPool[index] || []
+    const [token0, token1] = pairObject[pool]
+    const feeRate = feeResults[index] ? Number(feeResults[index]) / 1e6 : 0
+
+    logs.forEach((log: any) => {
+      const protocolRevenueRatio = getPotatoswapProtocolRevenueRatio(slot0Results[index], Number(log.amount0) > 0)
+      if (!protocolRevenueRatio) return
+
+      addOneToken({
+        chain,
+        balances: dailyRevenue,
+        token0,
+        token1,
+        amount0: Number(log.amount0) * feeRate * protocolRevenueRatio,
+        amount1: Number(log.amount1) * feeRate * protocolRevenueRatio,
+      })
+    })
+  })
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(1, 'Trading fees'),
+    dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+    dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, 'LP fees'),
+  }
+}
+
+async function potatoswapV3Fetch(options: FetchOptions) {
+  const { chain, createBalances, api, getLogs } = options
+  const iface = new ethers.Interface([potatoswapV3PoolCreatedEvent])
+  const poolCreatedLogs = await getLogs({
+    target: potatoswapV3Factory,
+    eventAbi: potatoswapV3PoolCreatedEvent,
+    fromBlock: potatoswapV3FactoryFromBlock,
+    entireLog: true,
+    cacheInCloud: true,
+  })
+
+  const pools = poolCreatedLogs
+    .map((log: any) => iface.parseLog(log)?.args)
+    .filter(Boolean)
+    .map((log: any) => ({
+      address: String(log.pool),
+      token0: String(log.token0),
+      token1: String(log.token1),
+      feeFromEvent: Number(log.fee ?? 0) / 1e6,
+    }))
+
+  const poolAddresses = pools.map((pool) => pool.address)
+  const dailyVolume = createBalances()
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+
+  if (!poolAddresses.length) {
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailyFees,
+    }
+  }
+
+  const [feeResults, slot0Results, logsByPool] = await Promise.all([
+    api.multiCall({ abi: potatoswapV3FeeAbi, calls: poolAddresses, permitFailure: true }),
+    api.multiCall({ abi: potatoswapV3Slot0Abi, calls: poolAddresses, permitFailure: true }),
+    getLogs({ targets: poolAddresses, eventAbi: defaultV3SwapEvent, flatten: false }),
+  ])
+
+  pools.forEach((pool, index) => {
+    const logs = logsByPool[index] || []
+    const feeRate = feeResults[index] ? Number(feeResults[index]) / 1e6 : pool.feeFromEvent
+
+    logs.forEach((log: any) => {
+      addOneToken({
+        chain,
+        balances: dailyVolume,
+        token0: pool.token0,
+        token1: pool.token1,
+        amount0: log.amount0,
+        amount1: log.amount1,
+      })
+      addOneToken({
+        chain,
+        balances: dailyFees,
+        token0: pool.token0,
+        token1: pool.token1,
+        amount0: Number(log.amount0) * feeRate,
+        amount1: Number(log.amount1) * feeRate,
+      })
+
+      const protocolRevenueRatio = getPotatoswapProtocolRevenueRatio(slot0Results[index], Number(log.amount0) > 0)
+      if (!protocolRevenueRatio) return
+
+      addOneToken({
+        chain,
+        balances: dailyRevenue,
+        token0: pool.token0,
+        token1: pool.token1,
+        amount0: Number(log.amount0) * feeRate * protocolRevenueRatio,
+        amount1: Number(log.amount1) * feeRate * protocolRevenueRatio,
+      })
+    })
+  })
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(1, 'Trading fees'),
+    dailyRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+    dailyProtocolRevenue: dailyRevenue.clone(1, 'Protocol fees'),
+    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, 'LP fees'),
+  }
+}
 
 const configs: Record<string, Record<string, any>> = {
   "warpx-v3": {
@@ -344,6 +509,7 @@ const configs: Record<string, Record<string, any>> = {
 
 const optionsMap: Record<string, any> = {
   "9mm": { swapEvent: protocolFeesSwapEvent, },
+  "potatoswap-v3": { pullHourly: false },
 }
 
 const methodologyMap: Record<string, any> = {
@@ -526,6 +692,14 @@ const startMap: Record<string, string | number> = {
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
 const feesConfigs: Record<string, Record<string, any>> = {
+  "potatoswap-v3": {
+    [CHAIN.XLAYER]: {
+      factory: '0xa1415fAe79c4B196d087F02b8aD5a622B8A827E5',
+      start: '2025-11-10',
+      userFeesRatio: 1,
+      customLogic: potatoswapV3CustomLogic,
+    },
+  },
   "thick": {
     [CHAIN.FANTOM]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
     [CHAIN.ARBITRUM]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
@@ -540,6 +714,13 @@ const feesConfigs: Record<string, Record<string, any>> = {
 }
 
 const feesMethodologyMap: Record<string, any> = {
+  "potatoswap-v3": {
+    Fees: "Swap fees are reconstructed from on-chain Swap logs across all PotatoSwap v3 pools discovered from the V3 factory on X Layer, using each pool's on-chain fee tier.",
+    UserFees: "Users pay each pool's configured V3 fee tier on swaps across all PotatoSwap v3 pools.",
+    Revenue: "Protocol revenue is reconstructed from on-chain Swap logs using each pool's current fee tier and the current Uniswap v3-style feeProtocol setting.",
+    ProtocolRevenue: "Protocol revenue is the protocol-owned share of reconstructed PotatoSwap v3 swap fees, selected per swap direction from slot0().feeProtocol.",
+    SupplySideRevenue: "Supply-side revenue is the remaining share of reconstructed PotatoSwap v3 swap fees after removing the protocol-owned fee share.",
+  },
   "thick": {
     UserFees: "Traders using Thick Liquidiy pay a Trading fee on each swap. Includes Flash Loan Fees.",
     Fees: "Net Trading fees paid is the Sum of fees sent to LP & Protocol Fees",
@@ -558,6 +739,23 @@ const feesMethodologyMap: Record<string, any> = {
   },
 }
 
+const feesBreakdownMethodologyMap: Record<string, any> = {
+  "potatoswap-v3": {
+    Fees: {
+      "Trading fees": "Swap fees reconstructed from on-chain Swap logs across all PotatoSwap v3 pools discovered from the V3 factory, using each pool's on-chain fee tier.",
+    },
+    Revenue: {
+      "Protocol fees": "Protocol revenue is reconstructed from on-chain Swap logs using each pool's configured fee tier and the protocol-owned fee share encoded in slot0().feeProtocol.",
+    },
+    ProtocolRevenue: {
+      "Protocol fees": "Protocol revenue is the protocol-owned share of reconstructed PotatoSwap v3 swap fees.",
+    },
+    SupplySideRevenue: {
+      "LP fees": "Supply-side revenue is the remaining share of reconstructed PotatoSwap v3 swap fees after removing the protocol-owned fee share.",
+    },
+  },
+}
+
 // Build dex protocols
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
@@ -570,12 +768,28 @@ for (const [name, config] of Object.entries(configs)) {
 // Build fees protocols
 const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
-  const adapter = uniV3Exports(config)
+  const adapter = uniV3Exports(config, optionsMap[name])
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
+  if (feesBreakdownMethodologyMap[name]) adapter.breakdownMethodology = feesBreakdownMethodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
 }
+
+const potatoswapV3Adapter: SimpleAdapter = {
+  version: 2,
+  methodology: feesMethodologyMap["potatoswap-v3"],
+  breakdownMethodology: feesBreakdownMethodologyMap["potatoswap-v3"],
+  adapter: {
+    [CHAIN.XLAYER]: {
+      fetch: potatoswapV3Fetch,
+      start: '2025-11-10',
+      runAtCurrTime: true,
+    },
+  },
+}
+
+feesProtocols["potatoswap-v3"] = potatoswapV3Adapter
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
 export const fees = createFactoryExports(feesProtocols)
