@@ -23,11 +23,14 @@ const POLYMARKET_ADDRESSES = {
     FeeRecipients: [
       '0x115F48DC2A731aA16251c6d6e1BEfC42f92Accc9'
     ]
+  },
+  common: {
+    FeeDistributor: '0x3a9418b2651c8164DB5EBc56F12008137865e0f7',
+    ProtocolFeeWallet: '0x2d507657cA4EBCc8F9a38F6764c07310B66DEA54',
+    LiquidityRewardsDistributor: '0xc288480574783BD7615170660d71753378159c47',
+    HoldingRewardsDistributor: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41',
   }
 }
-
-const FeeDistributor = '0x3a9418b2651c8164DB5EBc56F12008137865e0f7';
-const ProtocolFeeWallet = '0x2d507657cA4EBCc8F9a38F6764c07310B66DEA54';
 
 //https://docs.polymarket.com/polymarket-learn/trading/maker-rebates-program
 const ProtocolFeeSwitchTime = 1768176000; //2026-01-12
@@ -49,35 +52,35 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     addTokensReceived({
       options,
       tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-      fromAddressFilter: '0xc288480574783BD7615170660d71753378159c47'
+      fromAddressFilter: POLYMARKET_ADDRESSES.common.LiquidityRewardsDistributor
     }),
     addTokensReceived({
       options,
       tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-      fromAddressFilter: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41'
+      fromAddressFilter: POLYMARKET_ADDRESSES.common.HoldingRewardsDistributor
     }),
     addTokensReceived({
       options,
       token: ADDRESSES.polygon.USDC,
       target: ADDRESSES.polygon.PUSD,
-      fromAddressFilter: '0xc288480574783BD7615170660d71753378159c47'
+      fromAddressFilter: POLYMARKET_ADDRESSES.common.LiquidityRewardsDistributor
     }),
     addTokensReceived({
       options,
       token: ADDRESSES.polygon.USDC,
       target: ADDRESSES.polygon.PUSD,
-      fromAddressFilter: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41'
+      fromAddressFilter: POLYMARKET_ADDRESSES.common.HoldingRewardsDistributor
     })
   ])
 
   const [netOutflow, outFlowToProtocolOrWrapping] = await Promise.all([addTokensReceived({
     options,
-    fromAddressFilter: FeeDistributor,
+    fromAddressFilter: POLYMARKET_ADDRESSES.common.FeeDistributor,
     tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
   }), addTokensReceived({
     options,
-    fromAddressFilter: FeeDistributor,
-    targets: [ProtocolFeeWallet, ADDRESSES.polygon.PUSD],
+    fromAddressFilter: POLYMARKET_ADDRESSES.common.FeeDistributor,
+    targets: [POLYMARKET_ADDRESSES.common.ProtocolFeeWallet, ADDRESSES.polygon.PUSD],
     tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
   })])
 
