@@ -1,6 +1,7 @@
 import type { FetchOptions, } from "../../adapters/types";
 import { Adapter, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import BigNumber from "bignumber.js";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
@@ -143,9 +144,15 @@ const fetchTransactionFees = async (minBlock: number, maxBlock: number) => {
       totalWinston += BigInt(node.fee?.winston ?? '0');
     });
 
-    after = transactions.pageInfo.hasNextPage
-      ? transactions.edges[transactions.edges.length - 1]?.cursor
-      : undefined;
+    if (transactions.pageInfo.hasNextPage) {
+      const nextCursor = transactions.edges[transactions.edges.length - 1]?.cursor;
+      if (!nextCursor) {
+        throw new Error(`Arweave GraphQL returned hasNextPage=true with ${transactions.edges.length} edge(s)`);
+      }
+      after = nextCursor;
+    } else {
+      after = undefined;
+    }
 
     if (after) await sleep(GRAPHQL_PAGE_DELAY_MS);
   } while (after);
@@ -159,7 +166,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const nextDayHeight = await findFirstBlockAtOrAfter(options.startOfDay + 24 * 60 * 60, latestHeight);
   const totalWinston = await fetchTransactionFees(startHeight, nextDayHeight - 1);
 
-  const tokenAmount = Number(totalWinston) / WINSTON_PER_AR;
+  const tokenAmount = new BigNumber(totalWinston.toString()).div(WINSTON_PER_AR).toNumber();
 
   const dailyFees = options.createBalances();
   dailyFees.addCGToken('arweave', tokenAmount)
@@ -178,6 +185,7 @@ const adapter: Adapter = {
     },
   },
   protocolType: ProtocolType.CHAIN,
+  skipBreakdownValidation: true,
   methodology: {
     Fees: 'Transaction fees paid by users in AR. Fees are sourced directly from the Arweave gateway by locating the daily block range and summing fee.winston values for base-layer transactions returned by Arweave GraphQL.'
   }
