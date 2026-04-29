@@ -1,5 +1,5 @@
 import { queryAllium } from "../helpers/allium";
-import PromisePool from "@supercharge/promise-pool";
+import { PromisePool } from "@supercharge/promise-pool";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
