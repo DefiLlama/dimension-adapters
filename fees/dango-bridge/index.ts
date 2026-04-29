@@ -48,8 +48,8 @@ const fetch = async (options: FetchOptions) => {
     for (const node of [...nodes].reverse()) {
       const ts = Math.floor(new Date(node.createdAt).getTime() / 1000);
 
-      if (ts >= endTs) continue;   // too new, skip
-      if (ts < startTs) {          // too old, stop
+      if (ts >= endTs) continue;   // too new
+      if (ts < startTs) {          // too old → stop pagination
         shouldStop = true;
         break;
       }
@@ -60,12 +60,16 @@ const fetch = async (options: FetchOptions) => {
 
     if (shouldStop) break;
     if (!pageInfo?.hasPreviousPage) break;
+
     before = pageInfo.startCursor;
   }
 
-  dailyFees.addUSDValue(totalFees);
-  dailyRevenue.addUSDValue(totalFees * PROTOCOL_FEE_RATE);
-  dailySupplySideRevenue.addUSDValue(totalFees * (1 - PROTOCOL_FEE_RATE));
+  const protocolRevenue = totalFees * PROTOCOL_FEE_RATE;
+  const supplySideRevenue = totalFees * (1 - PROTOCOL_FEE_RATE);
+
+  dailyFees.addUSDValue(totalFees, "Trading Fees");
+  dailyRevenue.addUSDValue(protocolRevenue, "Trading Fees");
+  dailySupplySideRevenue.addUSDValue(supplySideRevenue, "Trading Fees");
 
   return {
     dailyFees,
