@@ -11,17 +11,30 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // fetch protocol_fee_rate dynamically from chain
-  const paramsRes = await postURL(GRAPHQL, {
-    query: `{
-      queryApp(request: {
-        wasm_smart: {
-          contract: "${PERPS_CONTRACT}"
-          msg: { param: {} }
-        }
-      })
-    }`,
+  const emptyResult = () => ({
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   });
+
+  let paramsRes;
+  try {
+    paramsRes = await postURL(GRAPHQL, {
+      query: `{
+        queryApp(request: {
+          wasm_smart: {
+            contract: "${PERPS_CONTRACT}"
+            msg: { param: {} }
+          }
+        })
+      }`,
+    });
+  } catch (e) {
+    console.error("fees/dango-bridge: failed to fetch protocol params", e);
+    return emptyResult();
+  } 
+
   const params = paramsRes?.data?.queryApp?.wasm_smart;
   const protocolFeeRate = Number(params?.protocol_fee_rate);
 
@@ -47,19 +60,25 @@ const fetch = async (options: FetchOptions) => {
     page++;
     const beforeClause = before ? `before: "${before}"` : "";
 
-    const res = await postURL(GRAPHQL, {
-      query: `{
-        perpsEvents(
-          eventType: "order_filled"
-          last: 100
-          sortBy: BLOCK_HEIGHT_DESC
-          ${beforeClause}
-        ) {
-          nodes { data createdAt }
-          pageInfo { hasPreviousPage startCursor }
-        }
-      }`,
-    });
+    let res;
+    try {
+      res = await postURL(GRAPHQL, {
+        query: `{
+          perpsEvents(
+            eventType: "order_filled"
+            last: 100
+            sortBy: BLOCK_HEIGHT_DESC
+            ${beforeClause}
+          ) {
+            nodes { data createdAt }
+            pageInfo { hasPreviousPage startCursor }
+          }
+        }`,
+      });
+    } catch (e) {
+      console.error(`dango-bridge fees: failed to fetch perpsEvents page ${page}`, e);
+      return emptyResult();
+    }
 
     const nodes = res?.data?.perpsEvents?.nodes || [];
     const pageInfo = res?.data?.perpsEvents?.pageInfo;
