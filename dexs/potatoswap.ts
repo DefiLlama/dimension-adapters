@@ -23,6 +23,29 @@ const methodology = {
     "No direct protocol revenue is assigned in the PotatoSwap v2 adapter.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    SwapFees:
+      "Swap fees reconstructed from on-chain Swap logs across all PotatoSwap v2 pairs discovered from the v2 factory, using a fixed 0.3% fee rate.",
+  },
+  Revenue: {
+    HoldersRevenue:
+      "32% of reconstructed PotatoSwap v2 swap fees are attributed to vePOT holders, preserving the existing revenue split.",
+  },
+  SupplySideRevenue: {
+    SupplySideRevenue:
+      "68% of reconstructed PotatoSwap v2 swap fees are attributed to liquidity providers, preserving the existing revenue split.",
+  },
+  HoldersRevenue: {
+    HoldersRevenue:
+      "vePOT holders receive 32% of reconstructed PotatoSwap v2 swap fees under the existing revenue split.",
+  },
+  ProtocolRevenue: {
+    ProtocolRevenue:
+      "No direct protocol revenue is assigned in the PotatoSwap v2 adapter.",
+  },
+};
+
 const fetch = async (options: FetchOptions) => {
   const { chain, createBalances, api, getLogs } = options;
 
@@ -125,6 +148,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.XLAYER]: {
       fetch,

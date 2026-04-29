@@ -36,6 +36,25 @@ const methodology = {
     "Supply-side revenue is the remainder of tracked fees after the on-chain protocol revenue share is removed.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    SwapFees:
+      "Swap fees reconstructed from on-chain Swap logs across all PotatoSwap v3 pools discovered from the v3 factory, using each pool's on-chain fee tier.",
+  },
+  Revenue: {
+    ProtocolRevenue:
+      "Protocol revenue is reconstructed from on-chain Swap logs using each pool's current fee tier and the Uniswap v3-style feeProtocol split read from slot0().",
+  },
+  ProtocolRevenue: {
+    ProtocolRevenue:
+      "Protocol revenue is the protocol-owned share of reconstructed PotatoSwap v3 swap fees, selected per swap direction from slot0().feeProtocol.",
+  },
+  SupplySideRevenue: {
+    SupplySideRevenue:
+      "Supply-side revenue is the remaining share of reconstructed PotatoSwap v3 swap fees after removing the protocol-owned fee share.",
+  },
+};
+
 const fetch = async (options: FetchOptions) => {
   const { chain, createBalances, api, getLogs } = options;
 
@@ -156,6 +175,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.XLAYER]: {
       fetch,
