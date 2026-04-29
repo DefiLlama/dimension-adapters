@@ -83,11 +83,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   } else {
     const yieldAfterFees = totalSupply * (exchangeRateAfter - exchangeRateBefore)
     const yieldTotal = yieldAfterFees / 0.9
-    const protocolRevenue = yieldAfterFees * 0.3
-    const holdersRevenue = yieldAfterFees * 0.7
+    const performanceFees = yieldTotal - yieldAfterFees;
+    const protocolRevenue = performanceFees * 0.3
+    const holdersRevenue = performanceFees * 0.7
     
     dailyFees.addCGToken('hyperliquid', yieldTotal, METRICS.StakingRewards);
-    dailyRevenue.addCGToken('hyperliquid', yieldTotal - yieldAfterFees, METRICS.PerformanceFees);
+    dailyRevenue.addCGToken('hyperliquid', performanceFees, METRICS.PerformanceFees);
     dailySupplySideRevenue.addCGToken('hyperliquid', yieldAfterFees, METRICS.StakingRewardsToLPs);
     dailyProtocolRevenue.addCGToken('hyperliquid', protocolRevenue, METRICS.PerformanceFees);
     dailyHoldersRevenue.addCGToken('hyperliquid', holdersRevenue, METRICS.TokenByBack); 
