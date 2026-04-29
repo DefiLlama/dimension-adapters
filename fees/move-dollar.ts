@@ -16,7 +16,8 @@ interface IVolumeall {
 
 const fetch = async (timestamp: number) => {
   const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D")))?.data;
-  const dailyFees = (dayFeesQuery ?? []).reduce(
+  const items = Array.isArray(dayFeesQuery) ? dayFeesQuery : [];
+  const dailyFees = items.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
   );
