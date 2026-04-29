@@ -56,7 +56,7 @@ const graphs = () => {
     // Transform staking rewards from both Polygon and Ethereum networks into an object indexed by the reward type.
     // The value of the each type will be the USD amount of GET rewarded using the price at that point in time.
     const stakingFees = graphEthFees.stakingRewards.concat(graphPolyFees.stakingRewards).reduce((tally: any, reward: any) => {
-      tally[reward.type] = (tally[reward.type] || 0) + Number(BigInt(reward.totalRewards)) / 1e18;
+      tally[reward.type] = (tally[reward.type] || 0) + Number(BigInt(reward.totalRewards) / (10n ** 18n));
       return tally;
     }, {});
 
