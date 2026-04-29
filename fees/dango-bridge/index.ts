@@ -44,12 +44,11 @@ const fetch = async (options: FetchOptions) => {
 
     let shouldStop = false;
 
-    // reverse because `last` returns nodes in ASC order (oldest first)
     for (const node of [...nodes].reverse()) {
       const ts = Math.floor(new Date(node.createdAt).getTime() / 1000);
 
-      if (ts >= endTs) continue;   // too new
-      if (ts < startTs) {          // too old → stop pagination
+      if (ts >= endTs) continue;  
+      if (ts < startTs) {          
         shouldStop = true;
         break;
       }
