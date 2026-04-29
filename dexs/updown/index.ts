@@ -1,6 +1,7 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { formatUnits } from "ethers";
 
 const endpoint = "https://graph.perpex.ai/celo-beta-usdt-wrap/subgraphs";
 
@@ -27,11 +28,11 @@ const fetchVolume = async (timestamp: number) => {
     });
   }
 
-  const dailyVolume = Number(dailyVolumeRaw) / 1e30;
+  const dailyVolume = formatUnits(dailyVolumeRaw, 30);
 
   return {
     timestamp: timestamp,
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume: dailyVolume,
   };
 };
 
