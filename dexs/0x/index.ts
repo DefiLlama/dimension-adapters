@@ -39,15 +39,19 @@ const fetch = async (options: FetchOptions) => {
       noTarget: true,
     });
 
-    const grouped: Record<string, any[]> = {};
+    // Track the log with the highest logIndex per transaction
+    // to correctly identify the final outgoing transfer
+    const lastByTx: Record<string, any> = {};
     for (const log of logs) {
-      if (!grouped[log.transactionHash]) grouped[log.transactionHash] = [];
-      grouped[log.transactionHash].push(log);
+      const idx = log.logIndex ?? (log as any).index ?? 0;
+      const prev = lastByTx[log.transactionHash];
+      if (!prev || idx > (prev.logIndex ?? (prev as any).index ?? 0)) {
+        lastByTx[log.transactionHash] = log;
+      }
     }
 
-    for (const txLogs of Object.values(grouped)) {
-      const last = txLogs[txLogs.length - 1];
-      dailyVolume.add(last.address, last.data);
+    for (const log of Object.values(lastByTx)) {
+      dailyVolume.add(log.address, log.data);
     }
   } catch (e) {
     console.error(`0x Settler log fetch failed on ${options.chain}`, e);
