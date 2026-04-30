@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL"
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const historicalVolumeEndpoint = "https://markets.bisq.services/api/volumes?interval=day"
+const historicalVolumeEndpoint = "https://markets.bisq.network/api/volumes?interval=day"
 
 interface IVolumeall {
   volume: string;
