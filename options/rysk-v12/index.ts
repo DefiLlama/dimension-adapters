@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactions } from "../../helpers/getTxReceipts";
+import { getProvider } from "@defillama/sdk";
 
 const ABI: any = {
     transferToUser: 'event TransferToUser (address indexed asset,address indexed account, address indexed recipient, uint256 amount)',
@@ -32,20 +33,36 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     
     const gammaThenMMarketSelector = "0xd3d2f616" // function ingresso_GammaThenMMarket(Otoken[] memory otoken, Actions.ActionArgs[] memory actions, MMarketOperations.Operation[] memory operations)
     const newUserPositionSelector = "0x778ddcb3" // function ingresso_newUserPosition(bytes calldata payload)
+    const uniqueTxHashes = Array.from(new Set(premiumReceivedLogs.map((log: any) => log.transactionHash.toLowerCase())))
     let txs: any[] = []
     try {
         txs = await getTransactions(
             options.chain,
-            premiumReceivedLogs.map((log: any) => log.transactionHash),
+            uniqueTxHashes,
             { cacheKey: 'rysk-v12' }
         )
     } catch (e) {
         console.error(`rysk-v12: failed to fetch txs on ${options.chain}`, e)
-        txs = []
+        const provider = getProvider(options.chain)
+        txs = await Promise.all(
+            uniqueTxHashes.map(async (hash) => {
+                try {
+                    const tx: any = await provider.getTransaction(hash)
+                    if (tx) tx.data = tx.input
+                    return tx
+                } catch {
+                    return null
+                }
+            })
+        )
     }
+    const txByHash = new Map<string, any>()
+    uniqueTxHashes.forEach((hash, idx) => {
+        if (txs[idx]) txByHash.set(hash, txs[idx])
+    })
 
-    premiumReceivedLogs.forEach((log: any, index) => {
-        const tx = txs[index];
+    premiumReceivedLogs.forEach((log: any) => {
+        const tx = txByHash.get(log.transactionHash.toLowerCase());
         if (!tx) return;
         if (tx.data.startsWith(gammaThenMMarketSelector) || tx.data.startsWith(newUserPositionSelector)) {
             const { asset, amount } = log.args;
