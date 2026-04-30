@@ -66,6 +66,24 @@ async function main() {
     } as any),
     /invalid block range 20-10/,
   );
+  await assert.rejects(
+    () => fetchEvmChainMetrics({
+      chain: "negative_block_test",
+      fromBlock: -1,
+      toBlock: 1,
+      rpcSenders: [{ send: async () => [] }],
+    } as any),
+    /invalid block range -1-1/,
+  );
+  await assert.rejects(
+    () => fetchEvmChainMetrics({
+      chain: "fractional_block_test",
+      fromBlock: 1.5,
+      toBlock: 2,
+      rpcSenders: [{ send: async () => [] }],
+    } as any),
+    /invalid block range 1.5-2/,
+  );
 
   const [hydratedReceipt] = hydrateReceiptsWithTransactions([
     {

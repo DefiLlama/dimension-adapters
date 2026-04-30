@@ -897,12 +897,13 @@ function toPublicMetrics(metrics: EvmChainMetricsAccumulator): EvmChainMetrics {
  * Ensures timestamp-to-block resolution produced a usable inclusive block range.
  */
 function assertValidBlockRange(chain: string, fromBlock: any, toBlock: any) {
-  if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
-    throw new Error(`${chain}: unable to resolve block range`);
-  }
-  if (fromBlock > toBlock) {
+  if (!isValidBlockNumber(fromBlock) || !isValidBlockNumber(toBlock) || fromBlock > toBlock) {
     throw new Error(`${chain}: invalid block range ${fromBlock}-${toBlock}`);
   }
+}
+
+function isValidBlockNumber(block: any) {
+  return Number.isInteger(block) && block >= 0;
 }
 
 /**
