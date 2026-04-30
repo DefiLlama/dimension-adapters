@@ -35,7 +35,7 @@ const funds: Record<string, Record<string, FundConfig>> = {
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
-const ORACLE_DECIMALS = 6;
+const ORACLE_DECIMALS_ABI = "function decimals() view returns (uint8)";
 const MANAGEMENT_FEE_RATE = 0.25 / 100;
 const YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
@@ -43,7 +43,7 @@ const getOracleAnswer = (priceData: any) =>
   new BigNumber((priceData.answer ?? priceData[1]).toString());
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { api, createBalances, chain, fromApi, toApi } = options;
+  const { createBalances, chain, fromApi, toApi } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -51,25 +51,45 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const tokens = chainFunds.map(({ token }) => token);
   const oracles = chainFunds.map(({ oracle }) => oracle);
 
-  const [totalSuppliesBefore, totalSuppliesAfter, pricesBefore, pricesAfter] =
-    await Promise.all([
-      fromApi.multiCall({
-        calls: tokens,
-        abi: "erc20:totalSupply",
-      }),
-      toApi.multiCall({
-        calls: tokens,
-        abi: "erc20:totalSupply",
-      }),
-      fromApi.multiCall({
-        calls: oracles,
-        abi: ORACLE_PRICE_ABI,
-      }),
-      toApi.multiCall({
-        calls: oracles,
-        abi: ORACLE_PRICE_ABI,
-      }),
-    ]);
+  let totalSuppliesBefore: any[];
+  let totalSuppliesAfter: any[];
+  let pricesBefore: any[];
+  let pricesAfter: any[];
+  let oracleDecimals: any[];
+
+  try {
+    [totalSuppliesBefore, totalSuppliesAfter, pricesBefore, pricesAfter, oracleDecimals] =
+      await Promise.all([
+        fromApi.multiCall({
+          calls: tokens,
+          abi: "erc20:totalSupply",
+        }),
+        toApi.multiCall({
+          calls: tokens,
+          abi: "erc20:totalSupply",
+        }),
+        fromApi.multiCall({
+          calls: oracles,
+          abi: ORACLE_PRICE_ABI,
+        }),
+        toApi.multiCall({
+          calls: oracles,
+          abi: ORACLE_PRICE_ABI,
+        }),
+        toApi.multiCall({
+          calls: oracles,
+          abi: ORACLE_DECIMALS_ABI,
+        }),
+      ]);
+  } catch (error) {
+    console.error(`[spiko] failed to fetch chain=${chain} supply/oracle data`, error);
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  }
 
   const periodInYears = new BigNumber(options.toTimestamp - options.fromTimestamp).div(
     YEAR_IN_SECONDS,
@@ -79,8 +99,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const totalSupplyBefore = new BigNumber(totalSuppliesBefore[index].toString());
     const totalSupplyAfter = new BigNumber(totalSuppliesAfter[index].toString());
     const averageSupply = totalSupplyBefore.plus(totalSupplyAfter).div(2);
-    const priceBefore = getOracleAnswer(pricesBefore[index]).div(10 ** ORACLE_DECIMALS);
-    const priceAfter = getOracleAnswer(pricesAfter[index]).div(10 ** ORACLE_DECIMALS);
+    const oracleScale = new BigNumber(10).pow(Number(oracleDecimals[index].toString()));
+    const priceBefore = getOracleAnswer(pricesBefore[index]).div(oracleScale);
+    const priceAfter = getOracleAnswer(pricesAfter[index]).div(oracleScale);
 
     const priceIncrease = priceAfter.minus(priceBefore);
     if (priceAfter.gt(0) && priceIncrease.gt(0)) {
