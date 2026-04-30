@@ -2,7 +2,7 @@ import request, { gql } from "graphql-request";
 import { FetchOptions } from "../adapters/types";
 
 export const PREMARKET_GRAPHQL_ENDPOINT =
-  "https://auth-prm.up.railway.app/premarket/api/graphql";
+  "https://api.premarket.xyz/premarket/api/graphql";
 
 export const PREMARKET_START_DATE = "2026-04-15";
 
