@@ -86,28 +86,43 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
   const dailyUserFees = createBalances();
   const dailyRevenue = createBalances();
 
-  // Filter `Transfer(from, to, value)` by the indexed `to` topic only —
-  // the middle `null` keeps `from` unconstrained at the RPC level so we
-  // can post-filter against KNOWN_PM_BUILDER_PAYOUT_SENDERS in JS.
-  const builderPayoutTopics = [transferTopic, null, padAddress(BUILDER_PAYOUT)];
+  // Filter Transfer events by indexed `from` topic so the Llama Indexer
+  // can serve the query directly (single-topic post-event-signature
+  // filters are the well-supported case). We then check `log.to` in JS
+  // to ensure the destination is BUILDER_PAYOUT — that's the secondary
+  // gate that prevents counting any unrelated transfer between the
+  // sanctioned sender and a third party.
   const builderTokens = [PUSD_POLYGON, USDC_E_POLYGON, USDC_NATIVE_POLYGON];
+  const builderPayoutLower = BUILDER_PAYOUT.toLowerCase();
 
   // Service fees are required and must throw on failure. Builder probes
-  // are best-effort across three tokens — wrap them in `allSettled` so a
-  // transient RPC error on one token does not drop the service-fee
-  // stream for the period.
+  // are best-effort across (sender × token) pairs — wrap them in
+  // `allSettled` so a transient RPC error on one probe does not drop
+  // the service-fee stream for the period.
   const feeCollectedLogs = await getLogs({
     target: FEE_COLLECTOR,
     eventAbi:
       "event FeeCollected(bytes32 indexed fillId, address indexed user, bytes32 indexed tokenId, uint8 service, uint256 tradeAmount, uint256 feeAmount, uint256 feeBps, uint256 timestamp)",
   });
 
-  const builderInflowsByToken = await Promise.allSettled(
-    builderTokens.map((token) =>
+  const knownSenders = Array.from(KNOWN_PM_BUILDER_PAYOUT_SENDERS);
+  const probes: { sender: string; token: string }[] = [];
+  for (const sender of knownSenders) {
+    for (const token of builderTokens) probes.push({ sender, token });
+  }
+  // skipIndexer because the Llama Indexer's coverage of arbitrary
+  // ERC-20 Transfer events is incomplete for tokens that aren't part
+  // of a pre-tracked protocol (pUSD/USDC.e Polymarket payouts have
+  // returned empty in production CI runs even when the underlying
+  // events exist on-chain). RPC fallback honors the topic1 filter
+  // natively and is fine for the small per-slice volume.
+  const builderProbeResults = await Promise.allSettled(
+    probes.map(({ sender, token }) =>
       getLogs({
         target: token,
         eventAbi: transferEventAbi,
-        topics: builderPayoutTopics as any,
+        topics: [transferTopic, padAddress(sender)] as any,
+        skipIndexer: true,
       })
     )
   );
@@ -118,18 +133,18 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
     dailyRevenue.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
   }
 
-  builderInflowsByToken.forEach((result, i) => {
-    const token = builderTokens[i];
+  builderProbeResults.forEach((result, i) => {
+    const { sender, token } = probes[i];
     if (result.status === "rejected") {
       console.error(
-        `frenflow: builder-fee Transfer query failed for token ${token}:`,
+        `frenflow: builder-fee Transfer query failed for sender=${sender} token=${token}:`,
         result.reason
       );
       return;
     }
     for (const log of result.value) {
-      const from = String(log.from).toLowerCase();
-      if (!KNOWN_PM_BUILDER_PAYOUT_SENDERS.has(from)) continue;
+      const to = String(log.to).toLowerCase();
+      if (to !== builderPayoutLower) continue;
       dailyFees.add(token, log.value, BUILDER_FEE_LABEL);
       dailyRevenue.add(token, log.value, BUILDER_FEE_LABEL);
     }
