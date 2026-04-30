@@ -104,7 +104,9 @@ const breakdownMethodology = {
 export function makeBlockChunks(fromBlock: number, toBlock: number, chunkSize = DEFAULT_BLOCK_CHUNK_SIZE): BlockRange[] {
   if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) return [];
   if (fromBlock > toBlock) return [];
-  if (chunkSize < 1) throw new Error(`Invalid block chunk size: ${chunkSize}`);
+  if (!Number.isFinite(chunkSize) || !Number.isInteger(chunkSize) || chunkSize < 1) {
+    throw new Error(`Invalid block chunk size: ${chunkSize}`);
+  }
 
   const chunks: BlockRange[] = [];
   for (let block = fromBlock; block <= toBlock; block += chunkSize) {
@@ -181,6 +183,7 @@ function getReceiptMetricsAccumulator(receipts: Array<ReceiptLike | null | undef
  * It prefers batched eth_getBlockReceipts and falls back to block transactions plus transaction receipts.
  */
 export async function fetchEvmChainMetrics(config: EvmChainMetricConfig & BlockRange): Promise<EvmChainMetrics> {
+  assertValidBlockRange(config.chain, config.fromBlock, config.toBlock);
   const chunks = makeBlockChunks(config.fromBlock, config.toBlock, config.blockChunkSize);
   const totals = emptyMetricsAccumulator();
 

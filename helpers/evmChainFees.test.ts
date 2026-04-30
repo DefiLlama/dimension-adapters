@@ -42,6 +42,28 @@ async function main() {
     { fromBlock: 16, toBlock: 16 },
   ]);
   assert.deepEqual(makeBlockChunks(20, 10, 3), []);
+  assert.throws(
+    () => makeBlockChunks(10, 16, Number.NaN),
+    /Invalid block chunk size: NaN/,
+  );
+  assert.throws(
+    () => makeBlockChunks(10, 16, Number.POSITIVE_INFINITY),
+    /Invalid block chunk size: Infinity/,
+  );
+  assert.throws(
+    () => makeBlockChunks(10, 16, 1.5),
+    /Invalid block chunk size: 1.5/,
+  );
+
+  await assert.rejects(
+    () => fetchEvmChainMetrics({
+      chain: "invalid_range_test",
+      fromBlock: 20,
+      toBlock: 10,
+      rpcSenders: [{ send: async () => [] }],
+    } as any),
+    /invalid block range 20-10/,
+  );
 
   const [hydratedReceipt] = hydrateReceiptsWithTransactions([
     {
