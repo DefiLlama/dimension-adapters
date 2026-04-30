@@ -16,7 +16,8 @@ type RpcRequest = {
 
 type RpcResponse<T> = {
   id: number;
-  result: T;
+  result?: T;
+  error?: { message?: string };
 };
 
 type Block = {
@@ -49,12 +50,23 @@ const rpc = async <T>(method: string, params: any[]): Promise<T> => {
     id: 1,
   });
 
+  if (response.error || response.result === undefined) {
+    throw new Error(`CSC RPC ${method} failed: ${response.error?.message ?? "missing result"}`);
+  }
+
   return response.result;
 };
 
 const rpcBatch = async <T>(requests: RpcRequest[]): Promise<RpcResponse<T>[]> => {
   if (requests.length === 0) return [];
-  return httpPost(RPC, requests);
+  const responses: RpcResponse<T>[] = await httpPost(RPC, requests);
+  const failedResponse = responses.find(({ error, result }) => error || result === undefined);
+
+  if (failedResponse) {
+    throw new Error(`CSC RPC batch request ${failedResponse.id} failed: ${failedResponse.error?.message ?? "missing result"}`);
+  }
+
+  return responses;
 };
 
 const getBlock = (block: number, fullTransactions = false) =>
@@ -96,7 +108,7 @@ const getBlocks = async (fromBlock: number, toBlock: number) => {
     }
 
     const responses = await rpcBatch<Block>(requests);
-    blocks.push(...responses.map(({ result }) => result).filter(Boolean));
+    blocks.push(...responses.map(({ result }) => result as Block));
   }
 
   return blocks;
@@ -116,7 +128,7 @@ const getReceipts = async (transactions: Transaction[]) => {
 
     const responses = await rpcBatch<Receipt>(requests);
     responses.forEach(({ result }) => {
-      if (result) receipts.set(result.transactionHash, result);
+      receipts.set((result as Receipt).transactionHash, result as Receipt);
     });
   }
 
