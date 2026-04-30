@@ -91,14 +91,22 @@ function addFeeBalances(
 }
 
 function deductFee(grossAmount: bigint, tradingFee: bigint) {
+  assertValidTradingFee(tradingFee);
   const netAmount = grossAmount * (PRECISION - tradingFee) / PRECISION;
   return grossAmount - netAmount;
 }
 
 function addFee(netAmount: bigint, tradingFee: bigint) {
+  assertValidTradingFee(tradingFee);
   const denominator = PRECISION - tradingFee;
   const grossAmount = (netAmount * PRECISION + denominator - 1n) / denominator;
   return grossAmount - netAmount;
+}
+
+function assertValidTradingFee(tradingFee: bigint) {
+  if (tradingFee < 0n || tradingFee >= PRECISION) {
+    throw new Error(`Invalid Delphi trading fee: ${tradingFee.toString()}`);
+  }
 }
 
 function toBigInt(value: any) {
