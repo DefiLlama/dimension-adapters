@@ -51,38 +51,45 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const tokens = chainFunds.map(({ token }) => token);
   const oracles = chainFunds.map(({ oracle }) => oracle);
 
-  const [totalSupplies, pricesBefore, pricesAfter] = await Promise.all([
-    api.multiCall({
-      calls: tokens,
-      abi: "erc20:totalSupply",
-    }),
-    fromApi.multiCall({
-      calls: oracles,
-      abi: ORACLE_PRICE_ABI,
-    }),
-    toApi.multiCall({
-      calls: oracles,
-      abi: ORACLE_PRICE_ABI,
-    }),
-  ]);
+  const [totalSuppliesBefore, totalSuppliesAfter, pricesBefore, pricesAfter] =
+    await Promise.all([
+      fromApi.multiCall({
+        calls: tokens,
+        abi: "erc20:totalSupply",
+      }),
+      toApi.multiCall({
+        calls: tokens,
+        abi: "erc20:totalSupply",
+      }),
+      fromApi.multiCall({
+        calls: oracles,
+        abi: ORACLE_PRICE_ABI,
+      }),
+      toApi.multiCall({
+        calls: oracles,
+        abi: ORACLE_PRICE_ABI,
+      }),
+    ]);
 
   const periodInYears = new BigNumber(options.toTimestamp - options.fromTimestamp).div(
     YEAR_IN_SECONDS,
   );
 
   chainFunds.forEach(({ token }, index) => {
-    const totalSupply = new BigNumber(totalSupplies[index].toString());
+    const totalSupplyBefore = new BigNumber(totalSuppliesBefore[index].toString());
+    const totalSupplyAfter = new BigNumber(totalSuppliesAfter[index].toString());
+    const averageSupply = totalSupplyBefore.plus(totalSupplyAfter).div(2);
     const priceBefore = getOracleAnswer(pricesBefore[index]).div(10 ** ORACLE_DECIMALS);
     const priceAfter = getOracleAnswer(pricesAfter[index]).div(10 ** ORACLE_DECIMALS);
 
     const priceIncrease = priceAfter.minus(priceBefore);
     if (priceAfter.gt(0) && priceIncrease.gt(0)) {
-      const assetYield = totalSupply.times(priceIncrease).div(priceAfter);
+      const assetYield = averageSupply.times(priceIncrease).div(priceAfter);
       dailyFees.add(token, assetYield.toNumber(), METRIC.ASSETS_YIELDS);
       dailySupplySideRevenue.add(token, assetYield.toNumber(), METRIC.ASSETS_YIELDS);
     }
 
-    const managementFee = totalSupply.times(MANAGEMENT_FEE_RATE).times(periodInYears);
+    const managementFee = averageSupply.times(MANAGEMENT_FEE_RATE).times(periodInYears);
     dailyFees.add(token, managementFee.toNumber(), METRIC.MANAGEMENT_FEES);
     dailyRevenue.add(token, managementFee.toNumber(), METRIC.MANAGEMENT_FEES);
   });
@@ -116,6 +123,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: "Positive EUTBL/USTBL NAV growth from the official Spiko on-chain oracle.",
   },
+  HoldersRevenue: {},
 };
 
 const adapter: Adapter = {
