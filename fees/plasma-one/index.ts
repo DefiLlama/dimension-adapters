@@ -43,22 +43,34 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // XPL Cashbacks: outflows from cashback processors
-  const [cashbackV1Logs, cashbackV2Logs] = await Promise.all([
-    options.getLogs({
-        target: WXPL,
-        topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V1)],
-        entireLog: true,
-        cacheInCloud: true
-    }),
-    options.getLogs({
-        target: WXPL,
-        topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V2)],
-        entireLog: true,
-        cacheInCloud: true
-    }),
-  ]);
+  // V1 deprecated after block 17612591, V2 from then on
+  const CASHBACK_V1_LAST_BLOCK = 17612591;
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  const useV1 = fromBlock <= CASHBACK_V1_LAST_BLOCK;
+  const useV2 = toBlock > CASHBACK_V1_LAST_BLOCK;
 
-  for (const log of [...cashbackV1Logs, ...cashbackV2Logs]) {
+  const cashbackLogFetches = [];
+  if (useV1) {
+    cashbackLogFetches.push(
+      options.getLogs({ 
+        target: WXPL, 
+        topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V1)], 
+        entireLog: true, 
+      })
+    );
+  };
+  if (useV2) {
+    cashbackLogFetches.push(
+      options.getLogs({ 
+        target: WXPL, 
+        topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V2)], 
+        entireLog: true, 
+      })
+    );
+  };
+  const cashbackLogs = (await Promise.all(cashbackLogFetches)).flat();
+
+  for (const log of cashbackLogs) {
     dailyFees.add(WXPL, log.data, MetricLabels.CASHBACKS);
     dailySupplySideRevenue.add(ADDRESSES.plasma.WXPL, log.data, MetricLabels.CASHBACKS);
   }
