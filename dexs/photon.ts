@@ -9,10 +9,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     FROM dex_solana.trades
     WHERE TIME_RANGE
       AND tx_id IN (
-        SELECT tx_id
-        FROM solana.instruction_calls
-        WHERE executing_account = 'BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW'
-          AND tx_success = TRUE
+        SELECT DISTINCT tx_id
+        FROM solana.account_activity
+        WHERE address = 'AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH'
           AND TIME_RANGE
       )
   `);
