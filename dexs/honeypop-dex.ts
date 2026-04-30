@@ -1,8 +1,13 @@
+import { cache } from "@defillama/sdk";
+import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import { filterPools } from "../helpers/uniswap";
+import { addOneToken } from "../helpers/prices";
 
 const FACTORY = "0x1d25AF2b0992bf227b350860Ea80Bad47382CAf6";
+const POOL_CREATED_EVENT = "event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)";
+const SWAP_EVENT = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 
 const protocolFeePools: Array<{ revenueRatio: number; pools: string[] }> = [
   {
@@ -31,37 +36,67 @@ const protocolFeePools: Array<{ revenueRatio: number; pools: string[] }> = [
   },
 ];
 
+const poolRevenueRatio: Record<string, number> = {};
+for (const config of protocolFeePools) {
+  for (const pool of config.pools) poolRevenueRatio[pool.toLowerCase()] = config.revenueRatio;
+}
+
 const fetch = async (options: FetchOptions) => {
-  const baseAdapter = getUniV3LogAdapter({
-    factory: FACTORY,
-    userFeesRatio: 1,
-  });
-  const result = await baseAdapter(options);
+  const { api, chain, getLogs, createBalances } = options;
 
-  const dailyFees = options.createBalances();
-  const dailyUserFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${FACTORY.toLowerCase()}.json`;
+  const iface = new ethers.Interface([POOL_CREATED_EVENT]);
+  const { logs: rawPoolLogs } = await cache.readCache(cacheKey, { readFromR2Cache: true });
 
-  dailyFees.addBalances(result.dailyFees, "Swap Fees");
-  dailyUserFees.addBalances(result.dailyFees, "Swap Fees");
-
-  for (const config of protocolFeePools) {
-    const protocolPoolAdapter = getUniV3LogAdapter({
-      pools: config.pools,
-      revenueRatio: config.revenueRatio,
-      protocolRevenueRatio: config.revenueRatio,
-    });
-    const protocolPoolResult = await protocolPoolAdapter(options);
-
-    dailyRevenue.addBalances(protocolPoolResult.dailyRevenue, "Swap Fees To Protocol");
+  const pairObject: Record<string, string[]> = {};
+  const poolFee: Record<string, number> = {};
+  for (const raw of rawPoolLogs) {
+    const args = iface.parseLog(raw)?.args;
+    if (!args) continue;
+    pairObject[args.pool] = [args.token0, args.token1];
+    poolFee[args.pool] = Number(args.fee?.toString() || 0) / 1e6;
   }
 
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(result.dailyFees, "Swap Fees To LPs");
-  dailySupplySideRevenue.subtract(dailyRevenue, "Swap Fees To LPs");
+  const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances });
+  const pairs = Object.keys(filteredPairs);
+
+  const dailyVolume = createBalances();
+  const rawFees = createBalances();
+  const rawRevenue = createBalances();
+
+  if (pairs.length) {
+    const allLogs = await getLogs({ targets: pairs, eventAbi: SWAP_EVENT, flatten: false });
+    allLogs.forEach((logs: any[], i: number) => {
+      if (!logs.length) return;
+      const pair = pairs[i];
+      const [token0, token1] = pairObject[pair];
+      const fee = poolFee[pair];
+      const ratio = poolRevenueRatio[pair.toLowerCase()];
+      logs.forEach((log: any) => {
+        addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 });
+        const amount0Fee = Number(log.amount0.toString()) * fee;
+        const amount1Fee = Number(log.amount1.toString()) * fee;
+        addOneToken({ chain, balances: rawFees, token0, token1, amount0: amount0Fee, amount1: amount1Fee });
+        if (ratio) {
+          addOneToken({ chain, balances: rawRevenue, token0, token1, amount0: amount0Fee * ratio, amount1: amount1Fee * ratio });
+        }
+      });
+    });
+  }
+
+  const dailyFees = createBalances();
+  const dailyUserFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+
+  dailyFees.addBalances(rawFees, "Swap Fees");
+  dailyUserFees.addBalances(rawFees, "Swap Fees");
+  dailyRevenue.addBalances(rawRevenue, "Swap Fees To Protocol");
+  dailySupplySideRevenue.addBalances(rawFees, "Swap Fees To LPs");
+  dailySupplySideRevenue.subtract(rawRevenue, "Swap Fees To LPs");
 
   return {
-    dailyVolume: result.dailyVolume,
+    dailyVolume,
     dailyFees,
     dailyUserFees,
     dailyRevenue,
@@ -73,6 +108,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
+  chains: [CHAIN.SCROLL],
+  start: "2025-03-25",
   methodology: {
     Fees: "Swap fees paid by users.",
     UserFees: "Swap fees paid by users.",
@@ -95,11 +133,6 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       "Swap Fees To LPs": "Swap fees distributed to liquidity providers after protocol-fee splits.",
-    },
-  },
-  adapter: {
-    [CHAIN.SCROLL]: {
-      fetch,
     },
   },
 };
