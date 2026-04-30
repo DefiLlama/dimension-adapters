@@ -80,7 +80,7 @@ function parseBlockscoutValue(point: BlockscoutStatsChartItem | undefined, baseU
         throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
 
     const value = typeof rawValue === "number" ? rawValue : Number(rawValue)
-    if (!Number.isFinite(value))
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0)
         throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
 
     return value
