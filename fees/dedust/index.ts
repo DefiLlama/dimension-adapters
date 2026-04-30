@@ -32,8 +32,8 @@ query GetAssets {
   }
 `;
 
-// LPs get 80% of fees
-const FEES_PERCENT_TO_LP = 0.8;
+// DeDust CPMM v2 pools and Uranus bonding curves distribute 70% to LPs/token creators.
+const FEES_PERCENT_TO_LP = 0.7;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const assetsList = (await postURL(GRAPHQL_ENDPOINT, {
@@ -90,8 +90,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Fees: "Swap fees paid by users, ranging from 0.1% to 1% depending on the pool.",
   UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
-  Revenue: "Protocol receives 20% of fees, it is distributed among DUST stakers.",
-  SupplySideRevenue: "80% of user fees are distributed among LPs.",
+  Revenue: "Protocol receives 30% of fees, it is distributed among DUST stakers.",
+  SupplySideRevenue: "70% of user fees are distributed among LPs/token creators.",
 }
 
 const breakdownMethodology = {
@@ -99,10 +99,10 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Fees paid by users on token swaps, ranging from 0.1% to 1% depending on the liquidity pool"
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "20% of swap fees distributed to DUST token stakers as protocol revenue"
+    [METRIC.PROTOCOL_FEES]: "30% of swap fees distributed to DUST token stakers as protocol revenue"
   },
   SupplySideRevenue: {
-    [METRIC.LP_FEES]: "80% of swap fees distributed to liquidity providers who supply capital to pools"
+    [METRIC.LP_FEES]: "70% of swap fees distributed to liquidity providers/token creators"
   }
 }
 
