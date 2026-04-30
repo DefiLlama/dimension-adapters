@@ -103,6 +103,7 @@ async function main() {
 
   assert.deepEqual(Object.keys(EVM_CHAIN_METRIC_CONFIGS).sort(), ["core", "kava", "merlin"]);
   assert.equal(EVM_CHAIN_METRIC_CONFIGS.merlin.blockChunkSize, 250);
+  assert.equal(EVM_CHAIN_METRIC_CONFIGS.merlin.rpcTimeoutMs, 20_000);
 
   const metrics = await fetchEvmChainMetrics({
     chain: "unit_test",
@@ -140,6 +141,42 @@ async function main() {
   assert.equal(metrics.activeUsers, 1);
   assert.equal(metrics.totalGasUsed.toString(), "21000");
   assert.equal(metrics.totalFeesWei.toString(), "21000000000000");
+
+  let blockByNumberAttempts = 0;
+  const retriedMetrics = await fetchEvmChainMetrics({
+    chain: "single_rpc_retry_test",
+    fromBlock: 1,
+    toBlock: 1,
+    blockConcurrency: 1,
+    txReceiptConcurrency: 1,
+    rpcSenders: [{
+      send: async (method: string) => {
+        if (method === "eth_getBlockReceipts") {
+          throw { message: "the method eth_getBlockReceipts does not exist/is not available" };
+        }
+        if (method === "eth_getBlockByNumber") {
+          blockByNumberAttempts += 1;
+          if (blockByNumberAttempts === 1) throw new Error("temporary upstream timeout");
+          return { transactions: ["0xretry"] };
+        }
+        if (method === "eth_getTransactionReceipt") {
+          return {
+            transactionHash: "0xretry",
+            from: "0x6666666666666666666666666666666666666666",
+            gasUsed: "0x5208",
+            gasPrice: "0x3b9aca00",
+          };
+        }
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    }],
+  } as any);
+
+  assert.equal(blockByNumberAttempts, 2);
+  assert.equal(retriedMetrics.transactionCount, 1);
+  assert.equal(retriedMetrics.activeUsers, 1);
+  assert.equal(retriedMetrics.totalGasUsed.toString(), "21000");
+  assert.equal(retriedMetrics.totalFeesWei.toString(), "21000000000000");
 
   await withMockedFetch(async (calls) => {
     const metrics = await fetchEvmChainMetrics({

@@ -68,6 +68,7 @@ const DEFAULT_BLOCK_CHUNK_SIZE = 500;
 const DEFAULT_BLOCK_CONCURRENCY = 8;
 const DEFAULT_TX_RECEIPT_CONCURRENCY = 20;
 const DEFAULT_RPC_TIMEOUT_MS = 10_000;
+const DEFAULT_SINGLE_RPC_ATTEMPTS = 2;
 const DEFAULT_BATCH_CONCURRENCY = 2;
 const DEFAULT_RPC_BATCH_SIZE = 100;
 const blockReceiptsSupport: Record<string, boolean | undefined> = {};
@@ -81,7 +82,7 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
 export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainMetricConfig> = {
   core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500 },
   kava: { chain: CHAIN.KAVA, start: "2022-05-10", blockChunkSize: 100 },
-  merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250 },
+  merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250, rpcTimeoutMs: 20_000 },
 };
 
 const methodology = {
@@ -528,19 +529,25 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
   let methodUnavailableError: any;
 
   for (const { sender, key } of senders) {
-    try {
-      const result = await withTimeout(
-        sender.send(method, params),
-        config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
-        `${config.chain} ${method}`,
-      );
-      markRpcSenderSuccess(config, method, key);
-      return result;
-    } catch (error) {
-      lastError = error;
-      if (isMethodUnavailable(error)) methodUnavailableError ??= error;
-      markRpcSenderFailure(config, method, key);
+    for (let attempt = 0; attempt < DEFAULT_SINGLE_RPC_ATTEMPTS; attempt++) {
+      try {
+        const result = await withTimeout(
+          sender.send(method, params),
+          config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
+          `${config.chain} ${method}`,
+        );
+        markRpcSenderSuccess(config, method, key);
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (isMethodUnavailable(error)) {
+          methodUnavailableError ??= error;
+          break;
+        }
+        if (attempt < DEFAULT_SINGLE_RPC_ATTEMPTS - 1) await sleep(250 * (attempt + 1));
+      }
     }
+    markRpcSenderFailure(config, method, key);
   }
 
   throw methodUnavailableError ?? lastError ?? new Error(`No RPC sender available for ${config.chain}`);
