@@ -133,7 +133,6 @@ async function fetch(options: FetchOptions) {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
   adapter: chainConfig,
   fetch,
   methodology: {
