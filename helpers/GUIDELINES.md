@@ -166,6 +166,10 @@ fees should be reported as supply-side revenue. The configured shares must not
 sum above `1`; leave unattributed or burned fees out unless they fit DefiLlama's
 revenue taxonomy.
 
+The helper reports gross fees under `Transaction Gas Fees`, chain revenue under
+`Transaction Gas Fees To Chain`, and supply-side revenue under
+`Transaction Gas Fees To Supply Side`.
+
 1. Add the chain key to `rpcFeesConfigKeys` in `factory/chainTxFees.ts`
    if the fees adapter can be loaded from the factory.
 

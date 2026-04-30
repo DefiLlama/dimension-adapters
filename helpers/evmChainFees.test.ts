@@ -306,6 +306,60 @@ async function main() {
   assert.equal(getOnlyBalance(allocationResult.dailyFees), 21_000_000_000_000);
   assert.equal(getOnlyBalance(allocationResult.dailyRevenue), 5_250_000_000_000);
   assert.equal(getOnlyBalance(allocationResult.dailySupplySideRevenue), 15_750_000_000_000);
+  assert.equal(getOnlyBreakdownLabel(allocationResult.dailyRevenue), "Transaction Gas Fees To Chain");
+  assert.equal(getOnlyBreakdownLabel(allocationResult.dailySupplySideRevenue), "Transaction Gas Fees To Supply Side");
+  assert.deepEqual(Object.keys(allocationAdapter.breakdownMethodology?.Revenue as any), ["Transaction Gas Fees To Chain"]);
+  assert.deepEqual(Object.keys(allocationAdapter.breakdownMethodology?.SupplySideRevenue as any), ["Transaction Gas Fees To Supply Side"]);
+
+  let singleCallFallbackAttempts = 0;
+  await withMockedFetch(async () => {
+    const metrics = await fetchEvmChainMetrics({
+      chain: "batch_transport_single_call_fallback_test",
+      fromBlock: 30,
+      toBlock: 30,
+      blockChunkSize: 1,
+      batchConcurrency: 1,
+      rpcSenders: [{
+        url: "https://single-call-fallback.example",
+        send: async (method: string, params: any[]) => {
+          if (method === "eth_getTransactionByHash") {
+            singleCallFallbackAttempts += 1;
+            return {
+              hash: params[0],
+              from: "0x8888888888888888888888888888888888888888",
+              gasPrice: "0x3b9aca00",
+            };
+          }
+          throw new Error(`Unexpected single-call method: ${method}`);
+        },
+      }],
+    } as any);
+
+    assert.equal(metrics.transactionCount, 1);
+    assert.equal(metrics.activeUsers, 1);
+    assert.equal(metrics.totalGasUsed.toString(), "21000");
+    assert.equal(metrics.totalFeesWei.toString(), "21000000000000");
+    assert.equal(singleCallFallbackAttempts, 1);
+  }, async (_url, requests) => requests.map((request) => {
+    if (request.method === "eth_getBlockReceipts") {
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: [{
+          transactionHash: "0xneedsHydration",
+          gasUsed: "0x5208",
+        }],
+      };
+    }
+    if (request.method === "eth_getTransactionByHash") {
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        error: { code: -32000, message: "batch payloads are disabled" },
+      };
+    }
+    throw new Error(`Unexpected method: ${request.method}`);
+  }));
 
   await withMockedFetch(async () => {
     const metrics = await fetchEvmChainMetrics({
@@ -403,6 +457,12 @@ function getOnlyBalance(balances: Balances) {
   const values = Object.values(balances.getBalances());
   assert.equal(values.length, 1);
   return Number(values[0]);
+}
+
+function getOnlyBreakdownLabel(balances: Balances) {
+  const labels = Object.keys(balances.getBreakdownBalances());
+  assert.equal(labels.length, 1);
+  return labels[0];
 }
 
 function countMethodCalls(calls: Array<{ url: string; requests: RpcRequest[] }>, url: string, method: string) {

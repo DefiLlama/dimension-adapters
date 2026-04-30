@@ -70,6 +70,8 @@ type BlockRange = {
 };
 
 const BLOCK_RECEIPTS_METHOD = "eth_getBlockReceipts";
+const CHAIN_REVENUE_LABEL = "Transaction Gas Fees To Chain";
+const SUPPLY_SIDE_REVENUE_LABEL = "Transaction Gas Fees To Supply Side";
 const DEFAULT_BLOCK_CHUNK_SIZE = 500;
 const DEFAULT_BLOCK_CONCURRENCY = 8;
 const DEFAULT_TX_RECEIPT_CONCURRENCY = 20;
@@ -77,6 +79,7 @@ const DEFAULT_RPC_TIMEOUT_MS = 10_000;
 const DEFAULT_SINGLE_RPC_ATTEMPTS = 2;
 const DEFAULT_BATCH_CONCURRENCY = 2;
 const DEFAULT_RPC_BATCH_SIZE = 100;
+const SHARE_PRECISION = 1_000_000n;
 const blockReceiptsSupport: Record<string, boolean | undefined> = {};
 const preferredRpcSender: Record<string, string | undefined> = {};
 const failedRpcSenders: Record<string, Set<string> | undefined> = {};
@@ -101,7 +104,7 @@ const baseBreakdownMethodology = {
     [METRIC.TRANSACTION_GAS_FEES]: "Sum of gasUsed multiplied by effectiveGasPrice, or legacy gasPrice when effectiveGasPrice is unavailable, across all receipts in the day window.",
   },
   Revenue: {
-    [METRIC.TRANSACTION_GAS_FEES]: "Configured share of transaction gas fees retained by the chain.",
+    [CHAIN_REVENUE_LABEL]: "Configured share of transaction gas fees retained by the chain.",
   },
 };
 
@@ -338,9 +341,10 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
     fetch: async (options: FetchOptions) => {
       const metrics = await fetchEvmChainMetricsFromOptions(options, config);
       const dailyFees = options.createBalances();
+      const dailyRevenue = options.createBalances();
 
       dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
-      const dailyRevenue = dailyFees.clone(config.revenueShare);
+      addGasFeeShare(dailyRevenue, metrics.totalFeesWei, config.revenueShare, CHAIN_REVENUE_LABEL);
       const response: Record<string, any> = {
         dailyFees,
         dailyRevenue,
@@ -348,7 +352,11 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
         dailyGasUsed: metrics.totalGasUsed.toString(),
       };
 
-      if (config.supplySideRevenueShare) response.dailySupplySideRevenue = dailyFees.clone(config.supplySideRevenueShare);
+      if (isPositiveShare(config.supplySideRevenueShare)) {
+        const dailySupplySideRevenue = options.createBalances();
+        addGasFeeShare(dailySupplySideRevenue, metrics.totalFeesWei, config.supplySideRevenueShare, SUPPLY_SIDE_REVENUE_LABEL);
+        response.dailySupplySideRevenue = dailySupplySideRevenue;
+      }
 
       return response;
     },
@@ -358,7 +366,7 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
 function getMethodology(config: EvmChainFeesConfig) {
   const methodology: Record<string, string> = { ...baseMethodology };
 
-  if (config.supplySideRevenueShare) {
+  if (isPositiveShare(config.supplySideRevenueShare)) {
     methodology.SupplySideRevenue = `Configured ${formatShare(config.supplySideRevenueShare)} share of transaction gas fees paid to supply-side participants.`;
   }
 
@@ -371,9 +379,9 @@ function getBreakdownMethodology(config: EvmChainFeesConfig) {
     Revenue: { ...baseBreakdownMethodology.Revenue },
   };
 
-  if (config.supplySideRevenueShare) {
+  if (isPositiveShare(config.supplySideRevenueShare)) {
     breakdownMethodology.SupplySideRevenue = {
-      [METRIC.TRANSACTION_GAS_FEES]: "Configured share of transaction gas fees paid to supply-side participants.",
+      [SUPPLY_SIDE_REVENUE_LABEL]: "Configured share of transaction gas fees paid to supply-side participants.",
     };
   }
 
@@ -382,6 +390,22 @@ function getBreakdownMethodology(config: EvmChainFeesConfig) {
 
 function formatShare(share: number) {
   return `${Number((share * 100).toFixed(4))}%`;
+}
+
+function addGasFeeShare(balances: ReturnType<FetchOptions["createBalances"]>, totalFeesWei: bigint, share: number, label: string) {
+  balances.addGasToken(applyShare(totalFeesWei, share), label);
+}
+
+function applyShare(amount: bigint, share: number) {
+  return amount * toShareUnits(share) / SHARE_PRECISION;
+}
+
+function toShareUnits(share: number) {
+  return BigInt(Math.round(share * Number(SHARE_PRECISION)));
+}
+
+function isPositiveShare(share: number | undefined): share is number {
+  return share !== undefined && toShareUnits(share) > 0n;
 }
 
 /**
@@ -622,8 +646,10 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
     }
   }
 
-  if (!batchSenders.length) {
-    return sendRpcBatchViaSingleCalls(config, method, paramsList);
+  try {
+    return await sendRpcBatchViaSingleCalls(config, method, paramsList);
+  } catch (error) {
+    lastError = error;
   }
 
   throw nonMethodUnavailableError ?? methodUnavailableError ?? lastError ?? new Error(`No batch JSON-RPC sender available for ${config.chain}`);
@@ -889,7 +915,7 @@ function assertValidRevenueAllocation(config: EvmChainFeesConfig) {
   if (config.supplySideRevenueShare !== undefined && (!Number.isFinite(config.supplySideRevenueShare) || config.supplySideRevenueShare < 0 || config.supplySideRevenueShare > 1)) {
     throw new Error(`${config.chain}: supplySideRevenueShare must be a number between 0 and 1`);
   }
-  if (config.supplySideRevenueShare !== undefined && config.revenueShare + config.supplySideRevenueShare > 1) {
+  if (toShareUnits(config.revenueShare) + toShareUnits(config.supplySideRevenueShare ?? 0) > SHARE_PRECISION) {
     throw new Error(`${config.chain}: revenueShare and supplySideRevenueShare cannot exceed 1`);
   }
 }
