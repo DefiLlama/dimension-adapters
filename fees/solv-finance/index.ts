@@ -170,7 +170,7 @@ async function fees(options: FetchOptions, contracts: any) {
     let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
 
     dailyFees.add(poolBaseInfo.currency, fee.toNumber(), METRIC.STAKING_REWARDS);
-    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber(), METRIC.STAKING_REWARDS);
+    dailyRevenue.add(poolBaseInfo.currency, Math.max(0, fee.times(revenueRatio).toNumber()), METRIC.STAKING_REWARDS);
     dailySupplySideRevenue.add(poolBaseInfo.currency, fee.times(BigNumber(1).minus(revenueRatio)).toNumber(), METRIC.STAKING_REWARDS);
   }
 
