@@ -7,7 +7,8 @@ import fetchURL from "../../utils/fetchURL";
 const EUSX = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
 const PYTH_EUSX_REDEMPTION_PRICE_ID = 'f36e12e65d2969b242fb97d3ebaa32ec55d5794189b64d1a07dc4f41425c9378';
 const PYTH_HERMES_PRICE_API = 'https://hermes.pyth.network/v2/updates/price';
-const YIELD_LABEL = 'eUSX Yield Accrual';
+const FEES_YIELD_LABEL = 'eUSX Yield Accrual';
+const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
 
 const getRedemptionPrice = async (timestamp: number) => {
   const response = await fetchURL(`${PYTH_HERMES_PRICE_API}/${timestamp}?ids%5B%5D=${PYTH_EUSX_REDEMPTION_PRICE_ID}`);
@@ -44,9 +45,9 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
   if (!Number.isFinite(dailyYield))
     throw new Error("Pyth API returned invalid EUSX redemption prices");
 
-  dailyFees.addUSDValue(dailyYield, YIELD_LABEL);
+  dailyFees.addUSDValue(dailyYield, FEES_YIELD_LABEL);
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(dailyYield, YIELD_LABEL);
+  dailySupplySideRevenue.addUSDValue(dailyYield, SUPPLY_SIDE_YIELD_LABEL);
 
   return {
     dailyFees,
@@ -68,11 +69,13 @@ const adapters: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [YIELD_LABEL]: 'Daily change in eUSX/USX redemption rate multiplied by total eUSX supply',
+      [FEES_YIELD_LABEL]: 'Daily change in eUSX/USX redemption rate multiplied by total eUSX supply',
     },
+    Revenue: 'No protocol revenue; all eUSX redemption-rate yield is passed through to eUSX holders.',
     SupplySideRevenue: {
-      [YIELD_LABEL]: '100% of eUSX redemption-rate yield is distributed to eUSX holders',
+      [SUPPLY_SIDE_YIELD_LABEL]: '100% of eUSX redemption-rate yield is distributed to eUSX holders',
     },
+    HoldersRevenue: 'Not separately tracked in this adapter; holder distributions are represented in SupplySideRevenue.',
   }
 };
 
