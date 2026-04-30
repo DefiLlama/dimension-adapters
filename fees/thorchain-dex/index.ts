@@ -80,9 +80,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const getFetchForChain = (chainShortName: string) => {
   return async (_a:any, _b:any, options: FetchOptions) => {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
-    const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
-    const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
-    const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`;
+    const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+    const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+    const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
 
     const earnings = await fetchCacheURL(earningsUrl);
     await sleep(3000);
@@ -94,7 +94,7 @@ const getFetchForChain = (chainShortName: string) => {
     // Only fetch affiliate earnings for THOR chain
     let affiliateEarnings: any | null = null;
     if (chainShortName === 'THOR') {
-      const affiliateUrl = `https://midgard.ninerealms.com/v2/history/affiliate?from=${options.startTimestamp}&to=${options.endTimestamp}`;
+      const affiliateUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/affiliate?from=${options.startTimestamp}&to=${options.endTimestamp}`;
       affiliateEarnings = await fetchCacheURL(affiliateUrl);
       await sleep(2000);
     }
