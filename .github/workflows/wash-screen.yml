@@ -1,0 +1,109 @@
+name: wash-screen
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  screen:
+    if: github.event.label.name == 'verify data'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out detector
+        uses: actions/checkout@v4
+        with:
+          repository: bornsl0ppy/defillama-wash-detector
+          path: detector
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Extract protocol slug from issue body
+        id: slug
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re
+          body = os.environ.get("BODY", "") or ""
+          m = re.search(r"defillama\.com/protocol/([\w\-\.]+)", body)
+          print(f"value={m.group(1) if m else ''}")
+          PY
+
+      - name: Run wash-detector
+        id: screen
+        if: steps.slug.outputs.value != ''
+        env:
+          LLAMA_API_KEY: ${{ secrets.LLAMA_API_KEY }}
+        working-directory: detector
+        run: |
+          set -e
+          PYTHONPATH=src python3 -m wash_detector screen "${{ steps.slug.outputs.value }}" > report.md
+          # Pull the verdict line out so the next steps can branch on it.
+          verdict=$(grep -m1 -oE 'Verdict:\*\* [^·]+' report.md | sed -E 's/^Verdict:\*\* +//; s/ +$//' || true)
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+
+      - name: Comment with full report
+        if: |
+          steps.slug.outputs.value != '' &&
+          steps.screen.outcome == 'success' &&
+          !contains(steps.screen.outputs.verdict, 'LOOKS NORMAL')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('detector/report.md', 'utf8');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Acknowledge clean verdict
+        if: |
+          steps.slug.outputs.value != '' &&
+          steps.screen.outcome == 'success' &&
+          contains(steps.screen.outputs.verdict, 'LOOKS NORMAL')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slug = '${{ steps.slug.outputs.value }}';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Wash-screen ran. Verdict: **LOOKS NORMAL**. No automated red flags for \`${slug}\` — proceed with manual investigation. ([run](${runUrl}))`,
+            });
+
+      - name: Note missing slug
+        if: steps.slug.outputs.value == ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Wash-screen could not extract a \`defillama.com/protocol/<slug>\` URL from this issue body. Skipping automated screen. ([run](${runUrl}))`,
+            });
+
+      - name: Report failure
+        if: failure() && steps.slug.outputs.value != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slug = '${{ steps.slug.outputs.value }}';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Wash-screen failed for \`${slug}\`. ([run logs](${runUrl}))`,
+            });
