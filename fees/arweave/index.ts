@@ -1,15 +1,17 @@
 import type { FetchOptions, } from "../../adapters/types";
 import { Adapter, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import PromisePool from '@supercharge/promise-pool';
 import BigNumber from "bignumber.js";
-import { httpGet, httpPost } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 const ARWEAVE_GATEWAY = 'https://arweave.net';
-const ARWEAVE_GRAPHQL_ENDPOINT = `${ARWEAVE_GATEWAY}/graphql`;
+const VIEWBLOCK_FEES_URL = 'https://api.viewblock.io/arweave/stats/advanced/charts/txFees?network=mainnet';
+const DAY_SECONDS = 24 * 60 * 60;
 const WINSTON_PER_AR = 1e12;
-const TRANSACTIONS_PAGE_SIZE = 1000;
-const GRAPHQL_PAGE_DELAY_MS = 250;
+const BLOCK_CONCURRENCY = 8;
+const REWARD_CONCURRENCY = 24;
 
 type ArweaveInfo = {
   height: number;
@@ -18,52 +20,14 @@ type ArweaveInfo = {
 type ArweaveBlock = {
   height: number;
   timestamp: number;
+  txs?: string[];
 };
 
-type ArweaveTransactionsResponse = {
-  data?: {
-    transactions?: {
-      pageInfo: {
-        hasNextPage: boolean;
-      };
-      edges: Array<{
-        cursor: string;
-        node: {
-          fee?: {
-            winston?: string;
-          };
-        };
-      }>;
-    };
+type ViewBlockFeesResponse = {
+  day?: {
+    data?: [number[], string[]];
   };
-  errors?: unknown[];
 };
-
-// `bundledIn: null` keeps the sum to base-layer transactions and excludes
-// indexed bundle data items that do not pay separate L1 fees.
-const TRANSACTIONS_QUERY = `
-  query Transactions($first: Int!, $after: String, $minBlock: Int!, $maxBlock: Int!) {
-    transactions(
-      first: $first
-      after: $after
-      sort: HEIGHT_ASC
-      block: { min: $minBlock, max: $maxBlock }
-      bundledIn: null
-    ) {
-      pageInfo {
-        hasNextPage
-      }
-      edges {
-        cursor
-        node {
-          fee {
-            winston
-          }
-        }
-      }
-    }
-  }
-`;
 
 const withRetry = async <T>(action: () => Promise<T>, retries = 3): Promise<T> => {
   let lastError: unknown;
@@ -81,15 +45,6 @@ const withRetry = async <T>(action: () => Promise<T>, retries = 3): Promise<T> =
 }
 
 const arweaveGet = async <T>(path: string) => withRetry<T>(() => httpGet(`${ARWEAVE_GATEWAY}${path}`));
-
-const arweaveGraphQL = async <T>(query: string, variables: Record<string, unknown>) => withRetry<T>(() => httpPost(ARWEAVE_GRAPHQL_ENDPOINT, {
-  query,
-  variables,
-}, {
-  headers: {
-    'content-type': 'application/json',
-  },
-}));
 
 const getLatestHeight = async () => {
   const info = await arweaveGet<ArweaveInfo>('/info');
@@ -121,52 +76,76 @@ const findFirstBlockAtOrAfter = async (timestamp: number, latestHeight: number) 
   return low;
 }
 
-const fetchTransactionFees = async (minBlock: number, maxBlock: number) => {
-  if (maxBlock < minBlock) return 0n;
-
-  let after: string | undefined;
-  let totalWinston = 0n;
-
-  do {
-    const response = await arweaveGraphQL<ArweaveTransactionsResponse>(TRANSACTIONS_QUERY, {
-      first: TRANSACTIONS_PAGE_SIZE,
-      after,
-      minBlock,
-      maxBlock,
-    });
-
-    if (response.errors?.length) throw new Error(`Arweave GraphQL returned ${response.errors.length} error(s)`);
-
-    const transactions = response.data?.transactions;
-    if (!transactions) throw new Error('Arweave GraphQL response did not include transactions');
-
-    transactions.edges.forEach(({ node }) => {
-      totalWinston += BigInt(node.fee?.winston ?? '0');
-    });
-
-    if (transactions.pageInfo.hasNextPage) {
-      const nextCursor = transactions.edges[transactions.edges.length - 1]?.cursor;
-      if (!nextCursor) {
-        throw new Error(`Arweave GraphQL returned hasNextPage=true with ${transactions.edges.length} edge(s)`);
-      }
-      after = nextCursor;
-    } else {
-      after = undefined;
+const fetchViewBlockFees = async (startOfDay: number) => {
+  const data = await withRetry<ViewBlockFeesResponse>(() => httpGet(VIEWBLOCK_FEES_URL, {
+    headers: {
+      origin: 'https://arscan.io'
     }
+  }));
 
-    if (after) await sleep(GRAPHQL_PAGE_DELAY_MS);
-  } while (after);
+  const timestamps = data.day?.data?.[0];
+  const fees = data.day?.data?.[1];
+  if (!Array.isArray(timestamps) || !Array.isArray(fees)) throw new Error('ViewBlock did not return Arweave fee chart data');
 
-  return totalWinston;
+  const dayTimestamp = startOfDay * 1000;
+  const index = timestamps.findIndex((timestamp) => timestamp === dayTimestamp);
+  if (index === -1) return undefined;
+
+  const fee = new BigNumber(fees[index]);
+  if (!fee.isFinite()) throw new Error(`Invalid ViewBlock Arweave fee value for ${new Date(dayTimestamp).toISOString()}`);
+
+  return fee;
+}
+
+const getTransactionReward = async (txId: string) => {
+  const reward = String(await arweaveGet<string>(`/tx/${txId}/reward`)).trim();
+  if (!/^\d+$/.test(reward)) throw new Error(`Invalid Arweave reward for tx ${txId}`);
+  return BigInt(reward);
+}
+
+const getBlockTransactionIds = async (height: number) => {
+  const block = await arweaveGet<ArweaveBlock>(`/block/height/${height}`);
+  if (!Array.isArray(block.txs)) throw new Error(`Could not read transactions for Arweave block ${height}`);
+  return block.txs;
+}
+
+const fetchNodeRewardFees = async (options: FetchOptions) => {
+  const latestHeight = await getLatestHeight();
+  const startHeight = await findFirstBlockAtOrAfter(options.startOfDay, latestHeight);
+  const nextDayHeight = await findFirstBlockAtOrAfter(options.startOfDay + DAY_SECONDS, latestHeight);
+  if (nextDayHeight <= startHeight) return new BigNumber(0);
+
+  const heights = Array.from({ length: nextDayHeight - startHeight }, (_, index) => startHeight + index);
+  const { results: txIdGroups, errors: blockErrors } = await PromisePool
+    .withConcurrency(BLOCK_CONCURRENCY)
+    .for(heights)
+    .process(getBlockTransactionIds);
+  if (blockErrors.length) throw blockErrors[0];
+
+  const txIds = txIdGroups.flat();
+  const { results: rewards, errors: rewardErrors } = await PromisePool
+    .withConcurrency(REWARD_CONCURRENCY)
+    .for(txIds)
+    .process(getTransactionReward);
+  if (rewardErrors.length) throw rewardErrors[0];
+
+  const totalWinston = rewards.reduce((total, reward) => total + reward, 0n);
+  return new BigNumber(totalWinston.toString()).div(WINSTON_PER_AR);
+}
+
+const getDailyFees = async (options: FetchOptions) => {
+  try {
+    const viewBlockFees = await fetchViewBlockFees(options.startOfDay);
+    if (viewBlockFees !== undefined) return viewBlockFees;
+  } catch (error) {
+    console.error(`Failed to fetch Arweave fees from ViewBlock, falling back to Arweave node data`, error);
+  }
+
+  return fetchNodeRewardFees(options);
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const latestHeight = await getLatestHeight();
-  const startHeight = await findFirstBlockAtOrAfter(options.startOfDay, latestHeight);
-  const nextDayHeight = await findFirstBlockAtOrAfter(options.startOfDay + 24 * 60 * 60, latestHeight);
-  const totalWinston = await fetchTransactionFees(startHeight, nextDayHeight - 1);
-
-  const tokenAmount = new BigNumber(totalWinston.toString()).div(WINSTON_PER_AR).toNumber();
+  const tokenAmount = (await getDailyFees(options)).toNumber();
 
   const dailyFees = options.createBalances();
   dailyFees.addCGToken('arweave', tokenAmount)
@@ -187,7 +166,7 @@ const adapter: Adapter = {
   protocolType: ProtocolType.CHAIN,
   skipBreakdownValidation: true,
   methodology: {
-    Fees: 'Transaction fees paid by users in AR. Fees are sourced directly from the Arweave gateway by locating the daily block range and summing fee.winston values for base-layer transactions returned by Arweave GraphQL.'
+    Fees: 'Transaction fees paid by users in AR. Daily totals are sourced from ViewBlock/Arscan. If that chart is unavailable for a day, the adapter falls back to Arweave node data by locating the daily block range and summing each base-layer transaction reward field.'
   }
 }
 
