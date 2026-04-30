@@ -153,9 +153,18 @@ export const EVM_CHAIN_METRIC_CONFIGS = {
     chain: CHAIN.EXAMPLE,
     start: '2024-01-01',
     blockChunkSize: 500,
+    revenueShare: 1,
+    // supplySideRevenueShare: 0,
   },
 };
 ```
+
+`revenueShare` is required for fee adapters. Set it to the share of user-paid
+gas fees retained as chain revenue. Use `1` only when all gas fees should be
+reported as revenue. Set `supplySideRevenueShare` only when a known share of gas
+fees should be reported as supply-side revenue. The configured shares must not
+sum above `1`; leave unattributed or burned fees out unless they fit DefiLlama's
+revenue taxonomy.
 
 1. Add the chain key to `rpcFeesConfigKeys` in `factory/chainTxFees.ts`
    if the fees adapter can be loaded from the factory.

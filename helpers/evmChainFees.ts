@@ -59,11 +59,17 @@ export type EvmChainMetricConfig = {
   batchConcurrency?: number;
 };
 
+export type EvmChainFeesConfig = EvmChainMetricConfig & {
+  revenueShare: number;
+  supplySideRevenueShare?: number;
+};
+
 type BlockRange = {
   fromBlock: number;
   toBlock: number;
 };
 
+const BLOCK_RECEIPTS_METHOD = "eth_getBlockReceipts";
 const DEFAULT_BLOCK_CHUNK_SIZE = 500;
 const DEFAULT_BLOCK_CONCURRENCY = 8;
 const DEFAULT_TX_RECEIPT_CONCURRENCY = 20;
@@ -79,23 +85,23 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  * Shared configs for EVM chains that can derive chain metrics directly from RPC receipts.
  * Add a chain here when both fees and active-users should use the same block range calculation.
  */
-export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainMetricConfig> = {
-  core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500 },
-  kava: { chain: CHAIN.KAVA, start: "2022-05-10", blockChunkSize: 100 },
-  merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250, rpcTimeoutMs: 20_000 },
+export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainFeesConfig> = {
+  core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500, revenueShare: 1 },
+  kava: { chain: CHAIN.KAVA, start: "2022-05-10", blockChunkSize: 100, revenueShare: 1 },
+  merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250, rpcTimeoutMs: 20_000, revenueShare: 1 },
 };
 
-const methodology = {
+const baseMethodology = {
   Fees: "Transaction gas fees paid by users.",
-  Revenue: "Transaction gas fees paid by users, reported as chain revenue for chain-level fee adapters.",
+  Revenue: "Configured share of transaction gas fees retained by the chain.",
 };
 
-const breakdownMethodology = {
+const baseBreakdownMethodology = {
   Fees: {
     [METRIC.TRANSACTION_GAS_FEES]: "Sum of gasUsed multiplied by effectiveGasPrice, or legacy gasPrice when effectiveGasPrice is unavailable, across all receipts in the day window.",
   },
   Revenue: {
-    [METRIC.TRANSACTION_GAS_FEES]: "Same transaction gas fee total reported as chain revenue.",
+    [METRIC.TRANSACTION_GAS_FEES]: "Configured share of transaction gas fees retained by the chain.",
   },
 };
 
@@ -209,15 +215,13 @@ async function getBlockRangeReceipts(config: EvmChainMetricConfig, chunk: BlockR
   const blocks: number[] = [];
   for (let block = chunk.fromBlock; block <= chunk.toBlock; block++) blocks.push(block);
 
-  if (blockReceiptsSupport[config.chain] !== false) {
+  if (hasAvailableBlockReceiptsSender(config)) {
     try {
       const blockReceipts = await getBatchBlockReceipts(config, blocks);
-      blockReceiptsSupport[config.chain] = true;
       return hydrateReceiptsBatchIfNeeded(config, blockReceipts.flat());
     } catch (error) {
       if (isMethodUnavailable(error)) {
-        blockReceiptsSupport[config.chain] = false;
-        log(`${config.chain}: eth_getBlockReceipts unavailable, falling back to transaction receipts`);
+        log(`${config.chain}: ${BLOCK_RECEIPTS_METHOD} unavailable on configured RPC senders, falling back to transaction receipts`);
       } else {
         return getBlockReceiptsIndividually(config, blocks);
       }
@@ -244,9 +248,9 @@ async function getBlockReceiptsIndividually(config: EvmChainMetricConfig, blocks
  * Loads a chunk of block receipts using a single JSON-RPC batch request.
  */
 async function getBatchBlockReceipts(config: EvmChainMetricConfig, blocks: number[]): Promise<ReceiptLike[][]> {
-  const receipts = await sendFirstRpcBatch(config, "eth_getBlockReceipts", blocks.map((block) => [toHex(block)]));
+  const receipts = await sendFirstRpcBatch(config, BLOCK_RECEIPTS_METHOD, blocks.map((block) => [toHex(block)]));
   if (!receipts.every(Array.isArray)) {
-    throw new Error(`${config.chain}: eth_getBlockReceipts returned invalid batch results`);
+    throw new Error(`${config.chain}: ${BLOCK_RECEIPTS_METHOD} returned invalid batch results`);
   }
   return receipts as ReceiptLike[][];
 }
@@ -320,29 +324,64 @@ export async function fetchEvmChainMetricsFromOptions(options: FetchOptions, con
 /**
  * Creates a chain protocol fees adapter backed by raw RPC receipt metrics.
  */
-export function createEvmChainFeesAdapter(config: EvmChainMetricConfig): SimpleAdapter {
+export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAdapter {
+  assertValidRevenueAllocation(config);
+
   return {
     version: 2,
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
     chains: [config.chain],
     start: config.start,
-    methodology,
-    breakdownMethodology,
+    methodology: getMethodology(config),
+    breakdownMethodology: getBreakdownMethodology(config),
     fetch: async (options: FetchOptions) => {
       const metrics = await fetchEvmChainMetricsFromOptions(options, config);
       const dailyFees = options.createBalances();
 
       dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
-
-      return {
+      const dailyRevenue = dailyFees.clone(config.revenueShare);
+      const response: Record<string, any> = {
         dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue,
         dailyTransactionsCount: metrics.transactionCount,
         dailyGasUsed: metrics.totalGasUsed.toString(),
       };
+
+      if (config.supplySideRevenueShare) response.dailySupplySideRevenue = dailyFees.clone(config.supplySideRevenueShare);
+
+      return response;
     },
   };
+}
+
+function getMethodology(config: EvmChainFeesConfig) {
+  const methodology: Record<string, string> = { ...baseMethodology };
+
+  if (config.supplySideRevenueShare) {
+    methodology.SupplySideRevenue = `Configured ${formatShare(config.supplySideRevenueShare)} share of transaction gas fees paid to supply-side participants.`;
+  }
+
+  return methodology;
+}
+
+function getBreakdownMethodology(config: EvmChainFeesConfig) {
+  const breakdownMethodology: Record<string, Record<string, string>> = {
+    Fees: { ...baseBreakdownMethodology.Fees },
+    Revenue: { ...baseBreakdownMethodology.Revenue },
+  };
+
+  if (config.supplySideRevenueShare) {
+    breakdownMethodology.SupplySideRevenue = {
+      [METRIC.TRANSACTION_GAS_FEES]: "Configured share of transaction gas fees paid to supply-side participants.",
+    };
+  }
+
+  return breakdownMethodology;
+}
+
+function formatShare(share: number) {
+  return `${Number((share * 100).toFixed(4))}%`;
 }
 
 /**
@@ -372,17 +411,15 @@ export function createEvmChainUsersFetcher(config: EvmChainMetricConfig) {
 async function getBlockReceipts(config: EvmChainMetricConfig, block: number): Promise<ReceiptLike[]> {
   const blockHex = toHex(block);
 
-  if (blockReceiptsSupport[config.chain] !== false) {
+  if (hasAvailableBlockReceiptsSender(config)) {
     try {
-      const receipts = await sendFirstRpc(config, "eth_getBlockReceipts", [blockHex]);
+      const receipts = await sendFirstRpc(config, BLOCK_RECEIPTS_METHOD, [blockHex]);
       if (Array.isArray(receipts)) {
-        blockReceiptsSupport[config.chain] = true;
         return hydrateReceiptsIfNeeded(config, block, receipts);
       }
     } catch (error) {
       if (isMethodUnavailable(error)) {
-        blockReceiptsSupport[config.chain] = false;
-        log(`${config.chain}: eth_getBlockReceipts unavailable, falling back to transaction receipts`);
+        log(`${config.chain}: ${BLOCK_RECEIPTS_METHOD} unavailable on configured RPC senders, falling back to transaction receipts`);
       }
     }
   }
@@ -527,8 +564,11 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
   const senders = getOrderedRpcSenders(config, method);
   let lastError: any;
   let methodUnavailableError: any;
+  let nonMethodUnavailableError: any;
 
   for (const { sender, key } of senders) {
+    let senderError: any;
+
     for (let attempt = 0; attempt < DEFAULT_SINGLE_RPC_ATTEMPTS; attempt++) {
       try {
         const result = await withTimeout(
@@ -539,18 +579,20 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
         markRpcSenderSuccess(config, method, key);
         return result;
       } catch (error) {
+        senderError = error;
         lastError = error;
         if (isMethodUnavailable(error)) {
           methodUnavailableError ??= error;
           break;
         }
+        nonMethodUnavailableError ??= error;
         if (attempt < DEFAULT_SINGLE_RPC_ATTEMPTS - 1) await sleep(250 * (attempt + 1));
       }
     }
-    markRpcSenderFailure(config, method, key);
+    markRpcSenderFailure(config, method, key, senderError);
   }
 
-  throw methodUnavailableError ?? lastError ?? new Error(`No RPC sender available for ${config.chain}`);
+  throw nonMethodUnavailableError ?? methodUnavailableError ?? lastError ?? new Error(`No RPC sender available for ${config.chain}`);
 }
 
 /**
@@ -562,6 +604,7 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
   const batchSenders = getOrderedRpcSenders(config, method, true);
   let lastError: any;
   let methodUnavailableError: any;
+  let nonMethodUnavailableError: any;
 
   for (const { sender, key } of batchSenders) {
     try {
@@ -570,8 +613,12 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
       return result;
     } catch (error) {
       lastError = error;
-      if (isMethodUnavailable(error)) methodUnavailableError ??= error;
-      markRpcSenderFailure(config, method, key);
+      if (isMethodUnavailable(error)) {
+        methodUnavailableError ??= error;
+      } else {
+        nonMethodUnavailableError ??= error;
+      }
+      markRpcSenderFailure(config, method, key, error);
     }
   }
 
@@ -579,7 +626,7 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
     return sendRpcBatchViaSingleCalls(config, method, paramsList);
   }
 
-  throw methodUnavailableError ?? lastError ?? new Error(`No batch JSON-RPC sender available for ${config.chain}`);
+  throw nonMethodUnavailableError ?? methodUnavailableError ?? lastError ?? new Error(`No batch JSON-RPC sender available for ${config.chain}`);
 }
 
 /**
@@ -718,9 +765,10 @@ function getOrderedRpcSenders(config: EvmChainMetricConfig, method: string, requ
   const senders = getRpcSenders(config)
     .map((sender, index) => ({
       sender,
-      key: getRpcSenderKey(sender, index),
+      key: getRpcSenderKey(config, sender, index),
     }))
-    .filter(({ sender }) => !requireUrl || Boolean(sender.url));
+    .filter(({ sender }) => !requireUrl || Boolean(sender.url))
+    .filter(({ key }) => method !== BLOCK_RECEIPTS_METHOD || blockReceiptsSupport[key] !== false);
   const cacheKey = getRpcMethodCacheKey(config, method);
   const failed = failedRpcSenders[cacheKey];
   let candidates = failed ? senders.filter(({ key }) => !failed.has(key)) : senders;
@@ -734,10 +782,18 @@ function getOrderedRpcSenders(config: EvmChainMetricConfig, method: string, requ
 }
 
 /**
+ * Checks whether any configured sender can still be tried for eth_getBlockReceipts.
+ */
+function hasAvailableBlockReceiptsSender(config: EvmChainMetricConfig) {
+  return getRpcSenders(config)
+    .some((sender, index) => blockReceiptsSupport[getRpcSenderKey(config, sender, index)] !== false);
+}
+
+/**
  * Creates a stable cache key for one RPC sender.
  */
-function getRpcSenderKey(sender: RpcSender, index: number) {
-  return sender.url ?? `sender:${index}`;
+function getRpcSenderKey(config: EvmChainMetricConfig, sender: RpcSender, index: number) {
+  return `${config.chain}:${sender.url ?? `sender:${index}`}`;
 }
 
 /**
@@ -754,16 +810,18 @@ function markRpcSenderSuccess(config: EvmChainMetricConfig, method: string, key:
   const cacheKey = getRpcMethodCacheKey(config, method);
   preferredRpcSender[cacheKey] = key;
   failedRpcSenders[cacheKey]?.delete(key);
+  if (method === BLOCK_RECEIPTS_METHOD) blockReceiptsSupport[key] = true;
 }
 
 /**
  * Marks a sender as failed so later calls can avoid repeatedly hitting a bad endpoint.
  */
-function markRpcSenderFailure(config: EvmChainMetricConfig, method: string, key: string) {
+function markRpcSenderFailure(config: EvmChainMetricConfig, method: string, key: string, error?: any) {
   const cacheKey = getRpcMethodCacheKey(config, method);
   if (preferredRpcSender[cacheKey] === key) delete preferredRpcSender[cacheKey];
   if (!failedRpcSenders[cacheKey]) failedRpcSenders[cacheKey] = new Set<string>();
   failedRpcSenders[cacheKey]?.add(key);
+  if (method === BLOCK_RECEIPTS_METHOD && isMethodUnavailable(error)) blockReceiptsSupport[key] = false;
 }
 
 /**
@@ -818,6 +876,21 @@ function assertValidBlockRange(chain: string, fromBlock: any, toBlock: any) {
   }
   if (fromBlock > toBlock) {
     throw new Error(`${chain}: invalid block range ${fromBlock}-${toBlock}`);
+  }
+}
+
+/**
+ * Ensures chain fee allocation is explicit and bounded.
+ */
+function assertValidRevenueAllocation(config: EvmChainFeesConfig) {
+  if (!Number.isFinite(config.revenueShare) || config.revenueShare < 0 || config.revenueShare > 1) {
+    throw new Error(`${config.chain}: revenueShare must be a number between 0 and 1`);
+  }
+  if (config.supplySideRevenueShare !== undefined && (!Number.isFinite(config.supplySideRevenueShare) || config.supplySideRevenueShare < 0 || config.supplySideRevenueShare > 1)) {
+    throw new Error(`${config.chain}: supplySideRevenueShare must be a number between 0 and 1`);
+  }
+  if (config.supplySideRevenueShare !== undefined && config.revenueShare + config.supplySideRevenueShare > 1) {
+    throw new Error(`${config.chain}: revenueShare and supplySideRevenueShare cannot exceed 1`);
   }
 }
 

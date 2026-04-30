@@ -1,6 +1,8 @@
 import assert from "assert/strict";
+import { Balances } from "@defillama/sdk";
 import {
   EVM_CHAIN_METRIC_CONFIGS,
+  createEvmChainFeesAdapter,
   fetchEvmChainMetrics,
   getReceiptMetrics,
   hydrateReceiptsWithTransactions,
@@ -101,9 +103,17 @@ async function main() {
   assert.equal(eip1559HydratedReceipt.from, "0x5555555555555555555555555555555555555555");
   assert.equal(eip1559HydratedReceipt.gasPrice, undefined);
 
-  assert.deepEqual(Object.keys(EVM_CHAIN_METRIC_CONFIGS).sort(), ["core", "kava", "merlin"]);
-  assert.equal(EVM_CHAIN_METRIC_CONFIGS.merlin.blockChunkSize, 250);
-  assert.equal(EVM_CHAIN_METRIC_CONFIGS.merlin.rpcTimeoutMs, 20_000);
+  for (const key of ["core", "kava", "merlin"]) assert.ok(EVM_CHAIN_METRIC_CONFIGS[key], `missing ${key} config`);
+  for (const [key, config] of Object.entries(EVM_CHAIN_METRIC_CONFIGS)) {
+    assert.equal(typeof config.chain, "string", `${key} config must define a chain`);
+    assert.ok(config.start, `${key} config must define a start date`);
+    assert.ok(config.blockChunkSize === undefined || Number.isInteger(config.blockChunkSize), `${key} blockChunkSize must be an integer when set`);
+    assert.ok(config.rpcTimeoutMs === undefined || Number.isInteger(config.rpcTimeoutMs), `${key} rpcTimeoutMs must be an integer when set`);
+    assert.equal(typeof config.revenueShare, "number", `${key} config must explicitly define revenueShare`);
+    assert.ok(config.revenueShare >= 0 && config.revenueShare <= 1, `${key} revenueShare must be between 0 and 1`);
+    assert.ok(config.supplySideRevenueShare === undefined || (config.supplySideRevenueShare >= 0 && config.supplySideRevenueShare <= 1), `${key} supplySideRevenueShare must be between 0 and 1 when set`);
+    assert.ok(config.revenueShare + (config.supplySideRevenueShare ?? 0) <= 1, `${key} revenue shares cannot exceed 1`);
+  }
 
   const metrics = await fetchEvmChainMetrics({
     chain: "unit_test",
@@ -231,6 +241,72 @@ async function main() {
     });
   });
 
+  await withMockedFetch(async (calls) => {
+    const metrics = await fetchEvmChainMetrics({
+      chain: "per_sender_block_receipts_support_test",
+      fromBlock: 20,
+      toBlock: 21,
+      blockChunkSize: 1,
+      batchConcurrency: 1,
+      rpcSenders: [
+        {
+          url: "https://unsupported-block-receipts.example",
+          send: async () => {
+            throw new Error("single RPC path should not be used");
+          },
+        },
+        {
+          url: "https://flaky-block-receipts.example",
+          send: async (method: string, params: any[]) => {
+            if (method === "eth_getBlockReceipts") {
+              const block = Number(BigInt(params[0]));
+              return [{
+                transactionHash: `0xsingle${block}`,
+                from: `0x${block.toString().padStart(40, "0")}`,
+                gasUsed: "0x5208",
+                gasPrice: "0x3b9aca00",
+              }];
+            }
+            throw new Error(`Unexpected method: ${method}`);
+          },
+        },
+      ],
+    } as any);
+
+    assert.equal(metrics.transactionCount, 2);
+    assert.equal(metrics.activeUsers, 2);
+    assert.equal(metrics.totalGasUsed.toString(), "42000");
+    assert.equal(metrics.totalFeesWei.toString(), "42000000000000");
+    assert.equal(countMethodCalls(calls, "https://unsupported-block-receipts.example", "eth_getBlockReceipts"), 1);
+    assert.equal(countMethodCalls(calls, "https://flaky-block-receipts.example", "eth_getBlockReceipts"), 2);
+  }, createPerSenderBlockReceiptHandler());
+
+  const allocationAdapter = createEvmChainFeesAdapter({
+    chain: "allocation_test",
+    fromBlock: 1,
+    toBlock: 1,
+    revenueShare: 0.25,
+    supplySideRevenueShare: 0.75,
+    rpcSenders: [{
+      send: async (method: string) => {
+        if (method === "eth_getBlockReceipts") {
+          return [{
+            transactionHash: "0xallocation",
+            from: "0x7777777777777777777777777777777777777777",
+            gasUsed: "0x5208",
+            gasPrice: "0x3b9aca00",
+          }];
+        }
+        throw new Error(`Unexpected method: ${method}`);
+      },
+    }],
+  } as any);
+  const allocationResult = await (allocationAdapter.fetch as any)(createFetchOptions("allocation_test", 1, 1));
+
+  assert.equal(getOnlyBalance(allocationResult.dailyFees), 21_000_000_000_000);
+  assert.equal(getOnlyBalance(allocationResult.dailyRevenue), 5_250_000_000_000);
+  assert.equal(getOnlyBalance(allocationResult.dailySupplySideRevenue), 15_750_000_000_000);
+
   await withMockedFetch(async () => {
     const metrics = await fetchEvmChainMetrics({
       chain: "batch_fallback_test",
@@ -313,4 +389,88 @@ async function withMockedFetch(
   } finally {
     (globalThis as any).fetch = originalFetch;
   }
+}
+
+function createFetchOptions(chain: string, fromBlock: number, toBlock: number) {
+  return {
+    getFromBlock: async () => fromBlock,
+    getToBlock: async () => toBlock,
+    createBalances: () => new Balances({ chain }),
+  };
+}
+
+function getOnlyBalance(balances: Balances) {
+  const values = Object.values(balances.getBalances());
+  assert.equal(values.length, 1);
+  return Number(values[0]);
+}
+
+function countMethodCalls(calls: Array<{ url: string; requests: RpcRequest[] }>, url: string, method: string) {
+  return calls
+    .filter((call) => call.url === url)
+    .flatMap((call) => call.requests)
+    .filter((request) => request.method === method)
+    .length;
+}
+
+function createPerSenderBlockReceiptHandler() {
+  let flakyBlockReceiptCalls = 0;
+
+  return async (url: string, requests: RpcRequest[]) => requests.map((request) => {
+    if (request.method === "eth_getBlockReceipts") {
+      if (url === "https://unsupported-block-receipts.example") {
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          error: { code: -32601, message: "the method eth_getBlockReceipts does not exist/is not available" },
+        };
+      }
+
+      flakyBlockReceiptCalls += 1;
+      if (flakyBlockReceiptCalls === 1) {
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          error: { code: -32000, message: "temporary upstream failure" },
+        };
+      }
+
+      const block = Number(BigInt(request.params[0]));
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: [{
+          transactionHash: `0xfast${block}`,
+          from: `0x${block.toString().padStart(40, "0")}`,
+          gasUsed: "0x5208",
+          gasPrice: "0x3b9aca00",
+        }],
+      };
+    }
+
+    if (request.method === "eth_getBlockByNumber") {
+      const block = Number(BigInt(request.params[0]));
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: { transactions: [`0xfallback${block}`] },
+      };
+    }
+
+    if (request.method === "eth_getTransactionReceipt") {
+      const block = Number(request.params[0].replace("0xfallback", ""));
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: {
+          transactionHash: request.params[0],
+          from: `0x${block.toString().padStart(40, "0")}`,
+          gasUsed: "0x5208",
+          gasPrice: "0x3b9aca00",
+        },
+      };
+    }
+
+    throw new Error(`Unexpected method: ${request.method}`);
+  });
 }
