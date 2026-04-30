@@ -1,8 +1,12 @@
 import { CHAIN } from "../../helpers/chains";
 import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const BASE_ETH_POOL = "0x7F673790C08Ddf27c0Aa6fa9526CCC8dAaB081Ec";
+const BASE_USDC_POOL = "0xe91dd4AB03909f5CEb87f42B4308B222995a905b";
+
+const fetchSolana = async (options: FetchOptions) => {
   const query = `
     SELECT
       'So11111111111111111111111111111111111111112' as token,
@@ -20,7 +24,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       COALESCE(SUM(amount), 0) as total_fees
     FROM tokens_solana.transfers
     WHERE from_owner = '2vV7xhCMWRrcLiwGoTaTRgvx98ku98TRJKPXhsS8jvBV'
-      AND to_owner = 'AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'
+      AND to_owner IN (
+        'AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM',
+        '97rSMQUukMDjA7PYErccyx7ZxbHvSDaeXp2ig5BwSrTf'
+      )
       AND block_time > TIMESTAMP '2025-12-09 00:00:00 UTC'
       AND TIME_RANGE
     GROUP BY token_mint_address
@@ -40,10 +47,54 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 }
 
+const fetchBase = async (options: FetchOptions) => {
+  const result = await queryDuneSql(options, `
+    SELECT
+      'eth' AS pool,
+      COALESCE(SUM(bytearray_to_uint256(bytearray_substring(data, 613, 32))), 0) AS total_fees
+    FROM base.transactions
+    WHERE "to" = ${BASE_ETH_POOL}
+      AND success = true
+      AND bytearray_substring(data, 1, 4) = 0xcffe8ce5
+      AND block_time > TIMESTAMP '2026-04-20 00:00:00 UTC'
+      AND TIME_RANGE
+
+    UNION ALL
+
+    SELECT
+      'usdc' AS pool,
+      COALESCE(SUM(bytearray_to_uint256(bytearray_substring(data, 613, 32))), 0) AS total_fees
+    FROM base.transactions
+    WHERE "to" = ${BASE_USDC_POOL}
+      AND success = true
+      AND bytearray_substring(data, 1, 4) = 0xcffe8ce5
+      AND block_time > TIMESTAMP '2026-04-20 00:00:00 UTC'
+      AND TIME_RANGE
+  `);
+
+  const dailyFees = options.createBalances();
+  result.forEach((row: any) => {
+    if (row.pool === 'eth') dailyFees.addGasToken(row.total_fees);
+    if (row.pool === 'usdc') dailyFees.add(ADDRESSES.base.USDC, row.total_fees);
+  });
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+}
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  if (options.chain === CHAIN.BASE) return fetchBase(options);
+  return fetchSolana(options);
+}
+
 const methodology = {
-  Fees: "0.35% + 0.006 SOL on each withdrawal, 0.35% + ~0.008 SOL on each swap",
-  Revenue: "0.35% + 0.006 SOL on each withdrawal, 0.35% + ~0.008 SOL on each swap",
-  ProtocolRevenue: "0.35% + 0.006 SOL on each withdrawal, 0.35% + ~0.008 SOL on each swap",
+  Fees: "0.35% + fixed network fee on each withdrawal, 0.35% + fixed network fee on each swap",
+  Revenue: "0.35% + fixed network fee on each withdrawal, 0.35% + fixed network fee on each swap",
+  ProtocolRevenue: "0.35% + fixed network fee on each withdrawal, 0.35% + fixed network fee on each swap",
 }
 
 const adapter: Adapter = {
@@ -51,8 +102,10 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   dependencies: [Dependencies.DUNE],
-  chains: [CHAIN.SOLANA],
-  start: '2025-08-15',
+  adapter: {
+    [CHAIN.SOLANA]: { start: '2025-08-15' },
+    [CHAIN.BASE]: { start: '2026-04-20' },
+  },
   isExpensiveAdapter: true,
 }
 
