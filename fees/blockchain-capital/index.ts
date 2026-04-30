@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import * as sdk from "@defillama/sdk";
 
 const BCAP_TOKEN = "0x57fD71a86522Dc06D6255537521886057c1772A3";
 const PRICE_FEED = "0x0eF2418216476Ab5264821070B8c24b6B458F796";
@@ -10,36 +9,18 @@ const REDSTONE_ORACLE_DECIMALS = 8;
 const MANAGEMENT_FEE = 2.5 / 100;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
-async function prefetch(options: FetchOptions) {
-  const apiFrom = new sdk.ChainApi({ chain: CHAIN.ERA, timestamp: options.fromTimestamp });
-  const apiTo = new sdk.ChainApi({ chain: CHAIN.ERA, timestamp: options.toTimestamp });
-
-  await apiFrom.getBlock();
-  await apiTo.getBlock();
-
-  const priceBefore = await apiFrom.call({
-    target: PRICE_FEED,
-    abi: "function latestAnswer() view returns (int256)",
-  });
-
-  const priceAfter = await apiTo.call({
-    target: PRICE_FEED,
-    abi: "function latestAnswer() view returns (int256)",
-  });
-
-  return {
-    priceChange: (priceAfter - priceBefore) / 10 ** REDSTONE_ORACLE_DECIMALS,
-    currentPrice: priceAfter / 10 ** REDSTONE_ORACLE_DECIMALS,
-  };
-}
+const priceFeedAbi = "function latestAnswer() view returns (int256)";
 
 async function fetch(_: any, __: any, options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const priceChange = options.preFetchedResults.priceChange;
-  const currentPrice = options.preFetchedResults.currentPrice;
+  const priceBefore = await options.fromApi.call({ target: PRICE_FEED, abi: priceFeedAbi });
+  const priceAfter = await options.toApi.call({ target: PRICE_FEED, abi: priceFeedAbi });
+
+  const currentPrice = priceAfter / 10 ** REDSTONE_ORACLE_DECIMALS;
+  const priceChange = (priceAfter - priceBefore) / 10 ** REDSTONE_ORACLE_DECIMALS;
 
   const totalSupply = await options.api.call({
     target: BCAP_TOKEN,
@@ -93,8 +74,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  prefetch,
+  version: 1, // redstone NAV ticks daily at best
   fetch,
   breakdownMethodology,
   methodology,
