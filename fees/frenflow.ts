@@ -6,29 +6,30 @@ import { ethers } from "ethers";
  * FrenFlow — social copytrading + trading UI for prediction markets.
  * https://frenflow.com  ·  https://x.com/frenflow_
  *
- * Two on-chain revenue streams on Polygon, both summed into `dailyFees`:
+ * Two on-chain revenue streams on Polygon:
  *
  *   1. Service Fees — a 1% fee pulled atomically (user → treasury) by
  *      FrenFlow's FeeCollector contract at Polymarket trade settlement.
  *      Tracked via the `FeeCollected` event. Denominated in USDC.e.
+ *      Counted as both `dailyFees` and `dailyUserFees` because the
+ *      fee is debited from the trader's wallet at fill time.
  *
  *   2. Builder Fees — Polymarket pays builders a per-fill commission for
  *      trades carrying their `builderCode`. PM accrues these in an
  *      internal treasury and periodically distributes them on-chain to
  *      each builder's profile wallet (typically batched through a
  *      "disperse"-style contract). FrenFlow's builder profile wallet is
- *      `0x58715321c2c6a216d1259f368c34f987a4a26b64`. We sum incoming
- *      pUSD / USDC.e / USDC (native) Transfer events to that wallet.
+ *      `0x58715321c2c6a216d1259f368c34f987a4a26b64`. Counted in
+ *      `dailyFees` / `dailyRevenue` but NOT `dailyUserFees`, because PM
+ *      pays them on a settlement cadence (not user-atomic) and the
+ *      distribution day rarely matches the trade day.
  *
  * Volume (notional) for FrenFlow as a Polymarket builder is tracked
  * separately in `factory/polymarket.ts`.
  *
  * Income-statement mapping (per GUIDELINES):
  *   dailyFees            — gross protocol revenue (Service + Builder)
- *   dailyUserFees        — portion paid directly by end-users (100%:
- *                          service fee is pulled from the trader's
- *                          wallet at fill; builder fee is funded by
- *                          Polymarket out of the trader's order amount)
+ *   dailyUserFees        — Service Fees only (atomic, user-paid)
  *   dailyRevenue         — gross profit (no supply-side to reimburse)
  *   dailyProtocolRevenue — portion allocated to treasury (100%)
  */
@@ -55,6 +56,23 @@ const PUSD_POLYGON = "0xc011a7E12a19f7B1f670d46F03B03f3342E82DFB";
 // switch settlement currency without notice.
 const USDC_NATIVE_POLYGON = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
 
+// Sanctioned senders for Polymarket builder-fee distributions. We only
+// credit Builder Fees from `Transfer` events whose `from` address is in
+// this allowlist, so unrelated transfers (top-ups, refunds, mistaken
+// sends) into BUILDER_PAYOUT are not misclassified as protocol revenue.
+//
+// Known senders so far:
+//  - 0xd7a0535c… : EOA used for the first PM builder distribution
+//                  (tx 0x4e0e7e42, block 86195685, 2026-04-30) which
+//                  paid 27 builders via a disperse contract
+//                  (0xd152f549…). The Transfer events show the EOA in
+//                  the indexed `from` slot, not the disperse contract.
+//
+// If Polymarket rotates its hot wallet, add the new EOA here.
+const KNOWN_PM_BUILDER_PAYOUT_SENDERS = new Set(
+  ["0xd7a0535cd4349145ac47693803988d59c015d4ba"].map((a) => a.toLowerCase())
+);
+
 const SERVICE_FEE_LABEL = "Service Fees";
 const BUILDER_FEE_LABEL = "Builder Fees";
 
@@ -65,43 +83,63 @@ const padAddress = (address: string) => ethers.zeroPadValue(address, 32);
 
 const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
   const dailyFees = createBalances();
+  const dailyUserFees = createBalances();
+  const dailyRevenue = createBalances();
 
   // Filter `Transfer(from, to, value)` by the indexed `to` topic only —
-  // any sender that lands tokens in BUILDER_PAYOUT counts. The middle
-  // `null` keeps `from` unconstrained.
+  // the middle `null` keeps `from` unconstrained at the RPC level so we
+  // can post-filter against KNOWN_PM_BUILDER_PAYOUT_SENDERS in JS.
   const builderPayoutTopics = [transferTopic, null, padAddress(BUILDER_PAYOUT)];
   const builderTokens = [PUSD_POLYGON, USDC_E_POLYGON, USDC_NATIVE_POLYGON];
 
-  const [feeCollectedLogs, ...builderInflowsByToken] = await Promise.all([
-    getLogs({
-      target: FEE_COLLECTOR,
-      eventAbi:
-        "event FeeCollected(bytes32 indexed fillId, address indexed user, bytes32 indexed tokenId, uint8 service, uint256 tradeAmount, uint256 feeAmount, uint256 feeBps, uint256 timestamp)",
-    }),
-    ...builderTokens.map((token) =>
+  // Service fees are required and must throw on failure. Builder probes
+  // are best-effort across three tokens — wrap them in `allSettled` so a
+  // transient RPC error on one token does not drop the service-fee
+  // stream for the period.
+  const feeCollectedLogs = await getLogs({
+    target: FEE_COLLECTOR,
+    eventAbi:
+      "event FeeCollected(bytes32 indexed fillId, address indexed user, bytes32 indexed tokenId, uint8 service, uint256 tradeAmount, uint256 feeAmount, uint256 feeBps, uint256 timestamp)",
+  });
+
+  const builderInflowsByToken = await Promise.allSettled(
+    builderTokens.map((token) =>
       getLogs({
         target: token,
         eventAbi: transferEventAbi,
         topics: builderPayoutTopics as any,
       })
-    ),
-  ]);
+    )
+  );
 
   for (const log of feeCollectedLogs) {
     dailyFees.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
+    dailyUserFees.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
+    dailyRevenue.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
   }
-  builderInflowsByToken.forEach((inflows, i) => {
+
+  builderInflowsByToken.forEach((result, i) => {
     const token = builderTokens[i];
-    for (const log of inflows) {
+    if (result.status === "rejected") {
+      console.error(
+        `frenflow: builder-fee Transfer query failed for token ${token}:`,
+        result.reason
+      );
+      return;
+    }
+    for (const log of result.value) {
+      const from = String(log.from).toLowerCase();
+      if (!KNOWN_PM_BUILDER_PAYOUT_SENDERS.has(from)) continue;
       dailyFees.add(token, log.value, BUILDER_FEE_LABEL);
+      dailyRevenue.add(token, log.value, BUILDER_FEE_LABEL);
     }
   });
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -113,11 +151,11 @@ const adapter: Adapter = {
   pullHourly: true,
   methodology: {
     Fees:
-      "Two streams: (1) 1% service fee pulled atomically by FrenFlow's FeeCollector contract at trade settlement, and (2) Polymarket builder-fee distributions to FrenFlow's builder profile wallet (paid in pUSD or USDC.e on a Polymarket-defined cadence).",
+      "Two streams: (1) 1% service fee pulled atomically by FrenFlow's FeeCollector contract at trade settlement, and (2) Polymarket builder-fee distributions to FrenFlow's builder profile wallet, restricted to a sanctioned sender allowlist (paid in pUSD or USDC.e on a Polymarket-defined cadence).",
     UserFees:
-      "100% of fees originate from end-user trades. Service fees are transferFrom'd from the trader at fill; builder fees come out of the trader's order amount via Polymarket and are forwarded to FrenFlow.",
+      "Service fees only — these are transferFrom'd from the trader's wallet atomically at fill time. Builder fees are excluded because Polymarket pays them on its own settlement cadence, not at the user trade.",
     Revenue:
-      "All fees flow to FrenFlow treasury / builder wallet. No liquidity providers.",
+      "Service fees plus Polymarket builder distributions. All flow to FrenFlow treasury / builder wallet. No liquidity providers.",
     ProtocolRevenue:
       "Same as Revenue — 100% of collected fees are retained by the protocol.",
   },
@@ -126,12 +164,10 @@ const adapter: Adapter = {
       [SERVICE_FEE_LABEL]:
         "Per-trade 1% service fee on Polymarket trades routed through FrenFlow. Denominated in USDC.e. Tracked from the `FeeCollected` event on the FeeCollector contract `0x95e47CBC5c4D9434412AF44Ade02B33613EDb787`.",
       [BUILDER_FEE_LABEL]:
-        "Polymarket builder-fee distributions to FrenFlow's builder profile wallet `0x58715321c2c6a216d1259f368c34f987a4a26b64`. Tracked as incoming `Transfer` events of pUSD, USDC.e, or USDC (native) to that wallet — all settlement currencies Polymarket has used or could use for builder payouts.",
+        "Polymarket builder-fee distributions to FrenFlow's builder profile wallet `0x58715321c2c6a216d1259f368c34f987a4a26b64`. Tracked as incoming `Transfer` events of pUSD, USDC.e, or USDC (native), restricted to a sanctioned sender allowlist of known Polymarket payout EOAs to avoid counting unrelated inflows as fees.",
     },
     UserFees: {
-      [SERVICE_FEE_LABEL]: "Same as Fees — paid directly from the trader's wallet.",
-      [BUILDER_FEE_LABEL]:
-        "Same as Fees — funded out of the trader's notional via Polymarket.",
+      [SERVICE_FEE_LABEL]: "Paid directly from the trader's wallet at fill.",
     },
     Revenue: {
       [SERVICE_FEE_LABEL]:
