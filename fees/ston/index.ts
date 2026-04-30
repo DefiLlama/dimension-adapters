@@ -8,6 +8,7 @@ const endpoint = "https://api.ston.fi/v1/stats/operations?";
 
 const fetchFees = async (options: FetchOptions) => {
   const pool_list = (await fetchURL("https://api.ston.fi/v1/pools")).pool_list;
+  const poolsByAddress = {};
   // store pools info for each asset to calculate weigthed price later
   const asset2pools = {};
   const add_pool = (address: string, tvl: number, reserve: number) => {
@@ -17,6 +18,7 @@ const fetchFees = async (options: FetchOptions) => {
     asset2pools[address].push({ tvl, reserve });
   };
   for (const pool of pool_list) {
+    poolsByAddress[pool.address] = pool;
     // ignore pools with low liquidity
     if (pool["lp_total_supply_usd"] < 1000) {
       continue;
@@ -43,37 +45,45 @@ const fetchFees = async (options: FetchOptions) => {
 
   let total_lp_fees = 0;
   let total_protocol_fees = 0;
-  let referral_fees = 0;
 
-  // go through all operations and calculate fees based on the current prices
+  // go through all operations and calculate fees based on the current prices and pool fee rates
   for (const item of res["operations"]) {
     const operation = item.operation;
-    if (operation.success && operation.operation_type == "swap" && operation.exit_code == "swap_ok") {
-      if (operation.fee_asset_address in asset_prices) {
-        const price = asset_prices[operation.fee_asset_address];
-        total_lp_fees += operation.lp_fee_amount * price;
-        total_protocol_fees += operation.protocol_fee_amount * price;
-        referral_fees += (operation.referral_fee_amount || 0) * price;
-      } else {
-        continue;
-      }
-    }
+    if (
+      !operation.success ||
+      operation.operation_type != "swap" ||
+      (operation.exit_code != "swap_ok" && operation.exit_code != "swap_ok_ref")
+    ) continue;
+
+    const pool = poolsByAddress[operation.pool_address];
+    const asset0Price = asset_prices[operation.asset0_address];
+    const asset1Price = asset_prices[operation.asset1_address];
+    if (!pool || !asset0Price || !asset1Price) continue;
+
+    const volumeUsd = Math.max(
+      Math.abs(Number(operation.asset0_amount)) * asset0Price,
+      Math.abs(Number(operation.asset1_amount)) * asset1Price,
+    );
+    if (!Number.isFinite(volumeUsd) || volumeUsd <= 0) continue;
+
+    total_lp_fees += volumeUsd * (Number(pool.lp_fee) / 10000);
+    total_protocol_fees += volumeUsd * (Number(pool.protocol_fee) / 10000);
   }
 
   return {
-    dailyUserFees: total_lp_fees + total_protocol_fees + referral_fees,
-    dailyFees: total_lp_fees + total_protocol_fees + referral_fees,
-    dailySupplySideRevenue: total_lp_fees + referral_fees,
+    dailyUserFees: total_lp_fees + total_protocol_fees,
+    dailyFees: total_lp_fees + total_protocol_fees,
+    dailySupplySideRevenue: total_lp_fees,
     dailyRevenue: total_protocol_fees,
   };
 };
 
 const adapter: SimpleAdapter = {
   methodology: {
-    Fees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
-    UserFees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
-    Revenue: "Protocol receives 1/3 of fees paid by users (not including referral fees).",
-    SupplySideRevenue: "2/3 of user fees are distributed among LPs and referral fees.",
+    Fees: "User pays fee on each swap. Fees go to the protocol and LPs.",
+    UserFees: "User pays fee on each swap. Fees go to the protocol and LPs.",
+    Revenue: "Protocol share of swap fees, calculated from the pool protocol fee bps.",
+    SupplySideRevenue: "LP share of swap fees, calculated from the pool LP fee bps.",
   },
   version: 2,
   adapter: {
