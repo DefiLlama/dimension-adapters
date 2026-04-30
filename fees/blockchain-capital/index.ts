@@ -80,7 +80,7 @@ const adapter: SimpleAdapter = {
   methodology,
   adapter: {
     [CHAIN.ERA]: {
-      start: "2025-03-14",
+      start: "2025-05-06",
     },
   },
   allowNegativeValue: true,
