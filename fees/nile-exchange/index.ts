@@ -61,16 +61,14 @@ const adapter: Adapter = {
         const adapter = getUniV3LogAdapter({ factory: "0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42", revenueRatio: 1, userFeesRatio: 1, protocolRevenueRatio: 0.08, holdersRevenueRatio: 0.92 })
         const response = await adapter(options)
 
-        try {
-          const bribesResult = await getBribes(options);
-          response.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
-        } catch {
-          // Keep swap fees live if the optional bribes subgraph is unavailable.
-        }
+        const bribesResult = await getBribes(options);
+        response.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
         return response;
       },
       start: startTimeV2[CHAIN.LINEA],
+      // The bribes subgraph deployment is unavailable; stop current data rather than reporting partial fees without bribes.
+      deadFrom: '2026-04-25',
     },
   },
   methodology,
