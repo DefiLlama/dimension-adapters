@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions) => {
     if (to.toLowerCase() === CARD_SPEND_POOL) continue;
     dailyFees.add(USDT0, log.data, MetricLabels.REFUNDS);
     dailySupplySideRevenue.add(USDT0, log.data, MetricLabels.REFUNDS);
-  }
+  };
 
   // XPL Cashbacks: outflows from cashback processors
   // V1 deprecated after block 17612591, V2 from then on
@@ -57,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
         topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V1)], 
         entireLog: true, 
       })
-    );
+    )
   };
   if (useV2) {
     cashbackLogFetches.push(
@@ -66,14 +66,14 @@ const fetch = async (options: FetchOptions) => {
         topics: [TRANSFER_TOPIC, topic(CASHBACK_PROCESSOR_V2)], 
         entireLog: true, 
       })
-    );
+    )
   };
   const cashbackLogs = (await Promise.all(cashbackLogFetches)).flat();
 
   for (const log of cashbackLogs) {
     dailyFees.add(WXPL, log.data, MetricLabels.CASHBACKS);
     dailySupplySideRevenue.add(ADDRESSES.plasma.WXPL, log.data, MetricLabels.CASHBACKS);
-  }
+  };
 
   // Volume: inflows to CARD_SPEND_POOL = on-chain movement of real-life card expenditures
   const dailyVolume = options.createBalances();
@@ -88,7 +88,7 @@ const fetch = async (options: FetchOptions) => {
     // skip mints
     if (from === "0x0000000000000000000000000000000000000000") continue;
     dailyVolume.add(USDT0, log.data);
-  }
+  };
 
   return { dailySupplySideRevenue, dailyFees, dailyVolume };
 };
