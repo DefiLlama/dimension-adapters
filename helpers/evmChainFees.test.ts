@@ -431,6 +431,78 @@ async function main() {
     throw new Error(`Unexpected method: ${method}`);
   }));
 
+  await assert.rejects(
+    () => withMockedFetch(async () => {
+      await fetchEvmChainMetrics({
+        chain: "batch_null_block_test",
+        fromBlock: 40,
+        toBlock: 40,
+        blockChunkSize: 1,
+        batchConcurrency: 1,
+        rpcSenders: [{
+          url: "https://batch-null-block.example",
+          send: async (method: string) => {
+            if (method === "eth_getBlockReceipts") {
+              throw new Error("the method eth_getBlockReceipts does not exist/is not available");
+            }
+            throw new Error(`Unexpected single-call method: ${method}`);
+          },
+        }],
+      } as any);
+    }, async (_url, requests) => requests.map((request) => {
+      if (request.method === "eth_getBlockReceipts") {
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          error: { code: -32601, message: "the method eth_getBlockReceipts does not exist/is not available" },
+        };
+      }
+      if (request.method === "eth_getBlockByNumber") {
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          result: null,
+        };
+      }
+      throw new Error(`Unexpected method: ${request.method}`);
+    })),
+    /batch_null_block_test: eth_getBlockByNumber returned an invalid block payload for block 40/,
+  );
+
+  await assert.rejects(
+    () => withMockedFetch(async () => {
+      await fetchEvmChainMetrics({
+        chain: "single_malformed_block_test",
+        fromBlock: 41,
+        toBlock: 41,
+        blockChunkSize: 1,
+        batchConcurrency: 1,
+        rpcSenders: [{
+          url: "https://single-malformed-block.example",
+          send: async (method: string) => {
+            if (method === "eth_getBlockReceipts") {
+              throw new Error("the method eth_getBlockReceipts does not exist/is not available");
+            }
+            if (method === "eth_getBlockByNumber") {
+              return { number: "0x29" };
+            }
+            throw new Error(`Unexpected single-call method: ${method}`);
+          },
+        }],
+      } as any);
+    }, async (_url, requests) => requests.map((request) => {
+      if (request.method === "eth_getBlockReceipts") {
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          error: { code: -32000, message: "temporary block receipts batch failure" },
+        };
+      }
+      throw new Error(`Unexpected method: ${request.method}`);
+    })),
+    /single_malformed_block_test: eth_getBlockByNumber returned an invalid block payload for block 41/,
+  );
+
   console.log("evmChainFees tests passed");
 }
 

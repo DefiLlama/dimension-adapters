@@ -287,9 +287,7 @@ async function getTransactionReceiptsFallbackForBlocks(config: EvmChainMetricCon
  */
 async function getBlockTransactionHashesBatch(config: EvmChainMetricConfig, blocks: number[]): Promise<string[][]> {
   const rpcBlocks = await sendFirstRpcBatch(config, "eth_getBlockByNumber", blocks.map((block) => [toHex(block), false]));
-  return rpcBlocks.map((rpcBlock) => (rpcBlock?.transactions ?? [])
-    .map((tx: string | TransactionLike) => typeof tx === "string" ? tx : tx.hash)
-    .filter(Boolean));
+  return rpcBlocks.map((rpcBlock, index) => getBlockTransactionHashesFromBlock(config, blocks[index], rpcBlock));
 }
 
 /**
@@ -477,9 +475,16 @@ async function getTransactionReceiptsFallback(config: EvmChainMetricConfig, bloc
  */
 async function getBlockTransactionHashes(config: EvmChainMetricConfig, block: number): Promise<string[]> {
   const rpcBlock = await sendFirstRpc(config, "eth_getBlockByNumber", [toHex(block), false]);
-  return (rpcBlock?.transactions ?? [])
+  return getBlockTransactionHashesFromBlock(config, block, rpcBlock);
+}
+
+/**
+ * Extracts transaction hashes from a validated eth_getBlockByNumber payload.
+ */
+function getBlockTransactionHashesFromBlock(config: EvmChainMetricConfig, block: number, rpcBlock: any): string[] {
+  return getBlockTransactions(config, block, rpcBlock)
     .map((tx: string | TransactionLike) => typeof tx === "string" ? tx : tx.hash)
-    .filter(Boolean);
+    .filter((hash): hash is string => Boolean(hash));
 }
 
 /**
@@ -490,7 +495,7 @@ async function hydrateReceiptsIfNeeded(config: EvmChainMetricConfig, block: numb
   const rpcBlock = await sendFirstRpc(config, "eth_getBlockByNumber", [toHex(block), true]);
   const hydratedReceipts = hydrateReceiptsWithTransactions(
     receipts,
-    (rpcBlock?.transactions ?? []).filter((tx: string | TransactionLike) => typeof tx !== "string"),
+    getBlockTransactions(config, block, rpcBlock).filter((tx: string | TransactionLike) => typeof tx !== "string"),
   );
 
   const missingTxHashes = hydratedReceipts
@@ -511,6 +516,16 @@ async function hydrateReceiptsIfNeeded(config: EvmChainMetricConfig, block: numb
     hydratedReceipts,
     results.filter(Boolean) as TransactionLike[],
   );
+}
+
+/**
+ * Validates block payloads so RPC lag or malformed responses cannot undercount data.
+ */
+function getBlockTransactions(config: EvmChainMetricConfig, block: number, rpcBlock: any): Array<string | TransactionLike> {
+  if (!rpcBlock || !Array.isArray(rpcBlock.transactions)) {
+    throw new Error(`${config.chain}: eth_getBlockByNumber returned an invalid block payload for block ${block} (${toHex(block)})`);
+  }
+  return rpcBlock.transactions;
 }
 
 /**
