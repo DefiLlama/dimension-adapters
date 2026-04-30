@@ -1,0 +1,37 @@
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { queryDuneSql } from "../helpers/dune";
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const data = await queryDuneSql(options, `
+    SELECT
+      COALESCE(SUM(amount_usd), 0) AS daily_volume
+    FROM dex_solana.trades
+    WHERE TIME_RANGE
+      AND tx_id IN (
+        SELECT tx_id
+        FROM solana.instruction_calls
+        WHERE executing_account = 'BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW'
+          AND tx_success = TRUE
+          AND TIME_RANGE
+      )
+  `);
+
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(data[0].daily_volume);
+  return { dailyVolume };
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: "2024-01-08",
+    },
+  },
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+};
+
+export default adapter;
