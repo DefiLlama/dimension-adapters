@@ -30,13 +30,24 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         dailyNotionalVolume.add(asset, amount);
     });
     
-    const selector = "0x778ddcb3" // function ingresso_newUserPosition(bytes calldata payload)
-    const txs: any = await getTransactions(options.chain, premiumReceivedLogs.map((log: any) => log.transactionHash), { cacheKey: 'rysk-v12' })
+    const gammaThenMMarketSelector = "0xd3d2f616" // function ingresso_GammaThenMMarket(Otoken[] memory otoken, Actions.ActionArgs[] memory actions, MMarketOperations.Operation[] memory operations)
+    const newUserPositionSelector = "0x778ddcb3" // function ingresso_newUserPosition(bytes calldata payload)
+    let txs: any[] = []
+    try {
+        txs = await getTransactions(
+            options.chain,
+            premiumReceivedLogs.map((log: any) => log.transactionHash),
+            { cacheKey: 'rysk-v12' }
+        )
+    } catch (e) {
+        console.error(`rysk-v12: failed to fetch txs on ${options.chain}`, e)
+        txs = []
+    }
 
     premiumReceivedLogs.forEach((log: any, index) => {
         const tx = txs[index];
         if (!tx) return;
-        if (tx.data.startsWith(selector)) {
+        if (tx.data.startsWith(gammaThenMMarketSelector) || tx.data.startsWith(newUserPositionSelector)) {
             const { asset, amount } = log.args;
             dailyPremiumVolume.add(asset, amount);
         }
