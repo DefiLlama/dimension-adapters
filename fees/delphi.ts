@@ -38,7 +38,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.GENSYN],
   start: DELPHI_START,
-  pullHourly: true,
   methodology: {
     Fees: "Trading fees paid by users when buying or selling Delphi market shares.",
     Revenue: "Protocol share of trading fees sent to the Delphi buyback vault.",

@@ -16,7 +16,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.GENSYN],
   start: DELPHI_START,
-  pullHourly: true,
   methodology: {
     Volume: "Cash exchanged across both sides of Delphi prediction markets. Volume is the sum of buy tokens in and sell tokens out.",
   },
