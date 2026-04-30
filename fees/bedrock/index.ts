@@ -82,7 +82,9 @@ async function addUniETHFees(options: FetchOptions, config: ChainConfig, balance
 
   for (const log of logs) {
     const parsedLog = uniETHInterface.parseLog(log);
-    const grossRewards = BigInt(parsedLog!.args.amount);
+    if (!parsedLog) continue;
+
+    const grossRewards = BigInt(parsedLog.args.amount);
     if (grossRewards <= ZERO) continue;
 
     const managerFeeShare = managerFeeShareByBlock.get(Number(log.blockNumber)) ?? ZERO;
@@ -133,6 +135,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: chainConfig,
   fetch,
   methodology: {
