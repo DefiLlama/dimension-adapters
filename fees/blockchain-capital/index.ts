@@ -11,7 +11,7 @@ const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 const priceFeedAbi = "function latestAnswer() view returns (int256)";
 
-async function fetch(_: any, __: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -74,13 +74,13 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, // redstone NAV ticks daily at best
+  version: 2,
   fetch,
   breakdownMethodology,
   methodology,
   adapter: {
     [CHAIN.ERA]: {
-      start: "2025-09-09",
+      start: "2025-03-14",
     },
   },
   allowNegativeValue: true,
