@@ -160,6 +160,9 @@ const configs: Record<string, Record<string, any>> = {
   "fluxion-network": {
     [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, revenueRatio: 0 },
   },
+  "fusionx-v3": {
+    [CHAIN.MANTLE]: { factory: '0x530d2766D1988CC1c000C8b7d00334c14B69AD71', start: '2023-07-13', userFeesRatio: 1, revenueRatio: 0.334, protocolRevenueRatio: 0.167, holdersRevenueRatio: 0.167 },
+  },
   "octoswap-cl": {
     [CHAIN.MONAD]: { factory: '0x30Db57A29ACf3641dfc3885AF2e5f1F5A408D9CB', revenueRatio: 1 / 5, protocolRevenueRatio: 1 / 5 },
   },
@@ -373,6 +376,14 @@ const methodologyMap: Record<string, any> = {
     UserFees: 'Users pay fees on every swap.',
     Revenue: 'No revenue.',
     SupplySideRevenue: 'All swap fees are distributed to LPs.',
+  },
+  "fusionx-v3": {
+    Fees: "Swap fees paid by users on each FusionX V3 pool.",
+    UserFees: "Users pay each pool's configured V3 fee on every swap.",
+    Revenue: "33.4% of swap fees are protocol-controlled revenue.",
+    ProtocolRevenue: "16.7% of swap fees go to the protocol.",
+    HoldersRevenue: "16.7% of swap fees go to token holders.",
+    SupplySideRevenue: "66.6% of swap fees go to liquidity providers.",
   },
   "datadex": {
     Fees: "Swap fees collected from users on each trade.",
