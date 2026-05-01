@@ -84,6 +84,8 @@ const cauldrons: Record<string, string[]> = {
 
 const accrueInfoAbi = 'function accrueInfo() view returns (uint64 lastAccrued, uint128 feesEarned, uint64 INTEREST_PER_SECOND)';
 const withdrawFeesEvent = 'event LogWithdrawFees(address indexed feeTo, uint256 feesEarnedFraction)';
+const ZERO_ACCRUE_INFO = { feesEarned: 0n };
+const FAILED_ACCRUE_INFO = { feesEarned: 0n, failed: true };
 
 const getFeesEarned = (accrueInfo: any): bigint => {
   if (!accrueInfo) return 0n;
@@ -95,6 +97,8 @@ const getWithdrawnFees = (log: any): bigint => BigInt(log.args?.feesEarnedFracti
 
 const sumFeesEarned = (values: any[]): bigint => values.reduce((sum, value) => sum + getFeesEarned(value), 0n);
 
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+
 const getAccrueInfos = async (api: FetchOptions["api"], addresses: string[]) => {
   const call = (targets: string[]) => api.multiCall({
     abi: accrueInfoAbi,
@@ -103,13 +107,16 @@ const getAccrueInfos = async (api: FetchOptions["api"], addresses: string[]) => 
   });
 
   try {
-    return await call(addresses);
-  } catch {
+    const results = await call(addresses);
+    return results.map((result) => result ?? FAILED_ACCRUE_INFO);
+  } catch (error) {
+    console.error(`[abracadabra] accrueInfo multicall failed on ${api.chain}, retrying per cauldron: ${getErrorMessage(error)}`);
     return (await Promise.all(addresses.map(async (address) => {
       try {
-        return (await call([address]))[0];
-      } catch {
-        return undefined;
+        return (await call([address]))[0] ?? FAILED_ACCRUE_INFO;
+      } catch (innerError) {
+        console.error(`[abracadabra] accrueInfo failed on ${api.chain} for ${address}: ${getErrorMessage(innerError)}`);
+        return FAILED_ACCRUE_INFO;
       }
     })));
   }
@@ -131,20 +138,31 @@ const fetch = async (options: FetchOptions) => {
     getAccrueInfos(toApi, chainCauldrons),
   ]);
 
-  const validIndexes = new Set<number>();
-  const validCauldrons = chainCauldrons.filter((_, index) => {
-    const isValid = Boolean(startValues[index] && endValues[index]);
-    if (isValid) validIndexes.add(index);
-    return isValid;
-  });
-  const filteredStartValues = startValues.filter((_, index) => validIndexes.has(index));
-  const filteredEndValues = endValues.filter((_, index) => validIndexes.has(index));
+  const validEntries = chainCauldrons
+    .map((cauldron, index) => ({
+      cauldron,
+      startValue: startValues[index] ?? ZERO_ACCRUE_INFO,
+      endValue: endValues[index],
+    }))
+    .filter(({ endValue }) => Boolean(endValue && !endValue.failed));
+  const validCauldrons = validEntries.map(({ cauldron }) => cauldron);
+  const filteredStartValues = validEntries.map(({ startValue }) => startValue);
+  const filteredEndValues = validEntries.map(({ endValue }) => endValue);
   const withdrawLogs = await getWithdrawLogs(options, validCauldrons);
 
   const startFeesEarned = sumFeesEarned(filteredStartValues);
   const endFeesEarned = sumFeesEarned(filteredEndValues);
   const withdrawnFees = withdrawLogs.reduce((sum, log) => sum + getWithdrawnFees(log), 0n);
-  const dailyFeeAmount = Math.max(Number(endFeesEarned - startFeesEarned + withdrawnFees) / 1e18, 0);
+  const rawDelta = endFeesEarned - startFeesEarned + withdrawnFees;
+  if (rawDelta < 0n) {
+    console.error(`[abracadabra] negative fee delta on ${chain}`, {
+      startFeesEarned: startFeesEarned.toString(),
+      endFeesEarned: endFeesEarned.toString(),
+      withdrawnFees: withdrawnFees.toString(),
+      rawDelta: rawDelta.toString(),
+    });
+  }
+  const dailyFeeAmount = Math.max(Number(rawDelta) / 1e18, 0);
 
   const dailyFees = createBalances();
   dailyFees.addCGToken('magic-internet-money', dailyFeeAmount, METRIC.BORROW_INTEREST);
