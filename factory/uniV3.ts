@@ -340,6 +340,9 @@ const configs: Record<string, Record<string, any>> = {
   "stableswap-xyz-v3": {
     [CHAIN.STABLE]: { factory: "0x88F0a512eF09175D456bc9547f914f48C013E4aA", revenueRatio: 0, }
   },
+  "ubeswap-v3": {
+    [CHAIN.CELO]: { factory: '0x67FEa58D5a5a4162cED847E13c2c81c73bf8aeC4', start: '2024-05-20', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
 }
 
 const optionsMap: Record<string, any> = {
