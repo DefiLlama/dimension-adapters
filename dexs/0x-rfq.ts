@@ -2,8 +2,7 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-// 2025-01-01 00:00:00 UTC — switch from on-chain v4 logs to Dune dex.trades
-const SETTLER_CUTOFF = 1735689600;
+const SETTLER_CUTOFF = 1735689600; // 2025-01-01 UTC
 
 const config: Record<string, { exchange?: string; settler?: string; duneChain?: string; start: string }> = {
   [CHAIN.ETHEREUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7f54F05635d15Cde17A49502fEdB9D1803A3Be8A', duneChain: 'ethereum',    start: '2023-01-01' },
@@ -15,7 +14,6 @@ const config: Record<string, { exchange?: string; settler?: string; duneChain?: 
   [CHAIN.AVAX]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x6De411A14aEaafB3f23697A4472a4D4ed275Ac0f', duneChain: 'avalanche_c', start: '2023-01-01' },
   [CHAIN.ARBITRUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xfeEA2A79D7d3d36753C8917AF744D71f13C9b02a', duneChain: 'arbitrum',    start: '2023-01-01' },
   [CHAIN.BASE]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7747F8D2a76BD6345Cc29622a946A929647F2359', duneChain: 'base',         start: '2023-08-01' },
-  // Settler-only chains (Dune for current data)
   [CHAIN.BERACHAIN]: { settler: '0x4D97d7E4230003277FD02AbeaBeE835De389b673', duneChain: 'berachain', start: '2025-02-01' },
   [CHAIN.BLAST]:     { settler: '0x9dEf2d15F0E6eEddCe5D5E53744AFA48D89d5FFc', duneChain: 'blast',     start: '2024-12-01' },
   [CHAIN.XDAI]:      { settler: '0xC4709F3d83C716a64A0f77e50b11BE98620b110D', duneChain: 'gnosis',    start: '2024-12-01' },
@@ -33,7 +31,8 @@ const fetch = async (options: FetchOptions) => {
   const { getLogs, chain, createBalances, startTimestamp } = options;
   const { exchange, duneChain } = config[chain];
 
-  if (startTimestamp < SETTLER_CUTOFF && exchange) {
+  // v4 historical logs: use when before cutoff OR when no Dune support
+  if ((startTimestamp < SETTLER_CUTOFF || !duneChain) && exchange) {
     try {
       const dailyVolume = createBalances();
       const logs = await getLogs({
@@ -44,10 +43,10 @@ const fetch = async (options: FetchOptions) => {
       return { dailyVolume };
     } catch (e) {
       console.error(`[0x-rfq] RfqOrderFilled fetch failed for ${chain}:`, e);
-      return { dailyVolume: 0 };
     }
   }
 
+  // Dune for current data on supported chains
   if (startTimestamp >= SETTLER_CUTOFF && duneChain) {
     try {
       const rows = await queryDuneSql(options, `
@@ -60,7 +59,6 @@ const fetch = async (options: FetchOptions) => {
       return { dailyVolume: rows?.[0]?.daily_volume ?? 0 };
     } catch (e) {
       console.error(`[0x-rfq] Dune fetch failed for ${chain}:`, e);
-      return { dailyVolume: 0 };
     }
   }
 
