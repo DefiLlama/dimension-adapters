@@ -28,6 +28,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   // Card purchase refunds: outflows from REFUND_PROCESSOR that don't go back to CARD_SPEND_POOL
+  /*
   const refundLogs = await options.getLogs({
     target: USDT0,
     topics: [TRANSFER_TOPIC, topic(REFUND_PROCESSOR)],
@@ -41,9 +42,11 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(USDT0, log.data, MetricLabels.REFUNDS);
     dailySupplySideRevenue.add(USDT0, log.data, MetricLabels.REFUNDS);
   };
+  */
 
   // XPL Cashbacks: outflows from cashback processors
   // V1 deprecated after block 17612591, V2 from then on
+  /*
   const CASHBACK_V1_LAST_BLOCK = 17612591;
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   const useV1 = fromBlock <= CASHBACK_V1_LAST_BLOCK;
@@ -74,6 +77,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(WXPL, log.data, MetricLabels.CASHBACKS);
     dailySupplySideRevenue.add(ADDRESSES.plasma.WXPL, log.data, MetricLabels.CASHBACKS);
   };
+  */
 
   // Volume: inflows to CARD_SPEND_POOL = on-chain movement of real-life card expenditures
   const dailyVolume = options.createBalances();
@@ -100,9 +104,10 @@ const adapter: SimpleAdapter = {
   start: "2025-11-12",
   methodology: {
     Volume: "Real-life card expenditure settled on-chain.",
-    Fees: "Total fees paid by users, including refunds and XPL cashback rewards.",
-    SupplySideRevenue: "USDT0 refunds from the Refund Processor and XPL cashback rewards.",
+    // Fees: "Total fees paid by users, including refunds and XPL cashback rewards.",
+    // SupplySideRevenue: "USDT0 refunds from the Refund Processor and XPL cashback rewards.",
   },
+  /*
   breakdownMethodology: {
     Fees: {
       [MetricLabels.REFUNDS]: "USDT0 refunded to users by the Refund Processor.",
@@ -113,6 +118,7 @@ const adapter: SimpleAdapter = {
       [MetricLabels.CASHBACKS]: "XPL tokens distributed as cashback rewards to cardholders.",
     },
   },
+  */
   skipBreakdownValidation: true,
 };
 
