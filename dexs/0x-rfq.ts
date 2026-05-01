@@ -82,7 +82,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Dune log0 query for current data
-  if (startTimestamp >= SETTLER_CUTOFF && settler && duneChain) {
+  if (settler && duneChain) {
     try {
       const rows = await queryDuneSql(options, buildSettlerQuery(duneChain, settler));
       return { dailyVolume: rows?.[0]?.daily_volume ?? 0 };
