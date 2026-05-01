@@ -1,71 +1,76 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { id, zeroPadValue } from "ethers";
+import { queryDuneSql } from "../helpers/dune";
 
-const config: Record<string, { exchange?: string; settler?: string; start: string }> = {
-  [CHAIN.ETHEREUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7f54F05635d15Cde17A49502fEdB9D1803A3Be8A', start: '2023-01-01' },
-  [CHAIN.POLYGON]:   { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7150ea07D00d8E5a46bcC809f1c9FDf5cb5f8E81', start: '2023-01-01' },
-  [CHAIN.BSC]:       { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xc2eff1F1cE35d395408A34Ad881dBCD978F40b89', start: '2023-01-01' },
-  [CHAIN.OPTIMISM]:  { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', settler: '0x8CF38ec1BB723e6B948442Dc604b35a54D3Dc893', start: '2023-01-01' },
-  [CHAIN.FANTOM]:    { exchange: '0xdef189deaef76e379df891899eb5a00a94cbc250', start: '2023-01-01' },
-  [CHAIN.CELO]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', start: '2023-01-01' },
-  [CHAIN.AVAX]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x6De411A14aEaafB3f23697A4472a4D4ed275Ac0f', start: '2023-01-01' },
-  [CHAIN.ARBITRUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xfeEA2A79D7d3d36753C8917AF744D71f13C9b02a', start: '2023-01-01' },
-  [CHAIN.BASE]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7747F8D2a76BD6345Cc29622a946A929647F2359', start: '2023-08-01' },
-  // Settler-only chains
-  [CHAIN.BERACHAIN]: { settler: '0x4D97d7E4230003277FD02AbeaBeE835De389b673', start: '2025-02-01' },
-  [CHAIN.BLAST]:     { settler: '0x9dEf2d15F0E6eEddCe5D5E53744AFA48D89d5FFc', start: '2024-12-01' },
-  [CHAIN.XDAI]:      { settler: '0xC4709F3d83C716a64A0f77e50b11BE98620b110D', start: '2024-12-01' },
-  [CHAIN.INK]:       { settler: '0x51d9175CEE6eAdCD99936C13C5e6d8D172e6158f', start: '2025-01-01' },
-  [CHAIN.LINEA]:     { settler: '0x1816eA2150e74Eb3068A4e3809E461Cc6977A7D7', start: '2024-12-01' },
-  [CHAIN.MANTLE]:    { settler: '0xe3fBE7889A51d62AcD4E056d756F6eA04a3d8D2d', start: '2024-12-01' },
-  [CHAIN.MODE]:      { settler: '0x42118eCae71CffA9D4b56598B21D7B29b2F4D58C', start: '2024-12-01' },
-  [CHAIN.MONAD]:     { settler: '0xfb78Fcae443eB423b59B8C186518c5dF94416344', start: '2025-04-01' },
-  [CHAIN.SCROLL]:    { settler: '0x06E1DFE03bEaFC30A87b91b9c504926cAf9b8094', start: '2024-12-01' },
-  [CHAIN.SONIC]:     { settler: '0x1544b5A855C5D1A0D61e3efaC53b3FBEDb83Ba80', start: '2025-01-01' },
-  [CHAIN.UNICHAIN]:  { settler: '0x972655fACb8Df3CdF40395E4262f874f81674D46', start: '2025-02-01' },
+// 2025-01-01 00:00:00 UTC — switch from on-chain v4 logs to Dune dex.trades
+const SETTLER_CUTOFF = 1735689600;
+
+const config: Record<string, { exchange?: string; settler?: string; duneChain?: string; start: string }> = {
+  [CHAIN.ETHEREUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7f54F05635d15Cde17A49502fEdB9D1803A3Be8A', duneChain: 'ethereum',    start: '2023-01-01' },
+  [CHAIN.POLYGON]:   { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7150ea07D00d8E5a46bcC809f1c9FDf5cb5f8E81', duneChain: 'polygon',     start: '2023-01-01' },
+  [CHAIN.BSC]:       { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xc2eff1F1cE35d395408A34Ad881dBCD978F40b89', duneChain: 'bnb',          start: '2023-01-01' },
+  [CHAIN.OPTIMISM]:  { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', settler: '0x8CF38ec1BB723e6B948442Dc604b35a54D3Dc893', duneChain: 'optimism',    start: '2023-01-01' },
+  [CHAIN.FANTOM]:    { exchange: '0xdef189deaef76e379df891899eb5a00a94cbc250',                                                                                   start: '2023-01-01' },
+  [CHAIN.CELO]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff',                                                                                   start: '2023-01-01' },
+  [CHAIN.AVAX]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x6De411A14aEaafB3f23697A4472a4D4ed275Ac0f', duneChain: 'avalanche_c', start: '2023-01-01' },
+  [CHAIN.ARBITRUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xfeEA2A79D7d3d36753C8917AF744D71f13C9b02a', duneChain: 'arbitrum',    start: '2023-01-01' },
+  [CHAIN.BASE]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7747F8D2a76BD6345Cc29622a946A929647F2359', duneChain: 'base',         start: '2023-08-01' },
+  // Settler-only chains (Dune for current data)
+  [CHAIN.BERACHAIN]: { settler: '0x4D97d7E4230003277FD02AbeaBeE835De389b673', duneChain: 'berachain', start: '2025-02-01' },
+  [CHAIN.BLAST]:     { settler: '0x9dEf2d15F0E6eEddCe5D5E53744AFA48D89d5FFc', duneChain: 'blast',     start: '2024-12-01' },
+  [CHAIN.XDAI]:      { settler: '0xC4709F3d83C716a64A0f77e50b11BE98620b110D', duneChain: 'gnosis',    start: '2024-12-01' },
+  [CHAIN.INK]:       { settler: '0x51d9175CEE6eAdCD99936C13C5e6d8D172e6158f', duneChain: 'ink',       start: '2025-01-01' },
+  [CHAIN.LINEA]:     { settler: '0x1816eA2150e74Eb3068A4e3809E461Cc6977A7D7', duneChain: 'linea',     start: '2024-12-01' },
+  [CHAIN.MANTLE]:    { settler: '0xe3fBE7889A51d62AcD4E056d756F6eA04a3d8D2d', duneChain: 'mantle',    start: '2024-12-01' },
+  [CHAIN.MODE]:      { settler: '0x42118eCae71CffA9D4b56598B21D7B29b2F4D58C', duneChain: 'mode',      start: '2024-12-01' },
+  [CHAIN.MONAD]:     { settler: '0xfb78Fcae443eB423b59B8C186518c5dF94416344',                         start: '2025-04-01' },
+  [CHAIN.SCROLL]:    { settler: '0x06E1DFE03bEaFC30A87b91b9c504926cAf9b8094', duneChain: 'scroll',    start: '2024-12-01' },
+  [CHAIN.SONIC]:     { settler: '0x1544b5A855C5D1A0D61e3efaC53b3FBEDb83Ba80', duneChain: 'sonic',     start: '2025-01-01' },
+  [CHAIN.UNICHAIN]:  { settler: '0x972655fACb8Df3CdF40395E4262f874f81674D46', duneChain: 'unichain',  start: '2025-02-01' },
 };
 
-const TRANSFER_SIG = id("Transfer(address,address,uint256)");
+const fetch = async (options: FetchOptions) => {
+  const { getLogs, chain, createBalances, startTimestamp } = options;
+  const { exchange, duneChain } = config[chain];
 
-const fetch = async ({ getLogs, chain, createBalances }: FetchOptions) => {
-  const { exchange, settler } = config[chain];
-  const dailyVolume = createBalances();
-
-  if (exchange) {
-    const logs = await getLogs({
-      target: exchange,
-      eventAbi: "event RfqOrderFilled(bytes32 orderHash, address maker, address taker, address makerToken, address takerToken, uint128 takerTokenFilledAmount, uint128 makerTokenFilledAmount, bytes32 pool)",
-    });
-    logs.forEach((log: any) => dailyVolume.add(log.makerToken, log.makerTokenFilledAmount));
-  }
-
-  if (settler) {
-    const logs = await getLogs({
-      topics: [TRANSFER_SIG, zeroPadValue(settler.toLowerCase(), 32), null as any],
-      noTarget: true,
-    });
-
-    // Keep only the highest-logIndex transfer per tx to avoid double-counting
-    const lastByTx: Record<string, any> = {};
-    for (const log of logs) {
-      const idx = log.logIndex ?? (log as any).index ?? 0;
-      const prev = lastByTx[log.transactionHash];
-      if (!prev || idx > (prev.logIndex ?? (prev as any).index ?? 0)) {
-        lastByTx[log.transactionHash] = log;
-      }
-    }
-    for (const log of Object.values(lastByTx)) {
-      dailyVolume.add(log.address, log.data);
+  if (startTimestamp < SETTLER_CUTOFF && exchange) {
+    try {
+      const dailyVolume = createBalances();
+      const logs = await getLogs({
+        target: exchange,
+        eventAbi: "event RfqOrderFilled(bytes32 orderHash, address maker, address taker, address makerToken, address takerToken, uint128 takerTokenFilledAmount, uint128 makerTokenFilledAmount, bytes32 pool)",
+      });
+      logs.forEach((log: any) => dailyVolume.add(log.makerToken, log.makerTokenFilledAmount));
+      return { dailyVolume };
+    } catch (e) {
+      console.error(`[0x-rfq] RfqOrderFilled fetch failed for ${chain}:`, e);
+      return { dailyVolume: 0 };
     }
   }
 
-  return { dailyVolume };
+  if (startTimestamp >= SETTLER_CUTOFF && duneChain) {
+    try {
+      const rows = await queryDuneSql(options, `
+        SELECT COALESCE(SUM(amount_usd), 0) as daily_volume
+        FROM dex.trades
+        WHERE TIME_RANGE
+        AND project = '0x-API'
+        AND blockchain = '${duneChain}'
+      `);
+      return { dailyVolume: rows?.[0]?.daily_volume ?? 0 };
+    } catch (e) {
+      console.error(`[0x-rfq] Dune fetch failed for ${chain}:`, e);
+      return { dailyVolume: 0 };
+    }
+  }
+
+  return { dailyVolume: 0 };
 };
 
 const adapter: SimpleAdapter = {
   pullHourly: true,
   version: 2,
+  dependencies: [Dependencies.DUNE],
   adapter: Object.fromEntries(
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
