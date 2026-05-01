@@ -24,8 +24,8 @@ const MetricLabels = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyFees = options.createBalances();
+  // const dailySupplySideRevenue = options.createBalances();
+  // const dailyFees = options.createBalances();
 
   // Card purchase refunds: outflows from REFUND_PROCESSOR that don't go back to CARD_SPEND_POOL
   /*
@@ -94,7 +94,11 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.add(USDT0, log.data);
   };
 
-  return { dailySupplySideRevenue, dailyFees, dailyVolume };
+  return { 
+    // dailySupplySideRevenue, 
+    // dailyFees, 
+    dailyVolume 
+  };
 };
 
 const adapter: SimpleAdapter = {
