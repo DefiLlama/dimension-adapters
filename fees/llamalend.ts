@@ -43,6 +43,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 
 const adapter: Adapter = {
+  deadFrom: '2026-01-09',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(endpoints)(CHAIN.ETHEREUM),
