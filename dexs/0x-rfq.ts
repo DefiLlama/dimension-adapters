@@ -2,7 +2,8 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const SETTLER_CUTOFF = 1735689600; // 2025-01-01 UTC
+// 2025-01-01 00:00:00 UTC — switch from on-chain v4 logs to Dune Settler log0 query
+const SETTLER_CUTOFF = 1735689600;
 
 const config: Record<string, { exchange?: string; settler?: string; duneChain?: string; start: string }> = {
   [CHAIN.ETHEREUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7f54F05635d15Cde17A49502fEdB9D1803A3Be8A', duneChain: 'ethereum',    start: '2023-01-01' },
@@ -14,6 +15,7 @@ const config: Record<string, { exchange?: string; settler?: string; duneChain?: 
   [CHAIN.AVAX]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x6De411A14aEaafB3f23697A4472a4D4ed275Ac0f', duneChain: 'avalanche_c', start: '2023-01-01' },
   [CHAIN.ARBITRUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xfeEA2A79D7d3d36753C8917AF744D71f13C9b02a', duneChain: 'arbitrum',    start: '2023-01-01' },
   [CHAIN.BASE]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7747F8D2a76BD6345Cc29622a946A929647F2359', duneChain: 'base',         start: '2023-08-01' },
+  // Settler-only chains (Dune for current data)
   [CHAIN.BERACHAIN]: { settler: '0x4D97d7E4230003277FD02AbeaBeE835De389b673', duneChain: 'berachain', start: '2025-02-01' },
   [CHAIN.BLAST]:     { settler: '0x9dEf2d15F0E6eEddCe5D5E53744AFA48D89d5FFc', duneChain: 'blast',     start: '2024-12-01' },
   [CHAIN.XDAI]:      { settler: '0xC4709F3d83C716a64A0f77e50b11BE98620b110D', duneChain: 'gnosis',    start: '2024-12-01' },
@@ -27,12 +29,48 @@ const config: Record<string, { exchange?: string; settler?: string; duneChain?: 
   [CHAIN.UNICHAIN]:  { settler: '0x972655fACb8Df3CdF40395E4262f874f81674D46', duneChain: 'unichain',  start: '2025-02-01' },
 };
 
+// queryDuneSql replaces the first "CHAIN" occurrence and all "TIME_RANGE" occurrences.
+// We pre-substitute duneChain (appears 3×) and the settler address (appears 2×) via
+// template literals so only TIME_RANGE remains for queryDuneSql to fill in.
+const buildSettlerQuery = (duneChain: string, settler: string) => {
+  const addr = settler.toLowerCase();
+  return `
+WITH rfq_raw_logs AS (
+    SELECT block_time, tx_hash,
+        bytearray_to_uint256(bytearray_substring(data, 17, 16)) AS maker_filled_amount
+    FROM ${duneChain}.logs
+    WHERE contract_address = ${addr}
+      AND topic0 IS NULL AND topic1 IS NULL
+      AND topic2 IS NULL AND topic3 IS NULL
+      AND bytearray_length(data) = 48
+      AND TIME_RANGE
+),
+maker_transfers AS (
+    SELECT evt_tx_hash AS tx_hash, contract_address AS token, value AS amount,
+        ROW_NUMBER() OVER (PARTITION BY evt_tx_hash ORDER BY value DESC) AS rn
+    FROM erc20_${duneChain}.evt_Transfer
+    WHERE "from" = ${addr}
+      AND TIME_RANGE
+),
+rfq_with_usd AS (
+    SELECT (t.amount / POW(10, p.decimals)) * p.price AS volume_usd
+    FROM rfq_raw_logs r
+    LEFT JOIN maker_transfers t ON t.rn = 1 AND r.tx_hash = t.tx_hash
+    LEFT JOIN prices.usd p
+      ON p.contract_address = t.token
+     AND p.blockchain = '${duneChain}'
+     AND p.minute = DATE_TRUNC('minute', r.block_time)
+    WHERE t.token IS NOT NULL AND p.decimals IS NOT NULL AND p.price IS NOT NULL
+)
+SELECT COALESCE(SUM(volume_usd), 0) AS daily_volume FROM rfq_with_usd
+`;
+};
+
 const fetch = async (options: FetchOptions) => {
   const { getLogs, chain, createBalances, startTimestamp } = options;
-  const { exchange, duneChain } = config[chain];
+  const { exchange, settler, duneChain } = config[chain];
 
-  // v4 historical logs: use when before cutoff OR when no Dune support
-  if ((startTimestamp < SETTLER_CUTOFF || !duneChain) && exchange) {
+  if (startTimestamp < SETTLER_CUTOFF && exchange) {
     try {
       const dailyVolume = createBalances();
       const logs = await getLogs({
@@ -43,22 +81,17 @@ const fetch = async (options: FetchOptions) => {
       return { dailyVolume };
     } catch (e) {
       console.error(`[0x-rfq] RfqOrderFilled fetch failed for ${chain}:`, e);
+      return { dailyVolume: 0 };
     }
   }
 
-  // Dune for current data on supported chains
-  if (startTimestamp >= SETTLER_CUTOFF && duneChain) {
+  if (startTimestamp >= SETTLER_CUTOFF && settler && duneChain) {
     try {
-      const rows = await queryDuneSql(options, `
-        SELECT COALESCE(SUM(amount_usd), 0) as daily_volume
-        FROM dex.trades
-        WHERE TIME_RANGE
-        AND project = '0x-API'
-        AND blockchain = '${duneChain}'
-      `);
+      const rows = await queryDuneSql(options, buildSettlerQuery(duneChain, settler));
       return { dailyVolume: rows?.[0]?.daily_volume ?? 0 };
     } catch (e) {
-      console.error(`[0x-rfq] Dune fetch failed for ${chain}:`, e);
+      console.error(`[0x-rfq] Dune Settler fetch failed for ${chain}:`, e);
+      return { dailyVolume: 0 };
     }
   }
 
