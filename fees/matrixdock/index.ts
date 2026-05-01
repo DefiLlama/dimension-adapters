@@ -174,13 +174,23 @@ const addRedemptionFees = async (
     burnsByTxAndOperator.set(key, previous + BigInt(log.args.value.toString()));
   });
 
+  const redeemsByTxAndOperator = new Map<string, bigint>();
   redeemLogs.forEach((log) => {
     const amount = BigInt(log.args.amount.toString());
     const txHash = log.transactionHash?.toLowerCase();
-    const key = `${txHash}:${operator}`;
-
-    if (!txHash || burnsByTxAndOperator.get(key) !== amount) {
+    if (!txHash) {
       throw new Error(`${config.symbol} Redeem burn safety check failed for tx ${txHash ?? "unknown"}`);
+    }
+
+    const key = `${txHash}:${operator}`;
+    const previous = redeemsByTxAndOperator.get(key) ?? 0n;
+    redeemsByTxAndOperator.set(key, previous + amount);
+  });
+
+  redeemsByTxAndOperator.forEach((amount, key) => {
+    const txHash = key.split(":")[0];
+    if (burnsByTxAndOperator.get(key) !== amount) {
+      throw new Error(`${config.symbol} Redeem burn safety check failed for tx ${txHash}`);
     }
 
     const redemptionFee = amount * BigInt(config.feeBps) / BPS;
@@ -237,11 +247,21 @@ const addXagmFees = async (
     feeMintsByTx.set(txHash, previous + BigInt(log.args.value.toString()));
   });
 
+  const reconcileMintsByTx = new Map<string, bigint>();
   reconcileLogs.forEach((log) => {
     const amount = BigInt(log.args.amount.toString());
     const txHash = log.transactionHash?.toLowerCase();
-    if (!txHash || feeMintsByTx.get(txHash) !== amount) {
+    if (!txHash) {
       throw new Error(`XAGm ReconcileSupply fee mint safety check failed for tx ${txHash ?? "unknown"}`);
+    }
+
+    const previous = reconcileMintsByTx.get(txHash) ?? 0n;
+    reconcileMintsByTx.set(txHash, previous + amount);
+  });
+
+  reconcileMintsByTx.forEach((amount, txHash) => {
+    if (feeMintsByTx.get(txHash) !== amount) {
+      throw new Error(`XAGm ReconcileSupply fee mint safety check failed for tx ${txHash}`);
     }
 
     balances.dailyFees.add(XAGM, amount, XAGM_CUSTODY_FEES);
@@ -294,6 +314,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
