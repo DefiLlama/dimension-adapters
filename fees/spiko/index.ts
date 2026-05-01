@@ -42,6 +42,9 @@ const YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 const getOracleAnswer = (priceData: any) =>
   new BigNumber((priceData.answer ?? priceData[1]).toString());
 
+const toBaseUnits = (amount: BigNumber) =>
+  amount.integerValue(BigNumber.ROUND_FLOOR).toFixed(0);
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { createBalances, chain, fromApi, toApi } = options;
   const dailyFees = createBalances();
@@ -106,13 +109,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const priceIncrease = priceAfter.minus(priceBefore);
     if (priceAfter.gt(0) && priceIncrease.gt(0)) {
       const assetYield = averageSupply.times(priceIncrease).div(priceAfter);
-      dailyFees.add(token, assetYield.toNumber(), METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(token, assetYield.toNumber(), METRIC.ASSETS_YIELDS);
+      const assetYieldBaseUnits = toBaseUnits(assetYield);
+      dailyFees.add(token, assetYieldBaseUnits, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(token, assetYieldBaseUnits, METRIC.ASSETS_YIELDS);
     }
 
     const managementFee = averageSupply.times(MANAGEMENT_FEE_RATE).times(periodInYears);
-    dailyFees.add(token, managementFee.toNumber(), METRIC.MANAGEMENT_FEES);
-    dailyRevenue.add(token, managementFee.toNumber(), METRIC.MANAGEMENT_FEES);
+    const managementFeeBaseUnits = toBaseUnits(managementFee);
+    dailyFees.add(token, managementFeeBaseUnits, METRIC.MANAGEMENT_FEES);
+    dailyRevenue.add(token, managementFeeBaseUnits, METRIC.MANAGEMENT_FEES);
   });
 
   return {
