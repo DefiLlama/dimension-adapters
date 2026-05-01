@@ -1120,6 +1120,7 @@ const deadFromMap: Record<string, string> = {
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",
+  "wagyuswap": "2026-03-16",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1308,6 +1309,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.GODWOKEN_V1]: "https://www.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
     },
     factoriesName: "yokaiFactories",
+    deadFrom: "2025-12-31",
   },
   "zircon-gamma": {
     endpoints: {
