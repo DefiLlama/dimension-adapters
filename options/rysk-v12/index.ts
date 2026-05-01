@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactions } from "../../helpers/getTxReceipts";
-import { getProvider } from "@defillama/sdk";
 
 const ABI: any = {
     transferToUser: 'event TransferToUser (address indexed asset,address indexed account, address indexed recipient, uint256 amount)',
@@ -10,6 +9,9 @@ const ABI: any = {
 
 const M_MARKET = '0x691a5fc3a81a144e36c6C4fBCa1fC82843c80d0d';
 const MARGIN_POOL = '0x24a44f1dc25540c62c1196FfC297dFC951C91aB4';
+
+const GAMMA_THEN_MMARKET = "0xd3d2f616"; // function ingresso_GammaThenMMarket(Otoken[] memory otoken, Actions.ActionArgs[] memory actions, MMarketOperations.Operation[] memory operations)
+const NEW_USER_POSITION = "0x778ddcb3"; // function ingresso_newUserPosition(bytes calldata payload)
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyNotionalVolume = options.createBalances();
@@ -30,32 +32,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         const { asset, amount } = deposit;
         dailyNotionalVolume.add(asset, amount);
     });
-    
-    const gammaThenMMarketSelector = "0xd3d2f616" // function ingresso_GammaThenMMarket(Otoken[] memory otoken, Actions.ActionArgs[] memory actions, MMarketOperations.Operation[] memory operations)
-    const newUserPositionSelector = "0x778ddcb3" // function ingresso_newUserPosition(bytes calldata payload)
+
     const uniqueTxHashes = Array.from(new Set(premiumReceivedLogs.map((log: any) => log.transactionHash.toLowerCase())))
-    let txs: any[] = []
-    try {
-        txs = await getTransactions(
-            options.chain,
-            uniqueTxHashes,
-            { cacheKey: 'rysk-v12' }
-        )
-    } catch (e) {
-        console.error(`rysk-v12: failed to fetch txs on ${options.chain}`, e)
-        const provider = getProvider(options.chain)
-        txs = await Promise.all(
-            uniqueTxHashes.map(async (hash) => {
-                try {
-                    const tx: any = await provider.getTransaction(hash)
-                    if (tx) tx.data = tx.input
-                    return tx
-                } catch {
-                    return null
-                }
-            })
-        )
-    }
+    const txs = await getTransactions(options.chain, uniqueTxHashes, { cacheKey: 'rysk-v12' })
     const txByHash = new Map<string, any>()
     uniqueTxHashes.forEach((hash, idx) => {
         if (txs[idx]) txByHash.set(hash, txs[idx])
@@ -64,7 +43,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     premiumReceivedLogs.forEach((log: any) => {
         const tx = txByHash.get(log.transactionHash.toLowerCase());
         if (!tx) return;
-        if (tx.data.startsWith(gammaThenMMarketSelector) || tx.data.startsWith(newUserPositionSelector)) {
+        if (tx.data.startsWith(GAMMA_THEN_MMARKET) || tx.data.startsWith(NEW_USER_POSITION)) {
             const { asset, amount } = log.args;
             dailyPremiumVolume.add(asset, amount);
         }
