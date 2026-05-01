@@ -32,7 +32,6 @@ const abis = {
   decimals: "uint8:decimals",
   base: "address:base",
   exchangeRateUpdated: "event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)",
-  getRateInQuoteSafe: "function getRateInQuoteSafe(address quote) view returns (uint256)",
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -45,6 +44,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       options.api.call({ target: vault, abi: abis.decimals, permitFailure: true }),
       options.api.call({ target: accountant, abi: abis.base, permitFailure: true }),
     ]);
+
     if (!totalSupply || !decimals || !token) continue;
     const vaultRateBase = Number(10 ** Number(decimals));
 
