@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const NAV_API = "https://core.api.onre.finance/data/nav";
 
 interface NAVEntry {
-  net_asset_value_date: string; // "MM/DD/YYYY"
+  net_asset_value_date: string;
   net_asset_value: string;
   assets_under_management: string | null;
   circulating_supply: string | null;
@@ -18,7 +18,7 @@ const formatUTCDate = (ts: number): string => {
   return `${mm}/${dd}/${d.getUTCFullYear()}`;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const response = await fetchURL(NAV_API);
   const navData: NAVEntry[] = response.data;
 
@@ -36,6 +36,15 @@ const fetch = async (options: FetchOptions) => {
   const yesterdayNAV = parseFloat(yesterday.net_asset_value);
   const aum = parseFloat(today.assets_under_management);
 
+  if (
+    !Number.isFinite(todayNAV) ||
+    !Number.isFinite(yesterdayNAV) ||
+    !Number.isFinite(aum) ||
+    yesterdayNAV <= 0
+  ) {
+    return { dailyFees: 0, dailySupplySideRevenue: 0, dailyRevenue: 0 };
+  }
+
   const dailyFees = aum * ((todayNAV - yesterdayNAV) / yesterdayNAV);
 
   return {
@@ -46,13 +55,13 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Yield accrued to ONyc token holders as the NAV increases daily (AUM × daily NAV growth rate).",
+  Fees: "Yield accrued to ONyc token holders as the NAV increases daily.",
   SupplySideRevenue: "All yield goes to token holders.",
   Revenue: "No protocol fee split.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
   adapter: {
     [CHAIN.SOLANA]: {
