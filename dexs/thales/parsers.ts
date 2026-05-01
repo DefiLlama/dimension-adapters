@@ -54,7 +54,7 @@ export function parseSafeBoxFeePaidEvent(
   dailyRevenue: Balances
 ) {
   const { safeBoxAmount, collateral } = log;
-  dailyRevenue.addToken(collateral, safeBoxAmount);
+  dailyRevenue.addToken(collateral, safeBoxAmount, "SafeBox Fees");
 }
 
 export function parseSafeBoxSharePaidEvent(
@@ -66,6 +66,6 @@ export function parseSafeBoxSharePaidEvent(
   const { safeBoxAmount } = log;
   const collateral = collateralMapping[contractAddress.toLowerCase()];
   if (collateral) {
-    dailyLPPerformanceFee.addToken(collateral, safeBoxAmount);
+    dailyLPPerformanceFee.addToken(collateral, safeBoxAmount, "LP Performance Fees");
   }
 }
