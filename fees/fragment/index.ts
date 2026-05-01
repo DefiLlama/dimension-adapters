@@ -86,6 +86,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   return {
       dailyFees,
+      dailyUserFees: dailyFees,
       dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailySupplySideRevenue,
@@ -94,6 +95,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
 const methodology = {
   Fees: "All TON payments received by Fragment wallets, excluding Telegram Treasury operational flows and inter-Fragment wallet transfers. Covers: Telegram Stars, Ads, Premium, Gift Market, Gateway, username auctions, and Telegram Gifts.",
+  UserFees: "Same as Fees: TON payments made by users to Fragment wallets on TON.",
   Revenue: "Fees minus supply-side revenue. Note: Stars purchased via Apple Pay/Google Pay are settled off-chain but paid out on-chain, so on-chain revenue may understate actual revenue.",
   ProtocolRevenue: "Same as Revenue — all retained revenue goes to Telegram (Fragment operator).",
   SupplySideRevenue: "All TON paid out by Fragment wallets to external addresses, excluding Telegram Treasury returns and inter-Fragment transfers. Primarily: bot developer rewards, channel owner rewards, and user Stars rewards."
