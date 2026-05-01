@@ -175,7 +175,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.FUSE]: { factory: '0x1998E4b0F1F922367d8Ec20600ea2b86df55f34E' },
   },
   "wagyuswap": {
-    [CHAIN.VELAS]: { factory: '0x69f3212344a38b35844cce4864c2af9c717f35e3', deadFrom: "2026-05-01" },
+    [CHAIN.VELAS]: { factory: '0x69f3212344a38b35844cce4864c2af9c717f35e3' },
   },
   "wannaswap": {
     [CHAIN.AURORA]: { factory: '0x7928D4FeA7b2c90C732c10aFF59cf403f0C38246' },
@@ -1120,6 +1120,7 @@ const deadFromMap: Record<string, string> = {
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",
+  "wagyuswap": "2026-03-16",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1308,7 +1309,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.GODWOKEN_V1]: "https://www.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
     },
     factoriesName: "yokaiFactories",
-    deadFrom: "2026-05-01",
+    deadFrom: "2025-12-31",
   },
   "zircon-gamma": {
     endpoints: {
