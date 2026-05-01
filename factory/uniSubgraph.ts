@@ -82,21 +82,6 @@ const configs: Record<string, SubgraphConfig> = {
   //     Revenue: 50,
   //   },
   // },
-  "upheaval-v3": {
-    graphUrls: {
-      [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3-fixed",
-    },
-    totalVolume: { factory: "factories" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 16,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 84,
-      Revenue: 16,
-    },
-    start: "2025-08-06",
-  },
   "metavault-v3": {
     graphUrls: {
       [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
