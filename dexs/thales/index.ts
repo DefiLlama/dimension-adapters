@@ -118,6 +118,20 @@ const adapter: Adapter = {
     ProtocolRevenue: "Protocol doesn't keep any revenue",
     HoldersRevenue: "100% of revenue (AMM fees + LP fees) goes to $OVER token buybacks",
   },
+  breakdownMethodology: {
+    Fees: {
+      "SafeBox Fees": "AMM fees collected from sports AMM v2, Thales AMM, Ranged AMM, Speed Markets, and Chained Speed Markets",
+      "LP Performance Fees": "Performance fees collected from LP positions via SafeBoxSharePaid events",
+    },
+    Revenue: {
+      "SafeBox Fees": "AMM fees distributed to $OVER token holders via buybacks",
+      "LP Performance Fees": "LP fees distributed to $OVER token holders via buybacks",
+    },
+    HoldersRevenue: {
+      "SafeBox Fees": "AMM fees redistributed to $OVER token holders",
+      "LP Performance Fees": "LP fees redistributed to $OVER token holders",
+    },
+  },
 };
 
 export default adapter;
