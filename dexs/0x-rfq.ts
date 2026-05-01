@@ -2,8 +2,7 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-// 2025-01-01 00:00:00 UTC — switch from on-chain v4 logs to Dune Settler log0 query
-const SETTLER_CUTOFF = 1735689600;
+const SETTLER_CUTOFF = 1735689600; // 2025-01-01 UTC
 
 const config: Record<string, { exchange?: string; settler?: string; duneChain?: string; start: string }> = {
   [CHAIN.ETHEREUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7f54F05635d15Cde17A49502fEdB9D1803A3Be8A', duneChain: 'ethereum',    start: '2023-01-01' },
@@ -15,7 +14,6 @@ const config: Record<string, { exchange?: string; settler?: string; duneChain?: 
   [CHAIN.AVAX]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x6De411A14aEaafB3f23697A4472a4D4ed275Ac0f', duneChain: 'avalanche_c', start: '2023-01-01' },
   [CHAIN.ARBITRUM]:  { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0xfeEA2A79D7d3d36753C8917AF744D71f13C9b02a', duneChain: 'arbitrum',    start: '2023-01-01' },
   [CHAIN.BASE]:      { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', settler: '0x7747F8D2a76BD6345Cc29622a946A929647F2359', duneChain: 'base',         start: '2023-08-01' },
-  // Settler-only chains (Dune for current data)
   [CHAIN.BERACHAIN]: { settler: '0x4D97d7E4230003277FD02AbeaBeE835De389b673', duneChain: 'berachain', start: '2025-02-01' },
   [CHAIN.BLAST]:     { settler: '0x9dEf2d15F0E6eEddCe5D5E53744AFA48D89d5FFc', duneChain: 'blast',     start: '2024-12-01' },
   [CHAIN.XDAI]:      { settler: '0xC4709F3d83C716a64A0f77e50b11BE98620b110D', duneChain: 'gnosis',    start: '2024-12-01' },
@@ -29,9 +27,6 @@ const config: Record<string, { exchange?: string; settler?: string; duneChain?: 
   [CHAIN.UNICHAIN]:  { settler: '0x972655fACb8Df3CdF40395E4262f874f81674D46', duneChain: 'unichain',  start: '2025-02-01' },
 };
 
-// queryDuneSql replaces the first "CHAIN" occurrence and all "TIME_RANGE" occurrences.
-// We pre-substitute duneChain (appears 3×) and the settler address (appears 2×) via
-// template literals so only TIME_RANGE remains for queryDuneSql to fill in.
 const buildSettlerQuery = (duneChain: string, settler: string) => {
   const addr = settler.toLowerCase();
   return `
@@ -70,7 +65,8 @@ const fetch = async (options: FetchOptions) => {
   const { getLogs, chain, createBalances, startTimestamp } = options;
   const { exchange, settler, duneChain } = config[chain];
 
-  if (startTimestamp < SETTLER_CUTOFF && exchange) {
+  // v4 historical: use when before cutoff OR when chain has no Dune support (Fantom/Celo)
+  if ((startTimestamp < SETTLER_CUTOFF || !duneChain) && exchange) {
     try {
       const dailyVolume = createBalances();
       const logs = await getLogs({
@@ -85,6 +81,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // Dune log0 query for current data
   if (startTimestamp >= SETTLER_CUTOFF && settler && duneChain) {
     try {
       const rows = await queryDuneSql(options, buildSettlerQuery(duneChain, settler));
@@ -99,8 +96,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  pullHourly: true,
   version: 2,
+  isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   adapter: Object.fromEntries(
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
