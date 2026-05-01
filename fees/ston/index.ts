@@ -72,9 +72,9 @@ const fetchFees = async (options: FetchOptions) => {
     let outAsset: string;
     let inAmount: number;
     let outAmount: number;
-    if (a0Amount >= 0 && a1Amount <= 0) {
+    if (a0Amount > 0 && a1Amount < 0) {
       inAsset = a0; outAsset = a1; inAmount = a0Amount; outAmount = -a1Amount;
-    } else if (a1Amount >= 0 && a0Amount <= 0) {
+    } else if (a1Amount > 0 && a0Amount < 0) {
       inAsset = a1; outAsset = a0; inAmount = a1Amount; outAmount = -a0Amount;
     } else {
       continue;
