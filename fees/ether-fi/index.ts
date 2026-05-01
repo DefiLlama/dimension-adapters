@@ -345,8 +345,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const additionalRevenues = await getAdditionalRevenueStreams(options);
 
-  // Restaking rewards calculated from stETH holdings in restaker contracts 
-  // (separate from L2 Eigen claims above - this is based on actual stETH restaked)
   // Restaking rewards from stETH holdings in restaker contracts
   // Formula from original Dune query: (3.5% * stETH_balance * 3.8%) / 365
   const restakingRewards = totalSteth * 0.035 * 0.038 / 365;
