@@ -23,7 +23,7 @@ interface IData {
   total_referral_fees: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const configs = EASYA_PARTNER_CONFIGS.map(c => `'${c}'`).join(',');
 
   const data: IData[] = await queryDuneSql(options, `
@@ -63,12 +63,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     dailyVolume.add(wsol, Number(row.total_volume || 0));
     dailyFees.add(wsol, trading + protocol + referral);
-    // Meteora keeps `protocol_fee`. The remaining `trading_fee + referral_fee`
-    // is what the EasyA launchpad ecosystem (partner wallet, creators, referrers)
-    // retains. Without published business rules from EasyA we don't split it
-    // further between Kickstart itself and creators.
+    // From EasyA's perspective Meteora is the underlying infrastructure;
+    // the protocol_fee paid to Meteora is therefore the supply-side cost.
+    // The remaining trading_fee + referral_fee is what the EasyA launchpad
+    // ecosystem (partner wallet, creators, referrers) retains as revenue.
+    // This satisfies the income-statement identity:
+    //   dailyFees - dailySupplySideRevenue == dailyRevenue.
     dailyProtocolRevenue.add(wsol, trading + referral);
-    dailySupplySideRevenue.add(wsol, trading + referral);
+    dailySupplySideRevenue.add(wsol, protocol);
   }
 
   return {
@@ -82,7 +84,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
@@ -100,9 +102,9 @@ const adapter: SimpleAdapter = {
     Revenue:
       'Fees retained by the EasyA Kickstart ecosystem (trading_fee + referral_fee). The protocol_fee portion is collected by Meteora and is excluded.',
     ProtocolRevenue:
-      'Same as Revenue — fees retained by EasyA (trading_fee + referral_fee), excluding the cut that goes to Meteora.',
+      'Same as Revenue: fees retained by EasyA (trading_fee + referral_fee), excluding the cut that goes to Meteora.',
     SupplySideRevenue:
-      'Fees distributed across the launchpad partner wallet, token creators and any referrers (trading_fee + referral_fee).',
+      'Infrastructure fee retained by Meteora (protocol_fee), the underlying DBC program that powers EasyA Kickstart bonding curves.',
   },
 };
 
