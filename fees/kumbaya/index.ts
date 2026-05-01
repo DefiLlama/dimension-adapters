@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), revenueRatio:0.5, })(options)
+  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), revenueRatio:0.5, protocolRevenueRatio:0.5 })(options)
 };
 
 const adapter: SimpleAdapter = {
