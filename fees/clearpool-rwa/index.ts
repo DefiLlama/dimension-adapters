@@ -29,16 +29,20 @@ const fetchFlare = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [startRewards, endRewards] = await Promise.all([
-    getTpoolAccumulatedRewards(options.fromApi),
-    getTpoolAccumulatedRewards(options.toApi),
-  ]);
+  try {
+    const [startRewards, endRewards] = await Promise.all([
+      getTpoolAccumulatedRewards(options.fromApi),
+      getTpoolAccumulatedRewards(options.toApi),
+    ]);
 
-  if (endRewards > startRewards) {
-    // The accumulator uses 18 decimals, while USDX balances are reported with 6 decimals.
-    const tpoolYield = (endRewards - startRewards) / TPOOL_REWARD_DECIMAL_ADJUSTMENT;
-    dailyFees.add(FLARE_USDX, tpoolYield, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(FLARE_USDX, tpoolYield, METRIC.ASSETS_YIELDS);
+    if (endRewards > startRewards) {
+      // The accumulator uses 18 decimals, while USDX balances are reported with 6 decimals.
+      const tpoolYield = (endRewards - startRewards) / TPOOL_REWARD_DECIMAL_ADJUSTMENT;
+      dailyFees.add(FLARE_USDX, tpoolYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(FLARE_USDX, tpoolYield, METRIC.ASSETS_YIELDS);
+    }
+  } catch (error) {
+    console.error("[clearpool-rwa][flare] failed to fetch T-Pool rewards", error);
   }
 
   return {

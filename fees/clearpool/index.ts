@@ -214,43 +214,47 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   if (!config) return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  const [startSnapshots, endSnapshots, startVaultSnapshots, endVaultSnapshots] = await Promise.all([
-    paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
-      network: config.network,
-      date: toDate(options.fromTimestamp),
-    }),
-    paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
-      network: config.network,
-      date: toDate(options.toTimestamp),
-    }),
-    paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
-      network: config.network,
-      date: toDate(options.fromTimestamp),
-    }),
-    paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
-      network: config.network,
-      date: toDate(options.toTimestamp),
-    }),
-  ]);
+  try {
+    const [startSnapshots, endSnapshots, startVaultSnapshots, endVaultSnapshots] = await Promise.all([
+      paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
+        network: config.network,
+        date: toDate(options.fromTimestamp),
+      }),
+      paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
+        network: config.network,
+        date: toDate(options.toTimestamp),
+      }),
+      paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
+        network: config.network,
+        date: toDate(options.fromTimestamp),
+      }),
+      paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
+        network: config.network,
+        date: toDate(options.toTimestamp),
+      }),
+    ]);
 
-  const startDynamic = new Map(startSnapshots.map((snapshot: DynamicSnapshot) => [snapshot.dynamic.id, snapshot]));
-  for (const end of endSnapshots) {
-    const start = startDynamic.get(end.dynamic.id);
-    if (!start) continue;
-    const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
-    const protocolRate = toBigInt(end.dynamic.reserveFactor) + toBigInt(end.dynamic.insuranceFactor);
-    addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.dynamic.asset.address, interest, protocolRate);
+    const startDynamic = new Map(startSnapshots.map((snapshot: DynamicSnapshot) => [snapshot.dynamic.id, snapshot]));
+    for (const end of endSnapshots) {
+      const start = startDynamic.get(end.dynamic.id);
+      if (!start) continue;
+      const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
+      const protocolRate = toBigInt(end.dynamic.reserveFactor) + toBigInt(end.dynamic.insuranceFactor);
+      addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.dynamic.asset.address, interest, protocolRate);
+    }
+
+    const startVaults = new Map(startVaultSnapshots.map((snapshot: VaultSnapshot) => [snapshot.vault.id, snapshot]));
+    for (const end of endVaultSnapshots) {
+      const start = startVaults.get(end.vault.id);
+      if (!start) continue;
+      const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
+      addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.vault.asset.address, interest, toBigInt(end.vault.protocolRate));
+    }
+
+    await addPrimeRepaymentFees(options, config, dailyFees, dailyRevenue);
+  } catch (error) {
+    console.error(`[clearpool][${options.chain}] fetch failed`, error);
   }
-
-  const startVaults = new Map(startVaultSnapshots.map((snapshot: VaultSnapshot) => [snapshot.vault.id, snapshot]));
-  for (const end of endVaultSnapshots) {
-    const start = startVaults.get(end.vault.id);
-    if (!start) continue;
-    const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
-    addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.vault.asset.address, interest, toBigInt(end.vault.protocolRate));
-  }
-
-  await addPrimeRepaymentFees(options, config, dailyFees, dailyRevenue);
 
   return {
     dailyFees,
@@ -267,6 +271,7 @@ const adapter: SimpleAdapter = {
     {
       fetch,
       start: config.start,
+      pullHourly: true,
     },
   ]] : [])),
   methodology: {
