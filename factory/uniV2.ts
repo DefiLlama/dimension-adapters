@@ -125,6 +125,9 @@ const configs: Record<string, Record<string, any>> = {
   "miaswap": {
     [CHAIN.ONUS]: { factory: '0xA5DA4dC244c7aD33a0D8a10Ed5d8cFf078E86Ef3' },
   },
+  "mimo": {
+    [CHAIN.IOTEX]: { factory: '0xda257cBe968202Dea212bBB65aB49f174Da58b9D', start: '2021-06-22', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, allowReadPairs: true },
+  },
   "mistswap": {
     [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0' },
   },
@@ -979,6 +982,14 @@ const methodologyMap: Record<string, any> = {
     UserFees: 'Users pay 0.25% per swap.',
     Revenue: 'No revenue',
     SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "mimo": {
+    UserFees: "Users pay 0.30% fees on each swap.",
+    Fees: "Swap fees paid by users.",
+    Revenue: "Mimo Exchange does not collect protocol revenue.",
+    ProtocolRevenue: "Mimo Exchange does not collect protocol revenue.",
+    SupplySideRevenue: "Swap fees are distributed to liquidity providers.",
+    HoldersRevenue: "Mimo Exchange does not distribute swap fees to token holders.",
   },
   "zkswap": {
     Fees: "Total swap fees paided by users.",
