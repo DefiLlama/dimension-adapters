@@ -28,7 +28,18 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions) => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
 
-  if (!activePools.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone() };
+  if (!activePools.length) {
+    const dailyRevenue = dailyFees.clone(PROTOCOL_FEE_RATIO);
+    const dailySupplySideRevenue = dailyFees.clone(1 - PROTOCOL_FEE_RATIO);
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees.clone(),
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  }
 
   const [factories, token0s, token1s, swapFees] = await Promise.all([
     api.multiCall({ abi: ABIS.factory, calls: activePools, permitFailure: true }),
@@ -98,6 +109,23 @@ const adapter: SimpleAdapter = {
     Revenue: "Pangea pool contracts route 10% of swap fees to protocol revenue.",
     ProtocolRevenue: "10% of swap fees collected by the protocol.",
     SupplySideRevenue: "90% of swap fees distributed to liquidity providers.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Swap fees": "Fees paid by users on Pangea Swap trades.",
+    },
+    Revenue: {
+      "Protocol fees": "Protocol revenue, equal to 10% of swap fees.",
+    },
+    ProtocolRevenue: {
+      "Protocol fees": "Protocol revenue, equal to 10% of swap fees.",
+    },
+    SupplySideRevenue: {
+      "LP fees": "Supply-side revenue, equal to 90% of swap fees.",
+    },
+    HoldersRevenue: {
+      "Holder fees": "No holder revenue is currently allocated.",
+    },
   },
 };
 
