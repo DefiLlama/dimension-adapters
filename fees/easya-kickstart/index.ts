@@ -97,11 +97,11 @@ const methodology = {
     Fees:
         'Total swap fees paid by users on EasyA Kickstart bonding curves: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.',
     Revenue:
-        'Fees retained by the EasyA Kickstart ecosystem (trading_fee + referral_fee). The protocol_fee portion is collected by Meteora and is excluded.',
+        'Trading fees retained by the EasyA Kickstart protocol. The protocol_fee portion is collected by Meteora and is excluded.',
     ProtocolRevenue:
-        'Same as Revenue: fees retained by EasyA (trading_fee + referral_fee), excluding the cut that goes to Meteora.',
+        'Same as Revenue: Trading fees retained by the EasyA Kickstart protocol, excluding the cut that goes to Meteora.',
     SupplySideRevenue:
-        'Infrastructure fee retained by Meteora (protocol_fee), the underlying DBC program that powers EasyA Kickstart bonding curves.',
+        'Includes Protocol fees going to Meteora and Referral fees going to referrers',
 };
 
 const breakdownMethodology = {
