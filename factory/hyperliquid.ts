@@ -587,7 +587,7 @@ const hip3OiConfigs: Record<string, string> = {
   "dreamcash-markets-oi": "cash",
   "felix-perp-oi": "flx",
   "hyena-oi": "hyna",
-  // "kinetiq-markets-oi": "km",
+  "kinetiq-markets-oi": "km",
   "tradexyz-oi": "xyz",
   "ventuals-oi": "vntl",
   "paragon-oi": "para",
