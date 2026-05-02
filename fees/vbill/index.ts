@@ -1,10 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { METRIC } from "../../helpers/metrics"
 import { getTokenSupply } from "../../helpers/solana";
 import * as sdk from "@defillama/sdk";
 
-const chainConfig = {
+const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-05-12',
         token: '0x2255718832bC9fD3bE1CaF75084F4803DA14FF01',
@@ -21,6 +20,12 @@ const chainConfig = {
         start: '2025-05-12',
         token: '0x14d72634328C4D03bBA184A48081Df65F1911279'
     },
+}
+
+const METRIC = {
+  AssetYields: 'VanEck Treasury Assets Yields.',
+  AssetYieldsToLP: 'VanEck Treasury Assets Yields To LPs.',
+  ManagementFees: 'Management Fees - VanEck Treasury',
 }
 
 const priceFeed = '0x5cC480aeCAd8F52ebd25b9B427737e401E47e8B0'
@@ -72,11 +77,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const managementFeesForPeriod = currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
     const yieldForPeriod = dailyYieldPercentage * totalSupplyAfterDecimals * (options.toTimestamp - options.fromTimestamp) / ONE_DAY_IN_SECONDS;
 
-    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
+    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
 
-    dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields);
+    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP);
 
     return {
         dailyFees,
@@ -95,17 +100,17 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from VBill daily yield percentage",
-        [METRIC.MANAGEMENT_FEES]: "0.2% management fees collected by the protocol",
+        [METRIC.AssetYields]: "Increase yields calculated from VBill daily yield percentage",
+        [METRIC.ManagementFees]: "0.2% management fees collected by the protocol",
     },
     Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.2% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.2% management fees collected by the protocol",
     },
     ProtocolRevenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.2% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.2% management fees collected by the protocol",
     },
     SupplySideRevenue: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from VBill daily yield percentage",
+        [METRIC.AssetYieldsToLP]: "Increase yields calculated from VBill daily yield percentage",
     },
 }
 
