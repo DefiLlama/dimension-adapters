@@ -56,7 +56,26 @@ interface IRow {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const data: IRow[] = await queryDuneSql(options, `
+  const dailyVolume          = options.createBalances();
+  const dailyFees            = options.createBalances();
+  const dailyRevenue         = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue  = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  const result = {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
+
+  let data: IRow[];
+  try {
+    data = await queryDuneSql(options, `
     WITH
       rise_txs AS (
         SELECT DISTINCT tx_id
@@ -110,13 +129,12 @@ const fetch = async (options: FetchOptions) => {
     WHERE mint_main IN (${ACCEPTED_MINTS_HEX_LIST})
     GROUP BY mint_main
   `);
-
-  const dailyVolume          = options.createBalances();
-  const dailyFees            = options.createBalances();
-  const dailyRevenue         = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue  = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+  } catch (error) {
+    // Recoverable chain-specific failure: log and return zeroed balances so
+    // other adapters keep going. Per repo coding guidelines.
+    console.error("[rise-protocol] recoverable Solana/Dune fetch error", error);
+    return result;
+  }
 
   // u64 lamport sums grow large; keep them as BigInt all the way and only
   // stringify when handing them to the Balances helper.
@@ -147,15 +165,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(mint, feeFloor.toString(), METRIC.TOKEN_BUY_BACK);
   }
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
-  };
+  return result;
 };
 
 const adapter: SimpleAdapter = {
