@@ -45,13 +45,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2025-06-30',
-      meta: {
-        methodology: {
-          Fees: "Trading fees earned by xStocks liquidity pools on Raydium CLMM. Each pool charges a fee rate (0.01%-2%) on trading volume.",
-          Revenue: "All LP trading fees go to liquidity providers (xStocks protocol).",
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: "Trading fees earned by xStocks liquidity pools on Raydium CLMM. Each pool charges a fee rate (0.01%-2%) on trading volume.",
+    Revenue: "All LP trading fees go to liquidity providers (xStocks protocol).",
   }
 };
 
