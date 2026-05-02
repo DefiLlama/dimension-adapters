@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async () => {
-  const response = await fetchURL('https://api.kongswap.io/api/pools/totals');
+  const response = await fetchURL('https://api2.kongswap.io/pools/totals');
   return {
     dailyVolume: response.total_volume_24h,
     dailyFees: response.total_fees_24h,
@@ -11,7 +11,6 @@ const fetch = async () => {
 };
 
 const adapter: Adapter = {
-  deadFrom: '2026-04-06',
   adapter: {
     [CHAIN.ICP]: {
       fetch: fetch,
