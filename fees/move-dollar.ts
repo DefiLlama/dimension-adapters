@@ -72,14 +72,17 @@ const fetch = async (timestamp: number, _chainBlocks: any, options: FetchOptions
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyFeesNumber = Number(dailyFeesUsd) / Number(USD_SCALE);
 
   dailyFees.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
   dailyRevenue.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
+  dailySupplySideRevenue.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -92,11 +95,14 @@ const adapter: SimpleAdapter = {
     Revenue: {
       [BORROW_INTEREST]: "Borrow interest retained by the protocol.",
     },
+    SupplySideRevenue: {
+      [BORROW_INTEREST]: "Borrow interest distributed to lenders.",
+    },
   },
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: '2023-04-05',
+      start: "2023-04-05",
     },
   },
 };
