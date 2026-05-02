@@ -36,7 +36,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SUI],
   dependencies: [Dependencies.ALLIUM],
