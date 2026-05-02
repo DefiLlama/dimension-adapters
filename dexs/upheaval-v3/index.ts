@@ -33,8 +33,9 @@ const fetch = async (options: FetchOptions) => {
 		const [token0, token1] = pairObject[pair];
 		const fee = fees[pair];
 		logs.forEach((log: any) => {
-			const revenueRatio = fee * 0.16;
-			const supplyRatio = fee * 0.84;
+			// https://docs.upheaval.fi/fees
+			const revenueRatio = fee * 0.33; // Treasury
+			const supplyRatio = fee * 0.67; // LP providers
 			addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 });
 			addOneToken({ chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee });
 			addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio });
