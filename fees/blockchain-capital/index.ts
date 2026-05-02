@@ -11,79 +11,56 @@ const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 const priceFeedAbi = "function latestAnswer() view returns (int256)";
 
-async function fetch(options: FetchOptions) {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+async function fetch(_a: any, _b: any, options: FetchOptions) {
+    const dailyFees = options.createBalances();
 
-  const priceBefore = await options.fromApi.call({ target: PRICE_FEED, abi: priceFeedAbi });
-  const priceAfter = await options.toApi.call({ target: PRICE_FEED, abi: priceFeedAbi });
+    const priceAfter = await options.toApi.call({ target: PRICE_FEED, abi: priceFeedAbi });
 
-  const currentPrice = priceAfter / 10 ** REDSTONE_ORACLE_DECIMALS;
-  const priceChange = (priceAfter - priceBefore) / 10 ** REDSTONE_ORACLE_DECIMALS;
+    const currentPrice = priceAfter / 10 ** REDSTONE_ORACLE_DECIMALS;
 
-  const totalSupply = await options.api.call({
-    target: BCAP_TOKEN,
-    abi: "function totalSupply() view returns (uint256)",
-  });
-  const totalSupplyAfterDecimals = totalSupply / 10 ** TOKEN_DECIMALS;
+    const totalSupply = await options.api.call({
+        target: BCAP_TOKEN,
+        abi: "function totalSupply() view returns (uint256)",
+    });
+    const totalSupplyAfterDecimals = totalSupply / 10 ** TOKEN_DECIMALS;
 
-  const managementFeesForPeriod =
-    (currentPrice *
-      totalSupplyAfterDecimals *
-      MANAGEMENT_FEE *
-      (options.toTimestamp - options.fromTimestamp)) /
-    ONE_YEAR_IN_SECONDS;
-  const yieldForPeriod = priceChange * totalSupplyAfterDecimals;
+    const managementFeesForPeriod =
+        currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
 
-  dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-  dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
 
-  dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
+    return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    };
 }
 
 const methodology = {
-  Fees: "Yields calculated from BCAP NAV change and 2.5% management fees",
-  Revenue: "Includes 2.5% management fees collected by the protocol",
-  ProtocolRevenue: "Includes 2.5% management fees collected by the protocol",
-  SupplySideRevenue: "Yields calculated from BCAP NAV change",
+    Fees: "Includes 2.5% management fees collected by the protocol",
+    Revenue: "Includes 2.5% management fees collected by the protocol",
+    ProtocolRevenue: "Includes 2.5% management fees collected by the protocol",
 };
 
 const breakdownMethodology = {
-  Fees: {
-    [METRIC.ASSETS_YIELDS]: "Yields calculated from BCAP NAV change",
-    [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
-  },
-  Revenue: {
-    [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
-  },
-  ProtocolRevenue: {
-    [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Yields calculated from BCAP NAV change",
-  },
+    Fees: {
+        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+    },
+    Revenue: {
+        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+    },
+    ProtocolRevenue: {
+        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+    },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  fetch,
-  breakdownMethodology,
-  methodology,
-  adapter: {
-    [CHAIN.ERA]: {
-      start: "2025-05-06",
-    },
-  },
-  allowNegativeValue: true,
+    version: 1, //oracle price updates once a day
+    fetch,
+    breakdownMethodology,
+    methodology,
+    chains: [CHAIN.ERA],
+    start: '2025-03-08'
 };
 
 export default adapter;
