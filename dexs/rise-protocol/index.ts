@@ -118,27 +118,33 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue  = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // u64 lamport sums grow large; keep them as BigInt all the way and only
+  // stringify when handing them to the Balances helper.
   for (const row of data ?? []) {
     const mint = MINT_HEX_TO_B58[row.mint_hex];
     if (!mint) continue;
-    const volume      = Number(row.total_volume      || 0);
-    const feeFloor    = Number(row.total_fee_floor   || 0);
-    const feeCreator  = Number(row.total_fee_creator || 0);
-    const feeTeam     = Number(row.total_fee_team    || 0);
-    const totalFees   = feeFloor + feeCreator + feeTeam;
+    const volume     = BigInt(row.total_volume      || "0");
+    const feeFloor   = BigInt(row.total_fee_floor   || "0");
+    const feeCreator = BigInt(row.total_fee_creator || "0");
+    const feeTeam    = BigInt(row.total_fee_team    || "0");
 
-    dailyVolume.add(mint, volume);
-    dailyFees.add(mint, totalFees);
+    dailyVolume.add(mint, volume.toString());
     // Revenue attribution per Rise's published RevenueSplits:
-    //   revSplit.team    -> Rise team (ProtocolRevenue)
-    //   revSplit.creator -> token creator (SupplySideRevenue)
-    //   revSplit.floor   -> returned to the bonding-curve floor, benefiting holders
-    //                       remaining in the market (HoldersRevenue)
-    dailyProtocolRevenue.add(mint, feeTeam,    METRIC.PROTOCOL_FEES);
-    dailyHoldersRevenue.add(mint,  feeFloor);
-    dailySupplySideRevenue.add(mint, feeCreator, METRIC.CREATOR_FEES);
-    // dailyRevenue == dailyFees - dailySupplySideRevenue == feeFloor + feeTeam
-    dailyRevenue.add(mint, feeFloor + feeTeam);
+    //   revSplit.team    -> Rise team        -> Protocol Fees
+    //   revSplit.creator -> market creator   -> Creator Fees
+    //   revSplit.floor   -> returned to the bonding-curve floor; equivalent
+    //                       to a buyback that benefits remaining holders
+    //                       -> Token Buy Back
+    dailyFees.add(mint, feeTeam.toString(),    METRIC.PROTOCOL_FEES);
+    dailyFees.add(mint, feeCreator.toString(), METRIC.CREATOR_FEES);
+    dailyFees.add(mint, feeFloor.toString(),   METRIC.TOKEN_BUY_BACK);
+
+    dailyProtocolRevenue.add(mint, feeTeam.toString(),     METRIC.PROTOCOL_FEES);
+    dailyHoldersRevenue.add(mint,  feeFloor.toString(),    METRIC.TOKEN_BUY_BACK);
+    dailySupplySideRevenue.add(mint, feeCreator.toString(), METRIC.CREATOR_FEES);
+    // dailyRevenue = dailyFees - dailySupplySideRevenue = team + floor
+    dailyRevenue.add(mint, feeTeam.toString(),  METRIC.PROTOCOL_FEES);
+    dailyRevenue.add(mint, feeFloor.toString(), METRIC.TOKEN_BUY_BACK);
   }
 
   return {
@@ -172,6 +178,26 @@ const adapter: SimpleAdapter = {
       "revSplit.floor portion of swap fees, deposited into the bonding curve to raise the floor and benefit remaining holders.",
     SupplySideRevenue:
       "revSplit.creator portion of swap fees, paid to the market creator.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.PROTOCOL_FEES]:  "revSplit.team paid to the Rise team.",
+      [METRIC.CREATOR_FEES]:   "revSplit.creator paid to the market creator.",
+      [METRIC.TOKEN_BUY_BACK]: "revSplit.floor deposited into the bonding curve floor; benefits remaining holders.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]:  "revSplit.team retained by the Rise team.",
+      [METRIC.TOKEN_BUY_BACK]: "revSplit.floor returned to the bonding curve floor.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]:  "revSplit.team paid to the Rise team.",
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "revSplit.floor deposited into the bonding curve floor.",
+    },
+    SupplySideRevenue: {
+      [METRIC.CREATOR_FEES]:   "revSplit.creator paid to the market creator.",
+    },
   },
 };
 
