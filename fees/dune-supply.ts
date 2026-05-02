@@ -6,18 +6,7 @@ const TREASURY = '0xbC09F81Ac338f7Afe83146670A9Ff1fF0B2E6413';
 
 // GridMining fee constants (basis points, matching contract)
 const ADMIN_FEE_BPS = 100n;   // 1% of totalDeployed
-const VAULT_FEE_BPS = 1000n;  // 10% of losersPool after admin
 const BPS = 10000n;
-
-// Settlement math (from GridMining._calculateSettlementFees):
-//   adminFee       = totalDeployed × 1%
-//   losersPool     = totalDeployed - winnersDeployed
-//   losersAdmin    = losersPool × 1%
-//   vaultAmount    = (losersPool - losersAdmin) × 10%
-//   totalWinnings  = (losersPool - losersAdmin) - vaultAmount
-//
-// So totalWinnings = losersPool × 0.99 × 0.9 = losersPool × 8910 / 10000
-// We can derive losersPool from totalWinnings, then calculate all fees.
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
@@ -31,50 +20,47 @@ const fetch = async (options: FetchOptions) => {
     });
 
     vaultLogs.forEach(log => {
-        dailyFees.addGasToken(log.amount);
-        dailyHoldersRevenue.addGasToken(log.amount);
+        dailyFees.addGasToken(log.amount, "Vault Fees");
+        dailyHoldersRevenue.addGasToken(log.amount, "Vault Fees");
     });
+    // Deployed events give the exact deployed ETH amount
+    const [deployed, deployedFor] = await Promise.all([
+        options.getLogs({
+            target: GRID_MINING,
+            eventAbi: 'event Deployed(uint64 indexed roundId, address indexed user, uint256 amountPerBlock, uint256 blockMask, uint256 totalAmount)',
+        }),
+        options.getLogs({
+            target: GRID_MINING,
+            eventAbi: 'event DeployedFor(uint64 indexed roundId, address indexed user, address indexed executor, uint256 amountPerBlock, uint256 blockMask, uint256 totalAmount)',
+        }),
+    ]);
 
-    // RoundSettled gives totalWinnings + winnersDeployed to derive admin fees
-    const roundLogs = await options.getLogs({
-        target: GRID_MINING,
-        eventAbi: 'event RoundSettled(uint64 indexed roundId, uint8 winningBlock, address topMiner, uint256 totalWinnings, uint256 topMinerReward, uint256 spicePotAmount, bool isSplit, uint256 topMinerSeed, uint256 winnersDeployed)',
-    });
+    let totalDeployed = 0n;
+    for (const log of deployed)    totalDeployed += BigInt(log.totalAmount);
+    for (const log of deployedFor) totalDeployed += BigInt(log.totalAmount);
 
-    roundLogs.forEach(log => {
-        const totalWinnings = log.totalWinnings;
-        const winnersDeployed = log.winnersDeployed;
-
-        // Derive losersPool: totalWinnings = losersPool × (BPS - ADMIN) / BPS × (BPS - VAULT) / BPS
-        // = losersPool × 9900 × 9000 / 10000^2 = losersPool × 8910 / 10000
-        const losersPool = totalWinnings > 0n
-            ? totalWinnings * BPS * BPS / ((BPS - ADMIN_FEE_BPS) * (BPS - VAULT_FEE_BPS))
-            : 0n;
-        const totalDeployed = losersPool + winnersDeployed;
-
-        // Admin fees: 1% on totalDeployed + 1% on losersPool
-        const adminFee = totalDeployed * ADMIN_FEE_BPS / BPS;
-        const losersAdminFee = losersPool * ADMIN_FEE_BPS / BPS;
-        const totalAdminFees = adminFee + losersAdminFee;
-
-        dailyFees.addGasToken(totalAdminFees);
-    });
+    const adminFee = totalDeployed * ADMIN_FEE_BPS / BPS;
+    dailyFees.addGasToken(adminFee, "Admin Fees");
+    dailyProtocolRevenue.addGasToken(adminFee, "Admin Fees");
 
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue,
         dailyHoldersRevenue,
     };
 };
 
 const methodology = {
-    Fees: 'Fees extracted per round: 1% admin fee on totalDeployed, 1% admin fee on losers pool, and 10% vault fee on losers pool after admin. Variable effective rate depending on winner/loser ratio.',
-    Revenue: 'All extracted fees (admin + vault) are protocol revenue.',
+    Fees: 'Fees extracted per round: 1% admin fee on the total ETH deployed and 10% vault fee on losers pool after admin. Variable effective rate depending on winner/loser ratio.',
+    Revenue: 'Includes all extracted fees (1% admin fee + 10% vault fee).',
+    ProtocolRevenue: 'Includes admin fees (1% of total deployed).',
     HoldersRevenue: 'Vault fee (10% of losers pool after admin) is forwarded to Treasury, then bridged to Ethereum and used by the buyback bot to swap ETH for SpiceETH on Uniswap — 90% burned, 10% bridged back to Arbitrum and distributed to SPICE stakers via Treasury.distributeYield → Staking.',
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
@@ -82,6 +68,22 @@ const adapter: SimpleAdapter = {
         },
     },
     methodology,
+    breakdownMethodology: {
+        Fees: {
+            "Vault Fees": 'The Vault fee (10% of losers pool after admin) is bridged to Ethereum and then used to buyback SPICE, 90% is burned and 10% is distributed to SPICE Stakers in Arbitrum.',
+            "Admin Fees": '1% admin fee on the total amount of ETH deployed on each round.',
+        },
+        Revenue: {
+            "Vault Fees": 'The Vault fee (10% of losers pool after admin) is bridged to Ethereum and then used to buyback SPICE, 90% is burned and 10% is distributed to SPICE Stakers in Arbitrum.',
+            "Admin Fees": '1% admin fee on the total amount of ETH deployed on each round.',
+        },
+        ProtocolRevenue: {
+            "Admin Fees": '1% admin fee on the total amount of ETH deployed on each round.',
+        },
+        HoldersRevenue: {
+            "Vault Fees": 'The Vault fee (10% of losers pool after admin) is bridged to Ethereum and then used to buyback SPICE, 90% is burned and 10% is distributed to SPICE Stakers in Arbitrum.',
+        }
+    }
 };
 
 export default adapter;
