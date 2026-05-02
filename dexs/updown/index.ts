@@ -19,14 +19,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
   `;
 
-    const response = await request(endpoint, query, { timestamp: options.startOfDay });
+    const response = await request(endpoint, query);
     const todaysData = response.positionVolumeInfos.filter((entry: any) => entry.timestamp === options.startOfDay);
 
     if (!todaysData || todaysData.length === 0) {
-        throw new Error('No data found for today');
+        throw new Error(`No data found for ${options.dateString}`);
     }
 
-    const dailyVolume = formatUnits(todaysData[0].volumeUsd, 30);
+    let dailyVolume = 0
+    for (const data of todaysData) {
+        dailyVolume += Number(formatUnits(data.volumeUsd, 30));
+    }
 
     return {
         dailyVolume,
@@ -36,7 +39,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.CELO],
-    start: '2026-01-28',
+    start: '2026-01-04',
 };
 
 export default adapter;
