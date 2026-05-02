@@ -68,6 +68,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
     };
 };
@@ -75,6 +76,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
     Fees: "Position borrowing/position fees and swap fees.",
     Revenue: "Protocol-retained portion after pool allocations.",
+    ProtocolRevenue: "Protocol-retained portion after pool allocations.",
     SupplySideRevenue: "Pool-side fee allocations."
 }
 
