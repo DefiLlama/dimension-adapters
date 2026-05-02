@@ -15,6 +15,7 @@ const fetch = async () => {
 };
 
 const adapter: Adapter = {
+  deadFrom: '2026-04-06',
   adapter: {
     [CHAIN.ICP]: {
       fetch: fetch,
