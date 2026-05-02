@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const BCAP_TOKEN = "0x57fD71a86522Dc06D6255537521886057c1772A3";
 const PRICE_FEED = "0x0eF2418216476Ab5264821070B8c24b6B458F796";
@@ -27,7 +26,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const managementFeesForPeriod =
         currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
 
-    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(managementFeesForPeriod, 'Management Fees - BCAP');
 
     return {
         dailyFees,
@@ -44,13 +43,13 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+        'Management Fees - BCAP': "2.5% management fees collected by the protocol",
     },
     Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+        'Management Fees - BCAP': "2.5% management fees collected by the protocol",
     },
     ProtocolRevenue: {
-        [METRIC.MANAGEMENT_FEES]: "2.5% management fees collected by the protocol",
+        'Management Fees - BCAP': "2.5% management fees collected by the protocol",
     },
 };
 
