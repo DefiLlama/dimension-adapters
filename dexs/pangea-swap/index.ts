@@ -34,6 +34,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       runAtCurrTime: true,
+      deadFrom: "2025-12-31",
     },
   },
 };
