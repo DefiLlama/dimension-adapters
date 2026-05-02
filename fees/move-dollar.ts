@@ -49,17 +49,23 @@ const fetchResources = async (timestamp: number) => {
   return httpGet(`${APTOS_REST_API}/v1/accounts/${MOVE_DOLLAR_ADDRESS}/resources?ledger_version=${ledgerVersion}&limit=9999`);
 };
 
-const fetch = async (timestamp: number, _chainBlocks: any, options: FetchOptions) => {
-  const resources: AptosResource[] = await fetchResources(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const resources: AptosResource[] = await fetchResources(options.toTimestamp);
   const liabilities: Record<string, bigint> = {};
   const annualRates: Record<string, bigint> = {};
 
   resources.forEach(({ type, data }) => {
     const vaultCollateral = extractCollateral(type, "Vaults");
-    if (vaultCollateral) liabilities[vaultCollateral] = parseAptosInteger(data.total_liability, "total_liability", type);
+    if (vaultCollateral) {
+      if (data.total_liability == null) throw new Error(`Missing total_liability for ${type}`);
+      liabilities[vaultCollateral] = parseAptosInteger(data.total_liability, "total_liability", type);
+    }
 
     const paramsCollateral = extractCollateral(type, "VaultCollateralParams");
-    if (paramsCollateral) annualRates[paramsCollateral] = parseAptosInteger(data.interest_annual_rate_ratio?.v, "interest_annual_rate_ratio.v", type);
+    if (paramsCollateral) {
+      if (data.interest_annual_rate_ratio?.v == null) throw new Error(`Missing interest_annual_rate_ratio.v for ${type}`);
+      annualRates[paramsCollateral] = parseAptosInteger(data.interest_annual_rate_ratio.v, "interest_annual_rate_ratio.v", type);
+    }
   });
 
   const windowSeconds = options.endTimestamp - options.startTimestamp;
@@ -77,7 +83,6 @@ const fetch = async (timestamp: number, _chainBlocks: any, options: FetchOptions
 
   dailyFees.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
   dailyRevenue.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
-  dailySupplySideRevenue.addUSDValue(dailyFeesNumber, BORROW_INTEREST);
 
   return {
     dailyFees,
@@ -87,6 +92,7 @@ const fetch = async (timestamp: number, _chainBlocks: any, options: FetchOptions
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   methodology: "Estimates borrower interest from Move Dollar vault liabilities and annual rates stored on-chain. MOD is treated as USD-pegged.",
   breakdownMethodology: {
     Fees: {
