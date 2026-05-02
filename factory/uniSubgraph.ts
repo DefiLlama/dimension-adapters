@@ -402,6 +402,21 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: '2026-01-20',
   },
+  tsunami: {
+    graphUrls: {
+      [CHAIN.INK]: "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/tsunami-v3/2.4.0/gn",
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    feesPercent: {
+      type: "fees",
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+      ProtocolRevenue: 0,
+      HoldersRevenue: 0,
+    },
+    start: '2026-03-14',
+  }
 };
 
 // Build protocols from configs
