@@ -6,9 +6,14 @@ import fetchURL from "../utils/fetchURL";
  * Fetches daily fees earned by xStocks (Backed Finance) liquidity pools on Raydium CLMM.
  * xStocks provides liquidity to Raydium concentrated liquidity pools for tokenized equities.
  * Fees are earned from trading volume in these pools at the configured fee rate.
+ * Raydium CLMM fee split: 84% to LPs, 12% to Raydium protocol, 4% to treasury.
  */
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  const isXStock = (sym: string) => /^[A-Z]{1,5}x$/.test(sym);
 
   let page = 1;
   const pageSize = 500;
@@ -24,23 +29,34 @@ const fetch = async (options: FetchOptions) => {
     for (const pool of pools) {
       const symA: string = pool?.mintA?.symbol ?? '';
       const symB: string = pool?.mintB?.symbol ?? '';
-      if (!symA.endsWith('x') && !symB.endsWith('x')) continue;
+      if (!isXStock(symA) && !isXStock(symB)) continue;
 
       const volume = pool?.day?.volume ?? 0;
       const feeRate = pool?.config?.tradeFeeRate ?? 0;
-      const dailyFeeUsd = volume * feeRate / 1_000_000;
-      dailyFees.addUSDValue(dailyFeeUsd);
+      const grossFeeUsd = pool?.day?.volumeFee ?? (volume * feeRate / 1_000_000);
+
+      // Raydium CLMM split: 84% LP, 12% protocol, 4% treasury
+      const lpFeeUsd = grossFeeUsd * 0.84;
+      const protocolFeeUsd = grossFeeUsd * 0.16;
+
+      dailyFees.addUSDValue(grossFeeUsd);
+      dailyRevenue.addUSDValue(lpFeeUsd);
+      dailySupplySideRevenue.addUSDValue(protocolFeeUsd);
     }
+
+    // Pools sorted by volume desc — stop when last pool on page has zero volume
+    const maxPageVolume = pools[pools.length - 1]?.day?.volume ?? 0;
+    if (maxPageVolume === 0) { hasMore = false; break; }
 
     hasMore = pools.length === pageSize;
     page++;
   }
 
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
@@ -48,8 +64,9 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-    Fees: "Trading fees earned by xStocks liquidity pools on Raydium CLMM. Each pool charges a fee rate (0.01%-2%) on trading volume.",
-    Revenue: "All LP trading fees go to liquidity providers (xStocks protocol).",
+    Fees: "Gross trading fees earned by xStocks liquidity pools on Raydium CLMM (volume × fee rate).",
+    Revenue: "84% of gross fees go to xStocks as LP revenue.",
+    SupplySideRevenue: "16% of gross fees go to Raydium protocol (12%) and treasury (4%).",
   }
 };
 
