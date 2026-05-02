@@ -143,22 +143,6 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2023-07-02",
   },
-  "fusionx-v3": {
-    graphUrls: {
-      [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange-v3",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 16.7,
-      HoldersRevenue: 16.7,
-      Fees: 100,
-      UserFees: 100,
-      SupplySideRevenue: 66.6,
-      Revenue: 33.4,
-    },
-    start: "2023-07-13",
-  },
   "winnieswap": {
     graphUrls: {
       [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap/0.0.1/gn",
