@@ -7,7 +7,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     options,
     builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
   });
-  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, currentPerpOpenInterest } = await fetchHIP3DeployerData({
+  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees } = await fetchHIP3DeployerData({
     options,
     hip3DeployerId: 'km',
   });
@@ -25,7 +25,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    openInterestAtEnd: currentPerpOpenInterest,
   };
 };
 
@@ -34,7 +33,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-12-16',
   doublecounted: true,
-  runAtCurrTime: true,
   methodology: {
     Fees: "Trading fees paid by users for perps in using Hyperliquid HIP-3 markets and builder code.",
     Revenue: "Fees collected by Kinetiq Revenue from Hyperliquid and HIP-3 markets.",
