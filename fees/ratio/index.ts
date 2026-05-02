@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const FEE_TOKENS: Record<string, string[]> = {
   [CHAIN.POLYGON]: [
-    "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB", // Polymarket USD (pUSD)
+    ADDRESSES.polygon.USDC,
+    ADDRESSES.polygon.PUSD,
   ],
 };
 
@@ -42,11 +44,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "All Polymarket pUSD transferred into the fee wallet during the day is counted as total fees.",
+    "All USDC and PUSD transferred into the fee wallet during the day is counted as total fees.",
   Revenue:
-    "All pUSD fees received by the wallet are considered revenue.",
+    "All USDC and PUSD fees received by the wallet are considered revenue.",
   ProtocolRevenue:
-    "All pUSD fees received by the wallet are considered protocol revenue.",
+    "All USDC and PUSD fees received by the wallet are considered protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
