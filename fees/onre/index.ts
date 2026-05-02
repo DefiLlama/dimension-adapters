@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const NAV_API = "https://core.api.onre.finance/data/nav";
+const NAV_API = "https://core.api.onre.finance/data/nav"\;
 
 interface NAVEntry {
   net_asset_value_date: string;
@@ -55,7 +55,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Yield accrued to ONyc token holders as the NAV increases daily.",
+  Fees: "Yield accrued to ONyc token holders as the NAV increases daily (AUM × daily NAV growth rate).",
   SupplySideRevenue: "All yield goes to token holders.",
   Revenue: "No protocol fee split.",
 };
