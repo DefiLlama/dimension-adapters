@@ -27,25 +27,34 @@ const fetch = async (options: FetchOptions) => {
   const configs = EASYA_PARTNER_CONFIGS.map(c => `'${c}'`).join(',');
 
   const data: IData[] = await queryDuneSql(options, `
-    WITH swap_events AS (
-      SELECT
-        s.trade_direction,
-        s.amount_in,
-        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.output_amount') AS DECIMAL(38,0)) AS amount_out,
-        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee')  AS DECIMAL(38,0)) AS trading_fee,
-        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
-        CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
-      FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
-      WHERE s.evt_executing_account = '${DBC_PROGRAM}'
-        AND s.config IN (${configs})
-        AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
-    )
+    WITH
+      dbc_configs AS (
+        SELECT
+          account_config,
+          CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.collect_fee_mode') AS INT) AS collect_fee_mode
+        FROM meteora_solana.dynamic_bonding_curve_call_create_config
+        WHERE account_config IN (${configs})
+      ),
+      swap_events AS (
+        SELECT
+          s.trade_direction,
+          s.amount_in,
+          c.collect_fee_mode,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.output_amount') AS DECIMAL(38,0)) AS amount_out,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee')  AS DECIMAL(38,0)) AS trading_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+        FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
+        JOIN dbc_configs c ON s.config = c.account_config
+        WHERE s.evt_executing_account = '${DBC_PROGRAM}'
+          AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
+          AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
+      )
     SELECT
       SUM(CASE WHEN trade_direction = 1 THEN COALESCE(amount_in, 0) ELSE COALESCE(amount_out, 0) END) AS total_volume,
-      SUM(COALESCE(trading_fee,  0)) AS total_trading_fees,
-      SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
-      SUM(COALESCE(referral_fee, 0)) AS total_referral_fees
+      SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(trading_fee,  0) END) AS total_trading_fees,
+      SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(protocol_fee, 0) END) AS total_protocol_fees,
+      SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(referral_fee, 0) END) AS total_referral_fees
     FROM swap_events
   `);
 
