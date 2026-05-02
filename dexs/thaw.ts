@@ -41,6 +41,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const logs: any[] = [];
   for (const game of games) {
@@ -87,6 +88,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -103,6 +105,7 @@ const adapter: SimpleAdapter = {
     UserFees: 'Same as Fees — represents the net cost to players.',
     Revenue: 'Same as Fees. All bankroll liquidity is protocol-owned, so 100% of GGR accrues to the protocol.',
     ProtocolRevenue: 'Same as Fees. The protocol is the sole bankroll liquidity provider.',
+    SupplySideRevenue: 'Zero — there are no external liquidity providers; all bankroll is protocol-owned.',
   }
 }
 
