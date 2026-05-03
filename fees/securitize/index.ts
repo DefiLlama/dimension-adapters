@@ -101,8 +101,13 @@ const estimateManagementFee = (totalSupply: bigint | number | string, bps: numbe
 }
 
 const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
-  const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
-  return prices?.[0]?.value ?? 0;
+  try {
+    const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
+    return prices?.[0]?.value ?? 0;
+  } catch (error: any) {
+    console.warn(`Failed to fetch RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
+    return 0;
+  }
 }
 const isWeekend = (timestampSeconds: number) =>
   [0, 6].includes(
@@ -176,8 +181,11 @@ interface IData {
 // Distribution: Next business day ~3:00 PM UTC (on-chain) - https://www.marketsmedia.com/securitize-adds-features-for-blackrock-tokenized-treasury-fund/
 // Older sources mentioning the distribution happens monthly. but it has changed to daily -  https://x.com/Securitize/status/1940064769320382487
 const getYieldDistributionHours = (options: FetchOptions)=> {
-  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
-  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  const distributionDayStart = options.endTimestamp >= options.startOfDay + 16 * 3600
+    ? options.startOfDay
+    : options.startOfDay - SECONDS_PER_DAY;
+  const startTs = distributionDayStart + 15 * 3600; // 15:00:00 UTC
+  const endTs = distributionDayStart + 16 * 3600; // 16:00:00 UTC
   return [startTs, endTs]
 }
 const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
@@ -274,6 +282,7 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
 
 const adapters: SimpleAdapter = {
   version: 1,
+  pullHourly: true,
   dependencies: [Dependencies.DUNE],
   adapter: Object.keys(EVM_CONTRACTS).reduce((acc, chain) => {
     return {
@@ -281,16 +290,19 @@ const adapters: SimpleAdapter = {
       [chain]: {
         fetch: fetchEvm,
         start: EVM_CONTRACTS[chain].contracts.map((c: EvmContract) => c.start).sort()[0], // return the oldest contract deployment date from array of contracts
+        pullHourly: true,
       }
     }
   }, {
     [CHAIN.APTOS]: {
       fetch: fetchAptos,
-      start: '2024-12-17'
+      start: '2024-12-17',
+      pullHourly: true,
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: '2025-03-24'
+      start: '2025-03-24',
+      pullHourly: true,
     },
   }),
   methodology: {
