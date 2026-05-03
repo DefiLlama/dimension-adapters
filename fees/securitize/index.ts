@@ -4,6 +4,7 @@ import {queryDuneSql} from "../../helpers/dune";
 import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
 import {getBlock} from "../../helpers/getBlock";
+import {httpGet} from "../../utils/fetchURL";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -14,6 +15,13 @@ const METRIC = {
   AssetYields: 'BUIDL Underlying Assets Yields.',
   AssetYieldsToLP: 'BUIDL Underlying Assets Yields To LPs.',
   ManagementFeesBuidl: 'Management Fees - BUIDL',
+}
+
+type EvmContract = {
+  address: string;
+  start: string;
+  bps?: number;
+  dailyAccrualFeed?: string;
 }
 
 // bps Source : https://securitize.io/blackrock/buidl
@@ -28,6 +36,8 @@ const EVM_CONTRACTS: Record<string, any> = {
       {
         address: '0x6a9DA2D710BB9B700acde7Cb81F10F1fF8C89041',
         start: '2024-12-17',
+        bps: 20,
+        dailyAccrualFeed: 'BUIDL_I_ETHEREUM_DAILY_ACCRUAL',
       }
     ],
     bps: 50,
@@ -78,8 +88,21 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 18
   },
 }
-const estimateDailyManagementFee = (totalSupply: bigint, bps: number) => {
-  return ((totalSupply / BigInt(1e6)) * BigInt(bps)) / 10_000n / 365n;
+const SECONDS_PER_DAY = 24 * 60 * 60;
+const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
+
+const getPeriodFraction = (options: FetchOptions, denominator: number) =>
+  (options.toTimestamp - options.fromTimestamp) / denominator;
+
+const getSupplyInUsd = (totalSupply: bigint | number | string) => Number(totalSupply) / 1e6;
+
+const estimateManagementFee = (totalSupply: bigint | number | string, bps: number, options: FetchOptions) => {
+  return getSupplyInUsd(totalSupply) * (bps / 10_000) * getPeriodFraction(options, SECONDS_PER_YEAR);
+}
+
+const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
+  const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
+  return prices?.[0]?.value ?? 0;
 }
 const isWeekend = (timestampSeconds: number) =>
   [0, 6].includes(
@@ -92,7 +115,7 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  for (const contract of EVM_CONTRACTS[options.chain].contracts) {
+  for (const contract of EVM_CONTRACTS[options.chain].contracts as EvmContract[]) {
 
 
     // estimate management fee
@@ -105,9 +128,17 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
     // contract was not deployed yet
     if (!totalSupply) continue;
     
-    const mngmtFee = estimateDailyManagementFee(BigInt(totalSupply), EVM_CONTRACTS[options.chain].bps);
+    const mngmtFee = estimateManagementFee(totalSupply, contract.bps ?? EVM_CONTRACTS[options.chain].bps, options);
     dailyFees.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
     dailyRevenue.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
+
+    if (contract.dailyAccrualFeed) {
+      const dailyAccrual = await getRedstoneDailyAccrual(contract.dailyAccrualFeed, options);
+      const yieldForPeriod = getSupplyInUsd(totalSupply) * dailyAccrual * getPeriodFraction(options, SECONDS_PER_DAY);
+      dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields)
+      dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP)
+      continue;
+    }
 
     // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
     if (isWeekend(options.endTimestamp)) {
@@ -188,7 +219,7 @@ const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<Fe
 }`
   const totalSupplyData = await new GraphQLClient(APTOS_GRAPHQL_ENDPOINT).request(graphQuery);
   const totalSupply = BigInt(totalSupplyData.total_supply.amount.sum.value);
-  const mngmtFee = estimateDailyManagementFee(totalSupply, APTOS_BPS);
+  const mngmtFee = estimateManagementFee(totalSupply, APTOS_BPS, options);
   dailyFees.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
   dailyRevenue.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
 
@@ -229,7 +260,7 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
   const totalSupplyUiAmount = await getTokenSupply(SOLANA_BUIDL_CONTRACT);
   // the getTokenSupply helper function returns value in UI amount, we first turn it back with decimals to be consistent with other networks
   const totalSupply = Math.round(totalSupplyUiAmount) * 1e6
-  const mngmtFee = estimateDailyManagementFee(BigInt(Math.round(totalSupply)), SOLANA_BPS);
+  const mngmtFee = estimateManagementFee(Math.round(totalSupply), SOLANA_BPS, options);
   dailyFees.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
   dailyRevenue.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
 
@@ -249,7 +280,7 @@ const adapters: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetchEvm,
-        start: EVM_CONTRACTS[chain].contracts.map((c: {start: string}) => c.start).sort()[0], // return the oldest contract deployment date from array of contracts
+        start: EVM_CONTRACTS[chain].contracts.map((c: EvmContract) => c.start).sort()[0], // return the oldest contract deployment date from array of contracts
       }
     }
   }, {
@@ -264,21 +295,21 @@ const adapters: SimpleAdapter = {
   }),
   methodology: {
     Fees: "Total yields generated from the fund's underlying assets (U.S. Treasuries and repo agreements) plus the management fees charged by BlackRock",
-    Revenue: "Management fees (20-50 bps depending on the blockchain)",
-    ProtocolRevenue: "Management fees (20-50 bps depending on the blockchain)",
+    Revenue: "Management fees (18-50 bps depending on the blockchain and BUIDL share class)",
+    ProtocolRevenue: "Management fees (18-50 bps depending on the blockchain and BUIDL share class)",
     SupplySideRevenue: "All yields distributed on-chain to BUIDL token holders after management fees",
   },
 
   breakdownMethodology: {
     Fees: {
       [METRIC.AssetYields]: "Gross yields generated from the fund's underlying assets",
-      [METRIC.ManagementFeesBuidl]: "20-50 bps Management fees depending on the blockchain",
+      [METRIC.ManagementFeesBuidl]: "18-50 bps Management fees depending on the blockchain and BUIDL share class",
     },
     Revenue: {
-      [METRIC.ManagementFeesBuidl]: "20-50 bps Management fees depending on the blockchain",
+      [METRIC.ManagementFeesBuidl]: "18-50 bps Management fees depending on the blockchain and BUIDL share class",
     },
     ProtocolRevenue: {
-      [METRIC.ManagementFeesBuidl]: "20-50 bps Management fees depending on the blockchain",
+      [METRIC.ManagementFeesBuidl]: "18-50 bps Management fees depending on the blockchain and BUIDL share class",
     },
     SupplySideRevenue: {
       [METRIC.AssetYieldsToLP]: "Net yields distributed after deducting management fees",
