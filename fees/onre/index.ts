@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const NAV_API = "https://core.api.onre.finance/data/nav";
+const NAV_API = "https://core.api.onre.finance/data/nav"\;
 
 interface NAVEntry {
   net_asset_value_date: string;
@@ -21,10 +21,8 @@ const formatUTCDate = (ts: number): string => {
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const response = await fetchURL(NAV_API);
   const navData: NAVEntry[] = response.data;
-
   const todayStr = formatUTCDate(options.startOfDay);
   const yesterdayStr = formatUTCDate(options.startOfDay - 86400);
-
   const today = navData.find((e) => e.net_asset_value_date === todayStr);
   const yesterday = navData.find((e) => e.net_asset_value_date === yesterdayStr);
 
@@ -63,6 +61,11 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
+  breakdownMethodology: {
+    dailyFees: "Gross NAV growth attributable to ONyc holders (AUM × daily NAV growth rate)",
+    dailySupplySideRevenue: "Yield paid to ONyc token holders (100% of fees)",
+    dailyRevenue: "No protocol-retained revenue",
+  },
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
