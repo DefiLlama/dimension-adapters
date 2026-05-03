@@ -15,14 +15,19 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 // The hook emits FeeCollected on every fee-bearing swap with the gross fee
 // pre-split into creator/platform shares — all denominated in native ETH
 // (currency0 of every Tickr pool). That single event stream is enough to
-// derive fees, supply-side and protocol revenue exactly.
+// derive volume, fees, supply-side and protocol revenue exactly.
 
 const HOOK = "0x8Bd422134164F74023308A22BA991Ae0412900cC";
 
 const FeeCollected =
   "event FeeCollected(address indexed token, uint256 totalFee, uint256 creatorShare, uint256 platformShare)";
 
+// Fee is a flat 2% on the ETH leg, so the gross ETH-side notional of each
+// swap == totalFee / 0.02 == totalFee * 50.
+const VOLUME_MULTIPLIER = 50n;
+
 const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -33,20 +38,26 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const log of logs) {
-    dailyFees.add(nullAddress, log.totalFee.toString(), METRIC.TRADING_FEES);
+    const totalFee = BigInt(log.totalFee);
+    const creatorShare = BigInt(log.creatorShare);
+    const platformShare = BigInt(log.platformShare);
+
+    dailyVolume.add(nullAddress, (totalFee * VOLUME_MULTIPLIER).toString());
+    dailyFees.add(nullAddress, totalFee.toString(), METRIC.TRADING_FEES);
     dailySupplySideRevenue.add(
       nullAddress,
-      log.creatorShare.toString(),
+      creatorShare.toString(),
       METRIC.CREATOR_FEES,
     );
     dailyRevenue.add(
       nullAddress,
-      log.platformShare.toString(),
+      platformShare.toString(),
       METRIC.PROTOCOL_FEES,
     );
   }
 
   return {
+    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue,
@@ -83,6 +94,8 @@ const adapter: SimpleAdapter = {
   // Tickr factory deploy block on Ethereum mainnet.
   start: 24994342,
   methodology: {
+    Volume:
+      "Gross ETH-side notional of every swap routed through the Tickr hook, derived from the 2% fee emitted in FeeCollected (volume = totalFee / 0.02).",
     Fees: "2% flat fee charged by the Tickr hook on the ETH leg of every swap.",
     UserFees:
       "All fees are paid by traders on the input or output ETH side of each swap.",
