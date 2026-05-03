@@ -11,6 +11,10 @@ import { httpGet } from "../../utils/fetchURL";
  * Pool Party reports volume per token across all pools. In an AMM each swap
  * touches both sides of a pair, so the sum across instruments is 2× the true
  * single-side trading volume. We halve before pricing.
+ *
+ * runAtCurrTime: true — Pool Party API exposes a current rolling-24h snapshot
+ * only (no historical backfill / time-travel). Tells the dimension-adapters
+ * framework not to request past-window data.
  */
 
 const VOLUME_URL =
@@ -66,6 +70,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  runAtCurrTime: true,
   adapter: {
     [CHAIN.CANTON]: {
       fetch,
