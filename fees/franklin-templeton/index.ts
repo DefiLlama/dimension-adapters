@@ -1,19 +1,19 @@
-import { ChainApi } from "@defillama/sdk";
 import { Interface } from "ethers";
-import axios from "axios";
-import { PromisePool } from "@supercharge/promise-pool";
 import {
   Chain,
+  Dependencies,
   FetchOptions,
   FetchResultFees,
   SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { queryDuneSql } from "../../helpers/dune";
 
-// References:
+// References and source notes:
 // - Fund/distributions: https://www.franklintempleton.com/investments/options/money-market-funds/products/29386/SINGLCLASS/franklin-on-chain-u-s-government-money-fund/FOBXX#distributions
-// - Official Stellar issuer: https://horizon.stellar.org/accounts/GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5
+// - Gross expense ratio is applied uniformly across BENJI chains per fund-level methodology.
+// - EVM/Solana/Aptos/Stellar distributions are pulled from Dune-indexed on-chain events, logs, or memos.
 
 const TOKENS: Partial<Record<Chain, string[]>> = {
   [CHAIN.ETHEREUM]: [
@@ -25,199 +25,313 @@ const TOKENS: Partial<Record<Chain, string[]>> = {
   [CHAIN.AVAX]: ["0xE08b4c1005603427420e64252a8b120cacE4D122"],
   [CHAIN.BASE]: ["0x60CfC2b186a4CF647486e42c42B11cC6D571d1E4"],
   [CHAIN.BSC]: ["0x3d0a2A3a30a43a2C1C4b92033609245E819ae6a6"], // iBENJI
-  [CHAIN.STELLAR]: [
-    "BENJI-GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5",
-  ],
 };
 
 const DIVIDEND_DISTRIBUTED_EVENT =
   "event DividendDistributed(address indexed account, uint256 indexed date, int256 rate, uint256 price, uint256 shares, uint256 dividendCashAmount, uint256 dividendBasis, bool isNegativeYield)";
-const TRANSFER_EVENT =
-  "event Transfer(address indexed from, address indexed to, uint256 value)";
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const ZERO_ADDRESS_TOPIC =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-const transferInterface = new Interface([TRANSFER_EVENT]);
 const dividendInterface = new Interface([DIVIDEND_DISTRIBUTED_EVENT]);
 const dividendTopic =
   dividendInterface.getEvent("DividendDistributed")!.topicHash;
 
-const EXPENSE_LIMITATION_TIMESTAMP = 1754006400; // August 2025
-const GROSS_EXPENSE_YEAR = 0.0026;
-const NET_EXPENSE_YEAR = 0.002;
+const GROSS_EXPENSE_YEAR = 0.0022;
+const EVM_BENJI_DECIMALS = 18;
 
-const STELLAR_HORIZON_URL = "https://horizon.stellar.org";
 const STELLAR_ISSUER =
   "GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5";
 const STELLAR_ASSET_CODE = "BENJI";
+const APTOS_BENJI_METADATA =
+  "0x7b5e9cac3433e9202f28527f707c89e1e47b19de2c33e4db9521a63ad219b739";
+const APTOS_BENJI_DECIMALS = 9;
+const APTOS_DIVIDEND_DISTRIBUTED_EVENT =
+  "0xe10898758351ac7d32835ca8f7ef75a31232d210a1ba9cb628f85aef8a6f8eb6::fund_token::DividendDistributedEvent";
+const SOLANA_BENJI_MINT = "5Tu84fKBpe9vfXeotjvfvWdWbAjy3hqsExvuHgFqFxA1";
+const SOLANA_BENJI_DECIMALS = 9;
 
-const axiosGet = async (url: string, params?: Record<string, any>) => {
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await axios.get(url, { params });
-    } catch (e) {
-      if (i === 2) throw e;
-      await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
-    }
-  }
-  throw new Error("axios retry failed");
+type FranklinData = { assetYields: number; managementFees: number };
+
+const managementFees = (supply: number, periodSeconds: number) =>
+  (supply * GROSS_EXPENSE_YEAR * periodSeconds) / (365 * 86400);
+
+const stellarData = async (
+  options: FetchOptions,
+): Promise<FranklinData> => {
+  // Stellar dividends are issuer payments with DIVR memos; supply is rebuilt from live trust-line balances.
+  const query = `
+    with latest_trust_lines as (
+      select
+        ledger_key,
+        max_by(balance, closed_at) as balance,
+        max_by(deleted, closed_at) as deleted
+      from stellar.trust_lines
+      where closed_at < from_unixtime(${options.endTimestamp})
+        and asset_code = '${STELLAR_ASSET_CODE}'
+        and asset_issuer = '${STELLAR_ISSUER}'
+      group by 1
+    ),
+    dividends as (
+      select
+        sum(o.amount) as daily_dividends
+      from stellar.history_operations o
+      join stellar.history_transactions t
+        on o.transaction_id = t.id
+      where o.closed_at >= from_unixtime(${options.startTimestamp})
+        and o.closed_at < from_unixtime(${options.endTimestamp})
+        and o.asset_code = '${STELLAR_ASSET_CODE}'
+        and o.asset_issuer = '${STELLAR_ISSUER}'
+        and o.type_string = 'payment'
+        and o."from" = '${STELLAR_ISSUER}'
+        and t.memo like 'DIVR %'
+    )
+    select
+      coalesce((select sum(balance) from latest_trust_lines where not deleted), 0) as supply,
+      coalesce((select daily_dividends from dividends), 0) as daily_dividends
+  `;
+
+  const queryResults: {
+    supply: string | number | null;
+    daily_dividends: string | number | null;
+  }[] = await queryDuneSql(options, query);
+
+  const assetYields = Number(queryResults[0]?.daily_dividends ?? 0);
+  const supply = Number(queryResults[0]?.supply ?? 0);
+
+  return {
+    assetYields,
+    managementFees: managementFees(
+      supply,
+      options.endTimestamp - options.startTimestamp,
+    ),
+  };
 };
 
-const stellarAUM = async (token: string): Promise<number> => {
-  const stellarApi = `https://api.stellar.expert/explorer/public/asset/${token}`;
-  const { data } = await axiosGet(stellarApi);
-  const { supply, toml_info } = data;
-  return supply / 10 ** toml_info.decimals;
+const aptosData = async (
+  options: FetchOptions,
+): Promise<FranklinData> => {
+  const divisor = 10 ** APTOS_BENJI_DECIMALS;
+  // Aptos exposes both current supply and DividendDistributedEvent shares in Move resources/events.
+  const query = `
+    with latest_supply as (
+      select
+        max_by(json_extract_scalar(move_data, '$.current.value'), block_time) as supply
+      from aptos.move_resources
+      where block_time < from_unixtime(${options.endTimestamp})
+        and move_address = ${APTOS_BENJI_METADATA}
+        and move_resource_module = 'fungible_asset'
+        and move_resource_name = 'ConcurrentSupply'
+    ),
+    dividends as (
+      select
+        sum(cast(json_extract_scalar(data, '$.shares') as double)) as daily_dividends
+      from aptos.events
+      where block_time >= from_unixtime(${options.startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
+        and event_type = '${APTOS_DIVIDEND_DISTRIBUTED_EVENT}'
+    )
+    select
+      coalesce(cast((select supply from latest_supply) as double), 0) / ${divisor} as supply,
+      coalesce((select daily_dividends from dividends), 0) / ${divisor} as daily_dividends
+  `;
+
+  const queryResults: {
+    supply: string | number | null;
+    daily_dividends: string | number | null;
+  }[] = await queryDuneSql(options, query);
+
+  const assetYields = Number(queryResults[0]?.daily_dividends ?? 0);
+  const supply = Number(queryResults[0]?.supply ?? 0);
+
+  return {
+    assetYields,
+    managementFees: managementFees(
+      supply,
+      options.endTimestamp - options.startTimestamp,
+    ),
+  };
 };
 
-const sumStellarDividendTx = async (txHash: string): Promise<number> => {
-  const { data } = await axiosGet(
-    `${STELLAR_HORIZON_URL}/transactions/${txHash}/operations`,
-    { limit: 200 },
-  );
-  const operations = data?._embedded?.records ?? [];
-
-  return operations.reduce((sum: number, op: any) => {
-    const isBenji =
-      op.asset_code === STELLAR_ASSET_CODE &&
-      op.asset_issuer === STELLAR_ISSUER;
-    const isIssuerPayment = op.type === "payment" && op.from === STELLAR_ISSUER;
-    return sum + (isBenji && isIssuerPayment ? Number(op.amount ?? 0) : 0);
-  }, 0);
-};
-
-const stellarOnchainDistributions = async (
-  startTimestamp: number,
-  endTimestamp: number,
-): Promise<number> => {
-  const dividendTxs: string[] = [];
-  let cursor: string | undefined;
-
-  for (let page = 0; page < 200; page++) {
-    const { data } = await axiosGet(
-      `${STELLAR_HORIZON_URL}/accounts/${STELLAR_ISSUER}/transactions`,
-      { order: "desc", limit: 200, cursor },
-    );
-    const txs = data?._embedded?.records ?? [];
-    if (!txs.length) break;
-
-    for (const tx of txs) {
-      const txTimestamp = Math.floor(new Date(tx.created_at).getTime() / 1000);
-      if (txTimestamp >= endTimestamp) continue;
-      if (txTimestamp < startTimestamp) {
-        page = Infinity;
-        break;
-      }
-      if (String(tx.memo ?? "").startsWith("DIVR")) dividendTxs.push(tx.hash);
-    }
-
-    cursor = txs[txs.length - 1]?.paging_token;
-    if (!cursor) break;
-  }
-
-  const { results: txYields } = await PromisePool.withConcurrency(10)
-    .for(dividendTxs)
-    .process(sumStellarDividendTx);
-
-  return txYields.reduce((sum, amount) => sum + amount, 0);
-};
-
-const evmTokenData = async (
+const evmData = async (
+  options: FetchOptions,
   tokens: string[],
-  api: ChainApi,
-): Promise<Record<string, number>> => {
-  const [decimals, supplies] = await Promise.all([
-    api.multiCall({ calls: tokens, abi: "erc20:decimals" }),
-    api.multiCall({ calls: tokens, abi: "erc20:totalSupply" }),
-  ]);
+): Promise<FranklinData> => {
+  const tokenValues = tokens
+    .map((token) => `(${token})`)
+    .join(",\n        ");
 
-  return tokens.reduce((acc, token, index) => {
-    const tokenDecimals = Number(decimals[index]);
-    acc[token.toLowerCase()] = tokenDecimals;
-    acc.supply += Number(supplies[index]) / 10 ** tokenDecimals;
-    return acc;
-  }, { supply: 0 } as Record<string, number>);
+  const query = `
+    with tokens(contract_address) as (
+      values
+        ${tokenValues}
+    ),
+    chain_logs as (
+      select
+        l.block_time,
+        l.tx_hash,
+        l.contract_address,
+        l.topic0,
+        l.topic1,
+        l.topic2,
+        l.data
+      from CHAIN.logs l
+      where l.block_time < from_unixtime(${options.endTimestamp})
+        and (
+          l.topic0 = ${TRANSFER_TOPIC}
+          or l.topic0 = ${dividendTopic}
+        )
+    ),
+    supply_transfers as (
+      select
+        sum(
+          case
+            when l.topic1 = ${ZERO_ADDRESS_TOPIC} then cast(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) as double)
+            when l.topic2 = ${ZERO_ADDRESS_TOPIC} then -cast(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) as double)
+            else 0
+          end
+        ) / 1e${EVM_BENJI_DECIMALS} as supply
+      from chain_logs l
+      join tokens t
+        on l.contract_address = t.contract_address
+      where l.topic0 = ${TRANSFER_TOPIC}
+        and (
+          l.topic1 = ${ZERO_ADDRESS_TOPIC}
+          or l.topic2 = ${ZERO_ADDRESS_TOPIC}
+        )
+    ),
+    dividend_txs as (
+      select distinct
+        l.tx_hash
+      from chain_logs l
+      join tokens t
+        on l.contract_address = t.contract_address
+      where TIME_RANGE
+        and l.topic0 = ${TRANSFER_TOPIC}
+        and l.topic1 = ${ZERO_ADDRESS_TOPIC}
+    ),
+    dividends as (
+      -- DividendDistributed is emitted by a controller contract, so first anchor on BENJI/iBENJI mint txs.
+      select
+        case
+          when bytearray_to_uint256(bytearray_substring(l.data, 161, 32)) = 1
+            then -cast(bytearray_to_uint256(bytearray_substring(l.data, 65, 32)) as double)
+          else cast(bytearray_to_uint256(bytearray_substring(l.data, 65, 32)) as double)
+        end / 1e${EVM_BENJI_DECIMALS} as shares
+      from chain_logs l
+      join dividend_txs d
+        on l.tx_hash = d.tx_hash
+      where TIME_RANGE
+        and l.topic0 = ${dividendTopic}
+    )
+    select
+      coalesce((select supply from supply_transfers), 0) as supply,
+      coalesce(sum(shares), 0) as asset_yields
+    from dividends
+  `;
+
+  const queryResults: {
+    supply: string | number | null;
+    asset_yields: string | number | null;
+  }[] =
+    await queryDuneSql(options, query, { extraUIDKey: "evm-asset-yields" });
+
+  const supply = Number(queryResults[0]?.supply ?? 0);
+  const assetYields = Number(queryResults[0]?.asset_yields ?? 0);
+
+  return {
+    assetYields,
+    managementFees: managementFees(
+      supply,
+      options.endTimestamp - options.startTimestamp,
+    ),
+  };
 };
 
-const evmOnchainDistributions = async (
-  getLogs: FetchOptions["getLogs"],
-  tokenDecimals: Record<string, number>,
-): Promise<number> => {
-  const [mintLogs, dividendLogs] = await Promise.all([
-    getLogs({
-      targets: Object.keys(tokenDecimals),
-      eventAbi: TRANSFER_EVENT,
-      entireLog: true,
-    }),
-    getLogs({
-      noTarget: true,
-      topics: [dividendTopic],
-      entireLog: true,
-    }),
-  ]);
+const solanaData = async (
+  options: FetchOptions,
+): Promise<FranklinData> => {
+  const divisor = 10 ** SOLANA_BENJI_DECIMALS;
+  // Solana dividends are mint transfers in transactions logging DistributeDividend2; Dune amounts are raw.
+  const query = `
+    with supply as (
+      select
+        coalesce(sum(
+          case
+            when action = 'mint' then amount
+            when action = 'burn' then -amount
+            else 0
+          end
+        ), 0) as supply
+      from tokens_solana.transfers
+      where block_time < from_unixtime(${options.endTimestamp})
+        and token_mint_address = '${SOLANA_BENJI_MINT}'
+        and action in ('mint', 'burn')
+    ),
+    dividend_txs as (
+      select
+        id as tx_id
+      from solana.transactions
+      where block_time >= from_unixtime(${options.startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
+        and contains(log_messages, 'Program log: Instruction: DistributeDividend2')
+    ),
+    dividends as (
+      select
+        coalesce(sum(t.amount), 0) as daily_dividends
+      from tokens_solana.transfers t
+      join dividend_txs d
+        on t.tx_id = d.tx_id
+      where t.block_time >= from_unixtime(${options.startTimestamp})
+        and t.block_time < from_unixtime(${options.endTimestamp})
+        and t.token_mint_address = '${SOLANA_BENJI_MINT}'
+        and t.action = 'mint'
+    )
+    select
+      coalesce((select supply from supply), 0) / ${divisor} as supply,
+      coalesce((select daily_dividends from dividends), 0) / ${divisor} as daily_dividends
+  `;
 
-  const dividendMintLogs = mintLogs.filter((log) => {
-    const from = log.topics?.[1]?.toLowerCase();
-    return from === ZERO_ADDRESS_TOPIC;
-  });
+  const queryResults: {
+    supply: string | number | null;
+    daily_dividends: string | number | null;
+  }[] = await queryDuneSql(options, query);
 
-  const dividendTxs = new Set(
-    dividendLogs
-      .map((log) => log.transactionHash ?? log.transaction_hash)
-      .filter(Boolean)
-      .map((txHash) => txHash.toLowerCase()),
-  );
+  const assetYields = Number(queryResults[0]?.daily_dividends ?? 0);
+  const supply = Number(queryResults[0]?.supply ?? 0);
 
-  return dividendMintLogs.reduce((sum, log) => {
-    const txHash = log.transactionHash ?? log.transaction_hash;
-    if (!txHash || !dividendTxs.has(txHash.toLowerCase())) return sum;
-
-    const parsed = transferInterface.parseLog({
-      topics: log.topics,
-      data: log.data,
-    });
-
-    const decimals = tokenDecimals[log.address.toLowerCase()];
-    const amount = Number(parsed!.args.value) / 10 ** decimals;
-    return sum + amount;
-  }, 0);
+  return {
+    assetYields,
+    managementFees: managementFees(
+      supply,
+      options.endTimestamp - options.startTimestamp,
+    ),
+  };
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const { api, chain, createBalances, endTimestamp, getLogs, startTimestamp } =
-    options;
-  const tokens = TOKENS[chain]!;
+  const { api, chain, createBalances } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  let supply: number = 0;
-  const tokenDecimals: Record<string, number> = {};
+  let data: FranklinData;
 
-  if (api.chain === CHAIN.STELLAR) supply = await stellarAUM(tokens[0]);
-  else {
-    const tokenData = await evmTokenData(tokens, api);
-    supply = tokenData.supply;
-    tokens.forEach((token) => {
-      tokenDecimals[token.toLowerCase()] = tokenData[token.toLowerCase()];
-    });
+  if (api.chain === CHAIN.STELLAR) {
+    data = await stellarData(options);
+  } else if (api.chain === CHAIN.APTOS) {
+    data = await aptosData(options);
+  } else if (api.chain === CHAIN.SOLANA) {
+    data = await solanaData(options);
+  } else {
+    data = await evmData(options, TOKENS[chain]!);
   }
 
-  const expenseRatio =
-    endTimestamp < EXPENSE_LIMITATION_TIMESTAMP
-      ? NET_EXPENSE_YEAR
-      : GROSS_EXPENSE_YEAR;
-  const periodSeconds = endTimestamp - startTimestamp;
-  const managementFees = (supply * expenseRatio * periodSeconds) / (365 * 86400);
-  const assetYields =
-    api.chain === CHAIN.STELLAR
-      ? await stellarOnchainDistributions(startTimestamp, endTimestamp)
-      : await evmOnchainDistributions(getLogs, tokenDecimals);
+  dailyFees.addUSDValue(data.managementFees, METRIC.MANAGEMENT_FEES);
+  dailyFees.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
 
-  dailyFees.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES);
-  dailyFees.addUSDValue(assetYields, METRIC.ASSETS_YIELDS);
-
-  dailyRevenue.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES);
-  dailySupplySideRevenue.addUSDValue(assetYields, METRIC.ASSETS_YIELDS);
+  dailyRevenue.addUSDValue(data.managementFees, METRIC.MANAGEMENT_FEES);
+  dailySupplySideRevenue.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
@@ -233,9 +347,9 @@ const chainConfig = (
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]:
-      "Annual fund expense ratio prorated over the fetch period and applied to BENJI shares outstanding.",
+      "0.22% gross expense ratio prorated over the fetch period and applied to BENJI shares outstanding.",
     [METRIC.ASSETS_YIELDS]:
-      "BENJI/iBENJI distributions from on-chain dividend mint events on EVM chains and Stellar DIVR issuer payments.",
+      "BENJI/iBENJI distributions from EVM DividendDistributed shares, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar DIVR issuer payments.",
   },
   Revenue: {
     [METRIC.MANAGEMENT_FEES]:
@@ -257,18 +371,22 @@ const adapter: SimpleAdapter = {
     chainConfig(CHAIN.ARBITRUM, "2025-01-01"),
     chainConfig(CHAIN.AVAX, "2025-01-01"),
     chainConfig(CHAIN.BASE, "2025-01-01"),
-    // chainConfig(CHAIN.BSC, "2025-01-01"),
+    chainConfig(CHAIN.APTOS, "2026-05-01"),
+    chainConfig(CHAIN.SOLANA, "2026-05-01"),
+    chainConfig(CHAIN.BSC, "2025-01-01"),
     chainConfig(CHAIN.STELLAR, "2023-10-04"),
   ],
   methodology: {
     Fees:
-      "BENJI distributions from token mint Transfer events in transactions that also emit DividendDistributed on EVM chains and Stellar BENJI issuer transactions with DIVR memos, plus fund-level expenses estimated from the published annual expense ratio.",
+      "BENJI distributions from DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer transactions with DIVR memos, plus fund-level expenses calculated from a 0.22% gross expense ratio on total supply.",
     Revenue:
-      "Franklin Templeton fund expenses, estimated from the published annual expense ratio.",
+      "Franklin Templeton fund expenses, calculated from a 0.22% gross expense ratio on total supply.",
     SupplySideRevenue:
-      "BENJI distributions/newly minted fund shares distributed to holders, using token mint Transfer events in transactions that also emit DividendDistributed on EVM chains and Stellar BENJI issuer payments with DIVR memos.",
+      "BENJI distributions/newly minted fund shares distributed to holders, using DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer payments with DIVR memos.",
   },
   breakdownMethodology,
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;
