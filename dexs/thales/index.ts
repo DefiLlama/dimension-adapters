@@ -1,9 +1,9 @@
 /**
  * Thales Options Adapter
  *
- * Fee/Revenue/HoldersRevenue Calculation (all equal):
- * - SafeBoxFeePaid events from AMM contracts (AMM fees)
- * - SafeBoxSharePaid events from LP contracts (LP performance fees)
+ * Fee/Revenue Calculation:
+ * - SafeBoxFeePaid events from AMM contracts (AMM fees) count as revenue/holders revenue
+ * - SafeBoxSharePaid events from LP contracts (LP performance fees) count as supply-side revenue
  * - Volume: Tracked from various market creation and trading events
  */
 
@@ -96,8 +96,9 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyVolume: dailyPremiumVolume,
     dailyNotionalVolume: dailyNotionalVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailyLPPerformanceFee,
     dailyProtocolRevenue: 0,
   };
 }
@@ -114,9 +115,10 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: "Fees collected from AMM trades and LP performance fees",
-    Revenue: "Total revenue from AMM fees and LP performance fees, all distributed to $OVER token holders",
+    Revenue: "SafeBox fees from AMM trades distributed to $OVER token holders",
+    SupplySideRevenue: "LP performance fees collected from LP positions",
     ProtocolRevenue: "Protocol doesn't keep any revenue",
-    HoldersRevenue: "100% of revenue (AMM fees + LP fees) goes to $OVER token buybacks",
+    HoldersRevenue: "SafeBox fees from AMM trades go to $OVER token buybacks",
   },
   breakdownMethodology: {
     Fees: {
@@ -125,11 +127,12 @@ const adapter: Adapter = {
     },
     Revenue: {
       "SafeBox Fees": "AMM fees distributed to $OVER token holders via buybacks",
-      "LP Performance Fees": "LP fees distributed to $OVER token holders via buybacks",
+    },
+    SupplySideRevenue: {
+      "LP Performance Fees": "Performance fees collected from LP positions via SafeBoxSharePaid events",
     },
     HoldersRevenue: {
       "SafeBox Fees": "AMM fees redistributed to $OVER token holders",
-      "LP Performance Fees": "LP fees redistributed to $OVER token holders",
     },
   },
 };
