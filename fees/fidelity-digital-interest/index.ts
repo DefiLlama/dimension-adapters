@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
@@ -76,13 +76,12 @@ function parsePercent(value?: string) {
 function getNetExpenseRatio(features: FidelityFeatureInformation = []) {
   const byCode = Object.fromEntries(features.map((feature) => [feature.featureCode, feature.featureValue]));
   // Fidelity feature codes:
-  // ERAER = expenses net of all reductions, NTEXP = total annual operating expenses after waiver/reimbursement,
-  // MGFEE = management fee. SEC summary prospectus lists 0.25% gross management fee and 0.20% net expenses.
+  // ERAER = expenses net of all reductions, NTEXP = total annual operating expenses after waiver/reimbursement.
+  // MGFEE is the gross management fee, so it is not used as a net-expense fallback.
   // https://www.sec.gov/Archives/edgar/data/917286/000113322825007437/ftdf-efp16750_497k.htm
   const netExpenseRatio =
     parsePercent(byCode.ERAER) ??
-    parsePercent(byCode.NTEXP) ??
-    parsePercent(byCode.MGFEE);
+    parsePercent(byCode.NTEXP);
 
   if (netExpenseRatio === undefined) {
     throw new Error("No Fidelity expense ratio found");
@@ -144,7 +143,7 @@ async function getFundDataPricing(dateString: string): Promise<PricingData> {
   };
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResult> => {
   let pricing = await getFundDataPricing(options.dateString);
 
   if (pricing.milRate === undefined) {
@@ -162,10 +161,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const fditSupply = Number(supply) / 1e18;
   const netExpenseRatio = getNetExpenseRatio(pricing.featureInformation);
-  const periodInYears = (options.endTimestamp - options.startTimestamp) / (365 * 24 * 60 * 60);
 
   const dailyDividends = fditSupply * pricing.milRate;
-  const dailyFundFees = fditSupply * netExpenseRatio * periodInYears;
+  const dailyFundFees = fditSupply * netExpenseRatio / 365;
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -210,7 +208,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
   breakdownMethodology,
   adapter: {
