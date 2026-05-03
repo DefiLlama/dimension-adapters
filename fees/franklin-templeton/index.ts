@@ -310,7 +310,11 @@ const solanaData = async (
   };
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (
+  _timestamp: number,
+  _chainBlocks: unknown,
+  options: FetchOptions,
+): Promise<FetchResultFees> => {
   const { api, chain, createBalances } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -362,8 +366,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   chains: [
     chainConfig(CHAIN.ETHEREUM, "2025-01-01", false),
