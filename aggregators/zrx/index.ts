@@ -31,8 +31,9 @@ const CHAINS: TChain = {
   [CHAIN.TEMPO]: 4217,
 };
 
-const inflatedFees: Record<string, Array<string>> = {
-  [CHAIN.ETHEREUM]: ["2026-03-02", "2026-03-22"]
+const inflatedVolume: Record<string, Array<string>> = {
+  [CHAIN.ETHEREUM]: ["2026-03-02", "2026-03-22"],
+  [CHAIN.BASE]: ["2026-05-02"],
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -44,7 +45,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   let dailyVolume = 0;
 
-  if (!inflatedFees[options.chain] || !inflatedFees[options.chain].includes(options.dateString))
+  if (!inflatedVolume[options.chain] || !inflatedVolume[options.chain].includes(options.dateString))
     dailyVolume = response.data.volume;
 
   return {
