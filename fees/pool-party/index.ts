@@ -11,6 +11,10 @@ import { httpGet } from "../../utils/fetchURL";
  * Phase 1: only `totalFees` is populated. supplySideRevenue / protocolRevenue /
  * holdersRevenue are intentionally null per AGW-PPUB-017 (Send Phase 2 spec
  * depends on PQS materialized views for per-swap fee attribution).
+ *
+ * runAtCurrTime: true — Pool Party API exposes a current rolling-24h snapshot
+ * only (no historical backfill / time-travel). Tells the dimension-adapters
+ * framework not to request past-window data.
  */
 
 const FEES_URL =
@@ -63,6 +67,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  runAtCurrTime: true,
   adapter: {
     [CHAIN.CANTON]: {
       fetch,
