@@ -110,7 +110,7 @@ async function paginated<T>(field: string, query: string, variables: Record<stri
 
 // Source: Clearpool Subsquid dynamicPoolSnapshots.
 // cumulativeInterestEarned is differenced across day boundaries for gross borrower interest.
-// dynamic.reserveFactor + dynamic.insuranceFactor gives the ray-scaled protocol share.
+// dynamic.reserveFactor gives the ray-scaled protocol share; insuranceFactor is excluded from protocol revenue.
 const dynamicSnapshotQuery = `
   query DynamicSnapshots($network: Network!, $date: String!, $offset: Int!, $limit: Int!) {
     dynamicPoolSnapshots(
@@ -212,13 +212,18 @@ const addPrimeRepaymentFees = async (
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const config = NETWORKS[options.chain];
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-
-  if (!config) return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  if (!config) {
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  }
 
   try {
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
     const [startSnapshots, endSnapshots, startVaultSnapshots, endVaultSnapshots] = await Promise.all([
       paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
         network: config.network,
@@ -244,7 +249,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       // Missing start snapshot means there is no period delta; treating it as zero would overcount lifetime interest.
       if (!start) continue;
       const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
-      const protocolRate = toBigInt(end.dynamic.reserveFactor) + toBigInt(end.dynamic.insuranceFactor);
+      const protocolRate = toBigInt(end.dynamic.reserveFactor);
       addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.dynamic.asset.address, interest, protocolRate);
     }
 
@@ -258,16 +263,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     await addPrimeRepaymentFees(options, config, dailyFees, dailyRevenue, dailySupplySideRevenue);
+
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
   } catch (error) {
     console.error(`[clearpool][${options.chain}] fetch failed`, error);
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
   }
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
 }
 
 const adapter: SimpleAdapter = {
@@ -292,11 +301,11 @@ const adapter: SimpleAdapter = {
       [PRIME_REPAYMENT_FEES]: "Prime pool fees from Repayed events on pools discovered from factory PoolCreated events.",
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve plus insurance factors and Credit Vault protocol rates.",
+      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors and Credit Vault protocol rates.",
       [PRIME_REPAYMENT_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve plus insurance factors and Credit Vault protocol rates.",
+      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors and Credit Vault protocol rates.",
       [PRIME_REPAYMENT_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
     },
     SupplySideRevenue: {
