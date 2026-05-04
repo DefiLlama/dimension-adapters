@@ -3,6 +3,12 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 
 const LENDING_LENS = '0x3682168023e6ba8d1f995fda1d920827c5a8a43e'
 
+// LeverageRfqEngine and RfqEngine on Sonic. Both forward fees to the same
+// treasury (0x1118e1c057211306a40A4d7006C040dbfE1370Cb) via feeCollector /
+// liqFeeCollector.
+const LEVERAGE_RFQ_ENGINE = '0x8263a07504d93cB95e0a74f3627bb15faaf140e2'
+const RFQ_ENGINE = '0xEB00B335Ca52216Fb60fdFFA361397367C39Dc32'
+
 // Reserves are maintained off chain. Flying Tulip's LendingLens does not expose
 // a public enumeration method (no getReserves / allAssets / reservesList). The
 // authoritative list lives in Flying Tulip's backend config and is mirrored by
@@ -28,6 +34,21 @@ const ASSET_CFG_ABI =
 const IRM_SAMPLE_APR_ABI =
   'function irmSampleAPR(address, uint256[]) view returns (uint256[])'
 
+// Trading-engine events. All carry the fee in `feeAmount`, denominated in the
+// `sellToken` for leverage events and in `asset` for the RFQ liquidation event.
+const OPEN_LEVERAGE_FILLED =
+  'event OpenLeverageFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountIn, uint256 buyAmountMin, uint256 feeAmount, bytes32 digest)'
+const OPEN_LEVERAGE_FLASH_FILLED =
+  'event OpenLeverageFlashFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountMin, uint256 feeAmount, address fillTarget, bytes32 digest)'
+const CLOSE_LEVERAGE_FILLED =
+  'event CloseLeverageFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountIn, uint256 buyAmountMin, uint256 feeAmount, bytes32 digest)'
+const CLOSE_LEVERAGE_FLASH_FILLED =
+  'event CloseLeverageFlashFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountMin, uint256 feeAmount, address fillTarget, bytes32 digest)'
+const COLLATERAL_SWAP_FILLED =
+  'event CollateralSwapFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountIn, uint256 buyAmountMin, uint256 feeAmount, bytes32 digest)'
+const LIQUIDATION_FEE_COLLECTED =
+  'event LiquidationFeeCollected(address indexed asset, address indexed to, uint256 amount)'
+
 const WAD = 10n ** 18n
 const SECONDS_PER_YEAR = 365n * 24n * 60n * 60n
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
@@ -36,95 +57,140 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
+  const dailyRevenue = options.createBalances()
   const reserves = RESERVES[options.chain] || []
-  if (reserves.length === 0) {
-    return {
-      dailyFees,
-      dailyRevenue: dailyProtocolRevenue,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
+
+  // 1) Borrower interest — supply-side revenue, no protocol cut.
+  if (reserves.length > 0) {
+    const [states, cfgs] = await Promise.all([
+      options.toApi.multiCall({
+        target: LENDING_LENS,
+        abi: ASSET_STATE_ABI,
+        calls: reserves,
+        permitFailure: true,
+      }),
+      options.toApi.multiCall({
+        target: LENDING_LENS,
+        abi: ASSET_CFG_ABI,
+        calls: reserves,
+        permitFailure: true,
+      }),
+    ])
+
+    const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
+
+    const aprCalls: { target: string; params: any[] }[] = []
+    const aprIndex: number[] = []
+    for (let i = 0; i < reserves.length; i++) {
+      const state = states[i]
+      const cfg = cfgs[i]
+      if (!state || !cfg) continue
+      const irm = cfg[0]
+      if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
+      const borrows = BigInt(state[1])
+      if (borrows === 0n) continue
+      aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
+      aprIndex.push(i)
+    }
+
+    const aprResults = await options.toApi.multiCall({
+      abi: IRM_SAMPLE_APR_ABI,
+      calls: aprCalls,
+      permitFailure: true,
+    })
+
+    for (let k = 0; k < aprIndex.length; k++) {
+      const i = aprIndex[k]
+      const aprs = aprResults[k]
+      if (!aprs || aprs.length === 0 || !aprs[0]) continue
+      const borrows = BigInt(states[i][1])
+      const aprWad = BigInt(aprs[0])
+      const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
+      if (interest <= 0n) continue
+      dailyFees.add(reserves[i], interest, 'Borrow Interest')
+      dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
     }
   }
 
-  const [states, cfgs] = await Promise.all([
-    options.toApi.multiCall({
-      target: LENDING_LENS,
-      abi: ASSET_STATE_ABI,
-      calls: reserves,
-      permitFailure: true,
-    }),
-    options.toApi.multiCall({
-      target: LENDING_LENS,
-      abi: ASSET_CFG_ABI,
-      calls: reserves,
-      permitFailure: true,
-    }),
-  ])
-
-  const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
-
-  // Collect every reserve that has a valid IRM and non zero borrows, then batch
-  // the APR reads into a single multiCall to avoid N sequential RPCs.
-  const aprCalls: { target: string; params: any[] }[] = []
-  const aprIndex: number[] = []
-  for (let i = 0; i < reserves.length; i++) {
-    const state = states[i]
-    const cfg = cfgs[i]
-    if (!state || !cfg) continue
-    const irm = cfg[0]
-    if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
-    const borrows = BigInt(state[1])
-    if (borrows === 0n) continue
-    aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
-    aprIndex.push(i)
+  // 2) LeverageRfqEngine trading fees — protocol revenue (sent to feeCollector
+  //    which is the Flying Tulip treasury).
+  const leverageEvents: [string, string][] = [
+    [OPEN_LEVERAGE_FILLED, 'Open Leverage Fee'],
+    [OPEN_LEVERAGE_FLASH_FILLED, 'Open Leverage Fee'],
+    [CLOSE_LEVERAGE_FILLED, 'Close Leverage Fee'],
+    [CLOSE_LEVERAGE_FLASH_FILLED, 'Close Leverage Fee'],
+    [COLLATERAL_SWAP_FILLED, 'Collateral Swap Fee'],
+  ]
+  for (const [eventAbi, label] of leverageEvents) {
+    const logs = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
+    for (const log of logs) {
+      const fee = BigInt(log.feeAmount.toString())
+      if (fee === 0n) continue
+      const token = (log.sellToken as string).toLowerCase()
+      dailyFees.add(token, fee, label)
+      dailyRevenue.add(token, fee, label)
+      dailyProtocolRevenue.add(token, fee, label)
+    }
   }
 
-  const aprResults = await options.toApi.multiCall({
-    abi: IRM_SAMPLE_APR_ABI,
-    calls: aprCalls,
-    permitFailure: true,
-  })
-
-  for (let k = 0; k < aprIndex.length; k++) {
-    const i = aprIndex[k]
-    const aprs = aprResults[k]
-    if (!aprs || aprs.length === 0 || !aprs[0]) continue
-    const borrows = BigInt(states[i][1])
-    const aprWad = BigInt(aprs[0])
-    const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
-    if (interest <= 0n) continue
-    dailyFees.add(reserves[i], interest, 'Borrow Interest')
-    dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
+  // 3) RfqEngine liquidation fees — protocol revenue (to liqFeeCollector =
+  //    treasury).
+  const liqLogs = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
+  for (const log of liqLogs) {
+    const amount = BigInt(log.amount.toString())
+    if (amount === 0n) continue
+    const asset = (log.asset as string).toLowerCase()
+    dailyFees.add(asset, amount, 'RFQ Liquidation Fee')
+    dailyRevenue.add(asset, amount, 'RFQ Liquidation Fee')
+    dailyProtocolRevenue.add(asset, amount, 'RFQ Liquidation Fee')
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
+    dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
   }
 }
 
 const methodology = {
-  Fees: 'Interest paid by borrowers across every reserve on Flying Tulip Lend, estimated as borrows * IRM.irmSampleAPR(util) * windowSeconds / year. State and rate samples read via LendingLens.',
+  Fees:
+    'Sum of (a) borrower interest accrued across every Lend reserve, (b) leverage trading fees from LeverageRfqEngine open/close/collateral-swap events, and (c) RFQ liquidation fees from RfqEngine.',
   Revenue:
-    'Protocol retains no reserve factor on chain. All borrower interest is routed back to suppliers as FT denominated rewards, so protocol revenue is 0.',
-  ProtocolRevenue: 'Same as Revenue, tracked as 0.',
+    'Leverage trading fees and RFQ liquidation fees flow to the Flying Tulip treasury via feeCollector and liqFeeCollector. Borrower interest does not retain a protocol cut on chain.',
+  ProtocolRevenue:
+    'Same as Revenue. Leverage and liquidation fees both end up at 0x1118e1c057211306a40A4d7006C040dbfE1370Cb (treasury).',
   SupplySideRevenue:
-    'Total borrower interest. The on chain reserves accumulator collects interest first, then the protocol uses those fees to buy FT on the open market and distributes the FT to suppliers quarterly through the EpochRewardsVault. FT has a fixed total supply so nothing is minted.',
+    'Borrower interest only. The on chain reserves accumulator collects interest, the protocol then swaps it to FT on the open market via LendEpochSettlerOperator and distributes the FT back to lenders pro rata via PositionsManager.settleEpoch. FT has a fixed total supply so nothing is minted.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Borrow Interest': 'Interest paid by borrowers across every reserve, estimated as borrows * IRM.irmSampleAPR(util) * windowSeconds / year.',
+    'Borrow Interest':
+      'Interest paid by borrowers across every reserve, estimated as borrows * IRM.irmSampleAPR(util) * windowSeconds / year.',
+    'Open Leverage Fee':
+      'feeAmount field of LeverageRfqEngine.OpenLeverageFilled and OpenLeverageFlashFilled events, denominated in the trade sellToken.',
+    'Close Leverage Fee':
+      'feeAmount field of LeverageRfqEngine.CloseLeverageFilled and CloseLeverageFlashFilled events.',
+    'Collateral Swap Fee':
+      'feeAmount field of LeverageRfqEngine.CollateralSwapFilled events.',
+    'RFQ Liquidation Fee':
+      'amount field of RfqEngine.LiquidationFeeCollected events, denominated in the asset being liquidated.',
+  },
+  ProtocolRevenue: {
+    'Open Leverage Fee': 'Open-leverage fees collected by LeverageRfqEngine, sent to feeCollector (Flying Tulip treasury).',
+    'Close Leverage Fee': 'Close-leverage fees collected by LeverageRfqEngine, sent to feeCollector.',
+    'Collateral Swap Fee': 'Collateral-swap fees collected by LeverageRfqEngine, sent to feeCollector.',
+    'RFQ Liquidation Fee': 'Liquidation fees collected by RfqEngine, sent to liqFeeCollector (treasury).',
   },
   SupplySideRevenue: {
-    'Borrow Interest To Lenders': 'Total borrower interest accrues to the on chain reserves accumulator; the protocol then buys FT on the open market with these fees and distributes it to suppliers quarterly through the EpochRewardsVault.',
+    'Borrow Interest To Lenders':
+      'Total borrower interest accrues to the on chain reserves accumulator; the protocol then buys FT on the open market and distributes it to lenders pro rata via PositionsManager.settleEpoch.',
   },
 }
 
 const adapter: SimpleAdapter = {
-  version: 1, // Interests are low, no need to run every hour
+  version: 1,
   methodology,
   breakdownMethodology,
   adapter: {
