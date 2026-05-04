@@ -9,22 +9,31 @@ interface DimensionsResponse {
   end: number;
   dailyVolume: number;
   dailyFees: number;
-  dailyRevenue: number;
   dailySupplySideRevenue: number;
-  dailyUserFees: number;
-  dailyProtocolRevenue: number;
 }
 
 const fetch = async (options: FetchOptions) => {
   const url = `${API_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`;
   const data: DimensionsResponse = await httpGet(url);
 
+  if (
+    !data ||
+    data.dailyVolume == null ||
+    data.dailyFees == null ||
+    data.dailySupplySideRevenue == null
+  ) {
+    throw new Error(
+      `Cubic API returned invalid response from ${url}: ${JSON.stringify(data)}`
+    );
+  }
+
+  const dailyRevenue = data.dailyFees - data.dailySupplySideRevenue;
+
   return {
     dailyVolume: data.dailyVolume,
     dailyFees: data.dailyFees,
-    dailyUserFees: data.dailyUserFees,
-    dailyRevenue: data.dailyRevenue,
-    dailyProtocolRevenue: data.dailyProtocolRevenue,
+    dailyUserFees: data.dailyFees,
+    dailyRevenue,
     dailySupplySideRevenue: data.dailySupplySideRevenue,
   };
 };
@@ -41,20 +50,8 @@ const adapter: SimpleAdapter = {
     Volume: "Sum of swap input USD value across all Cubic pools, computed from on-chain swap events indexed by the Cubic backend.",
     Fees: "All swap fees paid by users on Cubic pools (LP share + protocol share).",
     UserFees: "All swap fees paid by users on Cubic pools.",
-    Revenue: "Protocol's share of swap fees on Cubic pools.",
-    ProtocolRevenue: "Protocol's share of swap fees, accruing to the Cubic protocol fees authority.",
+    Revenue: "Protocol's share of swap fees on Cubic pools (dailyFees - dailySupplySideRevenue), accruing to the Cubic protocol fees authority.",
     SupplySideRevenue: "LPs' share of swap fees on Cubic pools.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      "Swap Fees": "Fees collected on every swap, computed from on-chain swap events.",
-    },
-    Revenue: {
-      "Swap Fees To Treasury": "Protocol's share of swap fees.",
-    },
-    SupplySideRevenue: {
-      "Swap Fees To LPs": "LPs' share of swap fees.",
-    },
   },
 };
 
