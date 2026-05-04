@@ -18,19 +18,25 @@ const MARKETPLACE_FEES_TO_TREASURY = "Marketplace Fees To Treasury";
 
 async function fetch(options: FetchOptions) {
   const received = options.createBalances();
-
-  await getSolanaReceived({
-    options,
-    balances: received,
-    target: READY_CARDS_TREASURY,
-    mints: PAYMENT_MINTS,
-    blacklists: [READY_CARDS_TREASURY],
-  });
-
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+
+  try {
+    await getSolanaReceived({
+      options,
+      balances: received,
+      target: READY_CARDS_TREASURY,
+      mints: PAYMENT_MINTS,
+      blacklists: [READY_CARDS_TREASURY],
+    });
+  } catch (e) {
+    console.error(
+      `[ready-cards] failed to fetch Solana receipts for treasury ${READY_CARDS_TREASURY} and mints ${PAYMENT_MINTS.join(", ")}`,
+      e,
+    );
+  }
 
   dailyFees.addBalances(received, PACK_SALES);
   dailyFees.addUSDValue(0, MARKETPLACE_FEES);
