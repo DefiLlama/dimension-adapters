@@ -7,8 +7,9 @@ const fetch = async (options: FetchOptions) => {
 
   let volumeRaw = BigInt(0);
 
-  for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs, ...liquidateLogs])
+  for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs, ...liquidateLogs]) {
     volumeRaw += BigInt(log.posData[1]);
+  };
 
   const dailyVolume = options.createBalances();
   dailyVolume.addUSDValue(toUSD(volumeRaw));
@@ -18,6 +19,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2024-09-20',

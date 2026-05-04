@@ -16,14 +16,17 @@ const fetch = async (options: FetchOptions) => {
   let liquidationFeeRaw = BigInt(0);
   let borrowFeeRaw = BigInt(0);
 
-  for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs])
+  for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs]) {
     feeRaw += BigInt(log.posData[4]);
+  };
 
-  for (const log of liquidateLogs)
+  for (const log of liquidateLogs) {
     liquidationFeeRaw += abs(BigInt(log.posData[0])) / 10n;
+  };
 
-  for (const log of [...decreaseLogs, ...closeLogs, ...liquidateLogs])
+  for (const log of [...decreaseLogs, ...closeLogs, ...liquidateLogs]) {
     borrowFeeRaw += abs(BigInt(log.pnlData[2]));
+  };
 
   const feeUSD = toUSD(feeRaw);
   const liquidationFeeUSD = toUSD(liquidationFeeRaw);
@@ -37,7 +40,7 @@ const fetch = async (options: FetchOptions) => {
     hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
   } catch (e) {
     console.log("Hyperliquid daily stats query failed:", e);
-  }
+  };
 
   const after = options.startTimestamp >= SPLIT_TIMESTAMP;
   // Fee split changed on 2024-10-16:
@@ -45,10 +48,10 @@ const fetch = async (options: FetchOptions) => {
   // After:  USD.m 50% + MOLTEN burn 20% + stakers 15% + dev 15%
   const totalFeesUSD = feeUSD + liquidationFeeUSD + borrowFeeUSD + hlFeesUSD;
 
-  const usdmPool   = totalFeesUSD * (after ? 0.50 : 0.20);
+  const usdmPool = totalFeesUSD * (after ? 0.50 : 0.20);
   const moltenBurn = totalFeesUSD * (after ? 0.20 : 0.50);
-  const stakers    = totalFeesUSD * 0.15;
-  const devFund    = totalFeesUSD * 0.15;
+  const stakers = totalFeesUSD * 0.15;
+  const devFund = totalFeesUSD * 0.15;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
