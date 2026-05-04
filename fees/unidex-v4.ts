@@ -17,15 +17,15 @@ const fetch = async (options: FetchOptions) => {
   let borrowFeeRaw = BigInt(0);
 
   for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs]) {
-    feeRaw += BigInt(log.posData[4]);
+    feeRaw += log.posData.fee;
   };
 
   for (const log of liquidateLogs) {
-    liquidationFeeRaw += abs(BigInt(log.posData[0])) / 10n;
+    liquidationFeeRaw += abs(log.posData.collateralDelta) / 10n;
   };
 
   for (const log of [...decreaseLogs, ...closeLogs, ...liquidateLogs]) {
-    borrowFeeRaw += abs(BigInt(log.pnlData[2]));
+    borrowFeeRaw += abs(log.pnlData.borrowFee);
   };
 
   const feeUSD = toUSD(feeRaw);

@@ -5,14 +5,11 @@ import { getUnidexV4Logs, toUSD } from "../helpers/unidex-v4";
 const fetch = async (options: FetchOptions) => {
   const [increaseLogs, decreaseLogs, closeLogs, liquidateLogs] = await getUnidexV4Logs(options);
 
-  let volumeRaw = BigInt(0);
+  const dailyVolume = options.createBalances();
 
   for (const log of [...increaseLogs, ...decreaseLogs, ...closeLogs, ...liquidateLogs]) {
-    volumeRaw += BigInt(log.posData[1]);
+    dailyVolume.addUSDValue(toUSD(log.posData.sizeDelta));
   };
-
-  const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(toUSD(volumeRaw));
 
   return { dailyVolume };
 };
