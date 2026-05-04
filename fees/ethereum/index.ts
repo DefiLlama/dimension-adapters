@@ -82,15 +82,18 @@
 // export default adapter;
 
 import { Row } from "@clickhouse/client"
-import { FetchOptions, ProtocolType, Adapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, Adapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { queryClickhouse } from "../../helpers/indexer";
+import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 
 type FeesRow = Row & {
   total_fees_wei: string;
   base_burn_wei: string;
 };
+
+type BlobFeesRow = { blob_fees_wei: string };
 
 export const SQL_TOTAL_FEES = `
   SELECT
@@ -127,6 +130,31 @@ export const SQL_TOTAL_FEES_BURNED = `
   )
 `;
 
+// Blob fees (EIP-4844, live since 2024-03-13). Read from Dune because the
+// internal evm_indexer schema currently exposes only legacy gas/effective_gas
+// columns — blob fees are charged on a separate market (`blob_gas_used *
+// blob_gas_price`) and do not surface there. Dune's `ethereum.transactions`
+// view records `type = 3` blob-carrying transactions with both columns.
+//
+// Returns 0 for any window before the EIP-4844 fork (no rows match).
+const SQL_TOTAL_BLOB_FEES_BURNED = `
+  SELECT
+    CAST(
+      COALESCE(
+        SUM(
+          CAST(blob_gas_used AS DECIMAL(38,0))
+          * CAST(blob_gas_price AS DECIMAL(38,0))
+        ),
+        0
+      )
+      AS VARCHAR
+    ) AS blob_fees_wei
+  FROM ethereum.transactions
+  WHERE
+    type = 3
+    AND TIME_RANGE
+`;
+
 export const fetch = async (options: FetchOptions) => {
   const chainId = options.api.chainId
   const fromBlock = Number(options.fromApi.block)
@@ -140,19 +168,28 @@ export const fetch = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
   }
 
-  const totalFeesRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock });
-  const totalFeesBurnedRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock });
+  const [totalFeesRows, totalFeesBurnedRows, blobFeesRows] = await Promise.all([
+    queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock }),
+    queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock }),
+    queryDuneSql(options, SQL_TOTAL_BLOB_FEES_BURNED) as Promise<BlobFeesRow[]>,
+  ]);
 
   const totalFeesWei = BigInt(totalFeesRows?.[0]?.total_fees_wei ?? "0");
-  const baseFeesWei = BigInt(totalFeesBurnedRows?.[0]?.base_burn_wei ?? "0");
+  const baseFeesWei  = BigInt(totalFeesBurnedRows?.[0]?.base_burn_wei ?? "0");
   const priorityWei  = totalFeesWei - baseFeesWei;
+  const blobFeesWei  = BigInt(blobFeesRows?.[0]?.blob_fees_wei ?? "0");
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   dailyFees.addGasToken(baseFeesWei, METRIC.TRANSACTION_BASE_FEES);
   dailyFees.addGasToken(priorityWei, METRIC.TRANSACTION_PRIORITY_FEES);
+  dailyFees.addGasToken(blobFeesWei, METRIC.TRANSACTION_BLOB_FEES);
+
+  // Blob fees, like base fees, are permanently burned — they accrue to no
+  // proposer / no validator. Treat them the same way in the revenue split.
   dailyRevenue.addGasToken(baseFeesWei, METRIC.TRANSACTION_BASE_FEES);
+  dailyRevenue.addGasToken(blobFeesWei, METRIC.TRANSACTION_BLOB_FEES);
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
 }
@@ -163,21 +200,25 @@ const adapter: Adapter = {
   start: '2015-07-30',
   chains: [CHAIN.ETHEREUM],
   protocolType: ProtocolType.CHAIN,
+  dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: 'Total ETH gas fees (including base fees and priority fees) paid by users',
-    Revenue: 'Amount of ETH base fees that were burned',
-    HoldersRevenue: 'Amount of ETH base fees that were burned',
+    Fees: 'Total ETH gas fees (base fees + priority fees) plus blob fees (post-EIP-4844, type-3 blob-carrying transactions) paid by users',
+    Revenue: 'Amount of ETH burned — base fees plus blob fees (both are permanently burned, accruing to no proposer)',
+    HoldersRevenue: 'Amount of ETH burned — base fees plus blob fees',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees paid by users',
       [METRIC.TRANSACTION_PRIORITY_FEES]: 'Total ETH priority fees paid by users',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees paid by users on type-3 transactions (EIP-4844, live since 2024-03-13)',
     },
     Revenue: {
-      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees burned',
     },
     HoldersRevenue: {
-      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees burned',
     },
   }
 }
