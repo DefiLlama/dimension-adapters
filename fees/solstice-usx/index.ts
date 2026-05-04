@@ -3,11 +3,12 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { getTokenSupply } from '../../helpers/solana';
 import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 const EUSX = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
 const PYTH_EUSX_REDEMPTION_PRICE_ID = 'f36e12e65d2969b242fb97d3ebaa32ec55d5794189b64d1a07dc4f41425c9378';
 const PYTH_HERMES_PRICE_API = 'https://hermes.pyth.network/v2/updates/price';
-const FEES_YIELD_LABEL = 'eUSX Yield Accrual';
+const FEES_YIELD_LABEL = METRIC.ASSETS_YIELDS;
 const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
 
 const getRedemptionPrice = async (timestamp: number) => {
@@ -36,7 +37,7 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
   const priceYesterday = pricesByTimestamp.get(options.fromTimestamp);
   const priceToday = pricesByTimestamp.get(options.endTimestamp);
 
-  if (!Number.isFinite(priceYesterday) || !Number.isFinite(priceToday))
+  if (!priceToday || !priceYesterday || !Number.isFinite(priceYesterday) || !Number.isFinite(priceToday))
     throw new Error("Pyth Hermes returned incomplete EUSX redemption prices");
 
   const totalSupply = await getTokenSupply(EUSX)
