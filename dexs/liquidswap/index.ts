@@ -1,4 +1,4 @@
-import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -10,7 +10,7 @@ const LIQUIDSWAP_SWAP_EVENT_PREFIXES = [
 // Existing dashboard history currently ends at 2025-10-21 from the old Pontem/Sentrio source.
 const START_DATE = "2025-10-22";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const eventFilters = LIQUIDSWAP_SWAP_EVENT_PREFIXES
     .map((prefix) => `event_type LIKE '${prefix}%'`)
     .join(" OR ");
@@ -59,7 +59,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
