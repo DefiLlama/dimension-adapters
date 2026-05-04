@@ -67,10 +67,12 @@ const mapPnlData = (pnlData: bigint[]): PnlData => ({
 });
 
 export const getUnidexV4Logs = async (options: FetchOptions) => {
-  const { results } = await PromisePool
+  const { results, errors } = await PromisePool
     .withConcurrency(2)
     .for(LOG_CONFIGS)
     .process(cfg => options.getLogs(cfg));
+
+  if (errors.length) throw errors[0];
 
   const [rawIncrease, rawDecrease, rawClose, rawLiquidate] = results;
 
