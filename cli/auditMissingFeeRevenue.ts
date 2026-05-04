@@ -59,6 +59,7 @@ const DIMENSIONS = new Set<Dimension>([
 ]);
 
 const API_URL = 'https://api.llama.fi/overview/fees';
+const REQUEST_TIMEOUT_MS = 30_000;
 let helperSourceMap: Map<string, string> | undefined;
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -135,8 +136,8 @@ async function getOverview(dataType: string) {
   url.searchParams.set('excludeTotalDataChartBreakdown', 'true');
   url.searchParams.set('dataType', dataType);
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed ${url}: ${response.status} ${response.statusText}`);
+  const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  if (!response.ok) throw new Error(`Failed ${dataType} overview: ${response.status} ${response.statusText}`);
   const data = await response.json() as OverviewResponse;
   if (!Array.isArray(data.protocols)) throw new Error(`Unexpected overview response for ${dataType}`);
   return data.protocols;
