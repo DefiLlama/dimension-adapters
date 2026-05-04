@@ -7,16 +7,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // meteora_solana.lb_clmm_evt_swap fields:
-  // token_x_mint, token_y_mint: token addresses
-  // fee_x, fee_y: LP fees collected in each token (raw amounts)
-  // protocol_fee_x, protocol_fee_y: protocol portion of fees (raw amounts)
   const query = `
     WITH swaps AS (
       SELECT
         token_x_mint AS token,
-        SUM(CAST(fee_x AS DOUBLE)) AS total_fee,
-        SUM(CAST(protocol_fee_x AS DOUBLE)) AS total_protocol_fee
+        SUM(fee_x) AS total_fee,
+        SUM(protocol_fee_x) AS total_protocol_fee
       FROM meteora_solana.lb_clmm_evt_swap
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
         AND evt_block_time < from_unixtime(${options.endTimestamp})
@@ -25,8 +21,8 @@ const fetch = async (options: FetchOptions) => {
       UNION ALL
       SELECT
         token_y_mint AS token,
-        SUM(CAST(fee_y AS DOUBLE)) AS total_fee,
-        SUM(CAST(protocol_fee_y AS DOUBLE)) AS total_protocol_fee
+        SUM(fee_y) AS total_fee,
+        SUM(protocol_fee_y) AS total_protocol_fee
       FROM meteora_solana.lb_clmm_evt_swap
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
         AND evt_block_time < from_unixtime(${options.endTimestamp})
@@ -45,9 +41,9 @@ const fetch = async (options: FetchOptions) => {
 
   for (const row of rows) {
     if (!row.token || !row.total_fee) continue;
-    dailyFees.add(row.token, row.total_fee);
-    dailyRevenue.add(row.token, row.total_protocol_fee ?? 0);
-    dailySupplySideRevenue.add(row.token, row.total_fee - (row.total_protocol_fee ?? 0));
+    dailyFees.add(row.token, row.total_fee, "trader fees");
+    dailyRevenue.add(row.token, row.total_protocol_fee ?? 0, "protocol fees");
+    dailySupplySideRevenue.add(row.token, row.total_fee - (row.total_protocol_fee ?? 0), "LP fees");
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
@@ -66,8 +62,13 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "All swap fees paid by traders in Meteora DLMM pools.",
-    Revenue: "Protocol fees (5% of LP fees for standard pools, 20% for launch pools).",
+    Revenue: "Protocol fees (5% of total swap fee for standard pools, 20% for launch pools).",
     SupplySideRevenue: "Fees distributed to LPs after protocol fee deduction.",
+  },
+  breakdownMethodology: {
+    Fees: "Trader-paid swap fees.",
+    Revenue: "Protocol fees retained by Meteora.",
+    SupplySideRevenue: "LP share after protocol fee deduction.",
   }
 };
 
