@@ -60,55 +60,67 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   const reserves = RESERVES[options.chain] || []
 
+  const logRecoverable = (scope: string, err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(`[flying-tulip-lend][${options.chain}] ${scope}: ${msg}`)
+  }
+
   // 1) Borrower interest — supply-side revenue, no protocol cut.
   if (reserves.length > 0) {
-    const [states, cfgs] = await Promise.all([
-      options.toApi.multiCall({
-        target: LENDING_LENS,
-        abi: ASSET_STATE_ABI,
-        calls: reserves,
+    try {
+      const [states, cfgs] = await Promise.all([
+        options.toApi.multiCall({
+          target: LENDING_LENS,
+          abi: ASSET_STATE_ABI,
+          calls: reserves,
+          permitFailure: true,
+        }),
+        options.toApi.multiCall({
+          target: LENDING_LENS,
+          abi: ASSET_CFG_ABI,
+          calls: reserves,
+          permitFailure: true,
+        }),
+      ])
+
+      const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
+
+      const aprCalls: { target: string; params: any[] }[] = []
+      const aprIndex: number[] = []
+      for (let i = 0; i < reserves.length; i++) {
+        const state = states[i]
+        const cfg = cfgs[i]
+        if (!state || !cfg) continue
+        const irm = cfg[0]
+        if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
+        const borrows = BigInt(state[1])
+        if (borrows === 0n) continue
+        aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
+        aprIndex.push(i)
+      }
+
+      const aprResults = await options.toApi.multiCall({
+        abi: IRM_SAMPLE_APR_ABI,
+        calls: aprCalls,
         permitFailure: true,
-      }),
-      options.toApi.multiCall({
-        target: LENDING_LENS,
-        abi: ASSET_CFG_ABI,
-        calls: reserves,
-        permitFailure: true,
-      }),
-    ])
+      })
 
-    const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
-
-    const aprCalls: { target: string; params: any[] }[] = []
-    const aprIndex: number[] = []
-    for (let i = 0; i < reserves.length; i++) {
-      const state = states[i]
-      const cfg = cfgs[i]
-      if (!state || !cfg) continue
-      const irm = cfg[0]
-      if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
-      const borrows = BigInt(state[1])
-      if (borrows === 0n) continue
-      aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
-      aprIndex.push(i)
-    }
-
-    const aprResults = await options.toApi.multiCall({
-      abi: IRM_SAMPLE_APR_ABI,
-      calls: aprCalls,
-      permitFailure: true,
-    })
-
-    for (let k = 0; k < aprIndex.length; k++) {
-      const i = aprIndex[k]
-      const aprs = aprResults[k]
-      if (!aprs || aprs.length === 0 || !aprs[0]) continue
-      const borrows = BigInt(states[i][1])
-      const aprWad = BigInt(aprs[0])
-      const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
-      if (interest <= 0n) continue
-      dailyFees.add(reserves[i], interest, 'Borrow Interest')
-      dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
+      for (let k = 0; k < aprIndex.length; k++) {
+        const i = aprIndex[k]
+        const aprs = aprResults[k]
+        if (!aprs || aprs.length === 0 || !aprs[0]) {
+          logRecoverable(`irmSampleAPR:${reserves[i]}`, new Error('empty result'))
+          continue
+        }
+        const borrows = BigInt(states[i][1])
+        const aprWad = BigInt(aprs[0])
+        const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
+        if (interest <= 0n) continue
+        dailyFees.add(reserves[i], interest, 'Borrow Interest')
+        dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
+      }
+    } catch (e) {
+      logRecoverable('borrow-interest', e)
     }
   }
 
@@ -122,7 +134,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     [COLLATERAL_SWAP_FILLED, 'Collateral Swap Fee'],
   ]
   for (const [eventAbi, label] of leverageEvents) {
-    const logs = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
+    let logs: any[] = []
+    try {
+      logs = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
+    } catch (e) {
+      logRecoverable(`leverage-logs:${label}`, e)
+      continue
+    }
     for (const log of logs) {
       const fee = BigInt(log.feeAmount.toString())
       if (fee === 0n) continue
@@ -135,7 +153,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // 3) RfqEngine liquidation fees — protocol revenue (to liqFeeCollector =
   //    treasury).
-  const liqLogs = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
+  let liqLogs: any[] = []
+  try {
+    liqLogs = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
+  } catch (e) {
+    logRecoverable('rfq-liquidation-logs', e)
+  }
   for (const log of liqLogs) {
     const amount = BigInt(log.amount.toString())
     if (amount === 0n) continue
@@ -176,6 +199,12 @@ const breakdownMethodology = {
       'feeAmount field of LeverageRfqEngine.CollateralSwapFilled events.',
     'RFQ Liquidation Fee':
       'amount field of RfqEngine.LiquidationFeeCollected events, denominated in the asset being liquidated.',
+  },
+  Revenue: {
+    'Open Leverage Fee': 'Open-leverage fees retained by the protocol via feeCollector (Flying Tulip treasury).',
+    'Close Leverage Fee': 'Close-leverage fees retained by the protocol via feeCollector.',
+    'Collateral Swap Fee': 'Collateral-swap fees retained by the protocol via feeCollector.',
+    'RFQ Liquidation Fee': 'Liquidation fees retained by the protocol via liqFeeCollector (treasury).',
   },
   ProtocolRevenue: {
     'Open Leverage Fee': 'Open-leverage fees collected by LeverageRfqEngine, sent to feeCollector (Flying Tulip treasury).',
