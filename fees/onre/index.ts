@@ -71,7 +71,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "Includes yield accrued to ONyc token holders as the NAV increases daily and 0.25%fees paid to redeem ONyc tokens.",
+    Fees: "Includes yield accrued to ONyc token holders as the NAV increases daily and 0.25% fees paid to redeem ONyc tokens.",
     SupplySideRevenue: "Yield accrued to ONyc token holders as the NAV increases daily.",
     Revenue: "0.25% fees paid to redeem ONyc tokens.",
     ProtocolRevenue: "0.25% fees paid to redeem ONyc tokens.",
@@ -102,6 +102,7 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE],
     start: "2025-06-04",
     isExpensiveAdapter: true,
+    allowNegativeValue: true,
 };
 
 export default adapter;
