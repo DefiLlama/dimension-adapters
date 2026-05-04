@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
     pullHourly: true,
     fetch,
     chains: [CHAIN.PLASMA],
-    start: "2025-11-12",
+    start: "2026-01-06",
     methodology,
 };
 
