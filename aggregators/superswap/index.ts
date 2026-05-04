@@ -40,8 +40,12 @@ const addAmount = (dailyVolume: ReturnType<FetchOptions['createBalances']>, toke
 }
 
 const fetchVolume = async (options: FetchOptions) => {
+  const targets = contracts[options.chain]
+  if (!targets?.length) {
+    throw new Error(`No contracts configured for chain: ${options.chain}`)
+  }
   const logs = await options.getLogs({
-    targets: contracts[options.chain],
+    targets,
     eventAbi: event_route,
   })
   const dailyVolume = options.createBalances()
@@ -57,6 +61,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch: fetchVolume,
+  methodology: {
+    dailyVolume: "Volume is calculated by summing the amountIn values from Route events emitted by SuperSwap router contracts across all supported chains."
+  },
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2026-02-10' },
     [CHAIN.OPTIMISM]: { start: '2026-02-10' },
