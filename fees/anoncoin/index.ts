@@ -4,11 +4,12 @@ import { getSolanaReceivedDune } from "../../helpers/token";
 
 const PARTNER_FEE_CLAIMER = 'BKPxAdgwPHXE3ZPZt5XsAovDgUaUufHgZnSAZ3eRWQNW';
 const METEORA_POOL_AUTHORITY = 'FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM';
+const METEORA_DAMMV2_POOL_AUTHORITY = 'HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC';
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceivedDune({
     options,
-    fromAddress: METEORA_POOL_AUTHORITY,
+    fromAddresses: [METEORA_POOL_AUTHORITY, METEORA_DAMMV2_POOL_AUTHORITY],
     target: PARTNER_FEE_CLAIMER,
   });
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
