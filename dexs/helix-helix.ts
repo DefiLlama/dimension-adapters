@@ -1,32 +1,19 @@
-import { SimpleAdapter, ChainBlocks, FetchOptions, FetchResultVolume } from "../adapters/types";
+import { httpGet } from "../utils/fetchURL";
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL"
 
-const URL = "https://external.api.injective.network/api/aggregator/v1/spot/tickers";
-interface IVolume {
-  target_volume: number;
-  open_interest: number;
-}
+const SPOT_URL = `https://bigquery-api-636134865280.europe-west1.run.app/helix_spot_volume`;
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResultVolume> => {
-  const volume: IVolume[] = (await fetchURL(URL));
-  const dailyVolume = volume.reduce((e: number, a: IVolume) => a.target_volume + e, 0);
-  const dailyVolumeBN = createBalances();
-  dailyVolumeBN.addCGToken('tether', dailyVolume);
-  return {
-    dailyVolume: dailyVolumeBN,
-    timestamp
-  }
-}
+const fetch = async (_: number, _t: any, options: FetchOptions) => {
+  const spotRes: any = await httpGet(`${SPOT_URL}?start_date=${options.dateString}`);
+  if (spotRes.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
 
-const adapter: SimpleAdapter = {
+  return { dailyVolume: spotRes.total_volume_usd };
+};
+
+export default {
   doublecounted: true,
-  adapter: {
-    [CHAIN.INJECTIVE]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-02-16',
-    }
-  }
-}
-export default adapter;
+  fetch,
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+};
