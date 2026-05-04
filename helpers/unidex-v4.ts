@@ -1,3 +1,4 @@
+import { log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 import { PromisePool } from "@supercharge/promise-pool";
 
@@ -72,7 +73,10 @@ export const getUnidexV4Logs = async (options: FetchOptions) => {
     .for(LOG_CONFIGS)
     .process(cfg => options.getLogs(cfg));
 
-  if (errors.length) throw errors[0];
+  if (errors.length) {
+    log(`Errors: ${errors.length} while fetching Unidex V4 logs...`);
+    throw errors;
+  };
 
   const [rawIncrease, rawDecrease, rawClose, rawLiquidate] = results;
 
