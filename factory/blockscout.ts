@@ -63,7 +63,6 @@ const protocolChainMap: Record<string, string> = {
   "adventure-layer": CHAIN.ADVENTURE_LAYER,
   "deri-chain": CHAIN.DERI_CHAIN,
   "earnm": CHAIN.EARNM,
-  "duck-chain": CHAIN.DUCKCHAIN,
   "edu-chain": CHAIN.EDU_CHAIN,
   "ethereal": CHAIN.ETHEREAL,
   "eventum": CHAIN.EVENTUM,
