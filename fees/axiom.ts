@@ -180,7 +180,6 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  allowNegativeValue: true,
 };
 
 export default adapter;
