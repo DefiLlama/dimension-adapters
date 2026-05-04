@@ -4,7 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const WYLDS_MINT = "8fr7WGTVFszfyNWRMXj6fRjZZAnDwmXwEpCrtzmUkdih";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -22,8 +22,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const totalMinted = Number(result?.[0]?.total_minted ?? 0);
 
   if (totalMinted > 0) {
-    dailyFees.addUSDValue(totalMinted);
-    dailySupplySideRevenue.addUSDValue(totalMinted);
+    dailyFees.addUSDValue(totalMinted, "HELOC Lending Yield");
+    dailySupplySideRevenue.addUSDValue(totalMinted, "HELOC Lending Yield To Holders");
   }
 
   return {
@@ -36,7 +36,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const methodology = {
   Fees: "All wYLDS tokens minted on-chain, representing real-world yield from Figure's HELOC lending pools distributed to wYLDS holders and PRIME stakers.",
-  UserFees: "Yield paid by underlying HELOC borrowers, passed on-chain as newly minted wYLDS to token holders.",
+  UserFees: "Yield originated from real estate borrowers paying interest on Figure's HELOC lending pools.",
   SupplySideRevenue: "100% of minted wYLDS accrues to wYLDS holders and PRIME stakers. PRIME stakers earn enhanced yield via the increasing wYLDS-per-PRIME exchange rate.",
   Revenue: "Hastra takes no on-chain protocol fee cut. Figure monetises via off-chain lending spreads on HELOCs.",
 };
@@ -54,7 +54,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-11-21",
