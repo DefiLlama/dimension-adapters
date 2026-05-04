@@ -7,6 +7,7 @@ interface BuilderConfig {
   deadFrom?: string;
   methodology?: any;
   extraReturnFields?: Record<string, any>;
+  breakdownFees?: boolean; // add breakdown fees labels
 }
 
 // Builder adapter configs for dexs: protocol name -> config
@@ -70,6 +71,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "insilico": {
     addresses: ["0x2868fc0d9786a740b491577a43502259efa78a39"],
@@ -219,6 +221,7 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "bullpenfi-perps": {
     addresses: ["0x4c8731897503f86a2643959cbaa1e075e84babb7"],
@@ -609,6 +612,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     deadFrom: config.deadFrom,
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
+    breakdownFees: config.breakdownFees,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
@@ -627,6 +631,7 @@ for (const [name, config] of Object.entries(builderFeesConfigs)) {
     deadFrom: config.deadFrom,
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
+    breakdownFees: config.breakdownFees,
   });
 }
 
