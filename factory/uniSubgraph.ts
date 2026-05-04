@@ -24,6 +24,7 @@ interface SubgraphConfig {
     Revenue?: number;
   };
   start?: string;
+  deadFrom?: string;
   methodology?: Record<string, string>;
 }
 
@@ -141,22 +142,6 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 10,
     },
     start: "2023-07-02",
-  },
-  "fusionx-v3": {
-    graphUrls: {
-      [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange-v3",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 16.7,
-      HoldersRevenue: 16.7,
-      Fees: 100,
-      UserFees: 100,
-      SupplySideRevenue: 66.6,
-      Revenue: 33.4,
-    },
-    start: "2023-07-13",
   },
   "winnieswap": {
     graphUrls: {
@@ -364,6 +349,7 @@ const configs: Record<string, SubgraphConfig> = {
       factory: "factories",
     },
     start: "2023-11-25",
+    deadFrom: "2026-02-03",
     feesPercent: {
       type: "fees",
       ProtocolRevenue: 0,
@@ -416,6 +402,21 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: '2026-01-20',
   },
+  tsunami: {
+    graphUrls: {
+      [CHAIN.INK]: "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/tsunami-v3/2.4.0/gn",
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    feesPercent: {
+      type: "fees",
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+      ProtocolRevenue: 0,
+      HoldersRevenue: 0,
+    },
+    start: '2026-03-14',
+  }
 };
 
 // Build protocols from configs
@@ -429,7 +430,7 @@ for (const [name, config] of Object.entries(configs)) {
   });
 
   const chains = Object.keys(config.graphUrls);
-  const { start } = config;
+  const { start, deadFrom } = config;
   const methodology = config.methodology ?? computeMethodology(config.feesPercent);
 
   const adapter: SimpleAdapter = {
@@ -440,11 +441,13 @@ for (const [name, config] of Object.entries(configs)) {
       [chain]: {
         fetch,
         ...(start && { start }),
+        ...(deadFrom && { deadFrom }),
       },
     }), {}),
   };
 
   if (start) (adapter as any).start = start;
+  if (deadFrom) (adapter as any).deadFrom = deadFrom;
   if (methodology) adapter.methodology = methodology;
 
   protocols[name] = adapter;

@@ -1,61 +1,36 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-
-const config = {
-  graphUrls: {
-    [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
-  },
-  totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-}
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: Object.keys(config.graphUrls),
+  pullHourly: true,
+  chains: [CHAIN.BERACHAIN],
   start: '2025-02-07',
   fetch: async (options: FetchOptions) => {
-    const feesPercent = options.startOfDay >= 1767225600 ? {
-      type: "fees",
-      ProtocolRevenue: 35 * 0.1, // 10% revenue
-      HoldersRevenue: 35 * 0.6, // 60% revenue
-      UserFees: 100,
-      SupplySideRevenue: 65 + 35 * 0.3, // 65% swap fees + 30% from revenue to Protocol-Owned Liquidity
-      Revenue: 35,
-    } : {
-      type: "fees",
-      ProtocolRevenue: 35,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 65,
-      Revenue: 35,
-    }
-    
-    const graphFetch = getGraphDimensions2({
-      graphUrls: config.graphUrls,
-      totalVolume: config.totalVolume,
-      feesPercent: feesPercent as any,
-    });
-    
+    const graphFetch = getUniV3LogAdapter({
+      factory: '0xD84CBf0B02636E7f53dB9E5e45A616E05d710990',
+    })
     const result = await graphFetch(options);
-    
+
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
-    
-    dailyFees.addUSDValue(result.dailyFees, 'Swap Fees');
-    dailySupplySideRevenue.addUSDValue(Number(result.dailyFees) * 0.65, 'Swap Fees To LPs');
-    dailyRevenue.addUSDValue(Number(result.dailyFees) * 0.35, 'Swap Fees Collected As Revenue');
-    
+
+    dailyFees.addBalances(result.dailyFees, 'Swap Fees');
+    dailySupplySideRevenue.addBalances(result.dailyFees.clone(0.65), 'Swap Fees To LPs');
+    dailyRevenue.addBalances(result.dailyFees.clone(0.35), 'Swap Fees Collected As Revenue');
+
     if (options.startOfDay >= 1767225600) {
-      dailySupplySideRevenue.addUSDValue(Number(result.dailyFees) * 0.35 * 0.3, 'Swap Fees To Protocol-Owned Liquidity');
-      dailyProtocolRevenue.addUSDValue(Number(result.dailyFees) * 0.35 * 0.1, 'Swap Fees To Protocol');
-      dailyHoldersRevenue.addUSDValue(Number(result.dailyFees) * 0.35 * 0.6, 'Token Buy Back');
+      dailySupplySideRevenue.addBalances(result.dailyFees.clone(0.35 * 0.3), 'Swap Fees To Protocol-Owned Liquidity');
+      dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35 * 0.1), 'Swap Fees To Protocol');
+      dailyHoldersRevenue.addBalances(result.dailyFees.clone(0.35 * 0.6), 'Token Buy Back');
     } else {
-      dailyProtocolRevenue.addUSDValue(Number(result.dailyFees) * 0.35, 'Swap Fees To Protocol');
+      dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35), 'Swap Fees To Protocol');
     }
-    
+
     return {
       dailyVolume: result.dailyVolume,
       dailyFees,
@@ -88,7 +63,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: {
       'Token Buy Back': 'From 01-01-2026, there are 60% revenue are used to by back $KDK.',
     },
-  }
+  },
 };
 
 export default adapter;

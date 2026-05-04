@@ -1,49 +1,70 @@
-import * as sdk from "@defillama/sdk";
-import { request, } from "graphql-request";
+import { FetchOptions, Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import type { FetchV2, Adapter } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint("71DeFz7cWQPvf8zibkLUovwaeT67xNUZp3A5xecbpiz5"),
-  [CHAIN.ETHEREUM]: "https://api.studio.thegraph.com/query/77001/grafun-eth/version/latest",
+const chainConfig: Record<string, { contract: string; eventAbi: string; start: string; amountKey: string }> = {
+  [CHAIN.BSC]: {
+    contract: "0x8341b19a2A602eAE0f22633b6da12E1B016E6451",
+    eventAbi: "event Swap(address indexed token,address indexed referrer,address indexed account,bool isBuy,uint256 bnbAmount,uint256 tokenAmount,uint256 fee,uint256 reserved)",
+    start: "2024-09-26",
+    amountKey: "bnbAmount",
+  },
+  [CHAIN.ETHEREUM]: {
+    contract: "0xb8540a7d74Cc4912443e8c4B2064B640FC763c4f",
+    eventAbi: "event Swap(address indexed token,address indexed referrer,address indexed account,bool isBuy,uint256 ethAmount,uint256 tokenAmount,uint256 fee,uint256 reserved)",
+    start: "2024-11-27",
+    amountKey: "ethAmount",
+  }
 }
 
+async function fetch(options: FetchOptions) {
+  const config = chainConfig[options.chain];
+  const tradeLogs = await options.getLogs({
+    target: config.contract,
+    eventAbi: config.eventAbi,
+  })
 
-const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
-  const startFormatted = new Date(startTimestamp * 1000).toISOString().split("T")[0]
-  const query = `
-    query get_daily_stats{
-      dailyStatistics_collection( where: { date: "${startFormatted}" } ) {
-        date
-        cumulativeTradingVolumeBNB
-      }
-    }
-  `;
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
 
-  const graphRes = await request(endpoints[chain], query, { date: startFormatted });
-
-  const dayItem = graphRes.dailyStatistics_collection[0]
-  const dailyVolume = restOpts.createBalances();
-  dailyVolume.addGasToken(dayItem?.cumulativeTradingVolumeBNB || 0);
+  for (const log of tradeLogs) {
+    dailyVolume.addGasToken(log[config.amountKey]);
+    dailyFees.addGasToken(log.fee, METRIC.SWAP_FEES);
+  }
 
   return {
-    dailyVolume
+    dailyFees,
+    dailyVolume,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
+}
+
+const methodology = {
+  Fees: "Sum of all fees from Token Sale Factory smart contract.",
+  Revenue: "All the fees from Token Sale Factory smart contract are revenue.",
+  ProtocolRevenue: "All the fees from Token Sale Factory smart contract are protocol revenue.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees collected in native gas token from the Token Sale Factory smart contract swap events.",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "Revenue collected in native gas token from the Token Sale Factory smart contract swap events.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: "Revenue collected in native gas token from the Token Sale Factory smart contract swap events.",
+  },
 }
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      start: '2024-09-27',
-      fetch,
-    },
-    [CHAIN.ETHEREUM]: {
-      start: "2024-11-28",
-      fetch,
-    },
-  },
-
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

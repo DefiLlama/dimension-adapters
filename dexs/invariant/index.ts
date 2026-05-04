@@ -3,9 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 import { FetchResult } from "../../adapters/types";
 const solanaStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/mainnet";
+  "https://stats.invariant.app/solana/intervals/solana-mainnet?interval=daily";
 const eclipseStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/eclipse-mainnet";
+  "https://stats.invariant.app/eclipse/intervals/eclipse-mainnet?interval=daily";
 
 type StatsApiResponse = {
   data: {

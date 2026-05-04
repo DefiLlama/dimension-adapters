@@ -37,6 +37,7 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchSuiteStats,
       start: '2024-09-25',
+      deadFrom: '2025-11-10',
     },
   },
   methodology: {

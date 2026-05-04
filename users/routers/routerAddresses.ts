@@ -2464,6 +2464,8 @@ export default (
         polygon: [
           '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045', // Ctf
           '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296', // NegRiskCtf
+          '0xE111180000d2663C0091e4f400237545B87B996B', // CtfV2
+          '0xe2222d279d744050d28e00520010520000310F59', // NegRiskCtfV2
         ]
       }
     }  

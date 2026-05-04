@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees, ProtocolType } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { chainAdapter } from "../helpers/getChainFees";
 
@@ -9,12 +9,11 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.RIPPLE]: {
-      fetch: async (timestamp: number) => {
+      fetch: async (timestamp: number, _a: any, options: FetchOptions) => {
         const baseData = await feeAdapter[CHAIN.RIPPLE].fetch(timestamp);
-        const result: FetchResultFees = {
-          ...baseData
-        }
-        return result;
+        const dailyFees = options.createBalances();
+        dailyFees.addCGToken("ripple", baseData.dailyFees)
+        return { dailyFees, dailyRevenue: 0 }
       },
       start: '2012-06-01'
     }

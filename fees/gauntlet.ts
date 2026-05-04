@@ -50,11 +50,12 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2025-05-20',
     },
-    // [CHAIN.KATANA]: {
-    //   morphoVaultOwners: [
-    //     '0x5D8C96b76A342c640d9605187daB780f8365F69f',
-    //   ],
-    // },
+    [CHAIN.KATANA]: {
+      morphoVaultOwners: [
+        '0x5D8C96b76A342c640d9605187daB780f8365F69f',
+      ],
+      start: '2025-06-24'
+    },
   }
 };
 

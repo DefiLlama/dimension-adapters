@@ -38,8 +38,6 @@ const fetch = async (_: any) => {
     page++;
   }
 
-  const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
-
   let spotFees = 0;
   let spotRevenue = 0;
 
@@ -47,14 +45,12 @@ const fetch = async (_: any) => {
     const poolFees = Number(pool.day.fee);
     spotFees += poolFees;
 
-    // Use protocolFee from each pool instead of hardcoded 0.2
-    // protocolFee is a decimal (e.g., 0.2 represents 20%)
-    const protocolFee = pool.protocolFee ? Number(pool.protocolFee) : 0.2; // fallback to 0.2 if not present
+    const protocolFee = pool.protocolFee ? Number(pool.protocolFee) : 0.2;
     spotRevenue += poolFees * protocolFee;
   }
 
-  const dailyRevenue = spotRevenue + Number(rfqStats.feesUsd);
-  const dailyFees = spotFees + Number(rfqStats.feesUsd);
+  const dailyRevenue = spotRevenue;
+  const dailyFees = spotFees;
 
   const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
@@ -73,10 +69,10 @@ const adapter: SimpleAdapter = {
   start: '2024-11-19',
   runAtCurrTime: true,
   methodology: {
-    Fees: "spot and rfq trading fees",
-    Revenue: "protocol fees from spot and rfq trading",
-    ProtocolRevenue: "protocol fees from spot and rfq trading",
-    SupplySideRevenue: "fees earned by liquidity providers",
+    Fees: "Swap fees collected from Bluefin CLMM spot pools",
+    Revenue: "Protocol's share of CLMM swap fees (per-pool protocolFee, defaulting to 20%)",
+    ProtocolRevenue: "Protocol's share of CLMM swap fees retained by Bluefin",
+    SupplySideRevenue: "Remaining CLMM swap fees distributed to liquidity providers",
   }
 };
 

@@ -364,4 +364,9 @@ export enum CHAIN {
   MYTHOS = "mythos",
   HEIMA = "heima",
   KUSAMA = "kusama",
+  ROBONOMICS = "robonomics",
+  DARWINIA = "darwinia",
+  DANGO = "dango",
+  CSC = "csc",
+  WORLD_MOBILE = "world_mobile",
 }

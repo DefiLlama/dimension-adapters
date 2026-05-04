@@ -10,6 +10,9 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "katana": {
+    [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
+  },
   'fusionx-v2': {
     [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
   },
@@ -356,7 +359,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BOBA]: { factory: '0x06350499760aa3ea20FEd2837321a84a92417f39', userFeesRatio: 1, revenueRatio: 0 },
   },
   "cl-dex": {
-    [CHAIN.KLAYTN]: { factory: '0x2A4C5eCaafB26460F17d509EA4d15741AF5F5f0a', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
+    [CHAIN.KLAYTN]: { factory: '0x93fa0E1deE99ac4158a617a6EC79cB941bD9a39F', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
   },
   "lynex-v1": {
     [CHAIN.LINEA]: { factory: '0xbc7695fd00e3b32d08124b7a4287493aee99f9ee', start: '2024-02-11', fees: 0.0025, stableFees: 0.0001, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1 },
@@ -723,6 +726,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ABSTRACT]: { factory: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "shapeswap-v2": {
+    [CHAIN.SHAPE]: { factory: '0xb411eAF2f2070822B26E372E3Ea63c5060BA45E6', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "hyperjump": {
     [CHAIN.BSC]: { factory: '0xac653ce27e04c6ac565fd87f18128ad33ca03ba2', start: '2020-11-10' },
@@ -1099,6 +1105,14 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: 'All user fees are distributed among LPs.',
     HoldersRevenue: 'Holders have no revenue.',
   },
+  "shapeswap-v2": {
+    Fees: 'Swap fees paid by users on each trade.',
+    UserFees: 'User pays fees on each swap.',
+    Revenue: 'Protocol has no revenue.',
+    ProtocolRevenue: 'Protocol has no revenue.',
+    SupplySideRevenue: 'All user fees are distributed among LPs.',
+    HoldersRevenue: 'Holders have no revenue.',
+  },
 }
 
 const deadFromMap: Record<string, string> = {
@@ -1106,6 +1120,7 @@ const deadFromMap: Record<string, string> = {
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",
+  "wagyuswap": "2026-03-16",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1294,6 +1309,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.GODWOKEN_V1]: "https://www.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
     },
     factoriesName: "yokaiFactories",
+    deadFrom: "2025-12-31",
   },
   "zircon-gamma": {
     endpoints: {
@@ -1406,21 +1422,21 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
     },
   },
-  "katana": {
-    endpoints: {
-      [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
-    },
-    factoriesName: "katanaFactories",
-    totalVolume: "totalVolumeUSD",
-    feeConfig: {
-      totalFees: 0.003,
-      protocolFees: 0.0005,
-      supplySideRevenue: 0.0025,
-      revenue: 0.0005,
-      userFees: 0.003,
-    },
-    start: '2021-11-01',
-  },
+  // "katana": {
+  //   endpoints: {
+  //     [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
+  //   },
+  //   factoriesName: "katanaFactories",
+  //   totalVolume: "totalVolumeUSD",
+  //   feeConfig: {
+  //     totalFees: 0.003,
+  //     protocolFees: 0.0005,
+  //     supplySideRevenue: 0.0025,
+  //     revenue: 0.0005,
+  //     userFees: 0.003,
+  //   },
+  //   start: '2021-11-01',
+  // },
   "defi-swap": {
     endpoints: {
       [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('G7W3G1JGcFbWseucNkHHvQorxyjQLEQt7vt9yPN97hri'),

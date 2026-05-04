@@ -28,6 +28,7 @@ import {
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { SanctumMetric } from "../sanctum";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
@@ -87,16 +88,20 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const infv1Fees = fees[0].infv1_fees || 0;
   const infv2Fees = fees[0].infv2_fees || 0;
-  dailyFees.addCGToken("solana", infv1Fees + infv2Fees);
-  dailyRevenue.addCGToken("solana", infv1Fees * 0.1 + infv2Fees * 0.05);
- 
-  dailySupplySideRevenue.addBalances(dailyFees);
-  dailySupplySideRevenue.subtract(dailyRevenue);
 
+  const allFees = infv1Fees + infv2Fees;
+  const revenue = infv1Fees * 0.1 + infv2Fees * 0.05;
+  const supplySideRevenue = (infv1Fees + infv2Fees) - revenue;
+  
+  dailyFees.addCGToken("solana", allFees, SanctumMetric.InfinityStakingRewards);
+  dailyRevenue.addCGToken("solana", revenue, SanctumMetric.StakingRewardsToProtocol);
+  dailySupplySideRevenue.addCGToken("solana", supplySideRevenue, SanctumMetric.StakingRewardsToStakers);
+ 
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -106,6 +111,18 @@ const methodology = {
   SupplySideRevenue: "Infinity fees going to LPs",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [SanctumMetric.InfinityStakingRewards]: 'Infinity staking rewards',
+  },
+  Revenue: {
+    [SanctumMetric.StakingRewardsToProtocol]: 'Infinity staking rewards to protocol',
+  },
+  SupplySideRevenue: {
+    [SanctumMetric.StakingRewardsToStakers]: 'Infinity staking rewards to stakers',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -113,6 +130,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   start: "2024-01-01", // First unstake transaction
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 

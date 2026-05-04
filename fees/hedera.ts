@@ -37,7 +37,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   dailyFees.addCGToken('hedera-hashgraph', finalDailyFee);
 
   return {
-    dailyFees
+    dailyFees,
+    dailyRevenue:0,
   };
 };
 

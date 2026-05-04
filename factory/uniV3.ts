@@ -160,6 +160,9 @@ const configs: Record<string, Record<string, any>> = {
   "fluxion-network": {
     [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, revenueRatio: 0 },
   },
+  "fusionx-v3": {
+    [CHAIN.MANTLE]: { factory: '0x530d2766D1988CC1c000C8b7d00334c14B69AD71', start: '2023-07-13', userFeesRatio: 1, revenueRatio: 0.334, protocolRevenueRatio: 0.167, holdersRevenueRatio: 0.167 },
+  },
   "octoswap-cl": {
     [CHAIN.MONAD]: { factory: '0x30Db57A29ACf3641dfc3885AF2e5f1F5A408D9CB', revenueRatio: 1 / 5, protocolRevenueRatio: 1 / 5 },
   },
@@ -201,7 +204,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SONIC]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
   },
   "beamswap-v3": {
-    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', revenueRatio: 0.16, holdersRevenueRatio: 0, protocolRevenueRatio: 0.16, deadFrom: "2025-08-12" },
+    [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', userFeesRatio: 1, revenueRatio: 0.16, protocolRevenueRatio: 0.14, holdersRevenueRatio: 0.02 },
   },
   "2thick": {
     [CHAIN.FANTOM]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
@@ -275,6 +278,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    [CHAIN.REDSTONE]: { factory: '0xece75613Aa9b1680f0421E5B2eF376DF68aa83Bb', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "shapeswap-v3": {
+    [CHAIN.SHAPE]: { factory: '0xeCf9288395797Da137f663a7DD0F0CDF918776F8', start: '2024-12-09', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "enosys": {
     [CHAIN.FLARE]: { factory: '0x17AA157AC8C54034381b840Cb8f6bf7Fc355f0de', start: "2025-03-03", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
@@ -336,6 +343,9 @@ const configs: Record<string, Record<string, any>> = {
   "stableswap-xyz-v3": {
     [CHAIN.STABLE]: { factory: "0x88F0a512eF09175D456bc9547f914f48C013E4aA", revenueRatio: 0, }
   },
+  "ubeswap-v3": {
+    [CHAIN.CELO]: { factory: '0x67FEa58D5a5a4162cED847E13c2c81c73bf8aeC4', start: '2024-05-20', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -370,6 +380,14 @@ const methodologyMap: Record<string, any> = {
     Revenue: 'No revenue.',
     SupplySideRevenue: 'All swap fees are distributed to LPs.',
   },
+  "fusionx-v3": {
+    Fees: "Swap fees paid by users on each FusionX V3 pool.",
+    UserFees: "Users pay each pool's configured V3 fee on every swap.",
+    Revenue: "33.4% of swap fees are protocol-controlled revenue.",
+    ProtocolRevenue: "16.7% of swap fees go to the protocol.",
+    HoldersRevenue: "16.7% of swap fees go to token holders.",
+    SupplySideRevenue: "66.6% of swap fees go to liquidity providers.",
+  },
   "datadex": {
     Fees: "Swap fees collected from users on each trade.",
     Revenue: "Configurable portion of the swap fees collected from users.",
@@ -385,7 +403,7 @@ const methodologyMap: Record<string, any> = {
     UserFees: "User pays 0.01%, 0.05%, 0.3%, or 1% on each swap.",
     ProtocolRevenue: "Protocol receives 16% of fees.",
     SupplySideRevenue: "84% of user fees are distributed among LPs.",
-    HoldersRevenue: "Holders have no revenue.",
+    HoldersRevenue: "2% of fees distributed to GLINT token holders.",
   },
   "2thick": {
     UserFees: "Users pay trade fees on each swap.",
@@ -429,6 +447,14 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "87.5% of swap fees are distributed to LPs and 5% is distributed to $SPRK stakers",
   },
   "reservoir-tools-clmm": {
+    Fees: "Swap fees paid by users on each trade.",
+    UserFees: "User pays fees on each swap.",
+    Revenue: "Protocol has no revenue.",
+    ProtocolRevenue: "Protocol has no revenue.",
+    SupplySideRevenue: "All user fees are distributed among LPs.",
+    HoldersRevenue: "Holders have no revenue.",
+  },
+  "shapeswap-v3": {
     Fees: "Swap fees paid by users on each trade.",
     UserFees: "User pays fees on each swap.",
     Revenue: "Protocol has no revenue.",

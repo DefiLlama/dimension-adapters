@@ -29,13 +29,13 @@ const fetch = async (options: FetchOptions) => {
     return {
       dailyFees,
       dailyVolume,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0, // protocol fees are 0 until they enable it
-      dailyProtocolRevenue: 0,
+      dailySupplySideRevenue: dailyFees / 2,
+      dailyRevenue: dailyFees / 2,
+      dailyProtocolRevenue: dailyFees / 2,
     }
   }
 
-  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), revenueRatio:0, })(options)
+  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), revenueRatio:0.5, protocolRevenueRatio:0.5 })(options)
 };
 
 const adapter: SimpleAdapter = {

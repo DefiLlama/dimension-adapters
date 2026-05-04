@@ -124,10 +124,9 @@ WITH
             SUM(
                 CAST(accumulated AS DECIMAL(38,0))
             ) AS daily_protocol_revenue
-        FROM bags_solana.bags_fee_share_evt_partneraccumulatedevent
+        FROM bags_solana.bags_fee_share_evt_platformaccumulatedevent
         WHERE
-            evt_block_slot > 385570223
-            AND accumulated IS NOT NULL
+            accumulated IS NOT NULL
             AND evt_block_time >= from_unixtime({{start}})
             AND evt_block_time <  from_unixtime({{end}})
     )

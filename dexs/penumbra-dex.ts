@@ -21,6 +21,7 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true
     },
   },
+  deadFrom: '2025-06-26',
 }
 
 export default adapter
