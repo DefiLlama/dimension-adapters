@@ -24,7 +24,7 @@ const ChainConfig: Record<string, { treasury: string, assets: AssetCfg[] }> = {
     ],
   },
   [CHAIN.BASE]: {
-    treasury: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C",
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
     assets: [
       { symbol: "ETH", address: "native" },
       { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
@@ -35,7 +35,7 @@ const ChainConfig: Record<string, { treasury: string, assets: AssetCfg[] }> = {
     ],
   },
   [CHAIN.POLYGON]: {
-    treasury: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C",
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
     assets: [
       { symbol: "POL", address: "native" },
       { symbol: "USDT", address: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f" },
@@ -43,15 +43,54 @@ const ChainConfig: Record<string, { treasury: string, assets: AssetCfg[] }> = {
       { symbol: "LINK", address: "0x53e0bca35ec356bd5dddfebbd1fc0fd03fabad39" },
     ],
   },
-  [CHAIN.TRON]: {
-    treasury: "TA9Xywe3xb6GPeBFYDdTkdT43DktDPnyDT",
-    assets: [{ symbol: "TRX", address: "native" }],
-  },
-  [CHAIN.RIPPLE]: {
-    treasury: "rD6YURvhPwmUwRCrFJX6pFU81obJNk7WyA",
+  [CHAIN.ARBITRUM]: {
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
     assets: [
-      { symbol: "XRP", address: "native" },
-      { symbol: "RLUSD", address: "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" },
+      { symbol: "ETH", address: "native" },
+      { symbol: "ARB", address: "0x912CE59144191C1204E64559FE8253a0e49E6548" },
+      { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9" },
+      { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
+      { symbol: "USDS", address: "0x6491c05A82219b8D1479057361ff1654749b876b" },
+      { symbol: "USDe", address: "0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34" },
+      { symbol: "LINK", address: "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4" },
+    ],
+  },
+  [CHAIN.BSC]: {
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
+    assets: [
+      { symbol: "BNB", address: "native" },
+      { symbol: "USDT", address: "0x55d398326f99059ff775485246999027b3197955" },
+      { symbol: "USDC", address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d" },
+      { symbol: "USDe", address: "0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34" },
+      { symbol: "XRP", address: "0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe" },
+      { symbol: "LINK", address: "0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd" },
+    ],
+  },
+  [CHAIN.HYPERLIQUID]: {
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
+    assets: [
+      { symbol: "HYPE", address: "native" },
+      { symbol: "USDC", address: "0xb88339CB7199b77E23DB6E890353E22632Ba630f" },
+      { symbol: "LINK", address: "0x1AC2EE68b8d038C982C1E1f73F596927dd70De59" },
+    ],
+  },
+  [CHAIN.OPTIMISM]: {
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
+    assets: [
+      { symbol: "ETH", address: "native" },
+      { symbol: "OP", address: "0x4200000000000000000000000000000000000042" },
+      { symbol: "USDC", address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" },
+      { symbol: "USDT", address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58" },
+      { symbol: "USDe", address: "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34" },
+      { symbol: "LINK", address: "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6" },
+    ],
+  },
+  [CHAIN.MONAD]: {
+    treasury: "0x3FbB416f35929a62325705BB634Eb9C129503595",
+    assets: [
+      { symbol: "MON", address: "native" },
+      { symbol: "USDC", address: "0x754704bc059f8c67012fed69bc8a327a5aafb603" },
+      { symbol: "LINK", address: "0x76f257B1DDA5cC71bee4eF637Fbdde4C801310A9" },
     ],
   },
 };
@@ -82,13 +121,9 @@ async function fetchSolanaInflows(options: FetchOptions) {
 
 const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances();
-  if ([CHAIN.RIPPLE, CHAIN.TRON].includes(options.chain as CHAIN)) {
-    throw new Error("Fetching fees for XRPL and TRON is not supported yet");
-  }
-  if (options.chain == CHAIN.SOLANA) {
+  if (options.chain === CHAIN.SOLANA) {
     dailyFees = await fetchSolanaInflows(options);
-  }
-  if ([CHAIN.BASE, CHAIN.POLYGON].includes(options.chain as CHAIN)) {
+  } else {
     dailyFees = await fetchEvmInflows(options);
   }
 
@@ -105,17 +140,20 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: {
+    [CHAIN.SOLANA]: { start: "2025-01-01" },
     [CHAIN.BASE]: { start: "2025-01-01" },
     [CHAIN.POLYGON]: { start: "2025-01-01" },
-    [CHAIN.SOLANA]: { start: "2025-01-01" },
-    // [CHAIN.TRON]: { start: "2025-01-01" },
-    // [CHAIN.RIPPLE]: { start: "2025-01-01" },
+    [CHAIN.ARBITRUM]: { start: "2025-01-01" },
+    [CHAIN.BSC]: { start: "2025-01-01" },
+    [CHAIN.HYPERLIQUID]: { start: "2025-01-01" },
+    [CHAIN.OPTIMISM]: { start: "2025-01-01" },
+    [CHAIN.MONAD]: { start: "2025-01-01" },
   },
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "Transaction fees paid by users for fiat to crypto settlements.",
-    Revenue: "Revenue represents fees collected by PagCrypto from fiat to crypto settlements.",
-    ProtocolRevenue: "Revenue represents fees collected by PagCrypto from fiat to crypto settlements.",
+    Revenue: "Revenue represents fees collected by PagFinance from fiat to crypto settlements.",
+    ProtocolRevenue: "Revenue represents fees collected by PagFinance from fiat to crypto settlements.",
   },
 };
 
