@@ -40,7 +40,6 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
-    const now = Date.now() / 1000;
 
     // This endpoint is a current vault snapshot. It exposes each vault strategy's
     // current interestPerSecond and interestFee, plus curator-configured reward
@@ -59,7 +58,6 @@ const fetch = async (options: FetchOptions) => {
         const vaults = response.lendVaults ?? [];
         allVaults.push(...vaults);
         total = response.total ?? allVaults.length;
-        console.dir(vaults, { depth: null })
         if (vaults.length < PAGE_SIZE) break; // no more pages
         page++;
         await sleep(3000);
