@@ -65,7 +65,6 @@ async function getCardSellbackSpends(options: FetchOptions) {
     SELECT mint AS token, SUM(raw_amount) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
-      AND signer = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
       AND txn_id NOT IN (SELECT txn_id FROM token_buyback_txs)
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
@@ -100,7 +99,6 @@ async function getReadyFees(options: FetchOptions) {
 }
 
 async function fetch(options: FetchOptions) {
-  const grossFees = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -109,6 +107,8 @@ async function fetch(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
 
   try {
+    const grossFees = options.createBalances();
+
     await getSolanaReceived({
       options,
       balances: grossFees,
@@ -122,23 +122,23 @@ async function fetch(options: FetchOptions) {
     const readyTokenBuybackSpends = await getReadyTokenBuybackSpends(options);
 
     grossFees.addBalances(readyFees);
+    dailyFees.addBalances(grossFees, PACK_SALES);
+    dailyUserFees.addBalances(grossFees, PACK_SALES);
+
     dailySupplySideRevenue.addBalances(cardSellbackSpends, CARD_SELLBACKS);
     dailyHoldersRevenue.addBalances(readyTokenBuybackSpends, READY_BUYBACKS);
+
+    dailyRevenue.addBalances(grossFees, PACK_SALES);
+    dailyRevenue.subtract(dailySupplySideRevenue);
+
+    dailyProtocolRevenue.addBalances(dailyRevenue);
+    dailyProtocolRevenue.subtract(dailyHoldersRevenue);
   } catch (e) {
     console.error(
       `[ready-cards] failed to fetch Solana fee data for treasury ${READY_CARDS_TREASURY}`,
       e,
     );
   }
-
-  dailyFees.addBalances(grossFees, PACK_SALES);
-  dailyUserFees.addBalances(grossFees, PACK_SALES);
-
-  dailyRevenue.addBalances(grossFees, PACK_SALES);
-  dailyRevenue.subtract(dailySupplySideRevenue);
-
-  dailyProtocolRevenue.addBalances(dailyRevenue);
-  dailyProtocolRevenue.subtract(dailyHoldersRevenue);
 
   return {
     dailyFees,
