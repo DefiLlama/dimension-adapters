@@ -1,6 +1,7 @@
 import { queryAllium } from "../helpers/allium";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
+import { createEvmChainUsersFetcher, EVM_CHAIN_METRIC_CONFIGS } from "../helpers/evmChainFees";
 
 async function solanaUsers(start: number, end: number) {
     const queryId = await queryAllium(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
@@ -74,6 +75,7 @@ type ChainUserConfig = {
     name: string,
     id: string,
     chain: string,
+    start?: string | number,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }
@@ -94,6 +96,18 @@ const alliumChainMap: Record<string, string> = {
 }
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
+
+const evmChainMetricConfigKeys = ["core", "kava", "merlin"] as const;
+const evmChainMetricExports = evmChainMetricConfigKeys.map((name) => {
+    const config = EVM_CHAIN_METRIC_CONFIGS[name];
+    return {
+        name,
+        chain: config.chain,
+        getUsers: createEvmChainUsersFetcher(config),
+        start: config.start,
+        id: name,
+    };
+});
 
 export default [
     {
@@ -145,10 +159,11 @@ export default [
     //     getUsers: coinmetricsData("bsv"),
     //     id: "bsv"
     // },
-].map(chain => ({
+].concat(evmChainMetricExports).map(chain => ({
     name: chain.name,
     id: (chain as any).id ?? `chain#${chain.name}`,
     type: "chain",
     chain: chain.chain,
+    start: (chain as any).start,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
 } as ChainUserConfig)).concat(alliumExports)
