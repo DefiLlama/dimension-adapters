@@ -28,48 +28,102 @@ const abis = {
   fees: 'function getFee(address pool, bool _stable) external view returns (uint256)'
 }
 
-const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
+// One pass over GaugeCreated supplies both: pool->gauge (for staked-LP share) and
+// the bribe-contract set (for NotifyReward filtering).  Filtered to the canonical
+// non-CL gauge factory.
+const getGaugeMetadata = async (
+  fetchOptions: FetchOptions,
+): Promise<{ poolToGauge: Map<string, string>; bribeSet: Set<string> }> => {
+  const logs = await fetchOptions.getLogs({
+    target: CONFIG.voter,
+    fromBlock: 3200601,
+    eventAbi: eventAbis.event_gaugeCreated,
+    skipIndexer: true,
+    cacheInCloud: true,
+  })
+  const poolToGauge = new Map<string, string>()
+  const bribeSet = new Set<string>()
+  const factory = CONFIG.GaugeFactory.toLowerCase()
+  for (const log of logs as any[]) {
+    if (String(log[2]).toLowerCase() !== factory) continue
+    poolToGauge.set(String(log[3]).toLowerCase(), String(log[6]).toLowerCase())
+    bribeSet.add(String(log[4]).toLowerCase())
+  }
+  return { poolToGauge, bribeSet }
+}
+
+const getBribes = async (
+  fetchOptions: FetchOptions,
+  bribeSet: Set<string>,
+): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
   const { createBalances, startTimestamp } = fetchOptions
-  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
-
+  const iface = new ethers.Interface([eventAbis.event_notify_reward])
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
-  if (!logs_gauge_created?.length) return { dailyBribesRevenue };
+  if (bribeSet.size === 0) return { dailyBribesRevenue }
 
-  const bribes_contract: string[] = logs_gauge_created
-    .filter((log) => log[2].toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
-    .map((log) => log[4].toLowerCase())
-  const bribeSet = new Set(bribes_contract)
   // need to manually parse logs, auto parsing fails for some reason
-  const logs = await fetchOptions.getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
+  const logs = await fetchOptions.getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true })
   logs.forEach((log: any) => {
     const contract = (log.address || log.source).toLowerCase()
-    if (!bribeSet.has(contract)) return;
+    if (!bribeSet.has(contract)) return
     const parsedLog = iface.parseLog(log)
     const token = parsedLog!.args.reward.toLowerCase()
     const amount = parsedLog!.args.amount
     handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
   })
-
   return { dailyBribesRevenue }
 }
 
-const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions: FetchOptions) => {
+// Strategy A: per-pool staked share = pool.balanceOf(gauge) / pool.totalSupply.
+// Non-CL Aerodrome v2 has no unstaked-LP rake module, so all unstaked fees stay
+// with LPs.  For each swap fee we split: holders = fee × stakedShare,
+// supplySide = fee × (1 - stakedShare).  Pools without a gauge contribute 0 to
+// holders.  Snapshot ratio is read at the cron block.
+const getVolumeFeesAndRevenue = async (
+  fromBlock: number,
+  toBlock: number,
+  fetchOptions: FetchOptions,
+  poolToGauge: Map<string, string>,
+) => {
   const { createBalances, api, chain } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
+  const dailyHoldersRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
 
-  const rawPools = await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 3200668, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true, })
+  const rawPools = await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 3200668, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true })
 
   const fees = await api.multiCall({
     abi: abis.fees, target: CONFIG.PoolFactory, calls: rawPools.map(i => ({ params: [i.pool, i.stable] }))
   })
+  const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
+  const gaugeForPool = rawPools.map((p: any) => poolToGauge.get(String(p.pool).toLowerCase()) ?? ZERO_ADDR)
+  const [stakedBalances, totalSupplies] = await Promise.all([
+    api.multiCall({
+      abi: 'function balanceOf(address) view returns (uint256)',
+      calls: rawPools.map((p: any, i: number) => ({ target: p.pool, params: [gaugeForPool[i]] })),
+      permitFailure: true,
+    }),
+    api.multiCall({
+      abi: 'erc20:totalSupply',
+      calls: rawPools.map((p: any) => p.pool),
+      permitFailure: true,
+    }),
+  ])
+
   const poolInfoMap = {} as any
-  const aeroPoolSet = new Set()
-  rawPools.forEach(({ token0, token1, stable, pool }, index) => {
-    pool = pool.toLowerCase()
-    const fee = fees[index] / 1e4
-    poolInfoMap[pool] = { token0, token1, stable, fee }
+  const aeroPoolSet = new Set<string>()
+  rawPools.forEach(({ token0, token1, stable, pool }: any, index: number) => {
+    pool = String(pool).toLowerCase()
+    const fee = Number(fees[index]) / 1e4
+    const hasGauge = poolToGauge.has(pool)
+    const totalSupply = Number(totalSupplies[index] ?? 0)
+    const stakedSupply = Number(stakedBalances[index] ?? 0)
+    let stakedShare = 0
+    if (hasGauge && totalSupply > 0) {
+      stakedShare = Math.min(1, stakedSupply / totalSupply)
+    }
+    poolInfoMap[pool] = { token0, token1, stable, fee, stakedShare }
     aeroPoolSet.add(pool)
   })
 
@@ -111,13 +165,20 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
           const pool = (log.address || log.source).toLowerCase()
           if (!aeroPoolSet.has(pool)) return;
           const parsedLog = iface.parseLog(log)
-          const { token0, token1, fee } = poolInfoMap[pool]
+          const { token0, token1, fee, stakedShare } = poolInfoMap[pool]
           const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
           const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
           const fee0 = amount0 * fee
           const fee1 = amount1 * fee
           addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
           addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+          if (stakedShare > 0) {
+            addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0 * stakedShare, amount1: fee1 * stakedShare })
+          }
+          if (stakedShare < 1) {
+            const supplyShare = 1 - stakedShare
+            addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * supplyShare, amount1: fee1 * supplyShare })
+          }
         })
       } catch (e) {
         errorFound = e
@@ -127,23 +188,61 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
 
   if (errorFound) throw errorFound
 
-  return { dailyVolume, dailyFees }
+  return { dailyVolume, dailyFees, dailyHoldersRevenue, dailySupplySideRevenue }
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { getToBlock, getFromBlock } = options
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
-  const { dailyBribesRevenue } = await getBribes(options);
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyVolume, dailyBribesRevenue }
+  const { poolToGauge, bribeSet } = await getGaugeMetadata(options)
+  const [{ dailyVolume, dailyFees, dailyHoldersRevenue, dailySupplySideRevenue }, { dailyBribesRevenue }] = await Promise.all([
+    getVolumeFeesAndRevenue(fromBlock, toBlock, options, poolToGauge),
+    getBribes(options, bribeSet),
+  ])
+  return {
+    dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyVolume,
+    dailyBribesRevenue,
+  }
+}
+
+const methodology = {
+  Fees: "Total swap fees paid by traders. Per-pool fee rate read from PoolFactory.getFee (default sAMM 0.05%, vAMM 0.30%; customizable per pool) applied to each swap's input amount.",
+  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
+  HoldersRevenue: "Fees earned by LPs staked in the gauge — forwarded to FeeVotingReward for distribution to veAERO voters. Computed per pool as fees × pool.balanceOf(gauge) / pool.totalSupply.",
+  SupplySideRevenue: "Unstaked LPs' pro-rata share of swap fees, claimable directly from the pool. Computed per pool as fees × (1 − stakedShare). Aerodrome v2 has no unstaked-LP rake module, so unstaked LPs keep 100% of their share.",
+  BribesRevenue: "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'Swap fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
+  },
+  Revenue: {
+    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+  },
+  HoldersRevenue: {
+    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+  },
+  SupplySideRevenue: {
+    'LP fees': 'Unstaked-LP pro-rata share of swap fees, claimable directly from the pool.',
+  },
+  BribesRevenue: {
+    'External bribes': "Token deposits to a pool's BribeVotingReward contract that veAERO voters claim by voting for the pool's gauge.",
+  },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   start: '2023-08-28',
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapters

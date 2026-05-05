@@ -28,6 +28,10 @@ export const PRE_LAUNCH_TOKEN_PRICING = {
   }
 }
 
+// Pricing rule for tokens in PRE_LAUNCH_TOKEN_PRICING:
+//   currentTimestamp <  cutoffTimestamp  → hardcoded conversionRate (token has no market price yet)
+//   currentTimestamp >= cutoffTimestamp  → DefiLlama spot price via balances.add (token is live)
+// Tokens not in the map always use balances.add.
 export const handleBribeToken = (
   token: string,
   amount: string,
@@ -35,12 +39,12 @@ export const handleBribeToken = (
   dailyBribesRevenue: sdk.Balances
 ): void => {
   const tokenConfig = PRE_LAUNCH_TOKEN_PRICING[token.toLowerCase()]
-  
+
   if (!tokenConfig || currentTimestamp >= tokenConfig.cutoffTimestamp) {
     dailyBribesRevenue.add(token, amount)
     return
   }
-  
+
   const convertedAmount = (Number(amount) * tokenConfig.conversionRate) / (10 ** tokenConfig.decimals)
   dailyBribesRevenue.addUSDValue(convertedAmount)
 }
