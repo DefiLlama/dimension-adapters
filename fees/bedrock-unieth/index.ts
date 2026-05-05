@@ -29,24 +29,22 @@ async function fetch(options: FetchOptions) {
     dailySupplySideRevenue: options.createBalances(),
   };
 
-  const [totalSupply, exchangeRatioBefore, exchangeRatioAfter, managerFeeShare] = await Promise.all([
-    options.fromApi.call({
-      target: UNIETH,
-      abi: "uint256:totalSupply",
-    }),
-    options.fromApi.call({
-      target: UNIETH_STAKING,
-      abi: "uint256:exchangeRatio",
-    }),
-    options.toApi.call({
-      target: UNIETH_STAKING,
-      abi: "uint256:exchangeRatio",
-    }),
-    options.fromApi.call({
-      target: UNIETH_STAKING,
-      abi: "uint256:managerFeeShare",
-    }),
-  ]);
+  const [totalSupply] = await options.fromApi.multiCall({
+    abi: "uint256:totalSupply",
+    calls: [UNIETH],
+  });
+  const [exchangeRatioBefore] = await options.fromApi.multiCall({
+    abi: "uint256:exchangeRatio",
+    calls: [UNIETH_STAKING],
+  });
+  const [exchangeRatioAfter] = await options.toApi.multiCall({
+    abi: "uint256:exchangeRatio",
+    calls: [UNIETH_STAKING],
+  });
+  const [managerFeeShare] = await options.fromApi.multiCall({
+    abi: "uint256:managerFeeShare",
+    calls: [UNIETH_STAKING],
+  });
 
   const exchangeRatioDelta = BigInt(exchangeRatioAfter) - BigInt(exchangeRatioBefore);
   const managerShare = BigInt(managerFeeShare);
