@@ -25,6 +25,14 @@ function genUID(length: number = 10): string {
   return result
 }
 
+function roundValue(value: any): number {
+  const num = Number(value)
+  const abs = Math.abs(num)
+  if (abs < 1) return +num.toFixed(4)
+  if (abs < 10) return +num.toFixed(2)
+  return +num.toFixed(0)
+}
+
 // const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
@@ -281,7 +289,7 @@ async function _runAdapter({
             const breakData = breakdownByLabelByChain[recordType]
 
             for (let [label, labelValue] of Object.entries(labelBreakdown)) {
-              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              labelValue = roundValue(labelValue)
               aggData[label] = (aggData[label] || 0) + labelValue
               if (!breakData[label]) breakData[label] = {}
               breakData[label][chain] = labelValue
@@ -289,7 +297,7 @@ async function _runAdapter({
           }
         }
 
-        result[recordType] = +Number(result[recordType]).toFixed(0)
+        result[recordType] = roundValue(result[recordType])
         if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
         aggregated[recordType].value += result[recordType]
         aggregated[recordType].chains[chain] = result[recordType]
