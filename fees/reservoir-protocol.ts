@@ -1,11 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-
-// ─── Reservoir core
-const RUSD          = '0x09D4214C03D01F49544C0448DBE3A27f768F2b34';
-const SRUSD         = '0x738d1115B90efa71AE468F1287fc864775e23a31';
-const SAVING_MODULE = '0x5475611Dffb8ef4d697Ae39df9395513b6E947d7';
-const TERM_ISSUER   = '0x128D86A9e854a709Df06b884f81EeE7240F6cCf7';
+import { METRIC } from '../helpers/metrics';
 
 // ─── Treasury holder addresses (mirrors TVL adapter)
 const FUND_A = '0x289C204B35859bFb924B9C0759A4FE80f610671c';
@@ -63,39 +58,12 @@ const ATOKEN_POSITIONS: readonly [string, string][] = [
 ];
 
 const fetch = async (options: FetchOptions) => {
-  const { fromApi, toApi, getLogs } = options;
+  const { fromApi, toApi } = options;
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // ── 1. srUSD savings yield ──────────────────────────────────────────────
-  const [srUSDPriceStart, srUSDPriceEnd, srUSDSupply] = await Promise.all([
-    fromApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice' }),
-    toApi.call({   target: SAVING_MODULE, abi: 'uint256:currentPrice' }),
-    fromApi.call({ target: SRUSD,          abi: 'uint256:totalSupply' }),
-  ]);
-  const srUSDDelta = BigInt(srUSDPriceEnd) - BigInt(srUSDPriceStart);
-  if (srUSDDelta > 0n) {
-    const srUSDYield = (srUSDDelta * BigInt(srUSDSupply)) / BigInt(1e8);
-    dailyFees.add(RUSD, srUSDYield);
-    dailySupplySideRevenue.add(RUSD, srUSDYield);
-  }
-
-  // ── 2. trUSD MintTerm holder yield ─────────────────────────────────────
-  // principle − cost = yield owed to trUSD holder at maturity.
-  const mintTermLogs = await getLogs({
-    target: TERM_ISSUER,
-    eventAbi: 'event MintTerm(address indexed from, address indexed to, uint256 indexed termId, uint256 principle, uint256 cost, uint256 timestamp)',
-    onlyArgs: true,
-  });
-  for (const log of mintTermLogs) {
-    const holderYield = BigInt(log.principle) - BigInt(log.cost);
-    if (holderYield > 0n) {
-      dailyFees.add(RUSD, holderYield);
-      dailySupplySideRevenue.add(RUSD, holderYield);
-    }
-  }
-
-  // ── 3. ERC4626 vault positions ──────────────────────────────────────────
+  // ── 1. ERC4626 vault positions ──────────────────────────────────────────
   const vaultTargets  = ERC4626_POSITIONS.map(([vault])         => ({ target: vault }));
   const holderCalls   = ERC4626_POSITIONS.map(([vault, holder]) => ({ target: vault, params: [holder] }));
   const priceCallsIn  = ERC4626_POSITIONS.map(([vault])         => ({ target: vault, params: ['1000000000000000000'] }));
@@ -115,11 +83,11 @@ const fetch = async (options: FetchOptions) => {
     const delta  = pEnd - pStart;
     if (!underlying || shares === 0n || delta <= 0n) return;
     const yieldAmt = (shares * delta) / BigInt(1e18);
-    dailyFees.add(underlying, yieldAmt);
-    dailySupplySideRevenue.add(underlying, yieldAmt);
+    dailyFees.add(underlying, yieldAmt, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(underlying, yieldAmt, METRIC.ASSETS_YIELDS);
   });
 
-  // ── 4. Aave v3 aToken positions (rebasing) ─────────────────────────────
+  // ── 2. Aave v3 aToken positions (rebasing) ─────────────────────────────
   const aTokenTargets = ATOKEN_POSITIONS.map(([aToken])         => ({ target: aToken }));
   const aHolderCalls  = ATOKEN_POSITIONS.map(([aToken, holder]) => ({ target: aToken, params: [holder] }));
 
@@ -135,11 +103,11 @@ const fetch = async (options: FetchOptions) => {
     const balEnd   = BigInt(aBalEnd[i]   ?? 0);
     const delta    = balEnd - balStart;
     if (!underlying || delta <= 0n) return;
-    dailyFees.add(underlying, delta);
-    dailySupplySideRevenue.add(underlying, delta);
+    dailyFees.add(underlying, delta, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(underlying, delta, METRIC.ASSETS_YIELDS);
   });
 
-  return { dailyFees, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -151,8 +119,17 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: 'Total yield earned across all protocol asset positions: srUSD savings (SavingModule price appreciation), trUSD term yield (MintTerm discount at issuance), and yield from ERC4626 vaults and Aave positions held in the protocol treasury.',
-    SupplySideRevenue: 'All fees flow to token holders: srUSD/wsrUSD holders (via SavingModule price), trUSD holders (via term discount), and the protocol treasury (reinvested on behalf of rUSD holders).',
+    Fees: 'Yield earned by the protocol treasury from ERC4626 vault positions (Morpho, Euler, Fluid, Cap, Ethena, InfiniFi, Stargate, IPOR, Hyperithm) and Aave v3 aToken rebasing positions held across treasury funds.',
+    SupplySideRevenue: 'All yield is reinvested on behalf of rUSD/srUSD holders — none is retained as protocol revenue.',
+    Revenue: 'Protocol retains no portion of yield; all earnings flow to token holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: 'Yield from ERC4626 vault price appreciation (convertToAssets delta × shares held) and Aave aToken rebasing (balance delta).',
+    },
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: 'All treasury yield is distributed to rUSD/srUSD holders with no protocol cut.',
+    },
   },
 };
 
