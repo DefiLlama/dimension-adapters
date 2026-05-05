@@ -44,13 +44,25 @@ const fetch = async (options: FetchOptions) => {
   // This endpoint is a current vault snapshot. It exposes each vault strategy's
   // current interestPerSecond and interestFee, plus curator-configured reward
   // schedules when includeRewards is enabled.
-  const response: LoopscaleVaultResponse = await httpPost(API_URL, {
-    page: 0,
-    pageSize: 50,
-    includeRewards: true,
-  });
+  const PAGE_SIZE = 50;
+  const allVaults: LoopscaleVaultResponse["lendVaults"] = [];
+  let page = 0;
+  let total = Infinity;
 
-  response.lendVaults.forEach(({ vaultRewardsSchedules, vaultStrategy }) => {
+  while (allVaults.length < total) {
+    const response: LoopscaleVaultResponse = await httpPost(API_URL, {
+      page,
+      pageSize: PAGE_SIZE,
+      includeRewards: true,
+    });
+    const vaults = response.lendVaults ?? [];
+    allVaults.push(...vaults);
+    total = response.total ?? allVaults.length;
+    if (vaults.length < PAGE_SIZE) break; // no more pages
+    page++;
+  }
+
+  allVaults.forEach(({ vaultRewardsSchedules, vaultStrategy }) => {
     const strategy = vaultStrategy?.strategy;
     if (strategy && !strategy.closed && strategy.principalMint) {
       // Loopscale vault yield is generated from borrower interest. interestFee
