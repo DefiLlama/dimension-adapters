@@ -1,79 +1,57 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-// Cubic Pool program (Solana mainnet).
-const PROGRAM_ID = "8iQtGj9mcUfFUGaiCpPy89swC3s8YTC8FhVZWfgeZhwu";
+const API_URL = "https://api.cubee.ee/api/defillama/dimensions";
 
-// Anchor instruction discriminator for `swap` (first 8 bytes of the
-// instruction data). Source: contracts/idl/cubic_pool.json
-const SWAP_DISCRIMINATOR_HEX = "f8c69e91e17587c8";
-
-// Anchor `swap` instruction layout:
-//   data[1..=8]   = discriminator
-//   data[9..=16]  = amount_in (u64, little-endian)
-//   data[17..=24] = minimum_amount_out (u64, le)  — unused here
-//   data[25]      = token_in_index (u8)            — unused here
-//   data[26]      = token_out_index (u8)           — unused here
-//
-// account_arguments (1-indexed in Trino):
-//   [1] pool
-//   [2] token_mint_in   ← used to attribute volume to a token
-//   [3] token_mint_out
-//   [4] user_token_account_in
-//   [5] user_token_account_out
-//   [6] vault_in
-//   [7] vault_out
-//   [8] user
-//   [9] token_program_in
-//  [10] token_program_out
+interface DimensionsResponse {
+  start: number;
+  end: number;
+  dailyVolume: number;
+  dailyFees: number;
+  dailySupplySideRevenue: number;
+}
 
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+  const url = `${API_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`;
+  const data: DimensionsResponse = await httpGet(url);
 
-  const rows = await queryDuneSql(
-    options,
-    `WITH cubic_swaps AS (
-      SELECT
-        bytearray_to_bigint(bytearray_reverse(bytearray_substring(data, 9, 8))) AS amount_in,
-        account_arguments[2] AS token_mint_in
-      FROM solana.instruction_calls
-      WHERE executing_account = '${PROGRAM_ID}'
-        AND bytearray_substring(data, 1, 8) = from_hex('${SWAP_DISCRIMINATOR_HEX}')
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
-        AND tx_success = true
-    )
-    SELECT
-      token_mint_in,
-      SUM(amount_in) AS total_amount
-    FROM cubic_swaps
-    WHERE amount_in > 0
-    GROUP BY token_mint_in`
-  );
-
-  for (const row of rows) {
-    dailyVolume.add(row.token_mint_in, row.total_amount);
+  if (
+    !data ||
+    data.dailyVolume == null ||
+    data.dailyFees == null ||
+    data.dailySupplySideRevenue == null
+  ) {
+    throw new Error(
+      `Cubic API returned invalid response from ${url}: ${JSON.stringify(data)}`
+    );
   }
 
+  const dailyRevenue = data.dailyFees - data.dailySupplySideRevenue;
+
   return {
-    dailyVolume,
+    dailyVolume: data.dailyVolume,
+    dailyFees: data.dailyFees,
+    dailyUserFees: data.dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: data.dailySupplySideRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: "2026-05-01",
+      start: "2025-01-01",
     },
   },
-  isExpensiveAdapter: true,
   methodology: {
-    Volume:
-      "Sum of `amount_in` parsed directly from on-chain Cubic `swap` instructions on Solana, attributed to the input token mint. Computed via Dune SQL over `solana.instruction_calls` filtered by program id and the swap-instruction discriminator.",
+    Volume: "Sum of swap input USD value across all Cubic pools, computed from on-chain swap events indexed by the Cubic backend.",
+    Fees: "All swap fees paid by users on Cubic pools (LP share + protocol share).",
+    UserFees: "All swap fees paid by users on Cubic pools.",
+    Revenue: "Protocol's share of swap fees on Cubic pools (dailyFees - dailySupplySideRevenue), accruing to the Cubic protocol fees authority.",
+    SupplySideRevenue: "LPs' share of swap fees on Cubic pools.",
   },
 };
 
