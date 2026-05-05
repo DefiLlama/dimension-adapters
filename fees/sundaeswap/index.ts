@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
 
 const ADA_ID = "ada.lovelace";
 const endpoint = "https://api.sundae.fi/graphql";
@@ -31,17 +32,30 @@ const addFee = (
   }
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
+const MAX_FEE_TIER = 1 / 100;
+
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  let dailyFees = options.createBalances();
+  let dailyRevenue = options.createBalances();
+  let dailyProtocolRevenue = options.createBalances();
+  let dailyHoldersRevenue = options.createBalances();
+  let dailySupplySideRevenue = options.createBalances();
 
   const start = formatDate(options.startTimestamp);
   const end = formatDate(options.endTimestamp);
 
   const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
+
+  const historicalVolumeResponse = await fetchURL(historicalVolumeEndpoint);
+  const volumeToday = historicalVolumeResponse.response.find(dayItem => dayItem.day === options.dateString)
+
+  if (!volumeToday) {
+    throw new Error(`No volume data for ${options.dateString}`);
+  }
+
+  const dailyVolume = options.createBalances();
+  dailyVolume.addGasToken(volumeToday.volumeLovelace);
 
   const query = `
     query fetchPools($start: String!, $end: String!) {
@@ -82,6 +96,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyFees.addBalances(dailySupplySideRevenue, METRIC.LP_FEES);
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
 
+  const volumeInUsd = await dailyVolume.getUSDValue();
+  const feesInUsd = await dailyFees.getUSDValue();
+
+  const isBadSpike = feesInUsd > volumeInUsd * MAX_FEE_TIER;
+
+  if (isBadSpike) {
+    //throw new Error(`Bad spike in fees for ${options.dateString}, volume: ${volumeInUsd}, fees: ${feesInUsd}`);
+    dailyFees = options.createBalances();
+    dailyRevenue = options.createBalances();
+    dailySupplySideRevenue = options.createBalances();
+    dailyProtocolRevenue = options.createBalances();
+    dailyHoldersRevenue = options.createBalances();
+  }
+
   return {
     dailyFees,
     dailyRevenue,
@@ -107,7 +135,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2022-01-20",
