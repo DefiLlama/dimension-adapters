@@ -1,98 +1,80 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Balances } from "@defillama/sdk";
 
-type BedrockBalances = {
-  dailyFees: Balances;
-  dailyRevenue: Balances;
-  dailyProtocolRevenue: Balances;
-  dailySupplySideRevenue: Balances;
-};
-
-const ZERO = 0n;
-const ONE = 10n ** 18n;
-const MANAGER_FEE_DENOMINATOR = 1000n;
+const DECIMALS = 18;
+const MANAGER_FEE_DENOMINATOR = 1000;
 const UNI_IOTX = "0x236f8c0a61da474db21b693fb2ea7aab0c803894";
 const UNI_IOTX_STAKING = "0x2c914ba874d94090ba0e6f56790bb8eb6d4c7e5f";
 
 const METRICS = {
-  IOTX_STAKING_REWARDS: "uniIOTX Staking Rewards",
-  IOTX_STAKING_REWARDS_TO_PROTOCOL: "uniIOTX Staking Rewards To Protocol",
-  IOTX_STAKING_REWARDS_TO_HOLDERS: "uniIOTX Staking Rewards To Holders",
+    IOTX_STAKING_REWARDS: "uniIOTX Staking Rewards",
+    PERFORMANCE_FEES: "uniIOTX Performance Fees",
+    IOTX_STAKING_REWARDS_TO_HOLDERS: "uniIOTX Staking Rewards To Holders",
 };
 
 async function fetch(options: FetchOptions) {
-  const balances: BedrockBalances = {
-    dailyFees: options.createBalances(),
-    dailyRevenue: options.createBalances(),
-    dailyProtocolRevenue: options.createBalances(),
-    dailySupplySideRevenue: options.createBalances(),
-  };
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
-  const [totalSupply] = await options.fromApi.multiCall({
-    abi: "uint256:totalSupply",
-    calls: [UNI_IOTX],
-  });
-  const [exchangeRatioBefore] = await options.fromApi.multiCall({
-    abi: "uint256:exchangeRatio",
-    calls: [UNI_IOTX_STAKING],
-  });
-  const [exchangeRatioAfter] = await options.toApi.multiCall({
-    abi: "uint256:exchangeRatio",
-    calls: [UNI_IOTX_STAKING],
-  });
-  const [managerFeeShares] = await options.fromApi.multiCall({
-    abi: "uint256:managerFeeShares",
-    calls: [UNI_IOTX_STAKING],
-  });
+    const [totalSupply, exchangeRatioBefore, exchangeRatioAfter, managerFeeShares] = await Promise.all([options.api.call({
+        abi: "uint256:totalSupply",
+        target: UNI_IOTX,
+    }), options.fromApi.call({
+        abi: "uint256:exchangeRatio",
+        target: UNI_IOTX_STAKING,
+    }), options.toApi.call({
+        abi: "uint256:exchangeRatio",
+        target: UNI_IOTX_STAKING,
+    }), options.fromApi.call({
+        abi: "uint256:managerFeeShares",
+        target: UNI_IOTX_STAKING,
+    })]);
 
-  const exchangeRatioDelta = BigInt(exchangeRatioAfter) - BigInt(exchangeRatioBefore);
-  const managerFeeShare = BigInt(managerFeeShares);
-  if (exchangeRatioDelta <= ZERO || managerFeeShare >= MANAGER_FEE_DENOMINATOR) return balances;
+    const exchangeRatioDelta = exchangeRatioAfter - exchangeRatioBefore;
 
-  const supplySideRevenue = BigInt(totalSupply) * exchangeRatioDelta / ONE;
-  if (supplySideRevenue <= ZERO) return balances;
+    const supplySideRevenue = totalSupply * (exchangeRatioDelta / (10 ** DECIMALS));
 
-  const protocolRevenue = supplySideRevenue * managerFeeShare / (MANAGER_FEE_DENOMINATOR - managerFeeShare);
-  const grossRewards = supplySideRevenue + protocolRevenue;
+    const protocolRevenue = supplySideRevenue * (managerFeeShares / MANAGER_FEE_DENOMINATOR) / (1 - (managerFeeShares / MANAGER_FEE_DENOMINATOR));
+    const grossRewards = supplySideRevenue + protocolRevenue;
 
-  balances.dailyFees.addGasToken(grossRewards, METRICS.IOTX_STAKING_REWARDS);
-  balances.dailyRevenue.addGasToken(protocolRevenue, METRICS.IOTX_STAKING_REWARDS_TO_PROTOCOL);
-  balances.dailyProtocolRevenue.addGasToken(protocolRevenue, METRICS.IOTX_STAKING_REWARDS_TO_PROTOCOL);
-  balances.dailySupplySideRevenue.addGasToken(supplySideRevenue, METRICS.IOTX_STAKING_REWARDS_TO_HOLDERS);
+    dailyFees.addGasToken(grossRewards, METRICS.IOTX_STAKING_REWARDS);
+    dailyRevenue.addGasToken(protocolRevenue, METRICS.PERFORMANCE_FEES);
+    dailySupplySideRevenue.addGasToken(supplySideRevenue, METRICS.IOTX_STAKING_REWARDS_TO_HOLDERS);
 
-  return balances;
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
-const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
-  fetch,
-  adapter: {
-    [CHAIN.IOTEX]: {
-      start: "2025-09-15",
-    },
-  },
-  methodology: {
+const methodology = {
     Fees: "Gross uniIOTX staking rewards, calculated from uniIOTX exchangeRatio growth for holders plus the implied Bedrock manager commission.",
     Revenue: "Bedrock manager commission on uniIOTX staking rewards.",
     ProtocolRevenue: "Bedrock manager commission on uniIOTX staking rewards.",
     SupplySideRevenue: "uniIOTX holder staking rewards measured from exchangeRatio growth.",
-  },
-  breakdownMethodology: {
+};
+
+const breakdownMethodology = {
     Fees: {
-      [METRICS.IOTX_STAKING_REWARDS]: "Gross uniIOTX staking rewards calculated as holder exchangeRatio yield plus the implied Bedrock manager commission.",
+        [METRICS.IOTX_STAKING_REWARDS]: "Gross uniIOTX staking rewards, calculated from uniIOTX exchangeRatio growth for holders plus the implied Bedrock manager commission.",
     },
     Revenue: {
-      [METRICS.IOTX_STAKING_REWARDS_TO_PROTOCOL]: "Bedrock manager commission inferred from holder yield using managerFeeShares / (1000 - managerFeeShares).",
+        [METRICS.PERFORMANCE_FEES]: "Performance fees on uniIOTX staking rewards.",
     },
     ProtocolRevenue: {
-      [METRICS.IOTX_STAKING_REWARDS_TO_PROTOCOL]: "Bedrock manager commission inferred from holder yield using managerFeeShares / (1000 - managerFeeShares).",
+        [METRICS.PERFORMANCE_FEES]: "Performance fees on uniIOTX staking rewards.",
     },
     SupplySideRevenue: {
-      [METRICS.IOTX_STAKING_REWARDS_TO_HOLDERS]: "uniIOTX holder staking yield calculated from exchangeRatio growth.",
+        [METRICS.IOTX_STAKING_REWARDS_TO_HOLDERS]: "uniIOTX holder staking rewards measured from exchangeRatio growth.",
     },
-  },
+};
+
+const adapter: Adapter = {
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.IOTEX],
+    start: "2025-09-15",
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
