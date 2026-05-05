@@ -97,14 +97,9 @@ const methodology = {
   ProtocolRevenue: "0.35% + fixed network fee on each withdrawal, 0.35% + fixed network fee on each swap",
 }
 
-const breakdownMethodology = {
-  WITHDRAWAL_FEES: "0.35% fee plus fixed network fee on withdrawals",
-  SWAP_FEES: "0.35% fee plus fixed network fee on swaps",
-}
 
 const adapter: Adapter = {
   methodology,
-  breakdownMethodology,
   version: 1,
   fetch,
   dependencies: [Dependencies.DUNE],
