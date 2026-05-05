@@ -1,4 +1,5 @@
 import { queryAllium } from "../helpers/allium";
+import { PromisePool } from "@supercharge/promise-pool";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
@@ -54,6 +55,91 @@ async function elrondUsers(start: number, end: number) {
     }];
 }
 
+const toDateString = (d: number) => new Date(d * 1e3).toISOString().slice(0, 10)
+type BlockscoutStatsChartItem = {
+    date: string,
+    date_to: string,
+    value: string,
+}
+
+function getBlockscoutChart(data: any, baseUrl: string, from: string, metric: string) {
+    if (!Array.isArray(data?.chart))
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    return data.chart as BlockscoutStatsChartItem[]
+}
+
+function parseBlockscoutValue(point: BlockscoutStatsChartItem | undefined, baseUrl: string, from: string, metric: string) {
+    const rawValue: unknown = point?.value
+    if (
+        rawValue === null ||
+        rawValue === undefined ||
+        (typeof rawValue !== "string" && typeof rawValue !== "number") ||
+        (typeof rawValue === "string" && rawValue.trim() === "")
+    )
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    const value = typeof rawValue === "number" ? rawValue : Number(rawValue)
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0)
+        throw new Error(`Malformed Blockscout ${metric} payload for ${baseUrl} on ${from}`)
+
+    return value
+}
+
+// Blockscout stats-service exposes daily tx, active account, and new account series.
+function getBlockscoutUsersChain(baseUrl: string) {
+    return async (start: number, end: number) => {
+        const from = toDateString(start)
+        const to = toDateString(end - 1)
+
+        const { results, errors } = await PromisePool.withConcurrency(2).for([
+            { key: "tx", url: `${baseUrl}/stats-service/api/v1/lines/newTxns?from=${from}&to=${to}&resolution=DAY` },
+            { key: "users", url: `${baseUrl}/stats-service/api/v1/lines/activeAccounts?from=${from}&to=${to}&resolution=DAY` },
+        ]).process(async ({ key, url }) => ({ key, data: await httpGet(url) }))
+
+        if (errors.length)
+            throw errors[0]
+
+        const dataByKey = Object.fromEntries((results as { key: string, data: any }[]).map(({ key, data }) => [key, data]))
+        const txData = dataByKey.tx
+        const userData = dataByKey.users
+        const txChart = getBlockscoutChart(txData, baseUrl, from, "stats")
+        const userChart = getBlockscoutChart(userData, baseUrl, from, "stats")
+        const txPoint = txChart.find((item) => item.date === from)
+        const userPoint = userChart.find((item) => item.date === from)
+        const txcount = parseBlockscoutValue(txPoint, baseUrl, from, "stats")
+        const usercount = parseBlockscoutValue(userPoint, baseUrl, from, "stats")
+
+        if (!txPoint || !userPoint)
+            throw new Error(`Malformed Blockscout stats payload for ${baseUrl} on ${from}`)
+
+        return [{
+            usercount,
+            txcount,
+        }]
+    }
+}
+
+// New-user coverage comes from the dedicated newAccounts series.
+function getBlockscoutNewUsersChain(baseUrl: string) {
+    return async (start: number, end: number) => {
+        const from = toDateString(start)
+        const to = toDateString(end - 1)
+
+        const newUserData = await httpGet(`${baseUrl}/stats-service/api/v1/lines/newAccounts?from=${from}&to=${to}&resolution=DAY`)
+        const newUserChart = getBlockscoutChart(newUserData, baseUrl, from, "new users")
+        const newUserPoint = newUserChart.find((item) => item.date === from)
+        const usercount = parseBlockscoutValue(newUserPoint, baseUrl, from, "new users")
+
+        if (!newUserPoint)
+            throw new Error(`Malformed Blockscout new users payload for ${baseUrl} on ${from}`)
+
+        return [{
+            usercount,
+        }]
+    }
+}
+
 function getAlliumUsersChain(chain: string) {
     return async (start: number, end: number) => {
         let fromField = chain === "starknet" ? "sender_address" : "from_address"
@@ -82,7 +168,6 @@ const alliumChainMap: Record<string, string> = {
     arbitrum: CHAIN.ARBITRUM,
     avalanche: CHAIN.AVAX,
     ethereum: CHAIN.ETHEREUM,
-    optimism: CHAIN.OPTIMISM,
     polygon: CHAIN.POLYGON,
     tron: CHAIN.TRON,
     base: CHAIN.BASE,
@@ -94,6 +179,30 @@ const alliumChainMap: Record<string, string> = {
 }
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
+
+const blockscoutChainMap: Record<string, { chain: string, baseUrl: string }> = {
+    astar: { chain: CHAIN.ASTAR, baseUrl: "https://astar.blockscout.com" },
+    filecoin: { chain: CHAIN.FILECOIN, baseUrl: "https://filecoin.blockscout.com" },
+    fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io" },
+    ink: { chain: CHAIN.INK, baseUrl: "https://explorer.inkonchain.com" },
+    lightlink_phoenix: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io" },
+    lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com" },
+    optimism: { chain: CHAIN.OPTIMISM, baseUrl: "https://explorer.optimism.io" },
+    redstone: { chain: CHAIN.REDSTONE, baseUrl: "https://explorer.redstone.xyz" },
+    rootstock: { chain: CHAIN.ROOTSTOCK, baseUrl: "https://rootstock.blockscout.com" },
+    soneium: { chain: CHAIN.SONEIUM, baseUrl: "https://soneium.blockscout.com" },
+    unichain: { chain: CHAIN.UNICHAIN, baseUrl: "https://unichain.blockscout.com" },
+    zksync: { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com" },
+}
+
+const blockscoutExports = Object.entries(blockscoutChainMap).map(([name, config]) => ({
+    name,
+    id: name,
+    getUsers: getBlockscoutUsersChain(config.baseUrl),
+    getNewUsers: getBlockscoutNewUsersChain(config.baseUrl),
+    chain: config.chain,
+    type: 'chain'
+}))
 
 export default [
     {
@@ -151,4 +260,4 @@ export default [
     type: "chain",
     chain: chain.chain,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutExports)
