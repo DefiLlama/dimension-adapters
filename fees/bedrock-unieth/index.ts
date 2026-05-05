@@ -1,98 +1,88 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Balances } from "@defillama/sdk";
 
-type BedrockBalances = {
-  dailyFees: Balances;
-  dailyRevenue: Balances;
-  dailyProtocolRevenue: Balances;
-  dailySupplySideRevenue: Balances;
-};
-
-const ZERO = 0n;
-const ONE = 10n ** 18n;
-const UNIETH_MANAGER_FEE_DENOMINATOR = 1000n;
+const decimals = 18;
+const UNIETH_MANAGER_FEE_DENOMINATOR = 1000;
 const UNIETH = "0xF1376bceF0f78459C0Ed0ba5ddce976F1ddF51F4";
 const UNIETH_STAKING = "0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d";
 
 const METRICS = {
-  ETH_STAKING_REWARDS: "uniETH Staking Rewards",
-  ETH_STAKING_REWARDS_TO_PROTOCOL: "uniETH Staking Rewards To Protocol",
-  ETH_STAKING_REWARDS_TO_HOLDERS: "uniETH Staking Rewards To Holders",
+    ETH_STAKING_REWARDS: "uniETH Staking Rewards",
+    PERFORMANCE_FEES: "uniETH Performance Fees",
+    ETH_STAKING_REWARDS_TO_HOLDERS: "uniETH Staking Rewards To Holders",
 };
 
 async function fetch(options: FetchOptions) {
-  const balances: BedrockBalances = {
-    dailyFees: options.createBalances(),
-    dailyRevenue: options.createBalances(),
-    dailyProtocolRevenue: options.createBalances(),
-    dailySupplySideRevenue: options.createBalances(),
-  };
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
-  const [totalSupply] = await options.fromApi.multiCall({
-    abi: "uint256:totalSupply",
-    calls: [UNIETH],
-  });
-  const [exchangeRatioBefore] = await options.fromApi.multiCall({
-    abi: "uint256:exchangeRatio",
-    calls: [UNIETH_STAKING],
-  });
-  const [exchangeRatioAfter] = await options.toApi.multiCall({
-    abi: "uint256:exchangeRatio",
-    calls: [UNIETH_STAKING],
-  });
-  const [managerFeeShare] = await options.fromApi.multiCall({
-    abi: "uint256:managerFeeShare",
-    calls: [UNIETH_STAKING],
-  });
+    const [uniEthTotalSupply, uniEthExchangeRatioBefore, uniEthExchangeRatioAfter, managerFeeShare] = await Promise.all([await options.api.call({
+        abi: "uint256:totalSupply",
+        target: UNIETH,
+    }), await options.fromApi.call({
+        target: UNIETH_STAKING,
+        abi: "uint256:exchangeRatio",
+    }), await options.toApi.call({
+        target: UNIETH_STAKING,
+        abi: "uint256:exchangeRatio",
+    }), await options.fromApi.call({
+        target: UNIETH_STAKING,
+        abi: "uint256:managerFeeShare",
+    })]);
 
-  const exchangeRatioDelta = BigInt(exchangeRatioAfter) - BigInt(exchangeRatioBefore);
-  const managerShare = BigInt(managerFeeShare);
-  if (exchangeRatioDelta <= ZERO || managerShare >= UNIETH_MANAGER_FEE_DENOMINATOR) return balances;
+    const exchangeRatioDelta = uniEthExchangeRatioAfter - uniEthExchangeRatioBefore;
 
-  const supplySideRevenue = BigInt(totalSupply) * exchangeRatioDelta / ONE;
-  if (supplySideRevenue <= ZERO) return balances;
+    const supplySideRevenue = uniEthTotalSupply * exchangeRatioDelta / 10 ** decimals;
+    console.log(managerFeeShare)
 
-  const protocolRevenue = supplySideRevenue * managerShare / (UNIETH_MANAGER_FEE_DENOMINATOR - managerShare);
-  const grossRewards = supplySideRevenue + protocolRevenue;
+    const protocolRevenue = supplySideRevenue * (managerFeeShare / UNIETH_MANAGER_FEE_DENOMINATOR);
+    const grossRewards = supplySideRevenue + protocolRevenue;
 
-  balances.dailyFees.addGasToken(grossRewards, METRICS.ETH_STAKING_REWARDS);
-  balances.dailyRevenue.addGasToken(protocolRevenue, METRICS.ETH_STAKING_REWARDS_TO_PROTOCOL);
-  balances.dailyProtocolRevenue.addGasToken(protocolRevenue, METRICS.ETH_STAKING_REWARDS_TO_PROTOCOL);
-  balances.dailySupplySideRevenue.addGasToken(supplySideRevenue, METRICS.ETH_STAKING_REWARDS_TO_HOLDERS);
+    dailyFees.addGasToken(grossRewards, METRICS.ETH_STAKING_REWARDS);
+    dailyRevenue.addGasToken(protocolRevenue, METRICS.PERFORMANCE_FEES);
+    dailyProtocolRevenue.addGasToken(protocolRevenue, METRICS.PERFORMANCE_FEES);
+    dailySupplySideRevenue.addGasToken(supplySideRevenue, METRICS.ETH_STAKING_REWARDS_TO_HOLDERS);
 
-  return balances;
+    return {
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue,
+    };
 }
 
-const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
-  fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      start: "2022-09-29",
-    },
-  },
-  methodology: {
+const methodology = {
     Fees: "Gross uniETH staking rewards, calculated from uniETH exchangeRatio growth for holders plus the implied Bedrock manager commission.",
     Revenue: "Bedrock manager commission on uniETH staking rewards.",
     ProtocolRevenue: "Bedrock manager commission on uniETH staking rewards.",
     SupplySideRevenue: "uniETH holder staking rewards measured from exchangeRatio growth.",
-  },
-  breakdownMethodology: {
+};
+
+const breakdownMethodology = {
     Fees: {
-      [METRICS.ETH_STAKING_REWARDS]: "Gross uniETH staking rewards calculated as holder exchangeRatio yield plus the implied Bedrock manager commission.",
+        [METRICS.ETH_STAKING_REWARDS]: "Gross uniETH staking rewards calculated as holder exchangeRatio yield plus the implied Bedrock manager commission.",
     },
     Revenue: {
-      [METRICS.ETH_STAKING_REWARDS_TO_PROTOCOL]: "Bedrock manager commission inferred from holder yield using managerFeeShare / (1000 - managerFeeShare).",
+        [METRICS.PERFORMANCE_FEES]: "10% performance fees on uniETH staking rewards.",
     },
     ProtocolRevenue: {
-      [METRICS.ETH_STAKING_REWARDS_TO_PROTOCOL]: "Bedrock manager commission inferred from holder yield using managerFeeShare / (1000 - managerFeeShare).",
+        [METRICS.PERFORMANCE_FEES]: "10% performance fees on uniETH staking rewards.",
     },
     SupplySideRevenue: {
-      [METRICS.ETH_STAKING_REWARDS_TO_HOLDERS]: "uniETH holder staking yield calculated from exchangeRatio growth.",
+        [METRICS.ETH_STAKING_REWARDS_TO_HOLDERS]: "uniETH holder staking rewards measured from exchangeRatio growth.",
     },
-  },
+};
+
+const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.ETHEREUM],
+    start: "2022-09-29",
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
