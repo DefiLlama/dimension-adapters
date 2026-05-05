@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
+import { METRIC } from "../helpers/metrics";
 import { getSolanaReceived } from "../helpers/token";
 
 const READY_CARDS_TREASURY = "bvT9KFrAqmRpnb6AsuaJzdVKEVuT5jAVYt3N5CyGvkV";
@@ -17,6 +18,7 @@ const PACK_SALES = "Pack Sales Net Of Buybacks";
 const PACK_SALES_TO_TREASURY = "Pack Sales To Treasury Net Of Buybacks";
 const MARKETPLACE_FEES = "Marketplace Fees";
 const MARKETPLACE_FEES_TO_TREASURY = "Marketplace Fees To Treasury";
+const READY_BUYBACKS = METRIC.TOKEN_BUY_BACK;
 
 async function getReadyBuybackSpends(options: FetchOptions) {
   const buybackSpends = options.createBalances();
@@ -50,10 +52,12 @@ async function getReadyBuybackSpends(options: FetchOptions) {
 
 async function fetch(options: FetchOptions) {
   const received = options.createBalances();
+  const readyBuybackSpends = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   try {
     await getSolanaReceived({
@@ -65,6 +69,7 @@ async function fetch(options: FetchOptions) {
     });
 
     const buybackSpends = await getReadyBuybackSpends(options);
+    readyBuybackSpends.addBalances(buybackSpends, READY_BUYBACKS);
     received.subtract(buybackSpends);
   } catch (e) {
     console.error(
@@ -81,12 +86,14 @@ async function fetch(options: FetchOptions) {
   dailyRevenue.addUSDValue(0, MARKETPLACE_FEES_TO_TREASURY);
   dailyProtocolRevenue.addBalances(received, PACK_SALES_TO_TREASURY);
   dailyProtocolRevenue.addUSDValue(0, MARKETPLACE_FEES_TO_TREASURY);
+  dailyHoldersRevenue.addBalances(readyBuybackSpends);
 
   return {
     dailyFees,
     dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -95,6 +102,7 @@ const methodology = {
   UserFees: "User payments for Ready Cards pack sales in SOL, USDC, and USDT, net of READY buyback spends. Ready Cards currently charges 0% marketplace fees.",
   Revenue: "Net revenue from Ready Cards pack sales after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fee revenue is currently 0%.",
   ProtocolRevenue: "Net revenue retained by Ready Cards after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fee revenue is currently 0%.",
+  HoldersRevenue: "SOL, USDC, and USDT spent by Ready Cards' treasury to buy back READY tokens.",
 };
 
 const breakdownMethodology = {
@@ -113,6 +121,9 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     [PACK_SALES_TO_TREASURY]: "Pack-sale revenue retained by Ready Cards' operational treasury wallet, net of READY buyback spends.",
     [MARKETPLACE_FEES_TO_TREASURY]: "Ready Cards currently charges 0% marketplace fees, so marketplace fee revenue is 0.",
+  },
+  HoldersRevenue: {
+    [READY_BUYBACKS]: "SOL, USDC, and USDT spent from Ready Cards' treasury in transactions where that wallet receives READY as a buyback.",
   },
 };
 
