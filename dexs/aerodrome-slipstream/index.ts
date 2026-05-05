@@ -149,7 +149,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
 
   await PromisePool
-    .withConcurrency(1)
+    .withConcurrency(5)
     .for(ranges)
     .process(async ([startBlock, endBlock]: any) => {
       if (errorFound) return;
@@ -232,13 +232,17 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const supply0 = totals.fee0 - holders0
     const supply1 = totals.fee1 - holders1
 
-    addOneToken({ chain, balances: dailyFees, token0, token1, amount0: totals.fee0, amount1: totals.fee1 })
-    if (holders0 > 0 || holders1 > 0) {
-      addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: holders0, amount1: holders1 })
-    }
-    if (supply0 > 0 || supply1 > 0) {
-      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: supply0, amount1: supply1 })
-    }
+    // Sum both sides per pool — fee0 is the input-side fees from token0-input swaps,
+    // fee1 is from token1-input swaps; they're independent contributions and must
+    // BOTH be priced and added.  addOneToken would drop one side because it's
+    // designed for per-swap calls (where exactly one side carries the fee), not for
+    // the per-pool rollup we have here after summing input-side fees separately.
+    if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0)
+    if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1)
+    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0)
+    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1)
+    if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0)
+    if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1)
   })
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
