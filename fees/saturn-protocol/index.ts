@@ -77,7 +77,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.ETHEREUM],
-  start: "2026-03-20",
+  start: "2026-03-10",
   fetch,
   methodology: {
     Fees: "Fees include any sUSDat deposit fees, rewards added to the sUSDat vault, and USDat reserve yield claimed by Saturn.",
