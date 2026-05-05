@@ -20,18 +20,24 @@ const MARKETPLACE_FEES = "Marketplace Fees";
 const MARKETPLACE_FEES_TO_TREASURY = "Marketplace Fees To Treasury";
 const READY_BUYBACKS = METRIC.TOKEN_BUY_BACK;
 
+const paymentMints = PAYMENT_MINTS.map((mint) => `'${mint}'`).join(", ");
+
 async function getReadyBuybackSpends(options: FetchOptions) {
   const buybackSpends = options.createBalances();
-  const paymentMints = PAYMENT_MINTS.map((mint) => `'${mint}'`).join(", ");
 
   const results = await queryAllium(`
     WITH buyback_txs AS (
-      SELECT DISTINCT txn_id
-      FROM solana.assets.transfers
-      WHERE to_address = '${READY_CARDS_TREASURY}'
-        AND mint = '${READY_MINT}'
-        AND from_address != '${READY_CARDS_TREASURY}'
-        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      SELECT DISTINCT ready_in.txn_id
+      FROM solana.assets.transfers ready_in
+      JOIN solana.assets.transfers payment_out
+        ON ready_in.txn_id = payment_out.txn_id
+      WHERE ready_in.to_address = '${READY_CARDS_TREASURY}'
+        AND ready_in.mint = '${READY_MINT}'
+        AND ready_in.from_address != '${READY_CARDS_TREASURY}'
+        AND payment_out.from_address = '${READY_CARDS_TREASURY}'
+        AND payment_out.mint IN (${paymentMints})
+        AND ready_in.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
 
     SELECT mint AS token, SUM(raw_amount) AS amount
@@ -48,6 +54,38 @@ async function getReadyBuybackSpends(options: FetchOptions) {
   });
 
   return buybackSpends;
+}
+
+async function getReadyFees(options: FetchOptions) {
+  const readyFees = options.createBalances();
+
+  const results = await queryAllium(`
+    WITH buyback_txs AS (
+      SELECT DISTINCT ready_in.txn_id
+      FROM solana.assets.transfers ready_in
+      JOIN solana.assets.transfers payment_out
+        ON ready_in.txn_id = payment_out.txn_id
+      WHERE ready_in.to_address = '${READY_CARDS_TREASURY}'
+        AND ready_in.mint = '${READY_MINT}'
+        AND ready_in.from_address != '${READY_CARDS_TREASURY}'
+        AND payment_out.from_address = '${READY_CARDS_TREASURY}'
+        AND payment_out.mint IN (${paymentMints})
+        AND ready_in.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    )
+
+    SELECT SUM(raw_amount) AS amount
+    FROM solana.assets.transfers
+    WHERE to_address = '${READY_CARDS_TREASURY}'
+      AND mint = '${READY_MINT}'
+      AND from_address != '${READY_CARDS_TREASURY}'
+      AND txn_id NOT IN (SELECT txn_id FROM buyback_txs)
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `);
+
+  readyFees.add(READY_MINT, results[0]?.amount ?? 0);
+
+  return readyFees;
 }
 
 async function fetch(options: FetchOptions) {
@@ -68,7 +106,10 @@ async function fetch(options: FetchOptions) {
       blacklists: [READY_CARDS_TREASURY],
     });
 
+    const readyFees = await getReadyFees(options);
     const buybackSpends = await getReadyBuybackSpends(options);
+
+    received.addBalances(readyFees);
     readyBuybackSpends.addBalances(buybackSpends, READY_BUYBACKS);
     received.subtract(buybackSpends);
   } catch (e) {
@@ -98,28 +139,28 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Net fees from Ready Cards pack sales after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fees are currently 0%.",
-  UserFees: "User payments for Ready Cards pack sales in SOL, USDC, and USDT, net of READY buyback spends. Ready Cards currently charges 0% marketplace fees.",
-  Revenue: "Net revenue from Ready Cards pack sales after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fee revenue is currently 0%.",
+  Fees: "Net fees from Ready Cards pack sales and marketplace trades after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fees are currently 0%.",
+  UserFees: "User payments for Ready Cards pack sales and marketplace trades in SOL, USDC, USDT, and READY, net of READY buyback spends. Ready Cards currently charges 0% marketplace fees.",
+  Revenue: "Net revenue from Ready Cards pack sales and marketplace trades after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fee revenue is currently 0%.",
   ProtocolRevenue: "Net revenue retained by Ready Cards after subtracting SOL, USDC, and USDT spent on READY buybacks. Marketplace fee revenue is currently 0%.",
   HoldersRevenue: "SOL, USDC, and USDT spent by Ready Cards' treasury to buy back READY tokens.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [PACK_SALES]: "Payments received by Ready Cards' operational hot wallet for pack purchases, minus SOL, USDC, and USDT spent from that wallet in transactions where the wallet receives READY as buybacks.",
+    [PACK_SALES]: "Payments received by Ready Cards' operational hot wallet for pack purchases and marketplace trades, minus SOL, USDC, and USDT spent from that wallet in transactions where the wallet receives READY as buybacks.",
     [MARKETPLACE_FEES]: "Ready Cards currently charges 0% marketplace fees.",
   },
   UserFees: {
-    [PACK_SALES]: "Payments made by users for Ready Cards pack purchases, net of READY buyback spends.",
+    [PACK_SALES]: "Payments made by users for Ready Cards pack purchases and marketplace trades, net of READY buyback spends.",
     [MARKETPLACE_FEES]: "Ready Cards currently charges 0% marketplace fees.",
   },
   Revenue: {
-    [PACK_SALES_TO_TREASURY]: "Pack-sale revenue retained by Ready Cards' operational treasury wallet, net of READY buyback spends.",
+    [PACK_SALES_TO_TREASURY]: "Pack-sale and marketplace-trade revenue retained by Ready Cards' operational treasury wallet, net of READY buyback spends.",
     [MARKETPLACE_FEES_TO_TREASURY]: "Ready Cards currently charges 0% marketplace fees, so marketplace fee revenue is 0.",
   },
   ProtocolRevenue: {
-    [PACK_SALES_TO_TREASURY]: "Pack-sale revenue retained by Ready Cards' operational treasury wallet, net of READY buyback spends.",
+    [PACK_SALES_TO_TREASURY]: "Pack-sale and marketplace-trade revenue retained by Ready Cards' operational treasury wallet, net of READY buyback spends.",
     [MARKETPLACE_FEES_TO_TREASURY]: "Ready Cards currently charges 0% marketplace fees, so marketplace fee revenue is 0.",
   },
   HoldersRevenue: {
