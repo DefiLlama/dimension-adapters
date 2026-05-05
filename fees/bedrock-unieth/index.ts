@@ -18,26 +18,25 @@ async function fetch(options: FetchOptions) {
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    const [uniEthTotalSupply, uniEthExchangeRatioBefore, uniEthExchangeRatioAfter, managerFeeShare] = await Promise.all([await options.api.call({
-        abi: "uint256:totalSupply",
+    const [uniEthTotalSupply, uniEthExchangeRatioBefore, uniEthExchangeRatioAfter, managerFeeShare] = await Promise.all([options.api.call({
         target: UNIETH,
-    }), await options.fromApi.call({
+        abi: "uint256:totalSupply",
+    }), options.fromApi.call({
         target: UNIETH_STAKING,
-        abi: "uint256:exchangeRatio",
-    }), await options.toApi.call({
+        abi: "uint256:exchangeRatio"
+    }), options.toApi.call({
         target: UNIETH_STAKING,
-        abi: "uint256:exchangeRatio",
-    }), await options.fromApi.call({
+        abi: "uint256:exchangeRatio"
+    }), options.api.call({
         target: UNIETH_STAKING,
-        abi: "uint256:managerFeeShare",
+        abi: "uint256:managerFeeShare"
     })]);
 
     const exchangeRatioDelta = uniEthExchangeRatioAfter - uniEthExchangeRatioBefore;
 
     const supplySideRevenue = uniEthTotalSupply * exchangeRatioDelta / 10 ** decimals;
-    console.log(managerFeeShare)
 
-    const protocolRevenue = supplySideRevenue * (managerFeeShare / UNIETH_MANAGER_FEE_DENOMINATOR);
+    const protocolRevenue = supplySideRevenue * (managerFeeShare / UNIETH_MANAGER_FEE_DENOMINATOR) / (1 - (managerFeeShare / UNIETH_MANAGER_FEE_DENOMINATOR));
     const grossRewards = supplySideRevenue + protocolRevenue;
 
     dailyFees.addGasToken(grossRewards, METRICS.ETH_STAKING_REWARDS);
