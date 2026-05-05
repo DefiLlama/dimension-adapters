@@ -95,6 +95,7 @@ const ChainConfig: Record<string, { treasury: string, assets: AssetCfg[] }> = {
   },
 };
 
+const alliumUnsupportedChains: string[] = [CHAIN.HYPERLIQUID];
 
 async function fetchEvmInflows(options: FetchOptions) {
   const dailyFees = options.createBalances();
@@ -104,7 +105,10 @@ async function fetchEvmInflows(options: FetchOptions) {
   if (!targets.length || !assets.length) return dailyFees;
 
   await addTokensReceived({ options, tokens: assets, targets, balances: dailyFees });
-  await getETHReceived({ options, balances: dailyFees, targets });
+
+  if (!alliumUnsupportedChains.includes(options.chain)) {
+    await getETHReceived({ options, balances: dailyFees, targets });
+  }
 
   return dailyFees;
 }
@@ -140,14 +144,14 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: {
-    [CHAIN.SOLANA]: { start: "2025-01-01" },
+    [CHAIN.SOLANA]: { start: "2025-06-22" },
     [CHAIN.BASE]: { start: "2025-01-01" },
     [CHAIN.POLYGON]: { start: "2025-01-01" },
-    [CHAIN.ARBITRUM]: { start: "2025-01-01" },
-    [CHAIN.BSC]: { start: "2025-01-01" },
-    [CHAIN.HYPERLIQUID]: { start: "2025-01-01" },
-    [CHAIN.OPTIMISM]: { start: "2025-01-01" },
-    [CHAIN.MONAD]: { start: "2025-01-01" },
+    [CHAIN.ARBITRUM]: { start: "2026-03-22" },
+    [CHAIN.BSC]: { start: "2026-03-22" },
+    [CHAIN.HYPERLIQUID]: { start: "2026-04-09" },
+    [CHAIN.OPTIMISM]: { start: "2026-01-31" },
+    [CHAIN.MONAD]: { start: "2026-03-23" },
   },
   dependencies: [Dependencies.ALLIUM],
   methodology: {
