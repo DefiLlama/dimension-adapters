@@ -35,20 +35,12 @@ const addFee = (
 const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
 const MAX_FEE_TIER = 1 / 100;
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  let dailyFees = options.createBalances();
-  let dailyRevenue = options.createBalances();
-  let dailyProtocolRevenue = options.createBalances();
-  let dailyHoldersRevenue = options.createBalances();
-  let dailySupplySideRevenue = options.createBalances();
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-  };
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const start = formatDate(options.startTimestamp);
   const end = formatDate(options.endTimestamp);
@@ -110,12 +102,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const isBadSpike = feesInUsd > volumeInUsd * MAX_FEE_TIER;
 
   if (isBadSpike) {
-    //throw new Error(`Bad spike in fees for ${options.dateString}, volume: ${volumeInUsd}, fees: ${feesInUsd}`);
-    dailyFees = options.createBalances();
-    dailyRevenue = options.createBalances();
-    dailySupplySideRevenue = options.createBalances();
-    dailyProtocolRevenue = options.createBalances();
-    dailyHoldersRevenue = options.createBalances();
+    throw new Error(`Bad spike in fees for ${options.dateString}, volume: ${volumeInUsd}, fees: ${feesInUsd}`);
   }
 
   return {
@@ -143,7 +130,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2022-01-20",
