@@ -25,13 +25,24 @@ const METRICS = {
 
 const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
-  const logs = await options.getLogs({
-    target: MSY,
-    eventAbi: REWARDS_RECEIVED,
-  });
 
-  for (const log of logs) {
-    dailySupplySideRevenue.add(MSUSD, log.amount, METRICS.holders);
+  try {
+    const logs = await options.getLogs({
+      target: MSY,
+      eventAbi: REWARDS_RECEIVED,
+    });
+
+    for (const log of logs) {
+      dailySupplySideRevenue.add(MSUSD, log.amount, METRICS.holders);
+    }
+  } catch (error) {
+    console.error(`[mainstreet][${options.chain}] failed to fetch RewardsReceived logs`, error);
+    return {
+      dailyFees: options.createBalances(),
+      dailyRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+      dailySupplySideRevenue,
+    };
   }
 
   const dailyFees = dailySupplySideRevenue.clone(1 / HOLDER_SHARE, METRICS.yield);
