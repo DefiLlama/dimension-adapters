@@ -1,12 +1,8 @@
-import {
-  Dependencies,
-  FetchOptions,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { oreHelperCountSolBalanceDiff } from "../ore";
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await oreHelperCountSolBalanceDiff(
     options,
     "F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3"
@@ -27,21 +23,18 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-04-30",
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
-    Fees:
-      "Counts SOL inbound to Jade's Treasury PDA F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3, populated each round-reset with the SOL miners deployed on the Jade board.",
+    Fees: "Counts SOL inbound to Jade's Treasury PDA F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3, populated each round-reset with the SOL miners deployed on the Jade board.",
     Revenue: "1% of collected SOL fees, allocated to the protocol fee collector.",
-    ProtocolRevenue:
-      "1% of fees is allocated to the protocol fee collector.",
-    SupplySideRevenue:
-      "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
-    HoldersRevenue:
-      "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
+    ProtocolRevenue: "1% of fees is allocated to the protocol fee collector.",
+    SupplySideRevenue: "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
+    HoldersRevenue: "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
   },
 };
 
