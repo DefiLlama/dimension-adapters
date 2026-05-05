@@ -22,6 +22,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  const PLAY_LABEL = "GachaPlay";
+  const SELLBACK_LABEL = "CardSellback";
+  
   const playLogs = await options.getLogs({
     targets: GACHA_CONTRACTS,
     eventAbi: GachaPlayedEvent,
@@ -29,9 +32,9 @@ const fetch = async (options: FetchOptions) => {
   });
   for (const log of playLogs) {
     const cost = log.costPaid;
-    dailyVolume.add(USDM, cost);
-    dailyFees.add(USDM, cost);
-    dailyRevenue.add(USDM, cost);
+    dailyVolume.add(USDM, cost, PLAY_LABEL);
+    dailyFees.add(USDM, cost, PLAY_LABEL);
+    dailyRevenue.add(USDM, cost, PLAY_LABEL);
   }
 
   const transferLogs = await options.getLogs({
@@ -48,9 +51,9 @@ const fetch = async (options: FetchOptions) => {
     if (from !== PAYMENT_WALLET.toLowerCase()) continue;
     if (to === TREASURY.toLowerCase()) continue;
     const value = log.value;
-    dailyVolume.add(USDM, value);
-    dailySupplySideRevenue.add(USDM, value);
-    dailyRevenue.add(USDM, "-" + value.toString());
+    dailyVolume.add(USDM, value, SELLBACK_LABEL);
+    dailySupplySideRevenue.add(USDM, value, SELLBACK_LABEL);
+    dailyRevenue.add(USDM, "-" + value.toString(), SELLBACK_LABEL);
   }
 
   return {
@@ -65,6 +68,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   allowNegativeValue: true,
+  pullHourly: true,
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch,
@@ -82,6 +86,10 @@ const adapter: SimpleAdapter = {
       "USDm paid back to users for card sellbacks. The contract emits NFTSoldBack but the keeper sends USDm offchain, so we attribute outflows from the payment wallet (excluding transfers to the treasury) as sellback payouts.",
     ProtocolRevenue:
       "Same as Revenue — net USDm retained by the protocol after sellback payouts.",
+  },
+  breakdownMethodology: {
+    GachaPlay: "USDm paid by users into the Starter, Premium, and Ultra Gacha contracts (costPaid from GachaPlayed events).",
+    CardSellback: "USDm sent from the payment wallet to card sellers (excluding treasury transfers); represents sellback payouts.",
   },
 };
 
