@@ -1,68 +1,57 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { CHAIN } from '../helpers/chains';
+import fetchURL from '../utils/fetchURL';
+import { sleep } from '../utils/utils';
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
-const fetch = async (options: FetchOptions) => {
+const meteoraStatsEndpoint = 'https://dlmm.datapi.meteora.ag/pools';
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // fee and protocol_fee are in the input token
-  // swap_for_y=true → input is token_x_mint, swap_for_y=false → input is token_y_mint
-  // Filter wash trading: pools with tvl < $1000 and fees > 10x tvl are likely wash traded
-  const query = `
-    WITH pool_tvl AS (
-      SELECT
-        lb_pair,
-        AVG(
-          (CAST(reserve_x_post_balance AS DOUBLE) + CAST(reserve_y_post_balance AS DOUBLE)) / 2
-        ) AS avg_reserve
-      FROM meteora_solana.lb_clmm_evt_swap
-      WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND evt_block_time < from_unixtime(${options.endTimestamp})
-      GROUP BY lb_pair
-    ),
-    swaps AS (
-      SELECT
-        CASE WHEN s.swap_for_y THEN s.token_x_mint ELSE s.token_y_mint END AS token,
-        SUM(CAST(s.fee AS DOUBLE)) AS total_fee,
-        SUM(CAST(s.protocol_fee AS DOUBLE)) AS total_protocol_fee
-      FROM meteora_solana.lb_clmm_evt_swap s
-      JOIN pool_tvl p ON s.lb_pair = p.lb_pair
-      WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND s.evt_block_time < from_unixtime(${options.endTimestamp})
-        AND p.avg_reserve > 0
-      GROUP BY 1
-    )
-    SELECT token, total_fee, total_protocol_fee
-    FROM swaps
-    WHERE token IS NOT NULL
-  `;
+  let page = 1;
+  const limit = 100;
 
-  const rows = await queryDuneSql(options, query);
+  while (true) {
+    const response = await fetchURL(`${meteoraStatsEndpoint}?page=${page}&limit=${limit}`);
+    const pools = response.data || [];
+    if (pools.length === 0) break;
 
-  for (const row of rows) {
-    if (!row.token || !row.total_fee) continue;
-    dailyFees.add(row.token, row.total_fee, "trader fees");
-    dailyRevenue.add(row.token, row.total_protocol_fee ?? 0, "protocol fees");
-    dailySupplySideRevenue.add(row.token, row.total_fee - (row.total_protocol_fee ?? 0), "LP fees");
+    for (const pool of pools) {
+      const tvl = pool.tvl || 0;
+      const volume = pool.volume?.['24h'] ? Number(pool.volume['24h']) : 0;
+      const fees = pool.fees?.['24h'] ? Number(pool.fees['24h']) : 0;
+      const protocol_fees = pool.protocol_fees?.['24h'] ? Number(pool.protocol_fees['24h']) : 0;
+
+      // Same wash trading filter as dexs/meteora-dlmm.ts
+      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10)) continue;
+
+      dailyFees.addUSDValue(fees);
+      dailyRevenue.addUSDValue(protocol_fees);
+      dailySupplySideRevenue.addUSDValue(fees - protocol_fees);
+    }
+
+    const lastPool = pools[pools.length - 1];
+    if (lastPool.volume?.['24h'] < 1000) break;
+    await sleep(100);
+    page++;
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
+      runAtCurrTime: true,
       start: '2023-03-01',
     }
   },
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology: {
-    Fees: "All swap fees paid by traders in Meteora DLMM pools, excluding wash-traded pools.",
+    Fees: "All swap fees paid by traders in Meteora DLMM pools, excluding wash-traded pools (TVL < $1M and volume > 10x TVL).",
     Revenue: "Protocol fees retained by Meteora.",
     SupplySideRevenue: "Fees distributed to LPs after protocol fee deduction.",
   },
