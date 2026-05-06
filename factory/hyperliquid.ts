@@ -7,6 +7,7 @@ interface BuilderConfig {
   deadFrom?: string;
   methodology?: any;
   extraReturnFields?: Record<string, any>;
+  breakdownFees?: boolean; // add breakdown fees labels
 }
 
 // Builder adapter configs for dexs: protocol name -> config
@@ -70,6 +71,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "insilico": {
     addresses: ["0x2868fc0d9786a740b491577a43502259efa78a39"],
@@ -195,7 +197,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "supurr-perps": { addresses: ["0x36be02a397e969e010ccbd7333f4169f66b8989f"], start: "2025-09-19" },
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
   "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
-  "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" }
+  "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" },
+  "grider-perps": {
+    addresses: ["0x0176337c97bb884b8ac4be2276a5c779ab1156b9"], start: "2026-03-08",
+    methodology: {
+      Fees: "0.008% builder code fees paid by users on Hyperliquid Perps trades opened via GRIDer's grid trading bots.",
+      Revenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
+      ProtocolRevenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
+    },
+  }
 };
 
 // Builder fees configs: protocol name -> config
@@ -219,6 +229,7 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "bullpenfi-perps": {
     addresses: ["0x4c8731897503f86a2643959cbaa1e075e84babb7"],
@@ -609,6 +620,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     deadFrom: config.deadFrom,
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
+    breakdownFees: config.breakdownFees,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
@@ -627,6 +639,7 @@ for (const [name, config] of Object.entries(builderFeesConfigs)) {
     deadFrom: config.deadFrom,
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
+    breakdownFees: config.breakdownFees,
   });
 }
 

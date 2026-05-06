@@ -5,12 +5,27 @@ import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
 
-  const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
-    start: options.startTimestamp,
-    end: options.endTimestamp
-  });
-
+  // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
+  //   start: options.startTimestamp,
+  //   end: options.endTimestamp
+  // });
+  const sql = `
+    select
+        day
+      , sum(borrow_fees_usd) as daily_fees_usd
+      , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
+      , sum(day_revenue_usd) as daily_revenue_usd
+    from dune."0xfluid".result_juplend_historical_tvl_by_token_mv
+    where day >= FROM_UNIXTIME(${options.startTimestamp})
+        and day < FROM_UNIXTIME(${options.endTimestamp})
+    group by 1
+    order by day desc
+  `
   const data: any[] = await queryDuneSql(options, sql);
+
+  if (!data || data.length === 0) {
+    throw new Error(`No JupLend data returned from Dune for day starting ${new Date(options.startTimestamp * 1000).toISOString()}`);
+  }
 
   const df = data.reduce((sum, row) => sum + (row.daily_fees_usd || 0), 0);
   const dssrToLenders = data.reduce((sum, row) => sum + (row.daily_supply_side_revenue_usd || 0), 0);

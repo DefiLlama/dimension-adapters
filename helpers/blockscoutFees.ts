@@ -138,6 +138,7 @@ export const chainConfigMap: any = {
   [CHAIN.KATANA]: { CGToken: 'ethereum', explorer: 'https://explorer.katanarpc.com/' },
   [CHAIN.COTI]: { CGToken: 'coti', explorer: 'https://mainnet.cotiscan.io/' },
   [CHAIN.MEZO]: { CGToken: 'bitcoin', explorer: 'https://api.explorer.mezo.org', start: '2025-05-06' },
+  [CHAIN.WORLD_MOBILE]: { CGToken: 'world-mobile-token', explorer: 'https://explorer.worldmobile.io', start: '2025-06-01' },
 }
 
 function getTimeString(timestamp: number) {

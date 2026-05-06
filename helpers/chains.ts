@@ -368,4 +368,5 @@ export enum CHAIN {
   DARWINIA = "darwinia",
   DANGO = "dango",
   CSC = "csc",
+  WORLD_MOBILE = "world_mobile",
 }

@@ -210,81 +210,40 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
 
 const getAdditionalRevenueStreams = async (options: FetchOptions) => {
   const query = `
-    with 
-    
-    -- Restaking rewards from Eigenlayer via restaker contract
-    restaking_rewards as (
-        select 
-            'restaking_rewards' as revenue_source,
-            sum(((0.035 * token_balance_usd) * 0.038)/365) as revenue_usd
-        from 
-        dune.ether_fi.result_aum
-        where address in (0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf, 0x917cee801a67f933f2e6b33fc0cd1ed2d5909d88)
-        and lower(token_symbol) like '%steth%'
-        and day = date(from_unixtime(${options.startOfDay})) 
-        and token_balance_usd > 0
-    ),
+     select
+         sum(amount_usd) as revenue_usd
+     from (
+         select
+             amount_usd
+         from
+         dex_aggregator.trades
+         where blockchain = 'ethereum'
+         and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F
+         and TIME_RANGE
 
-     -- ether.fi buybacks (counted as holders revenue)
-     buybacks as (
-         select 
-             'buybacks' as revenue_source,
-             sum(amount_usd) as revenue_usd
+         union all
+
+         select
+             amount_usd
          from (
-             select 
-                 amount_usd
-             from 
-             dex_aggregator.trades 
-             where blockchain = 'ethereum'
-             and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F 
-             and TIME_RANGE
-
-             union all 
-
-             select 
-                 amount_usd
-             from (
-                 values 
-                     ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
-                     ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
-                     ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
-                     ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
-                     ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
-                     ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
-                     ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
-                     ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
-                     ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
-                     ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
-             ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
-             where block_time >= from_unixtime(${options.startTimestamp})
-             and block_time < from_unixtime(${options.endTimestamp})
-         )
-     )
-     
-     -- Combine all revenue sources
-     select revenue_source, revenue_usd from restaking_rewards
-     union all
-     select revenue_source, revenue_usd from buybacks`;
+             values
+                 ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
+                 ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
+                 ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
+                 ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
+                 ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
+                 ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
+                 ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
+                 ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
+                 ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
+                 ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
+         ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
+         where block_time >= from_unixtime(${options.startTimestamp})
+         and block_time < from_unixtime(${options.endTimestamp})
+     )`;
 
   const result = await queryDuneSql(options, query);
-  const revenues = {
-    restakingRewards: 0,
-    buybacks: 0
-  };
-
-  if (result && result.length > 0) {
-    result.forEach((row: any) => {
-      switch (row.revenue_source) {
-        case 'restaking_rewards':
-          revenues.restakingRewards = Number(row.revenue_usd || 0);
-          break;
-        case 'buybacks':
-          revenues.buybacks = Number(row.revenue_usd || 0);
-          break;
-      }
-    });
-  }
-  return revenues;
+  return { buybacks: Number(result?.[0]?.revenue_usd || 0) };
 }
 
 /**
@@ -359,13 +318,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.add(EIGEN, eigenRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
 
   const additionalRevenues = await getAdditionalRevenueStreams(options);
-
-  // Restaking rewards calculated from stETH holdings in restaker contracts 
-  // (separate from L2 Eigen claims above - this is based on actual stETH restaked)
-  if (additionalRevenues.restakingRewards > 0) {
-    dailyRevenue.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
-    dailyFees.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
-  }
 
   // ether.fi buybacks (counted as holders revenue)
   const dailyHoldersRevenue = options.createBalances();

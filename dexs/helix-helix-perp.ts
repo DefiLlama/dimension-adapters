@@ -1,32 +1,19 @@
-import { SimpleAdapter, FetchResultVolume } from "../adapters/types";
+import { httpGet } from "../utils/fetchURL";
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL"
 
-const URL_Derivative = "https://external.api.injective.network/api/aggregator/v1/derivative/contracts";
-interface IVolume {
-  target_volume: number;
-  open_interest: number;
-}
+const DERIVATIVE_URL = `https://bigquery-api-636134865280.europe-west1.run.app/helix_derivative_volume`;
 
-const fetchDerivative = async (_a: any): Promise<FetchResultVolume> => {
-  const volume: IVolume[] = (await fetchURL(URL_Derivative));
-  const dailyVolume = volume.reduce((e: number, a: IVolume) => a.target_volume + e, 0);
-  const openInterestAtEnd = volume.reduce((e: number, a: IVolume) => a.open_interest + e, 0);
+const fetch = async (_: number, _t: any, options: FetchOptions) => {
+  const derivativeRes: any = await httpGet(`${DERIVATIVE_URL}?start_date=${options.dateString}`);
+  if (derivativeRes.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
 
-  return {
-    dailyVolume,
-    openInterestAtEnd,
-  }
-}
+  return { dailyVolume: derivativeRes.total_volume_usd };
+};
 
-const adapter: SimpleAdapter = {
+export default {
   doublecounted: true,
-  adapter: {
-    [CHAIN.INJECTIVE]: {
-      fetch: fetchDerivative,
-      runAtCurrTime: true,
-      start: '2024-01-27',
-    }
-  }
-}
-export default adapter;
+  fetch,
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+};

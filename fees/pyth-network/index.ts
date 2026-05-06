@@ -271,10 +271,16 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
 
-  // bad rpcs chains
-  // [CHAIN.SEI]: { start: "2024-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
+  // Re-enabled chains (previously marked as bad RPCs)
+  // [CHAIN.SEI]: {
+  //   start: "2024-01-01",
+  //   contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  // },
+  // [CHAIN.INJECTIVE]: {
+  //   start: "2024-06-01",
+  //   contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
+  // },
   // [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
-  // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
 };
 
 const DEFAULT_FEE = 1n;
@@ -387,11 +393,11 @@ async function fetchAptos(
   const dailyFees = options.createBalances();
 
   const query = `
-    SELECT SUM(amount) AS total_fees
-    FROM aptos.core.fungible_asset_activities
-    WHERE owner_address = '${APTOS_PYTH_CONTRACT}'
-      AND asset_type = '${APTOS_COIN_TYPE}'
-      AND activity_type = 'deposit'
+    SELECT COALESCE(sum(amount), 0) as total_fees
+    FROM aptos.assets.fungible_transfers
+    WHERE to_address = '${APTOS_PYTH_CONTRACT}'
+      AND token_address = '${APTOS_COIN_TYPE}'
+      AND deposit_metadata:type::STRING = '0x1::fungible_asset::Deposit'
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
@@ -415,11 +421,14 @@ async function fetchNear(
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const query = `
-    SELECT SUM(deposit) AS total_fees
-    FROM near.raw.receipts
+    SELECT
+      COALESCE(SUM(TRY_CAST(action_contents:deposit::STRING AS DECIMAL(38, 0))), 0) AS total_fees
+    FROM near.raw.transaction_actions
     WHERE receiver_id = '${NEAR_PYTH_CONTRACT}'
-    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-    AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND action = 'FunctionCall'
+      AND action_contents:method_name::STRING = 'update_price_feeds'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
@@ -442,8 +451,8 @@ const adapter: SimpleAdapter = {
     ...evmAdapterEntries,
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2023-01-01" },
     [CHAIN.SUI]: { fetch: fetchSui, start: "2023-06-01" },
-    // [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
-    // [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
+    [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
+    [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
   },
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
