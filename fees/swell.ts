@@ -10,6 +10,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   const exchangeRateBefore = await options.fromApi.call({
     target: swETH,
@@ -35,6 +36,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   
   dailyFees.addGasToken(df)
   dailyRevenue.addGasToken(swellTreasuryRewards)
+  dailyHoldersRevenue.addGasToken(swellTreasuryRewards, 'holders_buyback')
   dailySupplySideRevenue.addGasToken(supplySideRewards)
 
   return {
@@ -42,7 +44,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue,
   }
 }
 
@@ -59,7 +61,21 @@ const adapter: Adapter = {
     Revenue: '5% staking rewards are charged by Swell Protocol Treasury.',
     SupplySideRevenue: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
     ProtocolRevenue: '5% staking rewards are charged by Swell Protocol Treasury.',
-    HoldersRevenue: 'No revenue share to SWELL token holders.',
+    HoldersRevenue: 'Protocol revenue (5% of staking yield) is allocated to SWELL buybacks via auctions. This is used as a proxy for value returned to token holders.',
+  },
+  breakdownMethodology: {
+    dailyFees: {
+      fees: 'Total validator rewards'
+    },
+    dailyRevenue: {
+      protocol_revenue: '5% staking yield taken as protocol revenue'
+    },
+    dailySupplySideRevenue: {
+      supply_side: 'Rewards distributed to stakers and node operators'
+    },
+    dailyHoldersRevenue: {
+      holders_buyback: 'Protocol revenue used for SWELL buybacks and burned'
+    }
   },
 };
 
