@@ -14,7 +14,13 @@ import { httpGet } from '../utils/fetchURL';
 //   2025-05-13 → ~2025-09   pump 0.95% | creator 0.05% | total 1.00%   (creator fee turned on)
 //   ~2025-09 → present      pump 0.95% | creator 0.30% | total 1.25%   (Project Ascend / Dynamic Fees V1)
 //
-// Buyback (2025-07-14+): 50% of the pump fee buys back PUMP. Already tracked via wallet flows.
+// Buyback / burn-lock policy (era-based, applied to the pump slice in this adapter):
+//   < 2025-07-14            no buyback program        → 100% protocol, 0%   holders
+//   2025-07-14 → 2026-04-28 ~all revenue → buyback    → 0%   protocol, 100% holders
+//   2026-04-28+             50% locked for burn       → 50%  protocol, 50%  holders
+// We split by ratio (not by the published buyback amount) because the pump.fun "Revenues"
+// figure aggregates bonding curve + PumpSwap + Terminal — using it here would over-attribute
+// non-bonding-curve buybacks to this adapter.
 // Cashback Coins (2026-02-17+): a coin can opt to redirect the 0.30% creator slot to traders/
 //   holders instead of the creator. Total user-paid fee unchanged;
 //   add once pumpdotfun_solana.pump_evt_tradeevent exposes the cashback column.
@@ -56,6 +62,7 @@ import { httpGet } from '../utils/fetchURL';
 const CREATOR_FEE_INTRO_TS = 1747094400  // 2025-05-13: creator fee turned on for bonding-curve coins
 const PROJECT_ASCEND_TS    = 1757894400  // 2025-09-15 (approx): Dynamic Fees V1, creator slice grows to 0.30%
 const BUYBACK_START_TS     = 1752451200  // 2025-07-14: pump fees → 50% buyback wallet from this point onwards
+const BURN_POLICY_TS       = 1777334400  // 2026-04-28: 50% of revenues programmatically locked for burn
 
 // Ratio of creator fee to pump fee at a given moment. Used to extrapolate creator fees from
 // the wallet-tracked pump fees until pumpdotfun_solana.pump_evt_tradeevent exposes creator_fee.
@@ -63,6 +70,21 @@ function getCreatorFeeRatio(timestamp: number): number {
   if (timestamp < CREATOR_FEE_INTRO_TS) return 0
   if (timestamp < PROJECT_ASCEND_TS)    return 0.05 / 0.95   // ~0.0526 — small creator slice, pre-Ascend
   return 0.30 / 0.95                                          // ~0.3158 — Project Ascend onwards
+}
+
+// Share of the bonding-curve pump slice that pump.fun retains as protocol revenue. The
+// pump.fun buybacks API/wallets cover all pump programs (bonding curve + PumpSwap + Terminal),
+// so we cannot subtract the published buyback amount from the bonding-curve fee without
+// over-attribution. Instead, we split using the era policy:
+//   < 2025-07-14            no buyback program → 100% protocol revenue
+//   2025-07-14 → 2026-04-28 ~all pump revenue routed to PUMP buyback → 0% protocol revenue
+//   2026-04-28+             50% locked for burn (treated as holders revenue) → 50% protocol revenue
+// The complement (1 - ratio) flows to HoldersRevenue. Mayhem fees are excluded from
+// pump.fun's "Revenues" definition and stay 100% protocol revenue.
+function getProtocolRevenueRatio(timestamp: number): number {
+  if (timestamp < BUYBACK_START_TS) return 1
+  if (timestamp < BURN_POLICY_TS)   return 0
+  return 0.5
 }
 
 // Mayhem-mode program fee wallet. Receives both native SOL and WSOL.
@@ -100,22 +122,6 @@ const PUMP_FEE_EXCLUDE_TX_ADDRESSES = [
   '7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC',
 ]
 
-// PUMP buyback senders / excluded receivers (transfer-based buyback measurement).
-const BUYBACK_FROM_OWNERS = [
-  '3vkpy5YHqnqJTnA5doWTpcgKyZiYsaXYzYM9wm8s3WTi',
-  '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
-  '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx',
-]
-const BUYBACK_TO_OWNERS_EXCLUDE = [
-  '6UJoY1CFEymoqMrnmBLeZoemBGiJcySNdR7Jyj2nF848',
-  '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
-  '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx',
-]
-const WSOL_MINTS = [
-  'So11111111111111111111111111111111111111112',
-  'So11111111111111111111111111111111111111111',
-]
-
 // Sum SOL inflows to the Mayhem fee wallet via Allium's solana.assets.transfers.
 async function addMayhemFees(options: FetchOptions, dailyFees: any, dailyRevenue: any, dailyProtocolRevenue: any) {
   const mayhem = options.createBalances()
@@ -145,8 +151,14 @@ async function fetchFromApi(options: FetchOptions) {
 
   buybackData = await buybackData
   if (!buybackData[dateString]) throw new Error('No buyback data for date: ' + dateString)
-  const { pumpFeesUsd, buybackUsd } = buybackData[dateString]
+  // The API also exposes `buybackUsd`, but that figure aggregates buybacks across pump.fun
+  // bonding curve, PumpSwap, and Terminal — using it here would over-attribute non-bonding-
+  // curve buybacks to this adapter. Split protocol/holders by the era policy instead.
+  const { pumpFeesUsd } = buybackData[dateString]
   const creatorFeesUsd = pumpFeesUsd * getCreatorFeeRatio(startTimestamp)
+  const protocolRatio = getProtocolRevenueRatio(startTimestamp)
+  const pumpProtocolUsd = pumpFeesUsd * protocolRatio
+  const pumpHoldersUsd  = pumpFeesUsd * (1 - protocolRatio)
 
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
@@ -157,7 +169,8 @@ async function fetchFromApi(options: FetchOptions) {
   // Pump's slice of the bonding-curve trade fee.
   dailyFees.addUSDValue(pumpFeesUsd, LABEL.PumpFunProtocolFee)
   dailyRevenue.addUSDValue(pumpFeesUsd, LABEL.PumpFunProtocolFee)
-  dailyProtocolRevenue.addUSDValue(pumpFeesUsd - buybackUsd, LABEL.PumpFunProtocolFee)
+  if (pumpProtocolUsd > 0) dailyProtocolRevenue.addUSDValue(pumpProtocolUsd, LABEL.PumpFunProtocolFee)
+  if (pumpHoldersUsd  > 0) dailyHoldersRevenue.addUSDValue(pumpHoldersUsd, METRIC.TOKEN_BUY_BACK)
 
   // Creator slice (extrapolated from pump fee using the era ratio). Supply-side; not revenue.
   if (creatorFeesUsd > 0) {
@@ -165,11 +178,8 @@ async function fetchFromApi(options: FetchOptions) {
     dailySupplySideRevenue.addUSDValue(creatorFeesUsd, LABEL.PumpFunCreatorFee)
   }
 
-  // Mayhem-mode fees (no buyback split → 100% protocol revenue).
+  // Mayhem-mode fees: excluded from pump.fun's "Revenues" definition, so 100% protocol.
   await addMayhemFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
-
-  // PUMP token buyback (50% of the pump slice from 2025-07-14 onwards).
-  dailyHoldersRevenue.addUSDValue(buybackUsd, METRIC.TOKEN_BUY_BACK)
 
   return {
     dailyFees,
@@ -181,13 +191,16 @@ async function fetchFromApi(options: FetchOptions) {
 }
 
 // ---------------------------------------------------------------------------
-// Dune fallback: wallet-flow queries used when the fees.pump.fun API is unavailable
-// (or before the buyback existed). Will be replaced by the decoded TradeEvent query
-// once the Dune IDL refresh exposes pump_fee / creator_fee / cashback columns.
+// Dune fallback: wallet-flow queries used when the fees.pump.fun API is unavailable.
+// Protocol/holders split mirrors the API path — era-policy ratio, not on-chain buyback
+// amounts (which span the whole pump.fun stack and would over-attribute here). Will be
+// replaced by the decoded TradeEvent query once the Dune IDL refresh exposes
+// pump_fee / creator_fee / cashback columns.
 // ---------------------------------------------------------------------------
 async function fetchFromDune(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
@@ -215,8 +228,14 @@ async function fetchFromDune(options: FetchOptions) {
   `, { extraUIDKey: 'pump-fees' })
 
   const pumpFeeLamports = (pumpFeeRows?.[0]?.total_sol_revenue ?? 0) * 1e9
+  const protocolRatio = getProtocolRevenueRatio(options.startTimestamp)
+  const pumpProtocolLamports = pumpFeeLamports * protocolRatio
+  const pumpHoldersLamports  = pumpFeeLamports * (1 - protocolRatio)
+
   dailyFees.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
   dailyRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
+  if (pumpProtocolLamports > 0) dailyProtocolRevenue.add(ADDRESSES.solana.SOL, pumpProtocolLamports, LABEL.PumpFunProtocolFee)
+  if (pumpHoldersLamports  > 0) dailyHoldersRevenue.add(ADDRESSES.solana.SOL, pumpHoldersLamports, METRIC.TOKEN_BUY_BACK)
 
   // Creator slice extrapolated from the pump slice (era-aware ratio).
   const creatorFeeRatio = getCreatorFeeRatio(options.startTimestamp)
@@ -226,39 +245,8 @@ async function fetchFromDune(options: FetchOptions) {
     dailySupplySideRevenue.add(ADDRESSES.solana.SOL, creatorFeeLamports, LABEL.PumpFunCreatorFee)
   }
 
-  // Mayhem-mode fees.
+  // Mayhem-mode fees: excluded from pump.fun's "Revenues" definition, so 100% protocol.
   await addMayhemFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
-  // dailyProtocolRevenue at this point only contains Mayhem; pump's net protocol revenue
-  // is computed below by subtracting the buyback from dailyRevenue's pump slice.
-
-  // Pre-buyback era: no PUMP buyback to split off, so pump slice is 100% protocol revenue.
-  if (options.startTimestamp < BUYBACK_START_TS) {
-    dailyProtocolRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
-    }
-  }
-
-  // PUMP buyback: WSOL transfers from the buyback wallets to non-self addresses.
-  const buybackRows = await queryDuneSql(options, `
-    SELECT SUM(amount_display) AS total_amount
-    FROM tokens_solana.transfers
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
-      AND from_owner IN (${BUYBACK_FROM_OWNERS.map(a => `'${a}'`).join(',')})
-      AND to_owner NOT IN (${BUYBACK_TO_OWNERS_EXCLUDE.map(a => `'${a}'`).join(',')})
-      AND token_mint_address IN (${WSOL_MINTS.map(m => `'${m}'`).join(',')})
-  `, { extraUIDKey: 'pump-burn' })
-  const buybackLamports = (buybackRows[0].total_amount || 0) * 1e9
-
-  const dailyHoldersRevenue = options.createBalances()
-  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, buybackLamports, METRIC.TOKEN_BUY_BACK)
-
-  // Pump slice net of the buyback → protocol revenue (Mayhem already added above).
-  dailyProtocolRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports - buybackLamports, LABEL.PumpFunProtocolFee)
 
   return {
     dailyFees,
@@ -291,11 +279,11 @@ const breakdownMethodology = {
     [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees (no creator/buyback split — 100% protocol).',
   },
   ProtocolRevenue: {
-    [LABEL.PumpFunProtocolFee]: "Pump's slice net of the PUMP buyback portion.",
-    [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees.',
+    [LABEL.PumpFunProtocolFee]: "Pump's slice × era ratio (100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28).",
+    [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees (excluded from pump.fun "Revenues", so kept 100% protocol).',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'PUMP token buyback (50% of the pump slice from 2025-07-14 onwards).',
+    [METRIC.TOKEN_BUY_BACK]: 'PUMP buyback / lock-for-burn share of the pump slice (0% pre-2025-07-14, 100% from 2025-07-14, 50% from 2026-04-28).',
   },
   SupplySideRevenue: {
     [LABEL.PumpFunCreatorFee]: 'Creator fees paid out to coin creators.',
@@ -314,8 +302,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Bonding-curve trade fees paid by users (pump's slice + creator slice) plus Mayhem-mode fees.",
     Revenue: "Pump's slice of the bonding-curve trade fee plus Mayhem-mode fees.",
-    ProtocolRevenue: "Revenue net of the PUMP token buyback. Mayhem fees have no buyback split.",
-    HoldersRevenue: "PUMP token buybacks (50% of pump's bonding-curve slice since 2025-07-14).",
+    ProtocolRevenue: "Pump's slice × era policy ratio (100% before 2025-07-14, 0% from 2025-07-14 when ~all revenue routed to PUMP buyback, 50% from 2026-04-28 when 50% started being programmatically locked for burn) plus 100% of Mayhem-mode fees. Computed from the era ratio rather than the published buyback amount because that figure aggregates buybacks across pump.fun bonding curve, PumpSwap, and Terminal.",
+    HoldersRevenue: "Pump's slice × (1 - protocol ratio) — the share routed to PUMP buyback or lock-for-burn (0% pre-2025-07-14, 100% from 2025-07-14, 50% from 2026-04-28).",
     SupplySideRevenue: "Creator fees paid out to coin creators.",
   },
 }
