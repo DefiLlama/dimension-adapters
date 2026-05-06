@@ -36,6 +36,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue: options.createBalances(),
+    dailyUserFees: options.createBalances(),
   };
 };
 
@@ -43,6 +44,7 @@ const methodology = {
   Fees: "wYLDS tokens minted into the vault-stake account via publish_rewards, representing real-world yield from Figure's HELOC lending pools distributed to PRIME stakers.",
   SupplySideRevenue: "All minted wYLDS accrues to PRIME stakers by increasing the wYLDS-per-PRIME exchange rate.",
   Revenue: "Hastra takes no on-chain protocol fee cut. Figure monetises via off-chain lending spreads on HELOCs.",
+  UserFees: "Users pay no on-chain fees. Yield originates from off-chain HELOC borrowers paying interest to Figure.",
 };
 
 const breakdownMethodology = {
@@ -51,6 +53,12 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     "HELOC Lending Yield To Holders": "All minted wYLDS increase the wYLDS-per-PRIME ratio, fully accruing to PRIME stakers.",
+  },
+  Revenue: {
+    "Protocol Revenue": "Hastra takes no on-chain protocol fee cut.",
+  },
+  UserFees: {
+    "User Fees": "Users pay no on-chain fees. Yield originates from off-chain HELOC borrowers.",
   },
 };
 
