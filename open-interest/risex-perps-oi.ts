@@ -21,11 +21,17 @@ const fetch = async () => {
     throw new Error("RiseX markets data missing");
   }
 
-  const openInterestAtEnd = markets.reduce((total: number, market: Market) => {
+  const openInterestAtEnd = markets.reduce((total: number, market: Market, i: number) => {
     if (market.available === false || market.visible === false) return total;
 
-    const openInterest = Number(market.open_interest ?? 0);
-    const price = Number(market.mark_price ?? market.index_price ?? market.last_price ?? 0);
+    const rawOpenInterest = market.open_interest;
+    const rawPrice = market.mark_price ?? market.index_price ?? market.last_price;
+    const openInterest = Number(rawOpenInterest);
+    const price = Number(rawPrice);
+    if (!Number.isFinite(openInterest) || !Number.isFinite(price) || openInterest < 0 || price < 0) {
+      throw new Error(`RiseX market numeric data invalid at index ${i}`);
+    }
+
     return total + openInterest * price;
   }, 0);
 

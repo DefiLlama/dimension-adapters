@@ -13,6 +13,10 @@ const fetch = async () => {
   }
 
   const dailyVolume = Number(response.data.total_volume);
+  if (!Number.isFinite(dailyVolume) || dailyVolume < 0) {
+    throw new Error("RiseX volume value invalid");
+  }
+
   return { dailyVolume };
 };
 
