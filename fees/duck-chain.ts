@@ -75,9 +75,6 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.TRANSACTION_GAS_FEES]: 'Same amount as transaction gas fees because no protocol cut is separated.',
   },
-  SupplySideRevenue: {
-    [METRIC.TRANSACTION_GAS_FEES]: 'No supply-side gas-fee share is computed.',
-  },
 };
 
 const adapter: Adapter = {
