@@ -7,34 +7,36 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // fee and protocol_fee are in the input token
+  // swap_for_y=true → input is token_x_mint, swap_for_y=false → input is token_y_mint
+  // Filter wash trading: pools with tvl < $1000 and fees > 10x tvl are likely wash traded
   const query = `
-    WITH swaps AS (
+    WITH pool_tvl AS (
       SELECT
-        token_x_mint AS token,
-        SUM(fee_x) AS total_fee,
-        SUM(protocol_fee_x) AS total_protocol_fee
+        lb_pair,
+        AVG(
+          (CAST(reserve_x_post_balance AS DOUBLE) + CAST(reserve_y_post_balance AS DOUBLE)) / 2
+        ) AS avg_reserve
       FROM meteora_solana.lb_clmm_evt_swap
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
         AND evt_block_time < from_unixtime(${options.endTimestamp})
-        AND fee_x > 0
-      GROUP BY token_x_mint
-      UNION ALL
+      GROUP BY lb_pair
+    ),
+    swaps AS (
       SELECT
-        token_y_mint AS token,
-        SUM(fee_y) AS total_fee,
-        SUM(protocol_fee_y) AS total_protocol_fee
-      FROM meteora_solana.lb_clmm_evt_swap
-      WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND evt_block_time < from_unixtime(${options.endTimestamp})
-        AND fee_y > 0
-      GROUP BY token_y_mint
+        CASE WHEN s.swap_for_y THEN s.token_x_mint ELSE s.token_y_mint END AS token,
+        SUM(CAST(s.fee AS DOUBLE)) AS total_fee,
+        SUM(CAST(s.protocol_fee AS DOUBLE)) AS total_protocol_fee
+      FROM meteora_solana.lb_clmm_evt_swap s
+      JOIN pool_tvl p ON s.lb_pair = p.lb_pair
+      WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
+        AND s.evt_block_time < from_unixtime(${options.endTimestamp})
+        AND p.avg_reserve > 0
+      GROUP BY 1
     )
-    SELECT
-      token,
-      SUM(total_fee) AS total_fee,
-      SUM(total_protocol_fee) AS total_protocol_fee
+    SELECT token, total_fee, total_protocol_fee
     FROM swaps
-    GROUP BY token
+    WHERE token IS NOT NULL
   `;
 
   const rows = await queryDuneSql(options, query);
@@ -55,14 +57,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2023-03-01',
-      runAtCurrTime: true,
     }
   },
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "All swap fees paid by traders in Meteora DLMM pools.",
-    Revenue: "Protocol fees (5% of total swap fee for standard pools, 20% for launch pools).",
+    Fees: "All swap fees paid by traders in Meteora DLMM pools, excluding wash-traded pools.",
+    Revenue: "Protocol fees retained by Meteora.",
     SupplySideRevenue: "Fees distributed to LPs after protocol fee deduction.",
   },
   breakdownMethodology: {
