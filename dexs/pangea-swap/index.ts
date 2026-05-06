@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const MASTER_DEPLOYER = "0xEB4B1CE03bb947Ce23ABd1403dF7C9B86004178d";
 const POOL_LOGGER = "0x002A422533cccEeA9aBF9e56e2A25d72672891bC";
@@ -27,19 +28,6 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions) => {
   const activePools = Array.from(new Set(logs.map((log: any) => log.pool.toLowerCase())));
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
-
-  if (!activePools.length) {
-    const dailyRevenue = dailyFees.clone(PROTOCOL_FEE_RATIO);
-    const dailySupplySideRevenue = dailyFees.clone(1 - PROTOCOL_FEE_RATIO);
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees.clone(),
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-    };
-  }
 
   const [factories, token0s, token1s, swapFees] = await Promise.all([
     api.multiCall({ abi: ABIS.factory, calls: activePools, permitFailure: true }),
@@ -77,16 +65,16 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions) => {
     const feeAmount = (amountOut * swapFee) / (SWAP_FEE_DENOMINATOR - swapFee);
 
     dailyVolume.add(tokenIn, log.amountIn);
-    dailyFees.add(tokenOut, feeAmount);
+    dailyFees.add(tokenOut, feeAmount, METRIC.SWAP_FEES);
   });
 
-  const dailyRevenue = dailyFees.clone(PROTOCOL_FEE_RATIO);
-  const dailySupplySideRevenue = dailyFees.clone(1 - PROTOCOL_FEE_RATIO);
+  const dailyRevenue = dailyFees.clone(PROTOCOL_FEE_RATIO, METRIC.PROTOCOL_FEES);
+  const dailySupplySideRevenue = dailyFees.clone(1 - PROTOCOL_FEE_RATIO, METRIC.LP_FEES);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
@@ -112,19 +100,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Swap fees": "Fees paid by users on Pangea Swap trades.",
+      [METRIC.SWAP_FEES]: "Fees paid by users on Pangea Swap trades.",
     },
     Revenue: {
-      "Protocol fees": "Protocol revenue, equal to 10% of swap fees.",
+      [METRIC.PROTOCOL_FEES]: "Protocol revenue, equal to 10% of swap fees.",
     },
     ProtocolRevenue: {
-      "Protocol fees": "Protocol revenue, equal to 10% of swap fees.",
+      [METRIC.PROTOCOL_FEES]: "Protocol revenue, equal to 10% of swap fees.",
     },
     SupplySideRevenue: {
-      "LP fees": "Supply-side revenue, equal to 90% of swap fees.",
-    },
-    HoldersRevenue: {
-      "Holder fees": "No holder revenue is currently allocated.",
+      [METRIC.LP_FEES]: "Supply-side revenue, equal to 90% of swap fees.",
     },
   },
 };
