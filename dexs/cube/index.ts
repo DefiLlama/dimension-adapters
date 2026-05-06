@@ -2,7 +2,8 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-// Cubic Pool program (Solana mainnet).
+// Cube DEX pool program (Solana mainnet). The on-chain Rust module is
+// named `cubic_pool` (legacy name from before the protocol rebrand to Cube).
 const PROGRAM_ID = "8iQtGj9mcUfFUGaiCpPy89swC3s8YTC8FhVZWfgeZhwu";
 
 // Anchor instruction discriminator for `swap` (first 8 bytes of the
@@ -33,7 +34,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const rows = await queryDuneSql(
     options,
-    `WITH cubic_swaps AS (
+    `WITH cube_swaps AS (
       SELECT
         bytearray_to_bigint(bytearray_reverse(bytearray_substring(data, 9, 8))) AS amount_in,
         account_arguments[2] AS token_mint_in
@@ -47,7 +48,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT
       token_mint_in,
       SUM(amount_in) AS total_amount
-    FROM cubic_swaps
+    FROM cube_swaps
     WHERE amount_in > 0
     GROUP BY token_mint_in`
   );
@@ -70,7 +71,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Volume:
-      "Sum of `amount_in` parsed directly from on-chain Cubic `swap` instructions on Solana, attributed to the input token mint. Computed via Dune SQL over `solana.instruction_calls` filtered by program id and the swap-instruction discriminator.",
+      "Sum of `amount_in` parsed directly from on-chain Cube `swap` instructions on Solana, attributed to the input token mint. Computed via Dune SQL over `solana.instruction_calls` filtered by program id and the swap-instruction discriminator.",
   },
 };
 
