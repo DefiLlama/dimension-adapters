@@ -198,16 +198,13 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
   "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
   "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" },
-  "grider": {
-    addresses: ["0x0176337c97bb884b8ac4be2276a5c779ab1156b9"],
-    start: "2026-03-08",
+  "grider-perps": {
+    addresses: ["0x0176337c97bb884b8ac4be2276a5c779ab1156b9"], start: "2026-03-08",
     methodology: {
       Fees: "0.008% builder code fees paid by users on Hyperliquid Perps trades opened via GRIDer's grid trading bots.",
       Revenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
       ProtocolRevenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
-      HoldersRevenue: "No token, no fees distributed to holders",
     },
-    extraReturnFields: { dailyHoldersRevenue: "0" },
   }
 };
 
@@ -489,17 +486,6 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
-  },
-  "grider": {
-    addresses: ["0x0176337c97bb884b8ac4be2276a5c779ab1156b9"],
-    start: "2026-03-08",
-    methodology: {
-      Fees: "0.008% builder code fees paid by users on Hyperliquid Perps trades opened via GRIDer's grid trading bots.",
-      Revenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
-      ProtocolRevenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
-      HoldersRevenue: "No token, no fees distributed to holders",
-    },
-    extraReturnFields: { dailyHoldersRevenue: "0" },
   }
 };
 
