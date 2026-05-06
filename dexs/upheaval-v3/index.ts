@@ -48,9 +48,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
 	version: 2,
-	adapter: {
-		[CHAIN.HYPERLIQUID]: { fetch, start: '2025-08-06' },
-	},
+    pullHourly: true,
+    fetch,
+    start: '2025-08-06',
+    chains: [CHAIN.HYPERLIQUID],
 };
 
 export default adapter;
