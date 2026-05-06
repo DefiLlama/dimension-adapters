@@ -66,7 +66,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch,
-      start: "2026-04-25",
+      start: "2026-04-04",
     },
   },
   methodology: {
