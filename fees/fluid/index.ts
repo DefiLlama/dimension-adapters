@@ -1,8 +1,8 @@
-import { Adapter, Dependencies, Fetch, FetchOptions } from "../../adapters/types";
+import { Dependencies, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CONFIG_FLUID, FLUID_METRICS } from "./config";
 import { getDailyFees } from "./fees";
 import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
-import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 
 const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
@@ -32,10 +32,23 @@ const fetchSolana: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   
   // get JupLend revenue
-  const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
-    start: options.startTimestamp,
-    end: options.endTimestamp
-  });
+  // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
+  //   start: options.startTimestamp,
+  //   end: options.endTimestamp
+  // });
+
+  const sql = `
+    select
+        day
+      , sum(borrow_fees_usd) as daily_fees_usd
+      , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
+      , sum(day_revenue_usd) as daily_revenue_usd
+    from dune."0xfluid".result_juplend_historical_tvl_by_token_mv
+    where day >= FROM_UNIXTIME(${options.startTimestamp})
+        and day < FROM_UNIXTIME(${options.endTimestamp})
+    group by 1
+    order by day desc
+  `
   const data: any[] = await queryDuneSql(options, sql);
   const jupiterRevenue = data.reduce((sum, row) => sum + (row.daily_revenue_usd || 0), 0);
   dailyFees.addUSDValue(jupiterRevenue * 0.5, FLUID_METRICS.RevenueShareFromJupLend);
@@ -49,7 +62,16 @@ const fetchSolana: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
   }
 }
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  adapter: {
+    ...CONFIG_FLUID,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2025-07-24',
+    }
+  },
   methodology: {
     Fees: "Interest paid by borrowers on Fluid + revenue share from JupLend",
     Revenue: "Percentage of interest going to treasury",
@@ -76,14 +98,6 @@ const adapter: Adapter = {
     HoldersRevenue: {
       [FLUID_METRICS.TokenBuyBack]: "FLUID token buyback from the treasury.",
     },
-  },
-  fetch,
-  adapter: {
-    ...CONFIG_FLUID,
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2025-07-24',
-    }
   },
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
