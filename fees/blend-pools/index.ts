@@ -19,6 +19,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Source: Dune stellar.contract_data snapshots of Blend pool ResData(asset).
+  // Blend debt rates are scaled by 1e12, so borrower interest per update is:
+  // previous d_supply * max(current d_rate - previous d_rate, 0) / 1e12.
+  // A 3-day lookback gives LAG() a prior reserve state before the target day.
   const query = `
     WITH parsed AS (
       SELECT DISTINCT
@@ -106,7 +110,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: "Total interest paid by Blend v1 borrowers, calculated from debt rate growth."
+      [METRIC.BORROW_INTEREST]: "Total interest paid by Blend v1 borrowers, calculated from debt rate growth.",
     },
     SupplySideRevenue: {
       "Borrow Interest To Lenders And Backstop": "Total v1 borrow interest paid to pool suppliers and backstop participants.",

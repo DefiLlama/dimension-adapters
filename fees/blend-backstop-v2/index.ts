@@ -14,6 +14,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Sources:
+  // - v2 backstop PoolBalance keys discover Blend v2 pools.
+  // - Dune stellar.contract_data ResData(asset) snapshots expose backstop_credit.
+  // Backstop earnings are measured as positive backstop_credit growth for each reserve.
+  // User deposits are not counted here because PoolBalance is only used for pool discovery.
   const query = `
     WITH pools AS (
       SELECT

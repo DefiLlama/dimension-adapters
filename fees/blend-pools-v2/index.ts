@@ -15,6 +15,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Sources:
+  // - v2 backstop PoolBalance keys discover Blend v2 pools.
+  // - Dune stellar.contract_data ResData(asset) snapshots provide d_rate, d_supply, and backstop_credit.
+  // Borrower interest = previous d_supply * max(current d_rate - previous d_rate, 0) / 1e12.
+  // This adapter reports only the lender share: borrower interest minus backstop_credit growth.
   const query = `
     WITH pools AS (
       SELECT
@@ -137,7 +142,7 @@ const adapter: SimpleAdapter = {
       [METRIC.BORROW_INTEREST]: "Interest paid by borrowers to lenders. It is calculated from debt rate growth, then excludes the portion credited to the backstop.",
     },
     SupplySideRevenue: {
-     "Borrow Interest To Lenders": "Borrower interest paid to users who supplied assets to Blend v2 pools.",
+      "Borrow Interest To Lenders": "Borrower interest paid to users who supplied assets to Blend v2 pools.",
     },
   },
 };
