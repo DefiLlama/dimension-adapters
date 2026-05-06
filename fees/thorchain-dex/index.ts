@@ -81,7 +81,7 @@ const getFetchForChain = (chainShortName: string) => {
   return async (_a:any, _b:any, options: FetchOptions) => {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
     const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
-    const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+    const reserveUrl = `https://vanaheimex.com/api/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
     const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
 
     const earnings = await fetchCacheURL(earningsUrl);
