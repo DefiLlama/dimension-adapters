@@ -2,22 +2,26 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { oreHelperCountSolBalanceDiff } from "../ore";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = await oreHelperCountSolBalanceDiff(
-    options,
-    "F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3"
-  );
+// Team multisig that receives the 1% admin fee on every round's total_deployed.
+const FEE_COLLECTOR = "FW4UFt5nDKE2DLVNj979rXjFkjCdmzs9344JetX8hY9P";
 
-  const dailyRevenue = dailyFees.clone(0.01);
-  const dailyProtocolRevenue = dailyFees.clone(0.01);
-  const dailySupplySideRevenue = dailyFees.clone(0.99);
-  const dailyHoldersRevenue = dailyFees.clone(0.99);
+// Treasury PDA that receives the vault portion of each round (~9% of winnings,
+// or 100% of deployed in no-winner rounds). Treasury SOL is later spent on
+// JADE buyback-and-burn: 90% of bought JADE is burned, 10% paid to JADE stakers.
+const TREASURY_PDA = "F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3";
+
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyProtocolRevenue = await oreHelperCountSolBalanceDiff(options, FEE_COLLECTOR);
+  const dailyHoldersRevenue = await oreHelperCountSolBalanceDiff(options, TREASURY_PDA);
+
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(dailyProtocolRevenue);
+  dailyFees.addBalances(dailyHoldersRevenue);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
     dailyHoldersRevenue,
   };
 };
@@ -30,11 +34,10 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Counts SOL inbound to Jade's Treasury PDA F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3, populated each round-reset with the SOL miners deployed on the Jade board.",
-    Revenue: "1% of collected SOL fees, allocated to the protocol fee collector.",
-    ProtocolRevenue: "1% of fees is allocated to the protocol fee collector.",
-    SupplySideRevenue: "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
-    HoldersRevenue: "99% of fees funds JADE buyback-and-burn, distributed to JADE stakers.",
+    Fees: "Sum of two SOL streams collected at every round reset on the Jade board: (1) a 1% admin fee on round.total_deployed forwarded to the Jade fee-collector multisig FW4UFt5nDKE2DLVNj979rXjFkjCdmzs9344JetX8hY9P, and (2) the vault portion (~9% of winnings, or 100% of deployed in no-winner rounds) forwarded to the Jade Treasury PDA F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3.",
+    Revenue: "All collected SOL is protocol revenue.",
+    ProtocolRevenue: "1% admin fee on each round's total_deployed, accruing to the Jade fee-collector multisig.",
+    HoldersRevenue: "Vault SOL flowing to the Jade Treasury PDA, later spent on JADE buyback-and-burn (90% burned, 10% paid to JADE stakers).",
   },
 };
 
