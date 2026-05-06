@@ -96,7 +96,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-    Fees: "Increase yields calculated from HLSCOPE price change and 2.51% management fees",
+    Fees: "Includes yields calculated from HLSCOPE price change and 2.51% management fees",
     Revenue: "Includes 2.51% management fees collected by the protocol",
     ProtocolRevenue: "Includes 2.51% management fees collected by the protocol",
     SupplySideRevenue: "Includes yields calculated from HLSCOPE price change",
