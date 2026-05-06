@@ -55,7 +55,7 @@ import { httpGet } from '../utils/fetchURL';
 // Date thresholds (UTC midnight) for the creator-fee era.
 const CREATOR_FEE_INTRO_TS = 1747094400  // 2025-05-13: creator fee turned on for bonding-curve coins
 const PROJECT_ASCEND_TS    = 1757894400  // 2025-09-15 (approx): Dynamic Fees V1, creator slice grows to 0.30%
-const BUYBACK_START_TS     = 1721779200  // pump fees → 50% buyback wallet from this point onwards
+const BUYBACK_START_TS     = 1752451200  // 2025-07-14: pump fees → 50% buyback wallet from this point onwards
 
 // Ratio of creator fee to pump fee at a given moment. Used to extrapolate creator fees from
 // the wallet-tracked pump fees until pumpdotfun_solana.pump_evt_tradeevent exposes creator_fee.
@@ -214,7 +214,7 @@ async function fetchFromDune(options: FetchOptions) {
       AND et.tx_id IS NULL
   `, { extraUIDKey: 'pump-fees' })
 
-  const pumpFeeLamports = pumpFeeRows[0].total_sol_revenue * 1e9
+  const pumpFeeLamports = (pumpFeeRows?.[0]?.total_sol_revenue ?? 0) * 1e9
   dailyFees.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
   dailyRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
 
@@ -232,7 +232,7 @@ async function fetchFromDune(options: FetchOptions) {
   // is computed below by subtracting the buyback from dailyRevenue's pump slice.
 
   // Pre-buyback era: no PUMP buyback to split off, so pump slice is 100% protocol revenue.
-  if (options.startTimestamp <= BUYBACK_START_TS) {
+  if (options.startTimestamp < BUYBACK_START_TS) {
     dailyProtocolRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
     return {
       dailyFees,
