@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
       GROUP BY 1
     ),
 
-    parsed AS (
+    reserve_rows AS (
       SELECT DISTINCT
         cd.closed_at,
         cd.ledger_sequence,
@@ -43,8 +43,48 @@ const fetch = async (options: FetchOptions) => {
       JOIN pools p
         ON cd.contract_id = p.pool
       WHERE cd.closed_at < DATE '${options.dateString}' + interval '1' day
-        AND cd.closed_at >= DATE '${options.dateString}' - interval '3' day
         AND json_extract_scalar(json_parse(cd.key_decoded), '$.vec[0].symbol') = 'ResData'
+    ),
+
+    prior_rows AS (
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        backstop_credit
+      FROM (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (
+            PARTITION BY pool, asset
+            ORDER BY closed_at DESC, ledger_sequence DESC
+          ) AS rn
+        FROM reserve_rows
+        WHERE closed_at < DATE '${options.dateString}'
+      )
+      WHERE rn = 1
+    ),
+
+    parsed AS (
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        backstop_credit
+      FROM reserve_rows
+      WHERE closed_at >= DATE '${options.dateString}'
+
+      UNION ALL
+
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        backstop_credit
+      FROM prior_rows
     ),
 
     ordered AS (

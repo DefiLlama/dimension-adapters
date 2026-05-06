@@ -22,9 +22,9 @@ const fetch = async (options: FetchOptions) => {
   // Source: Dune stellar.contract_data snapshots of Blend pool ResData(asset).
   // Blend debt rates are scaled by 1e12, so borrower interest per update is:
   // previous d_supply * max(current d_rate - previous d_rate, 0) / 1e12.
-  // A 3-day lookback gives LAG() a prior reserve state before the target day.
+  // The latest snapshot before the target day seeds LAG() for inactive reserves.
   const query = `
-    WITH parsed AS (
+    WITH reserve_rows AS (
       SELECT DISTINCT
         cd.closed_at,
         cd.ledger_sequence,
@@ -35,8 +35,51 @@ const fetch = async (options: FetchOptions) => {
       FROM stellar.contract_data cd
       WHERE cd.contract_id IN (${V1_POOLS.map((pool) => `'${pool}'`).join(", ")})
         AND cd.closed_at < DATE '${options.dateString}' + interval '1' day
-        AND cd.closed_at >= DATE '${options.dateString}' - interval '3' day
         AND json_extract_scalar(json_parse(cd.key_decoded), '$.vec[0].symbol') = 'ResData'
+    ),
+
+    prior_rows AS (
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        d_rate,
+        d_supply
+      FROM (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (
+            PARTITION BY pool, asset
+            ORDER BY closed_at DESC, ledger_sequence DESC
+          ) AS rn
+        FROM reserve_rows
+        WHERE closed_at < DATE '${options.dateString}'
+      )
+      WHERE rn = 1
+    ),
+
+    parsed AS (
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        d_rate,
+        d_supply
+      FROM reserve_rows
+      WHERE closed_at >= DATE '${options.dateString}'
+
+      UNION ALL
+
+      SELECT
+        closed_at,
+        ledger_sequence,
+        pool,
+        asset,
+        d_rate,
+        d_supply
+      FROM prior_rows
     ),
 
     ordered AS (
