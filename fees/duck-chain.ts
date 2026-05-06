@@ -50,16 +50,15 @@ async function fetchRpcTotalFees({ getFromBlock, getToBlock }: FetchOptions) {
   return (results as bigint[]).reduce((sum, fees) => sum + fees, 0n);
 }
 
-const fetch = async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const fees = await fetchRpcTotalFees(options);
   dailyFees.addCGToken(CG_TOKEN, Number(fees) / 1e18, METRIC.TRANSACTION_GAS_FEES);
-  const dailyRevenue = dailyFees.clone();
+  console.log(fees, `Total fees from RPC for ${options.chain} between blocks ${await options.getFromBlock()} and ${await options.getToBlock()}`, await dailyFees.getUSDJSONs());
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailySupplySideRevenue: 0,
   };
 };
@@ -83,7 +82,8 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.DUCKCHAIN]: {
       fetch,
