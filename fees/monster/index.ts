@@ -46,9 +46,7 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
   for (const log of transferLogs) {
-    const from = String(log.from).toLowerCase();
     const to = String(log.to).toLowerCase();
-    if (from !== PAYMENT_WALLET.toLowerCase()) continue;
     if (to === TREASURY.toLowerCase()) continue;
     const value = log.value;
     dailyVolume.add(USDM, value, SELLBACK_LABEL);
