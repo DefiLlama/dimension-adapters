@@ -279,11 +279,11 @@ const breakdownMethodology = {
     [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees (no creator/buyback split — 100% protocol).',
   },
   ProtocolRevenue: {
-    [LABEL.PumpFunProtocolFee]: "Pump's slice × era ratio (100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28).",
-    [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees (excluded from pump.fun "Revenues", so kept 100% protocol).',
+    [LABEL.PumpFunProtocolFee]: "Pump's slice net of the PUMP buyback portion.",
+    [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees.',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'PUMP buyback / lock-for-burn share of the pump slice (0% pre-2025-07-14, 100% from 2025-07-14, 50% from 2026-04-28).',
+    [METRIC.TOKEN_BUY_BACK]: 'PUMP token buyback (50% of the pump slice from 2025-07-14 onwards).',
   },
   SupplySideRevenue: {
     [LABEL.PumpFunCreatorFee]: 'Creator fees paid out to coin creators.',
@@ -302,8 +302,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Bonding-curve trade fees paid by users (pump's slice + creator slice) plus Mayhem-mode fees.",
     Revenue: "Pump's slice of the bonding-curve trade fee plus Mayhem-mode fees.",
-    ProtocolRevenue: "Pump's slice × era policy ratio (100% before 2025-07-14, 0% from 2025-07-14 when ~all revenue routed to PUMP buyback, 50% from 2026-04-28 when 50% started being programmatically locked for burn) plus 100% of Mayhem-mode fees. Computed from the era ratio rather than the published buyback amount because that figure aggregates buybacks across pump.fun bonding curve, PumpSwap, and Terminal.",
-    HoldersRevenue: "Pump's slice × (1 - protocol ratio) — the share routed to PUMP buyback or lock-for-burn (0% pre-2025-07-14, 100% from 2025-07-14, 50% from 2026-04-28).",
+    ProtocolRevenue: "Revenue net of the PUMP token buyback. Mayhem fees have no buyback split..",
+    HoldersRevenue: "PUMP token buybacks (50% of pump's bonding-curve slice since 2025-07-14).",
     SupplySideRevenue: "Creator fees paid out to coin creators.",
   },
 }
