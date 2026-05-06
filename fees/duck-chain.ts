@@ -54,7 +54,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const fees = await fetchRpcTotalFees(options);
   dailyFees.addCGToken(CG_TOKEN, Number(fees) / 1e18, METRIC.TRANSACTION_GAS_FEES);
-  console.log(fees, `Total fees from RPC for ${options.chain} between blocks ${await options.getFromBlock()} and ${await options.getToBlock()}`, await dailyFees.getUSDJSONs());
 
   return {
     dailyFees,
