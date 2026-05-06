@@ -271,10 +271,16 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
 
-  // bad rpcs chains
-  // [CHAIN.SEI]: { start: "2024-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
+  // Re-enabled chains (previously marked as bad RPCs)
+  [CHAIN.SEI]: {
+    start: "2024-01-01",
+    contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  },
+  [CHAIN.INJECTIVE]: {
+    start: "2024-06-01",
+    contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
+  },
   // [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
-  // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
 };
 
 const DEFAULT_FEE = 1n;
@@ -442,8 +448,8 @@ const adapter: SimpleAdapter = {
     ...evmAdapterEntries,
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2023-01-01" },
     [CHAIN.SUI]: { fetch: fetchSui, start: "2023-06-01" },
-    // [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
-    // [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
+    [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
+    [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
   },
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
