@@ -10,34 +10,16 @@ const STX_CG_ID = "blockstack";
 const BTC_CG_ID = "bitcoin";
 
 const STACKING_DAO_CONTRACT = "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG";
-const REWARDS_CONTRACTS = [
-  `${STACKING_DAO_CONTRACT}.rewards-v2`,
-  `${STACKING_DAO_CONTRACT}.rewards-v3`,
-  `${STACKING_DAO_CONTRACT}.rewards-v4`,
-  `${STACKING_DAO_CONTRACT}.rewards-v5`,
-  `${STACKING_DAO_CONTRACT}.rewards-v8`,
-];
+const REWARDS_CONTRACTS = [2, 3, 4, 5, 8].map((v) => `${STACKING_DAO_CONTRACT}.rewards-v${v}`);
 const INSTANT_UNSTACK_CONTRACTS = [
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v1`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v2`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v3`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v4`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v5`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-v6`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-btc-v1`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-btc-v2`,
-  `${STACKING_DAO_CONTRACT}.stacking-dao-core-btc-v3`,
+  ...[1, 2, 3, 4, 5, 6].map((v) => `${STACKING_DAO_CONTRACT}.stacking-dao-core-v${v}`),
+  ...[1, 2, 3].map((v) => `${STACKING_DAO_CONTRACT}.stacking-dao-core-btc-v${v}`),
 ];
 
 const USTX_PER_STX = 1e6;
 const SATS_PER_BTC = 1e8;
 const HIRO_LIMIT = 50;
 const HIRO_CONCURRENCY = 2;
-const PROTOCOL_STX = "protocol-stx";
-const COMMISSION_STX = "commission-stx";
-const PROTOCOL_SBTC = "protocol-sbtc";
-const COMMISSION_SBTC = "commission-sbtc";
-const STX_FEE_AMOUNT = "stx-fee-amount";
 
 const parseUints = (repr: string | undefined) =>
   Object.fromEntries([...(repr ?? "").matchAll(/([\w-]+) u(\d+)/g)].map(([, key, value]) => [key, Number(value)]));
@@ -86,14 +68,14 @@ const fetch = async (options: FetchOptions) => {
   for (const tx of rewardTxs) {
     const repr = tx.tx_result?.repr;
     const uints = parseUints(repr);
-    if (!(PROTOCOL_STX in uints) && !(COMMISSION_STX in uints) && !(PROTOCOL_SBTC in uints) && !(COMMISSION_SBTC in uints)) {
+    if (!("protocol-stx" in uints) && !("commission-stx" in uints) && !("protocol-sbtc" in uints) && !("commission-sbtc" in uints)) {
       throw new Error(`Unexpected StackingDAO process-rewards result: ${repr}`);
     }
 
-    const stxRewards = (uints[PROTOCOL_STX] ?? 0) / USTX_PER_STX;
-    const stxCommission = (uints[COMMISSION_STX] ?? 0) / USTX_PER_STX;
-    const btcRewards = (uints[PROTOCOL_SBTC] ?? 0) / SATS_PER_BTC;
-    const btcCommission = (uints[COMMISSION_SBTC] ?? 0) / SATS_PER_BTC;
+    const stxRewards = (uints["protocol-stx"] ?? 0) / USTX_PER_STX;
+    const stxCommission = (uints["commission-stx"] ?? 0) / USTX_PER_STX;
+    const btcRewards = (uints["protocol-sbtc"] ?? 0) / SATS_PER_BTC;
+    const btcCommission = (uints["commission-sbtc"] ?? 0) / SATS_PER_BTC;
 
     dailyFees.addCGToken(STX_CG_ID, stxRewards + stxCommission, METRIC.STAKING_REWARDS);
     dailySupplySideRevenue.addCGToken(STX_CG_ID, stxRewards, METRIC.STAKING_REWARDS);
@@ -109,9 +91,9 @@ const fetch = async (options: FetchOptions) => {
   for (const tx of instantUnstackTxs) {
     const repr = tx.tx_result?.repr;
     const uints = parseUints(repr);
-    if (!(STX_FEE_AMOUNT in uints)) throw new Error(`Unexpected StackingDAO withdraw-idle result: ${repr}`);
+    if (!("stx-fee-amount" in uints)) throw new Error(`Unexpected StackingDAO withdraw-idle result: ${repr}`);
 
-    const fee = (uints[STX_FEE_AMOUNT] ?? 0) / USTX_PER_STX;
+    const fee = (uints["stx-fee-amount"] ?? 0) / USTX_PER_STX;
     dailyFees.addCGToken(STX_CG_ID, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
     dailyUserFees.addCGToken(STX_CG_ID, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
     dailyRevenue.addCGToken(STX_CG_ID, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
