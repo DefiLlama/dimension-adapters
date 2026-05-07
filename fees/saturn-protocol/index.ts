@@ -109,6 +109,7 @@ const adapter: Adapter = {
     fetch,
     methodology,
     breakdownMethodology,
+    allowNegativeValue: true,
 };
 
 export default adapter;
