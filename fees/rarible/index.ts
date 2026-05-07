@@ -1,105 +1,138 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
 import { getProvider } from "@defillama/sdk";
+import { ethers } from "ethers";
 import { PromisePool } from "@supercharge/promise-pool";
+import { getDuneTrades, decodeMatchOrders, decodeDirectPurchase, decodeDirectAcceptBid, MATCH_ORDERS_ID, DIRECT_PURCHASE_ID } from "../../helpers/rarible";
 
-const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const GET_ROYALTIES_ABI = "function getRoyalties(address token, uint256 tokenId) returns ((address account, uint96 value)[])";
+const PROTOCOL_FEE_ABI = "function protocolFee() view returns (address receiver, uint48 buyerAmount, uint48 sellerAmount)";
 
-const MATCH_EVENT = "event Match(bytes32 leftHash, bytes32 rightHash, uint256 newLeftFill, uint256 newRightFill)";
+async function getProtocolFeeBps(chain: string, exchange: string): Promise<number> {
+  const provider = getProvider(chain);
+  const contract = new ethers.Contract(exchange, [PROTOCOL_FEE_ABI], provider as any);
+  const [, buyerAmount, sellerAmount] = await contract.protocolFee();
+  return Number(buyerAmount) + Number(sellerAmount);
+}
 
-function topic(address: string) {
-    return "0x000000000000000000000000" + address.slice(2).toLowerCase();
-};
-
-async function getNativeInflows(chain: string, toAddresses: string[], fromBlock: number, toBlock: number): Promise<bigint> {
-  const rpcUrl = (getProvider(chain) as any).rpcs[0].url;
-  
-  const { results } = await PromisePool
-    .withConcurrency(2)
-    .for(toAddresses)
-    .process(toAddress => httpPost(rpcUrl, {
-      jsonrpc: "2.0", id: 1, method: "trace_filter",
-      params: [{ fromBlock: `0x${fromBlock.toString(16)}`, toBlock: `0x${toBlock.toString(16)}`, toAddress: [toAddress] }],
-    }));
-  
-  return results.flatMap((r: any) => r.result ?? [])
-    .filter((t: any) => t.type === "call" && t.action?.callType === "call" && BigInt(t.action?.value ?? 0) > 0n)
-    .reduce((sum: bigint, t: any) => sum + BigInt(t.action.value), 0n);
-};
-
-const config: Record<string, { exchange: string; feeReceivers: string[]; start: string }> = {
+const config: Record<string, { exchange: string; royaltiesRegistry: string; start: string }> = {
   [CHAIN.ETHEREUM]: {
     exchange: "0x9757F2d2b135150BBeb65308D4a91804107cd8D6",
-    // 0xb6EC1d... = fee receiver, 0x1cf0df2a... = treasury (some sales pay directly here)
-    feeReceivers: ["0xb6EC1d227D5486D344705663F700d90d947d7548", "0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a"],
+    royaltiesRegistry: "0xEa90CFad1b8e030B8Fd3E63D22074E0AEb8E0DCD",
     start: "2021-06-12",
   },
   [CHAIN.POLYGON]: {
     exchange: "0x12b3897a36fDB436ddE2788C06Eff0ffD997066e",
-    feeReceivers: ["0x053F171c0D0Cc9d76247D4d1CdDb280bf1131390"],
+    royaltiesRegistry: "0xF2514F32aE798Ca29641F6E2313bacB1650Cc76f",
     start: "2022-02-21",
-  },
-  [CHAIN.BASE]: {
-    exchange: "0x6C65a3C3AA67b126e43F86DA85775E0F5e9743F7",
-    feeReceivers: ["0xb6EC1d227D5486D344705663F700d90d947d7548"],
-    start: "2023-12-19",
   },
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { getLogs, createBalances, chain, getFromBlock, getToBlock } = options;
-  const { feeReceivers } = config[chain];
+  const { createBalances, chain } = options;
+  const { exchange, royaltiesRegistry } = config[chain];
   const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
 
-  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
-
-  const { results: [matchOrders, ...transferLogResults], errors } = await PromisePool
-    .withConcurrency(3)
-    .for([
-      () =>
-        getLogs({
-          target: config[chain].exchange,
-          eventAbi: MATCH_EVENT,
-          entireLog: true,
-        }),
-        ...feeReceivers.map(receiver => () => getLogs({
-          eventAbi: TRANSFER_EVENT,
-          topics: [TRANSFER_TOPIC, null as any, topic(receiver)],
-          noTarget: true,
-          entireLog: true,
-        })),
-    ])
-    .process(fn => fn());
-
-  if (errors.length) throw errors[0];
-
-  const matchOrdersTxHashes = new Set((matchOrders as any[]).map((l: any) => l.transactionHash.toLowerCase()));
-
-  for (const log of transferLogResults.flat()) {
-    if (!matchOrdersTxHashes.has(log.transactionHash.toLowerCase())) continue;
-    dailyFees.add(log.address, BigInt(log.data));
+  const rows = await getDuneTrades(options, exchange);
+  
+  if (!rows.length) {
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue };
   };
 
-  const nativeInflows = await getNativeInflows(chain, feeReceivers, fromBlock, toBlock);
-  dailyFees.addGasToken(nativeInflows);
+  const protocolFeeBps = await getProtocolFeeBps(chain, exchange);
 
-  return { dailyFees, dailyRevenue: dailyFees };
+  const trades: { paymentToken: string; amount: bigint; nftContract: string; nftTokenId: bigint; originFeeBps: number }[] = [];
+  
+  for (const row of rows) {
+    const input: string = row.input;
+    const selector = input.slice(0, 10);
+    try {
+      let decoded;
+      if (selector === MATCH_ORDERS_ID) {
+        decoded = decodeMatchOrders(input);
+      } else if (selector === DIRECT_PURCHASE_ID) {
+        decoded = decodeDirectPurchase(input);
+      } else {
+        // directAcceptBid
+        decoded = decodeDirectAcceptBid(input);
+      };
+      trades.push(decoded);
+    } catch (e: any) { 
+      console.error("[fees/rarible] decode error:", e?.message, "selector:", selector); 
+    };
+  };
+
+  const registry = new ethers.Contract(royaltiesRegistry, [GET_ROYALTIES_ABI], getProvider(chain) as any);
+
+  const { errors: tradeErrors } = await PromisePool
+    .withConcurrency(10)
+    .for(trades)
+    .process(async ({ paymentToken, amount, nftContract, nftTokenId, originFeeBps }) => {
+      let royaltyBps = 0;
+      try {
+        const parts = await registry.getRoyalties.staticCall(nftContract, nftTokenId);
+        royaltyBps = (parts as any[]).reduce((sum, r) => sum + Number(r.value), 0);
+      } catch (e: any) {
+        console.error("[fees/rarible] getRoyalties error:", e?.message, nftContract);
+      };
+      const protocolFee = amount * BigInt(protocolFeeBps) / 10000n;
+      const originFee = amount * BigInt(originFeeBps) / 10000n;
+      const royaltyFee = amount * BigInt(royaltyBps) / 10000n;
+      if (paymentToken === ethers.ZeroAddress) {
+        dailyFees.addGasToken(protocolFee, "Protocol Fees");
+        dailyFees.addGasToken(originFee, "Origin Fees");
+        dailyFees.addGasToken(royaltyFee, "Royalties");
+        dailySupplySideRevenue.addGasToken(originFee, "Origin Fees");
+        dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
+        dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
+      } else {
+        dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
+        dailyFees.add(paymentToken, originFee, "Origin Fees");
+        dailyFees.add(paymentToken, royaltyFee, "Royalties");
+        dailySupplySideRevenue.add(paymentToken, originFee, "Origin Fees");
+        dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
+        dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
+      };
+    });
+
+  if (tradeErrors.length) {
+    tradeErrors.forEach(e => console.error("[fees/rarible] trade error:", e.message));
+  };
+
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue };
 };
 
 const methodology = {
-  Fees: "2% protocol fee (seller-side) collected by Rarible on ERC20 NFT sales across supported chains.",
-  Revenue: "All protocol fees are retained by Rarible.",
+  Fees: "Total fees paid: protocol fee, origin fees and royalties.",
+  SupplySideRevenue: "Origin fees earned by order facilitators and royalties earned by NFT creators.",
+  Revenue: "Protocol fee collected by Rarible on every transaction.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Protocol Fees": "A mandatory fee charged by the Rarible Protocol on every transaction, paid by both the buyer and the seller.",
+    "Origin Fees": "Optional fees set by users for each transaction. These can be applied to either the buyer's or seller's order, acting as a commission for facilitating the sale.",
+    "Royalties": "Payments made to the original creator of a digital asset each time it is sold.",
+  },
+  SupplySideRevenue: {
+    "Origin Fees": "Origin Fees are supply side costs.",
+    "Royalties": "Royalties are supply side costs.",
+  },
+  Revenue: {
+    "Protocol Fees": "Fees retained by Rarible."
+  },
 };
 
 const adapter: Adapter = {
   version: 2,
   methodology,
-  pullHourly: true,
+  breakdownMethodology,
   adapter: Object.fromEntries(
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
+  isExpensiveAdapter: true
 };
 
 export default adapter;
