@@ -8,22 +8,29 @@ const MARKETS_API = "https://api.rise.trade/v1/markets";
 const BLENDED_FEE_BPS = 2;
 
 const fetch = async (options: FetchOptions) => {
-  const response = await fetchURL(MARKETS_API);
-  const markets = response.data?.markets;
-
-  if (!markets?.length) throw new Error("RiseX markets data missing");
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const totalVolume = markets.reduce((sum: number, market: any) => {
-    if (!market.available) return sum;
-    return sum + Number(market.quote_volume_24h || 0);
-  }, 0);
+  try {
+    const response = await fetchURL(MARKETS_API);
+    const markets = response.data?.markets;
 
-  const fees = totalVolume * BLENDED_FEE_BPS / 10000;
-  dailyFees.addUSDValue(fees);
-  dailyRevenue.addUSDValue(fees);
+    if (!markets?.length) {
+      console.error("RISEx: markets data missing");
+      return { dailyFees, dailyRevenue };
+    }
+
+    const totalVolume = markets.reduce((sum: number, market: any) => {
+      if (!market.available) return sum;
+      return sum + Number(market.quote_volume_24h || 0);
+    }, 0);
+
+    const fees = totalVolume * BLENDED_FEE_BPS / 10000;
+    dailyFees.addUSDValue(fees, "trading_fees");
+    dailyRevenue.addUSDValue(fees, "trading_fees");
+  } catch (e) {
+    console.error("RISEx fee fetch failed", e);
+  }
 
   return { dailyFees, dailyRevenue };
 };
@@ -37,6 +44,14 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Blended 2bps fee (Tier 1: 3bps taker + 1bps maker) applied to 24h volume across all RISEx perpetual markets.",
     Revenue: "All trading fees retained by the protocol (maker rebate program not yet live).",
+  },
+  breakdownMethodology: {
+    dailyFees: {
+      trading_fees: "Trading fees across RISEx perpetual markets (2bps blended: 3bps taker + 1bps maker).",
+    },
+    dailyRevenue: {
+      trading_fees: "Protocol-retained share of trading fees (currently 100%, maker rebate program not yet live).",
+    },
   },
 };
 
