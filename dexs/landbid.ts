@@ -60,8 +60,8 @@ async function fetch(options: FetchOptions) {
         else if(log.recipient === PROTOCOL_LP_PROVIDER) lpfeeRatioReceivedByProtocol = 1;
         else continue;
 
-        dailyFees.addToken(token0, log.amount0 * lpfeeRatioReceivedByProtocol, METRIC.LP_FEES);
-        dailyFees.addToken(token1, log.amount1 * lpfeeRatioReceivedByProtocol, METRIC.LP_FEES);
+        dailyFees.addToken(token0, Number(log.amount0) * lpfeeRatioReceivedByProtocol, METRIC.LP_FEES);
+        dailyFees.addToken(token1, Number(log.amount1) * lpfeeRatioReceivedByProtocol, METRIC.LP_FEES);
     }
 
     return {
