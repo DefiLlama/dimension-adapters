@@ -5,22 +5,32 @@ import { CHAIN } from "../../helpers/chains";
 // Docs:      https://docs.gondi.xyz/
 // Fees:      https://docs.gondi.xyz/gondi-v3/protocol-fees#lender-fees
 // Contracts: https://docs.gondi.xyz/gondi-v3/protocol-contracts
-const V3_0 = "0xf65b99ce6dc5f6c556172bcc0ff27d3665a7d9a8";
-const V3_1 = "0xf41B389E0C1950dc0B16C9498eaE77131CC08A56";
+const config: Record<string, { targets: string[]; fromBlock: number }> = {
+  [CHAIN.ETHEREUM]: {
+    targets: [
+      "0xf65b99ce6dc5f6c556172bcc0ff27d3665a7d9a8", // V3.0
+      "0xf41B389E0C1950dc0B16C9498eaE77131CC08A56", // V3.1
+    ],
+    fromBlock: 20663554,
+  },
+  [CHAIN.HYPERLIQUID]: {
+    targets: [
+      "0x6ad675624ec8320e5806858cd5db101a0b927fd9", // V3.1
+    ],
+    fromBlock: 30081557,
+  },
+};
 
-const V3_0_DEPLOY_BLOCK = 20663554;
 const BPS_DIVISOR = 10000n;
 
 // LoanEmitted/LoanRefinanced/LoanRefinancedFromNewOffers: fee/totalFee = total fee paid
-// LoanRepaid: fee = protocol's cut(totalProtocolFee in contract source)
+// LoanRepaid: fee = protocol's cut (totalProtocolFee in contract source)
 const events = {
   LoanEmitted: "event LoanEmitted(uint256 loanId, uint256[] offerId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee) loan, uint256 fee)",
   LoanRepaid: "event LoanRepaid(uint256 loanId, uint256 totalRepayment, uint256 fee)",
   LoanRefinanced: "event LoanRefinanced(uint256 renegotiationId, uint256 oldLoanId, uint256 newLoanId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee) loan, uint256 fee)",
   LoanRefinancedFromNewOffers: "event LoanRefinancedFromNewOffers(uint256 loanId, uint256 newLoanId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee) loan, uint256[] offerIds, uint256 totalFee)",
 };
-
-const targets = [V3_0, V3_1];
 
 // Protocol revenue = fee * protocolFeeBps / 10000
 function getProtocolFee(fee: bigint, feeBps: bigint): bigint {
@@ -32,13 +42,14 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  const { targets, fromBlock } = config[options.chain];
   const startTime = BigInt(options.startTimestamp);
   const endTime = BigInt(options.endTimestamp);
 
   const [emittedAll, refinancedAll, refinancedNewAll, repaidDaily] = await Promise.all([
-    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock: V3_0_DEPLOY_BLOCK, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock: V3_0_DEPLOY_BLOCK, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock: V3_0_DEPLOY_BLOCK, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true }),
     options.getLogs({ targets, eventAbi: events.LoanRepaid }),
   ]);
 
@@ -125,8 +136,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   fetch,
-  chains: [CHAIN.ETHEREUM],
-  start: "2024-09-02",
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: "2024-09-02" },
+    [CHAIN.HYPERLIQUID]: { start: "2025-03-18" },
+  },
 };
 
 export default adapter;
