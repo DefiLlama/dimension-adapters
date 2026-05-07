@@ -1,91 +1,80 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 import { CHAIN } from "../helpers/chains";
 
 const WORLD_MINER = "0xbc25d77953425041C3f09ea4b731a873E00036EA";
-const START_DATE = "2026-05-05";
-const CONQUER_PAYMENTS = "Conquer payments";
 
 const CONQUER_EVENT =
-  "event Conquer(uint8 indexed continentId,address indexed newHolder,address indexed prevHolder,uint256 price,uint256 prevHolderPayout,uint256 tokensAccrued)";
+    "event Conquer(uint8 indexed continentId,address indexed newHolder,address indexed prevHolder,uint256 price,uint256 prevHolderPayout,uint256 tokensAccrued)";
 
-function eventArg(log: any, name: string, index: number) {
-  return log.args?.[name] ?? log.args?.[index] ?? log[name] ?? log[index];
-}
-
-function toBigInt(value: any): bigint {
-  return BigInt(value?.toString?.() ?? value ?? 0);
-}
+const BASE_FEE_BPS = 10000;
 
 async function fetch(options: FetchOptions) {
-  const dailyFees = options.createBalances();
-  const dailyUserFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
 
-  const conquerEvents = await options.getLogs({
-    target: WORLD_MINER,
-    eventAbi: CONQUER_EVENT,
-    skipIndexer: true,
-    skipCacheRead: true,
-  });
+    const lpFeeBps = await options.api.call({
+        target: WORLD_MINER,
+        abi: "function lpFeeBps() view returns (uint256)",
+    })
 
-  let dailyConquerVolume = 0n;
+    const devFeeBps = await options.api.call({
+        target: WORLD_MINER,
+        abi: "function devFeeBps() view returns (uint256)",
+    })
 
-  for (const log of conquerEvents) {
-    dailyConquerVolume += toBigInt(eventArg(log, "price", 3));
-  }
+    const lpFees = Number(lpFeeBps) / BASE_FEE_BPS;
+    const devFees = Number(devFeeBps) / BASE_FEE_BPS;
 
-  dailyFees.addGasToken(dailyConquerVolume, CONQUER_PAYMENTS);
-  dailyUserFees.addGasToken(dailyConquerVolume, CONQUER_PAYMENTS);
-  dailyRevenue.addGasToken(dailyConquerVolume, CONQUER_PAYMENTS);
-  dailyProtocolRevenue.addGasToken(dailyConquerVolume, CONQUER_PAYMENTS);
+    const conquerEvents = await options.getLogs({
+        target: WORLD_MINER,
+        eventAbi: CONQUER_EVENT,
+    });
 
-  return {
-    dailyFees,
-    dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-  };
+    for (const log of conquerEvents) {
+        dailyVolume.addGasToken(log.price);
+        dailyFees.addGasToken(Number(log.price) * devFees, METRIC.PROTOCOL_FEES);
+        dailyFees.addGasToken(Number(log.price) * lpFees, "Fees to protocol owned liquidity");
+    }
+
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    };
 }
 
 const methodology = {
-  Fees:
-    "100% of ETH paid by users to conquer continents flows through Land Bid protocol contracts. This represents total Conquer payment volume facilitated by the protocol.",
-  UserFees:
-    "Users pay ETH to conquer continents. The full Conquer payment is counted as user fees under Land Bid's submitted methodology.",
-  Revenue:
-    "Same as Fees. The protocol receives 100% of Conquer payments and redistributes them according to game mechanics: 85% to previous holders as instant game payouts, 10% to protocol-owned Uniswap V3 liquidity, and 5% to team operations.",
-  ProtocolRevenue:
-    "Same as Revenue for Land Bid's submitted methodology. All Conquer payments are processed by protocol contracts before redistribution.",
+    Volume: "ETH paid by users when conquering continents in the Land Bid game.",
+    Fees: "15% of the conquer amount is fees, of which 10% goes to protocol owned liquidity on uniswap and 5% goes to the team",
+    Revenue: "15% of the conquer amount is revenue, of which 10% goes to protocol owned liquidity on uniswap and 5% goes to the team",
+    ProtocolRevenue: "15% of the conquer amount is protocol revenue, of which 10% goes to protocol owned liquidity on uniswap and 5% goes to the team",
 };
 
 const breakdownMethodology = {
-  Fees: {
-    [CONQUER_PAYMENTS]:
-      "ETH paid by users when conquering continents in the Land Bid game.",
-  },
-  UserFees: {
-    [CONQUER_PAYMENTS]:
-      "ETH paid by users when conquering continents in the Land Bid game.",
-  },
-  Revenue: {
-    [CONQUER_PAYMENTS]:
-      "Conquer payments processed by Land Bid protocol contracts before redistribution according to game mechanics.",
-  },
-  ProtocolRevenue: {
-    [CONQUER_PAYMENTS]:
-      "Conquer payments processed by Land Bid protocol contracts before redistribution according to game mechanics.",
-  },
+    Fees: {
+        [METRIC.PROTOCOL_FEES]: "5% of the conquer amount goes to the team",
+        "Fees to protocol owned liquidity": "10% of the conquer amount goes to protocol owned liquidity on uniswap",
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: "5% of the conquer amount goes to the team",
+        "Fees to protocol owned liquidity": "10% of the conquer amount goes to protocol owned liquidity on uniswap",
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "5% of the conquer amount goes to the team",
+        "Fees to protocol owned liquidity": "10% of the conquer amount goes to protocol owned liquidity on uniswap",
+    },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  fetch,
-  chains: [CHAIN.BASE],
-  start: START_DATE,
-  methodology,
-  breakdownMethodology,
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.BASE],
+    start: "2026-05-05",
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
