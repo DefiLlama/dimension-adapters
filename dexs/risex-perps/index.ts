@@ -28,7 +28,8 @@ const fetch = async (_: any, __: any, options: FetchOptions) => {
             if (marketData.data.data.length !== 1) {
                 todaysData = marketData.data.data.find((data: any) => data.time >= from && data.time < to);
                 if (!todaysData) {
-                    throw new Error(`No data found for market ${marketId}`);
+                    console.warn(`No RiseX candle found for market ${marketId} in [${from}, ${to}), skipping`);
+                    return;
                 }
             }
             else {
