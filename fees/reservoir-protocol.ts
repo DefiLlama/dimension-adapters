@@ -1,69 +1,78 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { FetchOptions, FetchResult, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
 
-const RUSD          = '0x09D4214C03D01F49544C0448DBE3A27f768F2b34';
-const WSRUSD        = '0xd3fD63209FA2D55B07A0f6db36C2f43900be3094';
-const SRUSD         = '0x738d1115B90efa71AE468F1287fc864775e23a31';
-const SAVING_MODULE = '0x5475611Dffb8ef4d697Ae39df9395513b6E947d7';
+const RUSD               = '0x09D4214C03D01F49544C0448DBE3A27f768F2b34';
+const WSRUSD             = '0xd3fD63209FA2D55B07A0f6db36C2f43900be3094';
+const WSRUSD_OFT_ADAPTER = '0xBb431AbD156B960e5B77cC45c75F107e3991258a';
+const SRUSD              = '0x738d1115B90efa71AE468F1287fc864775e23a31';
+const SAVING_MODULE      = '0x5475611Dffb8ef4d697Ae39df9395513b6E947d7';
+const OFT_ADDRESS        = '0x4809010926aec940b550D34a46A52739f996D75D';
 
-const fetch = async (options: FetchOptions) => {
-  const { fromApi, toApi, createBalances } = options;
-  const dailyFees              = createBalances();
-  const dailySupplySideRevenue = createBalances();
+const WAD         = BigInt('1000000000000000000');
+const PRICE_SCALE = BigInt('100000000');
 
-  // ── wsrUSD: ERC4626 wrapping RUSD directly ───────────────────────────────
-  // yield = totalSupply × Δ(convertToAssets) / 1e18
-  // Captures all protocol yield (DeFi vaults + RWA) flowing to wsrUSD holders.
-  // Capital-neutral: new deposits increase supply but not the exchange rate.
-  const [wsrSupply, wsrRateFrom, wsrRateTo] = await Promise.all([
-    fromApi.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
-    fromApi.call({ target: WSRUSD, abi: 'function convertToAssets(uint256) view returns (uint256)', params: ['1000000000000000000'] }),
-    toApi.call({   target: WSRUSD, abi: 'function convertToAssets(uint256) view returns (uint256)', params: ['1000000000000000000'] }),
+const convertToAssetsAbi = 'function convertToAssets(uint256 shares) view returns (uint256)';
+const balanceOfAbi       = 'function balanceOf(address) view returns (uint256)';
+
+async function prefetch(options: FetchOptions): Promise<any> {
+  const [wsrRateFrom, wsrRateTo, priceFrom, priceTo] = await Promise.all([
+    options.fromApi.call({ target: WSRUSD,        abi: convertToAssetsAbi,    params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: WSRUSD,        abi: convertToAssetsAbi,    params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
+    options.fromApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice',                          chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: SAVING_MODULE, abi: 'uint256:currentPrice',                          chain: CHAIN.ETHEREUM }),
   ]);
-  const wsrYield = BigInt(wsrSupply) * (BigInt(wsrRateTo) - BigInt(wsrRateFrom)) / BigInt('1000000000000000000');
-  if (wsrYield !== 0n) dailyFees.add(RUSD, wsrYield, METRIC.ASSETS_YIELDS);
+  // Return as strings so BigInt precision survives any framework serialisation
+  return {
+    wsrRateFrom: wsrRateFrom.toString(),
+    wsrRateTo:   wsrRateTo.toString(),
+    priceFrom:   priceFrom.toString(),
+    priceTo:     priceTo.toString(),
+  };
+}
 
-  // ── srUSD: yield via SavingModule.currentPrice() ─────────────────────────
-  // yield = totalSupply × Δ(currentPrice) / 1e8
-  // currentPrice is a 1e8-scaled accumulator; price only increases from interest.
-  const [srSupply, priceFrom, priceTo] = await Promise.all([
-    fromApi.call({ target: SRUSD,         abi: 'uint256:totalSupply'  }),
-    fromApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice' }),
-    toApi.call({   target: SAVING_MODULE, abi: 'uint256:currentPrice' }),
-  ]);
-  const srYield = BigInt(srSupply) * (BigInt(priceTo) - BigInt(priceFrom)) / BigInt('100000000');
-  if (srYield !== 0n) dailyFees.add(RUSD, srYield, METRIC.ASSETS_YIELDS);
+async function fetch(options: FetchOptions): Promise<FetchResult> {
+  const { wsrRateFrom, wsrRateTo, priceFrom, priceTo } = options.preFetchedResults;
+  const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
+  const srPriceDelta = BigInt(priceTo)   - BigInt(priceFrom);
 
-  // Supply-side = all yield distributed to wsrUSD and srUSD holders
-  dailySupplySideRevenue.addBalances(dailyFees);
+  const dailyFees = options.createBalances();
 
-  return { dailyFees, dailySupplySideRevenue };
-};
+  if (options.chain === CHAIN.ETHEREUM) {
+    const [wsrSupply, wsrLocked, srSupply] = await Promise.all([
+      options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
+      options.api.call({ target: WSRUSD, abi: balanceOfAbi, params: [WSRUSD_OFT_ADAPTER] }),
+      options.api.call({ target: SRUSD,  abi: 'uint256:totalSupply' }),
+    ]);
+    const wsrYield = (BigInt(wsrSupply) - BigInt(wsrLocked)) * wsrRateDelta / WAD;
+    const srYield  = BigInt(srSupply) * srPriceDelta / PRICE_SCALE;
+    if (wsrYield !== 0n) dailyFees.add(RUSD, wsrYield, METRIC.ASSETS_YIELDS);
+    if (srYield  !== 0n) dailyFees.add(RUSD, srYield,  METRIC.ASSETS_YIELDS);
+  } else {
+    const supply  = await options.api.call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' });
+    const yield_  = BigInt(supply) * wsrRateDelta / WAD;
+    if (yield_ !== 0n) dailyFees.add(RUSD, yield_, METRIC.ASSETS_YIELDS);
+  }
+
+  return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees };
+}
 
 const methodology = {
-  TVL: 'TVL of the protocol is the total outstanding stablecoins minted (rUSD, srUSD, wsrUSD, and trUSD)',
-  Fees: 'Total yield distributed to wsrUSD and srUSD holders, measured as supply × Δ(exchange rate).',
-  Revenue: 'Protocol income retained after distributing yield to wsrUSD/srUSD holders.',
-};
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.ASSETS_YIELDS]: 'wsrUSD supply × Δ(convertToAssets) captures all protocol yield (DeFi vaults + RWA) flowing to Ethereum wsrUSD holders. srUSD supply × Δ(SavingModule.currentPrice) captures Ethereum srUSD holders.',
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'All yield distributed to wsrUSD and srUSD holders (same as Fees — protocol passes yield through to stakers).',
-  },
+  Fees: 'Total yield distributed to wsrUSD and srUSD holders, measured as circulating supply × Δ(exchange rate).',
+  Revenue: 'No protocol revenue retained — all yield passes through to holders.',
+  SupplySideRevenue: 'Total yield distributed to wsrUSD and srUSD holders.',
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  prefetch,
   fetch,
-  start: '2024-07-01',
-  chains: [CHAIN.ETHEREUM],
   methodology,
-  breakdownMethodology,
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: '2025-04-17' },
+    [CHAIN.ARBITRUM]: { start: '2025-05-12' },
+    [CHAIN.MONAD]:    { start: '2026-01-01' },
+  },
   allowNegativeValue: true,
   doublecounted: true,
 };
