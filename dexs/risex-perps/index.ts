@@ -1,33 +1,57 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { PromisePool } from "@supercharge/promise-pool";
+import { sleep } from "../../utils/utils";
 
-// Source: Rise Trade 24h perps volume endpoint.
-// include_bots=false currently returns 429s, so use include_bots=true.
-const VOLUME_API = "https://api.rise.trade/v1/stats/volume?include_bots=true";
+const RISEX_API_URL = "https://api.rise.trade/api/v1";
 
-const fetch = async () => {
-  const response = await httpGet(VOLUME_API);
-  if (response.data?.total_volume === undefined) {
-    throw new Error("RiseX volume data missing");
-  }
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+const NANOSECONDS_IN_SECOND = 1000000000;
 
-  const dailyVolume = Number(response.data.total_volume);
-  if (!Number.isFinite(dailyVolume) || dailyVolume < 0) {
-    throw new Error("RiseX volume value invalid");
-  }
+const fetch = async (_: any, __: any, options: FetchOptions) => {
+    const marketsResponse = await fetchURL(`${RISEX_API_URL}/markets`);
 
-  return { dailyVolume };
+    const marketIds = marketsResponse.data.markets.map((market: any) => Number(market.market_id));
+
+    const nanosecondsInOneDay = ONE_DAY_IN_SECONDS * NANOSECONDS_IN_SECOND;
+    const from = options.startOfDay * NANOSECONDS_IN_SECOND;
+    const to = from + nanosecondsInOneDay;
+
+    const dailyVolume = options.createBalances();
+
+    const { errors } = await PromisePool.withConcurrency(1)
+        .for(marketIds)
+        .process(async (marketId) => {
+            const marketData = await fetchURLAutoHandleRateLimit(`${RISEX_API_URL}/trading-view-data?market_id=${marketId}&interval=${nanosecondsInOneDay}&from=${from}&to=${to}`);
+            let todaysData;
+            if (marketData.data.data.length !== 1) {
+                todaysData = marketData.data.data.find((data: any) => data.time >= from && data.time < to);
+                if (!todaysData) {
+                    throw new Error(`No data found for market ${marketId}`);
+                }
+            }
+            else {
+                todaysData = marketData.data.data[0];
+            }
+            dailyVolume.addUSDValue(Number(todaysData.close) * Number(todaysData.volume));
+            await sleep(1000);
+        });
+
+    if (errors?.length) {
+        throw new Error(`Failed to fetch data for ${errors.length} markets`);
+    }
+
+    return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.OFF_CHAIN],
-  runAtCurrTime: true,
-  start: "2026-04-01",
-  methodology: {
-    Volume: "24h perpetual trading volume from Rise Trade's stats API, with bots included.",
-  },
+    fetch,
+    chains: [CHAIN.RISE],
+    start: "2026-04-01",
+    methodology: {
+        Volume: "24h perpetual trading volume from Rise Trade's API.",
+    },
 };
 
 export default adapter;
