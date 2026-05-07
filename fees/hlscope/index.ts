@@ -29,9 +29,9 @@ const chainConfig: any = {
 
 const tokenDecimals = 6;
 const REDSTONE_ORACLE_DECIMALS = 8;
-// HLSCOPE's public primary-market page lists a 2.51% net expense ratio.
+// HLSCOPE's public primary-market page lists a 2% expense ratio.
 // Source: https://securitize.io/primary-market/hl-scope
-const MANAGEMENT_FEE = 2.51 / 100;
+const MANAGEMENT_FEE = 2 / 100;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 const MANAGEMENT_FEES_TO_PROTOCOL = `${METRIC.MANAGEMENT_FEES} To Protocol`;
 const ASSETS_YIELDS_TO_INVESTORS = `${METRIC.ASSETS_YIELDS} To Investors`;
@@ -59,7 +59,7 @@ async function prefetch(options: FetchOptions) {
     }
 }
 
-async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -96,22 +96,22 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-    Fees: "Includes yields calculated from HLSCOPE price change and 2.51% management fees",
-    Revenue: "Includes 2.51% management fees collected by the protocol",
-    ProtocolRevenue: "Includes 2.51% management fees collected by the protocol",
+    Fees: "Includes yields calculated from HLSCOPE price change and 2% management fees",
+    Revenue: "Includes 2% management fees collected by the protocol",
+    ProtocolRevenue: "Includes 2% management fees collected by the protocol",
     SupplySideRevenue: "Includes yields calculated from HLSCOPE price change",
 }
 
 const breakdownMethodology = {
     Fees: {
         [METRIC.ASSETS_YIELDS]: "Increase yields calculated from HLSCOPE price change",
-        [METRIC.MANAGEMENT_FEES]: "2.51% management fees collected by the protocol",
+        [METRIC.MANAGEMENT_FEES]: "2% management fees collected by the protocol",
     },
     Revenue: {
-        [MANAGEMENT_FEES_TO_PROTOCOL]: "2.51% management fees collected by the protocol",
+        [MANAGEMENT_FEES_TO_PROTOCOL]: "2% management fees collected by the protocol",
     },
     ProtocolRevenue: {
-        [MANAGEMENT_FEES_TO_PROTOCOL]: "2.51% management fees collected by the protocol",
+        [MANAGEMENT_FEES_TO_PROTOCOL]: "2% management fees collected by the protocol",
     },
     SupplySideRevenue: {
         [ASSETS_YIELDS_TO_INVESTORS]: "Increase yields calculated from HLSCOPE price change",
@@ -119,7 +119,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2, //price updates once a day
+    version: 1, //price updates once a day
     prefetch,
     fetch,
     breakdownMethodology,
