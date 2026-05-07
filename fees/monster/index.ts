@@ -16,23 +16,20 @@ const GachaPlayedEvent =
 const TransferEvent =
   "event Transfer(address indexed from, address indexed to, uint256 value)";
 
-const PLAY_LABEL = "Gacha Play";
-const SELLBACK_LABEL = "Card Sellback";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   const playLogs = await options.getLogs({
     targets: GACHA_CONTRACTS,
     eventAbi: GachaPlayedEvent,
-    flatten: true,
   });
+
   for (const log of playLogs) {
     const cost = log.costPaid;
-    dailyFees.add(USDM, cost, PLAY_LABEL);
-    dailyRevenue.add(USDM, cost, PLAY_LABEL);
+    dailyVolume.add(USDM, cost);
+    dailyFees.add(USDM, cost);
   }
 
   const transferLogs = await options.getLogs({
@@ -46,53 +43,32 @@ const fetch = async (options: FetchOptions) => {
   for (const log of transferLogs) {
     const to = String(log.to).toLowerCase();
     if (to === TREASURY.toLowerCase()) continue;
-    const value = log.value;
-    dailySupplySideRevenue.add(USDM, value, SELLBACK_LABEL);
-    dailyRevenue.subtractToken(USDM, value, PLAY_LABEL);
+    dailyFees.subtractToken(USDM, log.value);
   }
 
   return {
+    dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
+};
+
+const methodology = {
+  Volume: "USDm paid by users into the three Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.",
+  Fees: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
+  Revenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
+  ProtocolRevenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   allowNegativeValue: true,
   pullHourly: true,
-  adapter: {
-    [CHAIN.MEGAETH]: {
-      fetch,
-      start: "2026-04-04",
-    },
-  },
-  methodology: {
-    Fees:
-      "USDm paid by users into the three Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.",
-    Revenue:
-      "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
-    SupplySideRevenue:
-      "USDm paid back to users for card sellbacks. The contract emits NFTSoldBack but the keeper sends USDm offchain, so we attribute outflows from the payment wallet (excluding transfers to the treasury) as sellback payouts.",
-    ProtocolRevenue:
-      "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [PLAY_LABEL]: "USDm paid by users into the Starter, Premium, and Ultra Gacha contracts (costPaid from GachaPlayed events).",
-    },
-    Revenue: {
-      [PLAY_LABEL]: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
-    },
-    ProtocolRevenue: {
-      [PLAY_LABEL]: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
-    },
-    SupplySideRevenue: {
-      [SELLBACK_LABEL]: "USDm sent from the payment wallet to card sellers (excluding treasury transfers); represents sellback payouts.",
-    }
-  },
+  fetch,
+  chains: [CHAIN.MEGAETH],
+  start: "2026-04-04",
+  methodology,
 };
 
 export default adapter;
