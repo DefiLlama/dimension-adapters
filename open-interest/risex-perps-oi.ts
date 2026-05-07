@@ -1,48 +1,30 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
-// Source: Rise Trade markets endpoint. OI is reported in base units and priced with mark price.
 const MARKETS_API = "https://api.rise.trade/v1/markets";
 
-type Market = {
-  available?: boolean;
-  visible?: boolean;
-  open_interest?: string;
-  mark_price?: string;
-  index_price?: string;
-  last_price?: string;
-};
+const fetch = async (_: any, __: any, _options: FetchOptions) => {
+    const response = await fetchURL(MARKETS_API);
+    const markets = response.data?.markets;
 
-const fetch = async () => {
-  const response = await httpGet(MARKETS_API);
-  const markets: Market[] = response.data?.markets ?? [];
-  if (!markets.length) {
-    throw new Error("RiseX markets data missing");
-  }
-
-  const openInterestAtEnd = markets.reduce((total: number, market: Market, i: number) => {
-    if (market.available === false || market.visible === false) return total;
-
-    const rawOpenInterest = market.open_interest;
-    const rawPrice = market.mark_price ?? market.index_price ?? market.last_price;
-    const openInterest = Number(rawOpenInterest);
-    const price = Number(rawPrice);
-    if (!Number.isFinite(openInterest) || !Number.isFinite(price) || openInterest < 0 || price < 0) {
-      throw new Error(`RiseX market numeric data invalid at index ${i}`);
+    if (!markets?.length) {
+        throw new Error("RiseX markets data missing");
     }
 
-    return total + openInterest * price;
-  }, 0);
+    const openInterestAtEnd = markets.reduce((total: number, market: any) => {
+        if (!market.available) return total;
+        return total + Number(market.open_interest) * Number(market.mark_price);
+    }, 0);
 
-  return { openInterestAtEnd };
+    return { openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.OFF_CHAIN],
-  runAtCurrTime: true,
-  start: "2026-04-01",
+    version: 2,
+    fetch,
+    chains: [CHAIN.RISE],
+    runAtCurrTime: true,
 };
 
 export default adapter;
