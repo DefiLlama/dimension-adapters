@@ -19,21 +19,12 @@ interface HTLCLockedEvent {
   coin_type: string;
 }
 
-interface HTLCClaimedEvent {
-  htlc_id: string;
-  hashlock: number[] | string;
-}
-
 interface HTLCRefundedEvent {
   htlc_id: string;
 }
 
 function isLocked(e: any): e is HTLCLockedEvent {
   return e && typeof e.amount !== "undefined" && typeof e.coin_type !== "undefined";
-}
-
-function isClaimed(e: any): e is HTLCClaimedEvent {
-  return e && typeof e.preimage !== "undefined";
 }
 
 function isRefunded(e: any): e is HTLCRefundedEvent {
@@ -65,25 +56,21 @@ export async function fetchSui(options: FetchOptions): Promise<FetchResultV2> {
     options,
   });
 
-  // Group by htlc_id within the day window.
   const lockedById = new Map<string, HTLCLockedEvent>();
-  const claimedIds = new Set<string>();
   const refundedIds = new Set<string>();
 
   for (const ev of events) {
     if (isLocked(ev)) lockedById.set(ev.htlc_id, ev);
-    else if (isClaimed(ev)) claimedIds.add(ev.htlc_id);
     else if (isRefunded(ev)) refundedIds.add(ev.htlc_id);
   }
 
-  // Volume = HTLCLocked amount where the same htlc_id was claimed in the
-  // same window. Refunded HTLCs are excluded. Locks whose claim spans into
-  // the next day window are missed in the current day's count and will be
-  // visible only if/when DefiLlama re-runs over a wider window. This matches
-  // the conservative "settled-only" methodology and avoids double-counting.
+  // Volume = all locked amounts, minus same-window refunds. Attributed to lock day.
+  // Sui's HTLCClaimed event lacks amount/coin_type, so claim-day attribution is
+  // not possible. Lock-day counting eliminates cross-midnight gaps entirely.
+  // Edge case: HTLC locked today, refunded tomorrow → overcounted by one day.
+  // Acceptable: timelocks are short (hours) and the vast majority settle.
   for (const [id, lock] of lockedById) {
     if (refundedIds.has(id)) continue;
-    if (!claimedIds.has(id)) continue;
     dailyVolume.add(normalizeCoinType(lock.coin_type), lock.amount);
   }
 
