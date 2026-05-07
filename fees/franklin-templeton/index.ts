@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
-const GROSS_EXPENSE_YEAR = 0.0022;
+const NET_EXPENSE_YEAR = 0.002;
 const EVM_BENJI_DECIMALS = 18;
 
-// Source: Franklin Templeton FOBXX distributions; 0.22% gross expense ratio applied across BENJI chains.
+// Source: Franklin Templeton FOBXX distributions; 0.20% net expense ratio applied across BENJI chains.
 const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
     start: "2025-01-01",
@@ -54,7 +54,7 @@ const chainConfig: any = {
 };
 
 const managementFees = (supply: number, periodSeconds: number) =>
-  (supply * GROSS_EXPENSE_YEAR * periodSeconds) / (365 * 86400);
+  (supply * NET_EXPENSE_YEAR * periodSeconds) / (365 * 86400);
 
 const formatData = (row: any, options: any, yieldKey = "daily_dividends") => {
   const supply = Number(row?.supply ?? 0);
@@ -286,7 +286,7 @@ const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]:
-      "0.22% gross expense ratio prorated over the fetch period and applied to BENJI shares outstanding.",
+      "0.20% net expense ratio prorated over the fetch period and applied to BENJI shares outstanding.",
     [METRIC.ASSETS_YIELDS]:
       "BENJI/iBENJI distributions from EVM DividendDistributed shares, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar DIVR issuer payments.",
   },
@@ -306,9 +306,9 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Fees:
-      "BENJI distributions from DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer transactions with DIVR memos, plus fund-level expenses calculated from a 0.22% gross expense ratio on total supply.",
+      "BENJI distributions from DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer transactions with DIVR memos, plus fund-level expenses calculated from a 0.20% net expense ratio on total supply.",
     Revenue:
-      "Franklin Templeton fund expenses, calculated from a 0.22% gross expense ratio on total supply.",
+      "Franklin Templeton fund expenses, calculated from a 0.20% net expense ratio on total supply.",
     SupplySideRevenue:
       "BENJI distributions/newly minted fund shares distributed to holders, using DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer payments with DIVR memos.",
   },
