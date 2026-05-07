@@ -1,154 +1,51 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
 const FDIT = "0x48ab4e39ac59f4e88974804b04a991b3a402717f";
 const FUND_NO = "9053";
-// Fidelity public fund data for FYOXX / FDIT:
-// https://institutional.fidelity.com/app/fund/data/9053.json
-// Historical prices/yields form posts to this endpoint with fundNo/startDate/endDate.
-// https://institutional.fidelity.com/app/funds/hpdy
+// Source: Fidelity FYOXX/FDIT fund data and historical pricing APIs; SEC prospectus uses ERAER/NTEXP as net expense ratios.
 const FIDELITY_FUND_DATA_URL = "https://institutional.fidelity.com/app/fund/data/9053.json";
 const FIDELITY_HISTORICAL_PRICING_URL = "https://institutional.fidelity.com/app/funds/historicalFundPricing";
-const FDIT_DIVIDENDS = "FDIT Dividends";
-const FDIT_DIVIDENDS_TO_HOLDERS = "FDIT Dividends To Holders";
-const FDIT_NET_FUND_EXPENSES = "FDIT Net Fund Expenses";
-const FDIT_NET_FUND_EXPENSES_TO_FIDELITY = "FDIT Net Fund Expenses To Fidelity";
 
-type FidelityFeatureInformation = {
-  featureCode: string;
-  featureValue: string;
-}[];
-
-type PricingData = {
-  milRate?: number;
-  featureInformation?: FidelityFeatureInformation;
-};
-
-type HistoricalPricingResponse = {
-  status: string;
-  featureInformation?: FidelityFeatureInformation;
-  prices?: {
-    date: string;
-    milRate: string;
-  }[];
-};
-
-type FundDataResponse = {
-  historicalPricingYield?: {
-    prices?: {
-      date: string;
-      milRateAndYieldInstance?: {
-        milRate: number | string;
-      };
-    }[];
-  }[];
-  overview?: {
-    featureInformation?: FidelityFeatureInformation;
-  };
-  prices?: {
-    milrateYields?: {
-      milrateDate: string;
-      milrate: number | string;
-    }[];
-  }[];
-};
-
-function toFidelityDate(dateString: string) {
+const toFidelityDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-");
   return `${month}/${day}/${year}`;
-}
+};
 
-function fromFidelityDate(dateString: string) {
-  const [month, day, year] = dateString.split("/");
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-}
+const parsePercent = (value?: string) => Number(value?.match(/[\d.]+/)?.[0]) / 100 || undefined;
 
-function parsePercent(value?: string) {
-  if (!value) return undefined;
+async function getPricing(dateString: string) {
+  const response: any = await httpGet(FIDELITY_FUND_DATA_URL);
+  const featureInformation = response.overview?.featureInformation;
+  const fidelityDate = toFidelityDate(dateString);
+  const price =
+    response.historicalPricingYield
+    ?.flatMap((item: any) => item.prices ?? [])
+    .find((item: any) => item.date === fidelityDate)?.milRateAndYieldInstance?.milRate ??
+    response.prices
+      ?.flatMap((price: any) => price.milrateYields ?? [])
+      .find((item: any) => item.milrateDate === fidelityDate)?.milrate;
 
-  const match = value.match(/[\d.]+/);
-  if (!match) return undefined;
+  if (price) return { milRate: Number(price), featureInformation };
 
-  return Number(match[0]) / 100;
-}
-
-function getNetExpenseRatio(features: FidelityFeatureInformation = []) {
-  const byCode = Object.fromEntries(features.map((feature) => [feature.featureCode, feature.featureValue]));
-  // Fidelity feature codes:
-  // ERAER = expenses net of all reductions, NTEXP = total annual operating expenses after waiver/reimbursement.
-  // MGFEE is the gross management fee, so it is not used as a net-expense fallback.
-  // https://www.sec.gov/Archives/edgar/data/917286/000113322825007437/ftdf-efp16750_497k.htm
-  const netExpenseRatio =
-    parsePercent(byCode.ERAER) ??
-    parsePercent(byCode.NTEXP);
-
-  if (netExpenseRatio === undefined) {
-    throw new Error("No Fidelity expense ratio found");
-  }
-
-  return netExpenseRatio;
-}
-
-async function getHistoricalPricing(dateString: string): Promise<PricingData> {
-  const date = toFidelityDate(dateString);
-  const body = new URLSearchParams({
-    fundNo: FUND_NO,
-    startDate: date,
-    endDate: date,
-  });
-
-  const response: HistoricalPricingResponse = await httpPost(
+  const historical: any = await httpPost(
     FIDELITY_HISTORICAL_PRICING_URL,
-    body.toString(),
-    {
-      headers: {
-        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
-    }
+    new URLSearchParams({ fundNo: FUND_NO, startDate: fidelityDate, endDate: fidelityDate }).toString(),
+    { headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" } }
   );
 
-  if (response.status !== "success") {
-    throw new Error(`Fidelity historical pricing request failed for ${dateString}`);
-  }
+  if (historical.status !== "success") throw new Error(`Fidelity historical pricing request failed for ${dateString}`);
 
-  const price = response.prices?.find((item) => item.date === dateString);
   return {
-    milRate: price?.milRate ? Number(price.milRate) : undefined,
-    featureInformation: response.featureInformation,
+    milRate: Number(historical.prices?.find((item: any) => item.date === dateString)?.milRate) || undefined,
+    featureInformation: historical.featureInformation ?? featureInformation,
   };
 }
 
-async function getFundDataPricing(dateString: string): Promise<PricingData> {
-  const response: FundDataResponse = await httpGet(FIDELITY_FUND_DATA_URL);
-  const featureInformation = response.overview?.featureInformation;
-  const historicalPrice = response.historicalPricingYield
-    ?.flatMap((item) => item.prices ?? [])
-    .find((item) => item.date === toFidelityDate(dateString));
-
-  if (historicalPrice?.milRateAndYieldInstance?.milRate) {
-    return {
-      milRate: Number(historicalPrice.milRateAndYieldInstance.milRate),
-      featureInformation,
-    };
-  }
-
-  const milrateYield = response.prices
-    ?.flatMap((price) => price.milrateYields ?? [])
-    .find((item) => fromFidelityDate(item.milrateDate) === dateString);
-
-  return {
-    milRate: milrateYield?.milrate ? Number(milrateYield.milrate) : undefined,
-    featureInformation,
-  };
-}
-
-const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResult> => {
-  let pricing = await getFundDataPricing(options.dateString);
-
-  if (pricing.milRate === undefined) {
-    pricing = await getHistoricalPricing(options.dateString);
-  }
+const fetch = async (_: any, _1: any, options: any) => {
+  const pricing = await getPricing(options.dateString);
 
   if (pricing.milRate === undefined) {
     throw new Error(`No Fidelity mil-rate found for ${options.dateString}`);
@@ -158,9 +55,11 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
     target: FDIT,
     abi: "erc20:totalSupply",
   });
-
+  const ratios = Object.fromEntries((pricing.featureInformation ?? []).map((i: any) => [i.featureCode, i.featureValue]));
+  const netExpenseRatio = parsePercent(ratios.ERAER) ?? parsePercent(ratios.NTEXP);
   const fditSupply = Number(supply) / 1e18;
-  const netExpenseRatio = getNetExpenseRatio(pricing.featureInformation);
+
+  if (netExpenseRatio === undefined) throw new Error("No Fidelity expense ratio found");
 
   const dailyDividends = fditSupply * pricing.milRate;
   const dailyFundFees = fditSupply * netExpenseRatio / 365;
@@ -169,12 +68,10 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  // Fidelity money market mil-rates are daily dividend amounts per $1 NAV share.
-  // Because FDIT/FYOXX targets a $1 NAV, supply in shares is also the USD AUM base for these calculations.
-  dailyFees.addUSDValue(dailyDividends, FDIT_DIVIDENDS);
-  dailyFees.addUSDValue(dailyFundFees, FDIT_NET_FUND_EXPENSES);
-  dailySupplySideRevenue.addUSDValue(dailyDividends, FDIT_DIVIDENDS_TO_HOLDERS);
-  dailyRevenue.addUSDValue(dailyFundFees, FDIT_NET_FUND_EXPENSES_TO_FIDELITY);
+  dailyFees.addUSDValue(dailyDividends, METRIC.ASSETS_YIELDS);
+  dailyFees.addUSDValue(dailyFundFees, METRIC.MANAGEMENT_FEES);
+  dailySupplySideRevenue.addUSDValue(dailyDividends, METRIC.ASSETS_YIELDS);
+  dailyRevenue.addUSDValue(dailyFundFees, METRIC.MANAGEMENT_FEES);
 
   return {
     dailyFees,
@@ -193,17 +90,17 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [FDIT_DIVIDENDS]: "Daily dividends paid to FDIT holders from Fidelity's published mil-rate.",
-    [FDIT_NET_FUND_EXPENSES]: "Net fund expenses accrued daily using Fidelity's expense ratio.",
+    [METRIC.ASSETS_YIELDS]: "Daily dividends paid to FDIT holders from Fidelity's published mil-rate.",
+    [METRIC.MANAGEMENT_FEES]: "Net fund expenses accrued daily using Fidelity's expense ratio.",
   },
   Revenue: {
-    [FDIT_NET_FUND_EXPENSES_TO_FIDELITY]: "Net fund expenses accrued daily to Fidelity using Fidelity's expense ratio.",
+    [METRIC.MANAGEMENT_FEES]: "Net fund expenses accrued daily to Fidelity using Fidelity's expense ratio.",
   },
   ProtocolRevenue: {
-    [FDIT_NET_FUND_EXPENSES_TO_FIDELITY]: "Net fund expenses accrued daily to Fidelity using Fidelity's expense ratio.",
+    [METRIC.MANAGEMENT_FEES]: "Net fund expenses accrued daily to Fidelity using Fidelity's expense ratio.",
   },
   SupplySideRevenue: {
-    [FDIT_DIVIDENDS_TO_HOLDERS]: "Daily dividends paid to FDIT holders from Fidelity's published mil-rate.",
+    [METRIC.ASSETS_YIELDS]: "Daily dividends paid to FDIT holders from Fidelity's published mil-rate.",
   },
 };
 
