@@ -1,9 +1,7 @@
 import axios from "axios";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-// Clearpool public Subsquid GraphQL endpoint used for pool/vault snapshots and repayment operations.
 const ENDPOINT = "https://squid.subsquid.io/cpool-squid/v/v1/graphql";
 const RAY = 10n ** 18n;
 const LIMIT = 500;
@@ -11,106 +9,65 @@ const PRIME_POOL_CREATED_EVENT = "event PoolCreated(address pool, address indexe
 const PRIME_REPAYED_EVENT = "event Repayed(address indexed lender, uint256 repayed, uint256 spreadFee, uint256 originationFee, uint256 penalty)";
 const PRIME_REPAYMENT_FEES = "Prime Repayment Fees";
 
-type NetworkConfig = {
-  network: string;
-  start: string;
-  primeFactory?: string;
-  primeFromBlock?: number;
-};
-
-type Token = {
-  address: string;
-};
-
-type DynamicSnapshot = {
-  cumulativeInterestEarned: string;
-  dynamic: {
-    id: string;
-    asset: Token;
-    reserveFactor: string;
-    insuranceFactor: string;
-  };
-};
-
-type VaultSnapshot = {
-  cumulativeInterestEarned: string;
-  vault: {
-    id: string;
-    asset: Token;
-    protocolRate: string;
-  };
-};
-
-// Prime factory addresses and fromBlock values match the existing Clearpool TVL factory config.
-const NETWORKS: Partial<Record<string, NetworkConfig>> = {
+const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
     network: "MAINNET",
     start: "2022-05-16",
-    // Clearpool Prime factory on Ethereum; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0x83D5c08eCfe3F711e1Ff34618c0Dcc5FeFBe1791",
-    primeFromBlock: 17577233, // 2023-06-28
+    primeFromBlock: 17577233,
   },
   [CHAIN.POLYGON]: { network: "POLYGON", start: "2022-07-25" },
   [CHAIN.POLYGON_ZKEVM]: { network: "ZKEVM", start: "2023-05-19" },
   [CHAIN.OPTIMISM]: {
     network: "OPTIMISM",
     start: "2023-07-20",
-    // Clearpool Prime factory on Optimism; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0xe3E26D4187f3A8e100223576a37d30f2A89eb755",
-    primeFromBlock: 112307797, // 2023-11-17
+    primeFromBlock: 112307797,
   },
   [CHAIN.ARBITRUM]: {
     network: "ARBITRUM",
     start: "2023-07-20",
-    // Clearpool Prime factory on Arbitrum; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0x44fEF0fAB3A96CA34b06d5142350Ef9223F65A7e",
-    primeFromBlock: 226174706, // 2024-06-27
+    primeFromBlock: 226174706,
   },
   [CHAIN.MANTLE]: {
     network: "MANTLE",
     start: "2024-01-23",
-    // Clearpool Prime factory on Mantle; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0x29157e2B6A34Ae1787CDdD05Ad54DD4aa9783A5c",
-    primeFromBlock: 68483768, // 2024-08-31
+    primeFromBlock: 68483768,
   },
   [CHAIN.AVAX]: {
     network: "AVALANCHE",
     start: "2024-03-07",
-    // Clearpool Prime factory on Avalanche; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0x7A05280940A23749106D8Fb2cA4b10B9D1C89067",
-    primeFromBlock: 45264014, // 2024-05-10
+    primeFromBlock: 45264014,
   },
   [CHAIN.BASE]: {
     network: "BASE",
     start: "2024-01-01",
-    // Clearpool Prime factory on Base; PoolCreated logs expose pool and asset for repayment scans.
     primeFactory: "0xBdf5575Ec1cC0a14Bd3e94648a2453fdC7B56943",
-    primeFromBlock: 12453163, // 2024-03-29
+    primeFromBlock: 12453163,
   },
 };
 
-const toDate = (timestamp: number) => new Date(timestamp * 1000).toISOString().slice(0, 10);
-const toBigInt = (value?: string | number | bigint | null) => BigInt(value?.toString().split(".")[0] ?? "0");
+const toBigInt = (value: any) => BigInt(value?.toString().split(".")[0] ?? "0");
 
-async function querySubgraph<T>(query: string, variables: Record<string, any>): Promise<T> {
+async function querySubgraph(query: any, variables: any) {
   const { data } = await axios.post(ENDPOINT, { query, variables }, { timeout: 20_000 });
   if (data.errors?.length) throw new Error(data.errors.map((e: any) => e.message).join("; "));
   return data.data;
 }
 
-async function paginated<T>(field: string, query: string, variables: Record<string, any>): Promise<T[]> {
-  const results: T[] = [];
+async function paginated(field: any, query: any, variables: any) {
+  const results = [];
   for (let offset = 0; ; offset += LIMIT) {
-    const data = await querySubgraph<Record<string, T[]>>(query, { ...variables, offset, limit: LIMIT });
+    const data = await querySubgraph(query, { ...variables, offset, limit: LIMIT });
     const page = data[field] ?? [];
     results.push(...page);
     if (page.length < LIMIT) return results;
   }
 }
 
-// Source: Clearpool Subsquid dynamicPoolSnapshots.
-// cumulativeInterestEarned is differenced across day boundaries for gross borrower interest.
-// dynamic.reserveFactor gives the ray-scaled protocol share; insuranceFactor is excluded from protocol revenue.
 const dynamicSnapshotQuery = `
   query DynamicSnapshots($network: Network!, $date: String!, $offset: Int!, $limit: Int!) {
     dynamicPoolSnapshots(
@@ -124,15 +81,11 @@ const dynamicSnapshotQuery = `
         id
         asset { address }
         reserveFactor
-        insuranceFactor
       }
     }
   }
 `;
 
-// Source: Clearpool Subsquid vaultsSnapshots.
-// cumulativeInterestEarned is differenced across day boundaries for gross borrower interest.
-// vault.protocolRate gives the ray-scaled protocol share.
 const vaultSnapshotQuery = `
   query VaultSnapshots($network: Network!, $date: String!, $offset: Int!, $limit: Int!) {
     vaultsSnapshots(
@@ -152,35 +105,35 @@ const vaultSnapshotQuery = `
 `;
 
 const addGrossBorrowerInterest = (
-  balances: ReturnType<FetchOptions["createBalances"]>,
-  revenue: ReturnType<FetchOptions["createBalances"]>,
-  supplySide: ReturnType<FetchOptions["createBalances"]>,
+  balances: any,
+  revenue: any,
+  supplySide: any,
   token: string,
   grossInterest: bigint,
   protocolRate: bigint,
 ) => {
-  if (grossInterest <= 0n) return;
-  // Snapshot source gives cumulative gross borrower interest; rate fields are ray-scaled protocol shares.
-  const uncappedProtocolRevenue = grossInterest * protocolRate / RAY;
-  const protocolRevenue = uncappedProtocolRevenue > grossInterest ? grossInterest : uncappedProtocolRevenue;
-  const lenderRevenue = grossInterest - protocolRevenue;
+  const interest = BigInt(grossInterest);
+  const rate = BigInt(protocolRate);
+  if (interest <= 0n) return;
+  const uncappedProtocolRevenue = interest * rate / RAY;
+  const protocolRevenue = uncappedProtocolRevenue > interest ? interest : uncappedProtocolRevenue;
+  const lenderRevenue = interest - protocolRevenue;
 
-  balances.add(token, grossInterest, METRIC.BORROW_INTEREST);
+  balances.add(token, interest, METRIC.BORROW_INTEREST);
   if (protocolRevenue > 0n) revenue.add(token, protocolRevenue, METRIC.BORROW_INTEREST);
   if (lenderRevenue > 0n) supplySide.add(token, lenderRevenue, METRIC.BORROW_INTEREST);
 };
 
 const addPrimeRepaymentFees = async (
-  options: FetchOptions,
-  config: NetworkConfig,
-  dailyFees: ReturnType<FetchOptions["createBalances"]>,
-  dailyRevenue: ReturnType<FetchOptions["createBalances"]>,
-  dailySupplySideRevenue: ReturnType<FetchOptions["createBalances"]>,
+  options: any,
+  config: any,
+  dailyFees: any,
+  dailyRevenue: any,
+  dailySupplySideRevenue: any,
 ) => {
   if (!config.primeFactory || !config.primeFromBlock) return;
 
-  // On-chain source: Prime factory PoolCreated logs discover pool addresses and assets.
-  const primePools: any[] = await options.getLogs({
+  const primePools = await options.getLogs({
     target: config.primeFactory,
     fromBlock: config.primeFromBlock,
     eventAbi: PRIME_POOL_CREATED_EVENT,
@@ -188,8 +141,8 @@ const addPrimeRepaymentFees = async (
   });
   if (!primePools.length) return;
 
-  const poolAssets = Object.fromEntries(primePools.map((pool) => [pool.pool.toLowerCase(), pool.asset]));
-  const repaymentLogs: any[] = await options.getLogs({
+  const poolAssets = Object.fromEntries(primePools.map((pool: any) => [pool.pool.toLowerCase(), pool.asset]));
+  const repaymentLogs = await options.getLogs({
     targets: Object.keys(poolAssets),
     eventAbi: PRIME_REPAYED_EVENT,
     entireLog: true,
@@ -210,53 +163,47 @@ const addPrimeRepaymentFees = async (
   }
 };
 
-async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const config = NETWORKS[options.chain];
-  if (!config) {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
-    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
-  }
+async function fetch(options: any) {
+  const config = chainConfig[options.chain];
 
   try {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const from = new Date(options.fromTimestamp * 1000).toISOString().slice(0, 10);
+    const to = new Date(options.toTimestamp * 1000).toISOString().slice(0, 10);
 
     const [startSnapshots, endSnapshots, startVaultSnapshots, endVaultSnapshots] = await Promise.all([
-      paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
+      paginated("dynamicPoolSnapshots", dynamicSnapshotQuery, {
         network: config.network,
-        date: toDate(options.fromTimestamp),
+        date: from,
       }),
-      paginated<DynamicSnapshot>("dynamicPoolSnapshots", dynamicSnapshotQuery, {
+      paginated("dynamicPoolSnapshots", dynamicSnapshotQuery, {
         network: config.network,
-        date: toDate(options.toTimestamp),
+        date: to,
       }),
-      paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
+      paginated("vaultsSnapshots", vaultSnapshotQuery, {
         network: config.network,
-        date: toDate(options.fromTimestamp),
+        date: from,
       }),
-      paginated<VaultSnapshot>("vaultsSnapshots", vaultSnapshotQuery, {
+      paginated("vaultsSnapshots", vaultSnapshotQuery, {
         network: config.network,
-        date: toDate(options.toTimestamp),
+        date: to,
       }),
     ]);
 
-    const startDynamic = new Map(startSnapshots.map((snapshot: DynamicSnapshot) => [snapshot.dynamic.id, snapshot]));
+    const startDynamic = new Map(startSnapshots.map((snapshot: any) => [snapshot.dynamic.id, snapshot]));
     for (const end of endSnapshots) {
       const start = startDynamic.get(end.dynamic.id);
-      // Missing start snapshot means there is no period delta; treating it as zero would overcount lifetime interest.
       if (!start) continue;
       const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
       const protocolRate = toBigInt(end.dynamic.reserveFactor);
       addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.dynamic.asset.address, interest, protocolRate);
     }
 
-    const startVaults = new Map(startVaultSnapshots.map((snapshot: VaultSnapshot) => [snapshot.vault.id, snapshot]));
+    const startVaults = new Map(startVaultSnapshots.map((snapshot: any) => [snapshot.vault.id, snapshot]));
     for (const end of endVaultSnapshots) {
       const start = startVaults.get(end.vault.id);
-      // Missing start snapshot means there is no period delta; treating it as zero would overcount lifetime interest.
       if (!start) continue;
       const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
       addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.vault.asset.address, interest, toBigInt(end.vault.protocolRate));
@@ -279,16 +226,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }
 }
 
-const adapter: SimpleAdapter = {
+const adapter = {
   version: 2,
-  adapter: Object.fromEntries(Object.entries(NETWORKS).flatMap(([chain, config]) => config ? [[
-    chain,
-    {
-      fetch,
-      start: config.start,
-      pullHourly: true,
-    },
-  ]] : [])),
+  fetch,
+  pullHourly: true,
+  adapter: chainConfig,
   methodology: {
     Fees: "Interest and protocol fees generated by Clearpool lending products: Dynamic pools, Credit Vaults, and Prime pool repayment fees.",
     Revenue: "Protocol share of Dynamic pool and Credit Vault borrower interest, plus Prime pool spreadFee and originationFee repayment fees; Prime pool penalty amounts are excluded from revenue and booked to dailySupplySideRevenue.",
