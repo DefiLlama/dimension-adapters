@@ -49,7 +49,7 @@ const fetch = async (options: FetchOptions) => {
     }
 
     for (const log of negativeRebaseLogs) {
-        dailySupplySideRevenue.subtractToken(stusdt, log.newTotalUnderlying - log.oldTotalUnderlying, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(stusdt, log.newTotalUnderlying - log.oldTotalUnderlying, METRIC.ASSETS_YIELDS);
     }
 
     dailyFees.add(dailySupplySideRevenue);
