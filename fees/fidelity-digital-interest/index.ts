@@ -1,46 +1,31 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { httpGet, httpPost } from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 
 const FDIT = "0x48ab4e39ac59f4e88974804b04a991b3a402717f";
 const FUND_NO = "9053";
-// Source: Fidelity FYOXX/FDIT fund data and historical pricing APIs; SEC prospectus uses ERAER/NTEXP as net expense ratios.
-const FIDELITY_FUND_DATA_URL = "https://institutional.fidelity.com/app/fund/data/9053.json";
+// Source: Fidelity FYOXX/FDIT historical pricing API; SEC prospectus lists 0.2% net annual fund expenses.
 const FIDELITY_HISTORICAL_PRICING_URL = "https://institutional.fidelity.com/app/funds/historicalFundPricing";
+const NET_EXPENSE_RATIO = 0.002;
 
 const toFidelityDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-");
   return `${month}/${day}/${year}`;
 };
 
-const parsePercent = (value?: string) => Number(value?.match(/[\d.]+/)?.[0]) / 100 || undefined;
-
 async function getPricing(dateString: string) {
-  const response: any = await httpGet(FIDELITY_FUND_DATA_URL);
-  const featureInformation = response.overview?.featureInformation;
   const fidelityDate = toFidelityDate(dateString);
-  const price =
-    response.historicalPricingYield
-    ?.flatMap((item: any) => item.prices ?? [])
-    .find((item: any) => item.date === fidelityDate)?.milRateAndYieldInstance?.milRate ??
-    response.prices
-      ?.flatMap((price: any) => price.milrateYields ?? [])
-      .find((item: any) => item.milrateDate === fidelityDate)?.milrate;
-
-  if (price) return { milRate: Number(price), featureInformation };
-
-  const historical: any = await httpPost(
+  const response: any = await httpPost(
     FIDELITY_HISTORICAL_PRICING_URL,
     new URLSearchParams({ fundNo: FUND_NO, startDate: fidelityDate, endDate: fidelityDate }).toString(),
     { headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" } }
   );
 
-  if (historical.status !== "success") throw new Error(`Fidelity historical pricing request failed for ${dateString}`);
+  if (response.status !== "success") throw new Error(`Fidelity historical pricing request failed for ${dateString}`);
 
   return {
-    milRate: Number(historical.prices?.find((item: any) => item.date === dateString)?.milRate) || undefined,
-    featureInformation: historical.featureInformation ?? featureInformation,
+    milRate: Number(response.prices?.find((item: any) => item.date === dateString)?.milRate) || undefined,
   };
 }
 
@@ -55,14 +40,10 @@ const fetch = async (_: any, _1: any, options: any) => {
     target: FDIT,
     abi: "erc20:totalSupply",
   });
-  const ratios = Object.fromEntries((pricing.featureInformation ?? []).map((i: any) => [i.featureCode, i.featureValue]));
-  const netExpenseRatio = parsePercent(ratios.ERAER) ?? parsePercent(ratios.NTEXP);
   const fditSupply = Number(supply) / 1e18;
 
-  if (netExpenseRatio === undefined) throw new Error("No Fidelity expense ratio found");
-
   const dailyDividends = fditSupply * pricing.milRate;
-  const dailyFundFees = fditSupply * netExpenseRatio / 365;
+  const dailyFundFees = fditSupply * NET_EXPENSE_RATIO / 365;
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
