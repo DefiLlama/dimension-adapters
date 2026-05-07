@@ -13,7 +13,7 @@ async function getProtocolFeeBps(chain: string, exchange: string): Promise<numbe
   const contract = new ethers.Contract(exchange, [PROTOCOL_FEE_ABI], provider as any);
   const [, buyerAmount, sellerAmount] = await contract.protocolFee();
   return Number(buyerAmount) + Number(sellerAmount);
-}
+};
 
 const config: Record<string, { exchange: string; royaltiesRegistry: string; start: string }> = {
   [CHAIN.ETHEREUM]: {
