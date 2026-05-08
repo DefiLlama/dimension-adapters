@@ -1,13 +1,19 @@
 import axios from "axios";
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const ENDPOINT = "https://squid.subsquid.io/cpool-squid/v/v1/graphql";
-const RAY = 10n ** 18n;
+const PORT_ENDPOINT = "https://vaults.clearpool.finance/api/subsquid";
+const PORT_HEADERS = {
+  origin: "https://vaults.clearpool.finance",
+  referer: "https://vaults.clearpool.finance/",
+  accept: "application/graphql-response+json, application/json",
+};
+const WAD = 10n ** 18n;
 const LIMIT = 500;
 const PRIME_POOL_CREATED_EVENT = "event PoolCreated(address pool, address indexed borrower, bool isBulletLoan, address indexed asset, uint256 size, uint256 rateMantissa, uint256 tenor, uint256 depositWindow, uint256 spreadRate, uint256 originationRate, uint256 incrementPerRoll, uint256 penaltyRatePerYear)";
 const PRIME_REPAYED_EVENT = "event Repayed(address indexed lender, uint256 repayed, uint256 spreadFee, uint256 originationFee, uint256 penalty)";
-const PRIME_REPAYMENT_FEES = "Prime Repayment Fees";
 
 const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
@@ -15,6 +21,9 @@ const chainConfig: any = {
     start: "2022-05-16",
     primeFactory: "0x83D5c08eCfe3F711e1Ff34618c0Dcc5FeFBe1791",
     primeFromBlock: 17577233,
+    portVaults: [
+      { id: "0x455bdfb7db8739fb3da683914e44928e9f0edf91-MAINNET", address: "0x455bdfb7db8739fb3da683914e44928e9f0edf91", token: "0xf8750b54d86be7ae9e32b4a0c826811198d63313" },
+    ],
   },
   [CHAIN.POLYGON]: { network: "POLYGON", start: "2022-07-25" },
   [CHAIN.POLYGON_ZKEVM]: { network: "ZKEVM", start: "2023-05-19" },
@@ -48,32 +57,25 @@ const chainConfig: any = {
     primeFactory: "0xBdf5575Ec1cC0a14Bd3e94648a2453fdC7B56943",
     primeFromBlock: 12453163,
   },
+  [CHAIN.FLARE]: {
+    start: "2025-10-28",
+    portVaults: [
+      { id: "0x6b9e9d89e0e9fd93eb95d8c7715be2a8de64af07-FLARE", address: "0x6b9e9d89e0e9fd93eb95d8c7715be2a8de64af07", token: "0x4a771cc1a39fdd8aa08b8ea51f7fd412e73b3d2b" },
+    ],
+  },
 };
 
 const toBigInt = (value: any) => BigInt(value?.toString().split(".")[0] ?? "0");
-
-async function querySubgraph(query: any, variables: any) {
-  const { data } = await axios.post(ENDPOINT, { query, variables }, { timeout: 20_000 });
-  if (data.errors?.length) throw new Error(data.errors.map((e: any) => e.message).join("; "));
-  return data.data;
-}
-
-async function paginated(field: any, query: any, variables: any) {
-  const results = [];
-  for (let offset = 0; ; offset += LIMIT) {
-    const data = await querySubgraph(query, { ...variables, offset, limit: LIMIT });
-    const page = data[field] ?? [];
-    results.push(...page);
-    if (page.length < LIMIT) return results;
-  }
-}
+const gql = (url: string, headers = {}) => (query: string, variables: any, field: string) =>
+  axios.post(url, { query, variables: { ...variables, limit: LIMIT } }, { headers, timeout: 20_000 }).then(({ data }) => data.data[field] ?? []);
+const subgraph = gql(ENDPOINT);
+const portGql = gql(PORT_ENDPOINT, PORT_HEADERS);
 
 const dynamicSnapshotQuery = `
-  query DynamicSnapshots($network: Network!, $date: String!, $offset: Int!, $limit: Int!) {
+  query DynamicSnapshots($network: Network!, $date: String!, $limit: Int!) {
     dynamicPoolSnapshots(
       where: { date_eq: $date, dynamic: { network_eq: $network } }
       orderBy: dynamic_id_ASC
-      offset: $offset
       limit: $limit
     ) {
       cumulativeInterestEarned
@@ -86,173 +88,135 @@ const dynamicSnapshotQuery = `
   }
 `;
 
-const vaultSnapshotQuery = `
-  query VaultSnapshots($network: Network!, $date: String!, $offset: Int!, $limit: Int!) {
-    vaultsSnapshots(
-      where: { date_eq: $date, vault: { network_eq: $network } }
-      orderBy: vault_id_ASC
-      offset: $offset
+const portNavQuery = `
+  query PortNavUpdates($ids: [String!], $from: BigInt!, $to: BigInt!, $limit: Int!) {
+    portNavUpdates(
+      where: { vault: { id_in: $ids }, timestamp_gte: $from, timestamp_lt: $to }
+      orderBy: timestamp_ASC
       limit: $limit
     ) {
-      cumulativeInterestEarned
-      vault {
-        id
-        asset { address }
-        protocolRate
-      }
+      oldRate
+      newRate
+      block
+      vault { id }
     }
   }
 `;
 
-const addGrossBorrowerInterest = (
-  balances: any,
-  revenue: any,
-  supplySide: any,
-  token: string,
-  grossInterest: bigint,
-  protocolRate: bigint,
-) => {
-  const interest = BigInt(grossInterest);
-  const rate = BigInt(protocolRate);
-  if (interest <= 0n) return;
-  const uncappedProtocolRevenue = interest * rate / RAY;
-  const protocolRevenue = uncappedProtocolRevenue > interest ? interest : uncappedProtocolRevenue;
-  const lenderRevenue = interest - protocolRevenue;
-
-  balances.add(token, interest, METRIC.BORROW_INTEREST);
-  if (protocolRevenue > 0n) revenue.add(token, protocolRevenue, METRIC.BORROW_INTEREST);
-  if (lenderRevenue > 0n) supplySide.add(token, lenderRevenue, METRIC.BORROW_INTEREST);
-};
-
-const addPrimeRepaymentFees = async (
-  options: any,
-  config: any,
-  dailyFees: any,
-  dailyRevenue: any,
-  dailySupplySideRevenue: any,
-) => {
-  if (!config.primeFactory || !config.primeFromBlock) return;
-
-  const primePools = await options.getLogs({
-    target: config.primeFactory,
-    fromBlock: config.primeFromBlock,
-    eventAbi: PRIME_POOL_CREATED_EVENT,
-    cacheInCloud: true,
-  });
-  if (!primePools.length) return;
-
-  const poolAssets = Object.fromEntries(primePools.map((pool: any) => [pool.pool.toLowerCase(), pool.asset]));
-  const repaymentLogs = await options.getLogs({
-    targets: Object.keys(poolAssets),
-    eventAbi: PRIME_REPAYED_EVENT,
-    entireLog: true,
-    cacheInCloud: true,
-  });
-
-  for (const repayment of repaymentLogs) {
-    const token = poolAssets[repayment.address?.toLowerCase()];
-    if (!token) continue;
-    const args = repayment.args ?? repayment;
-    const protocolFee = toBigInt(args.spreadFee) + toBigInt(args.originationFee);
-    const penalty = toBigInt(args.penalty);
-    const totalFee = protocolFee + penalty;
-    if (totalFee <= 0n) continue;
-    dailyFees.add(token, totalFee, PRIME_REPAYMENT_FEES);
-    if (protocolFee > 0n) dailyRevenue.add(token, protocolFee, PRIME_REPAYMENT_FEES);
-    if (penalty > 0n) dailySupplySideRevenue.add(token, penalty, PRIME_REPAYMENT_FEES);
-  }
-};
-
 async function fetch(options: any) {
   const config = chainConfig[options.chain];
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const from = options.dateString;
+  const to = new Date(options.endTimestamp * 1000).toISOString().slice(0, 10);
 
-  try {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
-    const from = new Date(options.fromTimestamp * 1000).toISOString().slice(0, 10);
-    const to = new Date(options.toTimestamp * 1000).toISOString().slice(0, 10);
-
-    const [startSnapshots, endSnapshots, startVaultSnapshots, endVaultSnapshots] = await Promise.all([
-      paginated("dynamicPoolSnapshots", dynamicSnapshotQuery, {
-        network: config.network,
-        date: from,
-      }),
-      paginated("dynamicPoolSnapshots", dynamicSnapshotQuery, {
-        network: config.network,
-        date: to,
-      }),
-      paginated("vaultsSnapshots", vaultSnapshotQuery, {
-        network: config.network,
-        date: from,
-      }),
-      paginated("vaultsSnapshots", vaultSnapshotQuery, {
-        network: config.network,
-        date: to,
-      }),
+  if (config.network) {
+    const snap = (query: string, field: string, date: string) => subgraph(query, { network: config.network, date }, field);
+    const [startDynamicSnapshots, endDynamicSnapshots] = await Promise.all([
+      snap(dynamicSnapshotQuery, "dynamicPoolSnapshots", from),
+      snap(dynamicSnapshotQuery, "dynamicPoolSnapshots", to),
     ]);
+    const startDynamicById = Object.fromEntries(startDynamicSnapshots.map((snapshot: any) => [snapshot.dynamic.id, snapshot]));
 
-    const startDynamic = new Map(startSnapshots.map((snapshot: any) => [snapshot.dynamic.id, snapshot]));
-    for (const end of endSnapshots) {
-      const start = startDynamic.get(end.dynamic.id);
-      if (!start) continue;
-      const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
-      const protocolRate = toBigInt(end.dynamic.reserveFactor);
-      addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.dynamic.asset.address, interest, protocolRate);
+    for (const endDynamic of endDynamicSnapshots) {
+      const startDynamic = startDynamicById[endDynamic.dynamic.id];
+      if (!startDynamic) continue;
+      const interest = toBigInt(endDynamic.cumulativeInterestEarned) - toBigInt(startDynamic.cumulativeInterestEarned);
+      if (interest <= 0n) continue;
+      const protocolRevenue = interest * toBigInt(endDynamic.dynamic.reserveFactor) / WAD;
+      dailyFees.add(endDynamic.dynamic.asset.address, interest, METRIC.BORROW_INTEREST);
+      dailyRevenue.add(endDynamic.dynamic.asset.address, protocolRevenue, METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.add(endDynamic.dynamic.asset.address, interest - protocolRevenue, METRIC.BORROW_INTEREST);
     }
-
-    const startVaults = new Map(startVaultSnapshots.map((snapshot: any) => [snapshot.vault.id, snapshot]));
-    for (const end of endVaultSnapshots) {
-      const start = startVaults.get(end.vault.id);
-      if (!start) continue;
-      const interest = toBigInt(end.cumulativeInterestEarned) - toBigInt(start.cumulativeInterestEarned);
-      addGrossBorrowerInterest(dailyFees, dailyRevenue, dailySupplySideRevenue, end.vault.asset.address, interest, toBigInt(end.vault.protocolRate));
-    }
-
-    await addPrimeRepaymentFees(options, config, dailyFees, dailyRevenue, dailySupplySideRevenue);
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-    };
-  } catch (error) {
-    console.error(`[clearpool][${options.chain}] fetch failed`, error);
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
-    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
   }
+
+  if (config.primeFactory) {
+    const primePools = await options.getLogs({
+      target: config.primeFactory,
+      fromBlock: config.primeFromBlock,
+      eventAbi: PRIME_POOL_CREATED_EVENT,
+      cacheInCloud: true,
+    });
+    if (primePools.length) {
+      const poolAssets = Object.fromEntries(primePools.map((pool: any) => [pool.pool.toLowerCase(), pool.asset]));
+      const repaymentLogs = await options.getLogs({
+        targets: Object.keys(poolAssets),
+        eventAbi: PRIME_REPAYED_EVENT,
+        entireLog: true,
+        cacheInCloud: true,
+      });
+
+      for (const repayment of repaymentLogs) {
+        const token = poolAssets[repayment.address?.toLowerCase()];
+        const args = repayment.args ?? repayment;
+        const protocolFee = toBigInt(args.spreadFee) + toBigInt(args.originationFee);
+        const penalty = toBigInt(args.penalty);
+        if (!token || protocolFee + penalty <= 0n) continue;
+        dailyFees.add(token, protocolFee, METRIC.PROTOCOL_FEES);
+        dailyRevenue.add(token, protocolFee, METRIC.PROTOCOL_FEES);
+        dailyFees.add(token, penalty, METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue.add(token, penalty, METRIC.BORROW_INTEREST);
+      }
+    }
+  }
+
+  if (config.portVaults) {
+    const portVaultById = Object.fromEntries(config.portVaults.map((vault: any) => [vault.id, vault]));
+    const navUpdates = await portGql(portNavQuery, {
+      ids: config.portVaults.map((vault: any) => vault.id),
+      from: (BigInt(options.startTimestamp) * 1000n).toString(),
+      to: (BigInt(options.endTimestamp) * 1000n).toString(),
+    }, "portNavUpdates");
+    const navFees = await Promise.all(navUpdates.map(async (update: any) => {
+      const vault = portVaultById[update.vault.id];
+      const supply = await sdk.api2.abi.call({
+        chain: options.chain,
+        target: vault.address,
+        abi: "uint256:totalSupply",
+        block: Number(update.block),
+      });
+      return { vault, amount: toBigInt(supply) * (toBigInt(update.newRate) - toBigInt(update.oldRate)) / WAD };
+    }));
+
+    for (const { vault, amount } of navFees) {
+      if (amount === 0n) continue;
+      dailyFees.add(vault.token, amount, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(vault.token, amount, METRIC.ASSETS_YIELDS);
+    }
+  }
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
 const adapter = {
   version: 2,
   fetch,
-  pullHourly: true,
   adapter: chainConfig,
+  allowNegativeValue: true,
   methodology: {
-    Fees: "Interest and protocol fees generated by Clearpool lending products: Dynamic pools, Credit Vaults, and Prime pool repayment fees.",
-    Revenue: "Protocol share of Dynamic pool and Credit Vault borrower interest, plus Prime pool spreadFee and originationFee repayment fees; Prime pool penalty amounts are excluded from revenue and booked to dailySupplySideRevenue.",
-    ProtocolRevenue: "Same as revenue.",
-    SupplySideRevenue: "Interest distributed to lenders, plus Prime pool repayment penalties not retained as protocol revenue.",
+    Fees: "Interest and protocol fees generated by Clearpool lending products: Dynamic pools, Prime pool repayment fees, and Port vault NAV yield.",
+    Revenue: "Protocol share of Dynamic pool borrower interest, plus Prime pool spreadFee and originationFee repayment fees.",
+    ProtocolRevenue: "Protocol share of Dynamic pool borrower interest, plus Prime pool spreadFee and originationFee repayment fees.",
+    SupplySideRevenue: "Interest distributed to lenders, Prime pool repayment penalties to lenders, and Port vault NAV yield accruing to depositors.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: "Daily change in cumulative interest for Dynamic pools and Credit Vaults.",
-      [PRIME_REPAYMENT_FEES]: "Prime pool fees from Repayed events on pools discovered from factory PoolCreated events.",
+      [METRIC.BORROW_INTEREST]: "Daily change in cumulative interest for Dynamic pools, plus Prime penalty interest paid to lenders.",
+      [METRIC.PROTOCOL_FEES]: "Prime pool spreadFee and originationFee from Repayed events.",
+      [METRIC.ASSETS_YIELDS]: "Port vault NAV updates over active shares.",
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors and Credit Vault protocol rates.",
-      [PRIME_REPAYMENT_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
+      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors.",
+      [METRIC.PROTOCOL_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors and Credit Vault protocol rates.",
-      [PRIME_REPAYMENT_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
+      [METRIC.BORROW_INTEREST]: "Dynamic pool reserve factors.",
+      [METRIC.PROTOCOL_FEES]: "Prime pool repayment spreadFee and originationFee retained by the protocol.",
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: "Remaining lender interest after protocol share.",
-      [PRIME_REPAYMENT_FEES]: "Prime pool repayment penalties not retained as protocol revenue.",
+      [METRIC.BORROW_INTEREST]: "Remaining lender interest after protocol share, plus Prime penalty interest paid to lenders.",
+      [METRIC.ASSETS_YIELDS]: "Port vault NAV yield accruing to depositors.",
     },
   },
 };
