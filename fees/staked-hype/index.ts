@@ -46,10 +46,9 @@ const fetch = async (options: FetchOptions) => {
 
     const currentSupply = BigInt(log.args.currentSupply);
     const newSupply = BigInt(log.args.newSupply);
-    if (newSupply <= currentSupply) continue;
 
     const supplySideRevenue = newSupply - currentSupply;
-    const grossRewards = supplySideRevenue * BPS / (BPS - protocolFeeBps);
+    const grossRewards = supplySideRevenue > 0 ? supplySideRevenue * BPS / (BPS - protocolFeeBps) : supplySideRevenue;
     const protocolRevenue = grossRewards - supplySideRevenue;
 
     dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
@@ -91,6 +90,7 @@ const adapter: Adapter = {
       [METRIC.STAKING_REWARDS]: "Net HYPE staking rewards distributed to stHYPE holders through rebases.",
     },
   },
+  allowNegativeValue: true,
 };
 
 export default adapter;
