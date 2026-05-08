@@ -1,12 +1,5 @@
-import {
-  FetchOptions,
-  FetchResultV2,
-  SimpleAdapter,
-} from "../../adapters/types";
-import {
-  DZAP_SUPPORTED_CHAINS,
-  fetchChainWiseVolumeFromDZapAPI,
-} from "../../helpers/aggregators/dzap";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { DZAP_SUPPORTED_CHAINS, fetchChainWiseVolumeFromDZapAPI } from "../../helpers/aggregators/dzap";
 
 const prefetch = async (options: FetchOptions): Promise<FetchResultV2> =>
   fetchChainWiseVolumeFromDZapAPI({ ...options, txType: "bridge" });
@@ -22,7 +15,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  pullHourly: true,
   chains: Object.values(DZAP_SUPPORTED_CHAINS),
   start: "2023-01-01",
   prefetch,
