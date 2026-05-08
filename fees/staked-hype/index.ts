@@ -1,31 +1,18 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const OVERSEER = "0xB96f07367e69e86d6e9C3F29215885104813eeAE";
-const BIPS = BigInt(10000);
+const BPS = 10000n;
 
-const METRIC = {
-  StakingRewards: "HYPE Staking Rewards",
-  StakingRewardsToTreasury: "HYPE Staking Rewards To Treasury",
-  StakingRewardsToHolders: "HYPE Staking Rewards To stHYPE Holders",
+const EVENTS = {
+  rebase: "event Rebase(uint256 currentSupply, uint256 newSupply, uint256 rebaseInterval, int256 indexed apr, uint256 indexed currentShareRate, uint256 indexed timeElapsed)",
+  protocolFeeSet: "event ProtocolFeeSet(uint256 fee)",
 };
 
-const rebaseEvent =
-  "event Rebase(uint256 currentSupply, uint256 newSupply, uint256 rebaseInterval, int256 indexed apr, uint256 indexed currentShareRate, uint256 indexed timeElapsed)";
-const protocolFeeSetEvent = "event ProtocolFeeSet(uint256 fee)";
-
-const getArg = (log: any, key: string) => log.args?.[key] ?? log[key];
-
-const sortLogs = (logs: any[]) => logs.sort((a, b) => {
-  const blockDiff = Number(a.blockNumber ?? 0) - Number(b.blockNumber ?? 0);
-  if (blockDiff !== 0) return blockDiff;
-  return Number(a.logIndex ?? 0) - Number(b.logIndex ?? 0);
-});
-
-async function fetch(options: FetchOptions) {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   let protocolFeeBps = BigInt(await options.fromApi.call({
@@ -36,71 +23,46 @@ async function fetch(options: FetchOptions) {
   const [rebases, protocolFeeUpdates] = await Promise.all([
     options.getLogs({
       target: OVERSEER,
-      eventAbi: rebaseEvent,
+      eventAbi: EVENTS.rebase,
       onlyArgs: false,
     }),
     options.getLogs({
       target: OVERSEER,
-      eventAbi: protocolFeeSetEvent,
+      eventAbi: EVENTS.protocolFeeSet,
       onlyArgs: false,
     }),
   ]);
 
-  const logs = sortLogs([
-    ...rebases.map((log: any) => ({ ...log, eventType: "rebase" })),
-    ...protocolFeeUpdates.map((log: any) => ({ ...log, eventType: "protocolFeeSet" })),
-  ]);
+  const logs = [
+    ...rebases.map((log: any) => ({ ...log, type: "rebase" })),
+    ...protocolFeeUpdates.map((log: any) => ({ ...log, type: "protocolFeeSet" })),
+  ].sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber) || Number(a.logIndex) - Number(b.logIndex));
 
   for (const log of logs) {
-    if (log.eventType === "protocolFeeSet") {
-      protocolFeeBps = BigInt(getArg(log, "fee"));
+    if (log.type === "protocolFeeSet") {
+      protocolFeeBps = BigInt(log.args.fee);
       continue;
     }
 
-    const currentSupply = BigInt(getArg(log, "currentSupply"));
-    const newSupply = BigInt(getArg(log, "newSupply"));
+    const currentSupply = BigInt(log.args.currentSupply);
+    const newSupply = BigInt(log.args.newSupply);
     if (newSupply <= currentSupply) continue;
 
     const supplySideRevenue = newSupply - currentSupply;
-    const grossRewards = protocolFeeBps < BIPS
-      ? supplySideRevenue * BIPS / (BIPS - protocolFeeBps)
-      : supplySideRevenue;
+    const grossRewards = supplySideRevenue * BPS / (BPS - protocolFeeBps);
     const protocolRevenue = grossRewards - supplySideRevenue;
 
-    dailyFees.addGasToken(grossRewards, METRIC.StakingRewards);
-    dailyRevenue.addGasToken(protocolRevenue, METRIC.StakingRewardsToTreasury);
-    dailyProtocolRevenue.addGasToken(protocolRevenue, METRIC.StakingRewardsToTreasury);
-    dailySupplySideRevenue.addGasToken(supplySideRevenue, METRIC.StakingRewardsToHolders);
+    dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
+    dailyRevenue.addGasToken(protocolRevenue, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.addGasToken(supplySideRevenue, METRIC.STAKING_REWARDS);
   }
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
-}
-
-const methodology = {
-  Fees: "Gross HYPE staking rewards earned by stHYPE before the protocol fee.",
-  Revenue: "Protocol fee charged on positive stHYPE rebases.",
-  ProtocolRevenue: "Protocol fee accrued by the stHYPE Overseer contract.",
-  SupplySideRevenue: "Net HYPE staking rewards distributed to stHYPE holders through rebases.",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.StakingRewards]: "Gross HYPE staking rewards earned by stHYPE before the protocol fee.",
-  },
-  Revenue: {
-    [METRIC.StakingRewardsToTreasury]: "Protocol fee charged on positive stHYPE rebases and accrued by the Overseer contract.",
-  },
-  ProtocolRevenue: {
-    [METRIC.StakingRewardsToTreasury]: "Protocol fee charged on positive stHYPE rebases and accrued by the Overseer contract.",
-  },
-  SupplySideRevenue: {
-    [METRIC.StakingRewardsToHolders]: "Net HYPE staking rewards distributed to stHYPE holders through rebases.",
-  },
 };
 
 const adapter: Adapter = {
@@ -109,8 +71,26 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2025-02-18",
-  methodology,
-  breakdownMethodology,
+  methodology: {
+    Fees: "Gross HYPE staking rewards earned by stHYPE before the protocol fee.",
+    Revenue: "Protocol fee charged on stHYPE rebases.",
+    ProtocolRevenue: "Protocol fee accrued by the stHYPE Overseer contract.",
+    SupplySideRevenue: "Net HYPE staking rewards distributed to stHYPE holders through rebases.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: "Gross HYPE staking rewards earned by stHYPE before the protocol fee.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol fee charged on stHYPE rebases and accrued by the Overseer contract.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol fee charged on stHYPE rebases and accrued by the Overseer contract.",
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: "Net HYPE staking rewards distributed to stHYPE holders through rebases.",
+    },
+  },
 };
 
 export default adapter;
