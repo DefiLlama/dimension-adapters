@@ -164,6 +164,7 @@ const adapter: Adapter = {
     methodology,
     breakdownMethodology,
     allowNegativeValue: true,
+    doublecounted: true
 };
 
 export default adapter;
