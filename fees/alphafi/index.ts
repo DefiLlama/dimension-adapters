@@ -39,25 +39,6 @@ type PoolInfo = PoolConfig & {
   strategy_type?: string;
 };
 
-async function safeQueryEvents(params: any): Promise<any[]> {
-  try {
-    return await queryEvents(params);
-  } catch (e: any) {
-    const isTypeError = e instanceof TypeError || e?.name === "TypeError";
-    if (isTypeError || e?.message?.includes("Cannot read properties of undefined")) {
-      console.error("AlphaFi Sui event query returned an empty or malformed page", {
-        eventType: params.eventType,
-        eventModule: params.eventModule,
-        startTimestamp: params.options?.startTimestamp,
-        endTimestamp: params.options?.endTimestamp,
-        error: e,
-      });
-      return [];
-    }
-    throw e;
-  }
-}
-
 function normalizeCoinType(coinType?: string) {
   if (!coinType) return undefined;
   return coinType.startsWith("0x") ? coinType : `0x${coinType}`;
@@ -81,7 +62,7 @@ async function queryEventTypes(eventTypes: string[], options: FetchOptions) {
   const { results, errors } = await PromisePool
     .withConcurrency(EVENT_QUERY_CONCURRENCY)
     .for(eventTypes)
-    .process((eventType) => safeQueryEvents({ eventType, options }));
+    .process((eventType) => queryEvents({ eventType, options }));
 
   if (errors.length > 0) throw errors[0];
   return results.flat();
