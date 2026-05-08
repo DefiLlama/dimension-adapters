@@ -170,7 +170,6 @@ const adapter: Adapter = {
   adapter: chainConfig,
   prefetch,
   fetch,
-  pullHourly: true,
   methodology,
   breakdownMethodology,
   dependencies: [Dependencies.DUNE],
