@@ -9,78 +9,68 @@ const USDC = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E";
 const WAD = BigInt(1e6);
 
 const abis = {
-  convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
-  totalSupply: "uint256:totalSupply",
+    convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
+    totalSupply: "uint256:totalSupply",
 };
 
-async function prefetch(options: FetchOptions) {
-  const [rateFrom, rateTo] = await Promise.all([
-    options.fromApi.call({
-      target: SIERRA,
-      abi: abis.convertToAssets,
-      params: [WAD.toString()],
-      chain: CHAIN.AVAX,
-    }),
-    options.toApi.call({
-      target: SIERRA,
-      abi: abis.convertToAssets,
-      params: [WAD.toString()],
-      chain: CHAIN.AVAX,
-    }),
-  ]);
-  return {
-    rateFrom: rateFrom.toString(),
-    rateTo: rateTo.toString(),
-  };
-}
-
 async function fetch(options: FetchOptions) {
-  const { rateFrom, rateTo } = options.preFetchedResults;
-  const rateDelta = BigInt(rateTo) - BigInt(rateFrom);
+    const [rateFrom, rateTo] = await Promise.all([
+        options.fromApi.call({
+            target: SIERRA,
+            abi: abis.convertToAssets,
+            params: [WAD.toString()],
+        }),
+        options.toApi.call({
+            target: SIERRA,
+            abi: abis.convertToAssets,
+            params: [WAD.toString()],
+        }),
+    ]);
+    const rateDelta = BigInt(rateTo) - BigInt(rateFrom);
 
-  const dailyFees = options.createBalances();
+    const dailyFees = options.createBalances();
 
-  const supply = await options.api.call({
-    target: SIERRA,
-    abi: abis.totalSupply,
-  });
-  const yieldAmount = (BigInt(supply) * rateDelta) / WAD;
+    const supply = await options.api.call({
+        target: SIERRA,
+        abi: abis.totalSupply,
+    });
 
-  dailyFees.add(USDC, yieldAmount, METRIC.ASSETS_YIELDS);
+    const yieldAmount = (BigInt(supply) * rateDelta) / WAD;
 
-  return {
-    dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
-  };
+    dailyFees.add(USDC, yieldAmount, METRIC.ASSETS_YIELDS);
+
+    return {
+        dailyFees,
+        dailyRevenue: 0,
+        dailySupplySideRevenue: dailyFees,
+    };
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  prefetch,
-  fetch,
-  allowNegativeValue: true,
-  adapter: {
-    [CHAIN.AVAX]: { start: "2025-09-26" },
-  },
-  methodology: {
-    Fees:
-      "Total yield distributed to SIERRA holders, measured as total supply × change in exchange rate.",
-    Revenue:
-      "Sierra Protocol does not currently retain any protocol revenue, all yield passes through to holders.",
-    SupplySideRevenue:
-      "Total yield distributed to SIERRA holders via exchange rate appreciation.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.ASSETS_YIELDS]:
-        "Yield accrued to SIERRA holders from diversified RWA and DeFi reserves, reflected as exchange rate appreciation.",
+    version: 2,
+    pullHourly: true,
+    fetch,
+    allowNegativeValue: true,
+    chains: [CHAIN.AVAX],
+    start: "2025-09-26",
+    methodology: {
+        Fees:
+            "Total yield distributed to SIERRA holders, measured as total supply × change in exchange rate.",
+        Revenue:
+            "Sierra Protocol does not currently retain any protocol revenue, all yield passes through to holders.",
+        SupplySideRevenue:
+            "Total yield distributed to SIERRA holders via exchange rate appreciation.",
     },
-    SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]:
-        "Yield accrued to SIERRA holders from diversified RWA and DeFi reserves.",
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]:
+                "Yield accrued to SIERRA holders from diversified RWA and DeFi reserves, reflected as exchange rate appreciation.",
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]:
+                "Yield accrued to SIERRA holders from diversified RWA and DeFi reserves.",
+        },
     },
-  },
 };
 
 export default adapter;
