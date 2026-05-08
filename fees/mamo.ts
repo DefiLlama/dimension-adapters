@@ -52,61 +52,70 @@ const fetch = async (options: FetchOptions) => {
     const morphoShareCalls = strategies.map((s) => ({ target: config.morphoVault, params: [s] }));
     const PRICE_QUERY = "1000000000000000000"; // 1e18 shares
 
-    // All balance/rate calls in parallel, using multiCall for scalar rates too
-    const [
-      mTokenBals,
-      [rateFrom], [rateTo],
-      morphoShares,
-      [morphoPriceFrom], [morphoPriceTo],
-    ] = await Promise.all([
-      options.toApi.multiCall({
-        abi: "function balanceOf(address) view returns (uint256)",
-        calls: mTokenBalCalls,
-        permitFailure: true,
-      }),
-      options.fromApi.multiCall({
-        abi: "uint256:exchangeRateStored",
-        calls: [config.mToken],
-        permitFailure: true,
-      }),
-      options.toApi.multiCall({
-        abi: "uint256:exchangeRateStored",
-        calls: [config.mToken],
-        permitFailure: true,
-      }),
-      options.toApi.multiCall({
-        abi: "function balanceOf(address) view returns (uint256)",
-        calls: morphoShareCalls,
-        permitFailure: true,
-      }),
-      options.fromApi.multiCall({
-        abi: "function convertToAssets(uint256) view returns (uint256)",
-        calls: [{ target: config.morphoVault, params: [PRICE_QUERY] }],
-        permitFailure: true,
-      }),
-      options.toApi.multiCall({
-        abi: "function convertToAssets(uint256) view returns (uint256)",
-        calls: [{ target: config.morphoVault, params: [PRICE_QUERY] }],
-        permitFailure: true,
-      }),
-    ]);
+    try {
+      // All balance/rate calls in parallel
+      const [
+        mTokenBals,
+        ratesFrom, ratesTo,
+        morphoShares,
+        pricesFrom, pricesTo,
+      ] = await Promise.all([
+        options.toApi.multiCall({
+          abi: "function balanceOf(address) view returns (uint256)",
+          calls: mTokenBalCalls,
+          permitFailure: true,
+        }),
+        options.fromApi.multiCall({
+          abi: "function exchangeRateStored() view returns (uint256)",
+          calls: [{ target: config.mToken, params: [] }],
+          permitFailure: true,
+        }),
+        options.toApi.multiCall({
+          abi: "function exchangeRateStored() view returns (uint256)",
+          calls: [{ target: config.mToken, params: [] }],
+          permitFailure: true,
+        }),
+        options.toApi.multiCall({
+          abi: "function balanceOf(address) view returns (uint256)",
+          calls: morphoShareCalls,
+          permitFailure: true,
+        }),
+        options.fromApi.multiCall({
+          abi: "function convertToAssets(uint256) view returns (uint256)",
+          calls: [{ target: config.morphoVault, params: [PRICE_QUERY] }],
+          permitFailure: true,
+        }),
+        options.toApi.multiCall({
+          abi: "function convertToAssets(uint256) view returns (uint256)",
+          calls: [{ target: config.morphoVault, params: [PRICE_QUERY] }],
+          permitFailure: true,
+        }),
+      ]);
 
-    // Moonwell yield: totalMTokenShares × Δ(exchangeRate) / 1e18
-    if (rateFrom != null && rateTo != null) {
-      const totalMTokenShares = mTokenBals.reduce(
-        (sum: number, b: any) => sum + Number(b ?? 0), 0
-      );
-      const mTokenYield = totalMTokenShares * (Number(rateTo) - Number(rateFrom)) / 1e18;
-      if (mTokenYield > 0) dailySupplySideRevenue.add(config.token, mTokenYield);
-    }
+      const rateFrom = ratesFrom[0];
+      const rateTo = ratesTo[0];
+      const morphoPriceFrom = pricesFrom[0];
+      const morphoPriceTo = pricesTo[0];
 
-    // MetaMorpho yield: totalMorphoShares × Δ(pricePerShare) / 1e18
-    if (morphoPriceFrom != null && morphoPriceTo != null) {
-      const totalMorphoShares = morphoShares.reduce(
-        (sum: number, b: any) => sum + Number(b ?? 0), 0
-      );
-      const morphoYield = totalMorphoShares * (Number(morphoPriceTo) - Number(morphoPriceFrom)) / 1e18;
-      if (morphoYield > 0) dailySupplySideRevenue.add(config.token, morphoYield);
+      // Moonwell yield: totalMTokenShares × Δ(exchangeRate) / 1e18
+      if (rateFrom != null && rateTo != null) {
+        const totalMTokenShares = mTokenBals.reduce(
+          (sum: number, b: any) => sum + Number(b ?? 0), 0
+        );
+        const mTokenYield = totalMTokenShares * (Number(rateTo) - Number(rateFrom)) / 1e18;
+        if (mTokenYield > 0) dailySupplySideRevenue.add(config.token, mTokenYield);
+      }
+
+      // MetaMorpho yield: totalMorphoShares × Δ(pricePerShare) / 1e18
+      if (morphoPriceFrom != null && morphoPriceTo != null) {
+        const totalMorphoShares = morphoShares.reduce(
+          (sum: number, b: any) => sum + Number(b ?? 0), 0
+        );
+        const morphoYield = totalMorphoShares * (Number(morphoPriceTo) - Number(morphoPriceFrom)) / 1e18;
+        if (morphoYield > 0) dailySupplySideRevenue.add(config.token, morphoYield);
+      }
+    } catch (_e) {
+      // Skip supply-side for this config if RPC fails for this block range
     }
   }
 
