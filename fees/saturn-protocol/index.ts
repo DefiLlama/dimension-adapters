@@ -7,7 +7,6 @@ const sUSDat = "0xD166337499E176bbC38a1FBd113Ab144e5bd2Df7";
 const STRC_ORACLE = "0x5f7eCD0D045c393da6cb6c933c671AC305A871BF";
 
 const BALANCE_DECIMALS = 6;
-const STRC_DECIMALS = 8;
 
 const BPS = 10000;
 const PERFORMANCE_FEE_BPS = 1000;
@@ -74,25 +73,28 @@ const fetch = async (options: FetchOptions) => {
         }),
     ])
 
-    const [strcPriceBefore, strcPriceAfter] = await Promise.all([
+    const [strcDataBefore, strcDataAfter] = await Promise.all([
         options.fromApi.call({
             target: STRC_ORACLE,
-            abi: 'uint256:getPrice',
+            abi: ABI.getPrice,
         }),
         options.toApi.call({
             target: STRC_ORACLE,
-            abi: 'uint256:getPrice',
+            abi: ABI.getPrice,
         }),
     ])
 
-    const strcPriceDelta = (strcPriceAfter - strcPriceBefore) / (10 ** STRC_DECIMALS);
+    const strcPriceBefore = Number(strcDataBefore.price) / (10 ** Number(strcDataBefore.priceDecimals));
+    const strcPriceAfter = Number(strcDataAfter.price) / (10 ** Number(strcDataAfter.priceDecimals));
+
+    const strcPriceDelta = (strcPriceAfter - strcPriceBefore);
     const strcBalance = strcBalanceBackingSUSDat / (10 ** BALANCE_DECIMALS)
 
     dailyFees.addUSDValue(strcPriceDelta * strcBalance, 'STRC price fluctuations');
     dailySupplySideRevenue.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
 
     strcRewardLogs.forEach((log: any) => {
-        const strcYield = (Number(log.strcAmount) / 10 ** STRC_DECIMALS) * (Number(strcPriceAfter) / 10 ** STRC_DECIMALS);
+        const strcYield = (Number(log.strcAmount) / 10 ** BALANCE_DECIMALS) * (strcPriceAfter);
         const protocolFee = strcYield * (PERFORMANCE_FEE_BPS / (BPS - PERFORMANCE_FEE_BPS));
 
         dailyFees.addUSDValue(strcYield, 'Asset yields - STRC');
