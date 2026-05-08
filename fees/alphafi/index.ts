@@ -3,9 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryEvents } from "../../helpers/sui";
 import fetchURL from "../../utils/fetchURL";
+import { PromisePool } from "@supercharge/promise-pool";
 
 const ALPHAFI_CONFIG_ENDPOINT = "https://api.alphafi.xyz/public/config";
 const START_DATE = "2024-07-05";
+const EVENT_QUERY_CONCURRENCY = 2;
 
 type Asset = {
   name?: string;
@@ -41,7 +43,15 @@ async function safeQueryEvents(params: any): Promise<any[]> {
   try {
     return await queryEvents(params);
   } catch (e: any) {
-    if (e?.message?.includes("Cannot read properties of undefined") || e instanceof TypeError) {
+    const isTypeError = e instanceof TypeError || e?.name === "TypeError";
+    if (isTypeError || e?.message?.includes("Cannot read properties of undefined")) {
+      console.error("AlphaFi Sui event query returned an empty or malformed page", {
+        eventType: params.eventType,
+        eventModule: params.eventModule,
+        startTimestamp: params.options?.startTimestamp,
+        endTimestamp: params.options?.endTimestamp,
+        error: e,
+      });
       return [];
     }
     throw e;
@@ -67,6 +77,16 @@ function unique(values: Array<string | null | undefined>) {
   return [...new Set(values.filter(Boolean))] as string[];
 }
 
+async function queryEventTypes(eventTypes: string[], options: FetchOptions) {
+  const { results, errors } = await PromisePool
+    .withConcurrency(EVENT_QUERY_CONCURRENCY)
+    .for(eventTypes)
+    .process((eventType) => safeQueryEvents({ eventType, options }));
+
+  if (errors.length > 0) throw errors[0];
+  return results.flat();
+}
+
 async function getPoolConfig() {
   const config = (await fetchURL(ALPHAFI_CONFIG_ENDPOINT)) as Record<string, AlphaFiConfigEntry>;
   const pools = Object.values(config)
@@ -86,61 +106,50 @@ async function getPoolConfig() {
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const { pools, byInvestor, byPool } = await getPoolConfig();
 
   const autocompoundEventTypes = unique(pools.map((pool) => pool.events?.autocompound_event_type));
-  for (const eventType of autocompoundEventTypes) {
-    const events = await safeQueryEvents({ eventType, options });
+  for (const e of await queryEventTypes(autocompoundEventTypes, options)) {
+    const pool = byInvestor.get(e.investor_id);
+    if (!pool) continue;
 
-    for (const e of events) {
-      const pool = byInvestor.get(e.investor_id);
-      if (!pool) continue;
-
-      if (e.fee_collected_a !== undefined || e.fee_collected_b !== undefined) {
-        addAmount(dailyFees, pool.asset_a?.type, e.fee_collected_a, METRIC.PERFORMANCE_FEES);
-        addAmount(dailyFees, pool.asset_b?.type, e.fee_collected_b, METRIC.PERFORMANCE_FEES);
-        addAmount(dailyRevenue, pool.asset_a?.type, e.fee_collected_a, METRIC.PERFORMANCE_FEES);
-        addAmount(dailyRevenue, pool.asset_b?.type, e.fee_collected_b, METRIC.PERFORMANCE_FEES);
-      } else if (e.fee_collected !== undefined) {
-        const token = eventCoinType(e) ?? pool.asset?.type;
-        addAmount(dailyFees, token, e.fee_collected, METRIC.PERFORMANCE_FEES);
-        addAmount(dailyRevenue, token, e.fee_collected, METRIC.PERFORMANCE_FEES);
-      }
+    if (e.fee_collected_a !== undefined || e.fee_collected_b !== undefined) {
+      addAmount(dailyFees, pool.asset_a?.type, e.fee_collected_a, METRIC.PERFORMANCE_FEES);
+      addAmount(dailyFees, pool.asset_b?.type, e.fee_collected_b, METRIC.PERFORMANCE_FEES);
+      addAmount(dailyRevenue, pool.asset_a?.type, e.fee_collected_a, METRIC.PERFORMANCE_FEES);
+      addAmount(dailyRevenue, pool.asset_b?.type, e.fee_collected_b, METRIC.PERFORMANCE_FEES);
+    } else if (e.fee_collected !== undefined) {
+      const token = eventCoinType(e) ?? pool.asset?.type;
+      addAmount(dailyFees, token, e.fee_collected, METRIC.PERFORMANCE_FEES);
+      addAmount(dailyRevenue, token, e.fee_collected, METRIC.PERFORMANCE_FEES);
     }
   }
 
   const liquidityChangeEventTypes = unique(pools.map((pool) => pool.events?.liquidity_change_event_type));
-  for (const eventType of liquidityChangeEventTypes) {
-    const events = await safeQueryEvents({ eventType, options });
+  for (const e of await queryEventTypes(liquidityChangeEventTypes, options)) {
+    const pool = byPool.get(e.pool_id);
+    if (!pool) continue;
 
-    for (const e of events) {
-      const pool = byPool.get(e.pool_id);
-      if (!pool) continue;
-
-      if (e.fee_collected_a !== undefined || e.fee_collected_b !== undefined) {
-        addAmount(dailyFees, pool.asset_a?.type, e.fee_collected_a, METRIC.DEPOSIT_WITHDRAW_FEES);
-        addAmount(dailyFees, pool.asset_b?.type, e.fee_collected_b, METRIC.DEPOSIT_WITHDRAW_FEES);
-        addAmount(dailyRevenue, pool.asset_a?.type, e.fee_collected_a, METRIC.DEPOSIT_WITHDRAW_FEES);
-        addAmount(dailyRevenue, pool.asset_b?.type, e.fee_collected_b, METRIC.DEPOSIT_WITHDRAW_FEES);
-      } else if (e.fee_collected !== undefined) {
-        addAmount(dailyFees, pool.asset?.type, e.fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
-        addAmount(dailyRevenue, pool.asset?.type, e.fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
-      }
+    if (e.fee_collected_a !== undefined || e.fee_collected_b !== undefined) {
+      addAmount(dailyFees, pool.asset_a?.type, e.fee_collected_a, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addAmount(dailyFees, pool.asset_b?.type, e.fee_collected_b, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addAmount(dailyRevenue, pool.asset_a?.type, e.fee_collected_a, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addAmount(dailyRevenue, pool.asset_b?.type, e.fee_collected_b, METRIC.DEPOSIT_WITHDRAW_FEES);
+    } else if (e.fee_collected !== undefined) {
+      addAmount(dailyFees, pool.asset?.type, e.fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addAmount(dailyRevenue, pool.asset?.type, e.fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
     }
   }
 
   const withdrawEventTypes = unique(pools.map((pool) => pool.events?.withdraw_v2_event_type));
-  for (const eventType of withdrawEventTypes) {
-    const events = await safeQueryEvents({ eventType, options });
+  for (const e of await queryEventTypes(withdrawEventTypes, options)) {
+    const pool = byPool.get(e.pool_id);
+    if (!pool) continue;
 
-    for (const e of events) {
-      const pool = byPool.get(e.pool_id);
-      if (!pool) continue;
-
-      addAmount(dailyFees, pool.asset?.type, e.instant_withdraw_fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
-      addAmount(dailyRevenue, pool.asset?.type, e.instant_withdraw_fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
-    }
+    addAmount(dailyFees, pool.asset?.type, e.instant_withdraw_fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
+    addAmount(dailyRevenue, pool.asset?.type, e.instant_withdraw_fee_collected, METRIC.DEPOSIT_WITHDRAW_FEES);
   }
 
   return {
@@ -148,6 +157,7 @@ async function fetch(options: FetchOptions) {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 }
 
@@ -155,6 +165,7 @@ const methodology = {
   Fees: "AlphaFi performance fees emitted by autocompound/reward events, plus deposit/withdraw and instant-withdraw fees emitted by pool events when non-zero.",
   Revenue: "Fees collected by AlphaFi. Underlying Cetus, Bluefin, NAVI, AlphaLend, and Slush yield is not counted unless it is emitted as AlphaFi's fee_collected amount.",
   ProtocolRevenue: "Same as revenue.",
+  SupplySideRevenue: "No supply-side revenue is reported because this adapter only counts AlphaFi's collected fees, not gross underlying strategy yield.",
 };
 
 const breakdownMethodology = {
