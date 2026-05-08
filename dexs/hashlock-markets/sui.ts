@@ -1,11 +1,6 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryEvents } from "../../helpers/sui";
-
-// Hashlock Markets Sui mainnet HTLC package.
-// Published 2026-05-01. Source: contracts/sui-htlc/Published.toml
-const SUI_PACKAGE =
-  "0xd0f016aaec58d79c9108866b35e59412e3e95d7252464858c8141345f44bad0e";
-const SUI_MODULE = "htlc";
+import { buildHashlockLegIndex, isSourceLeg, SUI_PACKAGE, SUI_MODULE } from "./shared";
 
 // The Sui HTLC module emits three event types from the same module:
 //   HTLCLocked   { htlc_id, sender, receiver, hashlock, timelock_ms, amount, coin_type, ... }
@@ -47,6 +42,7 @@ function normalizeCoinType(t: string): string {
 
 export async function fetchSui(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances();
+  const legIndex = await buildHashlockLegIndex(options);
 
   // Pull all events from the htlc module that fall in the day window.
   // queryEvents (helpers/sui.ts) walks suix_queryEvents backwards via cursor
@@ -64,13 +60,19 @@ export async function fetchSui(options: FetchOptions): Promise<FetchResultV2> {
     else if (isRefunded(ev)) refundedIds.add(ev.htlc_id);
   }
 
-  // Volume = all locked amounts, minus same-window refunds. Attributed to lock day.
-  // Sui's HTLCClaimed event lacks amount/coin_type, so claim-day attribution is
-  // not possible. Lock-day counting eliminates cross-midnight gaps entirely.
-  // Edge case: HTLC locked today, refunded tomorrow → overcounted by one day.
-  // Acceptable: timelocks are short (hours) and the vast majority settle.
+  // Volume = locked amounts whose hashlock-paired legs identify THIS leg as
+  // the source (longest timelock among legs sharing the hashlock), minus
+  // same-window refunds. Attributed to lock day.
+  //
+  // Per bheluga@DefiLlama (PR #6778, 2026-05-08): each cross-chain trade has
+  // one withdraw per leg; we count only the source leg (where taker deposits /
+  // maker withdraws), not both. Same-chain Sui<->Sui trades (if any) also
+  // collapse to one source leg via the same rule.
   for (const [id, lock] of lockedById) {
     if (refundedIds.has(id)) continue;
+    const leg = legIndex.bySuiHtlcId.get(String(id).toLowerCase());
+    if (!leg) continue;
+    if (!isSourceLeg(legIndex, leg)) continue;
     dailyVolume.add(normalizeCoinType(lock.coin_type), lock.amount);
   }
 

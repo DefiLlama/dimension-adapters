@@ -1,13 +1,6 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import ADDRESSES from "../../helpers/coreAssets.json";
-
-// Hashlock Markets Ethereum mainnet HTLC contracts.
-// Source: https://github.com/Hashlock-Tech/hashlock-markets/blob/main/contracts/deployments-mainnet.json
-const CONTRACTS = {
-  HashedTimelockEther: "0x0CEDC56b17d714dA044954EE26F38e90eC10434A",
-  HashedTimelockEtherFee: "0xfBAEA1423b5FBeCE89998da6820902fD8f159014",
-  HashedTimelockERC20Fee: "0x4B65490D140Bab3DB828C2386e21646Ed8c4D072",
-} as const;
+import { buildHashlockLegIndex, isSourceLeg, ETH_HTLC_CONTRACTS } from "./shared";
 
 // Withdraw events: only emitted on successful preimage redemption (settled leg).
 // Refunded HTLCs emit HTLCETH_Refund / HTLCERC20_Refund instead, which are NOT counted.
@@ -22,23 +15,34 @@ const ETHEREUM_NATIVE = ADDRESSES.ethereum.WETH; // price-feed proxy for native 
 
 export async function fetchEthereum(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances();
+  const legIndex = await buildHashlockLegIndex(options);
 
   // Native-ETH HTLCs (no-fee + fee variants share the same Withdraw event signature).
   const ethLogs = await options.getLogs({
-    targets: [CONTRACTS.HashedTimelockEther, CONTRACTS.HashedTimelockEtherFee],
+    targets: [ETH_HTLC_CONTRACTS.HashedTimelockEther, ETH_HTLC_CONTRACTS.HashedTimelockEtherFee],
     eventAbi: ABIS.HTLCETH_Withdraw,
     flatten: true,
   });
   for (const log of ethLogs) {
+    const contractId = String(log.contractId).toLowerCase();
+    const leg = legIndex.byEthContractId.get(contractId);
+    // No matching Create in the 48h lookback window: paired-leg attribution
+    // can't be determined here. Skip rather than risk double-counting.
+    if (!leg) continue;
+    if (!isSourceLeg(legIndex, leg)) continue;
     dailyVolume.add(ETHEREUM_NATIVE, log.amount);
   }
 
   // ERC-20 HTLCs (fee variant only — base ERC20 contract was not deployed on mainnet).
   const erc20Logs = await options.getLogs({
-    target: CONTRACTS.HashedTimelockERC20Fee,
+    target: ETH_HTLC_CONTRACTS.HashedTimelockERC20Fee,
     eventAbi: ABIS.HTLCERC20_Withdraw,
   });
   for (const log of erc20Logs) {
+    const contractId = String(log.contractId).toLowerCase();
+    const leg = legIndex.byEthContractId.get(contractId);
+    if (!leg) continue;
+    if (!isSourceLeg(legIndex, leg)) continue;
     dailyVolume.add(log.tokenContract, log.amount);
   }
 
