@@ -16,8 +16,11 @@ const SWAP_EXECUTED_EVENT =
   "event SwapExecuted(address indexed user, uint8 indexed adapterId, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 feeAmount)";
 
 async function fetch({ getLogs, createBalances }: FetchOptions) {
-  const dailyVolume = createBalances();
-  const dailyFees   = createBalances();
+  // Use SEPARATE balance objects for volume, fees, and revenue
+  // (do not share references — framework may post-process them independently)
+  const dailyVolume   = createBalances();
+  const dailyFees     = createBalances();
+  const dailyRevenue  = createBalances();
 
   const logs = await getLogs({
     target:    FEE_AGGREGATOR_MASTER,
@@ -25,19 +28,21 @@ async function fetch({ getLogs, createBalances }: FetchOptions) {
   });
 
   for (const log of logs) {
-    // Sum the *output* token value as volume (industry standard for aggregators).
+    // Volume: sum the *output* token value (industry standard for aggregators).
     // tokenOut is what the user actually receives, after slippage and pool fees.
     dailyVolume.add(log.tokenOut, log.amountOut);
 
-    // The 0.3% protocol fee is taken from tokenIn, before forwarding to the adapter.
-    // feeAmount is denominated in tokenIn.
+    // Fees: 0.3% protocol fee taken from tokenIn before forwarding to adapter
     dailyFees.add(log.tokenIn, log.feeAmount);
+
+    // Revenue: 100% of fees flow to the multisig (no token holders, no buyback)
+    dailyRevenue.add(log.tokenIn, log.feeAmount);
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,   // 100% of protocol fees flow to the multisig (no token holders)
+    dailyRevenue,
   };
 }
 
@@ -46,13 +51,25 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start:    "2025-09-01",   // ISO date — replace with your actual deployment date
+      start:        "2025-09-01",   // DEXR FeeAggregatorMaster deployment date
       runAtCurrTime: false,
+      pullBlock:     true,          // EVM log-based adapter
       meta: {
         methodology: {
-          Volume:  "Volume is the sum of tokenOut amounts from SwapExecuted events emitted by the DEXR FeeAggregatorMaster contract on Base. tokenOut represents the asset received by the user after the swap completes, valued at the time of the swap.",
+          Volume:  "Volume is the sum of tokenOut amounts from SwapExecuted events emitted by the DEXR FeeAggregatorMaster contract on Base. tokenOut represents the asset received by the user after the swap completes.",
           Fees:    "DEXR charges a flat 0.3% protocol fee on the input token (tokenIn) of every swap. The feeAmount field of the SwapExecuted event captures this exactly.",
           Revenue: "100% of the 0.3% protocol fee flows to a Gnosis Safe multisig (no token holders, no buyback). Revenue equals fees.",
+        },
+        breakdownMethodology: {
+          Volume: {
+            "tokenOut": "Output token amount received by user from each swap",
+          },
+          Fees: {
+            "tokenIn": "0.3% protocol fee charged on input token before swap",
+          },
+          Revenue: {
+            "tokenIn": "100% of protocol fees collected by Gnosis Safe multisig",
+          },
         },
       },
     },
