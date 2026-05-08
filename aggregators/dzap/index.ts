@@ -1,8 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import {
-  DZAP_SUPPORTED_CHAINS,
-  fetchChainWiseVolumeFromDZapAPI,
-} from "../../helpers/aggregators/dzap";
+import { DZAP_SUPPORTED_CHAINS, fetchChainWiseVolumeFromDZapAPI } from "../../helpers/aggregators/dzap";
 import { CHAIN } from "../../helpers/chains";
 
 const prefetch = async (options: FetchOptions) =>
@@ -26,7 +23,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: Object.values(DZAP_SUPPORTED_CHAINS),
   start: "2023-01-01",
-  runAtCurrTime: true,
   prefetch,
 };
 
