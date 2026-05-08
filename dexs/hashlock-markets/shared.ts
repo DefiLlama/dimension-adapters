@@ -1,20 +1,37 @@
 import * as sdk from "@defillama/sdk";
+import { ethers } from "ethers";
 import { FetchOptions } from "../../adapters/types";
 import { queryEvents } from "../../helpers/sui";
+
+const axios = require("axios");
 
 // Cross-leg attribution: each cross-chain HTLC trade emits one Locked/Created
 // event per leg, sharing the same `hashlock`. Per Hashlock Markets' atomic-swap
 // protocol, the SOURCE leg (where the taker deposits, equivalently where the
 // maker withdraws after preimage reveal) ALWAYS has a strictly longer timelock
-// than the destination leg. We attribute the trade's volume to the source leg
-// only, never to both legs — this is what bheluga@DefiLlama specified in the
-// PR review (no `doublecounted` flag; single-count per trade on the
-// taker-deposit / maker-withdraw chain).
+// than the destination leg (gap is fixed at 1800s by `validateTimelockGap`).
+// We attribute the trade's volume to the source leg only, never to both legs.
+// This is what bheluga@DefiLlama specified in the PR review (no `doublecounted`
+// flag; single-count per trade on the taker-deposit / maker-withdraw chain).
 
 // 48h lookback window for cross-leg matching. Hashlock timelocks are bounded
 // well under 24h in practice; 48h gives a comfortable margin for paired legs
 // that lock close to a window boundary.
 const LOOKBACK_SECONDS = 48 * 60 * 60;
+
+// Public Ethereum RPCs. We need a chain-agnostic getLogs that works without a
+// Llama-Indexer API key (the dimension-adapters CI runs without it), so we
+// query the RPC directly via JSON-RPC. Ordered by tested reliability for
+// eth_getLogs with multi-thousand-block ranges; we fall through on failure.
+const ETH_RPCS = [
+  "https://ethereum.publicnode.com",
+  "https://eth.llamarpc.com",
+  "https://eth.drpc.org",
+];
+
+// Conservative chunk size — drpc capped at ~5000 blocks; publicnode supports
+// far more. Splitting at 5k keeps every RPC viable as a fallback.
+const ETH_BLOCK_CHUNK = 5000;
 
 // Hashlock Markets Ethereum mainnet HTLC contracts.
 // Source: https://github.com/Hashlock-Tech/hashlock-markets/blob/main/contracts/deployments-mainnet.json
@@ -24,16 +41,22 @@ export const ETH_HTLC_CONTRACTS = {
   HashedTimelockERC20Fee: "0x4B65490D140Bab3DB828C2386e21646Ed8c4D072",
 } as const;
 
-// Event ABIs. Note: HashedTimelockEther (no-fee) and HashedTimelockEtherFee
-// (with fee) emit events with the SAME name `HTLCETH_New` but DIFFERENT
-// signatures (the fee variant has 4 extra fee-recipient/rebate fields), so
-// they hash to different topic0 values and must be queried separately.
-const ABI_HTLCETH_NEW_NO_FEE =
-  "event HTLCETH_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, uint256 amount, bytes32 hashlock, uint256 timelock)";
-const ABI_HTLCETH_NEW_FEE =
-  "event HTLCETH_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, uint256 amount, bytes32 hashlock, uint256 timelock, address feeRecipient, uint16 feeBps, address rebateRecipient, uint16 rebateBps)";
-const ABI_HTLCERC20_NEW_FEE =
-  "event HTLCERC20_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, address tokenContract, uint256 amount, bytes32 hashlock, uint256 timelock, address feeRecipient, uint16 feeBps, address rebateRecipient, uint16 rebateBps)";
+// Each contract's HTLC*_New event signature differs (no-fee 6-arg vs fee 10-arg
+// vs ERC20 11-arg), so they hash to different topic0 values. Build one
+// Interface per contract for clean parseLog().
+const IFACE_ETH_NO_FEE = new ethers.Interface([
+  "event HTLCETH_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, uint256 amount, bytes32 hashlock, uint256 timelock)",
+]);
+const IFACE_ETH_FEE = new ethers.Interface([
+  "event HTLCETH_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, uint256 amount, bytes32 hashlock, uint256 timelock, address feeRecipient, uint16 feeBps, address rebateRecipient, uint16 rebateBps)",
+]);
+const IFACE_ERC20_FEE = new ethers.Interface([
+  "event HTLCERC20_New(bytes32 indexed contractId, address indexed sender, address indexed receiver, address tokenContract, uint256 amount, bytes32 hashlock, uint256 timelock, address feeRecipient, uint16 feeBps, address rebateRecipient, uint16 rebateBps)",
+]);
+
+const TOPIC_ETH_NEW_NO_FEE = IFACE_ETH_NO_FEE.getEvent("HTLCETH_New")!.topicHash;
+const TOPIC_ETH_NEW_FEE = IFACE_ETH_FEE.getEvent("HTLCETH_New")!.topicHash;
+const TOPIC_ERC20_NEW = IFACE_ERC20_FEE.getEvent("HTLCERC20_New")!.topicHash;
 
 // Hashlock Markets Sui mainnet HTLC package.
 export const SUI_PACKAGE =
@@ -72,43 +95,94 @@ function normalizeHashlock(input: unknown): string {
   return "";
 }
 
-async function getEthBlock(timestamp: number): Promise<number> {
-  // sdk.blocks.getBlockNumber is the modern API for chain-agnostic timestamp -> block resolution.
-  const block = await (sdk.blocks as any).getBlockNumber("ethereum", timestamp);
-  return typeof block === "number" ? block : (block?.number ?? block);
+async function ethGetLogsOneShot(rpc: string, params: {
+  fromBlock: number;
+  toBlock: number;
+  address: string;
+  topic0: string;
+}): Promise<any[]> {
+  const { data } = await axios.post(rpc, {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "eth_getLogs",
+    params: [
+      {
+        fromBlock: "0x" + params.fromBlock.toString(16),
+        toBlock: "0x" + params.toBlock.toString(16),
+        address: params.address.toLowerCase(),
+        topics: [params.topic0],
+      },
+    ],
+  });
+  if (data?.error) {
+    throw new Error(data.error.message ?? JSON.stringify(data.error));
+  }
+  return (data?.result ?? []) as any[];
 }
 
-async function pullEthereumLegs(
-  startTs: number,
-  endTs: number
-): Promise<Leg[]> {
-  const fromBlock = await getEthBlock(startTs);
-  const toBlock = await getEthBlock(endTs);
+async function ethGetLogs(params: {
+  fromBlock: number;
+  toBlock: number;
+  address: string;
+  topic0: string;
+}): Promise<any[]> {
+  const out: any[] = [];
+  // Chunk the block range so the smallest-window RPC in the fallback list still serves it.
+  for (let from = params.fromBlock; from <= params.toBlock; from += ETH_BLOCK_CHUNK) {
+    const to = Math.min(from + ETH_BLOCK_CHUNK - 1, params.toBlock);
+    let lastErr: unknown = null;
+    let chunk: any[] | null = null;
+    for (const rpc of ETH_RPCS) {
+      try {
+        chunk = await ethGetLogsOneShot(rpc, { ...params, fromBlock: from, toBlock: to });
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (chunk === null) {
+      throw new Error(`eth_getLogs failed on all RPCs for blocks ${from}-${to}: ${(lastErr as Error)?.message ?? lastErr}`);
+    }
+    out.push(...chunk);
+  }
+  return out;
+}
+
+async function pullEthereumLegs(startTs: number, endTs: number): Promise<Leg[]> {
+  const fromBlock = await sdk.blocks.getBlockNumber("ethereum", startTs);
+  const toBlock = await sdk.blocks.getBlockNumber("ethereum", endTs);
 
   const out: Leg[] = [];
 
-  const callsCfg = [
-    { target: ETH_HTLC_CONTRACTS.HashedTimelockEther, eventAbi: ABI_HTLCETH_NEW_NO_FEE },
-    { target: ETH_HTLC_CONTRACTS.HashedTimelockEtherFee, eventAbi: ABI_HTLCETH_NEW_FEE },
-    { target: ETH_HTLC_CONTRACTS.HashedTimelockERC20Fee, eventAbi: ABI_HTLCERC20_NEW_FEE },
+  const sources = [
+    { address: ETH_HTLC_CONTRACTS.HashedTimelockEther, topic0: TOPIC_ETH_NEW_NO_FEE, iface: IFACE_ETH_NO_FEE },
+    { address: ETH_HTLC_CONTRACTS.HashedTimelockEtherFee, topic0: TOPIC_ETH_NEW_FEE, iface: IFACE_ETH_FEE },
+    { address: ETH_HTLC_CONTRACTS.HashedTimelockERC20Fee, topic0: TOPIC_ERC20_NEW, iface: IFACE_ERC20_FEE },
   ];
 
-  for (const cfg of callsCfg) {
-    const logs = await sdk.indexer.getLogs({
-      chain: "ethereum",
-      target: cfg.target,
-      eventAbi: cfg.eventAbi,
+  for (const src of sources) {
+    const rawLogs = await ethGetLogs({
       fromBlock,
       toBlock,
-      onlyArgs: true,
+      address: src.address,
+      topic0: src.topic0,
     });
-    for (const ev of logs as any[]) {
-      out.push({
-        chain: "ethereum",
-        hashlock: normalizeHashlock(ev.hashlock),
-        legId: String(ev.contractId).toLowerCase(),
-        timelockMs: Number(ev.timelock) * 1000,
-      });
+    for (const raw of rawLogs) {
+      try {
+        const parsed = src.iface.parseLog({ topics: raw.topics as string[], data: raw.data as string });
+        if (!parsed) continue;
+        const contractId: string = parsed.args.contractId as string;
+        const hashlock: string = parsed.args.hashlock as string;
+        const timelock: bigint = parsed.args.timelock as bigint;
+        out.push({
+          chain: "ethereum",
+          hashlock: normalizeHashlock(hashlock),
+          legId: contractId.toLowerCase(),
+          timelockMs: Number(timelock) * 1000,
+        });
+      } catch {
+        // skip malformed log
+      }
     }
   }
 
