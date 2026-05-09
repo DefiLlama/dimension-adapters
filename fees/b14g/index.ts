@@ -6,12 +6,11 @@ import { METRIC } from "../../helpers/metrics";
 const DUAL_BTC_FEE_BPS = 1900n;
 const BPS = 10000n;
 const BABY_DECIMALS = 1e6;
-const CORE_START = "2025-01-08";
 const BABYLON_START_TIMESTAMP = 1769724590;
 
 const chainConfig = {
   [CHAIN.CORE]: {
-    start: CORE_START,
+    start: "2025-01-08",
     fetch,
     coreVault: "0xee21ab613d30330823D35Cf91A84cE964808B83F",
     dualBtcVault: "0x13E3eC65EFeB0A4583c852F4FaF6b2Fb31Ff04b1",
