@@ -1,47 +1,87 @@
-import type { FetchOptions, } from "../../adapters/types";
-import { Adapter, ProtocolType } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { httpGet, httpPost } from "../../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dayTimestamp = options.startOfDay * 1000;
+const GOLDSKY_GQL = "https://arweave-search.goldsky.com/graphql";
+const AVG_BLOCK_TIME_S = 130; // ~2 min average Arweave block time
+const PAGE_SIZE = 100;
+const MAX_PAGES_PER_RANGE = 300;
+const PARALLEL_RANGES = 5;
+const WINSTON_PER_AR = 1e12;
 
-  const data = await httpGet('https://api.viewblock.io/arweave/stats/advanced/charts/txFees?network=mainnet', {
-    headers: {
-      'origin': 'https://arscan.io'
-    }
-  });
+const estimateBlock = (targetTs: number, tipHeight: number, tipTs: number): number =>
+  Math.max(0, tipHeight - Math.round((tipTs - targetTs) / AVG_BLOCK_TIME_S));
 
-  const timestamps = data.day.data[0];
-  const fees = data.day.data[1];
+const fetchRangeWinston = async (minBlock: number, maxBlock: number): Promise<number> => {
+  let totalWinston = 0;
+  let cursor: string | undefined;
 
-  const index = timestamps.findIndex((ts: number) => ts === dayTimestamp)
-  if (index === -1) {
-    throw new Error(`No data found for date: ${new Date(dayTimestamp).toISOString()}`);
+  for (let page = 0; page < MAX_PAGES_PER_RANGE; page++) {
+    const query = `{
+      transactions(
+        block: { min: ${minBlock}, max: ${maxBlock} }
+        bundledIn: null
+        first: ${PAGE_SIZE}
+        ${cursor ? `after: "${cursor}"` : ""}
+      ) {
+        pageInfo { hasNextPage }
+        edges { cursor node { fee { winston } } }
+      }
+    }`;
+
+    const res = await httpPost(GOLDSKY_GQL, { query });
+    const txData = res?.data?.transactions ?? {};
+    const edges: any[] = txData.edges ?? [];
+
+    for (const e of edges) totalWinston += Number(e.node?.fee?.winston ?? 0);
+
+    if (!txData.pageInfo?.hasNextPage || edges.length === 0) break;
+    cursor = edges[edges.length - 1]?.cursor;
   }
-  const tokenAmount = parseFloat(fees[index]);
 
+  return totalWinston;
+};
+
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('arweave', tokenAmount)
 
-  return {
-    dailyFees
-  }
-}
+  const info = await httpGet("https://arweave.net/info");
+  const tipHeight: number = info.height;
+  const tipTs = Math.floor(Date.now() / 1000);
 
-const adapter: Adapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.ARWEAVE]: {
-      fetch,
-      start: '2018-06-08',
-    },
-  },
+  const startBlock = estimateBlock(options.startTimestamp, tipHeight, tipTs);
+  const endBlock = estimateBlock(options.endTimestamp, tipHeight, tipTs);
+
+  const totalBlocks = endBlock - startBlock + 1;
+  const rangeSize = Math.ceil(totalBlocks / PARALLEL_RANGES);
+
+  const subRanges: [number, number][] = Array.from({ length: PARALLEL_RANGES }, (_, i) => {
+    const min = startBlock + i * rangeSize;
+    const max = Math.min(min + rangeSize - 1, endBlock);
+    return [min, max] as [number, number];
+  }).filter(([min, max]) => min <= max);
+
+  const winstonByRange = await Promise.all(
+    subRanges.map(([min, max]) => fetchRangeWinston(min, max))
+  );
+  const totalAR = winstonByRange.reduce((sum, w) => sum + w, 0) / WINSTON_PER_AR;
+
+  dailyFees.addCGToken("arweave", totalAR);
+
+  return { dailyFees };
+};
+
+const methodology = {
+  Fees: "Total transaction fees paid by users for base-layer Arweave transactions. Excludes bundled data items (which pay zero fees individually). Data sourced from Goldsky's Arweave GraphQL index.",
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.ARWEAVE],
+  start: "2018-06-08",
   protocolType: ProtocolType.CHAIN,
-  methodology: {
-    Fees: 'Fees are collected in AR (Arweave) tokens for each transaction on the Arweave network. The data is fetched from ViewBlock API which aggregates transaction fees from the Arweave blockchain. The fees represent the total amount paid by users for data storage and transfer on the network.'
-  }
-}
+  methodology,
+};
 
 export default adapter;
-
