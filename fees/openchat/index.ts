@@ -23,7 +23,7 @@ const PRICES = {
   CHAT: { "1m": 2,    "3m": 5,    "1y": 15,   lifetime: 60   },
 };
 
-async function fetch(_options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const response: OpenChatMetrics = await httpGet("https://4bkt6-4aaaa-aaaaf-aaaiq-cai.raw.ic0.app/metrics");
 
     const amountRaised = response.diamond_members.payments.amount_raised;
@@ -32,17 +32,23 @@ async function fetch(_options: FetchOptions) {
     const icpE8s  = amountRaised.find(([token]) => token === "ICP")?.[1]  ?? 0;
     const chatE8s = amountRaised.find(([token]) => token === "CHAT")?.[1] ?? 0;
 
-    // Convert from e8s to human-readable token amounts
     const icpRevenue  = icpE8s  / E8S;
     const chatRevenue = chatE8s / E8S;
 
+    const totalFees = options.createBalances();
+    const totalRevenue = options.createBalances();
+
+    // Add ICP revenue (native chain token)
+    totalFees.addCGToken("internet-computer", icpRevenue * E8S);
+    totalRevenue.addCGToken("internet-computer", icpRevenue * E8S);
+
+    // Add CHAT token fees paid by users
+    totalFees.addCGToken("openchat", chatRevenue * E8S);
+
     return {
-        dailyRevenue:  undefined, // no per-day breakdown in /metrics endpoint
-        dailyFees:     undefined,
-        totalRevenue:  icpRevenue,   // 52.83 ICP all-time
-        totalFees:     icpRevenue,   // fees === revenue for this protocol
-        totalUserFees: chatRevenue,  // 335,736 CHAT paid by users (alt token)
-    }
+        totalFees,
+        totalRevenue,
+    };
 }
 
 const adapter: SimpleAdapter = {
