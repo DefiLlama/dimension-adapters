@@ -24,7 +24,15 @@ const PRICES = {
 };
 
 async function fetch(options: FetchOptions) {
-    const response: OpenChatMetrics = await httpGet("https://4bkt6-4aaaa-aaaaf-aaaiq-cai.raw.ic0.app/metrics");
+    let response: OpenChatMetrics;
+    try {
+        response = await httpGet("https://4bkt6-4aaaa-aaaaf-aaaiq-cai.raw.ic0.app/metrics");
+    } catch (e) {
+        return {
+            totalFees: options.createBalances(),
+            totalRevenue: options.createBalances(),
+        }
+    }
 
     const amountRaised = response.diamond_members.payments.amount_raised;
 
@@ -39,11 +47,11 @@ async function fetch(options: FetchOptions) {
     const totalRevenue = options.createBalances();
 
     // Add ICP revenue (native chain token)
-    totalFees.addCGToken("internet-computer", icpRevenue * E8S);
-    totalRevenue.addCGToken("internet-computer", icpRevenue * E8S);
+    totalFees.addCGToken("internet-computer", icpRevenue / E8S);
+    totalRevenue.addCGToken("internet-computer", icpRevenue / E8S);
 
     // Add CHAT token fees paid by users
-    totalFees.addCGToken("openchat", chatRevenue * E8S);
+    totalFees.addCGToken("openchat", chatRevenue / E8S);
 
     return {
         totalFees,
@@ -58,8 +66,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ICP],
   start: '2026-05-08',
   methodology: {
-    Fees: "Trading fees collected from swaps.",
-    Revenue: "Fees calculated from diamond memberships",
+    Fees: "Fees collected from diamond memberships.",
+    Revenue: "Fees calculated from diamond memberships.",
   },
 };
 
