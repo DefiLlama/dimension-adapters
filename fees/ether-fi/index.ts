@@ -335,18 +335,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (vaultState) {
       // v1 accountants expose the bps as `platformFee`; v2 as `managementFee`.
       const feeBps = vault.version === 'v1' ? vaultState.platformFee : vaultState.managementFee;
-      const vaultFees = feeBps / 10000;
-
       const totalSupply_vault = await getTotalSupply(options, vault.target);
       const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
-      const baseDecimals = await options.api.call({
-        target: asset_vault,
+      const vaultDecimals = await options.api.call({
+        target: vault.target,
         abi: 'function decimals() view returns (uint8)',
       });
-      const dailyFee = ((Number(totalSupply_vault) * Number(rate_vault)) / 10 ** baseDecimals) * (vaultFees / YEAR);
+      // Keep math in bigint: 18-dec vault TVLs (~1e22) overflow Number precision.
+      const tvlBaseRaw = (BigInt(totalSupply_vault) * BigInt(rate_vault)) / (10n ** BigInt(vaultDecimals));
+      const dailyFeeRaw = (tvlBaseRaw * BigInt(feeBps)) / 10000n / BigInt(YEAR);
 
-      dailyFees.add(asset_vault, dailyFee, MetricLabels.MANAGEMENT_FEES);
-      dailyRevenue.add(asset_vault, dailyFee, MetricLabels.MANAGEMENT_FEES);
+      dailyFees.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
+      dailyRevenue.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
     }
   }
 
