@@ -23,15 +23,12 @@ const PRICES = {
   CHAT: { "1m": 2,    "3m": 5,    "1y": 15,   lifetime: 60   },
 };
 
-async function fetch(options: FetchOptions) {
+async function fetch(_a: any, _b: any, { createBalances }: FetchOptions) {
     let response: OpenChatMetrics;
     try {
         response = await httpGet("https://4bkt6-4aaaa-aaaaf-aaaiq-cai.raw.ic0.app/metrics");
     } catch (e) {
-        return {
-            totalFees: options.createBalances(),
-            totalRevenue: options.createBalances(),
-        }
+        throw new Error(`Error fetching metrics: ${(e as Error).message}`);
     }
 
     const amountRaised = response.diamond_members.payments.amount_raised;
@@ -43,31 +40,34 @@ async function fetch(options: FetchOptions) {
     const icpRevenue  = icpE8s  / E8S;
     const chatRevenue = chatE8s / E8S;
 
-    const totalFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
 
     // Add ICP revenue (native chain token)
-    totalFees.addCGToken("internet-computer", icpRevenue);
+    dailyFees.addCGToken("internet-computer", icpRevenue);
     dailyRevenue.addCGToken("internet-computer", icpRevenue);
 
     // Add CHAT token fees paid by users
-    totalFees.addCGToken("openchat", chatRevenue);
+    dailyFees.addCGToken("openchat", chatRevenue);
 
     return {
-        totalFees,
+        dailyFees,
         dailyRevenue,
     };
 }
 
 const adapter: SimpleAdapter = {
     version: 1,
-    fetch,
-    chains: [CHAIN.ICP],
-    start: '2026-05-08',
-    runAtCurrTime: true,
     methodology: {
         Fees: "Fees collected from diamond memberships.",
         Revenue: "Fees calculated from diamond memberships.",
+    },
+    adapter: {
+        [CHAIN.ICP]: {
+        fetch,
+        start: '2026-05-08',
+        runAtCurrTime: true,
+        },
     },
 };
 
