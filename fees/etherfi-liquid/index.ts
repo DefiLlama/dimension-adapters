@@ -20,6 +20,7 @@ const ACCOUNTANT_STATE_V2_ABI =
 const TOTAL_SUPPLY_ABI = "function totalSupply() view returns (uint256)";
 const BASE_ABI = "function base() view returns (address)";
 const GET_RATE_ABI = "function getRate() view returns (uint256)";
+const DECIMALS_ABI = "function decimals() view returns (uint8)";
 const TRANSFER_EVENT_ABI =
   "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -117,7 +118,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       const feeFraction = feeBps / BPS_DENOMINATOR;
       const supply = await totalSupply(options, vault.vault);
       const [base, rate] = await payoutDetails(options, vault.accountant);
-      const dailyFee = ((supply * rate) / 1e18) * (feeFraction / DAYS_PER_YEAR);
+      const baseDecimals = await options.api.call({ target: base, abi: DECIMALS_ABI });
+      const dailyFee = ((supply * rate) / 10 ** baseDecimals) * (feeFraction / DAYS_PER_YEAR);
 
       dailyFees.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
       dailyRevenue.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
