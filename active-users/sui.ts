@@ -9,7 +9,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const alliumQuery = `
     SELECT 
         COALESCE(count(distinct sender), 0) as user_count,
-        COALESCE(count(*), 0) as transaction_count
+        COALESCE(sum(transactions_count), 0) as total_transaction_count
     FROM sui.raw.transaction_blocks
     where checkpoint_timestamp BETWEEN '${start}' AND '${end}'
   `;
@@ -18,7 +18,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     return {
         dailyActiveUsers: alliumResult[0].user_count,
-        dailyTransactionsCount: alliumResult[0].transaction_count,
+        dailyTransactionsCount: alliumResult[0].total_transaction_count,
     }
 }
 
