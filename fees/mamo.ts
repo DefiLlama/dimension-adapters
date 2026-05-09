@@ -103,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
           (sum: number, b: any) => sum + Number(b ?? 0), 0
         );
         const mTokenYield = totalMTokenShares * (Number(rateTo) - Number(rateFrom)) / 1e18;
-        if (mTokenYield > 0) dailySupplySideRevenue.add(config.token, mTokenYield);
+        if (mTokenYield > 0) dailySupplySideRevenue.add(config.token, mTokenYield, 'Moonwell Yield');
       }
 
       // MetaMorpho yield: totalMorphoShares × Δ(pricePerShare) / 1e18
@@ -112,7 +112,7 @@ const fetch = async (options: FetchOptions) => {
           (sum: number, b: any) => sum + Number(b ?? 0), 0
         );
         const morphoYield = totalMorphoShares * (Number(morphoPriceTo) - Number(morphoPriceFrom)) / 1e18;
-        if (morphoYield > 0) dailySupplySideRevenue.add(config.token, morphoYield);
+        if (morphoYield > 0) dailySupplySideRevenue.add(config.token, morphoYield, 'MetaMorpho Yield');
       }
     } catch (_e) {
       // Skip supply-side for this config if RPC fails for this block range
@@ -150,6 +150,16 @@ const adapter: SimpleAdapter = {
     Fees: "Yield earned by Mamo strategy depositors from Moonwell/MetaMorpho positions plus Aerodrome LP fees distributed to MAMO stakers.",
     SupplySideRevenue: "Interest accrued on user deposits via Moonwell mToken exchange rate growth and MetaMorpho vault share price growth.",
     HoldersRevenue: "Aerodrome LP trading fees distributed to MAMO stakers via the multi-rewards contract.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Moonwell Yield': 'Interest accrued on strategy deposits in Moonwell mToken markets (USDC/WETH/cbBTC), measured via exchangeRateStored delta.',
+      'MetaMorpho Yield': 'Yield from MetaMorpho vault share price appreciation on strategy deposits (USDC/WETH/cbBTC), measured via convertToAssets delta.',
+    },
+    SupplySideRevenue: {
+      'Moonwell Yield': 'Moonwell lending interest distributed to Mamo strategy depositors.',
+      'MetaMorpho Yield': 'MetaMorpho vault yield distributed to Mamo strategy depositors.',
+    },
   },
 };
 
