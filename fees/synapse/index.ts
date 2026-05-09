@@ -12,6 +12,7 @@ const METRICS = {
   FLASHLOAN: "Flashloan Fees",
   CCTP: "CCTP Fees",
   MESSAGING: "Messaging Gas Fees",
+  RFQ: "RFQ Bridge Fees",
 };
 
 const bridgeConfig: Record<string, { bridge: string; start: string }> = {
@@ -69,6 +70,15 @@ const messageBusContracts: Record<string, string> = {
   [CHAIN.KLAYTN]: "0xaEe80e4B92Ba497aF1378Bc799687FBF816Ab87b",
 };
 
+// FastBridge / Synapse Intent Network (RFQ). https://github.com/synapsecns/sanguine/tree/master/packages/contracts-rfq
+const fastBridgeContracts: Record<string, { contract: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { contract: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E", start: "2024-02-28" },
+  [CHAIN.ARBITRUM]: { contract: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E", start: "2024-02-28" },
+  [CHAIN.OPTIMISM]: { contract: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E", start: "2024-02-28" },
+  [CHAIN.BASE]: { contract: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E", start: "2024-07-22" },
+  [CHAIN.BSC]: { contract: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E", start: "2024-07-22" }
+};
+
 const bridgeFeeEvents = [
   "event TokenMint(address indexed to, address token, uint256 amount, uint256 fee, bytes32 indexed kappa)",
   "event TokenMintAndSwap(address indexed to, address token, uint256 amount, uint256 fee, uint8 tokenIndexFrom, uint8 tokenIndexTo, uint256 minDy, uint256 deadline, bool swapSuccess, bytes32 indexed kappa)",
@@ -83,37 +93,15 @@ const ammEvents = {
   flashLoan: "event FlashLoan(address indexed receiver, uint8 tokenIndex, uint256 amount, uint256 amountFee, uint256 protocolFee)",
 };
 
-const cctpEvents = [
-  "event CircleRequestSent(uint256 chainId, address indexed sender, uint64 nonce, address token, uint256 amount, uint32 requestVersion, bytes formattedRequest, bytes32 requestID)",
-  "event FeeCollected(address feeCollector, uint256 relayerFeeAmount, uint256 protocolFeeAmount)",
-];
-
-const cctpIface = new ethers.Interface(cctpEvents);
-const CCTP_REQUEST_SENT_TOPIC = cctpIface.getEvent("CircleRequestSent")!.topicHash;
-const CCTP_FEE_COLLECTED_TOPIC = cctpIface.getEvent("FeeCollected")!.topicHash;
+// CircleRequestFulfilled fires inside receiveCircleToken (the path that takes the fee) and carries
+// both the mint token and the total fee.
+const cctpFulfilledEvent = "event CircleRequestFulfilled(uint32 originDomain, address indexed recipient, address mintToken, uint256 fee, address token, uint256 amount, bytes32 requestID)";
 const messageBusEvent = "event MessageSent(address indexed sender, uint256 srcChainID, bytes32 receiver, uint256 indexed dstChainId, bytes message, uint64 nonce, bytes options, uint256 fee, bytes32 indexed messageId)";
 
-type Balances = ReturnType<FetchOptions["createBalances"]>;
-type FailureTracker = { attempted: number; failures: string[] };
-
-const eventName = (abi: string) => abi.split("(")[0].replace("event ", "");
-const arg = (log: any, key: string) => log?.args?.[key] ?? log?.[key];
-const amount = (value: any) => BigInt(value?.toString?.() ?? value ?? 0);
-
-const add = (balance: Balances, token: string, value: any, metric: string) => {
-  const str = value?.toString?.() ?? String(value);
-  if (str !== "0") balance.add(token, str, metric);
-};
-
-const safeGetLogs = async (options: FetchOptions, params: Parameters<FetchOptions["getLogs"]>[0], label: string, tracker: FailureTracker) => {
-  tracker.attempted += params.targets?.length ?? 1;
-  try {
-    return await options.getLogs(params);
-  } catch {
-    tracker.failures.push(label);
-    return [];
-  }
-};
+const fastBridgeEvent = "event BridgeRequested(bytes32 indexed transactionId, address indexed sender, bytes request, uint32 destChainId, address originToken, address destToken, uint256 originAmount, uint256 destAmount, bool sendChainGas)";
+// `request` bytes encode the BridgeTransaction struct, which carries the protocol fee (originFeeAmount).
+const FAST_BRIDGE_TX_TYPE = ["tuple(uint32 originChainId, uint32 destChainId, address originSender, address destRecipient, address originToken, address destToken, uint256 originAmount, uint256 destAmount, uint256 originFeeAmount, bool sendChainGas, uint256 deadline, uint256 nonce)"];
+const fastBridgeCoder = ethers.AbiCoder.defaultAbiCoder();
 
 const getAmmMetadata = async (options: FetchOptions, allPools: string[]) => {
   const tokenCalls = Array.from({ length: 8 }, (_, tokenIndex) => Promise.all(allPools.map((target) => options.api.call({
@@ -144,94 +132,81 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const tracker: FailureTracker = { attempted: 0, failures: [] };
 
-  const addFee = (token: string, total: any, metric: string, protocol = total, supplySide?: any) => {
-    add(dailyFees, token, total, metric);
-    add(dailyUserFees, token, total, metric);
-    add(dailyRevenue, token, protocol, metric);
-    add(dailyProtocolRevenue, token, protocol, metric);
-    if (supplySide !== undefined) add(dailySupplySideRevenue, token, supplySide, metric);
+  const addFee = (token: string, total: any, metric: string, protocol: any = total, supplySide?: any) => {
+    dailyFees.add(token, total, metric);
+    dailyUserFees.add(token, total, metric);
+    dailyRevenue.add(token, protocol, metric);
+    dailyProtocolRevenue.add(token, protocol, metric);
+    if (supplySide !== undefined) dailySupplySideRevenue.add(token, supplySide, metric);
   };
 
   // Bridge contracts emit the exact per-transfer fee on mint/withdraw events:
   // https://contracts.synapseprotocol.com/bridge/mrsynapsebridge
   for (const eventAbi of bridgeFeeEvents) {
-    const logs = await safeGetLogs(options, { target: bridgeConfig[options.chain].bridge, eventAbi }, eventName(eventAbi), tracker);
-    logs.forEach((log) => addFee(arg(log, "token"), arg(log, "fee"), METRICS.BRIDGE));
+    const logs = await options.getLogs({ target: bridgeConfig[options.chain].bridge, eventAbi });
+    logs.forEach((log: any) => addFee(log.token, log.fee, METRICS.BRIDGE));
   }
 
   const configuredPools = ammPools[options.chain] ?? [];
   if (configuredPools.length) {
-    const { pools, poolTokens, swapStorage } = await getAmmMetadata(options, configuredPools).catch((error) => {
-      console.error(`[synapse] failed to fetch AMM pool metadata for ${options.chain}`, error);
-      return { pools: [], poolTokens: [], swapStorage: [] };
-    });
+    const { pools, poolTokens, swapStorage } = await getAmmMetadata(options, configuredPools);
 
     const addAmmFee = (poolIndex: number, tokenIndex: number, total: any, metric: string, explicitProtocol?: any) => {
       const token = poolTokens[tokenIndex]?.[poolIndex];
-      const totalFee = amount(total);
+      const totalFee = BigInt(total ?? 0);
       if (!token || totalFee === 0n) return;
 
-      const adminFee = amount(swapStorage[poolIndex]?.adminFee);
-      const protocol = explicitProtocol === undefined ? totalFee * adminFee / TEN_BILLION : amount(explicitProtocol);
+      const adminFee = BigInt(swapStorage[poolIndex]?.adminFee ?? 0);
+      const protocol = explicitProtocol === undefined ? totalFee * adminFee / TEN_BILLION : BigInt(explicitProtocol);
       addFee(token, totalFee, metric, protocol, totalFee - protocol);
     };
 
     if (pools.length) {
       // StableSwap fees are split between LPs and the admin fee; see Synapse Swap docs:
       // https://contracts.synapseprotocol.com/amm/swap
-      const swapLogs = await safeGetLogs(options, { targets: pools, eventAbi: ammEvents.swap, flatten: false, onlyArgs: false }, "AMM TokenSwap", tracker);
+      const swapLogs = await options.getLogs({ targets: pools, eventAbi: ammEvents.swap, flatten: false, onlyArgs: false });
       swapLogs.forEach((logs: any[], poolIndex: number) => {
-        const swapFee = amount(swapStorage[poolIndex]?.swapFee);
-        logs.forEach((log) => addAmmFee(
+        const swapFee = BigInt(swapStorage[poolIndex]?.swapFee ?? 0);
+        logs.forEach((log: any) => addAmmFee(
           poolIndex,
-          Number(arg(log, "boughtId")),
-          swapFee === 0n ? 0n : amount(arg(log, "tokensBought")) * swapFee / (TEN_BILLION - swapFee),
+          Number(log.args.boughtId),
+          swapFee === 0n ? 0n : BigInt(log.args.tokensBought) * swapFee / (TEN_BILLION - swapFee),
           METRICS.AMM_SWAP,
         ));
       });
 
       for (const eventAbi of [ammEvents.add, ammEvents.removeImbalance]) {
-        const logs = await safeGetLogs(options, { targets: pools, eventAbi, flatten: false, onlyArgs: false }, `AMM ${eventName(eventAbi)}`, tracker);
-        logs.forEach((poolLogs: any[], poolIndex: number) => poolLogs.forEach((log) => {
-          (arg(log, "fees") ?? []).forEach((fee: any, tokenIndex: number) => addAmmFee(poolIndex, tokenIndex, fee, METRICS.AMM_LIQUIDITY));
+        const logs = await options.getLogs({ targets: pools, eventAbi, flatten: false, onlyArgs: false });
+        logs.forEach((poolLogs: any[], poolIndex: number) => poolLogs.forEach((log: any) => {
+          (log.args.fees ?? []).forEach((fee: any, tokenIndex: number) => addAmmFee(poolIndex, tokenIndex, fee, METRICS.AMM_LIQUIDITY));
         }));
       }
 
-      const flashLoanLogs = await safeGetLogs(options, { targets: pools, eventAbi: ammEvents.flashLoan, flatten: false, onlyArgs: false }, "AMM FlashLoan", tracker);
-      flashLoanLogs.forEach((logs: any[], poolIndex: number) => logs.forEach((log) => {
-        addAmmFee(poolIndex, Number(arg(log, "tokenIndex")), arg(log, "amountFee"), METRICS.FLASHLOAN, arg(log, "protocolFee"));
+      const flashLoanLogs = await options.getLogs({ targets: pools, eventAbi: ammEvents.flashLoan, flatten: false, onlyArgs: false });
+      flashLoanLogs.forEach((logs: any[], poolIndex: number) => logs.forEach((log: any) => {
+        addAmmFee(poolIndex, Number(log.args.tokenIndex), log.args.amountFee, METRICS.FLASHLOAN, log.args.protocolFee);
       }));
     }
   }
 
   const cctp = cctpContracts[options.chain];
   if (cctp) {
-    // SynapseCCTP emits FeeCollected; Circle's docs describe CCTP transfer fees:
+    // SynapseCCTP CircleRequestFulfilled carries the mint token and total fee directly
     // https://developers.circle.com/cctp/concepts/fees
-    const sentLogs = await safeGetLogs(options, { target: cctp, topics: [CCTP_REQUEST_SENT_TOPIC], onlyArgs: false }, "CCTP CircleRequestSent", tracker);
-    const tokenByTx: Record<string, { logIndex: number; token: string; used?: boolean }[]> = {};
-    sentLogs.forEach((log) => {
-      const parsed = cctpIface.parseLog(log);
-      if (!parsed || !log.transactionHash) return;
-      tokenByTx[log.transactionHash] ??= [];
-      tokenByTx[log.transactionHash].push({ logIndex: Number(log.logIndex ?? log.index ?? 0), token: parsed.args.token });
-    });
-    Object.values(tokenByTx).forEach((entries) => entries.sort((a, b) => a.logIndex - b.logIndex));
+    const logs = await options.getLogs({ target: cctp, eventAbi: cctpFulfilledEvent });
+    logs.forEach((log: any) => addFee(log.mintToken, BigInt(log.fee), METRICS.CCTP));
+  }
 
-    const feeLogs = await safeGetLogs(options, { target: cctp, topics: [CCTP_FEE_COLLECTED_TOPIC], onlyArgs: false }, "CCTP FeeCollected", tracker);
-    feeLogs.forEach((log) => {
-      const parsed = cctpIface.parseLog(log);
-      const request = log.transactionHash
-        ? tokenByTx[log.transactionHash]?.find((entry) => !entry.used && entry.logIndex <= Number(log.logIndex ?? log.index ?? Number.MAX_SAFE_INTEGER))
-        : undefined;
-      if (!parsed || !request) return;
-      request.used = true;
-
-      const relayerFee = amount(parsed.args.relayerFeeAmount);
-      const protocolFee = amount(parsed.args.protocolFeeAmount);
-      addFee(request.token, relayerFee + protocolFee, METRICS.CCTP, protocolFee, relayerFee);
+  const fastBridge = fastBridgeContracts[options.chain];
+  if (fastBridge) {
+    // FastBridge BridgeRequested: protocol fee = originFeeAmount (decoded from `request` bytes).
+    const logs = await options.getLogs({ target: fastBridge.contract, eventAbi: fastBridgeEvent });
+    logs.forEach((log: any) => {
+      try {
+        const [tx] = fastBridgeCoder.decode(FAST_BRIDGE_TX_TYPE, log.request);
+        addFee(log.originToken, BigInt(tx.originFeeAmount), METRICS.RFQ);
+      } catch { /* malformed request, skip */ }
     });
   }
 
@@ -239,13 +214,9 @@ const fetch = async (options: FetchOptions) => {
   if (messageBus) {
     // MessageBus MessageSent exposes `fee`, and withdrawGasFees withdraws accumulated native fees:
     // https://contracts.synapseprotocol.com/messaging/messagebus
-    const logs = await safeGetLogs(options, { target: messageBus, eventAbi: messageBusEvent }, "MessageBus MessageSent", tracker);
-    logs.forEach((log) => [dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue]
-      .forEach((balance) => balance.addGasToken(arg(log, "fee"), METRICS.MESSAGING)));
-  }
-
-  if (tracker.failures.length) {
-    console.warn(`[synapse] skipped ${tracker.failures.length}/${tracker.attempted} log requests for ${options.chain}: ${tracker.failures.join(", ")}`);
+    const logs = await options.getLogs({ target: messageBus, eventAbi: messageBusEvent });
+    logs.forEach((log: any) => [dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue]
+      .forEach((balance) => balance.addGasToken(log.fee, METRICS.MESSAGING)));
   }
 
   return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
@@ -256,8 +227,9 @@ const protocolBreakdown = {
   [METRICS.AMM_SWAP]: "Admin share of StableSwap swap fees.",
   [METRICS.AMM_LIQUIDITY]: "Admin share of StableSwap liquidity fees.",
   [METRICS.FLASHLOAN]: "Protocol share emitted in SwapFlashLoan FlashLoan events.",
-  [METRICS.CCTP]: "Protocol fee emitted by SynapseCCTP FeeCollected events.",
+  [METRICS.CCTP]: "CCTP fee emitted by SynapseCCTP CircleRequestFulfilled events.",
   [METRICS.MESSAGING]: "MessageBus fees accumulated in native gas token and withdrawable through withdrawGasFees.",
+  [METRICS.RFQ]: "FastBridge originFeeAmount accumulated as protocol fees on origin chain.",
 };
 
 const adapter: Adapter = {
@@ -265,11 +237,11 @@ const adapter: Adapter = {
   fetch,
   adapter: Object.entries(bridgeConfig).reduce<BaseAdapter>((acc, [chain, { start }]) => ({ ...acc, [chain]: { start } }), {}),
   methodology: {
-    UserFees: "Bridge, AMM, flash loan, CCTP, and messaging fees paid by users and emitted by Synapse contracts.",
-    Fees: "Bridge, AMM, flash loan, CCTP, and messaging fees paid by users and emitted by Synapse contracts.",
-    Revenue: "Bridge fees, AMM admin fees, flash loan protocol fees, CCTP protocol fees, and MessageBus fees accrued to Synapse contracts.",
-    ProtocolRevenue: "Bridge fees, AMM admin fees, flash loan protocol fees, CCTP protocol fees, and MessageBus fees accrued to Synapse contracts.",
-    SupplySideRevenue: "AMM LP share, flash loan LP share, and CCTP relayer fees.",
+    UserFees: "Bridge, AMM, flash loan, CCTP, RFQ, and messaging fees paid by users and emitted by Synapse contracts.",
+    Fees: "Bridge, AMM, flash loan, CCTP, RFQ, and messaging fees paid by users and emitted by Synapse contracts.",
+    Revenue: "Bridge fees, AMM admin fees, flash loan protocol fees, CCTP protocol fees, FastBridge protocol fees, and MessageBus fees accrued to Synapse contracts.",
+    ProtocolRevenue: "Bridge fees, AMM admin fees, flash loan protocol fees, CCTP protocol fees, FastBridge protocol fees, and MessageBus fees accrued to Synapse contracts.",
+    SupplySideRevenue: "AMM LP share and flash loan LP share.",
   },
   breakdownMethodology: {
     Fees: {
@@ -277,8 +249,9 @@ const adapter: Adapter = {
       [METRICS.AMM_SWAP]: "StableSwap swap fees calculated from TokenSwap events and pool swapFee settings.",
       [METRICS.AMM_LIQUIDITY]: "StableSwap add/remove liquidity imbalance fees emitted in pool liquidity events.",
       [METRICS.FLASHLOAN]: "Flash loan fees emitted by SwapFlashLoan FlashLoan events.",
-      [METRICS.CCTP]: "CCTP relayer and protocol fees emitted by SynapseCCTP FeeCollected events.",
+      [METRICS.CCTP]: "CCTP fee emitted by SynapseCCTP CircleRequestFulfilled events.",
       [METRICS.MESSAGING]: "Native gas fees emitted by MessageBus MessageSent events.",
+      [METRICS.RFQ]: "FastBridge protocol fee from BridgeRequested events.",
     },
     Revenue: protocolBreakdown,
     ProtocolRevenue: protocolBreakdown,
@@ -286,7 +259,6 @@ const adapter: Adapter = {
       [METRICS.AMM_SWAP]: "LP share of StableSwap swap fees.",
       [METRICS.AMM_LIQUIDITY]: "LP share of StableSwap liquidity fees.",
       [METRICS.FLASHLOAN]: "LP share of flash loan fees.",
-      [METRICS.CCTP]: "Relayer fee emitted by SynapseCCTP FeeCollected events.",
     },
   },
 };
