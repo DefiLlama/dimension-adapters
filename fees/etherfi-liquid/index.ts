@@ -113,7 +113,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     });
 
     if (state) {
-      const feeFraction = state.managementFee / BPS_DENOMINATOR;
+      const feeBps = vault.version === "v1" ? state.platformFee : state.managementFee;
+      const feeFraction = feeBps / BPS_DENOMINATOR;
       const supply = await totalSupply(options, vault.vault);
       const [base, rate] = await payoutDetails(options, vault.accountant);
       const dailyFee = ((supply * rate) / 1e18) * (feeFraction / DAYS_PER_YEAR);
