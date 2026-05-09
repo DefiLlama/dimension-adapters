@@ -59,7 +59,6 @@ const LABELS = {
   SSV_STAKING_REWARDS: "SSV Staking Rewards",
   OBOL_STAKING_REWARDS: "Obol Staking Rewards",
   ETH_STAKING_REWARDS: "Core ETH Staking Rewards",
-  TOKEN_BUY_BACK: METRIC.TOKEN_BUY_BACK,
 };
 
 const balanceOf = (options: FetchOptions, token: string, holder: string, permitFailure = false) =>
@@ -78,13 +77,15 @@ const getTransferLogs = (options: FetchOptions, token: string, recipient: string
   });
 
 const sumLogValues = (logs: any[]): bigint =>
-  BigInt(logs.reduce((sum, log) => sum + Number(log.value), 0));
+  logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 
 const getStethRebaseFees = async (options: FetchOptions, totalSteth: number): Promise<number> => {
-  const [latest] = await options.getLogs({
+  const logs = await options.getLogs({
     target: STETH,
     eventAbi: TOKEN_REBASED_ABI,
   });
+  if (logs.length === 0) return 0;
+  const latest = logs[logs.length - 1];
   const rateBefore = Number(latest.preTotalEther) / Number(latest.preTotalShares);
   const rateAfter = Number(latest.postTotalEther) / Number(latest.postTotalShares);
   const shares = totalSteth / rateBefore;
@@ -123,13 +124,13 @@ const getTotalSteth = async (options: FetchOptions): Promise<number> => {
 
 const getSsvRevenue = async (options: FetchOptions): Promise<bigint> => {
   const logs = await getTransferLogs(options, SSV, SSV_OPERATOR);
-  // Transfers from the dedicated fee recipient are 100% protocol
-  // everything else has an 80% protocol cut.
-  const total = logs.reduce((sum, log) => {
+  // Transfers from the dedicated fee recipient are 100% protocol;
+  // everything else has an 80% protocol cut (4/5 in integer math).
+  return logs.reduce((acc: bigint, log: any) => {
+    const value = BigInt(log.value);
     const fromFeeRecipient = log.from.toLowerCase() === SSV_FEE_RECIPIENT.toLowerCase();
-    return sum + Number(log.value) * (fromFeeRecipient ? 1 : 0.8);
-  }, 0);
-  return BigInt(total);
+    return acc + (fromFeeRecipient ? value : (value * 4n) / 5n);
+  }, 0n);
 };
 
 const getObolRevenue = async (options: FetchOptions): Promise<bigint> =>

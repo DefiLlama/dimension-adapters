@@ -79,7 +79,7 @@ const payoutDetails = (options: FetchOptions, target: string) =>
     options.api.call({ target, abi: GET_RATE_ABI }),
   ]);
 
-const sumWithdrawalFees = async (options: FetchOptions) => {
+const sumWithdrawalFees = async (options: FetchOptions): Promise<bigint> => {
   const logs = await options.getLogs({
     target: EETH,
     eventAbi: TRANSFER_EVENT_ABI,
@@ -89,8 +89,7 @@ const sumWithdrawalFees = async (options: FetchOptions) => {
       ethers.zeroPadValue(TREASURY, 32),
     ],
   });
-  const withdrawal_fees = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  return BigInt(withdrawal_fees);
+  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 };
 
 /**
@@ -120,7 +119,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       const supply = await totalSupply(options, vault.vault);
       const [base, rate] = await payoutDetails(options, vault.accountant);
       const baseDecimals = await options.api.call({ target: base, abi: DECIMALS_ABI });
-      const dailyFee = ((supply * rate) / 10 ** baseDecimals) * (feeFraction / DAYS_PER_YEAR);
+      const dailyFee = ((Number(supply) * Number(rate)) / 10 ** baseDecimals) * (feeFraction / DAYS_PER_YEAR);
 
       dailyFees.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
       dailyRevenue.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
@@ -146,9 +145,14 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.MANAGEMENT_FEES]: "Daily accrual = TVL x platformFee_bps / 10000 / 365 per vault.",
+      [LABELS.MANAGEMENT_FEES]:
+        "Daily accrual = TVL x bps / 10000 / 365 per vault. Bps reads platformFee on v1 BoringVault accountants and managementFee on v2.",
       [LABELS.WITHDRAW_FEES]:
         "Withdrawal fees from Liquid vault operations (eETH transfers from etherfi-withdrawal-router to treasury).",
+    },
+    Revenue: {
+      [LABELS.MANAGEMENT_FEES]: "Same as Fees — 100% retained by ether.fi treasury.",
+      [LABELS.WITHDRAW_FEES]: "Same as Fees — 100% retained by ether.fi treasury.",
     },
   },
 };
