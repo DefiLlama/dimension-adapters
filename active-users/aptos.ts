@@ -4,7 +4,6 @@ import { queryDuneSql } from "../helpers/dune";
 
 type Row = {
   dau: number;
-  new_users: number;
   tx_count: number;
 }
 
@@ -12,8 +11,7 @@ const fetch = async (options: FetchOptions) => {
   const [row]: Row[] = await queryDuneSql(options, `
     SELECT
       COUNT(*) AS tx_count,
-      COUNT(DISTINCT sender) AS dau,
-      COUNT(DISTINCT CASE WHEN sequence_number = 0 THEN sender END) AS new_users
+      COUNT(DISTINCT sender) AS dau
     FROM aptos.user_transactions
     WHERE success = true
       AND sender IS NOT NULL
@@ -26,7 +24,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyActiveUsers: row?.dau ?? 0,
     dailyTransactionsCount: row?.tx_count ?? 0,
-    dailyNewUsers: row?.new_users ?? 0,
   };
 };
 
