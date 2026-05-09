@@ -4,7 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 /**
  * All Fragment wallet addresses from ton-labels (https://github.com/ton-studio/ton-labels).
- * Query: SELECT address FROM dune.ton_foundation.dataset_labels WHERE label IN ('fragment', 'fragment.ton')
+ * Query: SELECT address FROM dune.ton_foundation.dataset_labels WHERE label = 'fragment'
  */
 const FRAGMENT_ADDRESSES = [
   '0:E6F3D8824F46B1EFBAB9AFC684793428C55FED69B46A15A49BE69A29BC49E530',
@@ -15,7 +15,6 @@ const FRAGMENT_ADDRESSES = [
   '0:158136239ADB15DD59DF90C641F9EFD312CFEB8664F218F4C3E5FCE9D95E6C07',
   '0:68F3A076D3451A18FD41E05C71B4C020545D46B2757064E65825DED0C49BF02C',
   '0:80D78A35F955A14B679FAA887FF4CD5BFC0F43B4A4EEA2A7E6927F3701B273C2',
-  '0:B314658F1E64345FD1B9FC5C4044530FFB329C5A433F87093947D40D4F53F80D',
 ];
 
 /**
