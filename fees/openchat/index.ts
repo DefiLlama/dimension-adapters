@@ -37,6 +37,8 @@ async function fetch(_options: FetchOptions) {
     const chatRevenue = chatE8s / E8S;
 
     return {
+        dailyRevenue:  undefined, // no per-day breakdown in /metrics endpoint
+        dailyFees:     undefined,
         totalRevenue:  icpRevenue,   // 52.83 ICP all-time
         totalFees:     icpRevenue,   // fees === revenue for this protocol
         totalUserFees: chatRevenue,  // 335,736 CHAT paid by users (alt token)
