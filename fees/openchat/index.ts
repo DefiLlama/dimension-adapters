@@ -44,31 +44,31 @@ async function fetch(options: FetchOptions) {
     const chatRevenue = chatE8s / E8S;
 
     const totalFees = options.createBalances();
-    const totalRevenue = options.createBalances();
+    const dailyRevenue = options.createBalances();
 
     // Add ICP revenue (native chain token)
-    totalFees.addCGToken("internet-computer", icpRevenue / E8S);
-    totalRevenue.addCGToken("internet-computer", icpRevenue / E8S);
+    totalFees.addCGToken("internet-computer", icpRevenue);
+    dailyRevenue.addCGToken("internet-computer", icpRevenue);
 
     // Add CHAT token fees paid by users
-    totalFees.addCGToken("openchat", chatRevenue / E8S);
+    totalFees.addCGToken("openchat", chatRevenue);
 
     return {
         totalFees,
-        totalRevenue,
+        dailyRevenue,
     };
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,  // optional, enables hourly granularity
-  fetch,
-  chains: [CHAIN.ICP],
-  start: '2026-05-08',
-  methodology: {
-    Fees: "Fees collected from diamond memberships.",
-    Revenue: "Fees calculated from diamond memberships.",
-  },
+    version: 1,
+    fetch,
+    chains: [CHAIN.ICP],
+    start: '2026-05-08',
+    runAtCurrTime: true,
+    methodology: {
+        Fees: "Fees collected from diamond memberships.",
+        Revenue: "Fees calculated from diamond memberships.",
+    },
 };
 
 export default adapter;
