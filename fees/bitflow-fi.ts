@@ -1,6 +1,7 @@
 import fetchURL from "../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const poolsURL = "https://bff.bitflowapis.finance/api/app/v1/pools";
 
@@ -20,7 +21,7 @@ const fetch = async ({ createBalances }: FetchOptions): Promise<FetchResult> => 
   }
 
   const dailyFees = createBalances();
-  dailyFees.addUSDValue(dailyFeesUsd);
+  dailyFees.addUSDValue(dailyFeesUsd, METRIC.SWAP_FEES);
 
   const dailyUserFees = dailyFees.clone();
 
@@ -35,13 +36,22 @@ const methodology = {
   UserFees: "Trading fees paid by traders on swaps.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees collected from all Bitflow pools.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by traders on swaps.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.STACKS],
   fetch,
-  start: "2024-02-16",
   runAtCurrTime: true,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
