@@ -9,7 +9,6 @@ const EETH = ADDRESSES.ethereum.EETH;
 const TREASURY = "0x2f5301a3D59388c509C65f8698f521377D41Fd0F";
 const WITHDRAWAL_ROUTER = "0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c";
 
-
 const BPS_DENOMINATOR = 10_000;
 const DAYS_PER_YEAR = 365;
 
@@ -17,6 +16,10 @@ const ACCOUNTANT_STATE_V1_ABI =
   "function accountantState() view returns (address payoutAddress, uint96 highwaterMark, uint128 feesOwedInBase, uint128 totalSharesLastUpdate, uint96 exchangeRate, uint16 allowedExchangeRateChangeUpper, uint16 allowedExchangeRateChangeLower, uint64 lastUpdateTimestamp, bool isPaused, uint24 minimumUpdateDelayInSeconds, uint16 platformFee, uint16)";
 const ACCOUNTANT_STATE_V2_ABI =
   "function accountantState() view returns (address payoutAddress, uint128 feesOwedInBase, uint128 totalSharesLastUpdate, uint96 exchangeRate, uint16 allowedExchangeRateChangeUpper, uint16 allowedExchangeRateChangeLower, uint64 lastUpdateTimestamp, bool isPaused, uint32 minimumUpdateDelayInSeconds, uint16 managementFee)";
+
+const TOTAL_SUPPLY_ABI = "function totalSupply() view returns (uint256)";
+const BASE_ABI = "function base() view returns (address)";
+const GET_RATE_ABI = "function getRate() view returns (uint256)";
 const TRANSFER_EVENT_ABI =
   "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -67,12 +70,12 @@ const LABELS = {
 };
 
 const totalSupply = (options: FetchOptions, target: string) =>
-  options.api.call({ target, abi: "function totalSupply() view returns (uint256)" });
+  options.api.call({ target, abi: TOTAL_SUPPLY_ABI });
 
 const payoutDetails = (options: FetchOptions, target: string) =>
   Promise.all([
-    options.api.call({ target, abi: "function base() view returns (address)" }),
-    options.api.call({ target, abi: "function getRate() view returns (uint256)" }),
+    options.api.call({ target, abi: BASE_ABI }),
+    options.api.call({ target, abi: GET_RATE_ABI }),
   ]);
 
 const sumWithdrawalFees = async (options: FetchOptions) => {
@@ -89,25 +92,32 @@ const sumWithdrawalFees = async (options: FetchOptions) => {
   return BigInt(withdrawal_fees);
 };
 
+/**
+ * EtherFi Revenue Stream Categories:
+ *
+ * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)
+ *
+ * Note: Different revenue streams have different protocol vs supply side splits
+ */
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   for (const vault of LIQUID_VAULTS) {
     const abi = vault.version === "v1" ? ACCOUNTANT_STATE_V1_ABI : ACCOUNTANT_STATE_V2_ABI;
-    
+
     const state = await options.fromApi.call({
       target: vault.accountant,
       abi,
       permitFailure: true,
     });
 
-    if (state){
+    if (state) {
       const feeFraction = state.managementFee / BPS_DENOMINATOR;
       const supply = await totalSupply(options, vault.vault);
       const [base, rate] = await payoutDetails(options, vault.accountant);
       const dailyFee = ((supply * rate) / 1e18) * (feeFraction / DAYS_PER_YEAR);
-      
+
       dailyFees.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
       dailyRevenue.add(base, dailyFee, LABELS.MANAGEMENT_FEES);
     }
