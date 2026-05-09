@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 const HUB = '0x8880b95E1a056d537FA7469D1a26C3875e85f0e7'
-const ORDER_EXECUTED_CONTRACT = '0xF5Da71cdb870494D36c6d3f1E81DDF5FDB786079'
 const ORDER_EXECUTED_EVENT = 'event OrderExecuted(bytes32 indexed orderKey, uint128 liquidity, uint256 fee0, uint256 fee1, uint256 returned0, uint256 returned1)'
 const VAULT_HUB_ABI = 'function hub() view returns (address)'
 
@@ -49,11 +48,17 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     const dailyFees = createBalances()
 
     const logs = await getLogs({
-        target: ORDER_EXECUTED_CONTRACT,
+        noTarget: true,
         eventAbi: ORDER_EXECUTED_EVENT,
         entireLog: true,
         parseLog: true,
     })
+
+    if (!logs.length) {
+        return {
+            dailyFees,
+        }
+    }
 
     const vaultAddresses = [...new Set(logs.map((log: any) => String(log.address).toLowerCase()))]
     const vaultHubs = await api.multiCall({
@@ -67,6 +72,12 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     )
 
     const rerangeLogs = logs.filter((log: any) => rerangeVaultSet.has(String(log.address).toLowerCase()))
+
+    if (!rerangeLogs.length) {
+        return {
+            dailyFees,
+        }
+    }
 
     const orders = await api.multiCall({
         abi: GET_ORDER_ABI,

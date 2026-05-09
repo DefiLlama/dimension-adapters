@@ -25,6 +25,12 @@ const MM1USD_CDO = '0x613D1790d9BA381D27B4071C04380Db8ED120E5f';
 const MM1USD_JRT = '0xf7eB8dfec75C42D2d2247FE76Ccaedc59f821688';
 const MM1USD_SRT = '0xCcEd21d609CaC4A272d0c01a8FF4de9cEBc40d60';
 
+const SATURN_ACCOUNTING = '0x180f7b3b807FA91EDb6e864802e4664D6Ee8Cf88';
+const USDATSAT = '0x23238f20b894f29041f48D88eE91131C395Aaa71';
+const SATURN_CDO = '0xa617763cEB808f43eC9D532cbE8C65819afb846b';
+const SATURN_JRT = '0x011e55d2b28306458e37Ca7E997C879BB25A455D';
+const SATURN_SRT = '0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066';
+
 const FEE_ACCRUED_EVENT = "event FeeAccrued(bool isJrt, uint256 amountToReserve, uint256 amountToTranche)";
 const RESERVE_REDUCED_EVENT = "event ReserveReduced(address token, uint256 amount)";
 const RESERVE_DISTRIBUTED_EVENT = "event ReserveDistributed(uint256 jrtAmount, uint256 srtAmount)";
@@ -45,6 +51,7 @@ const USDE_CONFIG: TokenConfig = { accounting: ACCOUNTING, token: USDE, cdo: CDO
 const NUSD_CONFIG: TokenConfig = { accounting: NUSD_ACCOUNTING, token: NUSD, cdo: NUSD_CDO, jrt: NUSD_JRT, srt: NUSD_SRT, decimals: 18, startTimestamp: 1770359700 };
 const MHYPER_CONFIG: TokenConfig = { accounting: MHYPER_ACCOUNTING, token: USDC, cdo: MHYPER_CDO, jrt: MHYPER_JRT, srt: MHYPER_SRT, decimals: 6, startTimestamp: 1775055426 };
 const MM1USD_CONFIG: TokenConfig = { accounting: MM1USD_ACCOUNTING, token: MM1USD, cdo: MM1USD_CDO, jrt: MM1USD_JRT, srt: MM1USD_SRT, decimals: 18, startTimestamp: 1775919426 };
+const SATURN_CONFIG: TokenConfig = { accounting: SATURN_ACCOUNTING, token: USDATSAT, cdo: SATURN_CDO, jrt: SATURN_JRT, srt: SATURN_SRT, decimals: 6, startTimestamp: 1777788984 };
 
 async function computeMetrics(options: FetchOptions, config: TokenConfig) {
   let redemptionFeesTotal = 0;
@@ -124,7 +131,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const configs = [USDE_CONFIG, NUSD_CONFIG, MHYPER_CONFIG, MM1USD_CONFIG].filter(c => options.startOfDay >= c.startTimestamp);
+  const configs = [USDE_CONFIG, NUSD_CONFIG, MHYPER_CONFIG, MM1USD_CONFIG, SATURN_CONFIG].filter(c => options.startOfDay >= c.startTimestamp);
   const results = await Promise.all(configs.map(c => computeMetrics(options, c)));
 
   for (let i = 0; i < configs.length; i++) {
