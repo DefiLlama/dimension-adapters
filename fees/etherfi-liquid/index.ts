@@ -96,6 +96,7 @@ const sumWithdrawalFees = async (options: FetchOptions) => {
 /**
  * EtherFi Revenue Stream Categories:
  *
+ * MANAGEMENT_FEES: Per-vault platformFee/managementFee bps applied annually to NAV (protocol only)
  * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)
  *
  * Note: Different revenue streams have different protocol vs supply side splits
