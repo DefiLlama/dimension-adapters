@@ -107,7 +107,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   for (const vault of LIQUID_VAULTS) {
     const abi = vault.version === "v1" ? ACCOUNTANT_STATE_V1_ABI : ACCOUNTANT_STATE_V2_ABI;
 
-    const state = await options.fromApi.call({
+    const state = await options.api.call({
       target: vault.accountant,
       abi,
       permitFailure: true,
