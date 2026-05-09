@@ -155,10 +155,14 @@ const adapter: SimpleAdapter = {
     Fees: {
       'Moonwell Yield': 'Interest accrued on strategy deposits in Moonwell mToken markets (USDC/WETH/cbBTC), measured via exchangeRateStored delta.',
       'MetaMorpho Yield': 'Yield from MetaMorpho vault share price appreciation on strategy deposits (USDC/WETH/cbBTC), measured via convertToAssets delta.',
+      'Aerodrome LP Fees': 'Aerodrome LP trading fees distributed to MAMO stakers via the multi-rewards contract.',
     },
     SupplySideRevenue: {
       'Moonwell Yield': 'Moonwell lending interest distributed to Mamo strategy depositors.',
       'MetaMorpho Yield': 'MetaMorpho vault yield distributed to Mamo strategy depositors.',
+    },
+    HoldersRevenue: {
+      'Aerodrome LP Fees': 'Aerodrome LP trading fees (MAMO token and cbBTC) distributed to MAMO stakers via the multi-rewards contract.',
     },
   },
 };
