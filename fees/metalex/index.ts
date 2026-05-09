@@ -61,25 +61,29 @@ async function discoverManagers(options: FetchOptions) {
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
-  const managers = new Set(await discoverManagers(options));
-  if (!managers.size)
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
+  try {
+    const managers = new Set(await discoverManagers(options));
+    if (!managers.size)
+      return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+      };
 
-  const feeLogs = await options.getLogs({
-    noTarget: true,
-    eventAbi: feeDistributedAbi,
-    entireLog: true,
-    cacheInCloud: true,
-  });
+    const feeLogs = await options.getLogs({
+      noTarget: true,
+      eventAbi: feeDistributedAbi,
+      entireLog: true,
+      cacheInCloud: true,
+    });
 
-  feeLogs.forEach((log: any) => {
-    if (!managers.has(log.address?.toLowerCase())) return;
-    dailyFees.add(String(log.args.feeToken).toLowerCase(), log.args.totalFe, METRIC.SERVICE_FEES);
-  });
+    feeLogs.forEach((log: any) => {
+      if (!managers.has(log.address?.toLowerCase())) return;
+      dailyFees.add(String(log.args.feeToken).toLowerCase(), log.args.totalFe, METRIC.SERVICE_FEES);
+    });
+  } catch (e) {
+    console.error(`[metalex][${options.chain}] failed to fetch fee logs`, e);
+  }
 
   return {
     dailyFees,
@@ -97,6 +101,11 @@ const methodology = {
     "100% of this 0.3% service fee accrues to the MetaLeX protocol treasury.",
 };
 
+const breakdownMethodology = {
+  [METRIC.SERVICE_FEES]:
+    "MetaLeX 0.3% escrow finalization service fee collected via FeeDistributed events from active DealManager/RoundManager contracts.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -104,6 +113,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM],
   start: "2025-05-12",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
