@@ -21,9 +21,18 @@ export const MATCH_ORDERS_ID = "0xe99a3f80";
 export const DIRECT_PURCHASE_ID = "0x0d5f7d35";
 export const DIRECT_ACCEPT_BID_ID = "0x67d49a3b";
 
-function parseFeeBps(data: string): number {
-  return parseInt(data.slice(-5), 16);
-}
+function parseOriginFees(data: string): { account: string; bps: bigint }[] {
+  try {
+    const [result] = ethers.AbiCoder.defaultAbiCoder().decode(
+      ["tuple(tuple(address account, uint96 value)[] payouts, tuple(address account, uint96 value)[] originFees, bool isMakeFill)"],
+      data
+    );
+    const output = result.originFees.map((r: {account: string, value: bigint}) => ({ account: r.account.toLowerCase(), bps: r.value }))
+    return output;
+  } catch {
+    return [];
+  }
+};
 
 export function decodeMatchOrders(input: string) {
   const { orderLeft, orderRight } = interfaces.matchOrders.parseTransaction({ data: input })!.args;
@@ -53,23 +62,23 @@ export function decodeMatchOrders(input: string) {
     paymentToken = ethers.AbiCoder.defaultAbiCoder().decode(["address"], payAsset.assetType.data)[0];
   };
   const amount: bigint = payAsset.value;
-  const originFeeBps = parseFeeBps(orderLeft.data) + parseFeeBps(orderRight.data);
-  return { paymentToken, amount, seller, nftContract, nftTokenId, originFeeBps };
+  const originFees = [...parseOriginFees(orderLeft.data), ...parseOriginFees(orderRight.data)];
+  return { paymentToken, amount, seller, nftContract, nftTokenId, originFees };
 };
 
 export function decodeDirectPurchase(input: string) {
   const { direct } = interfaces.directPurchase.parseTransaction({ data: input })!.args;
   const paymentToken: string = direct.paymentToken;
   const [nftContract, nftTokenId] = ethers.AbiCoder.defaultAbiCoder().decode(["address", "uint256"], direct.nftData);
-  const originFeeBps = parseFeeBps(direct.sellOrderData) + parseFeeBps(direct.buyOrderData);
-  return { paymentToken, amount: direct.buyOrderPaymentAmount as bigint, seller: direct.sellOrderMaker as string, nftContract, nftTokenId, originFeeBps };
+  const originFees = [...parseOriginFees(direct.sellOrderData), ...parseOriginFees(direct.buyOrderData)];
+  return { paymentToken, amount: direct.buyOrderPaymentAmount as bigint, seller: direct.sellOrderMaker as string, nftContract, nftTokenId, originFees };
 };
 
 export function decodeDirectAcceptBid(input: string) {
   const { direct } = interfaces.directAcceptBid.parseTransaction({ data: input })!.args;
   const [nftContract, nftTokenId] = ethers.AbiCoder.defaultAbiCoder().decode(["address", "uint256"], direct.nftData);
-  const originFeeBps = parseFeeBps(direct.bidData) + parseFeeBps(direct.sellOrderData);
-  return { paymentToken: direct.paymentToken as string, amount: direct.bidPaymentAmount as bigint, seller: "", nftContract, nftTokenId, originFeeBps };
+  const originFees = [...parseOriginFees(direct.bidData), ...parseOriginFees(direct.sellOrderData)];
+  return { paymentToken: direct.paymentToken as string, amount: direct.bidPaymentAmount as bigint, seller: "", nftContract, nftTokenId, originFees };
 };
 
 export async function getDuneTrades(options: FetchOptions, exchange: string): Promise<any[]> {
