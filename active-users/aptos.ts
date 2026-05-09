@@ -1,41 +1,35 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, SimpleAdapter, ProtocolType, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from "../helpers/allium";
 
-type Row = {
-  dau: number;
-  tx_count: number;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const start = new Date(options.fromTimestamp * 1000).toISOString()
+    const end = new Date(options.toTimestamp * 1000).toISOString()
+
+    const alliumQuery = `
+    SELECT 
+        COALESCE(count(distinct sender), 0) as user_count,
+        COALESCE(count(*), 0) as transaction_count
+    FROM aptos.raw.transactions
+    where block_timestamp BETWEEN '${start}' AND '${end}'
+  `;
+
+    const alliumResult = await queryAllium(alliumQuery);
+
+    return {
+        dailyActiveUsers: alliumResult[0].user_count,
+        dailyTransactionsCount: alliumResult[0].transaction_count,
+    }
 }
 
-const fetch = async (options: FetchOptions) => {
-  const [row]: Row[] = await queryDuneSql(options, `
-    SELECT
-      COUNT(*) AS tx_count,
-      COUNT(DISTINCT sender) AS dau
-    FROM aptos.user_transactions
-    WHERE success = true
-      AND sender IS NOT NULL
-      AND block_date >= CAST(from_unixtime(${options.startTimestamp}) AS date)
-      AND block_date <= CAST(from_unixtime(${options.endTimestamp}) AS date)
-      AND block_time > from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
-  `);
-
-  return {
-    dailyActiveUsers: row?.dau ?? 0,
-    dailyTransactionsCount: row?.tx_count ?? 0,
-  };
-};
-
 const adapter: SimpleAdapter = {
-  version: 2,
-  dependencies: [Dependencies.DUNE],
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2022-10-20",
-    },
-  },
+    version: 1,
+    fetch,
+    chains: [CHAIN.APTOS],
+    dependencies: [Dependencies.ALLIUM],
+    isExpensiveAdapter: true,
+    protocolType: ProtocolType.CHAIN,
+    start: "2022-10-20",
 };
 
 export default adapter;
