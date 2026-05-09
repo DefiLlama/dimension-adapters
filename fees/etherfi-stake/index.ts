@@ -214,7 +214,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const stethRevenue = (totalSteth * 0.035 * 0.025) / DAYS_PER_YEAR;
 
   // EigenLayer rewards — claimed weekly on Optimism, ~11% to protocol
-  const optimismApi = new sdk.ChainApi({ chain: "optimism" });
+  const optimismApi = new sdk.ChainApi({ chain: "optimism", timestamp: options.toTimestamp });
   const restakingRewardsEigen = BigInt(
     await optimismApi.call({
       target: RESTAKING_CLAIM_OP,
