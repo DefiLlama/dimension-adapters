@@ -82,21 +82,6 @@ const configs: Record<string, SubgraphConfig> = {
   //     Revenue: 50,
   //   },
   // },
-  "upheaval-v3": {
-    graphUrls: {
-      [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3-fixed",
-    },
-    totalVolume: { factory: "factories" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 16,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 84,
-      Revenue: 16,
-    },
-    start: "2025-08-06",
-  },
   "metavault-v3": {
     graphUrls: {
       [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55804/metavault-v3/version/latest",
@@ -142,22 +127,6 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 10,
     },
     start: "2023-07-02",
-  },
-  "fusionx-v3": {
-    graphUrls: {
-      [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange-v3",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 16.7,
-      HoldersRevenue: 16.7,
-      Fees: 100,
-      UserFees: 100,
-      SupplySideRevenue: 66.6,
-      Revenue: 33.4,
-    },
-    start: "2023-07-13",
   },
   "winnieswap": {
     graphUrls: {
@@ -418,6 +387,21 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: '2026-01-20',
   },
+  tsunami: {
+    graphUrls: {
+      [CHAIN.INK]: "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/tsunami-v3/2.4.0/gn",
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    feesPercent: {
+      type: "fees",
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+      ProtocolRevenue: 0,
+      HoldersRevenue: 0,
+    },
+    start: '2026-03-14',
+  }
 };
 
 // Build protocols from configs

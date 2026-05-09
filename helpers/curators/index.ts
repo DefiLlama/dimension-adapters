@@ -349,11 +349,12 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
       [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Moroho',
       [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Moroho',
+      [METRICS.EulerPerformanceFee]: 'Management fees charged from vaults in Euler',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
       [METRICS.MorphoYieldsToSuppliers]: 'Interest yields generated from deposited assets in Morpho distributed to suppliers',
-      [METRICS.OtherAssetYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
+      [METRICS.EulerYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
     },
   }
   const exportObject: BaseAdapter = {}

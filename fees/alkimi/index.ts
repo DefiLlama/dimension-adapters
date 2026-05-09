@@ -11,7 +11,7 @@ const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptio
   if (!entry)
     throw new Error(`No Alkimi revenue data found for ${dateString}`);
 
-  const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
+  const revenueUsd = parseFloat(entry.alkimiRevenueInUSD || "0");
 
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();

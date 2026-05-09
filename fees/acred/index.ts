@@ -1,11 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { METRIC } from "../../helpers/metrics"
 import { getTokenSupply } from "../../helpers/solana";
 import * as sdk from "@defillama/sdk";
 import fetchURL from "../../utils/fetchURL";
 
-const chainConfig = {
+const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-10-29',
         token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
@@ -34,6 +33,12 @@ const chainConfig = {
         start: '2025-09-24',
         token: '0xf7fa6725183e603059fc23d95735bf67f72b2d78'
     },
+}
+
+const METRIC = {
+  AssetYields: 'ACRED Underlying Assets Yields.',
+  AssetYieldsToLP: 'ACRED Underlying Assets Yields To LPs.',
+  ManagementFees: 'Management Fees - ACRED',
 }
 
 const priceFeed = '0xD6BcbbC87bFb6c8964dDc73DC3EaE6d08865d51C'
@@ -98,11 +103,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const managementFeesForPeriod = currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
     const yieldForPeriod = priceChange * totalSupplyAfterDecimals;
 
-    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
+    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
 
-    dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields);
+    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP);
 
     return {
         dailyFees,
@@ -121,17 +126,17 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from ACRED price change",
-        [METRIC.MANAGEMENT_FEES]: "0.5% management fees collected by the protocol",
+        [METRIC.AssetYields]: "Increase yields calculated from ACRED price change",
+        [METRIC.ManagementFees]: "0.5% management fees collected by the protocol",
     },
     Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.5% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.5% management fees collected by the protocol",
     },
     ProtocolRevenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.5% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.5% management fees collected by the protocol",
     },
     SupplySideRevenue: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from ACRED price change",
+        [METRIC.AssetYieldsToLP]: "Increase yields calculated from ACRED price change",
     },
 }
 

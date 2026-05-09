@@ -1,5 +1,6 @@
 import { FetchOptions } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { getUniV3LogAdapter } from '../helpers/uniswap';
 import { httpGet } from '../utils/fetchURL';
 import BigNumber from 'bignumber.js';
 
@@ -26,68 +27,74 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     throw new Error("Failed to fetch pool data");
   }
 
-  const pools = (poolsResponse.data.pools).filter((pool:any)=>pool.protocol_version==='v3');
+  const pools = (poolsResponse.data.pools).filter((pool: any) => pool.protocol_version === 'v3');
+  const timeNow = Math.floor(Date.now() / 1000)
+  const isCloseToCurrentTime = Math.abs(timeNow - options.toTimestamp) < 3600 * 6 // 6 hour
 
-  const slot0Results = await options.api.multiCall({
-    abi: SLOT0_ABI,
-    calls: pools.map((p: any) => ({ target: p.address })),
-    chain: CHAIN.XLAYER,
-    permitFailure: true,
-  });
+  if (isCloseToCurrentTime) {
 
-  // 2. Iterate over pools and calculate revenue distribution
-  for (let i = 0; i < pools.length; i++) {
-    const pool = pools[i];
-    
-    // Use BigNumber to wrap the high-precision string values
-    const poolFees24h = new BigNumber(pool.fee_24h_usd);
-    const poolVolume24h = new BigNumber(pool.volume_24h_usd);
+    const slot0Results = await options.api.multiCall({
+      abi: SLOT0_ABI,
+      calls: pools.map((p: any) => ({ target: p.address })),
+      chain: CHAIN.XLAYER,
+      permitFailure: true,
+    });
 
-    // Use .plus() for accurate addition
-    dailyVolume = dailyVolume.plus(poolVolume24h);
-    dailyFees = dailyFees.plus(poolFees24h);
+    // 2. Iterate over pools and calculate revenue distribution
+    for (let i = 0; i < pools.length; i++) {
+      const pool = pools[i];
 
-    if (slot0Results[i]) {
-      // Extract feeProtocol0 (lower 4 bits) and feeProtocol1 (upper 4 bits)
-      const feeProtocolValue = Number(slot0Results[i].feeProtocol);
-      const feeProtocol0 = feeProtocolValue & 0x0F;
-      const feeProtocol1 = (feeProtocolValue >> 4) & 0x0F;
-      
-      // For combined USD fees, we use the average of (1/feeProtocol0 + 1/feeProtocol1) / 2
-      let protocolRevenueRatio = new BigNumber(0);
-      
-      if (feeProtocol0 > 0 && feeProtocol1 > 0) {
-        // Both tokens have protocol fee: average of (1/x1 + 1/x2) / 2
-        const ratio0 = new BigNumber(1).div(feeProtocol0);
-        const ratio1 = new BigNumber(1).div(feeProtocol1);
-        protocolRevenueRatio = ratio0.plus(ratio1).div(2);
-      } else if (feeProtocol0 > 0) {
-        // Only token0 has protocol fee
-        protocolRevenueRatio = new BigNumber(1).div(feeProtocol0);
-      } else if (feeProtocol1 > 0) {
-        // Only token1 has protocol fee
-        protocolRevenueRatio = new BigNumber(1).div(feeProtocol1);
-      }
-      
-      if (protocolRevenueRatio.gt(0)) {
-        // Protocol revenue = Total Fees * protocolRevenueRatio
-        const poolProtocolRevenue = poolFees24h.times(protocolRevenueRatio);
-        dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
+      // Use BigNumber to wrap the high-precision string values
+      const poolFees24h = new BigNumber(pool.fee_24h_usd);
+      const poolVolume24h = new BigNumber(pool.volume_24h_usd);
+
+      // Use .plus() for accurate addition
+      dailyVolume = dailyVolume.plus(poolVolume24h);
+      dailyFees = dailyFees.plus(poolFees24h);
+
+      if (slot0Results[i]) {
+        // Extract feeProtocol0 (lower 4 bits) and feeProtocol1 (upper 4 bits)
+        const feeProtocolValue = Number(slot0Results[i].feeProtocol);
+        const feeProtocol0 = feeProtocolValue & 0x0F;
+        const feeProtocol1 = (feeProtocolValue >> 4) & 0x0F;
+
+        // For combined USD fees, we use the average of (1/feeProtocol0 + 1/feeProtocol1) / 2
+        let protocolRevenueRatio = new BigNumber(0);
+
+        if (feeProtocol0 > 0 && feeProtocol1 > 0) {
+          // Both tokens have protocol fee: average of (1/x1 + 1/x2) / 2
+          const ratio0 = new BigNumber(1).div(feeProtocol0);
+          const ratio1 = new BigNumber(1).div(feeProtocol1);
+          protocolRevenueRatio = ratio0.plus(ratio1).div(2);
+        } else if (feeProtocol0 > 0) {
+          // Only token0 has protocol fee
+          protocolRevenueRatio = new BigNumber(1).div(feeProtocol0);
+        } else if (feeProtocol1 > 0) {
+          // Only token1 has protocol fee
+          protocolRevenueRatio = new BigNumber(1).div(feeProtocol1);
+        }
+
+        if (protocolRevenueRatio.gt(0)) {
+          // Protocol revenue = Total Fees * protocolRevenueRatio
+          const poolProtocolRevenue = poolFees24h.times(protocolRevenueRatio);
+          dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
+        }
       }
     }
+
+    const dailySupplySideRevenue = dailyFees.minus(dailyRevenue)
+
+    // Return the final values as strings
+    return {
+      dailyVolume: dailyVolume.toString(),
+      dailyFees: dailyFees.toString(),
+      dailyUserFees: dailyFees.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      dailyProtocolRevenue: dailyRevenue.toString(),
+      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+    }
   }
-  
-  const dailySupplySideRevenue = dailyFees.minus(dailyRevenue)
-  
-  // Return the final values as strings
-  return {
-    dailyVolume: dailyVolume.toString(),
-    dailyFees: dailyFees.toString(),
-    dailyUserFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-  };
+  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), userFeesRatio: 1, revenueRatio: 1 / 5, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 5 })(options)
 }
 
 export default {
@@ -96,7 +103,7 @@ export default {
   adapter: {
     [CHAIN.XLAYER]: {
       fetch: fetch,
-      runAtCurrTime: true,
+      start: '2025-10-20',
     },
   },
 };

@@ -540,7 +540,7 @@ export const exportHIP3DeployerAdapter = (
 
 export const exportBuilderAdapter = (
   builderAddresses: Array<string>,
-  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any> },
+  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean },
 ) => {
   const extraFields = props.extraReturnFields || {};
   const startDate = props.start ? props.start : "2025-08-01";
@@ -562,9 +562,9 @@ export const exportBuilderAdapter = (
               builder_address: address,
             });
             dailyVolume.addBalances(result.dailyVolume);
-            dailyFees.addBalances(result.dailyFees);
-            dailyRevenue.addBalances(result.dailyRevenue);
-            dailyProtocolRevenue.addBalances(result.dailyProtocolRevenue);
+            dailyFees.addBalances(result.dailyFees, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
+            dailyRevenue.addBalances(result.dailyRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
+            dailyProtocolRevenue.addBalances(result.dailyProtocolRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
           }
 
           return {

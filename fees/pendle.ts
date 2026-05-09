@@ -85,7 +85,6 @@ const chainConfig: IConfig = {
 
 const fetch = async (options: FetchOptions) => {
   const { chain } = options;
-  await getWhitelistedAssets(options.api);
   const { api, getLogs } = options;
 
   const dailyFees = options.createBalances()

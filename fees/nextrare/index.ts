@@ -1,11 +1,5 @@
 // NextRare — TCG gacha protocol on MegaETH.
 //
-// Income statement:
-//   dailyFees              = gift cards burned on pack opens × $5     (gross spend)
-//   dailySupplySideRevenue = USDm paid back to users via SellbackVault (refund cost)
-//   dailyRevenue           = dailyFees − dailySupplySideRevenue       (net to treasury)
-//   dailyProtocolRevenue   = dailyRevenue                              (no holders/LP split)
-//
 // A user buys gift cards (each = $5), opens packs by burning them, and may
 // sell unwanted draws back to the SellbackVault for USDm. The protocol earns
 // nothing on a card that is bought and then sold back, so net revenue is the
@@ -29,7 +23,6 @@
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const GIFT_CARD = "0x7D7d2c07196feFBD334B127136bCA1BD8EafFBF1";
 
@@ -52,13 +45,11 @@ const POOL_UPDATED =
 const SETTLED =
     "event Settled(uint64 indexed drawId, bool kept, uint256 value)";
 
-const LABEL_PACK_OPEN = "Pack Open";
-const LABEL_SELLBACK = "Sellback Refund";
-
 const fetch = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances(); // gross
-    const dailySupplySideRevenue = options.createBalances(); // refund cost
-    const dailyRevenue = options.createBalances(); // net = fees − supply-side
+    const dailyFees = options.createBalances(); 
+    const dailyVolume = options.createBalances();
+
+    let netFees = 0;
 
     // 1) Pack opens — gift cards burned today, valued at $5 each.
     const burnLogs = await options.getLogs({
@@ -69,7 +60,8 @@ const fetch = async (options: FetchOptions) => {
         if (String(log.to).toLowerCase() !== ZERO) continue;
         if (Number(log.id) !== GIFT_CARD_TOKEN_ID) continue;
         const usd = Number(log.value) * PRICE_PER_CARD_USD;
-        dailyFees.addUSDValue(usd, LABEL_PACK_OPEN);
+        dailyVolume.addUSDValue(usd);
+        netFees += usd;
     }
 
     // 2) Enumerate every GachaPool ever authorized on either vault.
@@ -97,45 +89,27 @@ const fetch = async (options: FetchOptions) => {
     for (const log of settled) {
             if (log.kept) continue; // kept=true means NFT mint; `value` is a tokenId, not money.
             const usd = Number(log.value) / 1e18;
-            dailySupplySideRevenue.addUSDValue(usd, LABEL_SELLBACK);
+            netFees -= usd;
         }
     }
 
-    const revenue = dailyFees.clone();
-    revenue.subtract(dailySupplySideRevenue);
-
-    const revenueInUsd = await revenue.getUSDValue();
-    dailyRevenue.addUSDValue(revenueInUsd, METRIC.PROTOCOL_FEES);
+    dailyFees.addUSDValue(netFees);
 
     return {
+        dailyVolume,
         dailyFees,
-        dailyRevenue,
-        dailySupplySideRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     };
 };
 
 const methodology = {
-    Fees: "Gross protocol fees on MegaETH: gift cards burned on pack opens (× $5 each).",
-    SupplySideRevenue: "USDm paid back to users via SellbackVault when they choose to sell back rather than keep an NFT — i.e. refunds.",
-    Revenue: "Net protocol revenue = Fees − SupplySideRevenue. The amount the NextRare treasury actually retains after refunds.",
-    ProtocolRevenue: "Same as Revenue — 100% accrues to the treasury (no LP, no holders, no split).",
+    Volume: "Total USDm spent on pack opens.",
+    Fees: "Volume - Sellback refunds. The amount the NextRare treasury actually retains after refunds.",
+    Revenue: "Volume - Sellback refunds. The amount the NextRare treasury actually retains after refunds.",
+    ProtocolRevenue: "Volume - Sellback refunds. The amount the NextRare treasury actually retains after refunds.",
 };
 
-const breakdownMethodology = {
-    Fees: {
-        [LABEL_PACK_OPEN]: "Gift cards burned by GachaPool.draw() (each card = $5). Detected via ERC-1155 TransferSingle to address(0) on the GiftCard contract, id=1.",
-    },
-    SupplySideRevenue: {
-        [LABEL_SELLBACK]: "USDm paid out by SellbackVault (current and prior) when a user opts not to keep an NFT. Detected via Settled(kept=false, value) on every GachaPool ever authorized on either vault.",
-    },
-    Revenue: {
-        [METRIC.PROTOCOL_FEES]: "The amount the NextRare treasury actually retains after refunds.",
-    },
-    ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "The amount the NextRare treasury actually retains after refunds.",
-    },
-};
 
 const adapter: SimpleAdapter = {
     version: 2,
@@ -145,7 +119,6 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.MEGAETH],
     start: "2026-04-06",
     methodology,
-    breakdownMethodology,
 };
 
 export default adapter;

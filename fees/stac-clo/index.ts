@@ -1,12 +1,17 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
-import { METRIC } from "../../helpers/metrics"
 
-const chainConfig = {
+const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-10-29',
         token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
     }
+}
+
+const METRIC = {
+  AssetYields: 'CLO Fund Underlying Assets Yields.',
+  AssetYieldsToLP: 'CLO Fund Underlying Assets Yields To LPs.',
+  ManagementFees: 'Management Fees - CLO Fund',
 }
 
 const priceFeed = "0xEdC6287D3D41b322AF600317628D7E226DD3add4"
@@ -52,11 +57,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const managementFeesForPeriod = currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
     const yieldForPeriod = priceChange * totalSupplyAfterDecimals;
 
-    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
-    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
+    dailyRevenue.addUSDValue(managementFeesForPeriod, METRIC.ManagementFees);
 
-    dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields);
+    dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP);
 
     return {
         dailyFees,
@@ -75,17 +80,17 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from STAC CLO price change",
-        [METRIC.MANAGEMENT_FEES]: "0.3% management fees collected by the protocol",
+        [METRIC.AssetYields]: "Increase yields calculated from STAC CLO price change",
+        [METRIC.ManagementFees]: "0.3% management fees collected by the protocol",
     },
     Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.3% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.3% management fees collected by the protocol",
     },
     ProtocolRevenue: {
-        [METRIC.MANAGEMENT_FEES]: "0.3% management fees collected by the protocol",
+        [METRIC.ManagementFees]: "0.3% management fees collected by the protocol",
     },
     SupplySideRevenue: {
-        [METRIC.ASSETS_YIELDS]: "Increase yields calculated from STAC CLO price change",
+        [METRIC.AssetYieldsToLP]: "Increase yields calculated from STAC CLO price change",
     },
 }
 

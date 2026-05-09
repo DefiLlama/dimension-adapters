@@ -1,10 +1,5 @@
-import {
-  Dependencies,
-  FetchOptions,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 
 // Douro Labs is the official Pyth Pro data distributor
@@ -14,6 +9,7 @@ import { queryDuneSql } from "../../helpers/dune";
 const DOURO_LABS_WALLET = "2ru31e9g8RF2mSSNgTQ11QMb166NE6LJccmBqGJM8xxy";
 const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
 
 const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -21,20 +17,20 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   // Query USDC transfers from Douro Labs wallet to Pyth DAO wallet
   const query = `
     SELECT
-      SUM(amount) as total_amount
+      token_mint_address,
+      COALESCE(SUM(amount), 0) as total_amount
     FROM tokens_solana.transfers
     WHERE block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
-      AND token_mint_address = '${USDC_MINT}'
+      AND token_mint_address IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_owner = '${DOURO_LABS_WALLET}'
       AND to_owner = '${PYTH_DAO_WALLET}'
+      GROUP BY token_mint_address
   `;
 
   const res = await queryDuneSql(options, query);
-  const amount = res[0]?.total_amount || 0;
 
-  if (amount > 0) {
-    // USDC has 6 decimals
-    dailyFees.add(ADDRESSES.solana.USDC, amount);
+  for (const tokenFees of res) {
+    dailyFees.add(tokenFees.token_mint_address, tokenFees.total_amount);
   }
 
   // Total fees = revenue / 0.6 (since Douro keeps 40%)
@@ -51,10 +47,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2025-01-01",
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
-    Fees: "USDC payments from Douro Labs (Pyth Pro data distributor) to Pyth DAO",
-    Revenue:
-      "Pyth DAO receives 60% of Pyth Pro subscription revenue from Douro Labs",
+    Fees: "60% of Pyth Pro subscription revenue from Douro Labs, paid in USDC and PYTH",
+    Revenue: "60% of Pyth Pro subscription revenue from Douro Labs, paid in USDC and PYTH",
   },
 };
 
