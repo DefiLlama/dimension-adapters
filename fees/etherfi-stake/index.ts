@@ -299,6 +299,18 @@ const adapter: Adapter = {
       [LABELS.SSV_STAKING_REWARDS]: "All rewards from SSV network staking.",
       [LABELS.OBOL_STAKING_REWARDS]: "All rewards from Obol network staking.",
     },
+    Revenue: {
+      [LABELS.ETH_STAKING_REWARDS]: "Protocol share of core ETH staking rewards.",
+      [LABELS.EIGEN_STAKING_REWARDS]: "Protocol share of EigenLayer staking & restaking.",
+      [LABELS.stETH_STAKING_REWARDS]: "Protocol share of stETH holding rewards.",
+      [LABELS.SSV_STAKING_REWARDS]: "Protocol share of SSV network staking.",
+      [LABELS.OBOL_STAKING_REWARDS]: "Protocol share of Obol network staking.",
+    },
+    SupplySideRevenue: {
+      [LABELS.ETH_STAKING_REWARDS]: "Staker share of core ETH staking rewards.",
+      [LABELS.EIGEN_STAKING_REWARDS]: "Staker share of EigenLayer staking & restaking.",
+      [LABELS.stETH_STAKING_REWARDS]: "Staker share of stETH holding rewards.",
+    },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: "ETHFI token buybacks executed by ether.fi.",
     },
