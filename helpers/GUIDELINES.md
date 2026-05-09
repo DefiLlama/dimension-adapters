@@ -46,6 +46,7 @@ Add a new helper when:
 |------|-----------|----------|
 | `chains.ts` | `CHAIN` constants | All supported chain identifiers |
 | `dune.ts` | Dune query helpers | Dune Analytics integration |
+| `duneChainStats.ts` | `duneChainStats`, `getDuneEvmActiveUsers`, `getDuneEvmNewUsers` | Chain-level EVM active/new user stats from Dune transaction tables |
 | `allium.ts` | Allium query helpers | Allium DB queries |
 | `indexer.ts` | `queryIndexer` | DefiLlama indexer queries |
 | `getBlock.ts` | Block lookup helpers | Get blocks by timestamp |
