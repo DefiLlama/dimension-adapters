@@ -66,13 +66,17 @@ const fetch = async (options: FetchOptions) => {
   );
   const totalAR = winstonByRange.reduce((sum, w) => sum + w, 0) / WINSTON_PER_AR;
 
-  dailyFees.addCGToken("arweave", totalAR);
+  dailyFees.addCGToken("arweave", totalAR, "Transaction Fees");
 
-  return { dailyFees };
+  // Arweave miners earn transaction fees as block rewards (PoW supply-side)
+  const dailySupplySideRevenue = dailyFees.clone(1);
+
+  return { dailyFees, dailySupplySideRevenue };
 };
 
 const methodology = {
   Fees: "Total transaction fees paid by users for base-layer Arweave transactions. Excludes bundled data items (which pay zero fees individually). Data sourced from Goldsky's Arweave GraphQL index.",
+  SupplySideRevenue: "Transaction fees earned by Arweave miners as block rewards for providing decentralized storage capacity.",
 };
 
 const adapter: SimpleAdapter = {
@@ -82,6 +86,14 @@ const adapter: SimpleAdapter = {
   start: "2018-06-08",
   protocolType: ProtocolType.CHAIN,
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "Transaction Fees": "Base-layer transaction fees paid by users, excluding zero-fee bundled data items.",
+    },
+    SupplySideRevenue: {
+      "Transaction Fees": "Fees distributed to Arweave miners for providing decentralized permanent storage.",
+    },
+  },
 };
 
 export default adapter;
