@@ -101,9 +101,11 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'active-users': [
     'users/list',
+    'duneEvmStats',
   ],
   'new-users': [
     'users/list:newUsers',
+    'duneEvmStats:newUsers',
   ]
 };
 
