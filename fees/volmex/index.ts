@@ -48,12 +48,23 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
-  const [collateralizedLogs, redeemedLogs] = await Promise.all([
-    options.getLogs({ targets, eventAbi: COLLATERALIZED_EVENT, flatten: false }),
-    options.getLogs({ targets, eventAbi: REDEEMED_EVENT, flatten: false }),
-  ]);
+  let collateralizedLogs: any[];
+  let redeemedLogs: any[];
+  try {
+    [collateralizedLogs, redeemedLogs] = await Promise.all([
+      options.getLogs({ targets, eventAbi: COLLATERALIZED_EVENT, flatten: false }),
+      options.getLogs({ targets, eventAbi: REDEEMED_EVENT, flatten: false }),
+    ]);
+  } catch (error) {
+    console.error(`[volmex-v1][${options.chain}] failed to fetch logs for ${targets.join(",")}`, error);
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue,
+    };
+  }
 
   markets.forEach(({ collateral }, index) => {
     for (const log of collateralizedLogs[index] ?? []) {
@@ -78,7 +89,6 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
   };
 };
 
