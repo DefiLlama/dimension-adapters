@@ -35,14 +35,14 @@ const chainConfig = {
     subManagement: null,
     navManager: null,
   },
-  // [CHAIN.SOLANA]: {
-  //   fetch: fetchSolana,
-  //   start: "2025-12-05",
-  //   token: "9DRPPWYud8i6CaSsDsFESs1xyVr8dBCMtjPZji2xiZEa",
-  //   manager: "FQ9X5cF6oWmGcH6XAsdkPwBj2mKWRoTXU2zGS1gCgBaJ",
-  //   subManagement: null,
-  //   navManager: "0x9056777AD890ECe386D646a5c698a9A6a779000B",
-  // },
+  [CHAIN.SOLANA]: {
+    fetch: fetchSolana,
+    start: "2025-12-05",
+    token: "9DRPPWYud8i6CaSsDsFESs1xyVr8dBCMtjPZji2xiZEa",
+    manager: "FQ9X5cF6oWmGcH6XAsdkPwBj2mKWRoTXU2zGS1gCgBaJ",
+    subManagement: null,
+    navManager: "0x9056777AD890ECe386D646a5c698a9A6a779000B",
+  },
 } satisfies Record<string, ChainConfig>;
 
 const EXCHANGE_RATE_SCALE = 1_000_000n;
