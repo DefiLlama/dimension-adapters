@@ -19,12 +19,14 @@ const config: Record<string, { exchange: string; royaltiesRegistry: string; feeR
   [CHAIN.ETHEREUM]: {
     exchange: "0x9757F2d2b135150BBeb65308D4a91804107cd8D6",
     royaltiesRegistry: "0xEa90CFad1b8e030B8Fd3E63D22074E0AEb8E0DCD",
+    // fee receiver, treasury
     feeReceivers: new Set(["0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a", "0xb6EC1d227D5486D344705663F700d90d947d7548"]),
     start: "2021-06-12",
   },
   [CHAIN.POLYGON]: {
     exchange: "0x12b3897a36fDB436ddE2788C06Eff0ffD997066e",
     royaltiesRegistry: "0xF2514F32aE798Ca29641F6E2313bacB1650Cc76f",
+    // fee receiver
     feeReceivers: new Set(["0x053F171c0D0Cc9d76247D4d1CdDb280bf1131390"]),
     start: "2022-02-21",
   },
