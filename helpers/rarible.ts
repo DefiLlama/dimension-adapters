@@ -34,6 +34,7 @@ function parseOriginFees(data: string): { account: string; bps: bigint }[] {
   }
 };
 
+/** Decodes Rarible matchOrders calldata, returning payment token, amount, seller, NFT identity, and origin fees. */
 export function decodeMatchOrders(input: string) {
   const { orderLeft, orderRight } = interfaces.matchOrders.parseTransaction({ data: input })!.args;
   // payment token is whichever side is not an NFT — check left makeAsset first, then right
@@ -66,6 +67,7 @@ export function decodeMatchOrders(input: string) {
   return { paymentToken, amount, seller, nftContract, nftTokenId, originFees };
 };
 
+/** Decodes Rarible directPurchase calldata, returning payment token, amount, seller, NFT identity, and origin fees. */
 export function decodeDirectPurchase(input: string) {
   const { direct } = interfaces.directPurchase.parseTransaction({ data: input })!.args;
   const paymentToken: string = direct.paymentToken;
@@ -74,6 +76,7 @@ export function decodeDirectPurchase(input: string) {
   return { paymentToken, amount: direct.buyOrderPaymentAmount as bigint, seller: direct.sellOrderMaker as string, nftContract, nftTokenId, originFees };
 };
 
+/** Decodes Rarible directAcceptBid calldata, returning payment token, amount, NFT identity, and origin fees. */
 export function decodeDirectAcceptBid(input: string) {
   const { direct } = interfaces.directAcceptBid.parseTransaction({ data: input })!.args;
   const [nftContract, nftTokenId] = ethers.AbiCoder.defaultAbiCoder().decode(["address", "uint256"], direct.nftData);
@@ -81,7 +84,8 @@ export function decodeDirectAcceptBid(input: string) {
   return { paymentToken: direct.paymentToken as string, amount: direct.bidPaymentAmount as bigint, seller: "", nftContract, nftTokenId, originFees };
 };
 
-export async function getDuneTrades(options: FetchOptions, exchange: string): Promise<any[]> {
+/** Fetches Rarible exchange calls for the given day via Dune traces. */
+export async function getDuneTrades(options: FetchOptions, exchange: string): Promise<{ input: string, txHash: string }[]> {
   return queryDuneSql(options, `
     SELECT tx_hash, input
     FROM CHAIN.traces
