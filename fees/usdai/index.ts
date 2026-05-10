@@ -51,6 +51,60 @@ const methodology = {
   SupplySideRevenue: "Interest paid to Staked USDai holders"
 };
 
+const METRICS = {
+  ASSET_YIELDS_WRAPPED_M : 'Asset yields - Wrapped M',
+  ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL : 'Asset yields - Wrapped M to protocol',
+  ASSET_YIELDS_WRAPPED_M_TO_SUSDAI : 'Asset yields - Wrapped M to staked USDai',
+  ASSET_YIELDS_PYUSD : 'Asset yields - PYUSD',
+  ASSET_YIELDS_PYUSD_TO_PROTOCOL : 'Asset yields - PYUSD to protocol',
+  ASSET_YIELDS_PYUSD_TO_SUSDAI : 'Asset yields - PYUSD to staked USDai',
+  ASSET_YIELDS_GPU_FINANCING : 'Asset yields - GPU-financing',
+  ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL : 'Asset yields - GPU-financing to protocol',
+  ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI : 'Asset yields - GPU-financing to staked USDai',
+  GPU_FINANCING_ORIGINATION_FEE : 'GPU-financing origination fee',
+  GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL : 'GPU-financing origination fee to protocol',
+  GPU_FINANCING_EXIT_FEE : 'GPU-financing exit fee',
+  GPU_FINANCING_EXIT_FEE_TO_PROTOCOL : 'GPU-financing exit fee to protocol',
+  GPU_FINANCING_LIQUIDATION_FEE : 'GPU-financing liquidation fee',
+  GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL : 'GPU-financing liquidation fee to protocol',
+  GPU_FINANCING_LENDER_LIQUIDATION_REPAID : 'GPU-financing lender liquidation repaid',
+  GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI : 'GPU-financing lender liquidation repaid to staked USDai',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRICS.ASSET_YIELDS_WRAPPED_M]: 'Asset yields from wrapped M (Tbill backed yields)',
+    [METRICS.ASSET_YIELDS_PYUSD]: 'Asset yields from PYUSD',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING]: 'Asset yields generated from GPU-financing',
+    [METRICS.GPU_FINANCING_ORIGINATION_FEE]: 'GPU-financing origination fee',
+    [METRICS.GPU_FINANCING_EXIT_FEE]: 'GPU-financing exit fee',
+    [METRICS.GPU_FINANCING_LIQUIDATION_FEE]: 'GPU-financing liquidation fee',
+    [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID]: 'GPU-financing lender liquidation repaid',
+  },
+  Revenue: {
+    [METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL]: 'Asset yields from wrapped M to protocol',
+    [METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL]: 'Asset yields from PYUSD to protocol',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: 'Asset yields from GPU-financing to protocol',
+    [METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL]: 'GPU-financing origination fee to protocol',
+    [METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL]: 'GPU-financing exit fee to protocol',
+    [METRICS.GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL]: 'GPU-financing liquidation fee to protocol',
+  },
+  ProtocolRevenue: {
+    [METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL]: 'Asset yields from wrapped M to protocol',
+    [METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL]: 'Asset yields from PYUSD to protocol',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: 'Asset yields from GPU-financing to protocol',
+    [METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL]: 'GPU-financing origination fee to protocol',
+    [METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL]: 'GPU-financing exit fee to protocol',
+    [METRICS.GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL]: 'GPU-financing liquidation fee to protocol',
+  },
+  SupplySideRevenue: {
+    [METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI]: 'Asset yields from wrapped M to staked USDai',
+    [METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI]: 'Asset yields from PYUSD to staked USDai',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI]: 'Asset yields from GPU-financing to staked USDai',
+    [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI]: 'GPU-financing lender liquidation repaid to staked USDai',
+  },
+}
+
 // Fetch function
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -63,9 +117,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     eventAbi: CLAIMED_EVENT_ABI
   });
   wrappedMBaseYieldLogs.filter((log: any) => log.recipient === SUSDAI).forEach((log: any) => {
-    dailyFees.add(WRAPPED_M, log.yield);
-    dailyRevenue.add(WRAPPED_M, log.yield * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE);
-    dailySupplySideRevenue.add(WRAPPED_M, log.yield * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE);
+    dailyFees.add(WRAPPED_M, log.yield, METRICS.ASSET_YIELDS_WRAPPED_M);
+    dailyRevenue.add(WRAPPED_M, log.yield * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL);
+    dailySupplySideRevenue.add(WRAPPED_M, log.yield * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI);
   });
 
   // Base yield from PYUSD (base token)
@@ -77,9 +131,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     // Unscale USDai amount from 18 decimals to 6 decimals for PYUSD
     const amount = BigInt(log.usdaiAmount) / BigInt(10 ** 12);
 
-    dailyFees.add(PYUSD, amount);
-    dailyRevenue.add(PYUSD, amount * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE);
-    dailySupplySideRevenue.add(PYUSD, amount * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE);
+    dailyFees.add(PYUSD, amount, METRICS.ASSET_YIELDS_PYUSD);
+    dailyRevenue.add(PYUSD, amount * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL);
+    dailySupplySideRevenue.add(PYUSD, amount * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI);
   });
 
   // Legacy pools for GPU-financing
@@ -98,9 +152,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.interest)
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE);
-    dailySupplySideRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * (BASIS_POINTS_SCALE - GPU_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE);
+    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
+    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+    dailySupplySideRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * (BASIS_POINTS_SCALE - GPU_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
   }
 
   // GPU-financing origination fee
@@ -113,8 +167,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.originationFee);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.originationFee);
+    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE);
+    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL);
   }
 
   // GPU-financing exit fee
@@ -127,8 +181,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.exitFee);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.exitFee);
+    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE);
+    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL);
   }
 
   // GPU-financing liquidation fee
@@ -141,8 +195,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.liquidationFee + log.surplus);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.liquidationFee + log.surplus);
+    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.liquidationFee + log.surplus, METRICS.GPU_FINANCING_LIQUIDATION_FEE);
+    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.liquidationFee + log.surplus, METRICS.GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL);
   }
 
   // GPU-financing lender liquidation repaid
@@ -155,8 +209,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.interest);
-    dailySupplySideRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest);
+    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.interest, METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID);
+    dailySupplySideRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest, METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI);
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
@@ -166,6 +220,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
