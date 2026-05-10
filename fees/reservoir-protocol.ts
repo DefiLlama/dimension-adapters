@@ -82,6 +82,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-04-17' },
     [CHAIN.ARBITRUM]: { start: '2025-05-12' },
+    [CHAIN.SEI]: { start: '2025-06-13' },
     [CHAIN.MONAD]: { start: '2026-01-01' },
   },
   allowNegativeValue: true,

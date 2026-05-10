@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "../../adapters/types";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 
@@ -8,6 +8,7 @@ const historicalVolumeEndpoint = (chain_id: number, page: number) => `https://ap
 
 interface IVolumeall {
   volDay: number;
+  feesDay: number;
   chainId: number;
   timestamp: number;
 }
@@ -22,7 +23,9 @@ const chains: TChains =  {
   [CHAIN.FLOW]: 747,
 };
 
-const fetch = async (_t: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (_t: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  const startTimestamp = options.startOfDay - 86400;
+  const endTimestamp = options.startOfDay;
   let isSuccess = true;
     let page = 1;
     const historical: IVolumeall[] = [];
@@ -35,12 +38,17 @@ const fetch = async (_t: any, _b: any, options: FetchOptions): Promise<FetchResu
         isSuccess = false;
       };
     };
-    const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
+    const historicalVolume = historical.filter(e =>
+      e.chainId === chains[options.chain] && e.timestamp > startTimestamp && e.timestamp < endTimestamp
+    );
     const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.timestamp).getTime()) === options.startOfDay)?.volDay
+      .reduce((sum, { volDay }) => sum + Number(volDay), 0);
+    const dailyFees = historicalVolume
+      .reduce((sum, { feesDay }) => sum + Number(feesDay), 0);
 
     return {
       dailyVolume: dailyVolume,
+      dailyFees: dailyFees,
     };
 }
 
