@@ -1,72 +1,57 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
 
 const COLLATERALIZED_EVENT =
   "event Collateralized(address indexed sender, uint256 collateralLock, uint256 positionTokensMinted, uint256 fees)";
 const REDEEMED_EVENT =
   "event Redeemed(address indexed sender, uint256 collateralReleased, uint256 volatilityIndexTokenBurned, uint256 inverseVolatilityIndexTokenBurned, uint256 fees)";
-
-type MarketConfig = {
-  target: string;
-  collateral: string;
-};
+const INDEX_REGISTERED_EVENT =
+  "event IndexRegistered(uint256 indexed indexCount, address indexed protocol)";
 
 const MINT_VOLUME = "Mint Volume";
 const REDEEM_VOLUME = "Redeem Volume";
 const MINT_REDEEM_FEES = "Mint/Redeem Fees";
 const MINT_REDEEM_FEES_TO_TREASURY = "Mint/Redeem Fees To Treasury";
 
-const V1_MARKETS: Record<string, MarketConfig[]> = {
-  [CHAIN.ETHEREUM]: [
-    { target: "0xa57fC404f69fCE71CA26e26f0A4DF7F35C8cd5C3", collateral: ADDRESSES.ethereum.DAI },
-    { target: "0x187922d4235D10239b2c6CCb2217aDa724F56DDA", collateral: ADDRESSES.ethereum.DAI },
-    { target: "0x1BB632a08936e17Ee3971E6Eeb824910567e120B", collateral: ADDRESSES.ethereum.USDC },
-    { target: "0x054FBeBD2Cb17205B57fb56a426ccc54cAaBFaBC", collateral: ADDRESSES.ethereum.USDC },
-  ],
-  [CHAIN.POLYGON]: [
-    { target: "0x164c668204Ce54558431997A6DD636Ee4E758b19", collateral: ADDRESSES.polygon.DAI },
-    { target: "0x90E6c403c02f72986a98E8a361Ec7B7C8BC29259", collateral: ADDRESSES.polygon.DAI },
-    { target: "0xEeb6f0C2261E21b657A27582466e5aD9acC072D7", collateral: ADDRESSES.polygon.USDC },
-    { target: "0xA2b3501d34edA289F0bEF1cAf95E5D0111032F36", collateral: ADDRESSES.polygon.USDC },
-  ],
-  [CHAIN.ARBITRUM]: [
-    { target: "0xE46277336d9CC2eBe7b24bA7268624F5f1495611", collateral: ADDRESSES.arbitrum.DAI },
-    { target: "0xf613b55131cf8a69c5b4f62d0d5e5d2c2d9c3280", collateral: ADDRESSES.arbitrum.DAI },
-    { target: "0xF9b04Aad2612D3d664F41E9aF5711953E058ff52", collateral: ADDRESSES.arbitrum.USDC },
-    { target: "0xdf87072ac4722431861837492edf7adbfec0efa9", collateral: ADDRESSES.arbitrum.USDC },
-  ],
+type FactoryConfig = { factory: string; fromBlock: number };
+
+const FACTORIES: Record<string, FactoryConfig> = {
+  [CHAIN.ETHEREUM]: { factory: "0x3ceea6a3c98c2489b09b820f62fe568b5e21e797", fromBlock: 12607954 },
+  [CHAIN.POLYGON]:  { factory: "0x0a5f89cdc9e008af95788b057f6d8741374ae697", fromBlock: 16848791 },
+  [CHAIN.ARBITRUM]: { factory: "0xee29f8e26285ebab06f20eb0e3e04161650dbefe", fromBlock: 2180226 },
 };
 
 const toBigInt = (value: bigint | number | string) => BigInt(value);
 
 const fetch = async (options: FetchOptions) => {
-  const markets = V1_MARKETS[options.chain];
-  const targets = markets.map(({ target }) => target);
+  const { factory, fromBlock } = FACTORIES[options.chain];
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  let collateralizedLogs: any[];
-  let redeemedLogs: any[];
-  try {
-    [collateralizedLogs, redeemedLogs] = await Promise.all([
-      options.getLogs({ targets, eventAbi: COLLATERALIZED_EVENT, flatten: false }),
-      options.getLogs({ targets, eventAbi: REDEEMED_EVENT, flatten: false }),
-    ]);
-  } catch (error) {
-    console.error(`[volmex-v1][${options.chain}] failed to fetch logs for ${targets.join(",")}`, error);
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
-    };
-  }
+  const indexRegisteredLogs = await options.getLogs({
+    target: factory,
+    eventAbi: INDEX_REGISTERED_EVENT,
+    fromBlock,
+    onlyArgs: true,
+    cacheInCloud: true,
+  });
+  const targets: string[] = indexRegisteredLogs.map((log: any) => log.protocol);
 
-  markets.forEach(({ collateral }, index) => {
+  const collaterals: string[] = await options.api.multiCall({
+    abi: "address:collateral",
+    calls: targets,
+  });
+
+  const [collateralizedLogs, redeemedLogs] = await Promise.all([
+    options.getLogs({ targets, eventAbi: COLLATERALIZED_EVENT, flatten: false }),
+    options.getLogs({ targets, eventAbi: REDEEMED_EVENT, flatten: false }),
+  ]);
+
+  targets.forEach((_, index) => {
+    const collateral = collaterals[index];
     for (const log of collateralizedLogs[index] ?? []) {
       const fees = toBigInt(log.fees);
       dailyVolume.add(collateral, toBigInt(log.collateralLock) + fees, MINT_VOLUME);
@@ -96,7 +81,6 @@ const methodology = {
   Fees: "Volmex V1 mint and redeem fees emitted by the protocol Collateralized and Redeemed events.",
   Revenue: "All tracked V1 mint and redeem fees accrue to the protocol treasury.",
   ProtocolRevenue: "All tracked V1 mint and redeem fees accrue to the protocol treasury.",
-  SupplySideRevenue: "Volmex V1 mint and redeem protocol fees do not have a supply-side split.",
   Volume: "Gross V1 mint and redeem collateral notional, calculated as net collateral emitted by the event plus the fee amount.",
 };
 
@@ -122,15 +106,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: "2021-05-01",
+      start: "2021-06-10",
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: "2021-08-02",
+      start: "2021-07-14",
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: "2022-05-14",
+      start: "2021-10-13",
     },
   },
   methodology,
