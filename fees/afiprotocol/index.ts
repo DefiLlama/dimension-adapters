@@ -8,7 +8,7 @@ const USDC = coreAssets.ethereum.USDC;
 const chainConfig: Record<string, { start: string; yield: string }> = {
   [CHAIN.ETHEREUM]: {
     yield: "0xb82b080791dFA4aa6Cac8c3f9c0fcb4471C9FEaD",
-    start: "2025-08-23",
+    start: "2025-07-20",
   },
 };
 
