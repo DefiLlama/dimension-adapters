@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers } from "ethers";
-import { PromisePool } from "@supercharge/promise-pool";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { getDuneTrades, decodeMatchOrders, decodeDirectPurchase, decodeDirectAcceptBid, MATCH_ORDERS_ID, DIRECT_PURCHASE_ID } from "../../helpers/rarible";
 
 const config: Record<string, { exchange: string; start: string }> = {
@@ -24,28 +23,30 @@ const fetch = async (options: FetchOptions) => {
 
   if (!rows.length) {
     return { dailyVolume };
-  };
+  }
 
-  const { errors } = await PromisePool
-    .withConcurrency(20)
-    .for(rows)
-    .process(async (row: any) => {
-      const input: string = row.input;
-      const selector = input.slice(0, 10);
-      try {
-        const { paymentToken, amount } = selector === MATCH_ORDERS_ID ? decodeMatchOrders(input)
-          : selector === DIRECT_PURCHASE_ID ? decodeDirectPurchase(input)
-          : decodeDirectAcceptBid(input);
-        if (paymentToken === ethers.ZeroAddress) {
-          dailyVolume.addGasToken(amount);
-        } else {
-          dailyVolume.add(paymentToken, amount);
-        }
-      } catch (e: any) { console.error("[dexs/rarible] decode error:", e?.message, "selector:", selector); }
-    });
-
-  if (errors.length) {
-    errors.forEach(e => console.error("[dexs/rarible] error:", e.message));
+  for (const row of rows) {
+    const input: string = row.input;
+    const selector = input.slice(0, 10);
+    try {
+      let decoded;
+      if (selector === MATCH_ORDERS_ID) {
+        decoded = decodeMatchOrders(input);
+      } else if (selector === DIRECT_PURCHASE_ID) {
+        decoded = decodeDirectPurchase(input);
+      } else {
+        // directAcceptBid
+        decoded = decodeDirectAcceptBid(input);
+      }
+      const { paymentToken, amount } = decoded;
+      if (paymentToken === ADDRESSES.null) {
+        dailyVolume.addGasToken(amount);
+      } else {
+        dailyVolume.add(paymentToken, amount);
+      }
+    } catch (e: any) { 
+      console.error("[dexs/rarible] decode error:", e?.message, "selector:", selector); 
+    };
   };
 
   return { dailyVolume };

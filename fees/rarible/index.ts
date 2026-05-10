@@ -1,39 +1,30 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getProvider } from "@defillama/sdk";
-import { ethers } from "ethers";
-import { PromisePool } from "@supercharge/promise-pool";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { getDuneTrades, decodeMatchOrders, decodeDirectPurchase, decodeDirectAcceptBid, MATCH_ORDERS_ID, DIRECT_PURCHASE_ID } from "../../helpers/rarible";
 
 const GET_ROYALTIES_ABI = "function getRoyalties(address token, uint256 tokenId) returns ((address account, uint96 value)[])";
 const PROTOCOL_FEE_ABI = "function protocolFee() view returns (address receiver, uint48 buyerAmount, uint48 sellerAmount)";
-
-async function getProtocolFeeBps(chain: string, exchange: string): Promise<number> {
-  const provider = getProvider(chain);
-  const contract = new ethers.Contract(exchange, [PROTOCOL_FEE_ABI], provider as any);
-  const [, buyerAmount, sellerAmount] = await contract.protocolFee();
-  return Number(buyerAmount) + Number(sellerAmount);
-};
 
 const config: Record<string, { exchange: string; royaltiesRegistry: string; feeReceivers: Set<string>; start: string }> = {
   [CHAIN.ETHEREUM]: {
     exchange: "0x9757F2d2b135150BBeb65308D4a91804107cd8D6",
     royaltiesRegistry: "0xEa90CFad1b8e030B8Fd3E63D22074E0AEb8E0DCD",
     // fee receiver, treasury
-    feeReceivers: new Set(["0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a", "0xb6EC1d227D5486D344705663F700d90d947d7548"]),
+    feeReceivers: new Set(["0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a", "0xb6ec1d227d5486d344705663f700d90d947d7548"]),
     start: "2021-06-12",
   },
   [CHAIN.POLYGON]: {
     exchange: "0x12b3897a36fDB436ddE2788C06Eff0ffD997066e",
     royaltiesRegistry: "0xF2514F32aE798Ca29641F6E2313bacB1650Cc76f",
     // fee receiver
-    feeReceivers: new Set(["0x053F171c0D0Cc9d76247D4d1CdDb280bf1131390"]),
+    feeReceivers: new Set(["0x053f171c0d0cc9d76247d4d1cddb280bf1131390"]),
     start: "2022-02-21",
   },
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, chain } = options;
+  const { createBalances, chain, api } = options;
   const { exchange, royaltiesRegistry, feeReceivers } = config[chain];
   const dailyFees = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -45,7 +36,8 @@ const fetch = async (options: FetchOptions) => {
     return { dailyFees, dailySupplySideRevenue, dailyRevenue };
   };
 
-  const protocolFeeBps = await getProtocolFeeBps(chain, exchange);
+  const { buyerAmount, sellerAmount } = await api.call({ target: exchange, abi: PROTOCOL_FEE_ABI });
+  const protocolFeeBps = Number(buyerAmount) + Number(sellerAmount);
 
   const trades: { 
     paymentToken: string; 
@@ -74,48 +66,41 @@ const fetch = async (options: FetchOptions) => {
     };
   };
 
-  const registry = new ethers.Contract(royaltiesRegistry, [GET_ROYALTIES_ABI], getProvider(chain) as any);
+  const royaltyData = await options.api.multiCall({
+     abi: GET_ROYALTIES_ABI,
+     calls: trades.map(t => ({ target: royaltiesRegistry, params: [t.nftContract, t.nftTokenId.toString()] })),
+     permitFailure: true,
+  });
 
-  const { errors: tradeErrors } = await PromisePool
-    .withConcurrency(10)
-    .for(trades)
-    .process(async ({ paymentToken, amount, nftContract, nftTokenId, originFees }) => {
-      let royaltyBps = 0n;
-      try {
-        const parts = await registry.getRoyalties.staticCall(nftContract, nftTokenId);
-        royaltyBps = (parts as any[]).reduce((sum, r) => sum + BigInt(r.value), 0n);
-      } catch (e: any) {
-        console.error("[fees/rarible] getRoyalties error:", e?.message, nftContract);
-      };
-      const protocolFee = amount * BigInt(protocolFeeBps) / 10000n;
-      const royaltyFee = amount * royaltyBps / 10000n;
-      const protocolOriginFee = originFees
-        .filter(({ account }) => feeReceivers.has(account))
-        .reduce((sum, { bps }) => sum + amount * bps / 10000n, 0n);
-      const supplySideOriginFee = originFees
-        .filter(({ account }) => !feeReceivers.has(account))
-        .reduce((sum, { bps }) => sum + amount * bps / 10000n, 0n);
-      if (paymentToken === ethers.ZeroAddress) {
-        dailyFees.addGasToken(protocolFee, "Protocol Fees");
-        dailyFees.addGasToken(protocolOriginFee + supplySideOriginFee, "Origin Fees");
-        dailyFees.addGasToken(royaltyFee, "Royalties");
-        dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
-        dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees");
-        dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees");
-        dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
-      } else {
-        dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
-        dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
-        dailyFees.add(paymentToken, royaltyFee, "Royalties");
-        dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
-        dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees");
-        dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees");
-        dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
-      };
-    });
 
-  if (tradeErrors.length) {
-    tradeErrors.forEach(e => console.error("[fees/rarible] trade error:", e.message));
+  for (const [i, { amount, originFees, paymentToken }] of trades.entries()) {
+    const royaltyInfo = royaltyData[i] ?? [];
+    const royaltyBps = (royaltyInfo as any[]).reduce((sum, r) => sum + BigInt(r.value ?? 0), 0n);
+    const protocolFee = amount * BigInt(protocolFeeBps) / 10000n;
+    const royaltyFee = amount * royaltyBps / 10000n;
+    const protocolOriginFee = originFees
+      .filter(({ account }) => feeReceivers.has(account))
+      .reduce((sum, { bps }) => sum + amount * bps / 10000n, 0n);
+    const supplySideOriginFee = originFees
+      .filter(({ account }) => !feeReceivers.has(account))
+      .reduce((sum, { bps }) => sum + amount * bps / 10000n, 0n);
+    if (paymentToken === ADDRESSES.null) {
+      dailyFees.addGasToken(protocolFee, "Protocol Fees");
+      dailyFees.addGasToken(protocolOriginFee + supplySideOriginFee, "Origin Fees");
+      dailyFees.addGasToken(royaltyFee, "Royalties");
+      dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
+      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees");
+      dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees");
+      dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
+    } else {
+      dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
+      dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
+      dailyFees.add(paymentToken, royaltyFee, "Royalties");
+      dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
+      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees");
+      dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees");
+      dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
+    };
   };
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue };
