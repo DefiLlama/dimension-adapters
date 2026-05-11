@@ -4,9 +4,9 @@ import { METRIC } from '../helpers/metrics';
 import { addTokensReceived } from '../helpers/token';
 
 type ChainConfig = {
-  collector?: string;
-  collectors?: string[];
+  collectors: string[];
   start: string;
+  skipIndexer: boolean;
 }
 
 // Verified Illuvium revenue wallets; deprecated Fuel Exchange and REVDIS distribution wallets are excluded.
@@ -17,35 +17,30 @@ const chainConfig: Record<string, ChainConfig> = {
       "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177",
     ],
     start: '2026-02-09',
+    skipIndexer: true,
   },
   [CHAIN.ETHEREUM]: {
-    collector: "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177",
+    collectors: [
+      "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177",
+    ],
     start: '2025-03-26',
+    skipIndexer: false,
   }
 }
 
-const normalizeNativeBalance = (balance: string | [token: string, balance: string]) =>
-  Array.isArray(balance) ? balance[1] : balance;
-
 const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
   const config = chainConfig[options.chain]
   const collectorSet = new Set(config.collectors?.map(address => address.toLowerCase()))
   const inflows = await addTokensReceived({
     options,
-    target: config.collector,
     targets: config.collectors,
-    skipIndexer: true,
+    skipIndexer: config.skipIndexer,
     logFilter: (log) => !collectorSet.has(String(log.from ?? log.fromAddress ?? log.sender ?? '').toLowerCase()),
   })
-  const dailyFees = inflows.clone(1, METRIC.SERVICE_FEES)
 
-  if (config.collector) {
-    const preBalance = await options.fromApi.getEthBalance(config.collector)
-    const postBalance = await options.toApi.getEthBalance(config.collector)
-    const nativeDelta = BigInt(normalizeNativeBalance(postBalance)) - BigInt(normalizeNativeBalance(preBalance))
-
-    if (nativeDelta > 0n) dailyFees.addGasToken(nativeDelta, METRIC.SERVICE_FEES)
-  }
+  dailyFees.add(inflows, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
