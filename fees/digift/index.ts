@@ -8,6 +8,7 @@ type ChainConfig = {
   fetch?: (options: FetchOptions) => Promise<any>;
   start: string;
   token: string;
+  tokenDecimals: number;
   manager: string;
   subManagement: string | null;
   navManager: string | null;
@@ -17,6 +18,7 @@ const chainConfig = {
   [CHAIN.ETHEREUM]: {
     start: "2024-05-24",
     token: "0x50293DD8889B931EB3441d2664dce8396640B419",
+    tokenDecimals: 6,
     manager: "0x9056777AD890ECe386D646a5c698a9A6a779000B",
     subManagement: "0x3797C46db697c24a983222c335F17Ba28e8c5b69",
     navManager: null,
@@ -24,6 +26,7 @@ const chainConfig = {
   [CHAIN.ARBITRUM]: {
     start: "2025-07-23",
     token: "0xc26af85ede9cc25d449bcebef866bb85afd5d346",
+    tokenDecimals: 6,
     manager: "0x33A5038ad4D4185c4719C3bE2CFBF56327E334F0",
     subManagement: null,
     navManager: null,
@@ -31,6 +34,7 @@ const chainConfig = {
   [CHAIN.AVAX]: {
     start: "2025-10-02",
     token: "0x51626db85482b2fa9901271c18627ebefa8875ac",
+    tokenDecimals: 6,
     manager: "0xda92C74bE76ac8FDC040A88CffA4D302DCf1A54c",
     subManagement: null,
     navManager: null,
@@ -39,12 +43,15 @@ const chainConfig = {
     fetch: fetchSolana,
     start: "2025-12-05",
     token: "9DRPPWYud8i6CaSsDsFESs1xyVr8dBCMtjPZji2xiZEa",
+    tokenDecimals: 6,
     manager: "FQ9X5cF6oWmGcH6XAsdkPwBj2mKWRoTXU2zGS1gCgBaJ",
     subManagement: null,
     navManager: "0x9056777AD890ECe386D646a5c698a9A6a779000B",
   },
 } satisfies Record<string, ChainConfig>;
 
+// DigiFT managers return NAV as USD with 6 decimals. After removing this
+// exchange-rate scale, values are still in ULTRA token raw units.
 const EXCHANGE_RATE_SCALE = 1_000_000n;
 const MANAGEMENT_FEE_NUMERATOR = 15n; // 0.15% annual management fee.
 const MANAGEMENT_FEE_DENOMINATOR = 10_000n;
@@ -78,11 +85,13 @@ const fetch = async (options: FetchOptions) => {
   const navYield = (supplyRaw * (BigInt(rateEnd) - BigInt(rateStart))) / EXCHANGE_RATE_SCALE;
   const aum = (supplyRaw * BigInt(rateEnd)) / EXCHANGE_RATE_SCALE;
   const managementFees = (aum * MANAGEMENT_FEE_NUMERATOR * BigInt(options.toTimestamp - options.fromTimestamp)) / (MANAGEMENT_FEE_DENOMINATOR * ONE_YEAR);
+  const navYieldUsd = Number(navYield) / 10 ** config.tokenDecimals;
+  const managementFeesUsd = Number(managementFees) / 10 ** config.tokenDecimals;
 
-  dailyFees.addUSDValue(Number(navYield) / 1e6, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(Number(navYield) / 1e6, METRIC.ASSETS_YIELDS);
-  dailyFees.addUSDValue(Number(managementFees) / 1e6, METRIC.MANAGEMENT_FEES);
-  dailyRevenue.addUSDValue(Number(managementFees) / 1e6, METRIC.MANAGEMENT_FEES);
+  dailyFees.addUSDValue(navYieldUsd, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addUSDValue(navYieldUsd, METRIC.ASSETS_YIELDS);
+  dailyFees.addUSDValue(managementFeesUsd, METRIC.MANAGEMENT_FEES);
+  dailyRevenue.addUSDValue(managementFeesUsd, METRIC.MANAGEMENT_FEES);
 
   return {
     dailyFees,
@@ -120,11 +129,13 @@ async function fetchSolana(options: FetchOptions) {
   const navYield = (supplyRaw * (BigInt(rateEnd) - BigInt(rateStart))) / EXCHANGE_RATE_SCALE;
   const aum = (supplyRaw * BigInt(rateEnd)) / EXCHANGE_RATE_SCALE;
   const managementFees = (aum * MANAGEMENT_FEE_NUMERATOR * BigInt(options.toTimestamp - options.fromTimestamp)) / (MANAGEMENT_FEE_DENOMINATOR * ONE_YEAR);
+  const navYieldUsd = Number(navYield) / 10 ** config.tokenDecimals;
+  const managementFeesUsd = Number(managementFees) / 10 ** config.tokenDecimals;
 
-  dailyFees.addUSDValue(Number(navYield) / 1e6, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(Number(navYield) / 1e6, METRIC.ASSETS_YIELDS);
-  dailyFees.addUSDValue(Number(managementFees) / 1e6, METRIC.MANAGEMENT_FEES);
-  dailyRevenue.addUSDValue(Number(managementFees) / 1e6, METRIC.MANAGEMENT_FEES);
+  dailyFees.addUSDValue(navYieldUsd, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addUSDValue(navYieldUsd, METRIC.ASSETS_YIELDS);
+  dailyFees.addUSDValue(managementFeesUsd, METRIC.MANAGEMENT_FEES);
+  dailyRevenue.addUSDValue(managementFeesUsd, METRIC.MANAGEMENT_FEES);
 
   return {
     dailyFees,
