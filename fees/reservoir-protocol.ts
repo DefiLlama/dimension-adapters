@@ -44,6 +44,13 @@ async function prefetch(options: FetchOptions): Promise<any> {
     priceFrom:       priceFrom.toString(),
     priceTo:         priceTo.toString(),
     wsrBridgedTotal: wsrBridgedTotal.toString(),
+    // Track which chains contributed to wsrBridgedTotal so non-ETH fetch()
+    // can skip chains that failed here — prevents double-counting supply side.
+    bridgedChains: {
+      [CHAIN.ARBITRUM]: arbResult.status === 'fulfilled',
+      [CHAIN.MONAD]:    monadResult.status === 'fulfilled',
+      [CHAIN.SEI]:      seiResult.status === 'fulfilled',
+    },
   };
 }
 
@@ -79,6 +86,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     if (wsrCircYield  !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield, METRIC.ASSETS_YIELDS);
     if (srYield       !== 0n) dailySupplySideRevenue.add(RUSD, srYield,      METRIC.ASSETS_YIELDS);
   } else {
+    const bridgedChains = options.preFetchedResults.bridgedChains as Record<string, boolean> | undefined;
+    if (!(bridgedChains?.[options.chain] ?? false)) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+
     const supply = await options.api.call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' });
     const yield_ = BigInt(supply) * wsrRateDelta / WAD;
     if (yield_ !== 0n) dailySupplySideRevenue.add(RUSD, yield_, METRIC.ASSETS_YIELDS);
