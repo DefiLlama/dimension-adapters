@@ -89,7 +89,7 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addGasToken(protocolOriginFee + supplySideOriginFee, "Origin Fees");
       dailyFees.addGasToken(royaltyFee, "Royalties");
       dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
-      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees To Rarible");
+      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees To Protocol");
       dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees To Users");
       dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
     } else {
@@ -97,7 +97,7 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
       dailyFees.add(paymentToken, royaltyFee, "Royalties");
       dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
-      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees To Rarible");
+      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees To Protocol");
       dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees To Users");
       dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
     };
@@ -123,7 +123,7 @@ const breakdownMethodology = {
     "Royalties": "Royalties are supply side costs.",
   },
   Revenue: {
-    "Origin Fees To Rarible": "Origin fees paid to Rarible.",
+    "Origin Fees To Protocol": "Origin fees paid to Rarible.",
     "Protocol Fees": "Fees retained by Rarible.",
   },
 };
