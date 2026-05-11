@@ -113,7 +113,7 @@ const aptosData = async (options: any) => {
         max_by(json_extract_scalar(move_data, '$.current.value'), block_time) as supply
       from aptos.move_resources
       where block_time < from_unixtime(${options.endTimestamp})
-        and move_address = ${metadata}
+        and move_address = '${metadata}'
         and move_resource_module = 'fungible_asset'
         and move_resource_name = 'ConcurrentSupply'
     ),
