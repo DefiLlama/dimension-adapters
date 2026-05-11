@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
-const HUB = '0x8880b95E1a056d537FA7469D1a26C3875e85f0e7'
+const HUB = '0x888956E46d2af8F6B2890a39E55542219F4bd192'
 const ORDER_EXECUTED_EVENT = 'event OrderExecuted(bytes32 indexed orderKey, uint128 liquidity, uint256 fee0, uint256 fee1, uint256 returned0, uint256 returned1)'
 const VAULT_HUB_ABI = 'function hub() view returns (address)'
 
