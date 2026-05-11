@@ -98,10 +98,41 @@ const estimateManagementFee = (totalSupply: bigint | number | string, bps: numbe
   return getSupplyInUsd(totalSupply) * (bps / 10_000) * getPeriodFraction(options, SECONDS_PER_YEAR);
 }
 
+const getRedstonePrices = (symbol: string, fromTimestamp?: number, toTimestamp?: number) => {
+  const timeParams = fromTimestamp && toTimestamp
+    ? `&fromTimestamp=${fromTimestamp * 1000}&toTimestamp=${toTimestamp * 1000}`
+    : '';
+  return httpGet(`https://api.redstone.finance/prices?symbol=${encodeURIComponent(symbol)}&provider=redstone&limit=1${timeParams}`);
+}
+
 const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
-  // allow it to throw errors instead of try/catch
-  const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
-  return prices?.[0]?.value ?? 0;
+  try {
+    const prices = await getRedstonePrices(symbol, options.fromTimestamp, options.toTimestamp);
+    if (prices?.[0]?.value !== undefined) return prices[0].value;
+  } catch (error: any) {
+    console.warn(`Failed to fetch RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
+  }
+
+  try {
+    const prices = await getRedstonePrices(symbol);
+    return prices?.[0]?.value ?? 0;
+  } catch (error: any) {
+    console.warn(`Failed to fetch latest RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
+    return 0;
+  }
+}
+
+const queryOptionalDuneYield = async (options: FetchOptions, sql: string) => {
+  try {
+    return await queryDuneSql(options, sql) as IData[];
+  } catch (error: any) {
+    const message = error?.message ?? `${error}`;
+    if (message.includes('DUNE_API_KEYS environment variable is not set')) {
+      console.warn('Skipping BUIDL yield query because DUNE_API_KEYS environment variable is not set');
+      return [];
+    }
+    throw error;
+  }
 }
 const isWeekend = (timestampSeconds: number) =>
   [0, 6].includes(
@@ -200,7 +231,7 @@ const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<Fe
 
   // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
   if (!isWeekend(options.endTimestamp)) {
-    const yiedData: IData[] = await queryDuneSql(options, sql)
+    const yiedData = await queryOptionalDuneYield(options, sql)
     if (yiedData[0]?.total_yield) {
       dailyFees.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield, METRIC.AssetYields)
       dailySupplySideRevenue.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield, METRIC.AssetYieldsToLP)
@@ -251,7 +282,7 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
   `
   // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
   if (!isWeekend(options.endTimestamp)) {
-    const yieldData: IData[] = await queryDuneSql(options, sql)
+    const yieldData = await queryOptionalDuneYield(options, sql)
     if (yieldData[0]?.total_yield) {
       dailyFees.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYields)
       dailySupplySideRevenue.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYieldsToLP)
