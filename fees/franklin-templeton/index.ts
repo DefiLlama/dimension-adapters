@@ -158,7 +158,7 @@ const aptosData = async (options: any) => {
 const evmData = async (options: any, config: any) => {
   const { controllers, tokens } = config;
   const tokenValues = tokens
-    .map((token) => `(${token})`)
+    .map((token : any) => `(${token})`)
     .join(",\n        ");
   const controllerValues = controllers
     .map((controller: string) => `(${controller})`)
