@@ -5,6 +5,7 @@ import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
 import {getBlock} from "../../helpers/getBlock";
 import {httpGet} from "../../utils/fetchURL";
+import {getEnv} from "../../helpers/env";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -98,41 +99,23 @@ const estimateManagementFee = (totalSupply: bigint | number | string, bps: numbe
   return getSupplyInUsd(totalSupply) * (bps / 10_000) * getPeriodFraction(options, SECONDS_PER_YEAR);
 }
 
-const getRedstonePrices = (symbol: string, fromTimestamp?: number, toTimestamp?: number) => {
-  const timeParams = fromTimestamp && toTimestamp
-    ? `&fromTimestamp=${fromTimestamp * 1000}&toTimestamp=${toTimestamp * 1000}`
-    : '';
-  return httpGet(`https://api.redstone.finance/prices?symbol=${encodeURIComponent(symbol)}&provider=redstone&limit=1${timeParams}`);
+const getRedstonePrices = (symbol: string, fromTimestamp: number, toTimestamp: number) => {
+  return httpGet(`https://api.redstone.finance/prices?symbol=${encodeURIComponent(symbol)}&provider=redstone&limit=1&fromTimestamp=${fromTimestamp * 1000}&toTimestamp=${toTimestamp * 1000}`);
 }
 
 const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
-  try {
-    const prices = await getRedstonePrices(symbol, options.fromTimestamp, options.toTimestamp);
-    if (prices?.[0]?.value !== undefined) return prices[0].value;
-  } catch (error: any) {
-    console.warn(`Failed to fetch RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
-  }
-
-  try {
-    const prices = await getRedstonePrices(symbol);
-    return prices?.[0]?.value ?? 0;
-  } catch (error: any) {
-    console.warn(`Failed to fetch latest RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
-    return 0;
-  }
+  const prices = await getRedstonePrices(symbol, options.fromTimestamp, options.toTimestamp);
+  if (prices?.[0]?.value === undefined) throw new Error(`Missing RedStone daily accrual for ${symbol}`);
+  return prices[0].value;
 }
 
 const queryOptionalDuneYield = async (options: FetchOptions, sql: string) => {
-  try {
-    return await queryDuneSql(options, sql) as IData[];
-  } catch (error: any) {
-    const message = error?.message ?? `${error}`;
-    if (message.includes('DUNE_API_KEYS environment variable is not set')) {
-      console.warn('Skipping BUIDL yield query because DUNE_API_KEYS environment variable is not set');
-      return [];
-    }
-    throw error;
+  if (!getEnv('DUNE_API_KEYS')) {
+    console.warn('Skipping BUIDL yield query because DUNE_API_KEYS environment variable is not set');
+    return [];
   }
+
+  return await queryDuneSql(options, sql) as IData[];
 }
 const isWeekend = (timestampSeconds: number) =>
   [0, 6].includes(
