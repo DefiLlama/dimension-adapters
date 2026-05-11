@@ -11,9 +11,11 @@ const BABYLON_START_TIMESTAMP = 1769724590;
 const chainConfig = {
   [CHAIN.CORE]: {
     start: "2025-01-08",
-    fetch,
     coreVault: "0xee21ab613d30330823D35Cf91A84cE964808B83F",
     dualBtcVault: "0x13E3eC65EFeB0A4583c852F4FaF6b2Fb31Ff04b1",
+  },
+  [CHAIN.BABYLON]: {
+    start: "2026-01-29",
   },
 };
 
@@ -90,13 +92,17 @@ async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  await addCoreFees(options, dailyFees, dailyRevenue, dailySupplySideRevenue);
-  await addBabylonFees(options, dailyFees, dailyRevenue, dailySupplySideRevenue);
+  if (options.chain === CHAIN.BABYLON) {
+    await addBabylonFees(options, dailyFees, dailyRevenue, dailySupplySideRevenue);
+  } else {
+    await addCoreFees(options, dailyFees, dailyRevenue, dailySupplySideRevenue);
+  }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: chainConfig,
   methodology: {
     Fees: "Gross yield earned by b14g Core products and Babylon rewards distributed to b14g.",
