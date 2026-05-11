@@ -85,18 +85,18 @@ const fetch = async (options: any) => {
   const config = chainConfig[options.chain] as any;
 
   const [folds, sells, buys, barks] = await Promise.all([
-    options.getLogs({ target: config.vat, eventAbi: ABI.fold, entireLog: true }),
+    options.getLogs({ target: config.vat, eventAbi: ABI.fold }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.sellGem, flatten: true }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.buyGem, flatten: true }),
     options.getLogs({ target: config.dog, eventAbi: ABI.bark, entireLog: true }),
   ]);
 
   for (const log of folds) {
-    const rateDelta = BigInt(log.rate ?? log.args?.rate ?? 0);
+    const rateDelta = BigInt(log.rate ?? 0);
     if (rateDelta <= 0n) continue;
 
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.i ?? log.args?.i] });
+    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.i] });
     const fee = toWad(BigInt(art) * rateDelta);
 
     dailyFees.add(config.usdd, fee, METRIC.BORROW_INTEREST);
