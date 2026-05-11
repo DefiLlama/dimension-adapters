@@ -71,7 +71,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       };
 
     const feeLogs = await options.getLogs({
-      noTarget: true,
+      targets: [...managers],
       eventAbi: feeDistributedAbi,
       entireLog: true,
       cacheInCloud: true,
@@ -111,7 +111,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM],
-  start: "2025-05-12",
+  start: "2025-12-12",
   methodology,
   breakdownMethodology,
 };
