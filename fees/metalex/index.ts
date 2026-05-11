@@ -78,7 +78,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     });
 
     feeLogs.forEach((log: any) => {
-      if (!managers.has(log.address?.toLowerCase())) return;
       dailyFees.add(String(log.args.feeToken).toLowerCase(), log.args.totalFe, METRIC.SERVICE_FEES);
     });
   } catch (e) {
