@@ -4,7 +4,6 @@ import {
   SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { getETHReceived } from "../../helpers/token";
 
 const MARKETPLACE_FEE_COLLECTOR = "0x4ed28973Bc386655E541864e6964C780b9B92354";
@@ -22,8 +21,8 @@ const fetch = async (options: FetchOptions) => {
     target: GAME_TREASURY,
   });
 
-  dailyFees.addBalances(marketplaceFees, METRIC.TRADING_FEES);
-  dailyFees.addBalances(gameFees, METRIC.SERVICE_FEES);
+  dailyFees.add(marketplaceFees, 'Marketplace Trading Fees');
+  dailyFees.add(gameFees, 'In-Game Services Fees');
 
   return {
     dailyFees,
@@ -42,22 +41,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]:
-      "Marketplace fees collected in ETH and routed to the Aveforge fee collector wallet on MegaETH.",
-    [METRIC.SERVICE_FEES]:
-      "In-game transaction fees (store purchases, etc.) collected in MegaETH and routed to the game treasury wallet.",
+    'Marketplace Trading Fees': "Marketplace fees collected in ETH and routed to the Aveforge fee collector wallet on MegaETH.",
+    'In-Game Services Fees': "In-game transaction fees (store purchases, etc.) collected in MegaETH and routed to the game treasury wallet.",
   },
   Revenue: {
-    [METRIC.TRADING_FEES]:
-      "Marketplace fees retained by the protocol fee collector wallet.",
-    [METRIC.SERVICE_FEES]:
-      "In-game fees retained by the protocol game treasury wallet.",
+    'Marketplace Trading Fees': "Marketplace fees retained by the protocol fee collector wallet.",
+    'In-Game Services Fees': "In-game fees retained by the protocol game treasury wallet.",
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]:
-      "Marketplace fees accruing to the protocol-controlled fee collector wallet.",
-    [METRIC.SERVICE_FEES]:
-      "In-game fees accruing to the protocol-controlled game treasury wallet.",
+    'Marketplace Trading Fees': "Marketplace fees accruing to the protocol-controlled fee collector wallet.",
+    'In-Game Services Fees': "In-game fees accruing to the protocol-controlled game treasury wallet.",
   },
 };
 
