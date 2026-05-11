@@ -36,7 +36,7 @@ async function getAlliumData(options: FetchOptions) {
         AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
 
-    SELECT 'pack_purchases' AS category, mint AS token, SUM(raw_amount) AS amount
+    SELECT 'pack_purchases' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE to_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
@@ -46,7 +46,7 @@ async function getAlliumData(options: FetchOptions) {
 
     UNION ALL
 
-    SELECT 'card_buybacks' AS category, mint AS token, SUM(raw_amount) AS amount
+    SELECT 'card_buybacks' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
@@ -56,7 +56,7 @@ async function getAlliumData(options: FetchOptions) {
 
     UNION ALL
 
-    SELECT 'marketplace_fees' AS category, '${READY_MINT}' AS token, SUM(raw_amount) AS amount
+    SELECT 'marketplace_fees' AS category, '${READY_MINT}' AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE to_address = '${READY_CARDS_TREASURY}'
       AND mint = '${READY_MINT}'
@@ -66,7 +66,7 @@ async function getAlliumData(options: FetchOptions) {
 
     UNION ALL
 
-    SELECT 'token_buyback_spends' AS category, mint AS token, SUM(raw_amount) AS amount
+    SELECT 'token_buyback_spends' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
@@ -93,7 +93,6 @@ async function getAlliumData(options: FetchOptions) {
 async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
-    const dailyUserFees = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
     const { packPurchases, marketplaceFees, cardBuybacks, tokenBuybackSpends } = await getAlliumData(options);
@@ -111,11 +110,9 @@ async function fetch(options: FetchOptions) {
 
     dailyProtocolRevenue.subtract(tokenBuybackSpends, "Token Buyback Spends");
 
-
     return {
         dailyVolume,
         dailyFees,
-        dailyUserFees,
         dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
