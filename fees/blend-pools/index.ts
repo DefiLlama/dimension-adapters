@@ -15,7 +15,7 @@ type BlendV1Row = {
   borrow_interest_raw: string | number;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -144,7 +144,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   start: "2024-05-02",
   chains: [CHAIN.STELLAR],

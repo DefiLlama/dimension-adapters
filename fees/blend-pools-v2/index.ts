@@ -11,7 +11,7 @@ type BlendV2Row = {
   backstop_revenue_raw: string | number;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -171,7 +171,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   start: "2025-04-14",
   chains: [CHAIN.STELLAR],
