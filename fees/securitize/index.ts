@@ -19,7 +19,6 @@ const METRIC = {
 
 type EvmContract = {
   address: string;
-  start: string;
   bps?: number;
   dailyAccrualFeed?: string;
 }
@@ -31,61 +30,60 @@ const EVM_CONTRACTS: Record<string, any> = {
     contracts: [
       {
         address: '0x7712c34205737192402172409a8f7ccef8aa2aec',
-        start: '2024-03-01',
       },
       {
         address: '0x6a9DA2D710BB9B700acde7Cb81F10F1fF8C89041',
-        start: '2024-12-17',
         bps: 20,
         dailyAccrualFeed: 'BUIDL_I_ETHEREUM_DAILY_ACCRUAL',
       }
     ],
     bps: 50,
+    start: '2024-03-01',
   },
   [CHAIN.POLYGON]: {
     contracts: [
       {
         address: '0x2893ef551b6dd69f661ac00f11d93e5dc5dc0e99',
-        start: '2024-11-04',
       },
     ],
-    bps: 20
+    bps: 20,
+    start: '2024-11-04',
   },
   [CHAIN.AVAX]: {
     contracts: [
       {
         address: '0x53fc82f14f009009b440a706e31c9021e1196a2f',
-        start: '2024-11-04',
       },
     ],
-    bps: 20
+    bps: 20,
+    start: '2024-11-04',
   },
   [CHAIN.OPTIMISM]: {
     contracts: [
       {
         address: '0xa1cdab15bba75a80df4089cafba013e376957cf5',
-        start: '2024-11-04',
       },
     ],
-    bps: 50
+    bps: 50,
+    start: '2024-11-04',
   },
   [CHAIN.ARBITRUM]: {
     contracts: [
       {
         address: '0xa6525ae43edcd03dc08e775774dcabd3bb925872',
-        start: '2024-11-04',
       },
     ],
-    bps: 50
+    bps: 50,
+    start: '2024-11-04',
   },
   [CHAIN.BSC]: {
     contracts: [
       {
         address: '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f',
-        start: '2025-10-08',
       },
     ],
-    bps: 18
+    bps: 18,
+    start: '2025-10-08',
   },
 }
 const SECONDS_PER_DAY = 24 * 60 * 60;
@@ -101,13 +99,9 @@ const estimateManagementFee = (totalSupply: bigint | number | string, bps: numbe
 }
 
 const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
-  try {
-    const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
-    return prices?.[0]?.value ?? 0;
-  } catch (error: any) {
-    console.warn(`Failed to fetch RedStone daily accrual for ${symbol}: ${error.message ?? error}`);
-    return 0;
-  }
+  // allow it to throw errors instead of try/catch
+  const prices = await httpGet(`https://api.redstone.finance/prices?symbol=${symbol}&provider=redstone&limit=1&fromTimestamp=${options.fromTimestamp * 1000}&toTimestamp=${options.toTimestamp * 1000}`);
+  return prices?.[0]?.value ?? 0;
 }
 const isWeekend = (timestampSeconds: number) =>
   [0, 6].includes(
@@ -282,29 +276,19 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
 
 const adapters: SimpleAdapter = {
   version: 1,
-  pullHourly: true,
   dependencies: [Dependencies.DUNE],
-  adapter: Object.keys(EVM_CONTRACTS).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetchEvm,
-        start: EVM_CONTRACTS[chain].contracts.map((c: EvmContract) => c.start).sort()[0], // return the oldest contract deployment date from array of contracts
-        pullHourly: true,
-      }
-    }
-  }, {
+  fetch: fetchEvm, // default for EVM chains
+  adapter: {
+    ...EVM_CONTRACTS,
     [CHAIN.APTOS]: {
       fetch: fetchAptos,
       start: '2024-12-17',
-      pullHourly: true,
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2025-03-24',
-      pullHourly: true,
     },
-  }),
+  },
   methodology: {
     Fees: "Total yields generated from the fund's underlying assets (U.S. Treasuries and repo agreements) plus the management fees charged by BlackRock",
     Revenue: "Management fees (18-50 bps depending on the blockchain and BUIDL share class)",
