@@ -29,12 +29,18 @@ const methodology = {
     "All collected fees accrue to protocol-controlled wallets (marketplace fee collector and game treasury).",
 };
 
+const breakdownMethodology = {
+  trading_fees: "User-paid game transaction fees collected in ETH on MegaETH.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.MEGAETH],
   start: "2026-02-07",
   fetch,
   methodology,
+  breakdownMethodology,
   dependencies: [Dependencies.ALLIUM],
 };
 
