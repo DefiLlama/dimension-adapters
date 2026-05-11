@@ -1,12 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import coreAssets from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-const chainConfig: Record<string, { start: string; yield: string, yieldToken: string }> = {
+const chainConfig: Record<string, { start: string; yield: string }> = {
   [CHAIN.ETHEREUM]: {
     yield: "0xb82b080791dFA4aa6Cac8c3f9c0fcb4471C9FEaD",
-    yieldToken: coreAssets.ethereum.USDC,
     start: "2025-08-20",
   },
 };
@@ -24,18 +22,17 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: DISTRIBUTE_YIELD_EVENT,
   });
 
-  const yieldToken = chainConfig[options.chain].yieldToken;
   logs.forEach((log) => {
     const sign = log.profit ? 1n : -1n;
 
     // count all fees from yields
-    dailyFees.add(yieldToken, (log.amount + log.feeAmount) * sign, METRIC.ASSETS_YIELDS);
+    dailyFees.add(log.asset, (log.amount + log.feeAmount) * sign, METRIC.ASSETS_YIELDS);
 
     // breakdown yields to stakers
-    dailySupplySideRevenue.add(yieldToken, log.amount * sign, 'Assets Yields To Stakers');
-    
+    dailySupplySideRevenue.add(log.asset, log.amount * sign, 'Assets Yields To Stakers');
+
     // breakdown performance fees
-    dailyRevenue.add(yieldToken, log.feeAmount * sign, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(log.asset, log.feeAmount * sign, METRIC.PERFORMANCE_FEES);
   });
 
   return {
