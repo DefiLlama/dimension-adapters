@@ -65,8 +65,6 @@ const tronDebt = (items: any[], timestamp: number) => {
 
 const fetch = async (options: any) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   if (options.chain === CHAIN.TRON) {
     const [collaterals, history] = await Promise.all([
@@ -76,10 +74,8 @@ const fetch = async (options: any) => {
     const fee = tronDebt(history.data?.items ?? [], options.startTimestamp) * tronRate(collaterals.data?.items ?? []) / 365;
 
     dailyFees.addUSDValue(fee, METRIC.BORROW_INTEREST);
-    dailyRevenue.addUSDValue(fee, METRIC.BORROW_INTEREST);
 
-    dailyProtocolRevenue.addBalances(dailyRevenue);
-    return { dailyFees, dailyRevenue, dailyProtocolRevenue };
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 
   const config = chainConfig[options.chain] as any;
@@ -100,7 +96,6 @@ const fetch = async (options: any) => {
     const fee = toWad(BigInt(art) * rateDelta);
 
     dailyFees.add(config.usdd, fee, METRIC.BORROW_INTEREST);
-    dailyRevenue.add(config.usdd, fee, METRIC.BORROW_INTEREST);
   }
 
   for (const log of [...sells, ...buys]) {
@@ -108,7 +103,6 @@ const fetch = async (options: any) => {
     if (!fee) continue;
 
     dailyFees.add(config.usdd, fee, METRIC.MINT_REDEEM_FEES);
-    dailyRevenue.add(config.usdd, fee, METRIC.MINT_REDEEM_FEES);
   }
 
   for (const log of barks) {
@@ -118,11 +112,9 @@ const fetch = async (options: any) => {
     if (!penalty) continue;
 
     dailyFees.add(config.usdd, penalty, METRIC.LIQUIDATION_FEES);
-    dailyRevenue.add(config.usdd, penalty, METRIC.LIQUIDATION_FEES);
   }
 
-  dailyProtocolRevenue.addBalances(dailyRevenue);
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
