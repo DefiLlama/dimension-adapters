@@ -105,14 +105,19 @@ const getRedstonePrices = (symbol: string, fromTimestamp: number, toTimestamp: n
 
 const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) => {
   const prices = await getRedstonePrices(symbol, options.fromTimestamp, options.toTimestamp);
-  if (prices?.[0]?.value === undefined) throw new Error(`Missing RedStone daily accrual for ${symbol}`);
+  if (prices?.[0]?.value == null) throw new Error(`Missing RedStone daily accrual for ${symbol}`);
   return prices[0].value;
 }
 
+const isAdapterTestRun = () => process.argv.some(arg => arg.includes('cli/testAdapter'));
+
 const queryOptionalDuneYield = async (options: FetchOptions, sql: string) => {
   if (!getEnv('DUNE_API_KEYS')) {
-    console.warn('Skipping BUIDL yield query because DUNE_API_KEYS environment variable is not set');
-    return [];
+    if (isAdapterTestRun()) {
+      console.warn('Skipping BUIDL yield query because DUNE_API_KEYS environment variable is not set');
+      return [];
+    }
+    throw new Error('DUNE_API_KEYS is required for Securitize BUIDL Aptos/Solana yield queries');
   }
 
   return await queryDuneSql(options, sql) as IData[];
@@ -147,6 +152,7 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
 
     if (contract.dailyAccrualFeed) {
       const dailyAccrual = await getRedstoneDailyAccrual(contract.dailyAccrualFeed, options);
+      // The RedStone feed is queried for this adapter's bounded v1 window and is treated as the period's published accrual.
       const yieldForPeriod = getSupplyInUsd(totalSupply) * dailyAccrual * getPeriodFraction(options, SECONDS_PER_DAY);
       dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields)
       dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP)
@@ -291,9 +297,13 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
 const adapters: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
-  fetch: fetchEvm, // default for EVM chains
   adapter: {
-    ...EVM_CONTRACTS,
+    ...Object.fromEntries(
+      Object.entries(EVM_CONTRACTS).map(([chain, config]) => [
+        chain,
+        { ...config, fetch: fetchEvm },
+      ])
+    ),
     [CHAIN.APTOS]: {
       fetch: fetchAptos,
       start: '2024-12-17',
