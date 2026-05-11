@@ -73,7 +73,7 @@ const addCoreFees = async (options: FetchOptions, dailyFees: Balance, dailyReven
 
   for (const log of await options.getLogs({ target: coreVault, eventAbi: abi.withdrawDirect })) {
     dailyFees.addGasToken(log.fee, METRIC.DEPOSIT_WITHDRAW_FEES);
-    dailyRevenue.addGasToken(log.fee, METRIC.PROTOCOL_FEES);
+    dailyRevenue.addGasToken(log.fee, METRIC.DEPOSIT_WITHDRAW_FEES);
   }
 
   const marketplaceRewardLogs = await options.getLogs({ target: dualBtcVault, eventAbi: abi.claimMarketplaceReward });
@@ -100,8 +100,8 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Fees: "Gross yield earned by b14g Core products and Babylon rewards distributed to b14g.",
-    Revenue: "Protocol cut of b14g Core product rewards and Babylon distributed rewards.",
-    ProtocolRevenue: "Protocol cut of b14g Core product rewards and Babylon distributed rewards.",
+    Revenue: "Protocol cut of b14g Core product rewards, Babylon distributed rewards, and instant withdrawal fees.",
+    ProtocolRevenue: "Protocol cut of b14g Core product rewards, Babylon distributed rewards, and instant withdrawal fees.",
     SupplySideRevenue: "Net yield distributed to BTC, CORE, and BABY stakers.",
   },
   breakdownMethodology: {
@@ -111,9 +111,11 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]: "Protocol fee charged on b14g Core product rewards and Babylon distributed rewards.",
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Instant withdrawal fees charged by the dualCORE vault.",
     },
     ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: "Protocol fee charged on b14g Core product rewards and Babylon distributed rewards.",
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Instant withdrawal fees charged by the dualCORE vault.",
     },
     SupplySideRevenue: {
       [METRIC.STAKING_REWARDS]: "Net staking rewards distributed to BTC, CORE, and BABY stakers; Babylon rewards are counted fully as supply-side rewards.",
