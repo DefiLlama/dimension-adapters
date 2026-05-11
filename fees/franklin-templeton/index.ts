@@ -14,22 +14,30 @@ const chainConfig: any = {
       "0x3DDc84940Ab509C11B20B76B466933f40b750dc9",
       "0x90276e9d4A023b5229E0C2e9D4b2a83fe3A2b48c",
     ],
+    controllers: [
+      "0x8C8Bfc3151C2161a4baD77268e246A08e5D9c666",
+      "0xab266e4fa5d088cc440433c3ea1e066fd710a0a5",
+    ],
   },
   [CHAIN.POLYGON]: {
     start: "2023-10-04",
     tokens: ["0x408a634b8a8f0de729b48574a3a7ec3fe820b00a"],
+    controllers: ["0x72254A323775123BA500b00CaCf3662367Ef52fa"],
   },
   [CHAIN.ARBITRUM]: {
     start: "2025-01-01",
     tokens: ["0xB9e4765BCE2609bC1949592059B17Ea72fEe6C6A"],
+    controllers: ["0x3A1540808757b7D9813de9843A9fb4b580844745"],
   },
   [CHAIN.AVAX]: {
     start: "2025-01-01",
     tokens: ["0xE08b4c1005603427420e64252a8b120cacE4D122"],
+    controllers: ["0xf208FF7C8aA13a3bF79b56146aAFe81e1Ca27044"],
   },
   [CHAIN.BASE]: {
     start: "2025-01-01",
     tokens: ["0x60CfC2b186a4CF647486e42c42B11cC6D571d1E4"],
+    controllers: ["0x095D7B0210C8347C6e080b52b8c3444297f9b27b"],
   },
   [CHAIN.APTOS]: {
     start: "2026-05-01",
@@ -45,6 +53,7 @@ const chainConfig: any = {
   [CHAIN.BSC]: {
     start: "2025-01-01",
     tokens: ["0x3d0a2A3a30a43a2C1C4b92033609245E819ae6a6"],
+    controllers: ["0x6C4dD0157B714e269E11242e2a4812Ab2c043318"],
   },
   [CHAIN.STELLAR]: {
     start: "2023-10-04",
@@ -83,7 +92,13 @@ const stellarData = async (options: any) => {
     ),
     dividends as (
       select
-        sum(o.amount) as daily_dividends
+        sum(
+          case
+            when regexp_like(t.memo, 'DIVR\\s+\\d{4}-\\d{2}-\\d{2}\\s+-') then -o.amount
+            when o."to" = '${issuer}' then -o.amount
+            else o.amount
+          end
+        ) as daily_dividends
       from stellar.history_operations o
       join stellar.history_transactions t
         on o.transaction_id = t.id
@@ -92,7 +107,7 @@ const stellarData = async (options: any) => {
         and o.asset_code = '${assetCode}'
         and o.asset_issuer = '${issuer}'
         and o.type_string = 'payment'
-        and o."from" = '${issuer}'
+        and (o."from" = '${issuer}' or o."to" = '${issuer}')
         and t.memo like 'DIVR %'
     )
     select
@@ -113,13 +128,19 @@ const aptosData = async (options: any) => {
         max_by(json_extract_scalar(move_data, '$.current.value'), block_time) as supply
       from aptos.move_resources
       where block_time < from_unixtime(${options.endTimestamp})
-        and move_address = '${metadata}'
+        and move_address = ${metadata}
         and move_resource_module = 'fungible_asset'
         and move_resource_name = 'ConcurrentSupply'
     ),
     dividends as (
       select
-        sum(cast(json_extract_scalar(data, '$.shares') as double)) as daily_dividends
+        sum(
+          case
+            when json_extract_scalar(data, '$.negative_yield') = 'true'
+              then -cast(json_extract_scalar(data, '$.shares') as double)
+            else cast(json_extract_scalar(data, '$.shares') as double)
+          end
+        ) as daily_dividends
       from aptos.events
       where block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
@@ -134,9 +155,13 @@ const aptosData = async (options: any) => {
   return formatData(queryResults[0], options);
 };
 
-const evmData = async (options: any, tokens: string[]) => {
+const evmData = async (options: any, config: any) => {
+  const { controllers, tokens } = config;
   const tokenValues = tokens
     .map((token) => `(${token})`)
+    .join(",\n        ");
+  const controllerValues = controllers
+    .map((controller: string) => `(${controller})`)
     .join(",\n        ");
 
   const query = `
@@ -144,23 +169,26 @@ const evmData = async (options: any, tokens: string[]) => {
       values
         ${tokenValues}
     ),
-    chain_logs as (
+    controllers(contract_address) as (
+      values
+        ${controllerValues}
+    ),
+    supply_logs as (
       select
-        l.block_time,
-        l.tx_hash,
-        l.contract_address,
-        l.topic0,
         l.topic1,
         l.topic2,
         l.data
       from CHAIN.logs l
+      join tokens t
+        on l.contract_address = t.contract_address
       where l.block_time < from_unixtime(${options.endTimestamp})
+        and l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
         and (
-          l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-          or l.topic0 = 0xe0b019f23e4f4948c15bdd9dfa8808b046568a2fda0f2978492dcc284fb79c9a
+          l.topic1 = 0x0000000000000000000000000000000000000000000000000000000000000000
+          or l.topic2 = 0x0000000000000000000000000000000000000000000000000000000000000000
         )
     ),
-    supply_transfers as (
+    supply as (
       select
         sum(
           case
@@ -169,41 +197,23 @@ const evmData = async (options: any, tokens: string[]) => {
             else 0
           end
         ) / 1e${EVM_BENJI_DECIMALS} as supply
-      from chain_logs l
-      join tokens t
-        on l.contract_address = t.contract_address
-      where l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-        and (
-          l.topic1 = 0x0000000000000000000000000000000000000000000000000000000000000000
-          or l.topic2 = 0x0000000000000000000000000000000000000000000000000000000000000000
-        )
-    ),
-    dividend_txs as (
-      select distinct
-        l.tx_hash
-      from chain_logs l
-      join tokens t
-        on l.contract_address = t.contract_address
-      where TIME_RANGE
-        and l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-        and l.topic1 = 0x0000000000000000000000000000000000000000000000000000000000000000
+      from supply_logs l
     ),
     dividends as (
-      -- DividendDistributed is emitted by a controller contract, so first anchor on BENJI/iBENJI mint txs.
       select
         case
           when bytearray_to_uint256(bytearray_substring(l.data, 161, 32)) = 1
             then -cast(bytearray_to_uint256(bytearray_substring(l.data, 65, 32)) as double)
           else cast(bytearray_to_uint256(bytearray_substring(l.data, 65, 32)) as double)
         end / 1e${EVM_BENJI_DECIMALS} as shares
-      from chain_logs l
-      join dividend_txs d
-        on l.tx_hash = d.tx_hash
+      from CHAIN.logs l
+      join controllers c
+        on l.contract_address = c.contract_address
       where TIME_RANGE
         and l.topic0 = 0xe0b019f23e4f4948c15bdd9dfa8808b046568a2fda0f2978492dcc284fb79c9a
     )
     select
-      coalesce((select supply from supply_transfers), 0) as supply,
+      coalesce((select supply from supply), 0) as supply,
       coalesce(sum(shares), 0) as asset_yields
     from dividends
   `;
@@ -232,24 +242,24 @@ const solanaData = async (options: any) => {
         and token_mint_address = '${mint}'
         and action in ('mint', 'burn')
     ),
-    dividend_txs as (
-      select
-        id as tx_id
-      from solana.transactions
+    benji_txs as (
+      select distinct tx_id
+      from tokens_solana.transfers
       where block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
-        and contains(log_messages, 'Program log: Instruction: DistributeDividend2')
+        and token_mint_address = '${mint}'
     ),
     dividends as (
       select
-        coalesce(sum(t.amount), 0) as daily_dividends
-      from tokens_solana.transfers t
-      join dividend_txs d
-        on t.tx_id = d.tx_id
-      where t.block_time >= from_unixtime(${options.startTimestamp})
-        and t.block_time < from_unixtime(${options.endTimestamp})
-        and t.token_mint_address = '${mint}'
-        and t.action = 'mint'
+        coalesce(sum(cast(regexp_extract(log_message, 'Shares Minted: ([0-9]+)', 1) as double)), 0) as daily_dividends
+      from solana.transactions tx
+      join benji_txs b
+        on tx.id = b.tx_id
+      cross join unnest(tx.log_messages) as t(log_message)
+      where tx.block_time >= from_unixtime(${options.startTimestamp})
+        and tx.block_time < from_unixtime(${options.endTimestamp})
+        and contains(tx.log_messages, 'Program log: Instruction: DistributeDividend2')
+        and regexp_like(log_message, 'Shares Minted: [0-9]+')
     )
     select
       coalesce((select supply from supply), 0) / ${divisor} as supply,
@@ -272,7 +282,7 @@ const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
         ? await aptosData(options)
         : api.chain === CHAIN.SOLANA
           ? await solanaData(options)
-          : await evmData(options, chainConfig[chain].tokens);
+          : await evmData(options, chainConfig[chain]);
 
   dailyFees.addUSDValue(data.managementFees, METRIC.MANAGEMENT_FEES);
   dailyFees.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
@@ -286,17 +296,17 @@ const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]:
-      "0.20% net expense ratio prorated over the fetch period and applied to BENJI shares outstanding.",
+      "Estimated fund expenses using the 0.20% net expense ratio applied to BENJI shares outstanding.",
     [METRIC.ASSETS_YIELDS]:
-      "BENJI/iBENJI distributions from EVM DividendDistributed shares, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar DIVR issuer payments.",
+      "Net income distributed to BENJI holders. If the fund records negative yield, it reduces this amount.",
   },
   Revenue: {
     [METRIC.MANAGEMENT_FEES]:
-      "Fund management fees retained by Franklin Templeton.",
+      "Estimated fund expenses retained by Franklin Templeton.",
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]:
-      "BENJI/iBENJI distributions paid to fund shareholders as newly minted shares or issuer payments.",
+      "Net income passed through to BENJI holders.",
   },
 };
 
@@ -306,11 +316,11 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Fees:
-      "BENJI distributions from DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer transactions with DIVR memos, plus fund-level expenses calculated from a 0.20% net expense ratio on total supply.",
+      "Includes income generated by the fund and distributed to BENJI holders, plus estimated fund expenses based on the 0.20% net expense ratio.",
     Revenue:
-      "Franklin Templeton fund expenses, calculated from a 0.20% net expense ratio on total supply.",
+      "Estimated fund expenses retained by Franklin Templeton.",
     SupplySideRevenue:
-      "BENJI distributions/newly minted fund shares distributed to holders, using DividendDistributed shares on EVM chains, Solana DistributeDividend2 mint transactions, Aptos DividendDistributed events, and Stellar BENJI issuer payments with DIVR memos.",
+      "Net income distributed to BENJI holders. Negative yield reduces this amount.",
   },
   breakdownMethodology,
   isExpensiveAdapter: true,
