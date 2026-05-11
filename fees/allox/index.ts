@@ -22,36 +22,39 @@ const padAddress = (addr: string): string =>
   "0x" + "0".repeat(24) + addr.slice(2).toLowerCase();
 
 const fetch = (chain: string) => async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-  
-    const swapFeeTopic =
-      "0x" + "0".repeat(24) + FEE_RECIPIENT.slice(2).toLowerCase();
-  
-    const swapFeeLogs = await options.getLogs({
+  const dailyFees = options.createBalances();
+
+  // 1) Swap fees — 0.25% of every swap output collected at FEE_RECIPIENT.
+  try {
+    const swapLogs = await options.getLogs({
       noTarget: true,
-      topics: [TRANSFER_TOPIC, null as any, swapFeeTopic],
+      topics: [TRANSFER_TOPIC, null as any, padAddress(FEE_RECIPIENT)],
     });
-    for (const log of swapFeeLogs as any[]) {
-      dailyFees.add(log.address, BigInt(log.data));
+    for (const log of swapLogs as any[]) {
+      dailyFees.add(log.address, BigInt(log.data), "swap");
     }
-  
-    const messageContract = MESSAGE_CONTRACTS[chain];
-    if (messageContract) {
-      const messageTopic =
-        "0x" + "0".repeat(24) + messageContract.slice(2).toLowerCase();
+  } catch (err) {
+    console.error(`[ALLOX:fees:swap] getLogs failed on ${chain}:`, err);
+  }
+
+  // 2) Chat-message purchase revenue (per-chain contract).
+  const messageContract = MESSAGE_CONTRACTS[chain];
+  if (messageContract) {
+    try {
       const msgLogs = await options.getLogs({
         noTarget: true,
-        topics: [TRANSFER_TOPIC, null as any, messageTopic],
+        topics: [TRANSFER_TOPIC, null as any, padAddress(messageContract)],
       });
       for (const log of msgLogs as any[]) {
-        dailyFees.add(log.address, BigInt(log.data));
+        dailyFees.add(log.address, BigInt(log.data), "messages");
       }
+    } catch (err) {
+      console.error(`[ALLOX:fees:messages] getLogs failed on ${chain}:`, err);
     }
-  
-    return { dailyFees, dailyRevenue: dailyFees };
-  };
-  
-  
+  }
+
+  return { dailyFees, dailyRevenue: dailyFees };
+};
 
 const adapter: Adapter = {
   version: 2,
@@ -61,6 +64,7 @@ const adapter: Adapter = {
       {
         fetch: fetch(chain),
         start: START_DATE[chain],
+        pullHourly: true,
         meta: {
           methodology: {
             Fees:
@@ -68,6 +72,16 @@ const adapter: Adapter = {
               `1) Swap fees: 0.25% of every swap output collected at ${FEE_RECIPIENT}.\n` +
               "2) Chat-message revenue: user payments to the AlloX message-purchase contract on each chain.",
             Revenue: "AlloX retains 100% of fees (no third-party LP cut). Revenue == Fees.",
+          },
+          breakdownMethodology: {
+            Fees: {
+              swap: `0.25% of swap output collected at ${FEE_RECIPIENT}.`,
+              messages: "User payments for chat-message credits sent to the AlloX message-purchase contract on each chain.",
+            },
+            Revenue: {
+              swap: "Same as swap fees (AlloX retains 100%).",
+              messages: "Same as message fees (AlloX retains 100%).",
+            },
           },
         },
       },

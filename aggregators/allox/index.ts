@@ -2,7 +2,6 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const FEE_RECIPIENT = "0x6A80f57ac54123cB71e6c79B3935A381b87B4308";
-const FEE_BPS = 25;
 
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -14,25 +13,27 @@ const START_DATE: Record<string, string> = {
 };
 
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = options.createBalances();
-  
-    // Pad to 32 bytes (12 zero bytes + 20-byte address) for topic position 2 (indexed `to`).
+  const dailyVolume = options.createBalances();
+
+  try {
     const recipientTopic =
       "0x" + "0".repeat(24) + FEE_RECIPIENT.slice(2).toLowerCase();
-  
+
     const logs = await options.getLogs({
       noTarget: true,
       topics: [TRANSFER_TOPIC, null as any, recipientTopic],
     });
-  
+
     for (const log of logs as any[]) {
       dailyVolume.add(log.address, BigInt(log.data) * BigInt(400));
     }
-  
-    return { dailyVolume };
-  };
-  
-  
+  } catch (err) {
+    console.error(`[ALLOX:volume] getLogs failed on chain:`, err);
+    // Return 0 volume for this chain so other chains keep working.
+  }
+
+  return { dailyVolume };
+};
 
 const adapter: Adapter = {
   version: 2,
@@ -42,6 +43,7 @@ const adapter: Adapter = {
       {
         fetch,
         start: START_DATE[chain],
+        pullHourly: true,
         meta: {
           methodology: {
             Volume:
