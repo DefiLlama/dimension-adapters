@@ -33,7 +33,7 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-       [METRIC.STAKING_REWARDS]: 'Aerodrome LP fees distributed to MAMO stakers.',
+        [METRIC.STAKING_REWARDS]: 'Aerodrome LP fees distributed to MAMO stakers.',
     },
     Revenue: {
         [METRIC.STAKING_REWARDS]: 'Aerodrome LP fees distributed to MAMO stakers.',
@@ -51,6 +51,7 @@ const adapter: SimpleAdapter = {
     start: "2025-07-18",
     methodology,
     breakdownMethodology,
+    doublecounted: true, //aerodrome
 };
 
 export default adapter;
