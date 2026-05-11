@@ -7,7 +7,6 @@ import { METRIC } from "../../helpers/metrics";
 const DUAL_BTC_FEE_BPS = 1900n;
 const BPS = 10000n;
 const BABY_DECIMALS = 1e6;
-const BABYLON_START_TIMESTAMP = 1769724590;
 
 const chainConfig = {
   [CHAIN.CORE]: {
@@ -27,8 +26,7 @@ const abi = {
 };
 
 const addBabylonFees = async (options: FetchOptions, dailyFees: sdk.Balances, dailyRevenue: sdk.Balances, dailySupplySideRevenue: sdk.Balances) => {
-  if (options.endTimestamp <= BABYLON_START_TIMESTAMP) return;
-  const start = new Date(Math.max(options.startTimestamp, BABYLON_START_TIMESTAMP) * 1e3).toISOString();
+  const start = new Date(options.startTimestamp * 1e3).toISOString();
   const end = new Date(options.endTimestamp * 1e3).toISOString();
   const [row] = await queryAllium(`
     WITH attrs AS (
@@ -102,6 +100,7 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   adapter: chainConfig,
   methodology: {
     Fees: "Gross yield earned by b14g Core products and Babylon rewards distributed to b14g.",
