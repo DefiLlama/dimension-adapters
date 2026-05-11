@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
@@ -18,57 +19,89 @@ const balanceOfAbi = 'function balanceOf(address) view returns (uint256)';
 async function prefetch(options: FetchOptions): Promise<any> {
   const [wsrRateFrom, wsrRateTo, priceFrom, priceTo] = await Promise.all([
     options.fromApi.call({ target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
-    options.toApi.call({ target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
     options.fromApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
-    options.toApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
   ]);
-  // Return as strings so BigInt precision survives any framework serialisation
+
+  // Sum wsrUSD OFT supply on all non-ETH chains at toTimestamp.
+  // revenue = (wsrLocked_ETH − wsrBridgedTotal) × rateDelta — allSettled for chain availability.
+  const [arbResult, monadResult, seiResult] = await Promise.allSettled([
+    new ChainApi({ chain: CHAIN.ARBITRUM, timestamp: options.toTimestamp })
+      .call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' }),
+    new ChainApi({ chain: CHAIN.MONAD, timestamp: options.toTimestamp })
+      .call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' }),
+    new ChainApi({ chain: CHAIN.SEI, timestamp: options.toTimestamp })
+      .call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' }),
+  ]);
+
+  const wsrBridgedTotal = [arbResult, monadResult, seiResult]
+    .reduce((s, r) => s + (r.status === 'fulfilled' ? BigInt(r.value.toString()) : 0n), 0n);
+
   return {
-    wsrRateFrom: wsrRateFrom.toString(),
-    wsrRateTo: wsrRateTo.toString(),
-    priceFrom: priceFrom.toString(),
-    priceTo: priceTo.toString(),
+    wsrRateFrom:     wsrRateFrom.toString(),
+    wsrRateTo:       wsrRateTo.toString(),
+    priceFrom:       priceFrom.toString(),
+    priceTo:         priceTo.toString(),
+    wsrBridgedTotal: wsrBridgedTotal.toString(),
   };
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
-  const { wsrRateFrom, wsrRateTo, priceFrom, priceTo } = options.preFetchedResults;
+  const { wsrRateFrom, wsrRateTo, priceFrom, priceTo, wsrBridgedTotal } = options.preFetchedResults;
   const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
-  const srPriceDelta = BigInt(priceTo) - BigInt(priceFrom);
+  const srPriceDelta = BigInt(priceTo)   - BigInt(priceFrom);
 
-  const dailyFees = options.createBalances();
+  const dailyFees              = options.createBalances();
+  const dailyRevenue           = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   if (options.chain === CHAIN.ETHEREUM) {
     const [wsrSupply, wsrLocked, srSupply] = await Promise.all([
       options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
       options.api.call({ target: WSRUSD, abi: balanceOfAbi, params: [WSRUSD_OFT_ADAPTER] }),
-      options.api.call({ target: SRUSD, abi: 'uint256:totalSupply' }),
+      options.api.call({ target: SRUSD,  abi: 'uint256:totalSupply' }),
     ]);
-    const wsrYield = (BigInt(wsrSupply) - BigInt(wsrLocked)) * wsrRateDelta / WAD;
-    const srYield = BigInt(srSupply) * srPriceDelta / PRICE_SCALE;
-    if (wsrYield !== 0n) dailyFees.add(RUSD, wsrYield, METRIC.ASSETS_YIELDS);
-    if (srYield !== 0n) dailyFees.add(RUSD, srYield, METRIC.ASSETS_YIELDS);
+
+    const wsrTotal      = BigInt(wsrSupply);
+    const wsrLocked_    = BigInt(wsrLocked);
+    const wsrCirc       = wsrTotal - wsrLocked_;
+    const srYield       = BigInt(srSupply) * srPriceDelta / PRICE_SCALE;
+    const wsrTotalYield = wsrTotal * wsrRateDelta / WAD;
+    const wsrCircYield  = wsrCirc  * wsrRateDelta / WAD;
+    const wsrRevenue    = (wsrLocked_ - BigInt(wsrBridgedTotal)) * wsrRateDelta / WAD;
+
+    if (wsrTotalYield !== 0n) dailyFees.add(RUSD, wsrTotalYield, METRIC.ASSETS_YIELDS);
+    if (srYield       !== 0n) dailyFees.add(RUSD, srYield,       METRIC.ASSETS_YIELDS);
+
+    if (wsrRevenue    !== 0n) dailyRevenue.add(RUSD, wsrRevenue, METRIC.ASSETS_YIELDS);
+
+    if (wsrCircYield  !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield, METRIC.ASSETS_YIELDS);
+    if (srYield       !== 0n) dailySupplySideRevenue.add(RUSD, srYield,      METRIC.ASSETS_YIELDS);
   } else {
     const supply = await options.api.call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' });
     const yield_ = BigInt(supply) * wsrRateDelta / WAD;
-    if (yield_ !== 0n) dailyFees.add(RUSD, yield_, METRIC.ASSETS_YIELDS);
+    if (yield_ !== 0n) dailySupplySideRevenue.add(RUSD, yield_, METRIC.ASSETS_YIELDS);
   }
 
-  return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 }
 
 const methodology = {
-  Fees: 'Total yield distributed to wsrUSD and srUSD holders, measured as circulating supply × Δ(exchange rate).',
-  Revenue: 'No protocol revenue retained — all yield passes through to holders.',
-  SupplySideRevenue: 'Total yield distributed to wsrUSD and srUSD holders.',
+  Fees: 'Gross yield committed to all wsrUSD holders (total supply × Δexchange rate) plus srUSD holders — gross income proxy including off-chain RWA.',
+  Revenue: 'Protocol-retained yield: wsrUSD locked in OFT bridge adapter minus amount distributed to non-ETH chains.',
+  SupplySideRevenue: 'Yield paid to wsrUSD and srUSD holders per chain (circulating supply × Δrate).',
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Total yield distributed to wsrUSD and srUSD holders.',
+    [METRIC.ASSETS_YIELDS]: 'Total yield committed to wsrUSD and srUSD holders.',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Protocol-retained yield from OFT bridge adapter excess.',
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Total yield distributed to wsrUSD and srUSD holders.',
+    [METRIC.ASSETS_YIELDS]: 'Per-chain yield distributed to wsrUSD and srUSD holders.',
   },
 };
 
@@ -82,8 +115,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-04-17' },
     [CHAIN.ARBITRUM]: { start: '2025-05-12' },
-    [CHAIN.SEI]: { start: '2025-06-13' },
-    [CHAIN.MONAD]: { start: '2026-01-01' },
+    [CHAIN.SEI]:      { start: '2025-06-13' },
+    [CHAIN.MONAD]:    { start: '2026-01-01' },
   },
   allowNegativeValue: true,
   doublecounted: true,
