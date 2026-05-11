@@ -3,12 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import coreAssets from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-const USDC = coreAssets.ethereum.USDC;
-
-const chainConfig: Record<string, { start: string; yield: string }> = {
+const chainConfig: Record<string, { start: string; yield: string, yieldToken: string }> = {
   [CHAIN.ETHEREUM]: {
     yield: "0xb82b080791dFA4aa6Cac8c3f9c0fcb4471C9FEaD",
-    start: "2025-07-20",
+    yieldToken: coreAssets.ethereum.USDC,
+    start: "2025-08-20",
   },
 };
 
@@ -25,14 +24,18 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: DISTRIBUTE_YIELD_EVENT,
   });
 
+  const yieldToken = chainConfig[options.chain].yieldToken;
   logs.forEach((log) => {
     const sign = log.profit ? 1n : -1n;
 
-    dailyFees.add(USDC, log.amount * sign, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(USDC, log.amount * sign, METRIC.ASSETS_YIELDS);
+    // count all fees from yields
+    dailyFees.add(yieldToken, (log.amount + log.feeAmount) * sign, METRIC.ASSETS_YIELDS);
 
-    dailyFees.add(USDC, log.feeAmount * sign, METRIC.PERFORMANCE_FEES);
-    dailyRevenue.add(USDC, log.feeAmount * sign, METRIC.PERFORMANCE_FEES);
+    // breakdown yields to stakers
+    dailySupplySideRevenue.add(yieldToken, log.amount * sign, 'Assets Yields To Stakers');
+    
+    // breakdown performance fees
+    dailyRevenue.add(yieldToken, log.feeAmount * sign, METRIC.PERFORMANCE_FEES);
   });
 
   return {
@@ -52,8 +55,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: "Net yield credited to afiUSD holders.",
-    [METRIC.PERFORMANCE_FEES]: "Treasury performance fees from afiUSD yield distributions.",
+    [METRIC.ASSETS_YIELDS]: "All staking yield credited to afiUSD holders + share to AFI protocol.",
   },
   Revenue: {
     [METRIC.PERFORMANCE_FEES]: "Treasury performance fees from afiUSD yield distributions.",
@@ -62,7 +64,7 @@ const breakdownMethodology = {
     [METRIC.PERFORMANCE_FEES]: "Treasury performance fees from afiUSD yield distributions.",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Net yield credited to afiUSD holders.",
+    'Assets Yields To Stakers': "Net yield credited to afiUSD holders.",
   },
 };
 
