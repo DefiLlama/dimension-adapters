@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getDuneTrades, decodeMatchOrders, decodeDirectPurchase, decodeDirectAcceptBid, MATCH_ORDERS_ID, DIRECT_PURCHASE_ID } from "../../helpers/rarible";
+import { getDuneTrades, decodeMatchOrders, decodeDirectPurchase, decodeDirectAcceptBid, MATCH_ORDERS_ID, DIRECT_PURCHASE_ID } from "../../dexs/rarible/helper";
 
 const GET_ROYALTIES_ABI = "function getRoyalties(address token, uint256 tokenId) returns ((address account, uint96 value)[])";
 const PROTOCOL_FEE_ABI = "function protocolFee() view returns (address receiver, uint48 buyerAmount, uint48 sellerAmount)";
@@ -89,16 +89,16 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addGasToken(protocolOriginFee + supplySideOriginFee, "Origin Fees");
       dailyFees.addGasToken(royaltyFee, "Royalties");
       dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
-      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees");
-      dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees");
+      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees To Rarible");
+      dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees To Users");
       dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
     } else {
       dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
       dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
       dailyFees.add(paymentToken, royaltyFee, "Royalties");
       dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
-      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees");
-      dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees");
+      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees To Rarible");
+      dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees To Users");
       dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
     };
   };
@@ -114,16 +114,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Protocol Fees": "A mandatory fee charged by the Rarible Protocol on every transaction, paid by both the buyer and the seller.",
+    "Protocol Fees": "A mandatory fee charged by the Rarible protocol on every transaction, paid by both the buyer and the seller.",
     "Origin Fees": "Optional fees set by users for each transaction. These can be applied to either the buyer's or seller's order, acting as a commission for facilitating the sale.",
     "Royalties": "Payments made to the original creator of a digital asset each time it is sold.",
   },
   SupplySideRevenue: {
-    "Origin Fees": "Origin Fees paid to users.",
+    "Origin Fees To Users": "Origin fees paid to users.",
     "Royalties": "Royalties are supply side costs.",
   },
   Revenue: {
-    "Origin Fees": "Origin Fees paid to Rarible.",
+    "Origin Fees To Rarible": "Origin fees paid to Rarible.",
     "Protocol Fees": "Fees retained by Rarible.",
   },
 };

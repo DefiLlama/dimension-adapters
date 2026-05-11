@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import { queryDuneSql } from "./dune";
-import { FetchOptions } from "../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
+import { FetchOptions } from "../../adapters/types";
 
 const MATCH_ORDERS_ABI = `function matchOrders((address maker, ((bytes4 assetClass, bytes data) assetType, uint256 value) makeAsset, address taker, ((bytes4 assetClass, bytes data) assetType, uint256 value) takeAsset, uint256 salt, uint256 start, uint256 end, bytes4 dataType, bytes data) orderLeft, bytes signatureLeft, (address maker, ((bytes4 assetClass, bytes data) assetType, uint256 value) makeAsset, address taker, ((bytes4 assetClass, bytes data) assetType, uint256 value) takeAsset, uint256 salt, uint256 start, uint256 end, bytes4 dataType, bytes data) orderRight, bytes signatureRight) payable`;
 const DIRECT_PURCHASE_ABI = `function directPurchase((address sellOrderMaker, uint256 sellOrderNftAmount, bytes4 nftAssetClass, bytes nftData, uint256 sellOrderPaymentAmount, address paymentToken, uint256 sellOrderSalt, uint256 sellOrderStart, uint256 sellOrderEnd, bytes4 sellOrderDataType, bytes sellOrderData, bytes sellOrderSignature, uint256 buyOrderPaymentAmount, uint256 buyOrderNftAmount, bytes buyOrderData) direct) payable`;
