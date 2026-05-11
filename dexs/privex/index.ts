@@ -25,6 +25,7 @@ const chainConfig = {
   [CHAIN.COTI]: {
     chainId: 2632500,
     start: '2025-01-01', // January 1, 2025
+    deadFrom: '2026-05-09', // delisted: wash-trading evidence + subgraph unreliable (see #5723, #6907)
     accountSource: '0xbf318724218ced9a3ff7cfc642c71a0ca1952b0f',
     endpoint: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics',
   },
