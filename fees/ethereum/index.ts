@@ -131,28 +131,18 @@ export const SQL_TOTAL_FEES_BURNED = `
 `;
 
 // Blob fees (EIP-4844, live since 2024-03-13). Read from Dune because the
-// internal evm_indexer schema currently exposes only legacy gas/effective_gas
-// columns — blob fees are charged on a separate market (`blob_gas_used *
-// blob_gas_price`) and do not surface there. Dune's `ethereum.transactions`
-// view records `type = 3` blob-carrying transactions with both columns.
-//
-// Returns 0 for any window before the EIP-4844 fork (no rows match).
+// internal evm_indexer schema doesn't expose blob columns. Sourced from
+// `ethereum.blobs_submissions`, which carries the per-tx `blob_gas_used` and
+// the receipt-recorded `blob_gas_price` — the latter is authoritative across
+// all fork denominators (Cancun, Pectra EIP-7691, Fusaka, EIP-7918 floor),
+// so we don't have to track BLOB_BASE_FEE_UPDATE_FRACTION changes ourselves.
+// Arithmetic is done in DOUBLE to dodge Trino's DECIMAL multiplication-width
+// overflow; the final SUM is cast back to DECIMAL(38,0) for clean integer
+// VARCHAR output. Sub-wei rounding from DOUBLE is invisible at daily totals.
 const SQL_TOTAL_BLOB_FEES_BURNED = `
-  SELECT
-    CAST(
-      COALESCE(
-        SUM(
-          CAST(blob_gas_used AS DECIMAL(38,0))
-          * CAST(blob_gas_price AS DECIMAL(38,0))
-        ),
-        0
-      )
-      AS VARCHAR
-    ) AS blob_fees_wei
-  FROM ethereum.transactions
-  WHERE
-    type = 3
-    AND TIME_RANGE
+  SELECT SUM(blob_gas_used * blob_base_fee) AS blob_fees_wei
+  FROM ethereum.blobs_submissions
+  WHERE TIME_RANGE
 `;
 
 export const fetch = async (options: FetchOptions) => {
