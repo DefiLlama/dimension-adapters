@@ -90,7 +90,7 @@ const fetch = async ({ createBalances, getLogs, fromApi, toApi, api }: FetchOpti
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
         dailySupplySideRevenue,
     };
@@ -125,7 +125,7 @@ const adapter: SimpleAdapter = {
     pullHourly: true,
     fetch,
     chains: [CHAIN.BSC],
-    start: "2025-04-10",
+    start: "2025-10-18",
     methodology,
     breakdownMethodology,
     allowNegativeValue: true,
