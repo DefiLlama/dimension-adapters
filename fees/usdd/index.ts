@@ -1,4 +1,5 @@
 import sdk from "@defillama/sdk";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
@@ -63,7 +64,7 @@ const tronDebt = (items: any[], timestamp: number) => {
   return Number(items.find((item) => item.time?.startsWith(day))?.debt ?? 0);
 };
 
-const fetch = async (options: any) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   if (options.chain === CHAIN.TRON) {
@@ -71,7 +72,10 @@ const fetch = async (options: any) => {
       httpGet(TRON_COLLATERALS_API),
       httpGet(TRON_HISTORY_API),
     ]);
-    const fee = tronDebt(history.data?.items ?? [], options.startTimestamp) * tronRate(collaterals.data?.items ?? []) / 365;
+    
+    const YEAR = 365 * 24 * 3600;
+    const timeframe = options.toTimestamp - options.fromTimestamp;
+    const fee = tronDebt(history.data?.items ?? [], options.fromTimestamp) * tronRate(collaterals.data?.items ?? []) * timeframe / YEAR;
 
     dailyFees.addUSDValue(fee, METRIC.BORROW_INTEREST);
 
@@ -84,7 +88,7 @@ const fetch = async (options: any) => {
     options.getLogs({ target: config.vat, eventAbi: ABI.fold }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.sellGem, flatten: true }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.buyGem, flatten: true }),
-    options.getLogs({ target: config.dog, eventAbi: ABI.bark, entireLog: true }),
+    options.getLogs({ target: config.dog, eventAbi: ABI.bark }),
   ]);
 
   for (const log of folds) {
@@ -107,8 +111,8 @@ const fetch = async (options: any) => {
 
   for (const log of barks) {
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.ilk ?? log.args?.ilk] });
-    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.due ?? log.args?.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
+    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.ilk] });
+    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
     if (!penalty) continue;
 
     dailyFees.add(config.usdd, penalty, METRIC.LIQUIDATION_FEES);
@@ -143,8 +147,9 @@ const breakdownMethodology = {
 
 
 
-const adapter = {
+const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   methodology,
   breakdownMethodology,
