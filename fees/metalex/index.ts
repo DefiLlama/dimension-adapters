@@ -28,34 +28,46 @@ const feeDistributedAbi =
 const isValid = (address?: string) =>
   !!address && address.toLowerCase() !== ADDRESSES.null;
 
+const managerCache: Record<string, Promise<string[]>> = {};
+
 async function discoverManagers(options: FetchOptions) {
-  const { fromBlock } = CONFIG[options.chain as keyof typeof CONFIG];
+  const chain = options.chain;
+  if (!managerCache[chain]) {
+    managerCache[chain] = (async () => {
+      const { fromBlock } = CONFIG[chain as keyof typeof CONFIG];
 
-  const [corpLogs, roundLogs] = await Promise.all([
-    options.getLogs({
-      target: FACTORY,
-      fromBlock,
-      eventAbi: corpDeployedAbi,
-      onlyArgs: true,
-      cacheInCloud: true,
-    }),
-    options.getLogs({
-      target: FACTORY,
-      fromBlock,
-      eventAbi: roundManagerAbi,
-      onlyArgs: true,
-      cacheInCloud: true,
-    }),
-  ]);
+      const [corpLogs, roundLogs] = await Promise.all([
+        options.getLogs({
+          target: FACTORY,
+          fromBlock,
+          eventAbi: corpDeployedAbi,
+          onlyArgs: true,
+          cacheInCloud: true,
+        }),
+        options.getLogs({
+          target: FACTORY,
+          fromBlock,
+          eventAbi: roundManagerAbi,
+          onlyArgs: true,
+          cacheInCloud: true,
+        }),
+      ]);
 
-  const dealManagers = [
-    ...new Set(corpLogs.map((log: any) => log.dealManager?.toLowerCase()).filter(isValid)),
-  ];
-  const roundManagers = [
-    ...new Set(roundLogs.map((log: any) => log.roundManager?.toLowerCase()).filter(isValid)),
-  ];
+      const dealManagers = [
+        ...new Set(corpLogs.map((log: any) => log.dealManager?.toLowerCase()).filter(isValid)),
+      ];
+      const roundManagers = [
+        ...new Set(roundLogs.map((log: any) => log.roundManager?.toLowerCase()).filter(isValid)),
+      ];
 
-  return [...new Set([...dealManagers, ...roundManagers])];
+      return [...new Set([...dealManagers, ...roundManagers])];
+    })().catch((e) => {
+      delete managerCache[chain];
+      throw e;
+    });
+  }
+
+  return managerCache[chain];
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
