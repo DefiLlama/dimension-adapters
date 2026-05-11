@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
@@ -25,9 +26,7 @@ const abi = {
   claimMarketplaceReward: "event ClaimMarketplaceReward(uint256 reward)",
 };
 
-type Balance = ReturnType<FetchOptions["createBalances"]>;
-
-const addBabylonFees = async (options: FetchOptions, dailyFees: Balance, dailyRevenue: Balance, dailySupplySideRevenue: Balance) => {
+const addBabylonFees = async (options: FetchOptions, dailyFees: sdk.Balances, dailyRevenue: sdk.Balances, dailySupplySideRevenue: sdk.Balances) => {
   if (options.endTimestamp <= BABYLON_START_TIMESTAMP) return;
   const start = new Date(Math.max(options.startTimestamp, BABYLON_START_TIMESTAMP) * 1e3).toISOString();
   const end = new Date(options.endTimestamp * 1e3).toISOString();
@@ -64,7 +63,7 @@ const addBabylonFees = async (options: FetchOptions, dailyFees: Balance, dailyRe
   dailySupplySideRevenue.addCGToken("babylon", Number(row?.rewards ?? 0) / BABY_DECIMALS, METRIC.STAKING_REWARDS);
 };
 
-const addCoreFees = async (options: FetchOptions, dailyFees: Balance, dailyRevenue: Balance, dailySupplySideRevenue: Balance) => {
+const addCoreFees = async (options: FetchOptions, dailyFees: sdk.Balances, dailyRevenue: sdk.Balances, dailySupplySideRevenue: sdk.Balances) => {
   const { coreVault, dualBtcVault } = chainConfig[CHAIN.CORE];
 
   for (const log of await options.getLogs({ target: coreVault, eventAbi: abi.coreClaimReward })) {
@@ -128,7 +127,6 @@ const adapter: SimpleAdapter = {
     },
   },
   dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
 };
 
 export default adapter;
