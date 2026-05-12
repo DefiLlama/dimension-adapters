@@ -42,38 +42,6 @@ const metrics = {
   secondaryMarketTradingFeesToMarketOwners: "Secondary Market Trading Fees To Market Owners/Issuers",
 };
 
-const getAddress = (log: any) => (log.address || log.source || "").toLowerCase();
-
-const getArgs = (log: any) => log.args || log;
-
-const isPermitFailureResultBug = (error: any) =>
-  String(error?.message || error).includes("reading 'success'");
-
-const isContractReadFailure = (error: any) => {
-  const message = String(error?.message || error).toLowerCase();
-  return message.includes("revert") || message.includes("missing revert data");
-};
-
-const safeMultiCall = async (options: FetchOptions, abi: string, calls: string[]) => {
-  try {
-    return await options.api.multiCall({ abi, calls, permitFailure: true });
-  } catch (error: any) {
-    if (!isPermitFailureResultBug(error)) throw error;
-
-    return Promise.all(
-      calls.map(async (target) => {
-        try {
-          return await (options.api.call as any)({ abi, target, permitFailure: true });
-        } catch (callError: any) {
-          if (!isContractReadFailure(callError)) throw callError;
-          console.warn(`[aktionariat] ${abi} read failed for ${target}: ${callError?.message || callError}`);
-          return null;
-        }
-      })
-    );
-  }
-};
-
 const getSecondaryMarketGroups = async (options: FetchOptions, toBlock: number) => {
   const groups = [];
 
@@ -100,8 +68,8 @@ const getSecondaryMarketGroups = async (options: FetchOptions, toBlock: number) 
   if (!markets.length) return { groups, licenseShareByMarket: new Map<string, bigint>() };
 
   const [licenseShares, licenseFeeRecipients] = await Promise.all([
-    safeMultiCall(options, "uint16:licenseShare", markets),
-    safeMultiCall(options, "address:LICENSE_FEE_RECIPIENT", markets),
+    options.api.multiCall({ abi: "uint16:licenseShare", calls: markets, permitFailure: true }),
+    options.api.multiCall({ abi: "address:LICENSE_FEE_RECIPIENT", calls: markets, permitFailure: true }),
   ]);
 
   const licenseShareByMarket = new Map<string, bigint>();
@@ -149,12 +117,11 @@ const addSecondaryMarketFees = async (
 
     const feesByMarketCurrency = new Map<string, { market: string; currency: string; fee: bigint }>();
     for (const log of tradeLogs) {
-      const args = getArgs(log);
-      const fee = BigInt(args.fees || 0);
+      const fee = BigInt(log.args.fees || 0);
       if (fee === 0n) continue;
 
-      const market = getAddress(log);
-      const currency = args.currency?.toLowerCase();
+      const market = log.address.toLowerCase();
+      const currency = log.args.currency?.toLowerCase();
       if (!currency) continue;
 
       const key = `${market}:${currency}`;
@@ -199,13 +166,12 @@ const addMarketBrokerbotFees = async (
 
   const feesByMarketCurrency = new Map<string, { market: string; currency: string; fee: bigint }>();
   for (const log of tradeLogs) {
-    const args = getArgs(log);
-    const fee = BigInt(args.fee || 0);
+    const fee = BigInt(log.args.fee || 0);
     if (fee === 0n) continue;
 
-    const market = getAddress(log);
-    const currency = args.base?.toLowerCase();
-    if (!market || !currency) continue;
+    const market = log.address.toLowerCase();
+    const currency = log.args.base?.toLowerCase();
+    if (!currency) continue;
 
     const key = `${market}:${currency}`;
     const entry = feesByMarketCurrency.get(key) || { market, currency, fee: 0n };
@@ -216,7 +182,7 @@ const addMarketBrokerbotFees = async (
   const markets = Array.from(new Set(Array.from(feesByMarketCurrency.values()).map(({ market }) => market)));
   if (!markets.length) return;
 
-  const copyrightRecipients = await safeMultiCall(options, "address:copyright", markets);
+  const copyrightRecipients = await options.api.multiCall({ abi: "address:copyright", calls: markets, permitFailure: true });
   const validMarkets = new Set(
     markets.filter((market, index) =>
       (copyrightRecipients[index] || "").toLowerCase() === AKTIONARIAT_LICENSE_FEE_RECIPIENT
