@@ -1,3 +1,4 @@
+import { PromisePool } from '@supercharge/promise-pool'
 import { Adapter, FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
@@ -55,20 +56,21 @@ async function fetch(options: FetchOptions) {
     dailyRevenue.addUSDValue(fee, METRIC.MINT_REDEEM_FEES)
   }
 
-  for (const vault of vaults) {
+  await PromisePool.withConcurrency(5).for(vaults).process(async (vault) => {
     const vaultCrossChainFeeLogs = await options.getLogs({
       target: vault,
       eventAbi: 'event CrossChainFeeCollected(address indexed user, uint256 amount, uint256 fee)',
     })
 
-    for (const log of vaultCrossChainFeeLogs) {
+    await PromisePool.withConcurrency(5).for(vaultCrossChainFeeLogs).process(async (log) => {
       const ratio = await options.api.call({ target: vault, abi: 'uint256:currentRatio', block: Number(log.blockNumber) })
       const feeBfusd = (BigInt(log.fee) * BigInt(ratio)) / RATIO_PRECISION
       const fee = Number(feeBfusd) / BFUSD_DECIMALS
       dailyFees.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
       dailyUserFees.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
       dailyRevenue.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
-    }
+    })
+
     const [totalSupply, ratioStart, ratioEnd] = await Promise.all([
       options.fromApi.call({ target: vault, abi: 'uint256:totalSupply' }),
       options.fromApi.call({ target: vault, abi: 'uint256:currentRatio' }),
@@ -78,7 +80,7 @@ async function fetch(options: FetchOptions) {
     const strategyYield = (BigInt(totalSupply) * (BigInt(ratioEnd) - BigInt(ratioStart))) / RATIO_PRECISION
     dailyFees.addUSDValue(Number(strategyYield) / BFUSD_DECIMALS, METRIC.ASSETS_YIELDS)
     dailySupplySideRevenue.addUSDValue(Number(strategyYield) / BFUSD_DECIMALS, METRIC.ASSETS_YIELDS)
-  }
+  })
 
   return {
     dailyFees,
