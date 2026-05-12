@@ -6,31 +6,35 @@ import { METRIC } from "../helpers/metrics";
 // https://apriori-docs.gitbook.io/apriori-docs/aprmon/aprmon-basics/staking-yield
 const aprMON = "0x0c65A0BC65a5D819235B71F554D210D3F80E0852";
 
-const events = {
+const abis = {
   EpochRewardsUpdated: "event EpochRewardsUpdated(uint256 blockNumber, uint256 rewardsDistributing)",
   Redeem: "event Redeem(address indexed controller, address indexed receiver, uint256 indexed requestId, uint256 shares, uint256 assets, uint256 fee)",
+  rewardFee: "function rewardFee() view returns (uint8)",
 };
 
-const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  // EpochRewardsUpdated gives total staking rewards
+  // Read reward fee percentage from contract (uint8, e.g. 10 = 10%)
+  const rewardFeePercent = await api.call({ target: aprMON, abi: abis.rewardFee });
+
+  // EpochRewardsUpdated gives net staking rewards (after protocol fee deduction)
   const rewardLogs = await getLogs({
     target: aprMON,
-    eventAbi: events.EpochRewardsUpdated,
+    eventAbi: abis.EpochRewardsUpdated,
   });
 
-  let totalRewards = BigInt(0);
+  let netRewards = BigInt(0);
   for (const log of rewardLogs) {
-    totalRewards += BigInt(log.rewardsDistributing);
+    netRewards += BigInt(log.rewardsDistributing);
   }
 
   // Redeem events contain withdrawal fees
   const redeemLogs = await getLogs({
     target: aprMON,
-    eventAbi: events.Redeem,
+    eventAbi: abis.Redeem,
   });
 
   let totalWithdrawalFees = BigInt(0);
@@ -38,21 +42,19 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
     totalWithdrawalFees += BigInt(log.fee);
   }
 
-  // Protocol takes 10% of staking rewards
-  const protocolRewardFees = totalRewards / BigInt(10);
-  const supplySideRewards = totalRewards - protocolRewardFees;
+  // netRewards is after fee deduction, gross = net * 100 / (100 - feePercent)
+  const feePercent = BigInt(rewardFeePercent);
+  const grossRewards = netRewards * BigInt(100) / (BigInt(100) - feePercent);
+  const protocolFees = grossRewards - netRewards;
 
-  // dailyFees = total staking rewards + withdrawal fees
-  dailyFees.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
+  dailyFees.addGasToken(netRewards, METRIC.STAKING_REWARDS);
   dailyFees.addGasToken(totalWithdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
-  dailyFees.addGasToken(protocolRewardFees, METRIC.PROTOCOL_FEES)
+  dailyFees.addGasToken(protocolFees, METRIC.PROTOCOL_FEES);
 
-  // dailyRevenue = 10% of staking rewards + withdrawal fees
-  dailyRevenue.addGasToken(protocolRewardFees, METRIC.PROTOCOL_FEES);
+  dailyRevenue.addGasToken(protocolFees, METRIC.PROTOCOL_FEES);
   dailyRevenue.addGasToken(totalWithdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
 
-  // dailySupplySideRevenue = 90% of staking rewards
-  dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
+  dailySupplySideRevenue.addGasToken(netRewards, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
@@ -67,7 +69,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
-      start: "2025-05-01",
+      start: "2025-11-24",
     },
   },
   methodology: {
