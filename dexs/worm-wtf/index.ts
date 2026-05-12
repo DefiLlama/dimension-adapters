@@ -53,8 +53,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
 
   rows.forEach((row: any) => {
-    dailyVolume.addUSDValue(Number(row.volume_usd || 0), row.product);
-    dailyNotionalVolume.addUSDValue(Number(row.notional_volume_usd || 0), row.product);
+    dailyVolume.addUSDValue(Number(row.volume_usd || 0));
+    dailyNotionalVolume.addUSDValue(Number(row.notional_volume_usd || 0));
   });
 
   return { dailyVolume, dailyNotionalVolume };
@@ -72,6 +72,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Volume: "Volume tracks successful Worm trades on Solana.",
+    NiotionalVolume: "Track total notional (after leverage) volume trades on Worm.",
   },
 };
 
