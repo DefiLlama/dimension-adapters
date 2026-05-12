@@ -2,8 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryEvents } from "../../helpers/sui";
-import fetchURL from "../../utils/fetchURL";
 import { PromisePool } from "@supercharge/promise-pool";
+import { getConfig } from "../../helpers/cache";
 
 const ALPHAFI_CONFIG_ENDPOINT = "https://api.alphafi.xyz/public/config";
 const START_DATE = "2024-07-05";
@@ -104,10 +104,7 @@ function isYieldEvent(key: string, eventType: string, pool: PoolInfo) {
   if (isXTokenRatioEvent(key, eventType)) return !pool.events?.auto_compounding_event_real;
   return key.includes("autocompound")
     || key.includes("auto_compounding")
-    || key.includes("airdrop_add")
-    || eventType.includes("RewardEvent")
     || eventType.includes("AutoCompoundingEvent")
-    || eventType.includes("AirdropAddEvent");
 }
 
 function isFeeEvent(key: string) {
@@ -144,7 +141,7 @@ function poolForEvent(event: any, configEvents: ConfigEvent[], byInvestor: Map<s
 }
 
 async function getPoolConfig() {
-  const config = (await fetchURL(ALPHAFI_CONFIG_ENDPOINT)) as Record<string, AlphaFiConfigEntry>;
+  const config: Record<string, AlphaFiConfigEntry> = (await getConfig('alphafi', ALPHAFI_CONFIG_ENDPOINT));
   const pools = Object.values(config)
     .map((entry) => ({
       strategy_type: entry.strategy_type ?? entry.data?.strategy_type,
@@ -224,7 +221,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Gross AlphaFi strategy yield emitted by reward, autocompound, airdrop, and x-token ratio events, plus deposit/withdraw and instant-withdraw fees emitted by pool events when non-zero.",
+  Fees: "Gross AlphaFi strategy yield emitted by autocompound and x-token ratio events, plus deposit/withdraw and instant-withdraw fees emitted by pool events when non-zero.",
   Revenue: "Fees collected by AlphaFi, including performance fees from autocompound/reward events and deposit/withdraw fees from pool events.",
   ProtocolRevenue: "Same as revenue.",
   SupplySideRevenue: "Strategy yield attributed to AlphaFi vault depositors.",
@@ -259,6 +256,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
+  doublecounted: true,
 };
 
 export default adapter;
