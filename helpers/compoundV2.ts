@@ -117,6 +117,13 @@ interface CompoundV2ExportOptions {
   useExchangeRate?: boolean;
   protocolRevenueRatio?: number;
   holdersRevenueRatio?: number;
+  extraFees?: (options: FetchOptions) => Promise<{
+    dailyFees?: sdk.Balances;
+    dailyRevenue?: sdk.Balances;
+    dailyProtocolRevenue?: sdk.Balances;
+    dailyHoldersRevenue?: sdk.Balances;
+    dailySupplySideRevenue?: sdk.Balances;
+  }>;
   methodology?: string | IJSON<string>;
   breakdownMethodology?: Record<string, string | IJSON<string>>;
 }
@@ -142,6 +149,18 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
         Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
           dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1, METRIC.BORROW_INTEREST)
         })
+        if (exportOptions?.extraFees) {
+          const extraFees = await exportOptions.extraFees(options);
+          if (extraFees.dailyFees) dailyFees.addBalances(extraFees.dailyFees);
+          if (extraFees.dailyRevenue) dailyRevenue.addBalances(extraFees.dailyRevenue);
+          if (extraFees.dailyProtocolRevenue) {
+            if (dailyProtocolRevenue) dailyProtocolRevenue.addBalances(extraFees.dailyProtocolRevenue);
+          }
+          if (extraFees.dailyHoldersRevenue) {
+            if (dailyHoldersRevenue) dailyHoldersRevenue.addBalances(extraFees.dailyHoldersRevenue);
+          }
+          if (extraFees.dailySupplySideRevenue) dailySupplySideRevenue.addBalances(extraFees.dailySupplySideRevenue);
+        }
         return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
       }),
     }
