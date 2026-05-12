@@ -441,7 +441,6 @@ async function _runAdapter({
       endTimestamp,
       getStartBlock,
       getEndBlock,
-      pullHourly: isHourlyAdapter(module),
       dateString: getDateString(startOfDay),
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),

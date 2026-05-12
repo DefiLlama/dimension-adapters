@@ -12,7 +12,7 @@ const comptrollerABI = {
   totalSupply: "uint256:totalSupply",
 };
 
-export async function getFees(market: string, { createBalances, api, getLogs, pullHourly, }: FetchOptions, {
+export async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
   dailyFees,
   dailyRevenue,
   abis = {},
@@ -33,7 +33,6 @@ export async function getFees(market: string, { createBalances, api, getLogs, pu
     targets: markets,
     flatten: false,
     eventAbi: comptrollerABI.accrueInterest,
-    pullHourly,
   })).map((log: any, index: number) => {
     return log.map((i: any) => ({
       ...i,
