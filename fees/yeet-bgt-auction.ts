@@ -43,10 +43,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 		const amount = log.totalAmount;
 		const protocolAmount = amount * protocolBps / PERCENTAGE_SCALE;
 		const buybackAmount = amount * buybackBps / PERCENTAGE_SCALE;
-		dailyFees.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount);
-		dailyRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount);
-		dailyProtocolRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount);
-		dailyHoldersRevenue.add(ADDRESSES.berachain.WBERA, buybackAmount);
+    dailyFees.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount, 'BGT Auction Fees');
+    dailyRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount, 'BGT Auction Fees');
+		dailyProtocolRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount, 'BGT Auction Fees To Protocol');
+		dailyHoldersRevenue.add(ADDRESSES.berachain.WBERA, buybackAmount, 'Token Buy Back');
 	});
 
 	return {
@@ -57,22 +57,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 	};
 };
 
-const methodology = {
-	Fees: "Protocol fees extracted from BGT Auction bids (treasury + YEET buybacks).",
-	Revenue: "Protocol treasury + YEET buyback portion of auction bids.",
-	ProtocolRevenue: "Portion of auction bids retained by the Yeet protocol treasury.",
-	HoldersRevenue: "Portion of auction bids used for YEET buyback and burn via the Yeetarded Buyback Vault.",
-};
-
 const adapter: Adapter = {
-	version: 2,
+  version: 2,
+  pullHourly: true,
 	adapter: {
 		[CHAIN.BERACHAIN]: {
 			fetch,
 			start: "2025-03-01",
 		},
 	},
-	methodology,
+  methodology: {
+    Fees: "Protocol fees extracted from BGT Auction bids (treasury + YEET buybacks).",
+  	Revenue: "Protocol treasury + YEET buyback portion of auction bids.",
+  	ProtocolRevenue: "Portion of auction bids retained by the Yeet protocol treasury.",
+  	HoldersRevenue: "Portion of auction bids used for YEET buyback and burn via the Yeetarded Buyback Vault.",
+  },
+  breakdownMethodology: {
+    Fees: {
+     'BGT Auction Fees': 'Protocol fees extracted from BGT Auction bids (treasury + YEET buybacks).', 
+    },
+    Revenue: {
+     'BGT Auction Fees': 'Protocol treasury + YEET buyback portion of auction bids.', 
+    },
+    HoldersRevenue: {
+     'Token Buy Back': 'Portion of auction bids used for YEET buyback and burn via the Yeetarded Buyback Vault.', 
+    },
+  }
 };
 
 export default adapter;
