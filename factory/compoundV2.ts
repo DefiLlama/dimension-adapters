@@ -43,6 +43,7 @@ const venusLiquidationIncome = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: protocolShareReserve,
     eventAbi: "event AssetsReservesUpdated(address indexed comptroller, address indexed asset, uint256 amount, uint8 incomeType, uint8 schema)",
+    pullHourly: true,
   });
 
   logs

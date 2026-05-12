@@ -75,6 +75,7 @@ export type FetchGetLogsOptions = {
   topics?: string[],
   noTarget?: boolean,
   parseLog?: boolean,
+  pullHourly?: boolean,
 }
 
 export type Fetch = (
