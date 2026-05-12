@@ -6,19 +6,19 @@ import { METRIC } from "../../helpers/metrics";
 // Docs:      https://docs.gondi.xyz/
 // Fees:      https://docs.gondi.xyz/gondi-v3/protocol-fees#lender-fees
 // Contracts: https://docs.gondi.xyz/gondi-v3/protocol-contracts
-const config: Record<string, { targets: string[]; fromBlock: number }> = {
+const config: Record<string, { targets: string[]; start: string }> = {
   [CHAIN.ETHEREUM]: {
     targets: [
       "0xf65b99ce6dc5f6c556172bcc0ff27d3665a7d9a8", // V3.0
       "0xf41B389E0C1950dc0B16C9498eaE77131CC08A56", // V3.1
     ],
-    fromBlock: 20663554,
+    start: "2024-09-02"
   },
   [CHAIN.HYPERLIQUID]: {
     targets: [
       "0x6ad675624ec8320e5806858cd5db101a0b927fd9", // V3.1
     ],
-    fromBlock: 30081557,
+    start: "2025-03-18"
   },
 };
 
@@ -43,14 +43,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const { targets, fromBlock } = config[options.chain];
-  const startTime = BigInt(options.startTimestamp);
-  const endTime = BigInt(options.endTimestamp);
+  const { targets } = config[options.chain];
 
   const [emittedAll, refinancedAll, refinancedNewAll, repaidDaily] = await Promise.all([
-    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanEmitted }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinanced,}),
+    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers }),
     options.getLogs({ targets, eventAbi: events.LoanRepaid }),
   ]);
 
@@ -66,19 +64,15 @@ const fetch = async (options: FetchOptions) => {
     loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee) };
   }
 
-  const isInDailyRange = (ts: bigint) => ts >= startTime && ts < endTime;
-
   // Daily origination fees (LoanEmitted)
   for (const log of emittedAll) {
-    if (!isInDailyRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
-    if (feeBps === 0n) continue;
     const token = log.loan.principalAddress;
     const fee = BigInt(log.fee);
     const protocolCut = getProtocolFee(fee, feeBps);
-    dailyFees.add(token, fee, METRIC.SERVICE_FEES);
-    dailyRevenue.add(token, protocolCut, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.add(token, fee - protocolCut, METRIC.SERVICE_FEES);
+    dailyFees.add(token, fee, 'Loan origination fees');
+    dailyRevenue.add(token, protocolCut, 'Loan origination fees to protocol');
+    dailySupplySideRevenue.add(token, fee - protocolCut, 'Loan origination fees to lenders');
   }
 
   // Daily repayment fees (LoanRepaid)
@@ -87,35 +81,31 @@ const fetch = async (options: FetchOptions) => {
     if (!info || info.feeBps === 0n) continue;
     const protocolCut = BigInt(log.fee);
     const totalInterest = protocolCut * BPS_DIVISOR / info.feeBps;
-    dailyFees.add(info.token, totalInterest, METRIC.BORROW_INTEREST);
-    dailyRevenue.add(info.token, protocolCut, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.add(info.token, totalInterest - protocolCut, METRIC.BORROW_INTEREST);
+    dailyFees.add(info.token, totalInterest, 'Loan repayment fees');
+    dailyRevenue.add(info.token, protocolCut, 'Loan repayment fees to protocol');
+    dailySupplySideRevenue.add(info.token, totalInterest - protocolCut, 'Loan repayment fees to lenders');
   }
 
   // Daily refinancing fees (LoanRefinanced)
   for (const log of refinancedAll) {
-    if (!isInDailyRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
-    if (feeBps === 0n) continue;
     const token = log.loan.principalAddress;
     const fee = BigInt(log.fee);
     const protocolCut = getProtocolFee(fee, feeBps);
-    dailyFees.add(token, fee, METRIC.SERVICE_FEES);
-    dailyRevenue.add(token, protocolCut, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.add(token, fee - protocolCut, METRIC.SERVICE_FEES);
+    dailyFees.add(token, fee, 'Loan refinancing fees');
+    dailyRevenue.add(token, protocolCut, 'Loan refinancing fees to protocol');
+    dailySupplySideRevenue.add(token, fee - protocolCut, 'Loan refinancing fees to lenders');
   }
 
   // Daily refinancing fees from new offers
   for (const log of refinancedNewAll) {
-    if (!isInDailyRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
-    if (feeBps === 0n) continue;
     const token = log.loan.principalAddress;
     const fee = BigInt(log.totalFee);
     const protocolCut = getProtocolFee(fee, feeBps);
-    dailyFees.add(token, fee, METRIC.SERVICE_FEES);
-    dailyRevenue.add(token, protocolCut, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.add(token, fee - protocolCut, METRIC.SERVICE_FEES);
+    dailyFees.add(token, fee, 'Loan refinancing fees from new offers');
+    dailyRevenue.add(token, protocolCut, 'Loan refinancing fees from new offers to protocol');
+    dailySupplySideRevenue.add(token, fee - protocolCut, 'Loan refinancing fees from new offers to lenders');
   }
 
   return {
@@ -133,31 +123,40 @@ const methodology = {
   SupplySideRevenue: "85% of interest and origination/refinancing fees distributed to lenders.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'Loan origination fees': 'Origination fees paid by borrowers on loan origination.',
+    'Loan repayment fees': 'Repayment fees paid by borrowers on loan repayment.',
+    'Loan refinancing fees': 'Refinancing fees paid by borrowers on loan refinancing.',
+    'Loan refinancing fees from new offers': 'Refinancing fees paid by borrowers on loan refinancing from new offers.',
+  },
+  Revenue: {
+    'Loan origination fees to protocol': '15% protocol fee on realized interest and origination fees.',
+    'Loan repayment fees to protocol': '15% protocol fee on realized interest and repayment fees.',
+    'Loan refinancing fees to protocol': '15% protocol fee on realized interest and refinancing fees.',
+    'Loan refinancing fees from new offers to protocol': '15% protocol fee on realized interest and refinancing fees from new offers.',
+  },
+  ProtocolRevenue: {
+    'Loan origination fees to protocol': '15% protocol fee on realized interest and origination fees.',
+    'Loan repayment fees to protocol': '15% protocol fee on realized interest and repayment fees.',
+    'Loan refinancing fees to protocol': '15% protocol fee on realized interest and refinancing fees.',
+    'Loan refinancing fees from new offers to protocol': '15% protocol fee on realized interest and refinancing fees from new offers.',
+  },
+  SupplySideRevenue: {
+    'Loan origination fees to lenders': '85% of origination fees distributed to lenders.',
+    'Loan repayment fees to lenders': '85% of repayment fees distributed to lenders.',
+    'Loan refinancing fees to lenders': '85% of refinancing fees distributed to lenders.',
+    'Loan refinancing fees from new offers to lenders': '85% of refinancing fees from new offers distributed to lenders.',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology,
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers on loan repayments.',
-      [METRIC.SERVICE_FEES]: 'Origination and refinancing fees charged on new loans.',
-      [METRIC.PROTOCOL_FEES]: '15% protocol fee on realized interest and origination fees.',
-    },
-    Revenue: {
-      [METRIC.PROTOCOL_FEES]: '15% of realized interest and origination/refinancing fees.',
-    },
-    ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: '15% of realized interest and origination/refinancing fees.',
-    },
-    SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: '85% of interest distributed to lenders.',
-      [METRIC.SERVICE_FEES]: '85% of origination/refinancing fees retained by lenders.',
-    },
-  },
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: "2024-09-02" },
-    [CHAIN.HYPERLIQUID]: { start: "2025-03-18" },
-  },
+  adapter: config,
+  pullHourly: true,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
