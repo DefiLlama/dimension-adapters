@@ -43,8 +43,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 		const amount = log.totalAmount;
 		const protocolAmount = amount * protocolBps / PERCENTAGE_SCALE;
 		const buybackAmount = amount * buybackBps / PERCENTAGE_SCALE;
-    dailyFees.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount, 'BGT Auction Fees');
-    dailyRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount + buybackAmount, 'BGT Auction Fees');
+    dailyFees.add(ADDRESSES.berachain.WBERA, amount, 'BGT Auction Fees');
+    dailyRevenue.add(ADDRESSES.berachain.WBERA, amount, 'BGT Auction Fees');
 		dailyProtocolRevenue.add(ADDRESSES.berachain.WBERA, protocolAmount, 'BGT Auction Fees To Protocol');
 		dailyHoldersRevenue.add(ADDRESSES.berachain.WBERA, buybackAmount, 'Token Buy Back');
 	});
