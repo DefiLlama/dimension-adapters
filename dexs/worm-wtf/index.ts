@@ -43,15 +43,21 @@ const fetch = async (options: FetchOptions) => {
 
     SELECT
       product,
-      SUM(collateral_usd * leverage_raw / 100.0) AS volume_usd
+      SUM(collateral_usd) AS volume_usd,
+      SUM(collateral_usd * leverage_raw / 100.0) AS notional_volume_usd
     FROM calls
     GROUP BY 1
   `);
 
   const dailyVolume = options.createBalances();
-  rows.forEach((row: any) => dailyVolume.addUSDValue(Number(row.volume_usd || 0), row.product));
+  const dailyNotionalVolume = options.createBalances();
 
-  return { dailyVolume };
+  rows.forEach((row: any) => {
+    dailyVolume.addUSDValue(Number(row.volume_usd || 0), row.product);
+    dailyNotionalVolume.addUSDValue(Number(row.notional_volume_usd || 0), row.product);
+  });
+
+  return { dailyVolume, dailyNotionalVolume };
 };
 
 const adapter: SimpleAdapter = {
