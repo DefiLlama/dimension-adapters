@@ -28,25 +28,22 @@ const fetch = async (options: FetchOptions) => {
   for (const row of rows) {
     const input: string = row.input;
     const selector = input.slice(0, 10);
-    try {
-      let decoded;
-      if (selector === MATCH_ORDERS_ID) {
-        decoded = decodeMatchOrders(input);
-      } else if (selector === DIRECT_PURCHASE_ID) {
-        decoded = decodeDirectPurchase(input);
-      } else {
-        // directAcceptBid
-        decoded = decodeDirectAcceptBid(input);
-      }
-      const { paymentToken, amount } = decoded;
-      if (paymentToken === ADDRESSES.null) {
-        dailyVolume.addGasToken(amount);
-      } else {
-        dailyVolume.add(paymentToken, amount);
-      }
-    } catch (e: any) { 
-      console.error("[dexs/rarible] decode error:", e?.message, "selector:", selector); 
-    };
+
+    let decoded;
+    if (selector === MATCH_ORDERS_ID) {
+      decoded = decodeMatchOrders(input);
+    } else if (selector === DIRECT_PURCHASE_ID) {
+      decoded = decodeDirectPurchase(input);
+    } else {
+      // directAcceptBid
+      decoded = decodeDirectAcceptBid(input);
+    }
+    const { paymentToken, amount } = decoded;
+    if (paymentToken === ADDRESSES.null) {
+      dailyVolume.addGasToken(amount);
+    } else {
+      dailyVolume.add(paymentToken, amount);
+    }
   };
 
   return { dailyVolume };
@@ -57,7 +54,6 @@ const adapter: Adapter = {
   adapter: Object.fromEntries(
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
-  isExpensiveAdapter: true,
 };
 
 export default adapter;

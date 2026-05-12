@@ -50,20 +50,17 @@ const fetch = async (options: FetchOptions) => {
   for (const row of rows) {
     const input: string = row.input;
     const selector = input.slice(0, 10);
-    try {
-      let decoded;
-      if (selector === MATCH_ORDERS_ID) {
-        decoded = decodeMatchOrders(input);
-      } else if (selector === DIRECT_PURCHASE_ID) {
-        decoded = decodeDirectPurchase(input);
-      } else {
-        // directAcceptBid
-        decoded = decodeDirectAcceptBid(input);
-      };
-      trades.push(decoded);
-    } catch (e: any) { 
-      console.error("[fees/rarible] decode error:", e?.message, "selector:", selector); 
+
+    let decoded;
+    if (selector === MATCH_ORDERS_ID) {
+      decoded = decodeMatchOrders(input);
+    } else if (selector === DIRECT_PURCHASE_ID) {
+      decoded = decodeDirectPurchase(input);
+    } else {
+      // directAcceptBid
+      decoded = decodeDirectAcceptBid(input);
     };
+    trades.push(decoded);
   };
 
   const royaltyData = await options.api.multiCall({
@@ -84,32 +81,24 @@ const fetch = async (options: FetchOptions) => {
     const supplySideOriginFee = originFees
       .filter(({ account }) => !feeReceivers.has(account))
       .reduce((sum, { bps }) => sum + amount * bps / 10000n, 0n);
-    if (paymentToken === ADDRESSES.null) {
-      dailyFees.addGasToken(protocolFee, "Protocol Fees");
-      dailyFees.addGasToken(protocolOriginFee + supplySideOriginFee, "Origin Fees");
-      dailyFees.addGasToken(royaltyFee, "Royalties");
-      dailyRevenue.addGasToken(protocolFee, "Protocol Fees");
-      dailyRevenue.addGasToken(protocolOriginFee, "Origin Fees To Protocol");
-      dailySupplySideRevenue.addGasToken(supplySideOriginFee, "Origin Fees To Users");
-      dailySupplySideRevenue.addGasToken(royaltyFee, "Royalties");
-    } else {
-      dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
-      dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
-      dailyFees.add(paymentToken, royaltyFee, "Royalties");
-      dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
-      dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees To Protocol");
-      dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees To Users");
-      dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
-    };
+
+    dailyFees.add(paymentToken, protocolFee, "Protocol Fees");
+    dailyFees.add(paymentToken, protocolOriginFee + supplySideOriginFee, "Origin Fees");
+    dailyFees.add(paymentToken, royaltyFee, "Royalties");
+    dailyRevenue.add(paymentToken, protocolFee, "Protocol Fees");
+    dailyRevenue.add(paymentToken, protocolOriginFee, "Origin Fees To Protocol");
+    dailySupplySideRevenue.add(paymentToken, supplySideOriginFee, "Origin Fees To Users");
+    dailySupplySideRevenue.add(paymentToken, royaltyFee, "Royalties");
   };
 
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
   Fees: "Total fees paid: protocol fee, origin fees and royalties.",
   SupplySideRevenue: "Origin fees earned by order facilitators and royalties earned by NFT creators.",
   Revenue: "Protocol and Origin fees collected by Rarible on every transaction.",
+  ProtocolRevenue: "Protocol and Origin fees collected by Rarible on every transaction.",
 };
 
 const breakdownMethodology = {
@@ -135,7 +124,6 @@ const adapter: Adapter = {
   adapter: Object.fromEntries(
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
-  isExpensiveAdapter: true
 };
 
 export default adapter;
