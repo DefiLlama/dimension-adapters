@@ -73,28 +73,23 @@ async function discoverManagers(options: FetchOptions) {
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
-  try {
-    const managers = new Set(await discoverManagers(options));
-    if (!managers.size)
-      return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
-      };
+  const managers = new Set(await discoverManagers(options));
+  if (!managers.size)
+    return {
+      dailyFees,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees,
+    };
 
-    const feeLogs = await options.getLogs({
-      targets: [...managers],
-      eventAbi: feeDistributedAbi,
-      entireLog: true,
-      cacheInCloud: true,
-    });
+  const feeLogs = await options.getLogs({
+    targets: [...managers],
+    eventAbi: feeDistributedAbi,
+    cacheInCloud: true,
+  });
 
-    feeLogs.forEach((log: any) => {
-      dailyFees.add(String(log.args.feeToken).toLowerCase(), log.args.totalFe, METRIC.SERVICE_FEES);
-    });
-  } catch (e) {
-    console.error(`[metalex][${options.chain}] failed to fetch fee logs`, e);
-  }
+  feeLogs.forEach((log: any) => {
+    dailyFees.add(String(log.feeToken).toLowerCase(), log.totalFe, METRIC.SERVICE_FEES);
+  });
 
   return {
     dailyFees,
@@ -113,8 +108,15 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  [METRIC.SERVICE_FEES]:
-    "MetaLeX 0.3% escrow finalization service fee collected via FeeDistributed events from active DealManager/RoundManager contracts.",
+  Fees: {
+    [METRIC.SERVICE_FEES]: "MetaLeX 0.3% escrow finalization service fee collected via FeeDistributed events from active DealManager/RoundManager contracts.",
+  },
+  Revenue: {
+    [METRIC.SERVICE_FEES]: "MetaLeX 0.3% escrow finalization service fee collected via FeeDistributed events from active DealManager/RoundManager contracts.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SERVICE_FEES]: "MetaLeX 0.3% escrow finalization service fee collected via FeeDistributed events from active DealManager/RoundManager contracts.",
+  },
 };
 
 const adapter: SimpleAdapter = {
