@@ -43,6 +43,7 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  pullHourly?: boolean,
   dateString: string,
   preFetchedResults?: any,
   moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)

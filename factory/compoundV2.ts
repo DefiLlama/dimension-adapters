@@ -40,11 +40,17 @@ const venusLiquidationIncome = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
   }
 
-  const logs = await options.getLogs({
-    target: protocolShareReserve,
-    eventAbi: "event AssetsReservesUpdated(address indexed comptroller, address indexed asset, uint256 amount, uint8 incomeType, uint8 schema)",
-    pullHourly: true,
-  });
+  let logs: any[] = [];
+  try {
+    logs = await options.getLogs({
+      target: protocolShareReserve,
+      eventAbi: "event AssetsReservesUpdated(address indexed comptroller, address indexed asset, uint256 amount, uint8 incomeType, uint8 schema)",
+      pullHourly: true,
+    });
+  } catch (error) {
+    console.error(`Venus liquidation income fetch failed on ${options.chain} for ${protocolShareReserve}`, error);
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
+  }
 
   logs
     .filter((log: any) => Number(log.incomeType) === venusLiquidationIncomeType && Number(log.schema) === venusAdditionalRevenueSchema)
