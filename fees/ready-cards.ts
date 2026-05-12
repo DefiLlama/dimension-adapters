@@ -1,42 +1,43 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
-import { METRIC } from "../helpers/metrics";
 
 const READY_CARDS_TREASURY = "bvT9KFrAqmRpnb6AsuaJzdVKEVuT5jAVYt3N5CyGvkV";
-
-const READY_MINT = "HKJHsYJHMVK5VRyHHk5GhvzY9tBAAtPvDkZfDH6RLDTd";
+const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
 const PAYMENT_MINTS = [
-    "So11111111111111111111111111111111111111112", // SOL / wSOL
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
+  "So11111111111111111111111111111111111111112", // SOL / wSOL
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
+  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
+  "HKJHsYJHMVK5VRyHHk5GhvzY9tBAAtPvDkZfDH6RLDTd", // READY
 ];
+
+const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+const PACK_RIPS = "Pack Rips";
+const CARD_BUYBACKS = "Card Buybacks";
 
 const paymentMints = PAYMENT_MINTS.map((mint) => `'${mint}'`).join(", ");
 
 async function getAlliumData(options: FetchOptions) {
-    const packPurchases = options.createBalances();
-    const marketplaceFees = options.createBalances();
-    const cardBuybacks = options.createBalances();
-    const tokenBuybackSpends = options.createBalances();
+  const tokenPackRips = options.createBalances();
+  const web2PackRips = options.createBalances();
+  const cardBuybacks = options.createBalances();
 
-    const results = await queryAllium(`
-    WITH token_buyback_txs AS (
-      SELECT DISTINCT ready_in.txn_id
-      FROM solana.assets.transfers ready_in
-      JOIN solana.assets.transfers payment_out
-        ON ready_in.txn_id = payment_out.txn_id
-      WHERE ready_in.to_address = '${READY_CARDS_TREASURY}'
-        AND ready_in.mint = '${READY_MINT}'
-        AND ready_in.from_address != '${READY_CARDS_TREASURY}'
-        AND payment_out.from_address = '${READY_CARDS_TREASURY}'
-        AND payment_out.mint IN (${paymentMints})
-        AND ready_in.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  const results = await queryAllium(`
+    WITH web2_memos AS (
+      SELECT
+        txn_id,
+        COALESCE(
+          TRY_PARSE_JSON(parsed):info:memo::STRING,
+          TRY_PARSE_JSON(parsed):memo::STRING,
+          parsed
+        ) AS memo_text
+      FROM solana.raw.instructions
+      WHERE program_id = '${MEMO_PROGRAM}'
+        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
 
-    SELECT 'pack_purchases' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
+    SELECT 'token_pack_rips' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE to_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
@@ -46,120 +47,104 @@ async function getAlliumData(options: FetchOptions) {
 
     UNION ALL
 
-    SELECT 'card_buybacks' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
+    SELECT 'card_buybacks' AS category, '${USDT_MINT}' AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
-      AND mint IN (${paymentMints})
-      AND txn_id NOT IN (SELECT txn_id FROM token_buyback_txs)
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    GROUP BY mint
-
-    UNION ALL
-
-    SELECT 'marketplace_fees' AS category, '${READY_MINT}' AS token, COALESCE(SUM(raw_amount), 0) AS amount
-    FROM solana.assets.transfers
-    WHERE to_address = '${READY_CARDS_TREASURY}'
-      AND mint = '${READY_MINT}'
-      AND from_address != '${READY_CARDS_TREASURY}'
-      AND txn_id NOT IN (SELECT txn_id FROM token_buyback_txs)
+      AND mint = '${USDT_MINT}'
+      AND to_address != '${READY_CARDS_TREASURY}'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
 
     UNION ALL
 
-    SELECT 'token_buyback_spends' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
-    FROM solana.assets.transfers
-    WHERE from_address = '${READY_CARDS_TREASURY}'
-      AND mint IN (${paymentMints})
-      AND txn_id IN (SELECT txn_id FROM token_buyback_txs)
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    GROUP BY mint
+    SELECT 'web2_pack_rips' AS category, 'USD' AS token, COALESCE(SUM(
+      TRY_TO_DOUBLE(REGEXP_SUBSTR(memo_text, '(totalUsd|totalUSD|usd|USD)=([0-9]+(\\.[0-9]+)?)', 1, 1, 'e', 2))
+    ), 0) AS amount
+    FROM web2_memos
+    WHERE memo_text ILIKE 'READY|WEB2|%'
   `);
 
-    results.forEach((row: { category: string; token: string; amount: string }) => {
-        if (row.category === "pack_purchases") {
-            packPurchases.add(row.token, row.amount);
-        } else if (row.category === "card_buybacks") {
-            cardBuybacks.add(row.token, row.amount);
-        } else if (row.category === "marketplace_fees") {
-            marketplaceFees.add(row.token, row.amount);
-        } else if (row.category === "token_buyback_spends") {
-            tokenBuybackSpends.add(row.token, row.amount);
-        }
-    });
+  results.forEach((row: { category: string; token: string; amount: string }) => {
+    if (row.category === "token_pack_rips") {
+      tokenPackRips.add(row.token, row.amount);
+    } else if (row.category === "web2_pack_rips") {
+      web2PackRips.addUSDValue(Number(row.amount), PACK_RIPS);
+    } else if (row.category === "card_buybacks") {
+      cardBuybacks.add(row.token, row.amount);
+    }
+  });
 
-    return { packPurchases, marketplaceFees, cardBuybacks, tokenBuybackSpends };
+  return { tokenPackRips, web2PackRips, cardBuybacks };
 }
 
 async function fetch(options: FetchOptions) {
-    const dailyVolume = options.createBalances();
-    const dailyFees = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
+  const dailyVolume = options.createBalances();
+  const grossPackRips = options.createBalances();
+  const costOfRevenue = options.createBalances();
 
-    const { packPurchases, marketplaceFees, cardBuybacks, tokenBuybackSpends } = await getAlliumData(options);
+  const { tokenPackRips, web2PackRips, cardBuybacks } = await getAlliumData(options);
 
-    dailyVolume.add(packPurchases)
+  grossPackRips.add(tokenPackRips, PACK_RIPS);
+  grossPackRips.add(web2PackRips, PACK_RIPS);
+  costOfRevenue.add(cardBuybacks, CARD_BUYBACKS);
+  dailyVolume.add(grossPackRips);
 
-    dailyFees.add(packPurchases, "Pack Purchases");
-    dailyFees.add(marketplaceFees, "Marketplace Fees");
-    dailyFees.subtract(cardBuybacks, "Card Buybacks");
+  const dailyFees = grossPackRips.clone();
+  const dailyUserFees = grossPackRips.clone();
+  const dailyRevenue = grossPackRips.clone();
+  dailyRevenue.subtract(costOfRevenue);
+  const dailyProtocolRevenue = dailyRevenue.clone();
 
-    const dailyRevenue = dailyFees.clone();
-    const dailyProtocolRevenue = dailyFees.clone();
-
-    dailyHoldersRevenue.add(tokenBuybackSpends, METRIC.TOKEN_BUY_BACK);
-
-    dailyProtocolRevenue.subtract(tokenBuybackSpends, "Token Buyback Spends");
-
-    return {
-        dailyVolume,
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
-    };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue: costOfRevenue,
+    dailyHoldersRevenue: "0",
+  };
 }
 
 const methodology = {
-    Volume: "Total spends on card pack sales",
-    Fees: "Fees collected from card pack sales and marketplace trades after subtracting card buybacks",
-    Revenue: "Revenue from card pack sales and marketplace trades after subtracting card buybacks",
-    ProtocolRevenue: "Revenue retained by protocol after card buybacks and $READY token buybacks",
-    HoldersRevenue: "Part of revenue spent on $READY token buybacks",
+  Volume: "Gross Ready Cards pack-rip value.",
+  Fees: "Gross value spent on Ready Cards pack rips, including token-paid pack rips and web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos. Buybacks are not netted into fees.",
+  UserFees: "Gross value paid or spent by users for Ready Cards pack rips.",
+  Revenue: "Net Ready Cards pack-rip revenue after card buybacks/sellbacks.",
+  ProtocolRevenue: "Net Ready Cards pack-rip revenue retained by the protocol after card buybacks/sellbacks.",
+  SupplySideRevenue: "Card buybacks/sellbacks paid out by the protocol, tracked as outbound USDT from the dedicated Ready Cards treasury.",
+  HoldersRevenue: "No token holder revenue is counted for the current Ready Cards model.",
 };
 
 const breakdownMethodology = {
-    Fees: {
-        "Pack Purchases": "Fees collected from card pack sales",
-        "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
-    },
-    Revenue: {
-        "Pack Purchases": "Fees collected from card pack sales",
-        "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
-    },
-    ProtocolRevenue: {
-        "Pack Purchases": "Fees collected from card pack sales",
-        "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
-        "Token Buyback Spends": "Fees spent on $READY token buybacks",
-    },
-    HoldersRevenue: {
-        [METRIC.TOKEN_BUY_BACK]: "Part of revenue going to token buybacks",
-    },
+  Fees: {
+    [PACK_RIPS]: "Gross Ready Cards pack-rip value, including incoming SOL, USDC, USDT, READY, and web2/spin-credit rips recorded through READY|WEB2 on-chain memos.",
+  },
+  UserFees: {
+    [PACK_RIPS]: "Gross value paid or spent by users for Ready Cards pack rips.",
+  },
+  Revenue: {
+    [PACK_RIPS]: "Gross Ready Cards pack-rip value.",
+    [CARD_BUYBACKS]: "Outbound USDT card buybacks/sellbacks netted from gross pack-rip value.",
+  },
+  ProtocolRevenue: {
+    [PACK_RIPS]: "Gross Ready Cards pack-rip value.",
+    [CARD_BUYBACKS]: "Outbound USDT card buybacks/sellbacks netted from gross pack-rip value.",
+  },
+  SupplySideRevenue: {
+    [CARD_BUYBACKS]: "Outbound USDT from the dedicated Ready Cards treasury. Operating expenses and other company payments are handled outside this wallet.",
+  },
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    pullHourly: true,
-    fetch,
-    chains: [CHAIN.SOLANA],
-    start: "2026-04-01",
-    dependencies: [Dependencies.ALLIUM],
-    isExpensiveAdapter: true,
-    allowNegativeValue: true,
-    methodology,
-    breakdownMethodology,
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-04-01",
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
