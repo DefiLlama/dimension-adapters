@@ -65,15 +65,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    dailyVolume:
-      "Volume tracks successful Worm trades on Solana.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      "Normal Markets": "1x market bets where volume equals the USDC amount placed.",
-      "Leverage Markets": "Leveraged market bets where volume equals the USDC amount placed multiplied by leverage.",
-      "Creator Markets": "Creator market bets where volume equals the USDC amount placed.",
-    },
+    Volume: "Volume tracks successful Worm trades on Solana.",
   },
 };
 
