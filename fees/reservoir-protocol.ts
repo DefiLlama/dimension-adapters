@@ -7,7 +7,6 @@ const WSRUSD = '0xd3fD63209FA2D55B07A0f6db36C2f43900be3094';
 const WSRUSD_OFT_ADAPTER = '0xBb431AbD156B960e5B77cC45c75F107e3991258a';
 const SRUSD = '0x738d1115B90efa71AE468F1287fc864775e23a31';
 const SAVING_MODULE = '0x5475611Dffb8ef4d697Ae39df9395513b6E947d7';
-const OFT_ADDRESS = '0x4809010926aec940b550D34a46A52739f996D75D';
 
 const WAD = BigInt('1000000000000000000');
 const PRICE_SCALE = BigInt('100000000');
@@ -54,15 +53,16 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const wsrTotalYield = wsrTotal * wsrRateDelta / WAD;
     const wsrCircYield  = wsrCirc  * wsrRateDelta / WAD;
 
-    if (wsrTotalYield !== 0n) dailyFees.add(RUSD, wsrTotalYield, METRIC.ASSETS_YIELDS);
-    if (srYield       !== 0n) dailyFees.add(RUSD, srYield,       METRIC.ASSETS_YIELDS);
+    const wsrLockedYield = wsrLocked_ * wsrRateDelta / WAD;
 
-    if (wsrCircYield  !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield, METRIC.ASSETS_YIELDS);
-    if (srYield       !== 0n) dailySupplySideRevenue.add(RUSD, srYield,      METRIC.ASSETS_YIELDS);
-  } else {
-    const supply = await options.api.call({ target: OFT_ADDRESS, abi: 'uint256:totalSupply' });
-    const yield_ = BigInt(supply) * wsrRateDelta / WAD;
-    if (yield_ !== 0n) dailySupplySideRevenue.add(RUSD, yield_, METRIC.ASSETS_YIELDS);
+    if (wsrTotalYield  !== 0n) dailyFees.add(RUSD, wsrTotalYield,  METRIC.ASSETS_YIELDS);
+    if (srYield        !== 0n) dailyFees.add(RUSD, srYield,        METRIC.ASSETS_YIELDS);
+
+    if (wsrLockedYield !== 0n) dailyRevenue.add(RUSD, wsrLockedYield, METRIC.ASSETS_YIELDS);
+
+    if (wsrCircYield   !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield,  METRIC.ASSETS_YIELDS);
+    if (srYield        !== 0n) dailySupplySideRevenue.add(RUSD, srYield,       METRIC.ASSETS_YIELDS);
+    // Non-ETH chains return empty to avoid double-counting wsrLocked yield
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
@@ -70,8 +70,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
 const methodology = {
   Fees: 'Gross yield committed to all wsrUSD holders (total supply × Δexchange rate) plus srUSD holders — gross income proxy including off-chain RWA.',
-  Revenue: 'Not directly observable on-chain; protocol margin from DeFi position yield spread is retained outside wsrUSD/srUSD contracts.',
-  SupplySideRevenue: 'Yield paid to wsrUSD and srUSD holders per chain (circulating supply × Δrate).',
+  Revenue: 'Yield accruing to wsrUSD locked in the LayerZero OFT bridge adapter (locked supply × Δexchange rate) — best available on-chain proxy for protocol retained yield.',
+  SupplySideRevenue: 'Yield paid to circulating wsrUSD holders (total minus OFT-bridged supply × Δrate) plus srUSD holders.',
 };
 
 const breakdownMethodology = {
@@ -79,10 +79,10 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: 'Total yield committed to wsrUSD and srUSD holders.',
   },
   Revenue: {
-    [METRIC.ASSETS_YIELDS]: 'Protocol margin not directly observable on-chain.',
+    [METRIC.ASSETS_YIELDS]: 'Yield on OFT-bridged wsrUSD as proxy for protocol retained yield.',
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Per-chain yield distributed to wsrUSD and srUSD holders.',
+    [METRIC.ASSETS_YIELDS]: 'Yield distributed to circulating wsrUSD and srUSD holders.',
   },
 };
 
