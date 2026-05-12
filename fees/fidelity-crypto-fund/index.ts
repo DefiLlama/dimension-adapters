@@ -1,62 +1,37 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { httpGet, httpPost } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
-const FIDELITY_BASE_URL = "https://digital.fidelity.com/prgw/digital/research";
+const ROBINHOOD_API_URL = "https://bonfire.robinhood.com/instruments";
 const MANAGEMENT_FEE = 0.0025;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
-const headers = {
-  "user-agent": "Mozilla/5.0",
-  "accept": "application/json,text/html",
-  "referer": `${FIDELITY_BASE_URL}/quote/dashboard/summary?symbol=FBTC`,
-};
 
 const funds = [
   {
     symbol: "FBTC",
+    id: "efe26023-af80-41de-b83c-6ce41b5ecf65",
     feeStart: 1722470400,
   },
   {
     symbol: "FETH",
+    id: "06374427-17f3-46fa-8b63-b2f0b60f62d8",
     feeStart: 1735689600,
   },
   {
     symbol: "FSOL",
+    id: "d6d17376-e25b-4331-911d-3f93bd765311",
     feeStart: 1779148800,
   },
 ];
 
 type Fund = typeof funds[number];
 
-function parseNumber(value: any, label: string, symbol: string) {
-  const parsed = Number(`${value}`.replace(/[$,%]/g, ""));
-  if (!Number.isFinite(parsed)) throw new Error(`Could not parse ${label} for ${symbol} from Fidelity quote API`);
-  return parsed;
-}
 
-async function getFidelityRequestOptions() {
-  const { data, headers: responseHeaders } = await httpGet(`${FIDELITY_BASE_URL}/api/tokens`, { headers }, { withMetadata: true });
-  const cookie = (responseHeaders["set-cookie"] ?? []).map((cookie: string) => cookie.split(";")[0]).join("; ");
-  return {
-    headers: {
-      ...headers,
-      "content-type": "application/json",
-      "origin": "https://digital.fidelity.com",
-      "X-CSRF-TOKEN": data.csrfToken,
-      cookie,
-    },
-  };
-}
 
-async function getFundAum({ symbol }: Fund, requestOptions: any) {
-  const response = await httpPost(`${FIDELITY_BASE_URL}/api/quote`, { symbol }, requestOptions);
-  const quoteData = response.quoteData;
-  if (!quoteData) throw new Error(`Missing quote data for ${symbol} from Fidelity quote API`);
-
-  const nav = parseNumber(quoteData.etfNavPriceOffer ?? quoteData.navPreviousDay?.value, "NAV", symbol);
-  const sharesOutstanding = parseNumber(quoteData.short?.freeFloatShares, "shares outstanding", symbol);
-  return nav * sharesOutstanding;
+async function getFundFees({ id, activeDuration }: Fund & { activeDuration: number }) {
+  const response = await httpGet(`${ROBINHOOD_API_URL}/${id}/etp-details`);
+  return response.aum * MANAGEMENT_FEE * activeDuration / ONE_YEAR_IN_SECONDS;
 }
 
 async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOptions): Promise<FetchResult> {
@@ -68,12 +43,11 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     }))
     .filter((fund) => fund.activeDuration);
 
-  const requestOptions = await getFidelityRequestOptions();
-  for (const fund of activeFunds) {
-    const aum = await getFundAum(fund, requestOptions);
-    const managementFee = aum * MANAGEMENT_FEE * fund.activeDuration / ONE_YEAR_IN_SECONDS;
 
-    dailyFees.addUSDValue(managementFee, METRIC.MANAGEMENT_FEES);
+  for (const fund of activeFunds) {
+    
+    const fees = await getFundFees(fund)
+    dailyFees.addUSDValue(fees, METRIC.MANAGEMENT_FEES);
   }
 
   return {
@@ -91,7 +65,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.MANAGEMENT_FEES]: "0.25% annual management fees on AUM after each fund's waiver period.",
+    [METRIC.MANAGEMENT_FEES]: "Annual management fees on AUM after each fund's waiver period, using Robinhood ETP AUM and gross expense ratio data.",
   },
   Revenue: {
     [METRIC.MANAGEMENT_FEES]: "Management fees retained by Fidelity.",
