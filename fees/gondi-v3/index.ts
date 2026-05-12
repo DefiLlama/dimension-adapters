@@ -6,19 +6,21 @@ import { METRIC } from "../../helpers/metrics";
 // Docs:      https://docs.gondi.xyz/
 // Fees:      https://docs.gondi.xyz/gondi-v3/protocol-fees#lender-fees
 // Contracts: https://docs.gondi.xyz/gondi-v3/protocol-contracts
-const config: Record<string, { targets: string[]; start: string }> = {
+const config: Record<string, { targets: string[]; start: string; fromBlock: number }> = {
   [CHAIN.ETHEREUM]: {
     targets: [
       "0xf65b99ce6dc5f6c556172bcc0ff27d3665a7d9a8", // V3.0
       "0xf41B389E0C1950dc0B16C9498eaE77131CC08A56", // V3.1
     ],
-    start: "2024-09-02"
+    start: "2024-09-02",
+    fromBlock: 20663554,
   },
   [CHAIN.HYPERLIQUID]: {
     targets: [
       "0x6ad675624ec8320e5806858cd5db101a0b927fd9", // V3.1
     ],
-    start: "2025-03-18"
+    start: "2025-03-18",
+    fromBlock: 30081557,
   },
 };
 
@@ -43,13 +45,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const { targets } = config[options.chain];
+  const { targets, fromBlock } = config[options.chain];
 
   const [emittedAll, refinancedAll, refinancedNewAll, repaidDaily] = await Promise.all([
-    options.getLogs({ targets, eventAbi: events.LoanEmitted }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinanced,}),
-    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers }),
-    options.getLogs({ targets, eventAbi: events.LoanRepaid }),
+    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRepaid, }),
   ]);
 
   // Build loanId -> {token, feeBps}
@@ -64,8 +66,11 @@ const fetch = async (options: FetchOptions) => {
     loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee) };
   }
 
+  const isInTimeRange = (ts: bigint) => ts >= options.startTimestamp && ts < options.endTimestamp;
+
   // Daily origination fees (LoanEmitted)
   for (const log of emittedAll) {
+    if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;
     const fee = BigInt(log.fee);
@@ -88,6 +93,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Daily refinancing fees (LoanRefinanced)
   for (const log of refinancedAll) {
+    if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;
     const fee = BigInt(log.fee);
@@ -99,6 +105,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Daily refinancing fees from new offers
   for (const log of refinancedNewAll) {
+    if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;
     const fee = BigInt(log.totalFee);
