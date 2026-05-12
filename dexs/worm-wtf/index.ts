@@ -24,8 +24,7 @@ const fetch = async (options: FetchOptions) => {
           ELSE bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 17, 8))) / 1e6
         END AS collateral_usd
       FROM solana.instruction_calls
-      WHERE block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
+      WHERE TIME_RANGE
         AND tx_success = true
         AND (
           (
