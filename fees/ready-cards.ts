@@ -91,7 +91,8 @@ async function fetch(options: FetchOptions) {
   const dailyFees = grossPackRips.clone();
   const dailyUserFees = grossPackRips.clone();
   const dailyRevenue = grossPackRips.clone();
-  const dailyProtocolRevenue = grossPackRips.clone();
+  dailyRevenue.subtract(costOfRevenue);
+  const dailyProtocolRevenue = dailyRevenue.clone();
 
   return {
     dailyVolume,
@@ -108,8 +109,8 @@ const methodology = {
   Volume: "Gross Ready Cards pack-rip value.",
   Fees: "Gross value spent on Ready Cards pack rips, including token-paid pack rips and web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos. Buybacks are not netted into fees.",
   UserFees: "Gross value paid or spent by users for Ready Cards pack rips.",
-  Revenue: "Gross pack-rip value before card buybacks/sellbacks.",
-  ProtocolRevenue: "Gross pack-rip value allocated to the Ready Cards protocol before card buybacks/sellbacks.",
+  Revenue: "Net Ready Cards pack-rip revenue after card buybacks/sellbacks.",
+  ProtocolRevenue: "Net Ready Cards pack-rip revenue retained by the protocol after card buybacks/sellbacks.",
   SupplySideRevenue: "Card buybacks/sellbacks paid out by the protocol, tracked as outbound USDT from the dedicated Ready Cards treasury.",
   HoldersRevenue: "No token holder revenue is counted for the current Ready Cards model.",
 };
@@ -118,11 +119,16 @@ const breakdownMethodology = {
   Fees: {
     [PACK_RIPS]: "Gross Ready Cards pack-rip value, including incoming SOL, USDC, USDT, READY, and web2/spin-credit rips recorded through READY|WEB2 on-chain memos.",
   },
+  UserFees: {
+    [PACK_RIPS]: "Gross value paid or spent by users for Ready Cards pack rips.",
+  },
   Revenue: {
-    [PACK_RIPS]: "Gross Ready Cards pack-rip value before card buybacks/sellbacks.",
+    [PACK_RIPS]: "Gross Ready Cards pack-rip value.",
+    [CARD_BUYBACKS]: "Outbound USDT card buybacks/sellbacks netted from gross pack-rip value.",
   },
   ProtocolRevenue: {
-    [PACK_RIPS]: "Gross Ready Cards pack-rip value before card buybacks/sellbacks.",
+    [PACK_RIPS]: "Gross Ready Cards pack-rip value.",
+    [CARD_BUYBACKS]: "Outbound USDT card buybacks/sellbacks netted from gross pack-rip value.",
   },
   SupplySideRevenue: {
     [CARD_BUYBACKS]: "Outbound USDT from the dedicated Ready Cards treasury. Operating expenses and other company payments are handled outside this wallet.",
