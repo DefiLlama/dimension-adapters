@@ -22,8 +22,11 @@ const venusProtocolShareReserves: Record<string, string> = {
 
 const venusLiquidationIncomeType = 1;
 const venusAdditionalRevenueSchema = 1;
-const venusLiquidationProtocolShare = 25n;
-const venusLiquidationHoldersShare = 75n;
+const venusLiquidationTreasuryShare = 60n;
+const venusLiquidationVaultShare = 20n;
+const venusLiquidationRiskFundShare = 20n;
+const venusLiquidationProtocolShare = venusLiquidationTreasuryShare + venusLiquidationRiskFundShare;
+const venusLiquidationHoldersShare = venusLiquidationVaultShare;
 const percentageDenominator = 100n;
 
 const venusLiquidationIncome = async (options: FetchOptions) => {
@@ -119,12 +122,13 @@ const feesConfigs: Record<string, Config> = {
     options: {
       protocolRevenueRatio: 0.6,
       holdersRevenueRatio: 0.4,
+      pullHourly: true,
       extraFees: venusLiquidationIncome,
       methodology: {
         Fees: "Total interest paid by borrowers and liquidation income received by ProtocolShareReserve.",
         Revenue: "Protocol and holders share of borrow interest, plus liquidation income received by ProtocolShareReserve.",
-        ProtocolRevenue: "60% of borrow interest revenue, plus the 25% BNB burn share of ProtocolShareReserve liquidation income.",
-        HoldersRevenue: "40% of borrow interest revenue, plus the 75% XVS holder share of ProtocolShareReserve liquidation income.",
+        ProtocolRevenue: "60% of borrow interest revenue, plus the Treasury and Risk Fund shares of ProtocolShareReserve liquidation income.",
+        HoldersRevenue: "40% of borrow interest revenue, plus the XVS Vault rewards share of ProtocolShareReserve liquidation income.",
         SupplySideRevenue: "Interest paid to lenders in liquidity pools.",
       },
       breakdownMethodology: {
@@ -138,11 +142,11 @@ const feesConfigs: Record<string, Config> = {
         },
         ProtocolRevenue: {
           [METRIC.BORROW_INTEREST]: "60% of borrow interest revenue.",
-          [METRIC.LIQUIDATION_FEES]: "25% BNB burn share of ProtocolShareReserve liquidation income.",
+          [METRIC.LIQUIDATION_FEES]: "80% Treasury and Risk Fund shares of ProtocolShareReserve liquidation income.",
         },
         HoldersRevenue: {
           [METRIC.BORROW_INTEREST]: "40% of borrow interest revenue.",
-          [METRIC.LIQUIDATION_FEES]: "75% XVS holder share of ProtocolShareReserve liquidation income.",
+          [METRIC.LIQUIDATION_FEES]: "20% XVS Vault rewards share of ProtocolShareReserve liquidation income.",
         },
         SupplySideRevenue: {
           [METRIC.BORROW_INTEREST]: "Borrow interest distributed to suppliers and lenders.",
