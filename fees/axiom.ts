@@ -4,7 +4,9 @@ import { queryDuneSql } from '../helpers/dune';
 import ADDRESSES from '../helpers/coreAssets.json';
 import { METRIC } from '../helpers/metrics';
 
-const CASHBACK_AND_REFERRAL_WALLETS = [
+const REFERRAL_VAULT_PROGRAM = 'VAULTkV5rgY9WqZtvaMHvctrKMwQw8bCfSJF4nga2D4';
+
+const CASHBACK_WALLETS = [
   'AxiomRXZAq1Jgjj9pHmNqVP7Lhu67wLXZJZbaK87TTSk',
   'AxiomRYAid8ZDhS1bJUAzEaNSr69aTWB9ATfdDLfUbnc',
 ];
@@ -30,9 +32,18 @@ const FEE_WALLETS = [
   '846ah7iBSu9ApuCyEhA5xpnjHHX7d4QJKetWLbwzmJZ8',
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
+
 const REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS = [
+  REFERRAL_VAULT_PROGRAM,
   'ComputeBudget111111111111111111111111111111',
-  ...CASHBACK_AND_REFERRAL_WALLETS,
+  ...CASHBACK_WALLETS,
+  ...FEE_WALLETS,
+];
+
+const CASHBACK_PAYOUT_EXCLUDED_ACCOUNTS = [
+  REFERRAL_VAULT_PROGRAM,
+  'ComputeBudget111111111111111111111111111111',
+  ...CASHBACK_WALLETS,
   ...FEE_WALLETS,
 ];
 
@@ -42,8 +53,9 @@ const containsAnyAccount = (addresses: string[]) => addresses.map(address => `CO
 // https://dune.com/adam_tehc/axiom
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const formattedFeeWallets = formatAddresses(FEE_WALLETS);
-  const formattedExcludedAccounts = formatAddresses(REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS);
-  const cashbackAndReferralFilter = containsAnyAccount(CASHBACK_AND_REFERRAL_WALLETS);
+  const formattedReferralPayoutExcludedAccounts = formatAddresses(REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS);
+  const formattedCashbackPayoutExcludedAccounts = formatAddresses(CASHBACK_PAYOUT_EXCLUDED_ACCOUNTS);
+  const cashbackWalletFilter = containsAnyAccount(CASHBACK_WALLETS);
 
   const query = `WITH
     allFeePayments AS (
@@ -74,7 +86,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
           )
       GROUP BY trades.tx_id
     ),
-    payout_txs AS (
+    referral_payout_txs AS (
       SELECT
         id,
         account_keys,
@@ -84,19 +96,41 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
         AND TIME_RANGE
         AND success = true
-        AND (${cashbackAndReferralFilter})
+        AND CONTAINS(account_keys, '${REFERRAL_VAULT_PROGRAM}')
     ),
-    referral_and_cashback_payouts AS (
+    cashback_payout_txs AS (
+      SELECT
+        id,
+        account_keys,
+        pre_balances,
+        post_balances
+      FROM solana.transactions
+      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
+        AND TIME_RANGE
+        AND success = true
+        AND (${cashbackWalletFilter})
+        AND NOT CONTAINS(account_keys, '${REFERRAL_VAULT_PROGRAM}')
+    ),
+    referral_payouts AS (
       SELECT
         COALESCE(SUM(post_balances[i] - pre_balances[i]), 0) AS payout_lamports
-      FROM payout_txs
+      FROM referral_payout_txs
       CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
       WHERE post_balances[i] > pre_balances[i]
-        AND account_keys[i] NOT IN (${formattedExcludedAccounts})
+        AND account_keys[i] NOT IN (${formattedReferralPayoutExcludedAccounts})
+    ),
+    cashback_payouts AS (
+      SELECT
+        COALESCE(SUM(post_balances[i] - pre_balances[i]), 0) AS payout_lamports
+      FROM cashback_payout_txs
+      CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
+      WHERE post_balances[i] > pre_balances[i]
+        AND account_keys[i] NOT IN (${formattedCashbackPayoutExcludedAccounts})
     )
     SELECT
       (SELECT SUM(fee) FROM botTrades) AS fee,
-      (SELECT payout_lamports FROM referral_and_cashback_payouts) AS payout_lamports
+      (SELECT payout_lamports FROM referral_payouts) AS referral_payout_lamports,
+      (SELECT payout_lamports FROM cashback_payouts) AS cashback_payout_lamports
   `;
   const result = await queryDuneSql(options, query);
 
@@ -106,13 +140,18 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   dailyRevenue.add(ADDRESSES.solana.SOL, result[0].fee, 'Trading Fees to protocol');
 
-  const dailyReferralAndCashbackPayouts = options.createBalances();
-  dailyReferralAndCashbackPayouts.add(ADDRESSES.solana.SOL, result[0].payout_lamports, 'Referral and Cashback Payouts');
+  const dailyReferralPayouts = options.createBalances();
+  dailyReferralPayouts.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, 'Referral Payouts');
+
+  const dailyCashbackPayouts = options.createBalances();
+  dailyCashbackPayouts.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, 'Cashback Payouts');
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(dailyReferralAndCashbackPayouts);
+  dailySupplySideRevenue.addBalances(dailyReferralPayouts);
+  dailySupplySideRevenue.addBalances(dailyCashbackPayouts);
 
-  dailyFees.addBalances(dailyReferralAndCashbackPayouts);
+  dailyFees.addBalances(dailyReferralPayouts);
+  dailyFees.addBalances(dailyCashbackPayouts);
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 };
@@ -125,16 +164,17 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   start: '2025-01-21',
   methodology: {
-    Fees: 'Gross Axiom trading fees paid by users plus claimed referral payouts not captured by Axiom fee wallets.',
-    Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-    UserFees: 'Gross Axiom trading fees paid by users plus claimed referral payouts not captured by Axiom fee wallets.',
-    ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-    SupplySideRevenue: 'Claimed SOL referral payouts from Axiom referral vaults and cashback payouts from Axiom cashback wallets.',
+    Fees: 'Gross Axiom trading fees paid by users plus claimed referral and cashback payouts not captured by Axiom fee wallets.',
+    Revenue: 'Trading fees going to the protocol after deducting referral and cashback payouts.',
+    UserFees: 'Gross Axiom trading fees paid by users plus claimed referral and cashback payouts not captured by Axiom fee wallets.',
+    ProtocolRevenue: 'Trading fees going to the protocol after deducting referral and cashback payouts.',
+    SupplySideRevenue: 'Claimed SOL referral payouts sent to users from Axiom referral vaults and cashback payouts sent to users from Axiom cashback wallets.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: 'Fee paid by users on each trade routed through Axiom (0.75%-1%)',
-      'Referral and Cashback Payouts': 'Claimed SOL referral and cashback payouts not captured by Axiom fee wallets.',
+      'Referral Payouts': 'Claimed SOL referral payouts from Axiom referral vaults.',
+      'Cashback Payouts': 'Claimed SOL cashback payouts from Axiom cashback wallets.',
     },
     Revenue: {
       ['Trading Fees to protocol']: 'Trading fees going to the protocol after deducting referral and cashback payouts.',
@@ -143,7 +183,8 @@ const adapter: SimpleAdapter = {
       ['Trading Fees to protocol']: 'Trading fees going to the protocol after deducting referral and cashback payouts.',
     },
     SupplySideRevenue: {
-      'Referral and Cashback Payouts': 'Claimed SOL referral and cashback payouts sent to users from Axiom referral and cashback wallets.',
+      'Referral Payouts': 'Claimed SOL referral payouts sent to users from Axiom referral vaults.',
+      'Cashback Payouts': 'Claimed SOL cashback payouts sent to users from Axiom cashback wallets.',
     },
   },
   isExpensiveAdapter: true,
