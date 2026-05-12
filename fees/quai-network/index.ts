@@ -3,6 +3,7 @@ import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils"
+import { METRIC } from "../../helpers/metrics";
 
 const getRavenMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
   const addresses = [
@@ -29,7 +30,7 @@ const getRavenMiningRewards = async (options: FetchOptions, dailyFees: Balances)
     }
     await sleep(2000);
   }
-  dailyFees.addCGToken("ravencoin", dailyRavenMined);
+  dailyFees.addCGToken("ravencoin", dailyRavenMined, 'Ravencoin mining rewards');
 }
 
 const getLitecoinMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
@@ -49,7 +50,7 @@ const getLitecoinMiningRewards = async (options: FetchOptions, dailyFees: Balanc
     }
 
   }
-  dailyFees.addCGToken("litecoin", dailyLitecoinMined);
+  dailyFees.addCGToken("litecoin", dailyLitecoinMined, 'Litecoin mining rewards');
 }
 
 const getBchMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
@@ -71,7 +72,7 @@ const getBchMiningRewards = async (options: FetchOptions, dailyFees: Balances) =
     offset += 100;
   }
 
-  dailyFees.addCGToken("bitcoin-cash", dailyBchMined);
+  dailyFees.addCGToken("bitcoin-cash", dailyBchMined, 'Bitcoin Cash mining rewards');
 }
 
 const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
@@ -91,7 +92,7 @@ const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) 
     pageNum++;
   }
 
-  dailyFees.addCGToken("dogecoin", dailyDogeMined);
+  dailyFees.addCGToken("dogecoin", dailyDogeMined, 'Dogecoin mining rewards');
 }
 
 const chainDetails = {
@@ -109,8 +110,8 @@ const getQuaiBurnDetails = async (options: FetchOptions, dailyHoldersRevenue: Ba
   await api.sumTokens({ tokens, owner: quaiBurnAddress })
   await fromApi.sumTokens({ tokens, owner: quaiBurnAddress })
 
-  dailyHoldersRevenue.addBalances(api.getBalancesV2())
-  dailyHoldersRevenue.subtract(fromApi.getBalancesV2())
+  dailyHoldersRevenue.addBalances(api.getBalancesV2(), METRIC.TOKEN_BUY_BACK)
+  dailyHoldersRevenue.subtract(fromApi.getBalancesV2(), METRIC.TOKEN_BUY_BACK)
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -136,12 +137,28 @@ const methodology = {
   HoldersRevenue: "Fees going to buyback and burn of quai token",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Ravencoin mining rewards': 'Block rewards and transaction fees earned from Ravencoin chain.',
+    'Litecoin mining rewards': 'Block rewards and transaction fees earned from Litecoin chain.',
+    'Dogecoin mining rewards': 'Block rewards and transaction fees earned from Dogecoin chain.',
+    'Bitcoin Cash mining rewards': 'Block rewards and transaction fees earned from Bitcoin Cash chain.',
+  },
+  Revenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'Fees going to buyback and burn of quai token.',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'Fees going to buyback and burn of quai token.',
+  },
+}
+
 const adapter: Adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.QUAI],
   start: '2025-12-17',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
