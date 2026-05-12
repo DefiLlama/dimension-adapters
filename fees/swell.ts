@@ -1,16 +1,28 @@
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
+import { addTokensReceived } from "../helpers/token";
 
 // https://docs.swellnetwork.io/swell-staking/sweth-liquid-staking/sweth-v1.0-system-design/rewards-and-distribution/liquid-staking-rewards-and-fees
 
 const swETH = '0xf951E335afb289353dc249e82926178EaC7DEd78'
+const SWELL = '0x0a6e7ba5042b38349e437ec6db6214aec7b35676'
+const DEAD = '0x000000000000000000000000000000000000dEaD'
+
+const PROGRAMMATIC_BURN_WALLETS = [
+  '0xbc4499e1c9a28b0ac6fc38d6245ddd8a8de07efe',
+  '0x2019fe73c426e74fed2a140d7e5b577117a6dc1a',
+  '0x7815ba83da2e47b3d4386586216e2b1d57c36a6d',
+]
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
+
+  const totalBurns = options.createBalances()
+  const programmaticBurns = options.createBalances()
 
   const exchangeRateBefore = await options.fromApi.call({
     target: swETH,
@@ -36,8 +48,28 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   
   dailyFees.addGasToken(df)
   dailyRevenue.addGasToken(swellTreasuryRewards)
-  dailyHoldersRevenue.addGasToken(swellTreasuryRewards, 'holders_buyback')
   dailySupplySideRevenue.addGasToken(supplySideRewards)
+
+  // ALL SWELL burned to dead address
+  await addTokensReceived({
+    balances: totalBurns,
+    tokens: [SWELL],
+    targets: [DEAD],
+    options,
+  })
+
+  //programmatic burns
+  await addTokensReceived({
+    balances: programmaticBurns,
+    tokens: [SWELL],
+    targets: [DEAD],
+    fromAdddesses: PROGRAMMATIC_BURN_WALLETS,
+    options,
+  })
+
+  // holders revenue = buyback burns only
+  dailyHoldersRevenue.add(totalBurns)
+  dailyHoldersRevenue.subtract(programmaticBurns)
 
   return {
     dailyFees,
@@ -61,7 +93,7 @@ const adapter: Adapter = {
     Revenue: '5% staking rewards are charged by Swell Protocol Treasury.',
     SupplySideRevenue: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
     ProtocolRevenue: '5% staking rewards are charged by Swell Protocol Treasury.',
-    HoldersRevenue: 'Protocol revenue (5% of staking yield) is allocated to SWELL buybacks via auctions. This is used as a proxy for value returned to token holders.',
+    HoldersRevenue: 'Executed SWELL buybacks tracked as SWELL transferred to the burn address excluding programmatic burns.',
   },
   breakdownMethodology: {
     dailyFees: {
@@ -74,7 +106,7 @@ const adapter: Adapter = {
       supply_side: 'Rewards distributed to stakers and node operators'
     },
     dailyHoldersRevenue: {
-      holders_buyback: 'Protocol revenue used for SWELL buybacks and burned'
+      holders_buyback: 'SWELL transferred to the burn address excluding programmatic burns'
     }
   },
 };
