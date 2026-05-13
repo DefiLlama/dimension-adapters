@@ -59,11 +59,16 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     if (wsrCircYield !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield, METRIC.ASSETS_YIELDS);
     if (srYield !== 0n) dailySupplySideRevenue.add(RUSD, srYield, METRIC.ASSETS_YIELDS);
   } else {
-    // Non-ETH chains: report OFT supply yield so bridged holders are counted per chain.
-    // wsrCirc_ETH + sum(OFT supplies) ≈ wsrTotal, so aggregate supply ≈ fees (revenue ≈ 0).
+    // Non-ETH chains: fees = supply = OFT yield (bridged holders earn same rate).
+    // Setting fees = supply makes per-chain revenue = 0, preserving ETH's positive revenue
+    // (wsrLocked × rateDelta) in the aggregate rather than having it canceled by negative
+    // per-chain revenues on bridged chains.
     const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
     const oftYield = BigInt(oftSupply) * wsrRateDelta / WAD;
-    if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    if (oftYield !== 0n) {
+      dailyFees.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    }
   }
 
   return { dailyFees, dailySupplySideRevenue };
