@@ -48,10 +48,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailySupplySideRevenue = options.createBalances()
   const { token } = chainConfig[options.chain]
 
-  const feeCollectedLogs = await options.getLogs({
-    target: token,
-    eventAbi: 'event FeeCollected(address indexed user, uint8 indexed feeType, uint256 id, uint256 amount, uint256 percentageFee, uint256 fixedFee)',
-  })
+  const [feeCollectedLogs, epochUpdatedLogs] = await Promise.all([
+    options.getLogs({
+      target: token,
+      eventAbi: 'event FeeCollected(address indexed user, uint8 indexed feeType, uint256 id, uint256 amount, uint256 percentageFee, uint256 fixedFee)',
+    }),
+    options.getLogs({
+      target: token,
+      eventAbi: 'event EpochUpdated(uint256 epochNumber, uint256 newRatio, uint256 newUnderlyingPrice)',
+    }),
+  ])
 
   for (const log of feeCollectedLogs) {
     const totalFee = log.percentageFee + log.fixedFee
@@ -60,14 +66,25 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyRevenue.add(token, totalFee, METRIC.DEPOSIT_WITHDRAW_FEES)
   }
 
-  const [totalSupply, ratioStart, ratioEnd] = await Promise.all([
-    options.fromApi.call({ target: token, abi: 'uint256:totalSupply' }),
-    options.fromApi.call({ target: token, abi: 'uint256:currentRatio' }),
-    options.toApi.call({ target: token, abi: 'uint256:currentRatio' }),
-  ])
-  const strategyYield = (BigInt(totalSupply) * (BigInt(ratioStart) - BigInt(ratioEnd))) / BigInt(ratioStart)
-  dailyFees.add(token, strategyYield, METRIC.ASSETS_YIELDS)
-  dailySupplySideRevenue.add(token, strategyYield, METRIC.ASSETS_YIELDS)
+  const yieldLogs = epochUpdatedLogs.filter((log: any) => Number(log.epochNumber) > 0)
+  if (yieldLogs.length) {
+    const [totalSupply, previousRatios] = await Promise.all([
+      options.fromApi.call({ target: token, abi: 'uint256:totalSupply' }),
+      options.toApi.multiCall({
+        target: token,
+        calls: yieldLogs.map((log: any) => Number(log.epochNumber) - 1),
+        abi: 'function ratio(uint256) view returns (uint256)',
+      }),
+    ])
+
+    yieldLogs.forEach((log: any, index: number) => {
+      const previousRatio = BigInt(previousRatios[index])
+      if (previousRatio === 0n) return
+      const strategyYield = (BigInt(totalSupply) * (previousRatio - BigInt(log.newRatio))) / previousRatio
+      dailyFees.add(token, strategyYield, METRIC.ASSETS_YIELDS)
+      dailySupplySideRevenue.add(token, strategyYield, METRIC.ASSETS_YIELDS)
+    })
+  }
 
   return {
     dailyFees,
@@ -94,7 +111,7 @@ const adapter: Adapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Fees collected during bfBTC requestWithdraw, requestWithdrawNative, and cross-chain actions.',
-      [METRIC.ASSETS_YIELDS]: 'bfBTC strategy yield measured from bfBTC/BTC currentRatio changes.',
+      [METRIC.ASSETS_YIELDS]: 'bfBTC strategy yield measured from bfBTC/BTC ratio changes.',
     },
     UserFees: {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Fees paid directly by users during bfBTC withdrawal and cross-chain actions.',
