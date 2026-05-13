@@ -103,7 +103,7 @@ const portNavQuery = `
   }
 `;
 
-async function fetch(options: any) {
+async function fetch(_a: any, _b: any, options: any) {
   const config = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -190,7 +190,7 @@ async function fetch(options: any) {
 }
 
 const adapter = {
-  version: 2,
+  version: 1,
   fetch,
   adapter: chainConfig,
   allowNegativeValue: true,
