@@ -139,6 +139,7 @@ export const chainConfigMap: any = {
   [CHAIN.MEZO]: { CGToken: 'bitcoin', explorer: 'https://api.explorer.mezo.org', start: '2025-05-06' },
   [CHAIN.WORLD_MOBILE]: { CGToken: 'world-mobile-token', explorer: 'https://explorer.worldmobile.io', start: '2025-06-01' },
   [CHAIN.RISE]: { CGToken: 'ethereum', explorer: 'https://explorer.risechain.com', start: '2026-01-01' },
+  [CHAIN.CITREA]: { CGToken: 'bitcoin', explorer: 'https://explorer.mainnet.citrea.xyz', start: '2025-11-25' },
 }
 
 function getTimeString(timestamp: number) {
