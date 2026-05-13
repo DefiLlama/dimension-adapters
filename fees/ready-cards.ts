@@ -7,14 +7,16 @@ const READY_CARDS_TREASURY = "bvT9KFrAqmRpnb6AsuaJzdVKEVuT5jAVYt3N5CyGvkV";
 const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
 const READY_MINT = "HKJHsYJHMVK5VRyHHk5GhvzY9tBAAtPvDkZfDH6RLDTd";
+const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 
 const PAYMENT_MINTS = [
     "So11111111111111111111111111111111111111112", // SOL / wSOL
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
+    USDT_MINT, // USDT
 ];
 
 const paymentMints = PAYMENT_MINTS.map((mint) => `'${mint}'`).join(", ");
+const nonUsdtPaymentMints = PAYMENT_MINTS.filter((mint) => mint !== USDT_MINT).map((mint) => `'${mint}'`).join(", ");
 
 async function getAlliumData(options: FetchOptions) {
     const packPurchases = options.createBalances();
@@ -23,7 +25,12 @@ async function getAlliumData(options: FetchOptions) {
     const tokenBuybackSpends = options.createBalances();
 
     const results = await queryAllium(`
-    WITH token_buyback_txs AS (
+    WITH ready_txs AS (
+      SELECT DISTINCT txn_id
+      FROM solana.assets.transfers
+      WHERE (to_address = '${READY_CARDS_TREASURY}' OR from_address = '${READY_CARDS_TREASURY}')
+        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ), token_buyback_txs AS (
       SELECT DISTINCT ready_in.txn_id
       FROM solana.assets.transfers ready_in
       JOIN solana.assets.transfers payment_out
@@ -32,20 +39,21 @@ async function getAlliumData(options: FetchOptions) {
         AND ready_in.mint = '${READY_MINT}'
         AND ready_in.from_address != '${READY_CARDS_TREASURY}'
         AND payment_out.from_address = '${READY_CARDS_TREASURY}'
-        AND payment_out.mint IN (${paymentMints})
+        AND payment_out.mint IN (${nonUsdtPaymentMints})
         AND ready_in.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
         AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ), web2_memos AS (
       SELECT
-        txn_id,
+        instructions.txn_id,
         COALESCE(
-          TRY_PARSE_JSON(parsed):info:memo::STRING,
-          TRY_PARSE_JSON(parsed):memo::STRING,
-          parsed
+          TRY_PARSE_JSON(instructions.parsed):info:memo::STRING,
+          TRY_PARSE_JSON(instructions.parsed):memo::STRING,
+          instructions.parsed
         ) AS memo_text
-      FROM solana.raw.instructions
-      WHERE program_id = '${MEMO_PROGRAM}'
-        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      FROM solana.raw.instructions instructions
+      JOIN ready_txs ON ready_txs.txn_id = instructions.txn_id
+      WHERE instructions.program_id = '${MEMO_PROGRAM}'
+        AND instructions.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
 
     SELECT 'pack_purchases' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
@@ -58,13 +66,11 @@ async function getAlliumData(options: FetchOptions) {
 
     UNION ALL
 
-    SELECT 'card_buybacks' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
+    SELECT 'card_buybacks' AS category, '${USDT_MINT}' AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
-      AND mint IN (${paymentMints})
-      AND txn_id NOT IN (SELECT txn_id FROM token_buyback_txs)
+      AND mint = '${USDT_MINT}'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    GROUP BY mint
 
     UNION ALL
 
@@ -81,7 +87,7 @@ async function getAlliumData(options: FetchOptions) {
     SELECT 'token_buyback_spends' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
-      AND mint IN (${paymentMints})
+      AND mint IN (${nonUsdtPaymentMints})
       AND txn_id IN (SELECT txn_id FROM token_buyback_txs)
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY mint
@@ -153,17 +159,17 @@ const breakdownMethodology = {
     Fees: {
         "Pack Purchases": "Fees collected from card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
         "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
+        "Card Buybacks": "Outbound USDT spent on card buybacks",
     },
     Revenue: {
         "Pack Purchases": "Fees collected from card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
         "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
+        "Card Buybacks": "Outbound USDT spent on card buybacks",
     },
     ProtocolRevenue: {
         "Pack Purchases": "Fees collected from card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
         "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Fees spent on card buybacks",
+        "Card Buybacks": "Outbound USDT spent on card buybacks",
         "Token Buyback Spends": "Fees spent on $READY token buybacks",
     },
     HoldersRevenue: {
