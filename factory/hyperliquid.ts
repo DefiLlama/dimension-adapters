@@ -128,8 +128,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "gtr-trade-perps": { addresses: ["0x5ef4deeb76f87d979d0ddc8c51f5b4f65d1c972a"], start: "2025-06-17" },
   "hyprearn-perps": { addresses: ["0x70cf605bb180daf00c3e2f1ca3df5bb602664452"], start: "2025-09-01" },
   "legend-trade": {
-    addresses: ["0x4E65de9ca0ABe3D36f7E3D7a7cE9f0dbe406a412"],
-    start: "2026-01-28",
+    addresses: ["0x4e65de9ca0abe3d36f7e3d7a7ce9f0dbe406a412"],
+    start: "2026-01-29",
     methodology: {
       Fees: "Trading fees paid by users for perps on Legend.",
       Revenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
@@ -322,8 +322,8 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
     },
   },
   "legend-trade": {
-    addresses: ["0x4E65de9ca0ABe3D36f7E3D7a7cE9f0dbe406a412"],
-    start: "2026-01-28",
+    addresses: ["0x4e65de9ca0abe3d36f7e3d7a7ce9f0dbe406a412"],
+    start: "2026-01-29",
     methodology: {
       Fees: "Trading fees paid by users for perps on Legend.",
       Revenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
