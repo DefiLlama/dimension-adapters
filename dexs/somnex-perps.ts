@@ -5,7 +5,7 @@ import { request, } from "graphql-request";
 export default {
   chains: [CHAIN.SOMNIA],
   fetch,
-  styart: '2025-09-02',
+  start: '2025-09-02',
 }
 
 
