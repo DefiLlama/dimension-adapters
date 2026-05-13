@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   // flat 0.25% fee on trades, volume is scaled by 400
-  return { dailyVolume: dailyFees.clone(4) };
+  return { dailyVolume: dailyFees.clone(400) };
 };
 
 const adapter: Adapter = {
