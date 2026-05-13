@@ -117,7 +117,7 @@ const fetch = async (options: FetchOptions) => {
 
       const feesStart = await fromApi.call({ target: controller, abi: "uint256:admin_fees" });
       const feesEnd = await toApi.call({ target: controller, abi: "uint256:admin_fees" });
-      if (feesEnd > feesStart) {
+      if (BigInt(feesEnd) > BigInt(feesStart)) {
         dailyFees.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
         dailyRevenue.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
         
