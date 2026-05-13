@@ -9,11 +9,13 @@ const vaults: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x8F18f2C97d2f5ec0e1d5b91c1d2ce245a9151972",
 };
 const PRECISION = BigInt(1e18);
+const PROTOCOL_FEE = 5;
 
 const fetch = async (options: FetchOptions) => {
   const vault = vaults[options.chain];
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const [navBefore, navAfter, totalSupply] = await Promise.all([
     options.fromApi.call({
@@ -31,13 +33,27 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   const navChange = BigInt(navAfter) - BigInt(navBefore);
-  const yieldAmount = (BigInt(totalSupply) * navChange) / PRECISION;
-  dailyFees.addUSDValue(Number(yieldAmount) / 1e18, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(Number(yieldAmount) / 1e18, METRIC.ASSETS_YIELDS);
+  const netYield = (BigInt(totalSupply) * navChange) / PRECISION;
+  const netYieldValue = Number(netYield) / 1e18;
+
+  if (navChange > 0n) {
+    // Lorenzo takes 5% on positive yields
+    // On-chain NAV is post-fee: net = gross * (1 - 0.05), so gross = net / 0.95
+    const grossYield = netYieldValue / (1 - PROTOCOL_FEE / 100);
+    const protocolRevenue = grossYield - netYieldValue;
+    dailyFees.addUSDValue(grossYield, METRIC.ASSETS_YIELDS);
+    dailyRevenue.addUSDValue(protocolRevenue, METRIC.PERFORMANCE_FEES);
+    dailySupplySideRevenue.addUSDValue(netYieldValue, METRIC.ASSETS_YIELDS);
+  } else {
+    // Negative yield: no protocol fee taken
+    dailyFees.addUSDValue(netYieldValue, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(netYieldValue, METRIC.ASSETS_YIELDS);
+  }
 
   return {
     dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -57,16 +73,22 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Net yield from sUSD1+ vault NAV appreciation, derived from off-chain delta-neutral basis trading, RWA yields, and DeFi strategies. The on-chain unitNAV is updated after protocol and execution fees are already deducted off-chain.",
-    Revenue: "Lorenzo deducts protocol and execution fees off-chain before updating the on-chain NAV. The gross yield (pre-fee) is not available on-chain, so protocol revenue cannot be determined and is set to 0.",
-    SupplySideRevenue: "All on-chain observable yield from unitNAV appreciation is distributed to sUSD1+ holders.",
+    Fees: "Total yield from sUSD1+ vault strategies (delta-neutral basis trading, RWA yields, DeFi). Lorenzo takes a 5% fee on positive yields off-chain before updating the NAV.",
+    Revenue: "Lorenzo takes a 5% performance fee on positive yields, deducted off-chain before the on-chain NAV update.",
+    SupplySideRevenue: "Net yield distributed to sUSD1+ holders via NAV appreciation, after Lorenzo's 5% performance fee.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "Net yield from off-chain delta-neutral basis trading, RWA yields, and DeFi strategies, reflected on-chain via unitNAV updates.",
+      [METRIC.ASSETS_YIELDS]: "Gross yield from off-chain delta-neutral basis trading, RWA yields, and DeFi strategies, reflected on-chain via NAV updates.",
+    },
+    Revenue: {
+      [METRIC.PERFORMANCE_FEES]: "Lorenzo's 5% performance fee on positive yields, deducted off-chain before NAV updates.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PERFORMANCE_FEES]: "Lorenzo's 5% performance fee on positive yields, deducted off-chain before NAV updates.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "All on-chain observable yield from unitNAV appreciation distributed to sUSD1+ holders.",
+      [METRIC.ASSETS_YIELDS]: "Net yield from NAV appreciation distributed to sUSD1+ holders after the 5% performance fee.",
     },
   },
 };
