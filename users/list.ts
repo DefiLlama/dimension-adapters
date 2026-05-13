@@ -38,16 +38,23 @@ function getProtocolActiveUsersAdapter(item: typeof routers[0]): Adapter {
     return parseUserResponse(data, item.chains);
   }
 
-  async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+  async function fetch(_: any, _1: any, { chain, preFetchedResults, createBalances }: FetchOptions) {
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
         dailyActiveUsers: preFetchedResults?.all.users
       }
 
+    // `gas` is the per-chain total tx fee in wei (gas_price * gas_used summed in SQL).
+    // Wrap it in a Balances object via addGasToken so the framework prices it through
+    // the chain's native gas token instead of treating the raw quantity as USD.
+    const gasWei = preFetchedResults?.[chain]?.gas
+    const dailyGasUsed = createBalances()
+    if (gasWei) dailyGasUsed.addGasToken(gasWei)
+
     return {
       dailyActiveUsers: preFetchedResults?.[chain]?.users,
       dailyTransactionsCount: preFetchedResults?.[chain]?.txs,
-      dailyGasUsed: preFetchedResults?.[chain]?.gas,
+      dailyGasUsed,
     }
   }
 

@@ -89,7 +89,7 @@ WITH
         ),
         ${chain}_total AS (
             SELECT
-              sum(TX_FEE)/1e18 AS ${chain}_total_gas,
+              TO_VARCHAR(sum(TX_FEE)) AS ${chain}_total_gas,
               count(HASH) AS ${chain}_tx_count
             FROM
             ${chain}
