@@ -19,7 +19,7 @@ const config: Record<string, { targets: string[]; start: string; fromBlock: numb
     targets: [
       "0x6ad675624ec8320e5806858cd5db101a0b927fd9", // V3.1
     ],
-    start: "2025-03-18",
+    start: "2026-03-18",
     fromBlock: 30081557,
   },
 };
