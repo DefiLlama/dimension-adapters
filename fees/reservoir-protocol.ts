@@ -36,8 +36,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
   const srPriceDelta = BigInt(priceTo) - BigInt(priceFrom);
 
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const dailyFees              = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   if (options.chain === CHAIN.ETHEREUM) {
@@ -67,12 +66,12 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
   }
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailySupplySideRevenue };
 }
 
 const methodology = {
   Fees: 'Gross yield committed to all wsrUSD holders (total supply × Δexchange rate) plus srUSD holders — settled on-chain yield proxy; off-chain RWA yield settles with a lag.',
-  Revenue: 'Protocol gross profit is not directly observable on-chain; the wsrUSD rate reflects only yield committed to token holders, not total asset yield.',
+  Revenue: 'Yield accruing to wsrUSD tokens locked in the OFT bridge (wsrTotal − wsrCirc) × Δexchange rate; approximates the protocol margin visible on-chain. Off-chain RWA spread is not captured.',
   SupplySideRevenue: 'Yield paid to wsrUSD holders per chain (circulating on ETH + OFT supply on bridged chains) plus srUSD holders. Bridge is balanced: wsrLocked ≈ sum of OFT supplies.',
 };
 
@@ -81,7 +80,7 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: 'Total yield committed to wsrUSD and srUSD holders.',
   },
   Revenue: {
-    [METRIC.ASSETS_YIELDS]: 'Not observable on-chain; protocol retained margin flows through off-chain RWA arrangements.',
+    [METRIC.ASSETS_YIELDS]: 'Yield on bridge-locked wsrUSD (wsrLocked × Δrate); on-chain proxy for protocol margin. Off-chain RWA spread not captured.',
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Per-chain yield distributed to wsrUSD holders (ETH circ + bridged OFT) and srUSD holders.',
