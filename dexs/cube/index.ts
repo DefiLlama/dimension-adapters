@@ -82,14 +82,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         AND tx_success = true
     ),
     swap_event_payloads AS (
-      SELECT
-        from_base64(substring(l.log, 15)) AS event_data
-      FROM solana.transactions t
-      CROSS JOIN UNNEST(t.log_messages) AS l(log)
-      WHERE t.id IN (SELECT tx_id FROM cube_txs)
-        AND t.block_time >= from_unixtime(${options.startTimestamp})
-        AND t.block_time < from_unixtime(${options.endTimestamp})
-        AND l.log LIKE 'Program data: ${SWAP_EVENT_BASE64_PREFIX}%'
+      SELECT event_data FROM (
+        SELECT
+          try(from_base64(split(l.log, ' ')[3])) AS event_data
+        FROM solana.transactions t
+        CROSS JOIN UNNEST(t.log_messages) AS l(log)
+        WHERE t.id IN (SELECT tx_id FROM cube_txs)
+          AND t.block_time >= from_unixtime(${options.startTimestamp})
+          AND t.block_time < from_unixtime(${options.endTimestamp})
+          AND l.log LIKE 'Program data: ${SWAP_EVENT_BASE64_PREFIX}%'
+          AND cardinality(split(l.log, ' ')) = 3
+      )
+      WHERE event_data IS NOT NULL
     ),
     parsed AS (
       SELECT
