@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ethers } from "ethers";
+import { addTokensReceived } from "../helpers/token";
 
 /**
  * FrenFlow — social copytrading + trading UI for prediction markets.
@@ -76,12 +76,8 @@ const KNOWN_PM_BUILDER_PAYOUT_SENDERS = new Set(
 const SERVICE_FEE_LABEL = "Service Fees";
 const BUILDER_FEE_LABEL = "Builder Fees";
 
-const transferEventAbi =
-  "event Transfer(address indexed from, address indexed to, uint256 value)";
-const transferTopic = ethers.id("Transfer(address,address,uint256)");
-const padAddress = (address: string) => ethers.zeroPadValue(address, 32);
-
-const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
+  const { getLogs, createBalances } = options;
   const dailyFees = createBalances();
   const dailyUserFees = createBalances();
   const dailyRevenue = createBalances();
@@ -93,12 +89,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
   // gate that prevents counting any unrelated transfer between the
   // sanctioned sender and a third party.
   const builderTokens = [PUSD_POLYGON, USDC_E_POLYGON, USDC_NATIVE_POLYGON];
-  const builderPayoutLower = BUILDER_PAYOUT.toLowerCase();
-
-  // Service fees are required and must throw on failure. Builder probes
-  // are best-effort across (sender × token) pairs — wrap them in
-  // `allSettled` so a transient RPC error on one probe does not drop
-  // the service-fee stream for the period.
+  
   const feeCollectedLogs = await getLogs({
     target: FEE_COLLECTOR,
     eventAbi:
@@ -106,49 +97,22 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
   });
 
   const knownSenders = Array.from(KNOWN_PM_BUILDER_PAYOUT_SENDERS);
-  const probes: { sender: string; token: string }[] = [];
-  for (const sender of knownSenders) {
-    for (const token of builderTokens) probes.push({ sender, token });
-  }
-  // skipIndexer because the Llama Indexer's coverage of arbitrary
-  // ERC-20 Transfer events is incomplete for tokens that aren't part
-  // of a pre-tracked protocol (pUSD/USDC.e Polymarket payouts have
-  // returned empty in production CI runs even when the underlying
-  // events exist on-chain). RPC fallback honors the topic1 filter
-  // natively and is fine for the small per-slice volume.
-  const builderProbeResults = await Promise.allSettled(
-    probes.map(({ sender, token }) =>
-      getLogs({
-        target: token,
-        eventAbi: transferEventAbi,
-        topics: [transferTopic, padAddress(sender)] as any,
-        skipIndexer: true,
-      })
-    )
-  );
+
+  const builderFees = await addTokensReceived({
+    options,
+    tokens: builderTokens,
+    fromAdddesses: knownSenders,
+    target: BUILDER_PAYOUT
+  })
+
+  dailyFees.add(builderFees, BUILDER_FEE_LABEL);
+  dailyRevenue.add(builderFees, BUILDER_FEE_LABEL);
 
   for (const log of feeCollectedLogs) {
     dailyFees.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
     dailyUserFees.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
     dailyRevenue.add(USDC_E_POLYGON, log.feeAmount, SERVICE_FEE_LABEL);
   }
-
-  builderProbeResults.forEach((result, i) => {
-    const { sender, token } = probes[i];
-    if (result.status === "rejected") {
-      console.error(
-        `frenflow: builder-fee Transfer query failed for sender=${sender} token=${token}:`,
-        result.reason
-      );
-      return;
-    }
-    for (const log of result.value) {
-      const to = String(log.to).toLowerCase();
-      if (to !== builderPayoutLower) continue;
-      dailyFees.add(token, log.value, BUILDER_FEE_LABEL);
-      dailyRevenue.add(token, log.value, BUILDER_FEE_LABEL);
-    }
-  });
 
   return {
     dailyFees,
@@ -158,43 +122,42 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Two streams: (1) 1% service fee pulled atomically by FrenFlow's FeeCollector contract at trade settlement, and (2) Polymarket builder-fee distributions to FrenFlow's builder profile wallet, restricted to a sanctioned sender allowlist (paid in pUSD or USDC.e on a Polymarket-defined cadence).",
+  UserFees: "Service fees only — these are transferFrom'd from the trader's wallet atomically at fill time. Builder fees are excluded because Polymarket pays them on its own settlement cadence, not at the user trade.",
+  Revenue: "Service fees plus Polymarket builder distributions. All flow to FrenFlow treasury / builder wallet. No liquidity providers.",
+  ProtocolRevenue: "Same as Revenue — 100% of collected fees are retained by the protocol.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [SERVICE_FEE_LABEL]:
+      "Per-trade 1% service fee on Polymarket trades routed through FrenFlow. Denominated in USDC.e. Tracked from the `FeeCollected` event on the FeeCollector contract `0x95e47CBC5c4D9434412AF44Ade02B33613EDb787`.",
+    [BUILDER_FEE_LABEL]:
+      "Polymarket builder-fee distributions to FrenFlow's builder profile wallet `0x58715321c2c6a216d1259f368c34f987a4a26b64`. Tracked as incoming `Transfer` events of pUSD, USDC.e, or USDC (native), restricted to a sanctioned sender allowlist of known Polymarket payout EOAs to avoid counting unrelated inflows as fees.",
+  },
+  UserFees: {
+    [SERVICE_FEE_LABEL]: "Paid directly from the trader's wallet at fill.",
+  },
+  Revenue: {
+    [SERVICE_FEE_LABEL]:
+      "100% of collected service fees flow to the FrenFlow treasury at `0xb9e912e55454Ce284C38ccFED5b7fbbF327E689b`.",
+    [BUILDER_FEE_LABEL]:
+      "100% of builder distributions are retained by FrenFlow.",
+  },
+  ProtocolRevenue: {
+    [SERVICE_FEE_LABEL]: "Same as Revenue — fully retained by the protocol.",
+    [BUILDER_FEE_LABEL]: "Same as Revenue — fully retained by the protocol.",
+  },
+}
 const adapter: Adapter = {
   version: 2,
   chains: [CHAIN.POLYGON],
   fetch,
   start: "2026-04-20",
   pullHourly: true,
-  methodology: {
-    Fees:
-      "Two streams: (1) 1% service fee pulled atomically by FrenFlow's FeeCollector contract at trade settlement, and (2) Polymarket builder-fee distributions to FrenFlow's builder profile wallet, restricted to a sanctioned sender allowlist (paid in pUSD or USDC.e on a Polymarket-defined cadence).",
-    UserFees:
-      "Service fees only — these are transferFrom'd from the trader's wallet atomically at fill time. Builder fees are excluded because Polymarket pays them on its own settlement cadence, not at the user trade.",
-    Revenue:
-      "Service fees plus Polymarket builder distributions. All flow to FrenFlow treasury / builder wallet. No liquidity providers.",
-    ProtocolRevenue:
-      "Same as Revenue — 100% of collected fees are retained by the protocol.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [SERVICE_FEE_LABEL]:
-        "Per-trade 1% service fee on Polymarket trades routed through FrenFlow. Denominated in USDC.e. Tracked from the `FeeCollected` event on the FeeCollector contract `0x95e47CBC5c4D9434412AF44Ade02B33613EDb787`.",
-      [BUILDER_FEE_LABEL]:
-        "Polymarket builder-fee distributions to FrenFlow's builder profile wallet `0x58715321c2c6a216d1259f368c34f987a4a26b64`. Tracked as incoming `Transfer` events of pUSD, USDC.e, or USDC (native), restricted to a sanctioned sender allowlist of known Polymarket payout EOAs to avoid counting unrelated inflows as fees.",
-    },
-    UserFees: {
-      [SERVICE_FEE_LABEL]: "Paid directly from the trader's wallet at fill.",
-    },
-    Revenue: {
-      [SERVICE_FEE_LABEL]:
-        "100% of collected service fees flow to the FrenFlow treasury at `0xb9e912e55454Ce284C38ccFED5b7fbbF327E689b`.",
-      [BUILDER_FEE_LABEL]:
-        "100% of builder distributions are retained by FrenFlow.",
-    },
-    ProtocolRevenue: {
-      [SERVICE_FEE_LABEL]: "Same as Revenue — fully retained by the protocol.",
-      [BUILDER_FEE_LABEL]: "Same as Revenue — fully retained by the protocol.",
-    },
-  },
+  breakdownMethodology,
+  methodology,
 };
 
 export default adapter;
