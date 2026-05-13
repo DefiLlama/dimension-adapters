@@ -158,7 +158,7 @@ const adapter: Adapter = {
   pullHourly: true,
   fetch,
   dependencies: [Dependencies.ALLIUM],
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { start }])),
+  adapter: config,
   methodology,
   breakdownMethodology,
 };
