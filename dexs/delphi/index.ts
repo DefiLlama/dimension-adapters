@@ -26,9 +26,6 @@ const fetch: FetchV2 = async (options) => {
     const buyLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.buy });
     const sellLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.sell });
 
-    buyLogs.forEach((buy) => dailyVolume.add(USDC, buy.tokensIn));
-    sellLogs.forEach((sell) => dailyVolume.add(USDC, sell.tokensOut));
-
     const marketProxies = Array.from(new Set(
         [...buyLogs, ...sellLogs].map((trade) => trade.marketProxy.toLowerCase())
     ));
@@ -57,6 +54,7 @@ const fetch: FetchV2 = async (options) => {
         const revenue = fee * recipientPct / PRECISION;
         const supplySideRevenue = fee - revenue;
 
+        dailyVolume.add(USDC, buy.tokensIn)
         dailyFees.add(USDC, fee, METRIC.TRADING_FEES);
         dailyRevenue.add(USDC, revenue, "Trading Fees To Buyback Vault");
         dailyProtocolRevenue.add(USDC, revenue, "Trading Fees To Buyback Vault");
@@ -76,6 +74,7 @@ const fetch: FetchV2 = async (options) => {
         const revenue = fee * recipientPct / PRECISION;
         const supplySideRevenue = fee - revenue;
 
+        dailyVolume.add(USDC, sell.tokensOut)
         dailyFees.add(USDC, fee, METRIC.TRADING_FEES);
         dailyRevenue.add(USDC, revenue, "Trading Fees To Buyback Vault");
         dailyProtocolRevenue.add(USDC, revenue, "Trading Fees To Buyback Vault");
