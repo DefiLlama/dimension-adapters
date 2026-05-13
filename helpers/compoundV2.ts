@@ -117,20 +117,6 @@ interface CompoundV2ExportOptions {
   useExchangeRate?: boolean;
   protocolRevenueRatio?: number;
   holdersRevenueRatio?: number;
-  pullHourly?: boolean;
-  /**
-   * Optional hook for protocol-specific fee streams that should be merged after
-   * the base borrow-interest balances are computed. Returned balances are added
-   * to the matching daily balance, and protocol/holders balances are created
-   * lazily when the hook supplies them without a base revenue ratio.
-   */
-  extraFees?: (options: FetchOptions) => Promise<{
-    dailyFees?: sdk.Balances;
-    dailyRevenue?: sdk.Balances;
-    dailyProtocolRevenue?: sdk.Balances;
-    dailyHoldersRevenue?: sdk.Balances;
-    dailySupplySideRevenue?: sdk.Balances;
-  }>;
   methodology?: string | IJSON<string>;
   breakdownMethodology?: Record<string, string | IJSON<string>>;
 }
@@ -149,27 +135,13 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
             blacklists: exportOptions.blacklists,
           }) 
           : await getFees(market, options, {})
-        let dailyProtocolRevenue = exportOptions && exportOptions.protocolRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.protocolRevenueRatio) : undefined
-        let dailyHoldersRevenue = exportOptions && exportOptions.holdersRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.holdersRevenueRatio) : undefined
+        const dailyProtocolRevenue = exportOptions && exportOptions.protocolRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.protocolRevenueRatio) : undefined
+        const dailyHoldersRevenue = exportOptions && exportOptions.holdersRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.holdersRevenueRatio) : undefined
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
         Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
           dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1, METRIC.BORROW_INTEREST)
         })
-        if (exportOptions?.extraFees) {
-          const extraFees = await exportOptions.extraFees(options);
-          if (extraFees.dailyFees) dailyFees.addBalances(extraFees.dailyFees);
-          if (extraFees.dailyRevenue) dailyRevenue.addBalances(extraFees.dailyRevenue);
-          if (extraFees.dailyProtocolRevenue) {
-            if (!dailyProtocolRevenue) dailyProtocolRevenue = options.createBalances();
-            dailyProtocolRevenue.addBalances(extraFees.dailyProtocolRevenue);
-          }
-          if (extraFees.dailyHoldersRevenue) {
-            if (!dailyHoldersRevenue) dailyHoldersRevenue = options.createBalances();
-            dailyHoldersRevenue.addBalances(extraFees.dailyHoldersRevenue);
-          }
-          if (extraFees.dailySupplySideRevenue) dailySupplySideRevenue.addBalances(extraFees.dailySupplySideRevenue);
-        }
         return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
       }),
     }
@@ -178,7 +150,6 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     start: typeof exportOptions?.start === 'string' ? exportOptions.start :  undefined,
     adapter: exportObject,
     version: 2,
-    pullHourly: exportOptions?.pullHourly,
     methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {
       Fees: "Total interest paid by borrowers",
       Revenue: "Protocol and holders share of interest",
