@@ -48,28 +48,34 @@ const fetch = async (options: FetchOptions) => {
   const { targets, fromBlock } = config[options.chain];
 
   const [emittedAll, refinancedAll, refinancedNewAll, repaidDaily] = await Promise.all([
-    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRepaid, }),
+    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
+    options.getLogs({ targets, eventAbi: events.LoanRepaid, entireLog: true, parseLog: true }),
   ]);
 
   // Build loanId -> {token, feeBps}
-  const loanInfo: Record<string, { token: string; feeBps: bigint }> = {};
-  for (const log of emittedAll) {
-    loanInfo[log.loanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee) };
+  const loanInfo: Record<string, { token: string; feeBps: bigint, timestamp: string }> = {};
+  for (const entireLog of emittedAll) {
+    const log = entireLog.args
+    loanInfo[log.loanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
-  for (const log of refinancedAll) {
-    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee) };
+  for (const entireLog of refinancedAll) {
+    const log = entireLog.args
+    if(!loanInfo[log.newLoanId.toString()] || entireLog.timestamp > loanInfo[log.newLoanId.toString()].timestamp)
+    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
-  for (const log of refinancedNewAll) {
-    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee) };
+  for (const entireLog of refinancedNewAll) {
+    const log = entireLog.args
+    if(!loanInfo[log.newLoanId.toString()] || entireLog.timestamp > loanInfo[log.newLoanId.toString()].timestamp)
+    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
 
   const isInTimeRange = (ts: bigint) => ts >= options.startTimestamp && ts < options.endTimestamp;
 
   // Daily origination fees (LoanEmitted)
-  for (const log of emittedAll) {
+  for (const entireLog of emittedAll) {
+    const log = entireLog.args
     if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;
@@ -81,7 +87,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Daily repayment fees (LoanRepaid)
-  for (const log of repaidDaily) {
+  for (const entireLog of repaidDaily) {
+    const log = entireLog.args
     const info = loanInfo[log.loanId.toString()];
     if (!info || info.feeBps === 0n) continue;
     const protocolCut = BigInt(log.fee);
@@ -92,7 +99,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Daily refinancing fees (LoanRefinanced)
-  for (const log of refinancedAll) {
+  for (const entireLog of refinancedAll) {
+    const log = entireLog.args
     if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;
@@ -104,7 +112,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Daily refinancing fees from new offers
-  for (const log of refinancedNewAll) {
+  for (const entireLog of refinancedNewAll) {
+    const log = entireLog.args
     if (!isInTimeRange(BigInt(log.loan.startTime))) continue;
     const feeBps = BigInt(log.loan.protocolFee);
     const token = log.loan.principalAddress;

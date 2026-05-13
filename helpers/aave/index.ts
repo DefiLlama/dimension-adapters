@@ -1214,6 +1214,15 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 3,
             lendingPoolProxy: '0xfb7908150b738e7dB9862007c66C9eb7850706F5',
             dataProvider: '0x0FC811fE6bD0Be53717f9ca722E30a7bc4B90C31',
+  'vena-finance': {
+    config: {
+      [CHAIN.FLUENT]: {
+        start: '2026-04-03',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
+            dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
           },
         ],
       },
