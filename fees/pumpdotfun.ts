@@ -283,19 +283,7 @@ async function fetchFromApi(options: FetchOptions) {
 // }
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  try {
-    return await fetchFromTradeEvents(options)
-  } catch (e) {
-    console.log('Error fetching from trade events, falling back to API', e)
-  }
-  if (options.startTimestamp >= BUYBACK_START_TS) {
-    try {
-      return await fetchFromApi(options)
-    } catch (e) {
-      console.log('Error fetching from API, falling back to Dune', e)
-    }
-  }
-  throw Error('No data found')
+  return await fetchFromTradeEvents(options)
   // return await fetchFromDune(options)
 }
 
