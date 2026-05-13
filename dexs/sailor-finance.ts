@@ -1,12 +1,13 @@
 import { FetchOptions } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { httpGet } from '../utils/fetchURL';
+import { fetchURLAutoHandleRateLimit } from '../utils/fetchURL';
+import { sleep } from '../utils/utils';
 
 const GECKOTERMINAL_POOLS_URL =
   "https://api.geckoterminal.com/api/v2/networks/sei-evm/dexes/sailor/pools";
 const DEFAULT_FEE_RATE = 0.003;
 const PROTOCOL_FEE_SHARE = 0.16;
-const MAX_PAGES = 10;
+const MAX_PAGES = 20;
 
 const getFeeRateFromPoolName = (name = "") => {
   const feeMatch = name.match(/([0-9.]+)%\s*$/);
@@ -17,10 +18,11 @@ const fetchPools = async () => {
   const pools: any[] = [];
 
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const response = await httpGet(`${GECKOTERMINAL_POOLS_URL}?page=${page}`);
+    const response = await fetchURLAutoHandleRateLimit(`${GECKOTERMINAL_POOLS_URL}?page=${page}`);
     const pagePools = response?.data ?? [];
     if (!pagePools.length) break;
     pools.push(...pagePools);
+    await sleep(1000);
   }
 
   return pools;
@@ -42,7 +44,7 @@ const blacklistPools: Array<string> = [
   '0xad00786c2ba76f08c92e7847456015728f98ac56', // bad pool - very low liquidity
 ];
 
-const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
+const fetch = async (_a: any, _b: any, _: FetchOptions) => {
   const pools = await fetchPools();
   let dailyVolume = 0;
   let dailyFees = 0;
@@ -50,7 +52,7 @@ const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
   for (const { attributes } of pools) {
     if (blacklistPools.includes(String(attributes.address).toLowerCase())) continue;
 
-    const volume = Number(attributes.volume_usd?.h24 ?? 0);
+    const volume = Number(attributes.volume_usd.h24);
     if (!Number.isFinite(volume) || volume <= 0) continue;
 
     dailyVolume += volume;
@@ -72,10 +74,7 @@ const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
 export default {
   version: 1,
   methodology,
-  adapter: {
-    [CHAIN.SEI]: {
-      fetch: fetchV1,
-      runAtCurrTime: true,
-    }
-  },
+  runAtCurrTime: true,
+  fetch,
+  chains: [CHAIN.SEI],
 }
