@@ -41,7 +41,7 @@ const graphQuery = gql`
   }
 `;
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const { protocolDailySnapshots } = await request<GraphResponse>(
     chainConfig[options.chain].endpoint,
     graphQuery,
@@ -98,7 +98,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: chainConfig,
   fetch,
   methodology,
