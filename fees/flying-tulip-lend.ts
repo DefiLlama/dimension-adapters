@@ -1,14 +1,17 @@
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 
+// LendingLens is CREATE2-deterministic at the same address on Sonic and
+// Ethereum. Verified via deployment manifests at
+// https://flyingtulipdotcom.github.io/deployments/prod-{sonic,eth}-ftdnmm-lend.toon
 const LENDING_LENS = '0x3682168023e6ba8d1f995fda1d920827c5a8a43e'
 
 // Reserves are maintained off chain. Flying Tulip's LendingLens does not expose
 // a public enumeration method (no getReserves / allAssets / reservesList). The
 // authoritative list lives in Flying Tulip's backend config and is mirrored by
-// the public API. To refresh this list, call:
-//     curl https://api.flyingtulip.com/mm/lend | jq '.data.chains[0].assets[].address'
-// Contract reference: https://sonicscan.org/address/0x3682168023e6ba8d1f995fda1d920827c5a8a43e
+// the public API. To refresh either list, call:
+//     curl https://api.flyingtulip.com/mm/lend?chainId=146 | jq '.data.chains[0].assets[].address'
+//     curl https://api.flyingtulip.com/mm/lend?chainId=1   | jq '.data.chains[0].assets[].address'
 const RESERVES: Record<string, string[]> = {
   [CHAIN.SONIC]: [
     '0x29219dd400f2bf60e5a23d13be72b486d4038894', // USDC
@@ -18,6 +21,14 @@ const RESERVES: Record<string, string[]> = {
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD
     '0x50c42deacd8fc9773493ed674b675be577f2634b', // WETH
     '0x0555e30da8f98308edb960aa94c0db47230d2b9c', // WBTC
+  ],
+  [CHAIN.ETHEREUM]: [
+    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+    '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
+    '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+    '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
+    '0x5dd1a7a369e8273371d2dbf9d83356057088082c', // FT
+    '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD (CREATE2 same address as Sonic)
   ],
 }
 
@@ -131,6 +142,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: '2026-03-23',
+    },
+    [CHAIN.ETHEREUM]: {
+      fetch,
+      start: '2026-05-01',
     },
   },
 }
