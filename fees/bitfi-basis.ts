@@ -1,4 +1,3 @@
-import { PromisePool } from '@supercharge/promise-pool'
 import { Adapter, FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
@@ -56,28 +55,30 @@ async function fetch(options: FetchOptions) {
     dailyRevenue.addUSDValue(fee, METRIC.MINT_REDEEM_FEES)
   }
 
-  await PromisePool.withConcurrency(5).for(vaults).process(async (vault) => {
-    const vaultCrossChainFeeLogs = await options.getLogs({
-      target: vault,
-      eventAbi: 'event CrossChainFeeCollected(address indexed user, uint256 amount, uint256 fee)',
-    })
+  const vaultCrossChainFeeLogs = await options.getLogs({
+    targets: vaults,
+    eventAbi: 'event CrossChainFeeCollected(address indexed user, uint256 amount, uint256 fee)',
+    flatten: false,
+  })
 
-    await PromisePool.withConcurrency(5).for(vaultCrossChainFeeLogs).process(async (log) => {
-      const ratio = await options.api.call({ target: vault, abi: 'uint256:currentRatio', block: Number(log.blockNumber) })
-      const feeBfusd = (BigInt(log.fee) * BigInt(ratio)) / RATIO_PRECISION
+  const [totalSupplies, ratioStarts, ratioEnds] = await Promise.all([
+    options.fromApi.multiCall({ calls: vaults, abi: 'uint256:totalSupply' }),
+    options.fromApi.multiCall({ calls: vaults, abi: 'uint256:currentRatio' }),
+    options.toApi.multiCall({ calls: vaults, abi: 'uint256:currentRatio' }),
+  ])
+
+  vaultCrossChainFeeLogs.forEach((logs: any[], index: number) => {
+    logs.forEach((log: any) => {
+      const feeBfusd = (BigInt(log.fee) * BigInt(ratioEnds[index])) / RATIO_PRECISION
       const fee = Number(feeBfusd) / BFUSD_DECIMALS
       dailyFees.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
       dailyUserFees.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
       dailyRevenue.addUSDValue(fee, METRIC.DEPOSIT_WITHDRAW_FEES)
     })
+  })
 
-    const [totalSupply, ratioStart, ratioEnd] = await Promise.all([
-      options.fromApi.call({ target: vault, abi: 'uint256:totalSupply' }),
-      options.fromApi.call({ target: vault, abi: 'uint256:currentRatio' }),
-      options.toApi.call({ target: vault, abi: 'uint256:currentRatio' }),
-    ])
-
-    const strategyYield = (BigInt(totalSupply) * (BigInt(ratioEnd) - BigInt(ratioStart))) / RATIO_PRECISION
+  vaults.forEach((_, index) => {
+    const strategyYield = (BigInt(totalSupplies[index]) * (BigInt(ratioEnds[index]) - BigInt(ratioStarts[index]))) / RATIO_PRECISION
     dailyFees.addUSDValue(Number(strategyYield) / BFUSD_DECIMALS, METRIC.ASSETS_YIELDS)
     dailySupplySideRevenue.addUSDValue(Number(strategyYield) / BFUSD_DECIMALS, METRIC.ASSETS_YIELDS)
   })
