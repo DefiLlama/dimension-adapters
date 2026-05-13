@@ -14,7 +14,8 @@ const multisigs: TMulitsig = {
   [CHAIN.ARBITRUM]: [multisig1],
   [CHAIN.BASE]: [multisig2],
   [CHAIN.POLYGON]: [multisig1],
-  [CHAIN.BSC]: [multisig1]
+  [CHAIN.BSC]: [multisig1],
+  [CHAIN.MONAD]: [multisig2],
 }
 
 const fetch: any = async (options: FetchOptions) => {

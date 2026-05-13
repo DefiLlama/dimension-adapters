@@ -72,6 +72,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { fetch },
     [CHAIN.BASE]: { fetch },
     [CHAIN.POLYGON]: { fetch },
+    [CHAIN.MONAD]: { fetch },
   },
   isExpensiveAdapter: true
 };
