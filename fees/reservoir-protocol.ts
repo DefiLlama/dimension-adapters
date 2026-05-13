@@ -18,57 +18,53 @@ const balanceOfAbi = 'function balanceOf(address) view returns (uint256)';
 async function prefetch(options: FetchOptions): Promise<any> {
   const [wsrRateFrom, wsrRateTo, priceFrom, priceTo] = await Promise.all([
     options.fromApi.call({ target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
-    options.toApi.call({   target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
+    options.toApi.call({ target: WSRUSD, abi: convertToAssetsAbi, params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
     options.fromApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
-    options.toApi.call({   target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
+    options.toApi.call({ target: SAVING_MODULE, abi: 'uint256:currentPrice', chain: CHAIN.ETHEREUM }),
   ]);
 
   return {
     wsrRateFrom: wsrRateFrom.toString(),
-    wsrRateTo:   wsrRateTo.toString(),
-    priceFrom:   priceFrom.toString(),
-    priceTo:     priceTo.toString(),
+    wsrRateTo: wsrRateTo.toString(),
+    priceFrom: priceFrom.toString(),
+    priceTo: priceTo.toString(),
   };
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
   const { wsrRateFrom, wsrRateTo, priceFrom, priceTo } = options.preFetchedResults;
   const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
-  const srPriceDelta = BigInt(priceTo)   - BigInt(priceFrom);
+  const srPriceDelta = BigInt(priceTo) - BigInt(priceFrom);
 
-  const dailyFees              = options.createBalances();
-  const dailyRevenue           = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   if (options.chain === CHAIN.ETHEREUM) {
     const [wsrSupply, wsrLocked, srSupply] = await Promise.all([
       options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
       options.api.call({ target: WSRUSD, abi: balanceOfAbi, params: [WSRUSD_OFT_ADAPTER] }),
-      options.api.call({ target: SRUSD,  abi: 'uint256:totalSupply' }),
+      options.api.call({ target: SRUSD, abi: 'uint256:totalSupply' }),
     ]);
 
-    const wsrTotal      = BigInt(wsrSupply);
-    const wsrLocked_    = BigInt(wsrLocked);
-    const wsrCirc       = wsrTotal - wsrLocked_;
-    const srYield       = BigInt(srSupply) * srPriceDelta / PRICE_SCALE;
+    const wsrTotal = BigInt(wsrSupply);
+    const wsrLocked_ = BigInt(wsrLocked);
+    const wsrCirc = wsrTotal - wsrLocked_;
+    const srYield = BigInt(srSupply) * srPriceDelta / PRICE_SCALE;
     const wsrTotalYield = wsrTotal * wsrRateDelta / WAD;
-    const wsrCircYield  = wsrCirc  * wsrRateDelta / WAD;
+    const wsrCircYield = wsrCirc * wsrRateDelta / WAD;
 
-    if (wsrTotalYield  !== 0n) dailyFees.add(RUSD, wsrTotalYield,  METRIC.ASSETS_YIELDS);
-    if (srYield        !== 0n) dailyFees.add(RUSD, srYield,        METRIC.ASSETS_YIELDS);
+    if (wsrTotalYield !== 0n) dailyFees.add(RUSD, wsrTotalYield, METRIC.ASSETS_YIELDS);
+    if (srYield !== 0n) dailyFees.add(RUSD, srYield, METRIC.ASSETS_YIELDS);
 
-    if (wsrCircYield   !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield,  METRIC.ASSETS_YIELDS);
-    if (srYield        !== 0n) dailySupplySideRevenue.add(RUSD, srYield,       METRIC.ASSETS_YIELDS);
+    if (wsrCircYield !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield, METRIC.ASSETS_YIELDS);
+    if (srYield !== 0n) dailySupplySideRevenue.add(RUSD, srYield, METRIC.ASSETS_YIELDS);
   } else {
     // Non-ETH chains: report OFT supply yield so bridged holders are counted per chain.
     // wsrCirc_ETH + sum(OFT supplies) ≈ wsrTotal, so aggregate supply ≈ fees (revenue ≈ 0).
-    try {
-      const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
-      const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
-      if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
-    } catch (_) {
-      // archive unavailable for this chain/date; supply records as 0
-    }
+    const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
+    const oftYield = BigInt(oftSupply) * wsrRateDelta / WAD;
+    if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
@@ -102,8 +98,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-04-17' },
     [CHAIN.ARBITRUM]: { start: '2025-05-12' },
-    [CHAIN.SEI]:      { start: '2025-06-13' },
-    [CHAIN.MONAD]:    { start: '2026-01-01' },
+    [CHAIN.SEI]: { start: '2025-06-13' },
+    [CHAIN.MONAD]: { start: '2026-01-01' },
   },
   allowNegativeValue: true,
   doublecounted: true,
