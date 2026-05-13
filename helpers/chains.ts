@@ -370,4 +370,5 @@ export enum CHAIN {
   CSC = "csc",
   WORLD_MOBILE = "world_mobile",
   RISE = "rise",
+  FLUENT = "fluent",
 }
