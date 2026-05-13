@@ -5,6 +5,7 @@ import { METRIC } from '../helpers/metrics';
 const RUSD = '0x09D4214C03D01F49544C0448DBE3A27f768F2b34';
 const WSRUSD = '0xd3fD63209FA2D55B07A0f6db36C2f43900be3094';
 const WSRUSD_OFT_ADAPTER = '0xBb431AbD156B960e5B77cC45c75F107e3991258a';
+const WSRUSD_OFT = '0x4809010926aec940b550D34a46A52739f996D75D'; // wsrUSD OFT — same address on Arbitrum, SEI, Monad
 const SRUSD = '0x738d1115B90efa71AE468F1287fc864775e23a31';
 const SAVING_MODULE = '0x5475611Dffb8ef4d697Ae39df9395513b6E947d7';
 
@@ -53,25 +54,30 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const wsrTotalYield = wsrTotal * wsrRateDelta / WAD;
     const wsrCircYield  = wsrCirc  * wsrRateDelta / WAD;
 
-    const wsrLockedYield = wsrLocked_ * wsrRateDelta / WAD;
-
     if (wsrTotalYield  !== 0n) dailyFees.add(RUSD, wsrTotalYield,  METRIC.ASSETS_YIELDS);
     if (srYield        !== 0n) dailyFees.add(RUSD, srYield,        METRIC.ASSETS_YIELDS);
 
-    if (wsrLockedYield !== 0n) dailyRevenue.add(RUSD, wsrLockedYield, METRIC.ASSETS_YIELDS);
-
     if (wsrCircYield   !== 0n) dailySupplySideRevenue.add(RUSD, wsrCircYield,  METRIC.ASSETS_YIELDS);
     if (srYield        !== 0n) dailySupplySideRevenue.add(RUSD, srYield,       METRIC.ASSETS_YIELDS);
-    // Non-ETH chains return empty to avoid double-counting wsrLocked yield
+  } else {
+    // Non-ETH chains: report OFT supply yield so bridged holders are counted per chain.
+    // wsrCirc_ETH + sum(OFT supplies) ≈ wsrTotal, so aggregate supply ≈ fees (revenue ≈ 0).
+    try {
+      const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
+      const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
+      if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    } catch (_) {
+      // archive unavailable for this chain/date; supply records as 0
+    }
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 }
 
 const methodology = {
-  Fees: 'Gross yield committed to all wsrUSD holders (total supply × Δexchange rate) plus srUSD holders — gross income proxy including off-chain RWA.',
-  Revenue: 'Yield accruing to wsrUSD locked in the LayerZero OFT bridge adapter (locked supply × Δexchange rate) — best available on-chain proxy for protocol retained yield.',
-  SupplySideRevenue: 'Yield paid to circulating wsrUSD holders (total minus OFT-bridged supply × Δrate) plus srUSD holders.',
+  Fees: 'Gross yield committed to all wsrUSD holders (total supply × Δexchange rate) plus srUSD holders — settled on-chain yield proxy; off-chain RWA yield settles with a lag.',
+  Revenue: 'Protocol gross profit is not directly observable on-chain; the wsrUSD rate reflects only yield committed to token holders, not total asset yield.',
+  SupplySideRevenue: 'Yield paid to wsrUSD holders per chain (circulating on ETH + OFT supply on bridged chains) plus srUSD holders. Bridge is balanced: wsrLocked ≈ sum of OFT supplies.',
 };
 
 const breakdownMethodology = {
@@ -79,10 +85,10 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: 'Total yield committed to wsrUSD and srUSD holders.',
   },
   Revenue: {
-    [METRIC.ASSETS_YIELDS]: 'Yield on OFT-bridged wsrUSD as proxy for protocol retained yield.',
+    [METRIC.ASSETS_YIELDS]: 'Not observable on-chain; protocol retained margin flows through off-chain RWA arrangements.',
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Yield distributed to circulating wsrUSD and srUSD holders.',
+    [METRIC.ASSETS_YIELDS]: 'Per-chain yield distributed to wsrUSD holders (ETH circ + bridged OFT) and srUSD holders.',
   },
 };
 
