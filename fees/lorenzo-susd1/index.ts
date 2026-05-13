@@ -57,15 +57,16 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Yield generated from sUSD1+ vault NAV appreciation. sUSD1+ accrues value through delta-neutral strategies and RWA yields, reflected in unitNAV updates.",
-    SupplySideRevenue: "Net yield to sUSD1+ holders via NAV appreciation, after off-chain protocol and execution fees.",
+    Fees: "Net yield from sUSD1+ vault NAV appreciation, derived from off-chain delta-neutral basis trading, RWA yields, and DeFi strategies. The on-chain unitNAV is updated after protocol and execution fees are already deducted off-chain.",
+    Revenue: "Lorenzo deducts protocol and execution fees off-chain before updating the on-chain NAV. The gross yield (pre-fee) is not available on-chain, so protocol revenue cannot be determined and is set to 0.",
+    SupplySideRevenue: "All on-chain observable yield from unitNAV appreciation is distributed to sUSD1+ holders.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "Yield from off-chain delta-neutral strategies and RWA yields, reflected on-chain via unitNAV updates.",
+      [METRIC.ASSETS_YIELDS]: "Net yield from off-chain delta-neutral basis trading, RWA yields, and DeFi strategies, reflected on-chain via unitNAV updates.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "Net yield distributed to sUSD1+ holders after off-chain protocol and execution fees.",
+      [METRIC.ASSETS_YIELDS]: "All on-chain observable yield from unitNAV appreciation distributed to sUSD1+ holders.",
     },
   },
 };
