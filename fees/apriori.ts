@@ -47,14 +47,13 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
   const grossRewards = netRewards * BigInt(100) / (BigInt(100) - feePercent);
   const protocolFees = grossRewards - netRewards;
 
-  dailyFees.addGasToken(netRewards, METRIC.STAKING_REWARDS);
+  dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
   dailyFees.addGasToken(totalWithdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
-  dailyFees.addGasToken(protocolFees, METRIC.PROTOCOL_FEES);
 
-  dailyRevenue.addGasToken(protocolFees, METRIC.PROTOCOL_FEES);
+  dailyRevenue.addGasToken(protocolFees, 'Staking Rewards Commission');
   dailyRevenue.addGasToken(totalWithdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
 
-  dailySupplySideRevenue.addGasToken(netRewards, METRIC.STAKING_REWARDS);
+  dailySupplySideRevenue.addGasToken(netRewards, 'Staking Rewards To Stakers');
 
   return {
     dailyFees,
@@ -66,6 +65,7 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
@@ -80,20 +80,19 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.STAKING_REWARDS]: "MON staking rewards from consensus and execution layer validators.",
+      [METRIC.STAKING_REWARDS]: "Gross MON staking rewards from consensus and execution layer validators.",
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.1% withdrawal fee charged when redeeming aprMON.",
-      [METRIC.PROTOCOL_FEES]: "10% protocol fee on staking rewards.",
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: "10% protocol fee on staking rewards.",
+      'Staking Rewards Commission': "10% protocol fee on staking rewards.",
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.1% withdrawal fee collected by aPriori protocol.",
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "10% protocol fee on staking rewards.",
+      'Staking Rewards Commission': "10% protocol fee on staking rewards.",
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.1% withdrawal fee collected by aPriori protocol.",
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: "90% of staking rewards distributed to aprMON holders.",
+      'Staking Rewards To Stakers': "90% of staking rewards distributed to aprMON holders.",
     },
   },
 };
