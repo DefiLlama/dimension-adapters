@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
       start: "2025-12-01",
     },
   },
-  methodology,
+  methodology
 };
 
 export default adapter;
