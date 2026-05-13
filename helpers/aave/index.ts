@@ -1205,6 +1205,20 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
       },
     },
   },
+  'zentra-finance': {
+    config: {
+      [CHAIN.CITREA]: {
+        start: '2026-01-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xfb7908150b738e7dB9862007c66C9eb7850706F5',
+            dataProvider: '0x0FC811fE6bD0Be53717f9ca722E30a7bc4B90C31',
+          },
+        ],
+      },
+    },
+  },
 }
 
 const aaveProtocols = Object.fromEntries(
