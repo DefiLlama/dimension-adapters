@@ -4,6 +4,10 @@ import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
 const ROBINHOOD_API_URL = "https://bonfire.robinhood.com/instruments";
+// https://digital.fidelity.com/prgw/digital/research/quote/dashboard/summary?symbol=FSOL.
+// https://digital.fidelity.com/prgw/digital/research/quote/dashboard/summary?symbol=FBTC
+// https://digital.fidelity.com/prgw/digital/research/quote/dashboard/summary?symbol=FETH
+// https://www.fidelity.com/etfs/crypto-funds
 const MANAGEMENT_FEE = 0.0025;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
@@ -27,11 +31,12 @@ const funds = [
 
 type Fund = typeof funds[number];
 
-
-
 async function getFundFees({ id, activeDuration }: Fund & { activeDuration: number }) {
   const response = await httpGet(`${ROBINHOOD_API_URL}/${id}/etp-details`);
-  return response.aum * MANAGEMENT_FEE * activeDuration / ONE_YEAR_IN_SECONDS;
+  const expenseRatio = response.gross_expense_ratio === undefined || response.gross_expense_ratio === null
+    ? MANAGEMENT_FEE
+    : Number(response.gross_expense_ratio) / 100;
+  return Number(response.aum) * expenseRatio * activeDuration / ONE_YEAR_IN_SECONDS;
 }
 
 async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOptions): Promise<FetchResult> {
