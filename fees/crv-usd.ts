@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 type ChainConfig = {
   factory: string;
@@ -111,13 +110,13 @@ const fetch = async (options: FetchOptions) => {
         toBlock,
       });
       logs.forEach((log: any) => {
-        dailyFees.add(chainConfig.crvusd, log.amount, METRIC.BORROW_INTEREST);
-        dailyRevenue.add(chainConfig.crvusd, log.amount, METRIC.BORROW_INTEREST);
+        dailyFees.add(chainConfig.crvusd, log.amount, LABELS.BorrowInterest);
+        dailyRevenue.add(chainConfig.crvusd, log.amount, LABELS.BorrowInterest);
       });
 
       const feesStart = await fromApi.call({ target: controller, abi: "uint256:admin_fees" });
       const feesEnd = await toApi.call({ target: controller, abi: "uint256:admin_fees" });
-      if (feesEnd > feesStart) {
+      if (BigInt(feesEnd) > BigInt(feesStart)) {
         dailyFees.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
         dailyRevenue.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
         
@@ -159,8 +158,6 @@ const adapter: SimpleAdapter = {
     Fees: {
       [LABELS.BorrowInterest]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',
       [LABELS.ManagementFees]: 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
-      [METRIC.PROTOCOL_FEES]: '10% of DAO-collected fees allocated to the protocol treasury via the Fee Allocator (post June 2025).',
-      [METRIC.STAKING_REWARDS]: '90% of DAO-collected fees distributed to veCRV holders via the Fee Allocator (post June 2025) and before the FeeSplitter deployment.',
     },
     Revenue: {
       [LABELS.BorrowInterest]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',

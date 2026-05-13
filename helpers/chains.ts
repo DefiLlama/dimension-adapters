@@ -343,6 +343,7 @@ export enum CHAIN {
   VALUECHAIN = "valuechain",
   IOTA = "iota",
   MEGAETH = "megaeth",
+  GENSYN = "gensyn",
   ENI = "eni",
   SPARK = "spark",
   CHIHUAHUA = "chihuahua",
@@ -370,4 +371,5 @@ export enum CHAIN {
   CSC = "csc",
   WORLD_MOBILE = "world_mobile",
   RISE = "rise",
+  FLUENT = "fluent",
 }

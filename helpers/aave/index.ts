@@ -1205,6 +1205,20 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
       },
     },
   },
+  'vena-finance': {
+    config: {
+      [CHAIN.FLUENT]: {
+        start: '2026-04-03',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
+            dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
+          },
+        ],
+      },
+    },
+  },
 }
 
 const aaveProtocols = Object.fromEntries(

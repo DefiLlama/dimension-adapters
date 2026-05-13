@@ -25,10 +25,23 @@ const chainMap: Record<string, string> = {
     [CHAIN.TRON]: "tron",
     [CHAIN.APTOS]: "aptos",
     [CHAIN.BASE]: "base",
+    [CHAIN.TON]: "ton",
+    [CHAIN.MANTLE]: "mantle",
+    [CHAIN.MEGAETH]: "megaeth",
+    [CHAIN.INK]: "ink",
+    [CHAIN.STABLE]: "stable",
+    [CHAIN.CELO]: "celo",
+    [CHAIN.SEI]: "sei",
+    [CHAIN.FLARE]: "flare",
+    [CHAIN.FRAXTAL]: "frax",
+    [CHAIN.SUI]: "sui",
+    [CHAIN.KATANA]: "katana",
 };
 
 const prefetch: FetchV2 = async () => {
-    const res = await fetchURL(api);
+    const url = new URL(api);
+    url.searchParams.set("project", "stableflow");
+    const res = await fetchURL(url.toString());
     return res.data;
 };
 
