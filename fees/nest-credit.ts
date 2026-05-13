@@ -1,148 +1,156 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import * as sdk from "@defillama/sdk";
-import { httpGet } from "../utils/fetchURL";
-
-// https://docs.nest.credit
-const methodology = {
-  Fees: "Total yields generated from real-world asset strategies in Nest vaults, including platform fees.",
-  Revenue: "Platform fees collected by Nest Credit protocol.",
-  ProtocolRevenue: "Platform fees collected by Nest Credit protocol.",
-  SupplySideRevenue: "Yields distributed to vault depositors after protocol fees.",
-};
-
-interface IVault {
-  vault: string;
-  accountant: string;
-}
+import { getConfig } from "../helpers/cache";
 
 const VAULTS_API = "https://api.nest.credit/v1/vaults";
 
-async function getVaults(): Promise<IVault[]> {
-  const { data } = await httpGet(VAULTS_API);
-  return data
-    .filter((v: any) => v.slug !== "nest-test-vault")
-    .map((v: any) => ({
-      vault: v.vaultAddress,
-      accountant: v.accountantAddress,
-    }));
-}
-
 const FEE_RATE_BASE = 1e4;
+const YEAR_IN_SECS = 365 * 24 * 60 * 60;
 
 const abis = {
-  totalSupply: "uint256:totalSupply",
-  decimals: "uint8:decimals",
-  base: "address:base",
-  exchangeRateUpdated: "event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)",
-  // V1: payoutAddress, feesOwedInBase, totalSharesLastUpdate, exchangeRate, upper, lower, lastUpdateTimestamp, isPaused, minimumUpdateDelay, platformFee
-  accountantStateV1: "function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint32,uint16)",
+    totalSupply: "uint256:totalSupply",
+    decimals: "uint8:decimals",
+    base: "address:base",
+    exchangeRateUpdated: "event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)",
+    // V1: payoutAddress, feesOwedInBase, totalSharesLastUpdate, exchangeRate, upper, lower, lastUpdateTimestamp, isPaused, minimumUpdateDelay, platformFee
+    accountantStateV1: "function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint32,uint16)",
 };
 
+const chainConfig: Record<string, { start: string, chainNameInApi: string }> = {
+    [CHAIN.ETHEREUM]: { start: "2025-03-01", chainNameInApi: "mainnet" },
+    [CHAIN.PLUME]: { start: "2025-03-01", chainNameInApi: "plume" },
+    [CHAIN.BSC]: { start: "2025-03-01", chainNameInApi: "bsc" },
+    [CHAIN.ARBITRUM]: { start: "2025-03-01", chainNameInApi: "arbitrum" },
+    [CHAIN.PLASMA]: { start: "2025-11-01", chainNameInApi: "plasma" },
+    [CHAIN.WC]: { start: "2025-12-17", chainNameInApi: "worldchain" },
+}
+
+async function prefetch() {
+    const { data } = await getConfig('nestcredit', VAULTS_API);
+    return data
+        .filter((v: any) => v.slug !== "nest-test-vault")
+        .map((v: any) => ({
+            vault: v.vaultAddress,
+            accountant: v.accountantAddress,
+            chains: Object.keys(v.chain),
+        }));
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+    const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
 
-  const vaults = await getVaults();
+    const { chainNameInApi } = chainConfig[options.chain];
 
-  for (const { vault, accountant } of vaults) {
-    const [totalSupply, decimals, token] = await Promise.all([
-      options.api.call({ target: vault, abi: abis.totalSupply, permitFailure: true }),
-      options.api.call({ target: vault, abi: abis.decimals, permitFailure: true }),
-      options.api.call({ target: accountant, abi: abis.base, permitFailure: true }),
+    const vaults = options.preFetchedResults.filter((v: any) => v.chains.includes(chainNameInApi)).map((v: any) => (v.vault));
+    const accountants = options.preFetchedResults.filter((v: any) => v.chains.includes(chainNameInApi)).map((v: any) => (v.accountant));
+
+    const [totalSupplies, decimals, tokens, accountantStates] = await Promise.all([
+        options.api.multiCall({
+            abi: abis.totalSupply,
+            calls: vaults,
+            permitFailure: true,
+        }),
+        options.api.multiCall({
+            abi: abis.decimals,
+            calls: vaults,
+            permitFailure: true,
+        }),
+        options.api.multiCall({
+            abi: abis.base,
+            calls: accountants,
+            permitFailure: true,
+        }),
+        options.api.multiCall({
+            abi: abis.accountantStateV1,
+            calls: accountants,
+            permitFailure: true,
+        }),
     ]);
 
-    if (!totalSupply || !decimals || !token) continue;
-    const vaultRateBase = Number(10 ** Number(decimals));
-
-    // Track yield from exchange rate updates
-    const rawLogs = await options.getLogs({
-      eventAbi: abis.exchangeRateUpdated,
-      target: accountant,
-      entireLog: true,
+    const exchangeRateUpdatedLogs = await options.getLogs({
+        eventAbi: abis.exchangeRateUpdated,
+        targets: accountants,
+        flatten: false,
     });
 
-    for (const log of rawLogs) {
-      const { oldRate, newRate } = (log as any).args;
-      const growthRate = newRate > oldRate ? Number(newRate - oldRate) : 0;
-      if (growthRate > 0) {
-        const blockNumber = Number(log.blockNumber);
+    const timespan = options.toTimestamp - options.fromTimestamp;
 
-        const totalSupplyAtBlock = await sdk.api2.abi.call({
-          abi: abis.totalSupply,
-          target: vault,
-          block: blockNumber,
-          chain: options.chain,
-          permitFailure: true,
-        });
+    for (let i = 0; i < vaults.length; i++) {
+        const totalSupply = totalSupplies[i];
+        const decimal = decimals[i];
+        const token = tokens[i];
 
-        const supply = totalSupplyAtBlock || totalSupply;
-        const supplySideYield = Number(supply) * growthRate / vaultRateBase;
+        if (!totalSupply || !decimal || !token) continue;
+        const vaultRateBase = Number(10 ** Number(decimal));
 
-        dailyFees.add(token, supplySideYield, METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.add(token, supplySideYield, METRIC.ASSETS_YIELDS);
-      }
+        for (const { oldRate, newRate } of exchangeRateUpdatedLogs[i]) {
+            const rateChange = Number(newRate - oldRate);
+            const supplySideYield = Number(totalSupply) * rateChange / vaultRateBase;
+
+            dailyFees.add(token, supplySideYield, METRIC.ASSETS_YIELDS);
+            dailySupplySideRevenue.add(token, supplySideYield, METRIC.ASSETS_YIELDS);
+        }
+
+        const accountantState = accountantStates[i];
+        if (!accountantState) continue;
+
+        const exchangeRate = Number(accountantState[3]);
+        const managementFeeRate = Number(accountantState[9]);
+
+        if (managementFeeRate > 0) {
+            const totalDeposited = Number(totalSupply) * exchangeRate / vaultRateBase;
+            const managementFee = totalDeposited * (managementFeeRate / FEE_RATE_BASE) * timespan / YEAR_IN_SECS;
+
+            dailyFees.add(token, managementFee, METRIC.MANAGEMENT_FEES);
+            dailyProtocolRevenue.add(token, managementFee, METRIC.MANAGEMENT_FEES);
+        }
     }
 
-    // Calculate platform fees from V1 accountantState
-    const accountantState = await options.api.call({
-      target: accountant,
-      abi: abis.accountantStateV1,
-      permitFailure: true,
-    });
-
-    if (accountantState) {
-      const exchangeRate = Number(accountantState[3]);
-      const platformFeeRate = Number(accountantState[9]);
-      if (platformFeeRate > 0) {
-        const totalDeposited = Number(totalSupply) * exchangeRate / vaultRateBase;
-        const yearInSecs = 365 * 24 * 60 * 60;
-        const timespan = options.toTimestamp - options.fromTimestamp;
-        const platformFee = totalDeposited * (platformFeeRate / FEE_RATE_BASE) * timespan / yearInSecs;
-
-        dailyFees.add(token, platformFee, METRIC.MANAGEMENT_FEES);
-        dailyProtocolRevenue.add(token, platformFee, METRIC.MANAGEMENT_FEES);
-      }
-    }
-  }
-
-  return {
-    dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-  };
+    return {
+        dailyFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue,
+    };
 };
 
 const breakdownMethodology = {
-  Fees: {
-    [METRIC.ASSETS_YIELDS]: "Yields generated from real-world asset strategies in Nest vaults.",
-    [METRIC.MANAGEMENT_FEES]: "Annualized platform fees charged on total assets under management.",
-  },
-  Revenue: {
-    [METRIC.MANAGEMENT_FEES]: "Platform fees collected by Nest Credit protocol.",
-  },
-  ProtocolRevenue: {
-    [METRIC.MANAGEMENT_FEES]: "Platform fees collected by Nest Credit protocol.",
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Yields distributed to vault depositors after protocol fees.",
-  },
+    Fees: {
+        [METRIC.ASSETS_YIELDS]: "Yields generated from real-world asset strategies in Nest vaults.",
+        [METRIC.MANAGEMENT_FEES]: "Annualized platform fees charged on total assets under management.",
+    },
+    Revenue: {
+        [METRIC.MANAGEMENT_FEES]: "Platform fees collected by Nest Credit protocol.",
+    },
+    ProtocolRevenue: {
+        [METRIC.MANAGEMENT_FEES]: "Platform fees collected by Nest Credit protocol.",
+    },
+    SupplySideRevenue: {
+        [METRIC.ASSETS_YIELDS]: "Yields distributed to vault depositors after protocol fees.",
+    },
+};
+
+// https://docs.nest.credit
+const methodology = {
+    Fees: "Total yields generated from real-world asset strategies in Nest vaults, including platform fees.",
+    Revenue: "Platform fees collected by Nest Credit protocol.",
+    ProtocolRevenue: "Platform fees collected by Nest Credit protocol.",
+    SupplySideRevenue: "Yields distributed to vault depositors after protocol fees.",
 };
 
 const adapter: Adapter = {
-  version: 2,
-  methodology,
-  breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2025-03-01" },
-    [CHAIN.PLUME]: { fetch, start: "2025-03-01" },
-    [CHAIN.BSC]: { fetch, start: "2025-03-01" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2025-03-01" },
-    [CHAIN.PLASMA]: { fetch, start: "2025-11-01" },
-  },
+    version: 2,
+    prefetch,
+    fetch,
+    pullHourly: true,
+    methodology,
+    breakdownMethodology,
+    adapter: chainConfig,
+    doublecounted: true,
+    allowNegativeValue: true,
 };
 
 export default adapter;
