@@ -34,7 +34,7 @@ const adapter: Adapter = {
   methodology,
   version: 2,
   pullHourly: true,
-  chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.BSC,],
+  chains: Object.keys(multisigs),
 }
 
 export default adapter;
