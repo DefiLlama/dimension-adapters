@@ -71,6 +71,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2024-05-11",
+  deadFrom: "2026-03-08",
   version: 2,
   methodology: {
     Fees: "Aave Collector stream distributions to Aave-Chan.",
