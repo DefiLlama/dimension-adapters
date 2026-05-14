@@ -1205,7 +1205,7 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
       },
     },
   },
-  'zentra-finance': {
+  'zentra': {
     config: {
       [CHAIN.CITREA]: {
         start: '2026-01-28',
