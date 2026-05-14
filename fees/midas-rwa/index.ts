@@ -459,21 +459,20 @@ const fetch = async (options: FetchOptions) => {
 		if (!supply || !priceBefore || !priceAfter || tDecimals == null || oDecimals == null) return;
 
 		const priceChange = Number(priceAfter) - Number(priceBefore);
-		if (priceChange <= 0) return;
 
 		const dailyYield = (Number(supply) / 10 ** tDecimals) * (priceChange / 10 ** oDecimals);
 		if (token.denomination) {
-			dailyFees.addCGToken(denominationCGId[token.denomination], dailyYield);
-			dailySupplySideRevenue.addCGToken(denominationCGId[token.denomination], dailyYield);
+			dailyFees.addCGToken(denominationCGId[token.denomination], dailyYield, METRIC.ASSETS_YIELDS);
+			dailySupplySideRevenue.addCGToken(denominationCGId[token.denomination], dailyYield, METRIC.ASSETS_YIELDS);
 		} else {
-			dailyFees.addUSDValue(dailyYield);
-			dailySupplySideRevenue.addUSDValue(dailyYield);
+			dailyFees.addUSDValue(dailyYield, METRIC.ASSETS_YIELDS);
+			dailySupplySideRevenue.addUSDValue(dailyYield, METRIC.ASSETS_YIELDS);
 		}
 	});
 
 	// Instant & request-based redemption/deposit fees (protocol revenue)
 	if (allVaults.length > 0) {
-		const logOpts = { targets: allVaults, entireLog: true, flatten: true };
+		const logOpts = { targets: allVaults, flatten: true };
 		const [redeemLogs, redeemCustomLogs, depositLogs, depositCustomLogs, redeemRequestLogs, redeemRequestCustomLogs, depositRequestLogs, depositRequestCustomLogs] = await Promise.all([
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom }),
@@ -514,8 +513,7 @@ const fetch = async (options: FetchOptions) => {
 
 		// Process redeem fees (feeAmount) — instant + request-based
 		for (const log of [...redeemLogs, ...redeemCustomLogs, ...redeemRequestLogs, ...redeemRequestCustomLogs]) {
-			const args = log.args ?? log;
-			const feeAmount = Number(args.feeAmount);
+			const feeAmount = Number(log.feeAmount);
 			if (feeAmount <= 0) continue;
 			const info = vaultToToken[log.address?.toLowerCase()];
 			if (!info) continue;
@@ -524,14 +522,13 @@ const fetch = async (options: FetchOptions) => {
 			if (!price || dec == null) continue;
 
 			const feeUsd = (feeAmount / 10 ** dec) * price;
-			dailyFees.addUSDValue(feeUsd);
-			dailyRevenue.addUSDValue(feeUsd);
+			dailyFees.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES);
+			dailyRevenue.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES);
 		}
 
 		// Process deposit fees — instant + request-based
 		for (const log of [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs]) {
-			const args = log.args ?? log;
-			const fee = Number(args.fee);
+			const fee = Number(log.fee);
 			if (fee <= 0) continue;
 			const info = vaultToToken[log.address?.toLowerCase()];
 			if (!info) continue;
@@ -540,8 +537,8 @@ const fetch = async (options: FetchOptions) => {
 			if (!price || dec == null) continue;
 
 			const feeUsd = (fee / 10 ** dec) * price;
-			dailyFees.addUSDValue(feeUsd);
-			dailyRevenue.addUSDValue(feeUsd);
+			dailyFees.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES);
+			dailyRevenue.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES);
 		}
 	}
 
@@ -555,6 +552,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
 	version: 2,
+	pullHourly: true,
 	adapter: {
 		[CHAIN.ETHEREUM]: { fetch, start: "2023-12-02" },
 		[CHAIN.BASE]: { fetch, start: "2025-01-15" },
@@ -571,6 +569,7 @@ const adapter: SimpleAdapter = {
 		// [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-01" },
 		// [CHAIN.OG]: { fetch, start: "2025-09-16" },
 	},
+    allowNegativeValue: true,
 	methodology: {
 		Fees: "Net yield accrued to mToken holders (NAV appreciation) plus redemption and deposit fees (instant + request-based) charged by the protocol.",
 		Revenue: "Redemption and deposit fees collected by Midas from both instant and request-based operations. Management and performance fees are deducted before NAV publication.",
