@@ -53,10 +53,10 @@ const adapter: SimpleAdapter = {
       'Polymarket Builder Fees': 'Pre-v2: USDC.e charged on each prediction market open/close trade. Post-v2: Builder fees received by Rainbow from trades on Polymarket v2',
     },
     Revenue: {
-      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2 using Rainbow builder interface',
+      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket using Rainbow builder interface',
     },
     ProtocolRevenue: {
-      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2 using Rainbow builder interface',
+      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket using Rainbow builder interface',
     },
   },
   adapter: {
