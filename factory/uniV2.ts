@@ -753,7 +753,13 @@ const configs: Record<string, Record<string, any>> = {
   "zealousswap": {
     [CHAIN.KASPLEX]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2025-09-26', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
     [CHAIN.IGRA]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-04-03', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
-  }
+  },
+  "qie-dex": {
+    [CHAIN.QIEV3]: { factory: "0x8E23128a5511223bE6c0d64106e2D4508C08398C", start: '2025-08-05', fees: 0.003, revenueRatio: 0, }
+  },
+  "mezo-tigris-v3": {
+    [CHAIN.MEZO]: { factory: "0xBB24AF5c6fB88F1d191FA76055e30BF881BeEb79", start: '2026-01-13', fees: 0.003, revenueRatio: 0, }
+  },
 }
 
 const optionsMap: Record<string, any> = {
