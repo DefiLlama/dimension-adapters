@@ -21,18 +21,21 @@ const events = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, getLogs, api } = options;
+  const { createBalances, getLogs, api, startTimestamp, endTimestamp } = options;
+  const period = endTimestamp - startTimestamp;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
   // Get all reserves from LendPool
   const reserves: string[] = await api.call({ target: LEND_POOL, abi: abis.getReservesList });
 
   // Get reserve config and data from DataProvider
+  const calls = reserves.map(r => ({ params: [r] }));
   const [configResults, dataResults, reserveUpdates, redeemLogs] = await Promise.all([
-    Promise.all(reserves.map(r => api.call({ target: DATA_PROVIDER, abi: abis.getReserveConfigurationData, params: [r] }))),
-    Promise.all(reserves.map(r => api.call({ target: DATA_PROVIDER, abi: abis.getReserveData, params: [r] }))),
+    api.multiCall({ target: DATA_PROVIDER, abi: abis.getReserveConfigurationData, calls }),
+    api.multiCall({ target: DATA_PROVIDER, abi: abis.getReserveData, calls }),
     getLogs({ target: LEND_POOL, eventAbi: events.ReserveDataUpdated }),
     getLogs({ target: LEND_POOL, eventAbi: events.Redeem }),
   ]);
@@ -53,30 +56,33 @@ const fetch = async (options: FetchOptions) => {
     const reserveFactor = Number(configResults[i].reserveFactor) / 10000;
 
     const annualRate = Number(rate) / 1e27;
-    const dailyInterest = BigInt(Math.floor(Number(totalDebt) * annualRate * 86400 / SECONDS_PER_YEAR));
+    const dailyInterest = BigInt(Math.floor(Number(totalDebt) * annualRate * period / SECONDS_PER_YEAR));
 
+    const protocolShare = BigInt(Math.floor(Number(dailyInterest) * reserveFactor));
     dailyFees.add(reserve, dailyInterest, METRIC.BORROW_INTEREST);
-    dailyRevenue.add(reserve, BigInt(Math.floor(Number(dailyInterest) * reserveFactor)), METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.add(reserve, BigInt(Math.floor(Number(dailyInterest) * (1 - reserveFactor))), METRIC.BORROW_INTEREST);
+    dailyRevenue.add(reserve, protocolShare, "Borrow Interest To veBEND Holders");
+    dailyHoldersRevenue.add(reserve, protocolShare, "Borrow Interest To veBEND Holders");
+    dailySupplySideRevenue.add(reserve, BigInt(Math.floor(Number(dailyInterest) * (1 - reserveFactor))), "Borrow Interest To Lenders");
   });
 
   // Redemption fines from Redeem events (fines go to first bidder, not protocol)
   redeemLogs.forEach((log: any) => {
     dailyFees.add(log.reserve, log.fineAmount, METRIC.LIQUIDATION_FEES);
+    dailySupplySideRevenue.add(log.reserve, log.fineAmount, METRIC.LIQUIDATION_FEES);
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Fees: "Interest paid by borrowers on NFT-collateralized loans + redemption fines (max(5% debt, 0.2 ETH)) paid to auction bidders.",
-  Revenue: "Protocol's share (30% reserve factor) of borrow interest, distributed weekly to veBEND holders as BWETH.",
-  ProtocolRevenue: "30% admin fee on all interest income, 100% claimable by veBEND holders proportionally.",
+  Revenue: "Protocol's share of borrow interest, 100% claimable by veBEND holders proportionally, distributed weekly as BWETH.",
+  HoldersRevenue: "Protocol's share of borrow interest, 100% distributed to veBEND holders proportionally.",
   SupplySideRevenue: "Remaining 70% of borrow interest distributed to depositors via bToken interest-bearing mechanism.",
 };
 
@@ -86,18 +92,20 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: "Redemption fines from Redeem events, paid by borrowers who repay during auction (fine = max(5% of debt, 0.2 ETH)), goes to first bidder.",
   },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: "30% admin fee on borrow interest, minted as bTokens to BendCollector treasury and distributed weekly to veBEND holders.",
+    "Borrow Interest To veBEND Holders": "The protocol's share of borrow interest, minted as bTokens to BendCollector and distributed weekly to veBEND holders.",
   },
-  ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "30% admin fee on borrow interest, minted as bTokens to BendCollector treasury and distributed weekly to veBEND holders.",
+  HoldersRevenue: {
+    "Borrow Interest To veBEND Holders": "The protocol's share of borrow interest, minted as bTokens to BendCollector and distributed weekly to veBEND holders.",
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "70% of borrow interest distributed to liquidity providers.",
+    "Borrow Interest To Lenders": "The portion of borrow interest distributed to liquidity providers.",
+    [METRIC.LIQUIDATION_FEES]: "Redemption fines from Redeem events paid to the first bidder (not the protocol).",
   },
 };
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2022-05-20" },
   },
