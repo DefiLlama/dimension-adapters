@@ -33,7 +33,7 @@ const adapters = {
   [CHAIN.SONIC]: { start: '2024-12-17', fetch },
   [CHAIN.OPTIMISM]: { start: '2024-01-24', fetch },
   [CHAIN.ARBITRUM]: { start: '2024-01-24', fetch },
-  [CHAIN.FANTOM]: { start: '2023-25-12', fetch },
+  [CHAIN.FANTOM]: { start: '2023-12-25', fetch },
   [CHAIN.BASE]: { start: '2024-01-24', fetch },
 }
 
