@@ -1,18 +1,9 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-interface DiamondPayments {
-  amount_raised: [string, number][];
-  manual_payments_taken: number;
-  recurring_payments_taken: number;
-}
-
-interface OpenChatMetrics {
-  diamond_members: {
-    payments: DiamondPayments;
-  };
-}
+const LEDGER_ID = "2ouva-viaaa-aaaaq-aaamq-cai";
+const ACCOUNT_ID = "4bkt6-4aaaa-aaaaf-aaaiq-cai";
 
 // Token decimals on ICP (e8s = 10^8 base units)
 const E8S = 1e8;
@@ -23,52 +14,44 @@ const PRICES = {
   CHAT: { "1m": 2,    "3m": 5,    "1y": 15,   lifetime: 60   },
 };
 
-async function fetch(_a: any, _b: any, { createBalances }: FetchOptions) {
-    let response: OpenChatMetrics;
+async function fetch(options: FetchOptions) {
+    let response;
+    const ONE_MONTH = 30 * 24 * 60 * 60; // 30 days in seconds
+    const timeWindow = options.endTimestamp - options.startTimestamp;
+    const STEP = timeWindow >= ONE_MONTH ? 86400 : 3600;
+
     try {
-        response = await httpGet("https://4bkt6-4aaaa-aaaaf-aaaiq-cai.raw.ic0.app/metrics");
+        response = await httpGet(`https://icrc-api.internetcomputer.org/api/v1/ledgers/${LEDGER_ID}/transaction-volume`
+            + `?start=${options.startTimestamp}`
+            + `&end=${options.endTimestamp}`
+            + `&step=${STEP}`
+            + `&account_id=${ACCOUNT_ID}`);
     } catch (e) {
         throw new Error(`Error fetching metrics: ${(e as Error).message}`);
     }
 
-    const amountRaised = response.diamond_members.payments.amount_raised;
+    const dailyVolumeCHAT = parseFloat(response.meta.total_volume_for_dataset);
 
-    // Extract raw e8s balances from the [token, amount] tuple array
-    const icpE8s  = amountRaised.find(([token]) => token === "ICP")?.[1]  ?? 0;
-    const chatE8s = amountRaised.find(([token]) => token === "CHAT")?.[1] ?? 0;
+    const dailyFees = options.createBalances();
 
-    const icpRevenue  = icpE8s  / E8S;
-    const chatRevenue = chatE8s / E8S;
-
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-
-    // Add ICP revenue (native chain token)
-    dailyFees.addCGToken("internet-computer", icpRevenue);
-    dailyRevenue.addCGToken("internet-computer", icpRevenue);
-
-    // Add CHAT token fees paid by users
-    dailyFees.addCGToken("openchat", chatRevenue);
+    dailyFees.add("openchat", dailyVolumeCHAT);
 
     return {
         dailyFees,
-        dailyRevenue,
+        dailyRevenue: dailyFees,
     };
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.ICP],
+    start: '2026-05-13',
     methodology: {
-        Fees: "Fees collected from diamond memberships.",
-        Revenue: "Fees calculated from diamond memberships.",
-    },
-    adapter: {
-        [CHAIN.ICP]: {
-        fetch,
-        start: '2026-05-08',
-        runAtCurrTime: true,
-        },
-    },
+        Fees: "CHAT token volume transacted through the OpenChat diamond membership canister.",
+        Revenue: "CHAT token volume received by the OpenChat protocol canister.",
+    }
 };
 
 export default adapter;
