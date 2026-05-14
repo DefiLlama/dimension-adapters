@@ -2,11 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
-const V6_ROUTERS = [
+const CURRENT_V6_ROUTERS = [
   '0xd2b7004682d86f305b1418684825194d9451600c', // v6.3 current prod router
-  '0x895115ccbf109afafcf3552825a8c3ebb8446c52', // v6.2 router
-  '0xa50dc0370f82ea71663c7d253481670d045a4e0b', // v6.1 router
-  '0x691cab720d51b5b2c05cf8c96c07ee5ff3b1d652', // v6 router
 ]
 
 const LEGACY_FEE_ROUTERS = [
@@ -45,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   dailyVolume.addBalances(legacyProtocolFees.clone(10000 / LEGACY_PROTOCOL_FEE_BPS))
 
   const swapLogs = await options.getLogs({
-    targets: V6_ROUTERS,
+    targets: CURRENT_V6_ROUTERS,
     eventAbi: SWAPPED_EVENT,
     flatten: true,
   })
@@ -56,6 +53,7 @@ const fetch = async (options: FetchOptions) => {
 
     if (isAddress(log?.tokenOut) && isPositiveAmount(log?.fee)) {
       dailyFees.add(log.tokenOut, log.fee)
+      dailyRevenue.add(log.tokenOut, log.fee)
     }
   }
 
@@ -71,11 +69,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "User fees emitted by v6 Swapped events plus legacy protocol fees sent to the fee recipient.",
-  Revenue: "Legacy protocol revenue is measured from onchain transfers sent by legacy InoSwap routers to the fee recipient wallet. Current v6 protocol fee is 0 bps.",
-  ProtocolRevenue: "Legacy protocol revenue is measured from onchain transfers sent by legacy InoSwap routers to the fee recipient wallet. Current v6 protocol fee is 0 bps.",
+  Revenue: "Protocol revenue is measured from v6 Swapped event fees and legacy fee-recipient transfers.",
+  ProtocolRevenue: "Protocol revenue is measured from v6 Swapped event fees and legacy fee-recipient transfers.",
   SupplySideRevenue: "Set to 0 until explicit partner/supply-side distribution events expose token attribution.",
   UserFees: "Total user fees emitted by InoSwap routers where available.",
-  Volume: "v6+ volume is counted from Swapped(tokenIn, amountIn) events; legacy volume is inferred from the historical 0.10% protocol fee stream.",
+  Volume: "Current v6.3 volume is counted from Swapped(tokenIn, amountIn) events; legacy volume is inferred from the historical 0.10% protocol fee stream.",
 }
 
 const adapter: SimpleAdapter = {
