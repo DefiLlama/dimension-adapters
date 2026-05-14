@@ -86,8 +86,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * fee, amount1: Number(log.amount1In) * fee })
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * fee, amount1: Number(log.amount1Out) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0In) * fee) * protocolFee, amount1: Number(log.amount1In) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0Out) * fee) * protocolFee, amount1: Number(log.amount1Out) * fee })
+      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0In) * fee) * protocolFee, amount1: (Number(log.amount1In) * fee) * protocolFee })
+      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0Out) * fee) * protocolFee, amount1: (Number(log.amount1Out) * fee) * protocolFee })
     })
   })
   return { 
