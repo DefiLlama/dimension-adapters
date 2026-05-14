@@ -530,15 +530,8 @@ const fetch = async (options: FetchOptions) => {
 		for (const log of [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs]) {
 			const fee = Number(log.fee);
 			if (fee <= 0) continue;
-			const info = vaultToToken[log.address?.toLowerCase()];
-			if (!info) continue;
-			const price = oraclePriceMap[info.oracle];
-			const dec = mTokenDecMap[info.address];
-			if (!price || dec == null) continue;
-
-			const feeUsd = (fee / 10 ** dec) * price;
-			dailyFees.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES);
-			dailyRevenue.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES);
+			dailyFees.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+			dailyRevenue.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
 		}
 	}
 
@@ -569,7 +562,7 @@ const adapter: SimpleAdapter = {
 		// [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-01" },
 		// [CHAIN.OG]: { fetch, start: "2025-09-16" },
 	},
-    allowNegativeValue: true,
+	allowNegativeValue: true,
 	methodology: {
 		Fees: "Net yield accrued to mToken holders (NAV appreciation) plus redemption and deposit fees (instant + request-based) charged by the protocol.",
 		Revenue: "Redemption and deposit fees collected by Midas from both instant and request-based operations. Management and performance fees are deducted before NAV publication.",
