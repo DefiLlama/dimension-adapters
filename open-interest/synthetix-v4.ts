@@ -20,15 +20,12 @@ const fetch = async (options: any) => {
 
   openInterest.forEach(({ symbol, longOpenInterest, shortOpenInterest }: any) => {
     const price = marketPrices[symbol];
-    if (!price) throw new Error(`Missing Synthetix mark price for ${symbol} open interest`);
-
-    const markPrice = Number(price.markPrice || 0);
-    const longOpenInterestUsd = Number(longOpenInterest || 0) * markPrice;
-    const shortOpenInterestUsd = Number(shortOpenInterest || 0) * markPrice;
-
-    openInterestAtEnd.addUSDValue(longOpenInterestUsd + shortOpenInterestUsd);
-    longOpenInterestAtEnd.addUSDValue(longOpenInterestUsd);
-    shortOpenInterestAtEnd.addUSDValue(shortOpenInterestUsd);
+    if (!price || !price.markPrice || !longOpenInterest || !shortOpenInterest) {
+      throw new Error(`Missing Synthetix mark price or open interest for ${symbol}`);
+    }
+    openInterestAtEnd.addUSDValue(Number(price.markPrice) * (Number(longOpenInterest) + Number(shortOpenInterest)));
+    longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
+    shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest));
   });
 
   return {
