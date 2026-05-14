@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Volume is calculated from the amountIn of all SwapWithRef events on the LiquidCore router.",
+  Volume: "Volume is calculated from the amountIn of all Swap and SwapWithRef events on LiquidCore pools.",
   Fees: "All swap fees collected by LiquidCore pools.",
   Revenue: "All swap fees go to protocol revenue (100% protocol-owned liquidity).",
   ProtocolRevenue: "All swap fees go to protocol revenue (100% protocol-owned liquidity).",
