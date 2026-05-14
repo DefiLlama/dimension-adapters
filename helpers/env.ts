@@ -27,6 +27,7 @@ const DEFAULTS: any = {
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
+  NEAR_RPC: 'https://rpc.mainnet.near.org',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',
