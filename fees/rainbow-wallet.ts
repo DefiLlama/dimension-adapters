@@ -19,7 +19,6 @@ const RainBowRouter = {
   [CHAIN.ZORA]: '0xA61550E9ddD2797E16489db09343162BE98d9483',
   [CHAIN.APECHAIN]: rainbowRouter,
   [CHAIN.GRAVITY]: rainbowRouter,
-  [CHAIN.MONAD]: rainbowRouter,
 }
 
 // Prefetch function that will run once before any fetch calls
@@ -69,17 +68,42 @@ const prefetch = async (options: FetchOptions) => {
         SELECT blockchain, tx_hash, amount_usd FROM eoa_router_trades
         UNION ALL
         SELECT blockchain, tx_hash, amount_usd FROM smart_wallet_trades
+    ),
+
+    relay_bridge AS (
+        SELECT
+            CASE
+                WHEN origin = 'bnb'         THEN 'bsc'
+                WHEN origin = 'avalanche_c' THEN 'avax'
+                ELSE origin
+            END AS chain,
+            SUM(usd_vol)          AS volume,
+            SUM(usd_vol) * 0.0025 AS fees
+        FROM dune.rainbowdotme.result_rainbow_relay_tx
+        WHERE block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time <  from_unixtime(${options.endTimestamp})
+        GROUP BY 1
+    ),
+
+    swap_fees AS (
+        SELECT
+            CASE
+                WHEN blockchain = 'bnb'         THEN 'bsc'
+                WHEN blockchain = 'avalanche_c' THEN 'avax'
+                ELSE blockchain
+            END AS chain,
+            SUM(amount_usd)          AS volume,
+            SUM(amount_usd * 0.0085) AS fees
+        FROM combined
+        GROUP BY 1
     )
 
-    SELECT
-        CASE
-            WHEN blockchain = 'bnb'         THEN 'bsc'
-            WHEN blockchain = 'avalanche_c' THEN 'avax'
-            ELSE blockchain
-        END AS chain,
-        SUM(amount_usd)          AS volume,
-        SUM(amount_usd * 0.0085) AS fees
-    FROM combined
+    SELECT chain, SUM(volume) AS volume, SUM(fees) AS fees
+    FROM (
+        SELECT chain, volume, fees FROM swap_fees
+        UNION ALL
+        SELECT chain, volume, fees FROM relay_bridge
+    ) all_fees
     GROUP BY 1
   `);
 };
