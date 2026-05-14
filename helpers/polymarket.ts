@@ -36,23 +36,19 @@ export function polymarketBuilderExports({ builder, start }: { builder: string, 
 
 export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { options: FetchOptions, builderCode: string }) {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   let cursor: string | undefined;
   do {
     const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
     const tradesData = await fetchURL(url);
     for (const trade of tradesData.data) {
-      dailyFees.addUSDValue(Number(trade.feeUsdc || 0), 'Trading Fees');
-      dailyRevenue.addUSDValue(Number(trade.builderFee || 0), 'Builder Fees');
-      dailySupplySideRevenue.addUSDValue(Number(trade.feeUsdc || 0) - Number(trade.builderFee || 0), 'Trading Fees To Polymarket');
+      dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
     }
     cursor = tradesData.next_cursor;
     await sleep(500);
   } while (cursor && cursor !== 'LTE=');
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue:dailyRevenue };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
 export function polymarketV2BuilderFeesExports({ builderCode, builderName, start }: { builderCode: string, builderName: string, start: string }) {
@@ -68,23 +64,19 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
     start,
     doublecounted: true,
     methodology: {
-      Fees: `Trading fees paid by users for trades on Polymarket v2 using ${builderName} builder interface`,
+      Fees: `Builder fees received by ${builderName} from trades on Polymarket v2`,
       Revenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
       ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      SupplySideRevenue: 'Trading fees to polymarket after builder fees are deducted',
     },
     breakdownMethodology: {
       Fees: {
-        'Trading Fees': `Trading fees paid by users for trades on Polymarket v2 using ${builderName} builder interface`,
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
       },
       Revenue: {
-        'Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
       },
       ProtocolRevenue: {
-        'Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      },
-      SupplySideRevenue: {
-        'Trading Fees To Polymarket': 'Trading fees to polymarket after builder fees are deducted',
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
       },
     }
   }

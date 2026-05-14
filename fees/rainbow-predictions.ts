@@ -17,9 +17,6 @@ const POLYMARKET_V2_CUTOVER = 1777420800;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
 
   // On-chain leg: capture USDC.e transfers to the Rainbow fee wallet
   // (only meaningful pre-Polymarket-v2; for windows fully after, this returns 0)
@@ -29,23 +26,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       targets: [RainbowFeeWallet],
       token: USDC_E,
     })
-    dailyFees.add(onChain, 'Builder Fees')
-    dailyRevenue.add(onChain, 'Builder Fees')
-    dailyProtocolRevenue.add(onChain, 'Builder Fees')
+    dailyFees.add(onChain, 'Polymarket Builder Fees')
   }
   else {
     const feesResult = await fetchPolymarketV2BuilderFees({ options, builderCode: RAINBOW_BUILDER_CODE });
-    dailyFees.add(feesResult.dailyFees);
-    dailyRevenue.add(feesResult.dailyRevenue);
-    dailyProtocolRevenue.add(feesResult.dailyProtocolRevenue);
-    dailySupplySideRevenue.add(feesResult.dailySupplySideRevenue);
+    dailyFees.add(feesResult.dailyFees, 'Polymarket Builder Fees');
   }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
@@ -53,23 +44,19 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Fees: 'Pre-Polymarket-v2: ~1% of shares value on each prediction market trade routed through the Rainbow fee wallet. Post-Polymarket-v2: Trading fees paid by users for trades on Polymarket v2 using Rainbow builder interface',
+    Fees: 'Pre-Polymarket-v2: ~1% of shares value on each prediction market trade routed through the Rainbow fee wallet. Post-Polymarket-v2: Builder fees received by Rainbow from trades on Polymarket v2',
     Revenue: 'Builder fees received by Rainbow from trades on Polymarket v2',
     ProtocolRevenue: 'Builder fees received by Rainbow from trades on Polymarket v2',
-    SupplySideRevenue: 'Trading fees to polymarket after builder fees are deducted',
   },
   breakdownMethodology: {
     Fees: {
-      'Trading Fees': 'Pre-v2: USDC.e charged on each prediction market open/close trade. Post-v2: Trading fees paid by users for trades on Polymarket v2 using Rainbow builder interface',
+      'Polymarket Builder Fees': 'Pre-v2: USDC.e charged on each prediction market open/close trade. Post-v2: Builder fees received by Rainbow from trades on Polymarket v2',
     },
     Revenue: {
-      'Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2',
+      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2 using Rainbow builder interface',
     },
     ProtocolRevenue: {
-      'Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2',
-    },
-    SupplySideRevenue: {
-      'Trading Fees To Polymarket': 'Trading fees to polymarket after builder fees are deducted',
+      'Polymarket Builder Fees': 'Builder fees received by Rainbow from trades on Polymarket v2 using Rainbow builder interface',
     },
   },
   adapter: {
