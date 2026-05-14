@@ -352,9 +352,6 @@ const configs: Record<string, Record<string, any>> = {
   'fluxflow-v3': {
     [CHAIN.FLUENT]: { factory: '0x69Be606be7Fd2d27C8f9821329c748c77d24FF4f', start: '2026-04-12', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
   },
-  'mezo-tigris-v3': {
-    [CHAIN.MEZO]: { factory: '0xBB24AF5c6fB88F1d191FA76055e30BF881BeEb79', start: '2026-01-13', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)' },
-  },
 }
 
 const optionsMap: Record<string, any> = {
