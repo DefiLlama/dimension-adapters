@@ -19,6 +19,7 @@ const fetch = async (options: FetchOptions) => {
         target: VAULT_REGISTRY,
         eventAbi: VAULT_REGISTERED_EVENT,
         fromBlock: 80743203,
+        cacheInCloud: true,
     });
 
     const { results: vaultData, errors } = await PromisePool
@@ -46,7 +47,6 @@ const fetch = async (options: FetchOptions) => {
     const liquidations = await getLogs({
         targets: validPools.map(i => i.vault),
         eventAbi: LIQUIDATED_EVENT,
-        skipIndexer: true,
         entireLog: true,
     });
 
@@ -62,7 +62,6 @@ const fetch = async (options: FetchOptions) => {
     const feeData = await getLogs({
         targets: validPools.map(i => i.vault),
         eventAbi: FEE_COLLECTED_EVENT,
-        skipIndexer: true,
     });
 
     for (const fee of feeData) {
