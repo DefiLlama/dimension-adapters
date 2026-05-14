@@ -1,10 +1,12 @@
-import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
+import { CHAIN } from "../helpers/chains";
+import { postURL } from "../utils/fetchURL";
 
 const API = "https://papi.synthetix.io/v1/info";
+const retries = 3;
+const headers = { "User-Agent": "defillama-dimension-adapters/1.0" };
 
 const post = async (params: any) => {
-  const res = await httpPost(API, { params }, { headers: { "User-Agent": "defillama-dimension-adapters/1.0" } });
+  const res = await postURL(API, { params }, retries, { headers });
   if (res.status !== "ok" || res.response === undefined) throw new Error(`Synthetix API error: ${params.action}`);
   return res.response;
 };
@@ -38,13 +40,9 @@ const fetch = async (options: any) => {
 
 const adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: "2025-12-18",
-    },
-  },
+  runAtCurrTime: true,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
 };
 
 export default adapter;
