@@ -25,38 +25,47 @@ const ABI = {
   getStabilityFeeRate:    "function getStabilityFeeRate(bytes32) view returns (uint256)",
 };
 
-// GEB accounting precisions.
-const RAY = 10n ** 27n;            // per-second compounding rate scale
-const SCALE_USD_DIVISOR = 10n ** 67n; // see precision note below
-const SCALE_USD_REMAINDER = 1e5;
+// GEB / MakerDAO fixed-point scales.
+const RAY = 10n ** 27n;
+const RAD_TO_USD_DROP = 10n ** 40n; // drop 40 decimals first so the remainder fits in Number
+const USD_REMAINDER = 1e5;
 
-// Per-pool fee math (continuous-rate approximation, matches MakerDAO's
-// internal `_drip` formula linearised over a day):
-//
-//   outstandingDebt_RAD = totalDebtShare(WAD) * debtAccumulatedRate(RAY)
-//   feePerSecondRay     = stabilityFeeRate(RAY) - RAY          // small (~6e17 for ~2% APY)
-//   fee_RAD             = outstandingDebt_RAD * feePerSecondRay * windowSeconds / RAY
-//   fee_USD             = fee_RAD / 1e45                       // FXD is pegged 1:1 USD
-//
-// We do not depend on `debtAccumulatedRate` changing during the window:
-// it only ticks when StabilityFeeCollector.collect() is called, so reading
-// the delta gives spurious zeros on most days. The continuous formula uses
-// the per-second rate + the snapshot debt, which gives the correctly accrued
-// (but not-yet-collected) interest — the same quantity Maker reports as
-// "stability fee revenue".
-//
-// Combining: feeUsd = totalDebtShare * debtAccumulatedRate * (stabilityFeeRate - RAY) * windowSeconds / (RAY * 1e45)
-//                   = product / 1e72
-// With BigInt: we divide by 10^67 first to keep ~5 decimal places, then by 1e5 in Number.
+// Exact port of MakerDAO/Fathom CommonMath.rpow — computes x^n in `base`
+// precision via binary exponentiation. Matches the Solidity reference at
+// fathom-stablecoin-smart-contracts/contracts/main/utils/CommonMath.sol
+// bit-for-bit, so applying it to `stabilityFeeRate` reproduces the same
+// debtAccumulatedRate the contract would compute after a `collect()` call.
+function rpow(x: bigint, n: bigint, base: bigint): bigint {
+  if (n === 0n) return base;
+  if (x === 0n) return 0n;
+  let z = n % 2n === 1n ? x : base;
+  const half = base / 2n;
+  let nn = n / 2n;
+  while (nn > 0n) {
+    x = (x * x + half) / base;
+    if (nn % 2n === 1n) z = (z * x + half) / base;
+    nn = nn / 2n;
+  }
+  return z;
+}
 
+// Per-pool fee math — exactly what StabilityFeeCollector._collect() does:
+//
+//   growth      = rpow(stabilityFeeRate, windowSeconds, RAY)              [ray]
+//   newRate     = growth * accRate / RAY                                  [ray]
+//   ΔrateRay    = newRate - accRate                                       [ray]
+//   fee_RAD     = totalDebtShare * ΔrateRay                               [rad]
+//   fee_USD     = fee_RAD / 1e45                                          (FXD pegged 1:1 USD)
+//
+// We snapshot at toBlock (single read) — the rate grows deterministically
+// per-second, so the canonical formula gives the correctly-accruing
+// (but possibly not-yet-collected) interest for the window. This is the
+// same accounting Fathom itself applies whenever someone calls collect().
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp);
   if (windowSeconds <= 0n) return { dailyFees, dailyRevenue: dailyFees };
 
-  // All three reads use the latest block at the end of the window. The rates
-  // are slow-moving (per-second compounding) so a single snapshot is a
-  // reasonable representative for the whole window.
   const calls = POOLS.map((p) => ({ target: COLLATERAL_POOL_CONFIG, params: [p.id] }));
   const [debtShares, accRates, feeRates] = await Promise.all([
     options.toApi.multiCall({ abi: ABI.getTotalDebtShare,      calls, permitFailure: true }),
@@ -70,12 +79,13 @@ const fetch = async (options: FetchOptions) => {
     const share = BigInt(debtShares[i]);
     const accRate = BigInt(accRates[i]);
     const feeRate = BigInt(feeRates[i]);
-    if (share === 0n || feeRate <= RAY) continue; // no debt or no fee configured
-    const feePerSecond = feeRate - RAY;
-    const product = share * accRate * feePerSecond * windowSeconds;
-    // product scale: WAD(1e18) * RAY(1e27) * RAY(1e27) * sec = 1e72 * sec
-    // dividing by 1e72 yields USD; we split the division to fit in Number.
-    feeUsd += Number(product / SCALE_USD_DIVISOR) / SCALE_USD_REMAINDER;
+    if (share === 0n || feeRate <= RAY) continue; // no debt or no stability fee configured
+
+    const growth = rpow(feeRate, windowSeconds, RAY);
+    const deltaRate = (growth * accRate) / RAY - accRate; // [ray]
+    if (deltaRate <= 0n) continue;
+    const feeRad = share * deltaRate; // [rad]
+    feeUsd += Number(feeRad / RAD_TO_USD_DROP) / USD_REMAINDER;
   }
 
   if (feeUsd > 0) dailyFees.addUSDValue(feeUsd);
@@ -91,7 +101,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.XDC],
   start: "2023-09-01",
   methodology: {
-    Fees: "Stability fees accrued on Fathom CDP debt positions (XDC and CGO collateral pools), computed from the on-chain outstanding debt and per-second stabilityFeeRate, summed over the window.",
+    Fees: "Stability fees accrued on Fathom CDP debt positions (XDC and CGO collateral pools). Reproduces StabilityFeeCollector._collect()'s exact rpow-based math against the on-chain stabilityFeeRate, debtAccumulatedRate, and totalDebtShare snapshots.",
     Revenue: "100% of stability-fee income accrues to the Fathom protocol — there are no external lenders in a CDP.",
   },
 };
