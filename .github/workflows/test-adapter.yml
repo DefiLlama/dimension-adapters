@@ -1,36 +1,33 @@
 name: test-adapter
 on: [pull_request]
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
+      - name: Setup Node.js with pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
       - id: file_changes
         uses: trilom/file-changes-action@ce38c8ce2459ca3c303415eec8cb0409857b4272
         with:
           output: 'json'
           fileOutput: 'json'
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        with:
-          version: 10
-          run_install: false
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install
-
       - name: Run changes files through test script
+        env:
+          FILES_MODIFIED: ${{ steps.file_changes.outputs.files_modified }}
+          FILES_ADDED: ${{ steps.file_changes.outputs.files_added }}
+          GH_WORKSPACE: ${{ github.workspace }}
+          GH_REPO_OWNER: ${{ github.repository_owner }}
+          GH_REPO_NAME: ${{ github.event.repository.name }}
+          GH_PR_NUMBER: ${{ github.event.number }}
         run: |
           # Store the current commit hash in a variable
           current_commit=$(git rev-parse HEAD)
@@ -42,9 +39,9 @@ jobs:
           git checkout $current_commit
 
           RUN_FILES=$(
-            MODIFIED=${{ steps.file_changes.outputs.files_modified}} \
-            ADDED=${{ steps.file_changes.outputs.files_added}} \
-            node ${{ github.workspace }}/.github/workflows/getFileList.js
+            MODIFIED="$FILES_MODIFIED" \
+            ADDED="$FILES_ADDED" \
+            node "$GH_WORKSPACE"/.github/workflows/getFileList.js
           )
 
           if [ "$RUN_FILES" = "[]" ]; then
@@ -59,7 +56,7 @@ jobs:
             {
               IFS='@' read -r -a array <<< "$i"
               npm run test ${array[0]} ${array[1]} 2>&1 | tee output.txt
-              node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/dimension-adapters/dimension-adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
+              node "$GH_WORKSPACE"/.github/workflows/commentResult.js /home/runner/work/dimension-adapters/dimension-adapters/output.txt "$GH_REPO_OWNER" "$GH_REPO_NAME" "$GH_PR_NUMBER" ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
                 exit 1;
               fi
