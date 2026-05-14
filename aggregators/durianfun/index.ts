@@ -31,6 +31,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
+import { METRIC } from "../../helpers/metrics"
 
 // V1 routers (7-arg Swapped). Include all predecessors so the
 // historical volume series is continuous before V2 cutover.
@@ -53,6 +54,7 @@ const SWAPPED_ABI_V2 =
 
 const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyVolume = createBalances();
+  const dailyFees = createBalances();
 
   // Process V1 routers (predecessors + current V1).
   const v1Logs = await getLogs({
@@ -61,6 +63,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   })
   for (const log of v1Logs) {
     addOneToken({ chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOutToUser })
+    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES)
   }
 
   // Process V2 routers (different event ABI / topic-0 hash).
@@ -70,9 +73,25 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   });
   for (const log of v2Logs) {
     addOneToken({ chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOutToUser })
+    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES)
   }
 
-  return { dailyVolume };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+};
+
+const methodology = {
+  Volume: "Sum of swap volume routed through Durian Aggregator Router V1 and V2.",
+  Fees: "Router-skim fee deducted from the output token of every Swapped event, capped at 1.0% per route.",
+  Revenue: "100% of the swap fees accrue to the protocol.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Router-skim fee deducted from the output token of each swap, capped at 1.0% per route.",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "Router-skim fee deducted from the output token of each swap, capped at 1.0% per route.",
+  },
 };
 
 const adapter: Adapter = {
@@ -84,6 +103,8 @@ const adapter: Adapter = {
       start: "2026-04-26",
     },
   },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
