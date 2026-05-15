@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { httpGet } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 const API = "https://api.doppler.finance/api/v1/analytics";
 const chainConfig: Record<string, { start: string; vaults: { token: string; blockchain: string }[] }> = {
@@ -27,8 +27,8 @@ const fetch = async (options: FetchOptions) => {
 
   const vaults = chainConfig[options.chain].vaults;
   const responses = await Promise.all(vaults.flatMap(({ token, blockchain }) => [
-    httpGet(`${API}/tvl?token=${token}&blockchain=${blockchain}&period=all`),
-    httpGet(`${API}/apr?token=${token}&blockchain=${blockchain}&period=all`),
+    fetchURLAutoHandleRateLimit(`${API}/tvl?token=${token}&blockchain=${blockchain}&period=all`),
+    fetchURLAutoHandleRateLimit(`${API}/apr?token=${token}&blockchain=${blockchain}&period=all`),
   ]));
 
   for (let i = 0; i < vaults.length; i++) {
