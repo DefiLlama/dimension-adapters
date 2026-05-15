@@ -32,6 +32,8 @@ const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.MANTLE]: { id: 5000, start: '2024-03-27' },
   [CHAIN.BSC]: { id: 56, start: '2023-06-09' },
   [CHAIN.OPTIMISM]: { id: 10, start: '2023-08-11' },
+  [CHAIN.BASE]: { id: 8453, start: '2024-11-27' },
+  [CHAIN.PLASMA]: { id: 9745, start: "2025-10-01"},
 };
 
 async function amm(
