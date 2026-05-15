@@ -6,7 +6,7 @@ import { METRIC } from "../helpers/metrics";
 type Balances = ReturnType<FetchOptions["createBalances"]>;
 
 const BPS = 10_000n;
-const V1_FEE_RATE_DENOMINATOR = 1_000_000;
+const V1_FEE_RATE_DENOMINATOR = 1_000_000n;
 
 const v1 = {
   startBlock: 37_709_836,
@@ -65,9 +65,9 @@ const v2Abi = {
 };
 
 interface FeeRates {
-  communityRate: number;
-  creatorRate: number;
-  foundationRate: number;
+  communityRate: bigint;
+  creatorRate: bigint;
+  foundationRate: bigint;
 }
 
 interface FeeRateChange extends FeeRates {
@@ -110,29 +110,22 @@ const monEquivalentQuoteTokens = new Set(
 );
 
 function parseFeeConfig(config: {
-  communityTreasuryFeeRate: number;
-  creatorTreasuryFeeRate: number;
-  foundationTreasuryFeeRate: number;
+  communityTreasuryFeeRate: string | number | bigint;
+  creatorTreasuryFeeRate: string | number | bigint;
+  foundationTreasuryFeeRate: string | number | bigint;
 }): FeeRates {
   return {
-    communityRate:
-      Number(config.communityTreasuryFeeRate) / V1_FEE_RATE_DENOMINATOR,
-    creatorRate:
-      Number(config.creatorTreasuryFeeRate) / V1_FEE_RATE_DENOMINATOR,
-    foundationRate:
-      Number(config.foundationTreasuryFeeRate) / V1_FEE_RATE_DENOMINATOR,
+    communityRate: toBigInt(config.communityTreasuryFeeRate),
+    creatorRate: toBigInt(config.creatorTreasuryFeeRate),
+    foundationRate: toBigInt(config.foundationTreasuryFeeRate),
   };
 }
 
 function parseV1SetConfigParams(params: any): FeeRates {
   return parseFeeConfig({
-    communityTreasuryFeeRate: Number(
-      params.communityTreasuryFeeRate ?? params[0],
-    ),
-    creatorTreasuryFeeRate: Number(params.creatorTreasuryFeeRate ?? params[1]),
-    foundationTreasuryFeeRate: Number(
-      params.foundationTreasuryFeeRate ?? params[2],
-    ),
+    communityTreasuryFeeRate: params.communityTreasuryFeeRate ?? params[0],
+    creatorTreasuryFeeRate: params.creatorTreasuryFeeRate ?? params[1],
+    foundationTreasuryFeeRate: params.foundationTreasuryFeeRate ?? params[2],
   });
 }
 
@@ -231,10 +224,11 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
   const periodStartRates = parseFeeConfig(startConfigResult);
   const v1RateHistory = setConfigLogs
     .map((rawLog: any) => {
-      const log = logArgs<{ params: any }>(rawLog);
+      const log = logArgs<{ params?: any }>(rawLog);
+      const params = log.params ?? (log as any)[0] ?? (rawLog as any)[0] ?? log;
       return {
         blockNumber: Number(rawLog.blockNumber),
-        ...parseV1SetConfigParams(log.params ?? log[0] ?? log),
+        ...parseV1SetConfigParams(params),
       };
     })
     .filter((change: FeeRateChange) => Number.isFinite(change.blockNumber))
@@ -264,25 +258,21 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
       Number.isFinite(blockNumber)
         ? getV1FeeRatesAtBlock(v1RateHistory, blockNumber, periodStartRates)
         : periodStartRates;
-    const collectFee = Number(log.monAmount);
+    const collectFee = toBigInt(log.monAmount);
+    const foundationFee =
+      (collectFee * foundationRate) / V1_FEE_RATE_DENOMINATOR;
+    const communityFee =
+      (collectFee * communityRate) / V1_FEE_RATE_DENOMINATOR;
+    const creatorFee = (collectFee * creatorRate) / V1_FEE_RATE_DENOMINATOR;
 
-    dailyFees.addGasToken(collectFee * foundationRate, metrics.FoundationFees);
-    dailyFees.addGasToken(collectFee * communityRate, metrics.CommunityFees);
-    dailyFees.addGasToken(collectFee * creatorRate, metrics.CreatorsFees);
+    dailyFees.addGasToken(foundationFee, metrics.FoundationFees);
+    dailyFees.addGasToken(communityFee, metrics.CommunityFees);
+    dailyFees.addGasToken(creatorFee, metrics.CreatorsFees);
 
-    dailyRevenue.addGasToken(
-      collectFee * foundationRate,
-      metrics.FoundationFees,
-    );
+    dailyRevenue.addGasToken(foundationFee, metrics.FoundationFees);
 
-    dailySupplySideRevenue.addGasToken(
-      collectFee * communityRate,
-      metrics.CommunityFees,
-    );
-    dailySupplySideRevenue.addGasToken(
-      collectFee * creatorRate,
-      metrics.CreatorsFees,
-    );
+    dailySupplySideRevenue.addGasToken(communityFee, metrics.CommunityFees);
+    dailySupplySideRevenue.addGasToken(creatorFee, metrics.CreatorsFees);
   });
 
   distributedLogs.forEach(
@@ -441,7 +431,11 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
       target: v2.protocolManager,
       abi: v2Abi.feeReceiver,
     });
-  } catch {
+  } catch (err) {
+    console.error("Nad.fun V2 feeReceiver lookup failed", {
+      protocolManager: v2.protocolManager,
+      err,
+    });
     // V2 addresses are configured ahead of production deployment. Skip V2
     // accounting until the ProtocolManager exists on the indexed chain.
     return;
@@ -526,7 +520,6 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
     const totalRate = creatorRate + protocolRate;
 
     if (totalRate === 0) {
-      addQuoteBalance(dailyFees, meta?.quoteToken, amount, METRIC.SWAP_FEES);
       return;
     }
 
