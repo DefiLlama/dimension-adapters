@@ -103,9 +103,9 @@ async function fetchSolana(options: FetchOptions) {
   `;
 
   const [row] = await queryDuneSql(options, query);
-  const tradingFees = Number(row?.fee);
-  const cashbackPayouts = Number(row?.cashback_payout_amount);
-  const holdersRevenue = Number(row?.holders_revenue_amount);
+  const tradingFees = Number(row?.fee ?? 0);
+  const cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
+  const holdersRevenue = Number(row?.holders_revenue_amount ?? 0);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -152,7 +152,7 @@ export const breakdownMethodology = {
     [TRADING_TERMINAL_FEES]: 'Fees charged on each trade executed through the trading terminal.',
   },
   Revenue: {
-    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts.',
+    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
   },
   ProtocolRevenue: {
     [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
