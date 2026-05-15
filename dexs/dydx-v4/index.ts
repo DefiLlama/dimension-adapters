@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
     "dydx": {
       runAtCurrTime:true,
       fetch,
-      start: '2021-02-25',
+      start: '2023-10-26',
     },
   },
 };
