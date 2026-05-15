@@ -52,7 +52,7 @@ const endpoints = {
     "E67Z1ykigDsybn4fnWuNHn4AcpuCxfjwzwPQxZs5r5c",
   ),
   [CHAIN.SCROLL]: sdk.graph.modifyEndpoint(
-    "CNr8WTqBRNG5XbJQdSHX5jjfiQQyuFpkpBctTw1sDsDj",
+    "Bi7b1vnoE5NT4XxrT4EwWuWuGYfic7pnB3Z5e7Mao9cj",
   ),
 };
 
