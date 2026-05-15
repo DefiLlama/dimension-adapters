@@ -57,7 +57,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
 
   const historicalVolumeResponse = await fetchURL(historicalVolumeEndpoint) as HistoricalVolumeResponse;
-  console.log(historicalVolumeResponse)
   const volumeToday = historicalVolumeResponse.response.find(dayItem => dayItem.day === options.dateString)
 
   if (!volumeToday) {
