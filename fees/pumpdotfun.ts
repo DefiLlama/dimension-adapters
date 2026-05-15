@@ -121,7 +121,6 @@ async function fetchFromTradeEvents(options: FetchOptions) {
       FROM pumpdotfun_solana.pump_evt_tradeevent
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
         AND evt_block_time <  from_unixtime(${options.endTimestamp})
-        AND mayhem_mode = false
     `, { extraUIDKey: 'pump-trade-events' }),
     getDailyApiData(options.dateString).catch(() => undefined),
   ])
