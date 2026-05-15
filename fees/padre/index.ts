@@ -5,8 +5,15 @@ import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 const dataAvaliableTill = (Date.now() / 1e3 - 10 * 3600) // 10 hours ago
 const TRADING_TERMINAL_FEES = 'Trading Terminal Fees'
+const CASHBACK_REFERRAL_PAYOUTS = 'Cashback/Referral Payouts'
+const solanaConfig = {
+  mainFeeWallet: 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5',
+  feeCashbackWallet: 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb',
+  burnWallet: '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM',
+}
 
 const evmChainConfig: any = {
   [CHAIN.ETHEREUM]: {
@@ -21,8 +28,23 @@ const evmChainConfig: any = {
 }
 
 async function fetchSolana(options: FetchOptions) {
+  const { mainFeeWallet, feeCashbackWallet, burnWallet } = solanaConfig
   const query = `
     WITH
+    interfundTransfers AS (
+      SELECT
+        tx_id
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND tx_success
+        AND address IN ('${mainFeeWallet}', '${feeCashbackWallet}')
+      GROUP BY tx_id
+      HAVING
+        SUM(CASE WHEN address = '${mainFeeWallet}' AND balance_change < 0 THEN 1 ELSE 0 END) > 0
+        AND SUM(CASE WHEN address = '${feeCashbackWallet}' AND balance_change > 0 THEN 1 ELSE 0 END) > 0
+    ),
     allFeePayments AS (
       SELECT
         tx_id,
@@ -31,7 +53,30 @@ async function fetchSolana(options: FetchOptions) {
         solana.account_activity
       WHERE
         TIME_RANGE
-        AND address IN ('J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5', 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb')
+        AND address IN ('${mainFeeWallet}', '${feeCashbackWallet}')
+        AND tx_success
+        AND balance_change > 0
+        AND NOT (address = '${feeCashbackWallet}' AND tx_id IN (SELECT tx_id FROM interfundTransfers))
+    ),
+    cashbackPayouts AS (
+      SELECT
+        COALESCE(SUM(-balance_change), 0) AS payout_amount
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND address = '${feeCashbackWallet}'
+        AND tx_success
+        AND balance_change < 0
+    ),
+    burnWalletInflows AS (
+      SELECT
+        COALESCE(SUM(balance_change), 0) AS holders_revenue_amount
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND address = '${burnWallet}'
         AND tx_success
         AND balance_change > 0
     ),
@@ -44,20 +89,35 @@ async function fetchSolana(options: FetchOptions) {
         JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
       WHERE
         TIME_RANGE
-        AND trades.trader_id != 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5'
-        AND trades.trader_id != 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb'
+        AND trades.trader_id != '${mainFeeWallet}'
+        AND trades.trader_id != '${feeCashbackWallet}'
+        AND trades.trader_id != '${burnWallet}'
       GROUP BY trades.tx_id
     )
     SELECT
-      SUM(fee) AS fee
+      SUM(fee) AS fee,
+      (SELECT payout_amount FROM cashbackPayouts) AS cashback_payout_amount,
+      (SELECT holders_revenue_amount FROM burnWalletInflows) AS holders_revenue_amount
     FROM
       botTrades
   `;
 
-  const fees = await queryDuneSql(options, query);
+  const [row] = await queryDuneSql(options, query);
+  const tradingFees = Number(row?.fee);
+  const cashbackPayouts = Number(row?.cashback_payout_amount);
+  const holdersRevenue = Number(row?.holders_revenue_amount);
+
   const dailyFees = options.createBalances();
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee || 0);
-  return dailyFees
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  dailyFees.add(ADDRESSES.solana.SOL, tradingFees, TRADING_TERMINAL_FEES);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackPayouts, CASHBACK_REFERRAL_PAYOUTS);
+  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, holdersRevenue, METRIC.TOKEN_BUY_BACK);
+  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - holdersRevenue, TRADING_TERMINAL_FEES);
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
 }
 
 async function fetchEvm(options: FetchOptions) {
@@ -79,8 +139,9 @@ export const fetch = async (_: any, _1: any, options: FetchOptions) => {
   if (options.endTimestamp > dataAvaliableTill)
     throw new Error("Data not available till 10 hours ago. Please try a date before: " + new Date(dataAvaliableTill * 1e3).toISOString());
 
-  const fees = options.chain === CHAIN.SOLANA ? await fetchSolana(options) : await fetchEvm(options)
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
 
+  const fees = await fetchEvm(options)
   const dailyFees = fees.clone(1, TRADING_TERMINAL_FEES)
 
   return { dailyFees, dailyRevenue: dailyFees }
@@ -91,7 +152,16 @@ export const breakdownMethodology = {
     [TRADING_TERMINAL_FEES]: 'Fees charged on each trade executed through the trading terminal.',
   },
   Revenue: {
-    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol.',
+    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts.',
+  },
+  ProtocolRevenue: {
+    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
+  },
+  SupplySideRevenue: {
+    [CASHBACK_REFERRAL_PAYOUTS]: 'All outbound transfers from the cashback/referral wallet.',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'Funds sent to the burn wallet for token buyback and burn.',
   },
 }
 
@@ -106,8 +176,12 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   methodology: {
     Fees: "Trading fees paid by users while using Padre bot.",
-    Revenue: "All fees are collected by Padre protocol.",
+    Revenue: "Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.",
+    ProtocolRevenue: "Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.",
+    SupplySideRevenue: "All outbound transfers from the cashback/referral wallet.",
+    HoldersRevenue: "Funds sent to the burn wallet for token buyback and burn.",
   },
+  allowNegativeValue: true,
 };
 
 export default adapter;
