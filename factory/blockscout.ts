@@ -121,6 +121,7 @@ const protocolChainMap: Record<string, string> = {
   "world-mobile": CHAIN.WORLD_MOBILE,
   "rise": CHAIN.RISE,
   "citrea": CHAIN.CITREA,
+  "moca": CHAIN.MOCA,
 }
 
 const deadFromMap: Record<string, string> = {
