@@ -83,6 +83,11 @@ const evmContracts: Record<string, any> = {
     executor: '0x0f9b8E144Cc5C5e7C0073829Afd30F26A50c5606',
     startDate: '2023-06-27'
   },
+  [CHAIN.MEGAETH]: {
+    standardRelayer: null,
+    executor: '0xD405E0A1f3f9edc25Ea32d0B079d6118328b2EcB',
+    startDate: '2025-12-06'
+  },
   [CHAIN.MOONBEAM]: {
     standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
     executor: '0x85D06449C78064c2E02d787e9DC71716786F8D19',
@@ -212,6 +217,28 @@ const fetchSui: any = async (_: any, _1: any, options: FetchOptions): Promise<Fe
   }
 };
 
+const fetchAptos: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const APTOS_EXECUTOR_EVENT = "0x11aa75c059e1a7855be66b931bf340a2e0973274ac16b5f519c02ceafaf08a18::executor::RequestForExecution";
+  const dailyFees = options.createBalances();
+
+  const data = await queryDuneSql(options, `
+    SELECT
+      COALESCE(SUM(CAST(JSON_EXTRACT_SCALAR(data, '$.amt_paid') AS DOUBLE)), 0) AS amt_paid
+    FROM aptos.events
+    WHERE event_type = '${APTOS_EXECUTOR_EVENT}'
+      AND block_date >= DATE(FROM_UNIXTIME(${options.startTimestamp}))
+      AND block_date < DATE(FROM_UNIXTIME(${options.endTimestamp}))
+  `);
+
+  dailyFees.addCGToken('aptos', Number(data[0]?.amt_paid ?? 0) / 1e8);
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+  }
+};
+
 interface IData {
   pda: string;
 }
@@ -299,8 +326,11 @@ const adapters: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchSui,
       start: '2025-05-08',
+    },
+    [CHAIN.APTOS]: {
+      fetch: fetchAptos,
+      start: '2025-05-09',
     }
-    // TODO: Track Aptos
   }),
   methodology: {
     Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
