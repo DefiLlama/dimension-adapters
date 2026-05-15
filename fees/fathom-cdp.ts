@@ -63,8 +63,9 @@ function rpow(x: bigint, n: bigint, base: bigint): bigint {
 // same accounting Fathom itself applies whenever someone calls collect().
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp);
-  if (windowSeconds <= 0n) return { dailyFees, dailyRevenue: dailyFees };
+  if (windowSeconds <= 0n) return { dailyFees, dailyRevenue };
 
   const calls = POOLS.map((p) => ({ target: COLLATERAL_POOL_CONFIG, params: [p.id] }));
   const [debtShares, accRates, feeRates] = await Promise.all([
@@ -73,7 +74,6 @@ const fetch = async (options: FetchOptions) => {
     options.toApi.multiCall({ abi: ABI.getStabilityFeeRate,    calls, permitFailure: true }),
   ]);
 
-  let feeUsd = 0;
   for (let i = 0; i < POOLS.length; i++) {
     if (debtShares[i] == null || accRates[i] == null || feeRates[i] == null) continue;
     const share = BigInt(debtShares[i]);
@@ -85,14 +85,16 @@ const fetch = async (options: FetchOptions) => {
     const deltaRate = (growth * accRate) / RAY - accRate; // [ray]
     if (deltaRate <= 0n) continue;
     const feeRad = share * deltaRate; // [rad]
-    feeUsd += Number(feeRad / RAD_TO_USD_DROP) / USD_REMAINDER;
+    const usd = Number(feeRad / RAD_TO_USD_DROP) / USD_REMAINDER;
+    if (usd <= 0) continue;
+
+    dailyFees.addUSDValue(usd, `${POOLS[i].name} Stability Fees`);
+    // 100% of stability-fee income accrues to the Fathom protocol — a CDP has
+    // no external supply-side counterparty (debt is minted, not borrowed).
+    dailyRevenue.addUSDValue(usd, `${POOLS[i].name} Stability Fees To Treasury`);
   }
 
-  if (feeUsd > 0) dailyFees.addUSDValue(feeUsd);
-
-  // 100% of stability-fee income accrues to the Fathom protocol — a CDP has
-  // no external supply-side counterparty (debt is minted, not borrowed).
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -103,6 +105,16 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Stability fees accrued on Fathom CDP debt positions (XDC and CGO collateral pools). Reproduces StabilityFeeCollector._collect()'s exact rpow-based math against the on-chain stabilityFeeRate, debtAccumulatedRate, and totalDebtShare snapshots.",
     Revenue: "100% of stability-fee income accrues to the Fathom protocol — there are no external lenders in a CDP.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "XDC Stability Fees": "Per-second stability-fee accrual on outstanding FXD debt backed by XDC collateral.",
+      "CGO Stability Fees": "Per-second stability-fee accrual on outstanding FXD debt backed by CGO collateral.",
+    },
+    Revenue: {
+      "XDC Stability Fees To Treasury": "Stability-fee revenue from the XDC pool — 100% retained by the Fathom protocol.",
+      "CGO Stability Fees To Treasury": "Stability-fee revenue from the CGO pool — 100% retained by the Fathom protocol.",
+    },
   },
 };
 
