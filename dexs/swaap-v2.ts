@@ -65,7 +65,7 @@ const config: Record<string, ChainConfig> = {
     firstDayVolume: 0,
   },
   [CHAIN.MANTLE]: {
-    api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+    api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mantle/prod/gn",
     start: '2024-06-27',
     id: '2',
     firstDayVolume: 0,

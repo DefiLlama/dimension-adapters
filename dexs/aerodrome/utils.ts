@@ -25,6 +25,11 @@ export const PRE_LAUNCH_TOKEN_PRICING = {
     decimals: 18,
     conversionRate: 0.07245,
     cutoffTimestamp: 1775088000
+  },
+  '0x6E84030FA86EBf585E3E18fe557e5612f7e93Bff': {
+    decimals: 18,
+    conversionRate: 0.06,
+    cutoffTimestamp: 1778716800
   }
 }
 

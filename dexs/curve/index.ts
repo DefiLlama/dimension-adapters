@@ -480,6 +480,14 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
+const LABELS = {
+  CurveDEXSwapFees: 'CurveDEX Swap Fees',
+  CurveDEXSwapRevenue: 'CurveDEX Admin Fees',
+  CurveDEXFeesTreasury: 'CurveDEX Admin Fees To Treasury',
+  CurveDEXFeesHolders: 'CurveDEX Fees To veCRV Holders',
+  CurveDEXFeesLPs: 'CurveDEX Fees To LPs',
+}
+
 async function fetchFromApi(options: FetchOptions) {
   const apiResponse = await fetchCurveApiData(options.startTimestamp, options.endTimestamp);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
@@ -488,31 +496,54 @@ async function fetchFromApi(options: FetchOptions) {
     throw new Error(`No data for chain ${options.chain} in API response`);
   }
 
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(chainData.total_fees, LABELS.CurveDEXSwapFees);
+  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury, LABELS.CurveDEXSwapRevenue);
+  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury, LABELS.CurveDEXFeesTreasury);
+  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp, LABELS.CurveDEXFeesLPs);
+  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao, LABELS.CurveDEXFeesHolders);
+  
   return {
     dailyVolume: chainData.total_volume,
-    dailyFees: chainData.total_fees,
-    dailyUserFees: chainData.total_fees,
-    dailyRevenue: chainData.fees_to_dao + chainData.fees_to_treasury,
-    dailyProtocolRevenue: chainData.fees_to_treasury,
-    dailySupplySideRevenue: chainData.fees_to_lp,
-    dailyHoldersRevenue: chainData.fees_to_dao,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 }
 
 async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) {
   const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, config);
 
-  const dailySupplySideRevenue = swapFees.clone(1);
-  dailySupplySideRevenue.subtract(adminFees);
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  
+  const lpRevenue = swapFees.clone(1);
+  lpRevenue.subtract(adminFees);
+
+  dailyFees.add(swapFees, LABELS.CurveDEXSwapFees);
+  dailyRevenue.add(adminFees, LABELS.CurveDEXSwapRevenue);
+  dailySupplySideRevenue.add(lpRevenue, LABELS.CurveDEXFeesLPs);
+  dailyHoldersRevenue.add(adminFees, LABELS.CurveDEXFeesHolders);
 
   return {
     dailyVolume,
-    dailyFees: swapFees,
-    dailyUserFees: swapFees,
-    dailyRevenue: adminFees,
-    dailyProtocolRevenue: 0,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: adminFees,
+    dailyHoldersRevenue,
   };
 }
 
@@ -551,6 +582,24 @@ adapter.methodology = {
   ProtocolRevenue: "Fees allocated to the protocol treasury",
   HoldersRevenue: "Fees distributed to veCRV governance token holders",
   SupplySideRevenue: "Fees distributed to liquidity providers"
+}
+
+adapter.breakdownMethodology = {
+  Fees: {
+    [LABELS.CurveDEXSwapFees]: 'Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)',
+  },
+  Revenue: {
+    [LABELS.CurveDEXSwapRevenue]: 'Fees distributed to veCRV holders and protocol treasury',
+  },
+  ProtocolRevenue: {
+    [LABELS.CurveDEXFeesTreasury]: 'Fees allocated to the protocol treasury',
+  },
+  HoldersRevenue: {
+    [LABELS.CurveDEXFeesHolders]: 'Fees distributed to veCRV governance token holders',
+  },
+  SupplySideRevenue: {
+    [LABELS.CurveDEXFeesLPs]: 'Fees distributed to liquidity providers',
+  },
 }
 
 export default adapter;

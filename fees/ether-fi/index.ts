@@ -74,7 +74,8 @@ const getStethFees = async (options: FetchOptions, totalSteth: number) => {
     target: STETH,
     eventAbi: "event TokenRebased(uint256 indexed reportTimestamp,uint256 timeElapsed,uint256 preTotalShares,uint256 preTotalEther,uint256 postTotalShares,uint256 postTotalEther,uint256 sharesMintedAsFees)",
   });
-  const lastRebaseLog = stethRebaseLogs[0]
+  if (stethRebaseLogs.length === 0) return 0;
+  const lastRebaseLog = stethRebaseLogs[stethRebaseLogs.length - 1];
   const exchangeRateBefore = Number(lastRebaseLog.preTotalEther) / Number(lastRebaseLog.preTotalShares);
   const exchangeRateAfter = Number(lastRebaseLog.postTotalEther) / Number(lastRebaseLog.postTotalShares);
   const stethShares = totalSteth / exchangeRateBefore
@@ -156,16 +157,13 @@ const getSsvRevenue = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
   })
-  let ssv_revenue = 0;
-  for (const log of logs) {
-    if (log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase()) {
-      ssv_revenue += +Number(log.value);
-    }
-    else {
-      ssv_revenue += +Number(log.value) * 0.8;
-    }
-  }
-  return BigInt(ssv_revenue);
+  // Transfers from the dedicated fee recipient are 100% protocol;
+  // everything else has an 80% protocol cut (4/5 in integer math).
+  return logs.reduce((acc: bigint, log: any) => {
+    const value = BigInt(log.value);
+    const fromFeeRecipient = log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase();
+    return acc + (fromFeeRecipient ? value : (value * 4n) / 5n);
+  }, 0n);
 }
 
 const getObolRevenue = async (options: FetchOptions) => {
@@ -174,8 +172,7 @@ const getObolRevenue = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   })
-  const obol_revenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  return BigInt(obol_revenue);
+  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
 
 const getWithdrawalFees = async (options: FetchOptions) => {
@@ -184,8 +181,7 @@ const getWithdrawalFees = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", ethers.zeroPadValue("0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c", 32), ethers.zeroPadValue("0x2f5301a3D59388c509C65f8698f521377D41Fd0F", 32)],
   })
-  const withdrawal_fees = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  return BigInt(withdrawal_fees);
+  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
 
 const getMiscStakingRevenue = async (options: FetchOptions) => {
@@ -200,12 +196,9 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
 
-  const wethRevenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  const eigenRevenue = logs2.reduce((acc, log) => acc + Number(log.value), 0);
-  return {
-    wethRevenue: BigInt(wethRevenue),
-    eigenRevenue: BigInt(eigenRevenue),
-  };
+  const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
+  const eigenRevenue = logs2.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
+  return { wethRevenue, eigenRevenue };
 }
 
 const getAdditionalRevenueStreams = async (options: FetchOptions) => {
@@ -284,7 +277,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const stethRevenue = totalSteth * 3.5 / 100 * 0.025 / 365
 
   // Eigenlayer restaking rewards claimed weekly on Optimism L2
-  const optimismApi = new sdk.ChainApi({ chain: 'optimism' });
+  const optimismApi = new sdk.ChainApi({ chain: 'optimism', timestamp: options.toTimestamp });
   const restakingRewardsEigen = BigInt(await optimismApi.call({
     target: '0xAB7590CeE3Ef1A863E9A5877fBB82D9bE11504da',
     abi: 'function categoryTVL(string _category) view returns (uint256)',
@@ -340,13 +333,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     });
 
     if (vaultState) {
-      const vaultFees = vaultState.managementFee / (100 * 100); // as fees are in basis points
-
+      // v1 accountants expose the bps as `platformFee`; v2 as `managementFee`.
+      const feeBps = vault.version === 'v1' ? vaultState.platformFee : vaultState.managementFee;
       const totalSupply_vault = await getTotalSupply(options, vault.target);
       const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
+      const vaultDecimals = await options.api.call({
+        target: vault.target,
+        abi: 'function decimals() view returns (uint8)',
+      });
+      // Keep math in bigint: 18-dec vault TVLs (~1e22) overflow Number precision.
+      const tvlBaseRaw = (BigInt(totalSupply_vault) * BigInt(rate_vault)) / (10n ** BigInt(vaultDecimals));
+      const dailyFeeRaw = (tvlBaseRaw * BigInt(feeBps)) / 10000n / BigInt(YEAR);
 
-      dailyFees.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
-      dailyRevenue.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
+      dailyFees.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
+      dailyRevenue.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
     }
   }
 

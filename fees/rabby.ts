@@ -43,7 +43,7 @@ const chains = [
     CHAIN.MANTA,
     CHAIN.ABSTRACT,
     CHAIN.BLAST,
-
+    CHAIN.MONAD,
     // CHAIN.TAIKO,
     // CHAIN.CRONOS,
 ]

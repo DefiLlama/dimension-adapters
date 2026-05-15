@@ -4,6 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   const query = `
     WITH gacha_in AS (
@@ -83,9 +84,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const result = data[0];
     const netRevenue = result.net_revenue || 0;
     dailyFees.addUSDValue(netRevenue);
+    dailyVolume.addUSDValue(result.gacha_spend);
   }
 
   return {
+    dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyUserFees: dailyFees,
@@ -94,6 +97,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const methodology = {
+  Volume: "Volume from gacha (card pack sales).",
   Fees: "Total fees from gacha (card pack sales) and marketplace transactions.",
   Revenue: "Revenue from gacha sales + marketplace fees/royalties.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",

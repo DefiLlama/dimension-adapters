@@ -263,21 +263,6 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 25, // 25% to protocol (5% ProtocolRevenue + 20% HoldersRevenue)
     },
   },
-  mimo: {
-    graphUrls: {
-      [CHAIN.IOTEX]: "https://graph.mimo.exchange/subgraphs/name/mimo/mainnet"
-    },
-    totalVolume: { factory: "uniswapFactories", field: "totalVolumeUSD", },
-    feesPercent: {
-      type: "volume",
-      UserFees: 0.3,
-      Fees: 0.3,
-      ProtocolRevenue: 0,
-      Revenue: 0,
-      SupplySideRevenue: 0.3,
-      HoldersRevenue: 0,
-    }
-  },
   mojitoswap: {
     graphUrls: {
       [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",

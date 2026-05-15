@@ -23,13 +23,20 @@ const adapter: SimpleAdapter = {
         const pools = await getPools();
 
         let volume = 0
+        let fees = 0
         for (const pool of pools) {
+          const isWashTrading = pool.volume_24h > 15 * pool.tvl
+          if (isWashTrading) continue;
           volume += Number(pool.volume_24h);
+          fees += Number(pool.fee_volume_24h);
         }
         
         return {
           timestamp: options.startOfDay,
           dailyVolume: volume,
+          dailyFees: fees,
+          dailyRevenue: fees * 0.2,
+          dailyProtocolRevenue: fees * 0.2,
         }
       }
     }
