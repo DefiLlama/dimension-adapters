@@ -2,6 +2,7 @@ import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from '../helpers/metrics'
 
+  // Widget fee is charged on RFQ swaps (swap widget): https://docs.native.org/native-dev/concepts/swap-fees
 const configs: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     creditVault: '0xe3D41d19564922C9952f692C5Dd0563030f5f2EF',
