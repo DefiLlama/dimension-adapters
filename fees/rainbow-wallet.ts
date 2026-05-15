@@ -19,6 +19,7 @@ const RainBowRouter = {
   [CHAIN.ZORA]: '0xA61550E9ddD2797E16489db09343162BE98d9483',
   [CHAIN.APECHAIN]: rainbowRouter,
   [CHAIN.GRAVITY]: rainbowRouter,
+  [CHAIN.MONAD]: rainbowRouter,
 }
 
 // Prefetch function that will run once before any fetch calls
