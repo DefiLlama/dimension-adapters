@@ -1,4 +1,5 @@
 import { FetchOptions } from "../../adapters/types";
+import { METRICS } from "./metrics"
 
 // Two legacy pools for GPU-financing, both using USDC as currency token
 
@@ -74,9 +75,9 @@ export async function processPoolLoans(
       const adminFee = interest * ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
 
       // Add interest to fees, revenue, and supply side revenue
-      dailyFees.add(USDC, interest);
-      dailyRevenue.add(USDC, adminFee);
-      dailySupplySideRevenue.add(USDC, interest - adminFee);
+      dailyFees.add(USDC, interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
+      dailyRevenue.add(USDC, adminFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+      dailySupplySideRevenue.add(USDC, interest - adminFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
     } catch (e) {
       console.error(`Error processing loan ${log.loanReceiptHash}:`, e);
       throw e
