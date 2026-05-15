@@ -69,7 +69,7 @@ const fetch = async (options: FetchOptions) => {
   })
   
   const lpTokens = lpTokensAddresses.filter( i => i !== null)
-  const underlytingTokens = await options.api.multiCall({
+  const underlyingTokens = await options.api.multiCall({
     abi: Abis.underlying,
     calls: lpTokens,
   })
@@ -79,13 +79,13 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: Abis.YieldDistributed,
     flatten: false,
   })
-  for (let i = 0; i <= lpYieldsLogs.length; i++) {
-    const token = underlytingTokens[i]
+  for (let i = 0; i < lpYieldsLogs.length; i++) {
+    const token = underlyingTokens[i]
     const logs = lpYieldsLogs[i]
     if (token && logs) {
       for (const log of logs) {
-        dailyFees.add(token, log.yieldAmount)
-        dailySupplySideRevenue.add(token, log.yieldAmount)
+        dailyFees.add(token, log.yieldAmount, METRIC.BORROW_INTEREST)
+        dailySupplySideRevenue.add(token, log.yieldAmount, METRIC.BORROW_INTEREST)
       }
     }
   }
