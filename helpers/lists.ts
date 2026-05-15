@@ -113,6 +113,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xc8f8c5a9dff280cde517d197c82ee10fcb46bb07",
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
+    "0x570b1533F6dAa82814B25B62B5c7c4c55eB83947",
   ],
 };
 
