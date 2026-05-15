@@ -11,6 +11,11 @@ const evmFeeEvents = {
   executor: 'event RequestForExecution(address indexed quoterAddress, uint256 amtPaid, uint16 dstChain, bytes32 dstAddr, address refundAddr, bytes signedQuote, bytes requestBytes, bytes relayInstructions)',
 }
 
+const FEE_LABELS = {
+  executor: 'Executor Fees',
+  standardRelayer: 'Standard Relayer Fees',
+}
+
 // Source: https://wormhole.com/docs/products/reference/contract-addresses
 const evmContracts: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
@@ -163,7 +168,7 @@ const fetchExecutorFees = async (options: FetchOptions, dailyFees: Balances): Pr
     eventAbi: evmFeeEvents.executor,
   })
   for (const event of feeEvents) {
-    dailyFees.addGasToken(event.amtPaid)
+    dailyFees.addGasToken(event.amtPaid, FEE_LABELS.executor)
   }
 };
 
@@ -174,7 +179,7 @@ const fetchStandardRelayersFees = async (options: FetchOptions, dailyFees: Balan
     eventAbi: evmFeeEvents.standardRelayer,
   })
   for (const event of feeEvents) {
-    dailyFees.addGasToken(event.deliveryQuote);
+    dailyFees.addGasToken(event.deliveryQuote, FEE_LABELS.standardRelayer);
   }
 };
 
@@ -201,14 +206,14 @@ const fetchSui: any = async (_: any, _1: any, options: FetchOptions): Promise<Fe
   // Sui message fees are currently set at 0, it can be adjusted with gov in the future.
   // source: https://suiscan.xyz/mainnet/object/0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c/fields
   const dailyFees = options.createBalances()
-  dailyFees.add(ADDRESSES.sui.SUI,1e9);
+  dailyFees.add(ADDRESSES.sui.SUI, 1e9, FEE_LABELS.executor);
 
   const events = await querySuiEvents({
     eventType:
     SUI_EXECUTOR_EVENT,
     options,
   });
-  events.forEach((e => dailyFees.add(ADDRESSES.sui.SUI,e.amt_paid) ))
+  events.forEach((e => dailyFees.add(ADDRESSES.sui.SUI,e.amt_paid, FEE_LABELS.executor) ))
 
   return {
     dailyFees,
@@ -230,7 +235,7 @@ const fetchAptos: any = async (_: any, _1: any, options: FetchOptions): Promise<
       AND block_date < DATE(FROM_UNIXTIME(${options.endTimestamp}))
   `);
 
-  dailyFees.addCGToken('aptos', Number(data[0]?.amt_paid ?? 0) / 1e8);
+  dailyFees.addCGToken('aptos', Number(data[0]?.amt_paid ?? 0) / 1e8, FEE_LABELS.executor);
 
   return {
     dailyFees,
@@ -247,6 +252,7 @@ const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise
   const SOLANA_EXECUTOR_FEE_COLLECTOR = 'HpGb3q9cpDmWP2HaFWM8uFGR96sGEUY5e2jDb4Kh6DPA' // NTN,WTT,CCTP executions
 
   const dailyFees = options.createBalances();
+  const executorFees = options.createBalances();
 
   await getSolanaReceived({
     options,
@@ -254,8 +260,9 @@ const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise
       SOLANA_MSG_FEE_COLLECTOR,
       SOLANA_EXECUTOR_FEE_COLLECTOR
     ],
-    balances : dailyFees,
+    balances : executorFees,
   })
+  dailyFees.addBalances(executorFees, FEE_LABELS.executor)
 
 
   // query SOL spent to rent accounts created for postMessage,postVaa,verifySignature; happens only with legacy implementation
@@ -336,6 +343,16 @@ const adapters: Adapter = {
     Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
     Revenue: 'Wormhole makes no revenue.',
     SupplySideRevenue: 'All execution fees are collected by Relayers.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [FEE_LABELS.executor]: 'Fees users pay for Wormhole executors to relay and complete cross-chain messages.',
+      [FEE_LABELS.standardRelayer]: 'Fees users pay to use Wormhole Standard Relayer delivery.',
+    },
+    SupplySideRevenue: {
+      [FEE_LABELS.executor]: 'Executor fees are passed to relayers and executors; Wormhole keeps no protocol revenue.',
+      [FEE_LABELS.standardRelayer]: 'Standard Relayer fees are passed to relayers; Wormhole keeps no protocol revenue.',
+    },
+  },
 };
 export default adapters;
