@@ -1,54 +1,20 @@
-// https://docs.originprotocol.com/ogn/staking#staking-rewards
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
-
-const revenueApiUrl: string = "https://api.originprotocol.com/api/v2/protocol/protocol-fees";
-const feeApiUrl: string = "https://api.originprotocol.com/api/v2/protocol/daily_revenue";
-
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
-  const { startOfDay, createBalances } = options;
-  const dailyRevenue = createBalances();
-  const dailyFees = createBalances();
-
-  const [feeData, revenueData] = await Promise.all([
-    fetchURL(feeApiUrl),
-    fetchURL(revenueApiUrl)
-  ]);
-
-  const dailyRevenueData = revenueData.days.find((day: any) => day.date === startOfDay);
-  const dailyFeeData = feeData.find((day: any) => day.timestamp === startOfDay * 1000);
-
-  if (dailyRevenueData) dailyRevenue.addUSDValue(dailyRevenueData.revenue);
-  if (dailyFeeData) dailyFees.addUSDValue(dailyFeeData.total.amountUSD);
-
-  const dailySupplySideRevenue = dailyFees.clone();
-  dailySupplySideRevenue.subtract(dailyRevenue);
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue,
-    dailySupplySideRevenue
-  };
-};
+import { fetchOriginFees } from "../../helpers/origin-protocol";
 
 const methodology = {
-  Fees: "All yields generated from origin products",
-  Revenue: "Performance fees charged on origin products",
-  HoldersRevenue: "All the revenue goes to OGN stakers",
-  SupplySideRevenue: "Yields post fees received by origin product holders"
+  Fees: "Yield earned by OUSD vault strategies (Curve, Convex, Morpho, etc.) before Origin's performance fee.",
+  Revenue: "Origin's performance-fee share of OUSD yield, apportioned from the protocol-wide revenue figure by OUSD's share of total Origin fees.",
+  HoldersRevenue: "Performance fee distributed to OGN stakers.",
+  SupplySideRevenue: "Yield (net of performance fee) received by OUSD holders via rebase.",
 };
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch: fetchOriginFees(["ousd"]),
+  chains: [CHAIN.ETHEREUM],
+  start: '2021-11-02',
   methodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2021-11-02',
-    },
-  },
-  version: 1,
 };
 
 export default adapter;
