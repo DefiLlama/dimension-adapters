@@ -35,6 +35,15 @@ const addFee = (
 const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
 const MAX_FEE_TIER = 1 / 100;
 
+type VolumeDay = {
+  day: string;
+  volumeLovelace: string;
+};
+
+type HistoricalVolumeResponse = {
+  response: VolumeDay[];
+};
+
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -47,7 +56,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
 
-  const historicalVolumeResponse = await fetchURL(historicalVolumeEndpoint);
+  const historicalVolumeResponse =
+    await fetchURL(historicalVolumeEndpoint) as Partial<HistoricalVolumeResponse>;
+
+  if (!Array.isArray(historicalVolumeResponse.response)) {
+    throw new Error(
+      `Invalid historical volume response for ${options.dateString}`
+    );
+  }
+
   const volumeToday = historicalVolumeResponse.response.find(dayItem => dayItem.day === options.dateString)
 
   if (!volumeToday) {
@@ -61,7 +78,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     query fetchPools($start: String!, $end: String!) {
       pools {
         popular {
-          ticks(start: $start, end: $end, interval: All) {
+          ticks(start: $start, end: $end, interval: Daily) {
             rich {
               protocolFees { quantity asset { id } }
               lpFees(unit: Natural) { quantity asset { id } }
