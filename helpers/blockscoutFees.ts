@@ -141,6 +141,8 @@ export const chainConfigMap: any = {
   [CHAIN.RISE]: { CGToken: 'ethereum', explorer: 'https://explorer.risechain.com', start: '2026-01-01' },
   [CHAIN.CITREA]: { CGToken: 'bitcoin', explorer: 'https://explorer.mainnet.citrea.xyz', start: '2025-11-25' },
   [CHAIN.MOCA]: { CGToken: 'mocaverse', explorer: 'https://scan.mocachain.org', start: '2026-01-26' },
+  [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz' },
+  [CHAIN.LUKSO]: { CGToken: 'lukso-token', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
 }
 
 function getTimeString(timestamp: number) {
