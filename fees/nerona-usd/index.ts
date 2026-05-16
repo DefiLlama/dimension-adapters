@@ -18,10 +18,17 @@ const METRICS = {
 };
 
 // Source: https://docs.nerona.xyz/fees-revenue
+const FEE_RATES = {
+  management: 0.01, // 1%
+  performance: 0.10, // 10%
+  instantRedemption: 0.01, // 1%
+};
+
+const toScaledRate = (rate: number, scale: bigint) => BigInt(Math.round(rate * Number(scale)));
 const FEES = {
-  management: 100n,
-  performance: 100_000n,
-  instantRedemption: 100n,
+  management: toScaledRate(FEE_RATES.management, 10_000n),
+  performance: toScaledRate(FEE_RATES.performance, 1_000_000n),
+  instantRedemption: toScaledRate(FEE_RATES.instantRedemption, 10_000n),
   bps: 10_000n,
   denominator: 1_000_000n,
 };
