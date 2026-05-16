@@ -142,7 +142,7 @@ export const chainConfigMap: any = {
   [CHAIN.CITREA]: { CGToken: 'bitcoin', explorer: 'https://explorer.mainnet.citrea.xyz', start: '2025-11-25' },
   [CHAIN.MOCA]: { CGToken: 'mocaverse', explorer: 'https://scan.mocachain.org', start: '2026-01-26' },
   [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz', allStatsApi: 'https://fluentscan.xyz/node-api/proxy' },
-  [CHAIN.LUKSO]: { CGToken: 'lukso-token', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
+  [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
 }
 
 function getTimeString(timestamp: number) {
