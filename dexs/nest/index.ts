@@ -183,7 +183,7 @@ const makeReturn = (volume: number, fees: number, gaugeRate: number) => {
     dailyFees: dailyFees.toString(),
     dailyRevenue: dailyFees.toString(),
     dailyProtocolRevenue: (dailyFees * (1 - gaugeRate)).toString(),
-    dailySupplySideRevenue: 0,
+    dailySupplySideRevenue: "0",
     dailyHoldersRevenue: (dailyFees * gaugeRate).toString(),
   };
 };
@@ -224,7 +224,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     target: FEES_VAULT_FACTORY,
     abi: 'function defaultDistributionConfig() view returns (uint256 toGaugeRate, address[] recipients, uint256[] rates)',
   });
-  const gaugeRate = Number(gaugeConfig.toGaugeRate ?? gaugeConfig[0]) / GAUGE_RATE_PRECISION;
+  const rawGaugeRate = gaugeConfig?.toGaugeRate ?? gaugeConfig?.[0];
+  const gaugeRate = Number(rawGaugeRate) / GAUGE_RATE_PRECISION;
+  if (!Number.isFinite(gaugeRate) || gaugeRate < 0 || gaugeRate > 1) {
+    throw new Error('Invalid gauge rate');
+  }
 
   try {
     const [blazeVolume, blazeFees] = await Promise.all([
