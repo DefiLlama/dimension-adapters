@@ -73,8 +73,8 @@ const adapter: SimpleAdapter = {
       [METRIC.PERFORMANCE_FEES]: "10% performance fee charged on pxETH yield.",
     },
     Revenue: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "DINERO receives the net redemption-fee revenue after protocol split.",
-      [METRIC.PERFORMANCE_FEES]: "DINERO receives the net performance-fee revenue after protocol split.",
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Gross redemption-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
+      [METRIC.PERFORMANCE_FEES]: "Gross performance-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
     },
     ProtocolRevenue: {
       "DAO Reserves": "15% of collected fees are allocated to the DAO reserves.",
