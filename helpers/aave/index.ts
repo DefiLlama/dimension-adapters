@@ -1240,6 +1240,11 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 2,
             lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
             dataProvider: '0x2E6bA568aaebadb4db3E018313ee34baD0328988',
+          },
+        ],
+      },
+    },
+  },
   'zentra': {
     config: {
       [CHAIN.CITREA]: {
