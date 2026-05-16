@@ -25,72 +25,70 @@ interface IBoringVault {
   accountantAbiVersion: 1 | 2;
 }
 
+// Vault addresses sourced from DefiLlama-Adapters/projects/veda/*_constants.js.
+// Veda deploys the same BoringVault contract address to multiple chains via
+// CREATE2; each chain has its own accountant emitting ExchangeRateUpdated.
+// New (V0) accountants use the v2 ABI; the two legacy Ethereum vaults remain v1.
 const BoringVaults: {[key: string]: Array<IBoringVault>} = {
   [CHAIN.ETHEREUM]: [
-    {
-      vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C',
-      accountantAbiVersion: 1,
-    },
-    {
-      vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C',
-      accountantAbiVersion: 1,
-    },
-    {
-      vault: '0xC673ef7791724f0dcca38adB47Fbb3AEF3DB6C80',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x83599937c2C9bEA0E0E8ac096c6f32e86486b410',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0xca8711dAF13D852ED2121E4bE3894Dae366039E4',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0xFE0C961A49E1aEe2AE2d842fE40157365C6d978f',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x352180974C71f84a934953Cf49C4E538a6F9c997',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0xbc0f3B23930fff9f4894914bD745ABAbA9588265',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85',
-      accountantAbiVersion: 2,
-    },
-    {
-      vault: '0xeDa663610638E6557c27e2f4e973D3393e844E70',
-      accountantAbiVersion: 2,
-    },
+    { vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C', accountantAbiVersion: 1 }, // Liquid ETH (legacy)
+    { vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C', accountantAbiVersion: 1 }, // Liquid USD (legacy)
+    { vault: '0xC673ef7791724f0dcca38adB47Fbb3AEF3DB6C80', accountantAbiVersion: 2 },
+    { vault: '0x83599937c2C9bEA0E0E8ac096c6f32e86486b410', accountantAbiVersion: 2 },
+    { vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c', accountantAbiVersion: 2 },
+    { vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF', accountantAbiVersion: 2 },
+    { vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726', accountantAbiVersion: 2 },
+    { vault: '0xca8711dAF13D852ED2121E4bE3894Dae366039E4', accountantAbiVersion: 2 },
+    { vault: '0xFE0C961A49E1aEe2AE2d842fE40157365C6d978f', accountantAbiVersion: 2 },
+    { vault: '0x352180974C71f84a934953Cf49C4E538a6F9c997', accountantAbiVersion: 2 },
+    { vault: '0xbc0f3B23930fff9f4894914bD745ABAbA9588265', accountantAbiVersion: 2 },
+    { vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85', accountantAbiVersion: 2 },
+    { vault: '0xeDa663610638E6557c27e2f4e973D3393e844E70', accountantAbiVersion: 2 },
   ],
   [CHAIN.SONIC]: [
-    {
-      vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF',
-      accountantAbiVersion: 2,
-    }
+    { vault: '0x309f25d839A2fe225E80210e110C99150Db98AAF', accountantAbiVersion: 2 },
   ],
   [CHAIN.BASE]: [
-    {
-      vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85',
-      accountantAbiVersion: 2,
-    }
+    { vault: '0x42A03534DBe07077d705311854E3B6933dD6Af85', accountantAbiVersion: 2 },
+  ],
+  [CHAIN.INK]: [
+    { vault: '0x63D124cF1afC22F0CCEa376168200508d2A0868E', accountantAbiVersion: 2 }, // Sentora Advanced Yields USD
+    { vault: '0x9761DDF8e79930b334f1Be1BD93aBE3695061CcA', accountantAbiVersion: 2 }, // Advanced Strategies USDC
+    { vault: '0xcaae49fb7f74cCFBE8A05E6104b01c097a78789f', accountantAbiVersion: 2 }, // Balanced Yield USDC
+    { vault: '0xDbD87325D7b1189Dcc9255c4926076fF4a96A271', accountantAbiVersion: 2 }, // Boosted Yield USDC
+  ],
+  [CHAIN.OPTIMISM]: [
+    { vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C', accountantAbiVersion: 2 }, // Liquid ETH
+    { vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726', accountantAbiVersion: 2 }, // Liquid BTC
+    { vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C', accountantAbiVersion: 2 }, // Liquid USD
+    { vault: '0x86B5780b606940Eb59A062aA85a07959518c0161', accountantAbiVersion: 2 }, // Staked ETHFI
+  ],
+  [CHAIN.PLASMA]: [
+    { vault: '0xd1074E0AE85610dDBA0147e29eBe0D8E5873a000', accountantAbiVersion: 2 }, // Plasma USD
+  ],
+  [CHAIN.HYPERLIQUID]: [
+    { vault: '0x9BA2EDc44E0A4632EB4723E81d4142353e1bB160', accountantAbiVersion: 2 }, // KHYPE
+  ],
+  [CHAIN.ARBITRUM]: [
+    { vault: '0x86B5780b606940Eb59A062aA85a07959518c0161', accountantAbiVersion: 2 }, // Staked ETHFI
+    { vault: '0x657e8C867D8B37dCC18fA4Caead9C45EB088C642', accountantAbiVersion: 2 }, // EBTC (CREATE2 mirror)
+  ],
+  [CHAIN.BERACHAIN]: [
+    { vault: '0x46fcd35431f5B371224ACC2e2E91732867B1A77e', accountantAbiVersion: 2 }, // Prime Liquid Bera BTC
+    { vault: '0xB83742330443f7413DBD2aBdfc046dB0474a944e', accountantAbiVersion: 2 }, // Prime Liquid Bera ETH
+  ],
+  [CHAIN.BSC]: [
+    { vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c', accountantAbiVersion: 2 }, // Lombard BTC
+  ],
+  [CHAIN.BOB]: [
+    { vault: '0x9998e05030Aee3Af9AD3df35A34F5C51e1628779', accountantAbiVersion: 2 }, // Hybrid BTC
+  ],
+  [CHAIN.SCROLL]: [
+    { vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C', accountantAbiVersion: 2 }, // Liquid ETH
+    { vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C', accountantAbiVersion: 2 }, // Liquid USD
+    { vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726', accountantAbiVersion: 2 }, // Liquid BTC
+    { vault: '0x657e8C867D8B37dCC18fA4Caead9C45EB088C642', accountantAbiVersion: 2 }, // eBTC
+    { vault: '0x939778D83b46B456224A33Fb59630B11DEC56663', accountantAbiVersion: 2 }, // eUSD
   ],
 }
 
@@ -128,28 +126,32 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const vaults = BoringVaults[options.chain]
 
   if (vaults) {
-    const getHooks: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.hook,
-      calls: vaults.map(vault => vault.vault),
-    })
-    const getDecimals: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.decimals,
-      calls: vaults.map(vault => vault.vault),
-    })
-    const getAccountants: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.accountant,
-      calls: getHooks,
-    })
-    const getTokens: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.base,
-      calls: getAccountants,
-    })
+    // Resolve each vault's hook/accountant/base-token + decimals.
+    // Done per-vault (with try/catch) because the same vault address may exist
+    // on one chain but not another via CREATE2; we want to silently skip absent
+    // vaults rather than failing the whole chain.
+    type ResolvedVault = { vault: IBoringVault; accountant: string; token: string; vaultRateBase: number }
+    const resolved: Array<ResolvedVault | null> = []
+    for (const v of vaults) {
+      try {
+        const hook = await options.api.call({ abi: BoringVaultAbis.hook, target: v.vault })
+        const decimals = await options.api.call({ abi: BoringVaultAbis.decimals, target: v.vault })
+        const accountant = await options.api.call({ abi: BoringVaultAbis.accountant, target: hook })
+        const token = await options.api.call({ abi: BoringVaultAbis.base, target: accountant })
+        resolved.push({ vault: v, accountant, token, vaultRateBase: Number(10 ** Number(decimals)) })
+      } catch {
+        resolved.push(null)
+      }
+    }
 
-    for (let i = 0; i < vaults.length; i++) {
-      const vault = vaults[i]
-      const vaultRateBase = Number(10 ** Number(getDecimals[i]))
-      const accountant = getAccountants[i]
-      const token = getTokens[i]
+    for (let i = 0; i < resolved.length; i++) {
+     try {
+      const r = resolved[i]
+      if (!r) continue
+      const vault = r.vault
+      const vaultRateBase = r.vaultRateBase
+      const accountant = r.accountant
+      const token = r.token
 
       // get vaults rate updated events
       const lendingPoolContract: Interface = new Interface([
@@ -178,20 +180,27 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
         // don't need to make calls if there isn't rate growth
         if (growthRate > 0) {
-          
           // get total staked in vault at the given block
           // it's safe for performance because ExchangeRateUpdated events
-          // occur daily once
-          const totalSupplyAtUpdated = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.totalSupply,
-            target: vault.vault,
-            block: event.blockNumber,
-          })
-          const getAccountantState = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
-            target: accountant,
-            block: event.blockNumber,
-          })
+          // occur daily once. Historical state may be unavailable on
+          // non-archival public RPCs (e.g. some L2s) — skip the event in
+          // that case rather than failing the whole chain.
+          let totalSupplyAtUpdated: any
+          let getAccountantState: any
+          try {
+            totalSupplyAtUpdated = await sdk.api2.abi.call({
+              abi: BoringVaultAbis.totalSupply,
+              target: vault.vault,
+              block: event.blockNumber,
+            })
+            getAccountantState = await sdk.api2.abi.call({
+              abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
+              target: accountant,
+              block: event.blockNumber,
+            })
+          } catch {
+            continue
+          }
 
           let exchangeRate = vaultRateBase
           let performanceFeeRate = 0
@@ -203,7 +212,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           } else {
             exchangeRate = Number(getAccountantState[3])
           }
-          
+
           // rate is always greater than or equal 1
           const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
@@ -239,6 +248,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
       dailyFees.add(token, platformFee)
       dailyProtocolRevenue.add(token, platformFee)
+     } catch (e) {
+      // Skip a vault/chain that can't be read (e.g. public RPC missing trie node)
+      continue
+     }
     }
   }
 
@@ -255,18 +268,18 @@ const adapter: Adapter = {
   methodology,
   pullHourly: true,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2024-4-16',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch,
-      start: '2025-02-07',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      start: '2024-09-06',
-    },
+    [CHAIN.ETHEREUM]:    { fetch, start: '2024-04-16' },
+    [CHAIN.SONIC]:       { fetch, start: '2025-02-07' },
+    [CHAIN.BASE]:        { fetch, start: '2024-09-06' },
+    [CHAIN.ARBITRUM]:    { fetch, start: '2024-09-19' }, // Staked ETHFI vault startBlock
+    [CHAIN.OPTIMISM]:    { fetch, start: '2024-04-16' }, // Liquid ETH vault active since Apr 2024
+    [CHAIN.SCROLL]:      { fetch, start: '2024-12-01' },
+    [CHAIN.BSC]:         { fetch, start: '2024-12-15' },
+    [CHAIN.BERACHAIN]:   { fetch, start: '2025-02-07' },
+    [CHAIN.BOB]:         { fetch, start: '2025-01-15' },
+    [CHAIN.INK]:         { fetch, start: '2025-09-15' },
+    [CHAIN.HYPERLIQUID]: { fetch, start: '2025-04-10' },
+    [CHAIN.PLASMA]:      { fetch, start: '2025-09-25' },
   }
 }
 
