@@ -1,22 +1,28 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchOriginFees } from "../helpers/origin-protocol";
+import { fetchOriginFees, OriginProduct } from "../helpers/origin-protocol";
 
-// Origin ARM (Auto-Rebalanced Market-maker) runs four vaults: three on
-// Ethereum (Lido stETH, Ether.fi eETH, Ethena sUSDe/USDe) and one on Sonic
-// (wS/OS). All roll up under the `origin-arm` DefiLlama protocol page.
-const KEYS_BY_CHAIN: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: ["armWethSteth", "armWethEeth", "armSusdeUsde"],
-  [CHAIN.SONIC]: ["armWsOs"],
+// ARM vaults expose fee() (uint16) instead of trusteeFeeBps() but use the same
+// 1e4 basis-point scale (AbstractARM.sol: FEE_SCALE = 10000, line 887:
+// fees = assetIncrease × fee / FEE_SCALE). All four currently set to 2000 (20%).
+const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
+  [CHAIN.ETHEREUM]: [
+    { apiKey: "armWethSteth", vault: "0x85b78aca6deae198fbf201c82daf6ca21942acc6", feeAbi: "uint16:fee" },
+    { apiKey: "armWethEeth",  vault: "0xfb0a3cf9b019bfd8827443d131b235b3e0fc58d2", feeAbi: "uint16:fee" },
+    { apiKey: "armSusdeUsde", vault: "0xCEDa2d856238aA0D12f6329de20B9115f07C366d", feeAbi: "uint16:fee" },
+  ],
+  [CHAIN.SONIC]: [
+    { apiKey: "armWsOs", vault: "0x2f872623d1e1af5835b08b0e49aad2d81d649d30", feeAbi: "uint16:fee" },
+  ],
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  return fetchOriginFees(KEYS_BY_CHAIN[options.chain] ?? [])(options);
+  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(options);
 };
 
 const methodology = {
   Fees: "Profit earned by Origin ARM vaults from spread captured between LP redemptions and the underlying asset price (Lido stETH ARM, Ether.fi eETH ARM, Ethena sUSDe/USDe ARM, Sonic wS/OS ARM).",
-  Revenue: "Origin's performance-fee share of ARM profit, apportioned from the protocol-wide revenue figure by ARM's share of total Origin fees.",
+  Revenue: "Per-ARM profit × fee read on-chain from each vault (all four currently 20%).",
   HoldersRevenue: "Performance fee distributed to OGN stakers.",
   SupplySideRevenue: "Profit (net of performance fee) received by ARM vault depositors.",
 };

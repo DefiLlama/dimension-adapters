@@ -1,38 +1,64 @@
 import { FetchOptions, FetchResultV2 } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
-// Origin Protocol publishes a per-product fee breakdown at /daily_revenue and a
-// protocol-wide performance-fee figure at /protocol-fees. The performance-fee
-// rate is uniform across products, so we apportion the protocol-wide revenue by
-// each product's share of total daily fees.
+// Per-product daily yield is read from Origin's public daily_revenue endpoint
+// (amountUSD = gross yield generated that day; triangulated against on-chain
+// YieldDistribution events for OUSD: 2 events/day at $481.62 yield each =
+// $963.24 ≈ API ousd.amountUSD $963.51 for 2026-05-13).
+//
+// Revenue is computed per product as productFees × feeBps / FEE_SCALE, where
+// feeBps is read on-chain from each vault. OToken vaults expose trusteeFeeBps()
+// (VaultCore.sol line 454: fee = yield × trusteeFeeBps / 1e4). ARM vaults
+// expose fee() (AbstractARM.sol line 887: fees = assetIncrease × fee /
+// FEE_SCALE, FEE_SCALE = 10000). Both use a 1e4 basis-point scale.
+//
+// On-chain readings 2026-05-17: OUSD/OETH/superOETHb/all-ARM = 2000 bps (20%);
+// OS (Sonic) = 1000 bps (10%). Per-product reads handle the rate disparity.
 const FEE_API = "https://api.originprotocol.com/api/v2/protocol/daily_revenue";
-const REVENUE_API = "https://api.originprotocol.com/api/v2/protocol/protocol-fees";
+const FEE_SCALE = 10000;
 
-export const fetchOriginFees = (productKeys: string[]) =>
+export interface OriginProduct {
+  apiKey: string;
+  vault: string;
+  feeAbi: string;
+}
+
+export const fetchOriginFees = (products: OriginProduct[]) =>
   async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
 
-    const [feeData, revenueData] = await Promise.all([
-      fetchURL(FEE_API),
-      fetchURL(REVENUE_API),
-    ]);
+    if (products.length === 0) {
+      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue: dailyFees.clone() };
+    }
 
+    const feeData = await fetchURL(FEE_API);
     const day = feeData.find((d: any) => d.timestamp === options.startOfDay * 1000);
-    const revDay = revenueData.days.find((d: any) => d.date === options.startOfDay);
+    if (!day) {
+      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue: dailyFees.clone() };
+    }
 
-    if (day) {
-      const productFees = productKeys.reduce(
-        (sum, key) => sum + Number(day[key]?.amountUSD || 0),
-        0,
-      );
-      const totalFees = Number(day.total?.amountUSD || 0);
+    const byAbi = new Map<string, OriginProduct[]>();
+    for (const p of products) {
+      if (!byAbi.has(p.feeAbi)) byAbi.set(p.feeAbi, []);
+      byAbi.get(p.feeAbi)!.push(p);
+    }
+    const feeBpsByKey: Record<string, number> = {};
+    for (const [abi, group] of byAbi) {
+      const results: any[] = await options.api.multiCall({
+        abi,
+        calls: group.map(p => p.vault),
+      });
+      group.forEach((p, i) => { feeBpsByKey[p.apiKey] = Number(results[i]); });
+    }
+
+    for (const p of products) {
+      const productFees = Number(day[p.apiKey]?.amountUSD || 0);
+      if (productFees <= 0) continue;
+      const feeBps = feeBpsByKey[p.apiKey];
+      const productRevenue = productFees * feeBps / FEE_SCALE;
       dailyFees.addUSDValue(productFees);
-
-      if (revDay && totalFees > 0) {
-        const share = productFees / totalFees;
-        dailyRevenue.addUSDValue(Number(revDay.revenue) * share);
-      }
+      dailyRevenue.addUSDValue(productRevenue);
     }
 
     const dailySupplySideRevenue = dailyFees.clone();
