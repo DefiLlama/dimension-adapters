@@ -1,6 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const FEES_VAULT_FACTORY = '0x705C76e29977Ed52cd93d390A7BBcC61189724C0';
+const GAUGE_RATE_PRECISION = 10_000;
+
 // API Configuration Constants
 const API_CONFIG = {
   BLAZE_BASE: 'https://blaze.nest.aegas.it',
@@ -172,16 +175,16 @@ const fetchLiquidityStats = async (
   };
 };
 
-const makeReturn = (volume: number, fees: number) => {
+const makeReturn = (volume: number, fees: number, gaugeRate: number) => {
   const dailyVolume = Math.max(0, volume);
   const dailyFees = Math.max(0, fees);
   return {
     dailyVolume: dailyVolume.toString(),
     dailyFees: dailyFees.toString(),
     dailyRevenue: dailyFees.toString(),
-    dailyProtocolRevenue: (dailyFees * 0.03).toString(),
+    dailyProtocolRevenue: (dailyFees * (1 - gaugeRate)).toString(),
     dailySupplySideRevenue: 0,
-    dailyHoldersRevenue: (dailyFees * 0.97).toString(),
+    dailyHoldersRevenue: (dailyFees * gaugeRate).toString(),
   };
 };
 
@@ -217,17 +220,23 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error('Invalid date range: from date must be before to date');
   }
 
+  const gaugeConfig = await options.api.call({
+    target: FEES_VAULT_FACTORY,
+    abi: 'function defaultDistributionConfig() view returns (uint256 toGaugeRate, address[] recipients, uint256[] rates)',
+  });
+  const gaugeRate = Number(gaugeConfig.toGaugeRate ?? gaugeConfig[0]) / GAUGE_RATE_PRECISION;
+
   try {
     const [blazeVolume, blazeFees] = await Promise.all([
       fetch24hVolume(config.blazeApiBase, fromDate, toDate),
       fetch24hFees(config.blazeApiBase, fromDate, toDate),
     ]);
-    return makeReturn(blazeVolume, blazeFees);
+    return makeReturn(blazeVolume, blazeFees, gaugeRate);
   } catch {
     console.warn(`Nest primary endpoints failed (${options.dateString}), trying liquidity-stats fallback`);
     try {
       const { volume, fees } = await fetchLiquidityStats(config.blazeApiBase, fromDate, toDate);
-      return makeReturn(volume, fees);
+      return makeReturn(volume, fees, gaugeRate);
     } catch {
       throw new Error(`Error fetching Nest platform data for date ${options.dateString}`);
     }
@@ -237,8 +246,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Volume: "Volume is collected from all pools via the Blaze API aggregated-volume-sum endpoint.",
   Fees: "Platform fees are collected from all pools via the Blaze API aggregated-fees-sum endpoint.",
-  Revenue: "All swap fees accrue to the protocol (no LP share). 97% goes to veNest voters; 3% goes to the protocol treasury.",
-  ProtocolRevenue: "3% of swap fees go to the protocol treasury.",
+  Revenue: "All swap fees accrue to the protocol (no LP share).",
+  ProtocolRevenue: "Portion of swap fees going to the protocol treasury.",
   SupplySideRevenue: "LPs do not earn fees; instead, they are compensated with NEST tokens.",
   HoldersRevenue: "97% of swap fees go to veNest lockers."
 };
