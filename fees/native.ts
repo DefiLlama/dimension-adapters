@@ -97,8 +97,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   widgetFeeLogs.forEach((log: any) => {
-    dailyFees.add(log.widgetFeeToken, log.widgetFeeAmount, METRIC.TRADING_FEES);
-    dailyRevenue.add(log.widgetFeeToken, log.widgetFeeAmount, METRIC.TRADING_FEES);
+    dailyFees.add(log.widgetFeeToken, log.widgetFeeAmount, 'UI Widget Trading Fees');
+    dailyRevenue.add(log.widgetFeeToken, log.widgetFeeAmount, 'UI Widget Trading Fees');
   })
 
   return {
@@ -124,7 +124,7 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]:
       'Fee paid for borrowing liquidity from Native’s credit pool. This goes to providers.',
-    [METRIC.TRADING_FEES]:
+    'UI Widget Trading Fees':
       'Fee charged on each RFQ swap from natives UI.',
   },
   SupplySideRevenue: {
@@ -132,10 +132,10 @@ const breakdownMethodology = {
       'All credit-pool payout fees are paid out to providers.',
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: 'Widget fees stay in the Native protocol treasury.'
+    'UI Widget Trading Fees': 'Widget fees stay in the Native protocol treasury.'
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'The protocol keeps all widget fees it receives from swap trades.'
+    'UI Widget Trading Fees': 'The protocol keeps all widget fees it receives from swap trades.'
   },
 }
 
