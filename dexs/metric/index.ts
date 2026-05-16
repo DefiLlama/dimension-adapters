@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { addOneToken } from "../../helpers/prices";
 
-const API_BASE = "https://api.metric.xyz";
+const API_BASE = "http://54.199.103.16:8080";
 
 const chainConfig: Record<string, { name: string, start: string }> = {
     [CHAIN.ETHEREUM]: { name: "ethereum", start: "2026-02-23" },
