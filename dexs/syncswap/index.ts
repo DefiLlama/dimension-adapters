@@ -21,9 +21,8 @@ async function getGraphData(_t: any, _b: any, options: FetchOptions) {
 
   const pairDayDatas: { pairAddress: string; dailyVolumeUSD: string }[] = pairDayRes.pairDayDatas;
 
-  if (pairDayDatas.length === 0) {
-    return { dailyVolume: 0, dailyFees: 0, dailyUserFees: 0, dailyRevenue: 0, dailySupplySideRevenue: 0 };
-  }
+  if (pairDayDatas.length === 0)
+    return { dailyVolume: 0, dailyFees: 0, dailyRevenue: 0, dailySupplySideRevenue: 0 };
 
   const pairAddresses = pairDayDatas.map((p) => p.pairAddress.toLowerCase());
   const pairFeeRes = await request(endpoints[options.chain], gql`
@@ -49,15 +48,15 @@ async function getGraphData(_t: any, _b: any, options: FetchOptions) {
   let dailyRevenue = 0;
 
   for (const r of pairDayDatas) {
-    const vol = Number(r.dailyVolumeUSD);
-    dailyVolume += vol;
     const pair = feeByPair[r.pairAddress.toLowerCase()];
     if (!pair) continue;
+    const vol = Number(r.dailyVolumeUSD);
     const swapFee = (
       Number(pair.swapFee01Min) + Number(pair.swapFee01Max) +
       Number(pair.swapFee10Min) + Number(pair.swapFee10Max)
     ) / 4 / 1e5;
     const fee = vol * swapFee;
+    dailyVolume += vol;
     dailyFees += fee;
     dailyRevenue += fee * Number(pair.protocolFee) / 1e5;
   }
@@ -65,16 +64,14 @@ async function getGraphData(_t: any, _b: any, options: FetchOptions) {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue,
     dailySupplySideRevenue: dailyFees - dailyRevenue,
   };
 }
 
 const methodology = {
-  Volume: "Count token swap volume from SyncSwap subgraphs.",
-  Fees: "All swap fees paid by users.",
-  UserFees: "Users pay fees for every swap on SyncSwap.",
+  Volume: "Token swap volume from SyncSwap subgraphs.",
+  Fees: "Swap fees paid by users, computed per-pool using each pool's on-chain swap fee rate. For dynamic Aqua pools the rate is approximated as the average of the configured min/max bounds.",
   Revenue: "Protocol's share of swap fees.",
   SupplySideRevenue: "LP share of swap fees after the protocol fee cut.",
 };
@@ -93,7 +90,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOPHON]: {
       fetch: getGraphData,
-      start: '2024-03-06',
+      start: '2024-12-16',
     },
     [CHAIN.SCROLL]: {
       fetch: getGraphData,
