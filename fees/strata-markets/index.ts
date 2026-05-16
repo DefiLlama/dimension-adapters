@@ -164,18 +164,14 @@ const fetch = async (options: FetchOptions) => {
 
   await Promise.all(
     active.map(async (cfg) => {
-      try {
-        await processCDO(
-          options,
-          cfg,
-          dailyFees,
-          dailyRevenue,
-          dailyProtocolRevenue,
-          dailySupplySideRevenue
-        );
-      } catch (err) {
-        console.error(`strata: ${cfg.name} CDO failed:`, err);
-      }
+      await processCDO(
+        options,
+        cfg,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue
+      );
     })
   );
 
