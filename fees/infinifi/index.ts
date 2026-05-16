@@ -4,45 +4,70 @@ import { METRIC } from "../../helpers/metrics";
 
 const YIELD_SHARING_ABI = {
   performanceFee: "uint256:performanceFee",
-  safetyBufferSize: "uint256:safetyBufferSize",
+  balanceOf: "erc20:balanceOf",
   receiptToken: "address:receiptToken",
   YieldAccrued: "event YieldAccrued(uint256 indexed timestamp, int256 yield)",
 };
 
-const YIELD_SHARING_CONTRACT = '0x1cb9ed33924741f500e739e38c3215a76cd1f579'
+const YIELD_SHARING_CONTRACT = "0x90E91f5bfD9a0a4d925BF30b512add8cD2bbAE3b";
+const WAD = 10n ** 18n;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const performanceFeeRaw = await options.api.call({
-    target: YIELD_SHARING_CONTRACT,
-    abi: YIELD_SHARING_ABI.performanceFee,
-  });
+  const [performanceFeeRaw, receiptToken] = await options.api.batchCall([
+    { target: YIELD_SHARING_CONTRACT, abi: YIELD_SHARING_ABI.performanceFee },
+    { target: YIELD_SHARING_CONTRACT, abi: YIELD_SHARING_ABI.receiptToken },
+  ]);
+  const receiptTokenAddress = String(receiptToken);
 
-  const yieldAccuredLogs = await options.getLogs({
+  const [safetyBufferAtStartRaw, safetyBufferAtEndRaw] = await Promise.all([
+    options.fromApi.call({
+      target: receiptTokenAddress,
+      abi: YIELD_SHARING_ABI.balanceOf,
+      params: [YIELD_SHARING_CONTRACT],
+    }),
+    options.toApi.call({
+      target: receiptTokenAddress,
+      abi: YIELD_SHARING_ABI.balanceOf,
+      params: [YIELD_SHARING_CONTRACT],
+    }),
+  ]);
+
+  const yieldAccruedLogs = await options.getLogs({
     target: YIELD_SHARING_CONTRACT,
     eventAbi: YIELD_SHARING_ABI.YieldAccrued,
     onlyArgs: true,
   });
 
-  const receiptToken = await options.api.call({
-    target: YIELD_SHARING_CONTRACT,
-    abi: YIELD_SHARING_ABI.receiptToken,
-  });
+  const safetyBufferNetChange = BigInt(safetyBufferAtEndRaw) - BigInt(safetyBufferAtStartRaw);
 
-  yieldAccuredLogs.forEach(log => {
-    const currentYield = Number(log.yield);
-    const performanceFee = (currentYield > 0) ? currentYield * performanceFeeRaw / 1e18 : 0;
-    const yieldsPostFee = currentYield - performanceFee;
+  let grossYieldNetOfProtocolFee = 0n;
+  let protocolFeesCollected = 0n;
 
-    dailyFees.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
-    dailyRevenue.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
+  for (const log of yieldAccruedLogs) {
+    const eventYield = BigInt(log.yield);
 
-    dailyFees.add(receiptToken, yieldsPostFee, METRIC.STAKING_REWARDS);
-    dailySupplySideRevenue.add(receiptToken, yieldsPostFee, METRIC.STAKING_REWARDS);
-  });
+    if (eventYield <= 0n) {
+      grossYieldNetOfProtocolFee += eventYield;
+      continue;
+    }
+
+    const eventFee = (eventYield * BigInt(performanceFeeRaw)) / WAD;
+    protocolFeesCollected += eventFee;
+    grossYieldNetOfProtocolFee += eventYield - eventFee;
+  }
+
+  const netUserYield = grossYieldNetOfProtocolFee - safetyBufferNetChange;
+
+  dailyFees.add(receiptTokenAddress, protocolFeesCollected, METRIC.PERFORMANCE_FEES);
+  dailyFees.add(receiptTokenAddress, safetyBufferNetChange, "Safety Buffer For Losses");
+  dailyFees.add(receiptTokenAddress, netUserYield, METRIC.STAKING_REWARDS);
+  dailyRevenue.add(receiptTokenAddress, protocolFeesCollected, METRIC.PERFORMANCE_FEES);
+  dailySupplySideRevenue.add(receiptTokenAddress, netUserYield, METRIC.STAKING_REWARDS);
+  dailySupplySideRevenue.add(receiptTokenAddress, safetyBufferNetChange, "Safety Buffer For Losses");
 
   return {
     dailyFees,
@@ -54,41 +79,43 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees:
-    "Includes yields on assets and all other fees charged by InfiniFi, including performance fees on YieldAccrued . Performance fees are calculated using the on-chain performanceFee parameter and sent to the performanceFeeRecipient.",
+    "Includes performance fees from profit events, safety-buffer movement, and then the final user yield or loss.",
+  Revenue: "Protocol revenue is only the performance fees.",
+  ProtocolRevenue: "Protocol revenue is only the performance fees.",
+  SupplySideRevenue: "User yield or loss after protocol fees and safety-buffer movement.",
+};
 
-  Revenue:
-    "Protocol revenue consists of performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-
-  ProtocolRevenue:
-    "Same as Revenue. Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-
-  SupplySideRevenue:
-    "Net yield distributed to users after peformance fees deduction. Includes yield distributed to siUSD holders (liquid) and iUSD lockers (illiquid)",
+const protocolRevenueMethodology = {
+  [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.STAKING_REWARDS]: "Net yield distributed to users after protocol-owned value is deducted. Includes yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
-    [METRIC.PERFORMANCE_FEES]: "Performance fees charged by InfiniFi on generated yield. Calculated as a percentage of positive YieldAccrued events using the on-chain performanceFee parameter (max 20%).",
+    [METRIC.STAKING_REWARDS]:
+      "User yield after protocol fees and safety-buffer change for the period.",
+    [METRIC.PERFORMANCE_FEES]:
+      "Protocol cut from positive YieldAccrued events.",
+    ["Safety Buffer For Losses"]:
+      "Change in the safety buffer reserve held by the contract.",
   },
-  Revenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-  },
-  ProtocolRevenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-  },
+  Revenue: {[METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol."},
+  ProtocolRevenue: {[METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol."},
   SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: "Yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
+    [METRIC.STAKING_REWARDS]:
+      "Final user yield or loss after fees and safety-buffer movement.",
+    ["Safety Buffer For Losses"]:
+      "Safety-buffer increase helps absorb losses; decrease means buffer is released back.",
   },
 };
 
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
+  fetch,
+  allowNegativeValue: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2025-06-07",
+      start: "2026-04-14", //v3 contract start (not protocol start)
     },
   },
   methodology,
