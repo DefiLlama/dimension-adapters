@@ -13,17 +13,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = await getERC4626VaultsYield({ options, vaults: [autoPxEthContract] });
+  const dailySupplySideRevenue = options.createBalances();
+  
+  const yieldDistributed = await getERC4626VaultsYield({ options, vaults: [autoPxEthContract] });
 
-  dailyFees.addBalances(dailySupplySideRevenue, METRIC.ASSETS_YIELDS);
+  dailyFees.addBalances(yieldDistributed, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addBalances(yieldDistributed, METRIC.ASSETS_YIELDS);
 
   const feeLogs = await options.getLogs({
     target: pirexFeesContract,
     eventAbi: distributeFeesAbi
   })
   for (const log of feeLogs) {
-    dailyFees.add(log.token, log.amount, METRIC.DEPOSIT_WITHDRAW_FEES);
-    dailyRevenue.add(log.token, log.amount, METRIC.DEPOSIT_WITHDRAW_FEES);
+    dailyFees.add(log.token, log.amount, 'Redemption Fees');
+    dailyRevenue.add(log.token, log.amount, 'Redemption Fees');
   }
 
   const [platformFee, harvestLogs] = await Promise.all([
@@ -55,7 +58,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 // breakdown source: https://dinero.xyz/docs/dinero-tokenomics
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2023-12-11",
@@ -69,11 +72,11 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.ASSETS_YIELDS]: "Assets yields accumulated in the AutoPxETH (apxETH) vault.",
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.03% redemption fee and 0.5% instant redemption fee charged on pxETH redemptions.",
+      'Redemption Fees': "0.03% redemption fee and 0.5% instant redemption fee charged on pxETH redemptions.",
       [METRIC.PERFORMANCE_FEES]: "10% performance fee charged on pxETH yield.",
     },
     Revenue: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Gross redemption-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
+      'Redemption Fees': "Gross redemption-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
       [METRIC.PERFORMANCE_FEES]: "Gross performance-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
     },
     ProtocolRevenue: {
