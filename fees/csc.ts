@@ -14,7 +14,13 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         throw new Error(`No data found for ${options.dateString}`);
     }
 
-    const transactionCount = todaysData.add;
+    // CSC reports `add` (all txs) = `add_common` (user txs) + `add_system` (~432/day
+    // validator → 0x...0x1000/0x1001 precompile calls that have gasPrice=0). The
+    // `average_fee` field is the per-user-tx average — confirmed because
+    // `gas_used / average_gas_used` equals `add_common` exactly each day, and a
+    // sampled system tx (block 51330000) shows gasPrice=0. Multiplying `add` by
+    // `average_fee` therefore overcounts the zero-fee system txs.
+    const transactionCount = Number(todaysData.add_common);
     const averageTransactionFee = Number(todaysData.average_fee);
 
     dailyFees.addCGToken('coinex-token', transactionCount * averageTransactionFee);
