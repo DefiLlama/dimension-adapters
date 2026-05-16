@@ -85,9 +85,6 @@ const methodology = {
   SupplySideRevenue: "User yield or loss after protocol fees and safety-buffer movement.",
 };
 
-const protocolRevenueMethodology = {
-  [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol.",
-};
 
 const breakdownMethodology = {
   Fees: {
@@ -98,8 +95,12 @@ const breakdownMethodology = {
     ["Safety Buffer For Losses"]:
       "Change in the safety buffer reserve held by the contract.",
   },
-  Revenue: {[METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol."},
-  ProtocolRevenue: {[METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol."},
+  Revenue: {
+    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol.",
+  },
   SupplySideRevenue: {
     [METRIC.STAKING_REWARDS]:
       "Final user yield or loss after fees and safety-buffer movement.",
