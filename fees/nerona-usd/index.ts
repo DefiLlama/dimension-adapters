@@ -75,16 +75,19 @@ async function fetch(options: FetchOptions) {
   dailyFees.addUSDValue(toUSD(grossYield, decimals), METRIC.ASSETS_YIELDS);
   dailySupplySideRevenue.addUSDValue(toUSD(supplySideYield, decimals), METRIC.ASSETS_YIELDS);
 
-  for (const [amount, label] of [
-    [managementFees, METRIC.MANAGEMENT_FEES],
-    [performanceFees, METRIC.PERFORMANCE_FEES],
-    [instantRedemptionFees, METRICS.instantRedemptionFees],
-  ] as const) {
-    const value = toUSD(amount, decimals);
-    dailyFees.addUSDValue(value, label);
-    dailyRevenue.addUSDValue(value, label);
-    dailyProtocolRevenue.addUSDValue(value, label);
-  }
+  const managementFeesUSD = toUSD(managementFees, decimals);
+  dailyFees.addUSDValue(managementFeesUSD, METRIC.MANAGEMENT_FEES);
+  dailyRevenue.addUSDValue(managementFeesUSD, METRIC.MANAGEMENT_FEES);
+  dailyProtocolRevenue.addUSDValue(managementFeesUSD, METRIC.MANAGEMENT_FEES);
+
+  const performanceFeesUSD = toUSD(performanceFees, decimals);
+  dailyRevenue.addUSDValue(performanceFeesUSD, METRIC.PERFORMANCE_FEES);
+  dailyProtocolRevenue.addUSDValue(performanceFeesUSD, METRIC.PERFORMANCE_FEES);
+
+  const instantRedemptionFeesUSD = toUSD(instantRedemptionFees, decimals);
+  dailyFees.addUSDValue(instantRedemptionFeesUSD, METRICS.instantRedemptionFees);
+  dailyRevenue.addUSDValue(instantRedemptionFeesUSD, METRICS.instantRedemptionFees);
+  dailyProtocolRevenue.addUSDValue(instantRedemptionFeesUSD, METRICS.instantRedemptionFees);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 }
@@ -100,7 +103,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.ASSETS_YIELDS]: 'Yield earned by the sUSDnr vault, based on share price growth and sUSDnr supply.',
     [METRIC.MANAGEMENT_FEES]: '1% yearly fee charged on vault assets.',
-    [METRIC.PERFORMANCE_FEES]: '10% fee charged on vault yield.',
     [METRICS.instantRedemptionFees]: '1% fee paid when users redeem instantly. Standard 4-day redemptions have no fee.',
   },
   Revenue: {
