@@ -64,75 +64,61 @@ const WAD = 10n ** 18n
 const SECONDS_PER_YEAR = 365n * 24n * 60n * 60n
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailyRevenue = options.createBalances()
+
   const reserves = RESERVES[options.chain] || []
 
-  const logRecoverable = (scope: string, err: unknown) => {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[flying-tulip-lend][${options.chain}] ${scope}: ${msg}`)
+  const [states, cfgs] = await Promise.all([
+    options.toApi.multiCall({
+      target: LENDING_LENS,
+      abi: ASSET_STATE_ABI,
+      calls: reserves,
+      permitFailure: true,
+    }),
+    options.toApi.multiCall({
+      target: LENDING_LENS,
+      abi: ASSET_CFG_ABI,
+      calls: reserves,
+      permitFailure: true,
+    }),
+  ])
+
+  const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
+
+  const aprCalls: { target: string; params: any[] }[] = []
+  const aprIndex: number[] = []
+  for (let i = 0; i < reserves.length; i++) {
+    const state = states[i]
+    const cfg = cfgs[i]
+    if (!state || !cfg) continue
+    const irm = cfg[0]
+    if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
+    const borrows = BigInt(state[1])
+    if (borrows === 0n) continue
+    aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
+    aprIndex.push(i)
   }
 
-  // 1) Borrower interest — supply-side revenue, no protocol cut.
-  if (reserves.length > 0) {
-    try {
-      const [states, cfgs] = await Promise.all([
-        options.toApi.multiCall({
-          target: LENDING_LENS,
-          abi: ASSET_STATE_ABI,
-          calls: reserves,
-          permitFailure: true,
-        }),
-        options.toApi.multiCall({
-          target: LENDING_LENS,
-          abi: ASSET_CFG_ABI,
-          calls: reserves,
-          permitFailure: true,
-        }),
-      ])
+  const aprResults = await options.toApi.multiCall({
+    abi: IRM_SAMPLE_APR_ABI,
+    calls: aprCalls,
+    permitFailure: true,
+  })
 
-      const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp)
-
-      const aprCalls: { target: string; params: any[] }[] = []
-      const aprIndex: number[] = []
-      for (let i = 0; i < reserves.length; i++) {
-        const state = states[i]
-        const cfg = cfgs[i]
-        if (!state || !cfg) continue
-        const irm = cfg[0]
-        if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
-        const borrows = BigInt(state[1])
-        if (borrows === 0n) continue
-        aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
-        aprIndex.push(i)
-      }
-
-      const aprResults = await options.toApi.multiCall({
-        abi: IRM_SAMPLE_APR_ABI,
-        calls: aprCalls,
-        permitFailure: true,
-      })
-
-      for (let k = 0; k < aprIndex.length; k++) {
-        const i = aprIndex[k]
-        const aprs = aprResults[k]
-        if (!aprs || aprs.length === 0 || !aprs[0]) {
-          logRecoverable(`irmSampleAPR:${reserves[i]}`, new Error('empty result'))
-          continue
-        }
-        const borrows = BigInt(states[i][1])
-        const aprWad = BigInt(aprs[0])
-        const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
-        if (interest <= 0n) continue
-        dailyFees.add(reserves[i], interest, 'Borrow Interest')
-        dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
-      }
-    } catch (e) {
-      logRecoverable('borrow-interest', e)
-    }
+  for (let k = 0; k < aprIndex.length; k++) {
+    const i = aprIndex[k]
+    const aprs = aprResults[k]
+    if (!aprs || aprs.length === 0 || !aprs[0]) continue;
+    const borrows = BigInt(states[i][1])
+    const aprWad = BigInt(aprs[0])
+    const interest = (borrows * aprWad * windowSeconds) / (WAD * SECONDS_PER_YEAR)
+    if (interest <= 0n) continue
+    dailyFees.add(reserves[i], interest, 'Borrow Interest')
+    dailySupplySideRevenue.add(reserves[i], interest, 'Borrow Interest To Lenders')
   }
 
   // 2) LeverageRfqEngine trading fees — protocol revenue (sent to feeCollector
@@ -145,13 +131,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     [COLLATERAL_SWAP_FILLED, 'Collateral Swap Fee'],
   ]
   for (const [eventAbi, label] of leverageEvents) {
-    let logs: any[] = []
-    try {
-      logs = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
-    } catch (e) {
-      logRecoverable(`leverage-logs:${label}`, e)
-      continue
-    }
+    let logs: any[] = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
     for (const log of logs) {
       const fee = BigInt(log.feeAmount.toString())
       if (fee === 0n) continue
@@ -162,14 +142,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
   }
 
-  // 3) RfqEngine liquidation fees — protocol revenue (to liqFeeCollector =
-  //    treasury).
-  let liqLogs: any[] = []
-  try {
-    liqLogs = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
-  } catch (e) {
-    logRecoverable('rfq-liquidation-logs', e)
-  }
+  // 3) RfqEngine liquidation fees — protocol revenue (to liqFeeCollector = treasury).
+  const liqLogs: any[] = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
   for (const log of liqLogs) {
     const amount = BigInt(log.amount.toString())
     if (amount === 0n) continue
@@ -230,7 +204,8 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {
