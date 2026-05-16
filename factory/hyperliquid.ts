@@ -127,6 +127,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   "gtr-trade-perps": { addresses: ["0x5ef4deeb76f87d979d0ddc8c51f5b4f65d1c972a"], start: "2025-06-17" },
   "hyprearn-perps": { addresses: ["0x70cf605bb180daf00c3e2f1ca3df5bb602664452"], start: "2025-09-01" },
+  "legend-trade": {
+    addresses: ["0x4e65de9ca0abe3d36f7e3d7a7ce9f0dbe406a412"],
+    start: "2026-01-29",
+    methodology: {
+      Fees: "Trading fees paid by users for perps on Legend.",
+      Revenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
+    },
+  },
   "katoshi-perps": {
     addresses: ["0x274e3cdb7bdc4805f41a07e3348243ba3e7e5b72"],
     start: "2025-08-01",
@@ -310,6 +319,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       Fees: "builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "legend-trade": {
+    addresses: ["0x4e65de9ca0abe3d36f7e3d7a7ce9f0dbe406a412"],
+    start: "2026-01-29",
+    methodology: {
+      Fees: "Trading fees paid by users for perps on Legend.",
+      Revenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder code fees collected by Legend from Hyperliquid Perps.",
     },
   },
   "liminal-perps": {

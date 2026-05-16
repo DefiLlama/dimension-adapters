@@ -1,4 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 
 const rswETH = '0xFAe103DC9cf190eD75350761e95403b7b8aFa6c0'
@@ -29,9 +30,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const swellTreasuryRewards = df * 0.05
   const supplySideRewards = df - swellTreasuryRewards
   
-  dailyFees.addGasToken(df)
-  dailyRevenue.addGasToken(swellTreasuryRewards)
-  dailySupplySideRevenue.addGasToken(supplySideRewards)
+  dailyFees.addGasToken(df, METRIC.STAKING_REWARDS)
+  dailyRevenue.addGasToken(swellTreasuryRewards, METRIC.STAKING_REWARDS)
+  dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS)
 
   return {
     dailyFees,
@@ -56,6 +57,17 @@ const adapter: Adapter = {
     SupplySideRevenue: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
     ProtocolRevenue: '5% staking rewards are charged by Swell Protocol Treasury.',
     HoldersRevenue: 'No revenue share to SWELL token holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'Total validators fees and rewards from staked ETH.',
+    },
+    Revenue: {
+      [METRIC.STAKING_REWARDS]: '5% staking rewards are charged by Swell Protocol Treasury.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
+    },
   },
 };
 

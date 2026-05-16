@@ -9,16 +9,17 @@ import { METRIC } from "../../helpers/metrics";
 // Multi-chain volume tracking via SwapExecuted events emitted by the
 // FeeAggregatorMaster contract. Each event represents a single swap
 // routed through one of the chain's adapters (Uniswap V3/V4,
-// Aerodrome / Velodrome family, Balancer V2/V3, Kumbaya, etc.).
+// Aerodrome / Velodrome family, Balancer V2/V3, PancakeSwap V3,
+// THENA, Kumbaya, Prism, etc.).
 //
 // The Master contract is the same code on every chain — only the
 // adapter set and deployed address differ. That uniformity is what
-// makes one adapter file cover all three chains: same event ABI,
+// makes one adapter file cover all four chains: same event ABI,
 // same fee semantics (0.3% on tokenIn), same revenue path (100% to
-// the Gnosis Safe replicated across chains).
+// the Gnosis Safe replicated across chains via CREATE2).
 //
 // Scope of this adapter:
-//   ✓ DEXR Master swaps on Base, Optimism, MegaETH (on-chain events)
+//   ✓ DEXR Master swaps on Base, Optimism, MegaETH, BNB Chain
 //   ✗ LI.FI bridge / cross-chain swap volume (NOT included here)
 //
 // Why LI.FI volume is excluded: DEXR is a *direct* LI.FI integrator
@@ -36,10 +37,16 @@ import { METRIC } from "../../helpers/metrics";
 // Master contract address per chain. Same Solidity (FeeAggregatorMaster.sol)
 // at each address — chain-specific adapter wiring lives off-chain in
 // the `registerAdapter` calls made at deploy time.
+//
+// Note: Optimism and BNB Chain share the same Master address
+// (0x7eEdb990…F9377) because the contract was deployed via CREATE2
+// with the same salt + bytecode on both chains. They are independent
+// deployments — the address collision is by construction, not a typo.
 const MASTER_ADDRESS: Record<string, string> = {
     [CHAIN.BASE]:     "0x4859608579D0f01605F6824ea173072a7Cc206c5",
     [CHAIN.OPTIMISM]: "0x7eEdb990a85Fd147BDCdDA651F9419E2741F9377",
     [CHAIN.MEGAETH]:  "0x094AAbf518B483713Fc920eCf8af0922F8E51EFD",
+    [CHAIN.BSC]:      "0x7eEdb990a85Fd147BDCdDA651F9419E2741F9377",
 };
 
 const SWAP_EXECUTED_EVENT =
@@ -78,7 +85,7 @@ async function fetch(options: FetchOptions) {
 
         // Revenue: 100% of fees flow to the multisig (no token holders,
         // no buyback). The multisig is the same Safe address replicated
-        // to each chain via CREATE2.
+        // to each chain via CREATE2 (0xD55cE54Ce3e0985867CD57f4266c27a5b060D665).
         dailyRevenue.add(log.tokenIn, log.feeAmount, METRIC.SWAP_FEES);
     }
 
@@ -91,9 +98,9 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-    Volume: "Volume is the sum of tokenOut amounts from SwapExecuted events emitted by the DEXR FeeAggregatorMaster contract on each supported chain (Base, Optimism, MegaETH). tokenOut represents the asset received by the user after the swap completes. Note: this counts only swaps that route through the on-chain Master contract; cross-chain bridges and same-chain swaps that fall back to LI.FI's router are not included here (DEXR is a direct LI.FI integrator but those flows accrue separately).",
+    Volume: "Volume is the sum of tokenOut amounts from SwapExecuted events emitted by the DEXR FeeAggregatorMaster contract on each supported chain (Base, Optimism, MegaETH, BNB Chain). tokenOut represents the asset received by the user after the swap completes. Note: this counts only swaps that route through the on-chain Master contract; cross-chain bridges and same-chain swaps that fall back to LI.FI's router are not included here (DEXR is a direct LI.FI integrator but those flows accrue separately).",
     Fees: "DEXR charges a flat 0.3% protocol fee on the input token (tokenIn) of every swap. The feeAmount field of the SwapExecuted event captures this exactly. The same 0.3% rate applies to LI.FI-routed flows but those fees are collected via the LI.FI integrator portal, not on-chain — and are not counted here.",
-    Revenue: "100% of the 0.3% protocol fee flows to a Gnosis Safe multisig (no token holders, no buyback). The same Safe address is replicated across all chains. Revenue equals fees.",
+    Revenue: "100% of the 0.3% protocol fee flows to a Gnosis Safe multisig (no token holders, no buyback). The same Safe address (0xD55cE54Ce3e0985867CD57f4266c27a5b060D665) is replicated across all chains. Revenue equals fees.",
 };
 
 const breakdownMethodology = {
@@ -111,15 +118,16 @@ const breakdownMethodology = {
 const adapter: Adapter = {
     version: 2,
     pullHourly: true,
-    // Per-chain start dates. Base was deployed first; Optimism and
-    // MegaETH followed once the adapter pattern proved stable. Using
-    // per-chain `start` keys (not a top-level `start`) so DefiLlama
+    // Per-chain start dates. Base was deployed first; Optimism, MegaETH,
+    // and BNB Chain followed once the adapter pattern proved stable.
+    // Using per-chain `start` keys (not a top-level `start`) so DefiLlama
     // doesn't try to query historical events from before deployment
     // on chains that came online later.
     adapter: {
         [CHAIN.BASE]:     { fetch, start: "2026-05-04" },
         [CHAIN.OPTIMISM]: { fetch, start: "2026-05-09" },
         [CHAIN.MEGAETH]:  { fetch, start: "2026-05-10" },
+        [CHAIN.BSC]:      { fetch, start: "2026-05-13" },
     },
     methodology,
     breakdownMethodology,

@@ -346,6 +346,12 @@ const configs: Record<string, Record<string, any>> = {
   "ubeswap-v3": {
     [CHAIN.CELO]: { factory: '0x67FEa58D5a5a4162cED847E13c2c81c73bf8aeC4', start: '2024-05-20', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   },
+  'phlox': {
+    [CHAIN.LUKSO]: { factory: '0xFce4C544f07E2ca758a179788fe56e6A2941E681', start: '2026-04-21', userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
+  },
+  'fluxflow-v3': {
+    [CHAIN.FLUENT]: { factory: '0x69Be606be7Fd2d27C8f9821329c748c77d24FF4f', start: '2026-04-12', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
+  },
 }
 
 const optionsMap: Record<string, any> = {

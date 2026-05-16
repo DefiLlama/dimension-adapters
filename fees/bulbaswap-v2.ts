@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MORPH]: {
       fetch: fetchV2Data,
-      start: '2021-04-14',
+      start: '2024-10-27',
     },
   },
 };

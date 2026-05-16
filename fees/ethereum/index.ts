@@ -111,6 +111,8 @@ export const SQL_TOTAL_FEES = `
 // because indexer v2 doesn't store blocks, we can't get block base_fee_per_gas
 // it also doesn't have base_fee_per_gas in transaction records
 // TODO: we do a trick here, get base_fee_per_gas from the minimum effective_gas_price from transactions in block
+// EIP-1559 (block 12965000, London fork, 2021-08-05) is when the base-fee burn
+// turned on; pre-London blocks have no protocol burn so we filter them out.
 export const SQL_TOTAL_FEES_BURNED = `
   SELECT
     CAST(
@@ -126,6 +128,7 @@ export const SQL_TOTAL_FEES_BURNED = `
       chain = {chain:UInt64}
       AND block_number >= {fromBlock:UInt32}
       AND block_number <  {toBlock:UInt32}
+      AND block_number >= 12965000
     GROUP BY block_number
   )
 `;
@@ -145,10 +148,15 @@ const SQL_TOTAL_BLOB_FEES_BURNED = `
   WHERE TIME_RANGE
 `;
 
+// Dencun hard fork (EIP-4844 / blob market) activated 2024-03-13 ~13:55 UTC.
+// We use start-of-day 2024-03-13 UTC as the gate so any window ending on or
+// before 2024-03-12 skips the Dune call entirely (no blob rows exist yet).
+const DENCUN_ACTIVATION_TIMESTAMP = 1710288000;
+
 export const fetch = async (options: FetchOptions) => {
   const chainId = options.api.chainId
   const fromBlock = Number(options.fromApi.block)
-  
+
   // delay 50 blocks is acceptable on ethereum from the indexer
   const safeBlock = Number(options.toApi.block) - 50
 
@@ -158,10 +166,15 @@ export const fetch = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
   }
 
+  const blobFeesPromise: Promise<BlobFeesRow[]> =
+    options.endTimestamp > DENCUN_ACTIVATION_TIMESTAMP
+      ? (queryDuneSql(options, SQL_TOTAL_BLOB_FEES_BURNED) as Promise<BlobFeesRow[]>)
+      : Promise.resolve([]);
+
   const [totalFeesRows, totalFeesBurnedRows, blobFeesRows] = await Promise.all([
     queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock }),
     queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock }),
-    queryDuneSql(options, SQL_TOTAL_BLOB_FEES_BURNED) as Promise<BlobFeesRow[]>,
+    blobFeesPromise,
   ]);
 
   const totalFeesWei = BigInt(totalFeesRows?.[0]?.total_fees_wei ?? "0");
