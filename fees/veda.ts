@@ -92,6 +92,42 @@ const BoringVaults: {[key: string]: Array<IBoringVault>} = {
       accountantAbiVersion: 2,
     }
   ],
+  // The following chains/vaults were verified to emit ExchangeRateUpdated events
+  // within the last few days. Per-vault verification (rather than per-chain) is
+  // important because Veda also has dormant deployments — same protocol, same
+  // CREATE2 vault addresses on multiple chains, but only some accountants are
+  // being called to update exchange rates. Dormant vaults are intentionally
+  // excluded here. Cross-reference: DefiLlama-Adapters/projects/veda/*_constants.js.
+  [CHAIN.INK]: [
+    // Sentora Advanced Yields USD — accountant 0x8C9C454C... events ~12-24h ago
+    { vault: '0x63D124cF1afC22F0CCEa376168200508d2A0868E', accountantAbiVersion: 2 },
+    // Advanced Strategies USDC — accountant 0x427a3c0... events within last day
+    { vault: '0x9761DDF8e79930b334f1Be1BD93aBE3695061CcA', accountantAbiVersion: 2 },
+    // Balanced Yield + Boosted Yield USDC excluded — accountants 0x0C4dF79... and
+    // 0x9c2477D... have no events in 240k blocks (~3 days).
+  ],
+  [CHAIN.SCROLL]: [
+    // Liquid ETH — accountant 0x0d05D... event ~3h ago
+    { vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C', accountantAbiVersion: 2 },
+    // Liquid USD — accountant 0xc315D... event ~3h ago
+    { vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C', accountantAbiVersion: 2 },
+    // Liquid BTC — accountant 0xEa23a... event ~3h ago
+    { vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726', accountantAbiVersion: 2 },
+    // eUSD — accountant 0xEB440B... event ~3h ago
+    { vault: '0x939778D83b46B456224A33Fb59630B11DEC56663', accountantAbiVersion: 2 },
+    // eBTC excluded — accountant 0x1b293D... has no events in the same window.
+  ],
+  [CHAIN.PLASMA]: [
+    // Plasma USD — accountant 0x737f2... event ~3-4 days ago
+    { vault: '0xd1074E0AE85610dDBA0147e29eBe0D8E5873a000', accountantAbiVersion: 2 },
+  ],
+  [CHAIN.ARBITRUM]: [
+    // Staked ETHFI — accountant 0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b
+    // emitted 22 events in last ~46 days (last ~2.6 days ago).
+    { vault: '0x86B5780b606940Eb59A062aA85a07959518c0161', accountantAbiVersion: 2 },
+    // EBTC mirror (0x657e8C...) intentionally excluded — its accountant
+    // 0x1b293D... has no events in 3M blocks.
+  ],
 }
 
 const BoringVaultAbis = {
@@ -128,28 +164,32 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const vaults = BoringVaults[options.chain]
 
   if (vaults) {
-    const getHooks: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.hook,
-      calls: vaults.map(vault => vault.vault),
-    })
-    const getDecimals: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.decimals,
-      calls: vaults.map(vault => vault.vault),
-    })
-    const getAccountants: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.accountant,
-      calls: getHooks,
-    })
-    const getTokens: Array<string> = await options.api.multiCall({
-      abi: BoringVaultAbis.base,
-      calls: getAccountants,
-    })
+    // Resolve hook/accountant/base-token per-vault with try/catch instead of a
+    // single multiCall. Some vault addresses are reused across chains (CREATE2)
+    // but may not exist on every chain — a single multiCall would throw on the
+    // first reverting call and lose data for all other vaults on the chain.
+    type Resolved = { accountant: string; token: string; vaultRateBase: number }
+    const resolved: Array<Resolved | null> = []
+    for (const v of vaults) {
+      try {
+        const hook = await options.api.call({ abi: BoringVaultAbis.hook, target: v.vault })
+        const decimals = await options.api.call({ abi: BoringVaultAbis.decimals, target: v.vault })
+        const accountant = await options.api.call({ abi: BoringVaultAbis.accountant, target: hook })
+        const token = await options.api.call({ abi: BoringVaultAbis.base, target: accountant })
+        resolved.push({ accountant, token, vaultRateBase: Number(10 ** Number(decimals)) })
+      } catch {
+        resolved.push(null)
+      }
+    }
 
     for (let i = 0; i < vaults.length; i++) {
+     try {
+      const r = resolved[i]
+      if (!r) continue
       const vault = vaults[i]
-      const vaultRateBase = Number(10 ** Number(getDecimals[i]))
-      const accountant = getAccountants[i]
-      const token = getTokens[i]
+      const vaultRateBase = r.vaultRateBase
+      const accountant = r.accountant
+      const token = r.token
 
       // get vaults rate updated events
       const lendingPoolContract: Interface = new Interface([
@@ -178,20 +218,27 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
         // don't need to make calls if there isn't rate growth
         if (growthRate > 0) {
-          
           // get total staked in vault at the given block
           // it's safe for performance because ExchangeRateUpdated events
-          // occur daily once
-          const totalSupplyAtUpdated = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.totalSupply,
-            target: vault.vault,
-            block: event.blockNumber,
-          })
-          const getAccountantState = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
-            target: accountant,
-            block: event.blockNumber,
-          })
+          // occur daily once. Historical state may be unavailable on
+          // non-archival public RPCs (e.g. some L2s) — skip the event in
+          // that case rather than failing the whole chain.
+          let totalSupplyAtUpdated: any
+          let getAccountantState: any
+          try {
+            totalSupplyAtUpdated = await sdk.api2.abi.call({
+              abi: BoringVaultAbis.totalSupply,
+              target: vault.vault,
+              block: event.blockNumber,
+            })
+            getAccountantState = await sdk.api2.abi.call({
+              abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
+              target: accountant,
+              block: event.blockNumber,
+            })
+          } catch {
+            continue
+          }
 
           let exchangeRate = vaultRateBase
           let performanceFeeRate = 0
@@ -239,6 +286,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
       dailyFees.add(token, platformFee)
       dailyProtocolRevenue.add(token, platformFee)
+     } catch {
+      // tolerate per-vault failures (RPC errors on a single vault shouldn't
+      // tank the whole chain).
+      continue
+     }
     }
   }
 
@@ -255,18 +307,13 @@ const adapter: Adapter = {
   methodology,
   pullHourly: true,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2024-4-16',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch,
-      start: '2025-02-07',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      start: '2024-09-06',
-    },
+    [CHAIN.ETHEREUM]: { fetch, start: '2024-04-16' },
+    [CHAIN.SONIC]:    { fetch, start: '2025-02-07' },
+    [CHAIN.BASE]:     { fetch, start: '2024-09-06' },
+    [CHAIN.INK]:      { fetch, start: '2025-09-15' }, // Sentora/Advanced Strategies USDC vaults
+    [CHAIN.SCROLL]:   { fetch, start: '2024-12-01' }, // Liquid ETH/USD/BTC + eUSD vaults
+    [CHAIN.PLASMA]:   { fetch, start: '2025-09-25' }, // Plasma USD vault
+    [CHAIN.ARBITRUM]: { fetch, start: '2024-09-19' }, // Staked ETHFI vault
   }
 }
 
