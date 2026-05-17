@@ -105,8 +105,19 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
     }
 
     for (const p of products) {
-      const productFees = Number(day[p.apiKey]?.amountUSD || 0);
-      if (productFees <= 0) continue;
+      const rawAmountUSD = day[p.apiKey]?.amountUSD;
+      const productFees = Number(rawAmountUSD ?? 0);
+      if (!Number.isFinite(productFees)) {
+        throw new Error(
+          `origin-protocol: invalid amountUSD for ${p.apiKey} on chain=${options.chain} — got ${rawAmountUSD}`,
+        );
+      }
+      // Skip only the exact-zero case. Origin's daily_revenue can briefly
+      // report negative amountUSD on loss days (e.g. an ARM vault's NAV
+      // dipping before the next rebase). Forwarding those through keeps
+      // dailyFees / dailyRevenue honest instead of overstating them by
+      // dropping loss days.
+      if (productFees === 0) continue;
       const feeBps = feeBpsByKey[p.apiKey];
       if (!Number.isFinite(feeBps)) {
         throw new Error(`origin-protocol: missing feeBps for ${p.apiKey}`);

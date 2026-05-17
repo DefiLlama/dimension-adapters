@@ -48,6 +48,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Origin's daily_revenue API can report negative amountUSD on loss days; the
+  // helper now forwards those through instead of dropping them. See
+  // helpers/origin-protocol.ts.
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
   adapter: {

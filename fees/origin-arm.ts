@@ -53,6 +53,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // ARM vaults can show negative amountUSD on loss days (NAV dipping before
+  // the next rebase). The helper forwards those through instead of dropping
+  // them so dailyFees / Revenue / SupplySide reflect the true daily delta.
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
   adapter: {
