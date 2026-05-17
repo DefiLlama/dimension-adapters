@@ -46,17 +46,6 @@ const fetch = async (options: FetchOptions) => {
         entireLog: true,
     });
 
-    if (performanceFeeLogs.length === 0 || updateLogs.length === 0) {
-        return { 
-            dailyFees, 
-            dailyUserFees,
-            dailySupplySideRevenue,
-            dailyRevenue,
-            dailyHoldersRevenue, 
-            dailyProtocolRevenue,  
-        };
-    };
-
     const combinedLogs: { 
         strategy: string, 
         totalFee: bigint, 
