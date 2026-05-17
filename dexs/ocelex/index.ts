@@ -56,19 +56,29 @@ const fetch = async (options: FetchOptions) => {
   const adapter = getUniV3LogAdapter({ factory: '0x03057ae6294292b299a1863420edD65e0197AFEf', ...config })
   const otherMetrics = await adapter(options)
 
+  const bribes = await fees_bribes(options)
+  const dailyFees = options.createBalances()
+  dailyFees.addBalances(otherMetrics.dailyFees)
+  dailyFees.addBalances(bribes)
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addBalances(bribes)
+
   return {
     ...otherMetrics,
-    dailyBribesRevenue: await fees_bribes(options),
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: bribes,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'Users pay dynamic fees per swap.',
+    Fees: 'Users pay dynamic fees per swap, plus voting bribes/incentives paid by protocols.',
     UserFees: 'Users pay dynamic fees per swap.',
-    Revenue: 'No revenue',
+    Revenue: 'Voting bribes/incentives distributed to veOCX holders.',
     ProtocolRevenue: 'No protocol revenue.',
+    HoldersRevenue: 'Voting bribes/incentives distributed to veOCX holders.',
     SupplySideRevenue: 'Swap fees distributed to LPs.',
   },
   adapter: {
