@@ -1,27 +1,17 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from '../../helpers/coreAssets.json'
 
-// key: strategy address, value: underlying address
-const STRATEGY_MAPS = {
-    ethereum: new Map([
-        ["0x41A9Eb398518D2487301c61D2b33E4e966A9F1DD".toLowerCase(), ADDRESSES.ethereum.USDC],
-        ["0x1199a6B2587Ed96446E76Dee3FB660bb8fCfd0b2".toLowerCase(), ADDRESSES.ethereum.WETH],
-        ["0xa96060B0B6907406EdBDf3cCc9438abf0F78Cf83".toLowerCase(), ADDRESSES.ethereum.WBTC]
-    ]),
-    base: new Map([
-        ["0x2787a17fe04C73AD109370C90917d62D1899Eb6A".toLowerCase(), ADDRESSES.base.WETH],
-        ["0x5bE8c059A8E101d24B107aFb5A013feF505280b9".toLowerCase(), ADDRESSES.base.USDC],
-        ["0x0c14c751b19D4362f14f4A1D1cB963180B63fB87".toLowerCase(), ADDRESSES.base.cbBTC],
-    ]),
-};
+const SUPERVAULT_AGGREGATOR = "0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698";
+
+const GET_SUPERVAULT_STRATEGIES_ABI = "function getAllSuperVaultStrategies() view returns (address[])";
+const GET_VAULT_INFO_ABI = "function getVaultInfo() view returns (address vault, address asset, uint8 vaultDecimals)";
 
 const MANAGEMENT_FEE_EVENT = "event ManagementFeePaid(address indexed controller, address indexed recipient, uint256 feeAssets, uint256 feeBps)";
 const PERFORMANCE_FEE_EVENT = "event PerformanceFeeSkimmed(uint256 totalFee, uint256 superformFee)";
 const HWMPPS_UPDATE_EVENT = "event HWMPPSUpdated(uint256 newHwmPps, uint256 previousPps, uint256 profit, uint256 feeCollected)";
 
 const fetch = async (options: FetchOptions) => {
-    const { getLogs, createBalances } = options;
+    const { getLogs, createBalances, api } = options;
     const dailyFees = createBalances();
     const dailyUserFees = createBalances();
     const dailySupplySideRevenue = createBalances();
@@ -29,16 +19,28 @@ const fetch = async (options: FetchOptions) => {
     const dailyHoldersRevenue = createBalances();
     const dailyProtocolRevenue = createBalances();
 
-    const strategyMap = STRATEGY_MAPS[options.chain as keyof typeof STRATEGY_MAPS];
+    const strategies: string[] = await api.call({ 
+        abi: GET_SUPERVAULT_STRATEGIES_ABI, 
+        target: SUPERVAULT_AGGREGATOR 
+    });
 
+    const vaultInfo = await api.multiCall({
+      abi: GET_VAULT_INFO_ABI,
+      calls: strategies.map(strat => ({ target: strat }))
+    });
+
+    const strategyMap = Object.fromEntries(
+        strategies.map((s, i) => [s.toLowerCase(), vaultInfo[i].asset.toLowerCase()])
+    );
+    
     const performanceFeeLogs = await getLogs({
-        targets: [...strategyMap.keys()],
+        targets: Object.keys(strategyMap),
         eventAbi: PERFORMANCE_FEE_EVENT,
         entireLog: true,
     });
 
     const updateLogs = await getLogs({
-        targets: [...strategyMap.keys()],
+        targets: Object.keys(strategyMap),
         eventAbi: HWMPPS_UPDATE_EVENT,
         entireLog: true,
     });
@@ -73,7 +75,7 @@ const fetch = async (options: FetchOptions) => {
     };
 
     for (const log of combinedLogs) {
-        const underlying = strategyMap.get(log.strategy.toLowerCase());
+        const underlying = strategyMap[log.strategy.toLowerCase()];
         if (!underlying) continue;
         dailyFees.add(underlying, log.profit);
         dailyUserFees.add(underlying, log.totalFee);
@@ -88,13 +90,13 @@ const fetch = async (options: FetchOptions) => {
     };
 
     const managementFeeLogs = await getLogs({
-        targets: [...strategyMap.keys()],
+        targets: Object.keys(strategyMap),
         eventAbi: MANAGEMENT_FEE_EVENT,
         entireLog: true,
     });
 
     for (const manageLogs of managementFeeLogs) {
-        const underlying = strategyMap.get(manageLogs.address.toLowerCase());
+        const underlying = strategyMap[manageLogs.address.toLowerCase()];
         if (!underlying) continue;
         dailyFees.add(underlying, manageLogs.feeAssets);
         dailyUserFees.add(underlying, manageLogs.feeAssets);
@@ -126,9 +128,13 @@ const methodology = {
     ProtocolRevenue: "80% of protocol fees are sent to the Superform Foundation treasury."
 };
 
+// const breakdownMethodology
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
+  // breakdownMethodology,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.BASE],
   start: '2025-12-03'
