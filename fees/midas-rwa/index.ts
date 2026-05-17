@@ -476,12 +476,12 @@ const fetch = async (options: FetchOptions) => {
 		const [redeemLogs, redeemCustomLogs, depositLogs, depositCustomLogs, redeemRequestLogs, redeemRequestCustomLogs, depositRequestLogs, depositRequestCustomLogs] = await Promise.all([
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositInstant }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.depositInstant, entireLog: true, parseLog: true }),
+			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom, entireLog: true, parseLog: true }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositRequest }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositRequestCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.depositRequest, entireLog: true, parseLog: true }),
+			getLogs({ ...logOpts, eventAbi: ABI.depositRequestCustom, entireLog: true, parseLog: true }),
 		]);
 
 		// Build vault -> token lookup for converting fees
@@ -526,12 +526,36 @@ const fetch = async (options: FetchOptions) => {
 			dailyRevenue.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES);
 		}
 
+		const combinedDepositLogs = [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs];
+
+		const uniqueTokenIns = [...new Set(combinedDepositLogs.map((log) => log.args.tokenIn))];
+		const uniqueDepositContracts = [...new Set(combinedDepositLogs.map((log) => log.address))];
+
+		const [tokenInsDecimals, depositContractMTokens] = await Promise.all(
+			[api.multiCall({ abi: ABI.decimals, calls: uniqueTokenIns, permitFailure: true }),
+			api.multiCall({ abi: 'address:mToken', calls: uniqueDepositContracts, permitFailure: true })]);
+
+		const tokenInsDecMap: Record<string, number> = {};
+		const depositContractMTokensMap: Record<string, string> = {};
+
+		uniqueTokenIns.forEach((tokenIn, i) => {
+			if (tokenInsDecimals[i] != null) tokenInsDecMap[tokenIn] = Number(tokenInsDecimals[i]);
+		});
+		uniqueDepositContracts.forEach((depositContract, i) => {
+			if (depositContractMTokens[i] != null) depositContractMTokensMap[depositContract] = depositContractMTokens[i];
+		});
+
 		// Process deposit fees — instant + request-based
 		for (const log of [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs]) {
-			const fee = Number(log.fee);
+			const args = log.args;
+			const fee = Number(args.fee);
 			if (fee <= 0) continue;
-			dailyFees.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
-			dailyRevenue.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+			const mTokenDec = mTokenDecMap[depositContractMTokensMap[log.address]];
+			const tokenInDec = tokenInsDecMap[args.tokenIn];
+			if(!mTokenDec || !tokenInDec) throw new Error(`Invalid mToken or tokenIn decimals for deposit contract ${log.address}`);
+			const normalizedFee = fee * (10 ** (tokenInDec - mTokenDec));
+			dailyFees.add(args.tokenIn, normalizedFee, METRIC.DEPOSIT_WITHDRAW_FEES);
+			dailyRevenue.add(args.tokenIn, normalizedFee, METRIC.DEPOSIT_WITHDRAW_FEES);
 		}
 	}
 
@@ -551,7 +575,7 @@ const adapter: SimpleAdapter = {
 		[CHAIN.BASE]: { fetch, start: "2025-01-15" },
 		[CHAIN.OPTIMISM]: { fetch, start: "2025-04-01" },
 		[CHAIN.PLUME]: { fetch, start: "2025-05-01" },
-		[CHAIN.ETHERLINK]: { fetch, start: "2025-02-14" },
+		//[CHAIN.ETHERLINK]: { fetch, start: "2025-02-14" },
 		[CHAIN.MONAD]: { fetch, start: "2025-12-13" },
 		[CHAIN.PLASMA]: { fetch, start: "2025-10-07" },
 		[CHAIN.KATANA]: { fetch, start: "2026-01-27" },
