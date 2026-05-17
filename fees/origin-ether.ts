@@ -1,6 +1,12 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchOriginFees, OriginProduct } from "../helpers/origin-protocol";
+import {
+  fetchOriginFees,
+  OriginProduct,
+  ORIGIN_YIELD_LABEL,
+  ORIGIN_PROTOCOL_FEE_LABEL,
+  ORIGIN_REBASE_LABEL,
+} from "../helpers/origin-protocol";
 
 const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
   [CHAIN.ETHEREUM]: [
@@ -22,9 +28,28 @@ const methodology = {
   SupplySideRevenue: "Yield (net of performance fee) received by OETH and Super OETH holders via rebase.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [ORIGIN_YIELD_LABEL]: "Daily yield from OETH (Ethereum) and superOETHb (Base), as published by Origin's daily_revenue API, before performance fee.",
+  },
+  Revenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault yield × on-chain trusteeFeeBps from each OToken vault.",
+  },
+  ProtocolRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault yield × on-chain trusteeFeeBps from each OToken vault.",
+  },
+  HoldersRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+  },
+  SupplySideRevenue: {
+    [ORIGIN_REBASE_LABEL]: "Yield net of performance fee, distributed to OETH / Super OETH holders via rebase.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2023-05-08' },
     [CHAIN.BASE]: { fetch, start: '2024-09-11' },

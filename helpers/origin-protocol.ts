@@ -1,4 +1,5 @@
 import { FetchOptions, FetchResultV2 } from "../adapters/types";
+import { METRIC } from "./metrics";
 import fetchURL from "../utils/fetchURL";
 
 // Per-product daily yield is read from Origin's public daily_revenue endpoint
@@ -17,27 +18,70 @@ import fetchURL from "../utils/fetchURL";
 const FEE_API = "https://api.originprotocol.com/api/v2/protocol/daily_revenue";
 const FEE_SCALE = 10000;
 
+export const ORIGIN_YIELD_LABEL = "Origin Product Yield";
+export const ORIGIN_PROTOCOL_FEE_LABEL = "Origin Performance Fee";
+export const ORIGIN_REBASE_LABEL = "Origin Rebase To Holders";
+
+/**
+ * Describes one Origin product that is rolled up into a per-protocol fee
+ * adapter (origin-dollar = ["ousd"], origin-ether = ["oeth", "superOethb"],
+ * origin-sonic = ["os"], origin-arm = [...four ARM vaults]).
+ */
 export interface OriginProduct {
+  /** Key under which Origin's daily_revenue API reports this product (e.g. "ousd"). */
   apiKey: string;
+  /** OToken vault or ARM vault address on the product's chain. */
   vault: string;
+  /**
+   * Solidity ABI for the fee getter — `uint256:trusteeFeeBps` for OToken
+   * vaults (VaultCore) or `uint16:fee` for ARM vaults (AbstractARM). Both
+   * return basis points scaled by FEE_SCALE = 10000.
+   */
   feeAbi: string;
 }
 
+/** Per-day record returned by api.originprotocol.com/api/v2/protocol/daily_revenue. */
+interface OriginDailyRecord {
+  timestamp: number;
+  [productKey: string]: any;
+}
+
+/**
+ * Builds a `fetch` for an Origin product adapter (origin-dollar, origin-ether,
+ * etc). Combines Origin's published per-product daily yield with each vault's
+ * on-chain performance-fee rate so that:
+ *
+ *   - dailyFees                 = sum over products of API `amountUSD`
+ *   - dailyRevenue              = sum over products of fees × feeBps / 10000
+ *   - dailySupplySideRevenue    = fees − revenue (rebase yield to holders)
+ *   - dailyHoldersRevenue       = revenue (entire performance fee goes to OGN
+ *                                 stakers / ARM fee collector)
+ *
+ * @param products  Products to roll into this adapter. Empty arrays return
+ *                  zero-filled balances (used for chain branches the protocol
+ *                  isn't deployed on).
+ */
 export const fetchOriginFees = (products: OriginProduct[]) =>
   async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     if (products.length === 0) {
-      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue: dailyFees.clone() };
+      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue };
     }
 
-    const feeData = await fetchURL(FEE_API);
-    const day = feeData.find((d: any) => d.timestamp === options.startOfDay * 1000);
+    const feeData: OriginDailyRecord[] = await fetchURL(FEE_API);
+    const day = feeData.find((d) => d.timestamp === options.startOfDay * 1000);
     if (!day) {
-      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue: dailyFees.clone() };
+      console.warn(
+        `origin-protocol: no daily_revenue record for startOfDay=${options.startOfDay} ` +
+        `(${options.dateString ?? ""}) on chain=${options.chain}`,
+      );
+      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue };
     }
 
+    // Group products by feeAbi so we can issue one multiCall per ABI variant.
     const byAbi = new Map<string, OriginProduct[]>();
     for (const p of products) {
       if (!byAbi.has(p.feeAbi)) byAbi.set(p.feeAbi, []);
@@ -45,24 +89,34 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
     }
     const feeBpsByKey: Record<string, number> = {};
     for (const [abi, group] of byAbi) {
-      const results: any[] = await options.api.multiCall({
+      const results: unknown[] = await options.api.multiCall({
         abi,
-        calls: group.map(p => p.vault),
+        calls: group.map((p) => p.vault),
       });
-      group.forEach((p, i) => { feeBpsByKey[p.apiKey] = Number(results[i]); });
+      group.forEach((p, i) => {
+        const feeBps = Number(results[i]);
+        if (!Number.isFinite(feeBps)) {
+          throw new Error(
+            `origin-protocol: invalid feeBps for ${p.apiKey} (vault ${p.vault}) — got ${results[i]}`,
+          );
+        }
+        feeBpsByKey[p.apiKey] = feeBps;
+      });
     }
 
     for (const p of products) {
       const productFees = Number(day[p.apiKey]?.amountUSD || 0);
       if (productFees <= 0) continue;
       const feeBps = feeBpsByKey[p.apiKey];
+      if (!Number.isFinite(feeBps)) {
+        throw new Error(`origin-protocol: missing feeBps for ${p.apiKey}`);
+      }
       const productRevenue = productFees * feeBps / FEE_SCALE;
-      dailyFees.addUSDValue(productFees);
-      dailyRevenue.addUSDValue(productRevenue);
+      const productSupplySide = productFees - productRevenue;
+      dailyFees.addUSDValue(productFees, ORIGIN_YIELD_LABEL);
+      dailyRevenue.addUSDValue(productRevenue, ORIGIN_PROTOCOL_FEE_LABEL);
+      dailySupplySideRevenue.addUSDValue(productSupplySide, ORIGIN_REBASE_LABEL);
     }
-
-    const dailySupplySideRevenue = dailyFees.clone();
-    dailySupplySideRevenue.subtract(dailyRevenue);
 
     return {
       dailyFees,

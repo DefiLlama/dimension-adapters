@@ -1,6 +1,12 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchOriginFees, OriginProduct } from "../helpers/origin-protocol";
+import {
+  fetchOriginFees,
+  OriginProduct,
+  ORIGIN_YIELD_LABEL,
+  ORIGIN_PROTOCOL_FEE_LABEL,
+  ORIGIN_REBASE_LABEL,
+} from "../helpers/origin-protocol";
 
 // ARM vaults expose fee() (uint16) instead of trusteeFeeBps() but use the same
 // 1e4 basis-point scale (AbstractARM.sol: FEE_SCALE = 10000, line 887:
@@ -27,9 +33,28 @@ const methodology = {
   SupplySideRevenue: "Profit (net of performance fee) received by ARM vault depositors.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [ORIGIN_YIELD_LABEL]: "Daily ARM-vault profit (Lido stETH, Ether.fi eETH, Ethena sUSDe/USDe, Sonic wS/OS) as published by Origin's daily_revenue API, before performance fee.",
+  },
+  Revenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault profit × on-chain fee() from each AbstractARM vault.",
+  },
+  ProtocolRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault profit × on-chain fee() from each AbstractARM vault.",
+  },
+  HoldersRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+  },
+  SupplySideRevenue: {
+    [ORIGIN_REBASE_LABEL]: "Profit net of performance fee, distributed to ARM vault depositors.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-10-24' },
     [CHAIN.SONIC]: { fetch, start: '2025-02-07' },

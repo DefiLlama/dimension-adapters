@@ -1,6 +1,12 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchOriginFees, OriginProduct } from "../helpers/origin-protocol";
+import {
+  fetchOriginFees,
+  OriginProduct,
+  ORIGIN_YIELD_LABEL,
+  ORIGIN_PROTOCOL_FEE_LABEL,
+  ORIGIN_REBASE_LABEL,
+} from "../helpers/origin-protocol";
 
 // Origin Sonic (OS) currently has trusteeFeeBps = 1000 (10%) on-chain —
 // half the rate of OUSD/OETH/superOETHb (2000 = 20%). The helper reads each
@@ -16,12 +22,31 @@ const methodology = {
   SupplySideRevenue: "Yield (net of performance fee) received by OS holders via rebase.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [ORIGIN_YIELD_LABEL]: "Daily OS yield as published by Origin's daily_revenue API, before performance fee.",
+  },
+  Revenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "OS yield × on-chain trusteeFeeBps from the OS vault (currently 10%).",
+  },
+  ProtocolRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "OS yield × on-chain trusteeFeeBps from the OS vault (currently 10%).",
+  },
+  HoldersRevenue: {
+    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+  },
+  SupplySideRevenue: {
+    [ORIGIN_REBASE_LABEL]: "Yield net of performance fee, distributed to OS holders via rebase.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch: fetchOriginFees(PRODUCTS),
   chains: [CHAIN.SONIC],
   start: '2024-12-17',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
