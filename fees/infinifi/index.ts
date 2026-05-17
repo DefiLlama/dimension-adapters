@@ -9,13 +9,18 @@ const YIELD_SHARING_ABI = {
   YieldAccrued: "event YieldAccrued(uint256 indexed timestamp, int256 yield)",
 };
 
-const YIELD_SHARING_CONTRACT = "0x90E91f5bfD9a0a4d925BF30b512add8cD2bbAE3b";
+const YIELD_SHARING_V2 = "0x1cb9ed33924741f500e739e38c3215a76cd1f579";
+const YIELD_SHARING_V3 = "0x90e91f5bfd9a0a4d925bf30b512add8cd2bbae3b";
+const V3_START_DATE = "2026-04-14";
 const WAD = 10n ** 18n;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+
+  const useNewYieldSharingContract = options.dateString >= V3_START_DATE;
+  const YIELD_SHARING_CONTRACT = useNewYieldSharingContract ? YIELD_SHARING_V3 : YIELD_SHARING_V2;
 
   const [performanceFeeRaw, receiptToken] = await options.api.batchCall([
     { target: YIELD_SHARING_CONTRACT, abi: YIELD_SHARING_ABI.performanceFee },
@@ -42,23 +47,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     onlyArgs: true,
   });
 
-  const safetyBufferNetChange = BigInt(safetyBufferAtEndRaw) - BigInt(safetyBufferAtStartRaw);
-
   let grossYieldNetOfProtocolFee = 0n;
   let protocolFeesCollected = 0n;
+  let positiveAccrued = 0n;
+  let negativeAccrued = 0n;
 
   for (const log of yieldAccruedLogs) {
     const eventYield = BigInt(log.yield);
 
     if (eventYield <= 0n) {
       grossYieldNetOfProtocolFee += eventYield;
+      negativeAccrued += -eventYield;
       continue;
     }
 
     const eventFee = (eventYield * BigInt(performanceFeeRaw)) / WAD;
     protocolFeesCollected += eventFee;
     grossYieldNetOfProtocolFee += eventYield - eventFee;
+    positiveAccrued += eventYield;
   }
+
+  const rawSafetyBufferNetChange = BigInt(safetyBufferAtEndRaw) - BigInt(safetyBufferAtStartRaw);
+  const safetyBufferNetChange =
+    rawSafetyBufferNetChange >= 0n
+      ? (rawSafetyBufferNetChange > positiveAccrued ? positiveAccrued : rawSafetyBufferNetChange)
+      : (-rawSafetyBufferNetChange > negativeAccrued ? -negativeAccrued : rawSafetyBufferNetChange);
 
   const netUserYield = grossYieldNetOfProtocolFee - safetyBufferNetChange;
 
@@ -116,7 +129,7 @@ const adapter: Adapter = {
   allowNegativeValue: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      start: "2026-04-14", //v3 contract start (not protocol start)
+      start: "2025-06-07",
     },
   },
   methodology,
