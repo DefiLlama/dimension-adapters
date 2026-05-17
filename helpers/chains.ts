@@ -374,4 +374,5 @@ export enum CHAIN {
   FLUENT = "fluent",
   LUKSO = "lukso",
   MOCA = "moca",
+  FSC = "fsc",
 }
