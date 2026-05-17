@@ -99,14 +99,14 @@ const fetch = async (options: FetchOptions) => {
     for (const manageLogs of managementFeeLogs) {
         const underlying = strategyMap[manageLogs.address.toLowerCase()];
         if (!underlying) continue;
-        dailyFees.add(underlying, manageLogs.feeAssets, METRIC.MANAGEMENT_FEES);
-        dailyUserFees.add(underlying, manageLogs.feeAssets, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(underlying, manageLogs.feeAssets, METRIC.MANAGEMENT_FEES);
+        dailyFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
+        dailyUserFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
         if (options.endTimestamp >= 1771472040) {
-            dailyHoldersRevenue.add(underlying, manageLogs.feeAssets * 2n / 10n, METRIC.MANAGEMENT_FEES);
-            dailyProtocolRevenue.add(underlying, manageLogs.feeAssets * 8n / 10n, METRIC.MANAGEMENT_FEES);
+            dailyHoldersRevenue.add(underlying, manageLogs.args.feeAssets * 2n / 10n, METRIC.MANAGEMENT_FEES);
+            dailyProtocolRevenue.add(underlying, manageLogs.args.feeAssets * 8n / 10n, METRIC.MANAGEMENT_FEES);
         } else {
-            dailyProtocolRevenue.add(underlying, manageLogs.feeAssets, METRIC.MANAGEMENT_FEES);
+            dailyProtocolRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
         };
     };
 
