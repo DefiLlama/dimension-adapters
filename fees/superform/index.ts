@@ -3,15 +3,15 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const SUPERVAULT_AGGREGATOR = "0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698";
+const SUPERBANK = "0x6fCc6a6A825FC14e6e56Fd14978FC6B97ACB5d15";
 
 const GET_SUPERVAULT_STRATEGIES_ABI = "function getAllSuperVaultStrategies() view returns (address[])";
 const GET_VAULT_INFO_ABI = "function getVaultInfo() view returns (address vault, address asset, uint8 vaultDecimals)";
 
-const MANAGEMENT_FEE_EVENT = "event ManagementFeePaid(address indexed controller, address indexed recipient, uint256 feeAssets, uint256 feeBps)";
-
-const SIP1_TIMESTAMP = 1771472040; // Feb 19 2026: 20% of protocol fees to sUP stakers, 80% to treasury
 const PERFORMANCE_FEE_EVENT = "event PerformanceFeeSkimmed(uint256 totalFee, uint256 superformFee)";
 const HWMPPS_UPDATE_EVENT = "event HWMPPSUpdated(uint256 newHwmPps, uint256 previousPps, uint256 profit, uint256 feeCollected)";
+const MANAGEMENT_FEE_EVENT = "event ManagementFeePaid(address indexed controller, address indexed recipient, uint256 feeAssets, uint256 feeBps)";
+const REVENUE_DISTRIBUTED_EVENT = "event RevenueDistributed(address indexed upToken, address indexed supStrategyVault, address indexed treasury, uint256 supAmount, uint256 treasuryAmount)";
 
 const fetch = async (options: FetchOptions) => {
     const { getLogs, createBalances, api } = options;
@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
 
     const strategies: string[] = await api.call({ 
         abi: GET_SUPERVAULT_STRATEGIES_ABI, 
-        target: SUPERVAULT_AGGREGATOR 
+        target: SUPERVAULT_AGGREGATOR,
     });
 
     const vaultInfo = await api.multiCall({
@@ -74,12 +74,6 @@ const fetch = async (options: FetchOptions) => {
         dailySupplySideRevenue.add(underlying, log.profit - log.totalFee, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlying, log.totalFee - log.superformFee, METRIC.CURATORS_FEES);
         dailyRevenue.add(underlying, log.superformFee, METRIC.PERFORMANCE_FEES);
-        if (options.endTimestamp >= SIP1_TIMESTAMP) {
-            dailyHoldersRevenue.add(underlying, log.superformFee * 2n / 10n, METRIC.PERFORMANCE_FEES);
-            dailyProtocolRevenue.add(underlying, log.superformFee * 8n / 10n, METRIC.PERFORMANCE_FEES);
-        } else {
-            dailyProtocolRevenue.add(underlying, log.superformFee, METRIC.PERFORMANCE_FEES);
-        };
     };
 
     const managementFeeLogs = await getLogs({
@@ -94,12 +88,16 @@ const fetch = async (options: FetchOptions) => {
         dailyFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
         dailyUserFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
         dailyRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
-        if (options.endTimestamp >= SIP1_TIMESTAMP) {
-            dailyHoldersRevenue.add(underlying, manageLogs.args.feeAssets * 2n / 10n, METRIC.MANAGEMENT_FEES);
-            dailyProtocolRevenue.add(underlying, manageLogs.args.feeAssets * 8n / 10n, METRIC.MANAGEMENT_FEES);
-        } else {
-            dailyProtocolRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
-        };
+    };
+
+    const revenueDistributionLogs = await getLogs({
+        target: SUPERBANK,
+        eventAbi: REVENUE_DISTRIBUTED_EVENT
+    });
+
+    for (const revShare of revenueDistributionLogs) {
+        dailyHoldersRevenue.add(revShare.upToken, revShare.supAmount, METRIC.STAKING_REWARDS);
+        dailyProtocolRevenue.add(revShare.upToken, revShare.treasuryAmount, "Protocol Fees To Treasury");
     };
 
     return { 
@@ -117,8 +115,8 @@ const methodology = {
     UserFees: "Performance and management fees paid by SuperVault depositors.",
     SupplySideRevenue: "Yield distributed to SuperVault depositors and fees paid to vault curators.",
     Revenue: "Performance and management fees collected by Superform.",
-    HoldersRevenue: "20% of protocol fees routed to sUP vault stakers.",
-    ProtocolRevenue: "80% of protocol fees routed to the Superform Foundation treasury."
+    HoldersRevenue: "Protocol-collected fees, after conversion to $UP, routed to the sUP strategy vault per governance-configured distribution.",
+    ProtocolRevenue: "Protocol-collected fees, after conversion to $UP, routed to the Superform Foundation treasury."
 };
 
 const breakdownMethodology = {
@@ -139,12 +137,10 @@ const breakdownMethodology = {
         [METRIC.MANAGEMENT_FEES]: "Management fees collected by Superform.",
     },
     HoldersRevenue: {
-        [METRIC.PERFORMANCE_FEES]: "20% of performance fees routed to sUP vault stakers since 2026-02-19.",
-        [METRIC.MANAGEMENT_FEES]: "20% of management fees routed to sUP vault stakers since 2026-02-19.",
+        [METRIC.STAKING_REWARDS]: "Percentage of protocol fees converted to $UP and routed to the sUP strategy vault.",
     },
     ProtocolRevenue: {
-        [METRIC.PERFORMANCE_FEES]: "80% of performance fees routed to Superform Foundation treasury (100% before 2026-02-19).",
-        [METRIC.MANAGEMENT_FEES]: "80% of management fees routed to Superform Foundation treasury (100% before 2026-02-19).",
+        "Protocol Fees To Treasury": "Percentage of protocol fees converted to $UP and routed to the Superform Foundation treasury.",
     },
 };
 
