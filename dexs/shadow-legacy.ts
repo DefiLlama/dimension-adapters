@@ -136,28 +136,32 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   if (errorFound) throw errorFound
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
+  // Exclude bribes by external protocols
+  const dailyUserFees = createBalances()
+  dailyUserFees.addBalances(dailyHoldersRevenue)
+  dailyUserFees.addBalances(dailySupplySideRevenue)
+  dailyUserFees.addBalances(dailyProtocolRevenue)
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue)
   dailyRevenue.addBalances(dailyProtocolRevenue)
   dailyRevenue.addBalances(dailyHoldersRevenue)
   dailyFees.addBalances(dailyRevenue)
   dailyFees.addBalances(dailySupplySideRevenue)
 
-  return { 
-    dailyVolume, 
+  return {
+    dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees, 
-    dailyRevenue, 
-    dailyHoldersRevenue, 
+    dailyUserFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue, 
-    dailyBribesRevenue 
+    dailyProtocolRevenue,
   }
 }
 const methodology = {
   Fees: "User pays fees on each swap.",
-  UserFees: "User pays fees on each swap.",
+  UserFees: "Swap fees paid by traders.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
+  HoldersRevenue: "Fees from gauged pools and voting bribes are distributed among xSHADOW holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
 };
 
