@@ -98,15 +98,19 @@ const getDailyBribesRevenue = async (
 };
 
 const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
-  const { dailyVolume, dailyFees } = await baseFetch(fetchOptions);
+  const { dailyVolume, dailyFees: swapFees } = await baseFetch(fetchOptions);
 
-  const dailyBribesRevenue = await getDailyBribesRevenue(fetchOptions);
+  const dailyHoldersRevenue = await getDailyBribesRevenue(fetchOptions);
 
-  const dailyUserFees = dailyFees.clone(1);
-  const dailyProtocolRevenue = dailyFees.clone(PROTOCOL_FEE_SHARE);
-  const dailySupplySideRevenue = dailyFees.clone(LP_FEE_SHARE);
+  const dailyUserFees = swapFees.clone(1);
+  const dailyProtocolRevenue = swapFees.clone(PROTOCOL_FEE_SHARE);
+  const dailySupplySideRevenue = swapFees.clone(LP_FEE_SHARE);
+
   const dailyRevenue = dailyProtocolRevenue.clone(1);
-  const dailyHoldersRevenue = dailyBribesRevenue.clone(1);
+  dailyRevenue.addBalances(dailyHoldersRevenue);
+
+  const dailyFees = swapFees.clone(1);
+  dailyFees.addBalances(dailyHoldersRevenue);
 
   return {
     dailyVolume,
@@ -115,16 +119,15 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
     dailyHoldersRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Users pay 0.25% on volatile swaps and 0.05% on stable swaps.",
+  Fees: "Users pay 0.25% on volatile swaps and 0.05% on stable swaps, plus external incentives deposited into Lithos bribe contracts.",
   UserFees: "Users are charged the full swap fee on every trade.",
-  Revenue: "12% of collected swap fees accrue to the Lithos protocol treasury.",
-  ProtocolRevenue: "Same as Revenue (12% treasury share of swap fees).",
+  Revenue: "12% treasury share of swap fees plus external bribes/incentives distributed to veLITH voters.",
+  ProtocolRevenue: "12% treasury share of collected swap fees.",
   HoldersRevenue: "External incentives deposited into Lithos bribe contracts for veLITH voters.",
   SupplySideRevenue: "88% of collected swap fees accrue to LPs via internal fee bribes.",
 };
