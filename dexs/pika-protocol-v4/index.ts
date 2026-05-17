@@ -29,13 +29,25 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(Number(log.fee) / 1e8);
   }
 
+  // Pika v4 trading fee split: 50% to the vault (LPs), 30% to PIKA stakers,
+  // 20% to the protocol treasury.
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees.clone(0.5),
-    dailyProtocolRevenue: dailyFees.clone(0.5),
     dailySupplySideRevenue: dailyFees.clone(0.5),
+    dailyHoldersRevenue: dailyFees.clone(0.3),
+    dailyProtocolRevenue: dailyFees.clone(0.2),
   };
+};
+
+const methodology = {
+  dailyVolume: "Notional volume of positions opened and closed (margin * leverage).",
+  dailyFees: "Trading fees paid by traders on opening and closing positions.",
+  dailyRevenue: "Fees retained by the protocol after the LP/vault share (50% of fees).",
+  dailySupplySideRevenue: "50% of trading fees distributed to the vault (liquidity providers).",
+  dailyHoldersRevenue: "30% of trading fees distributed to PIKA token stakers.",
+  dailyProtocolRevenue: "20% of trading fees sent to the protocol treasury.",
 };
 
 const adapter: SimpleAdapter = {
@@ -47,6 +59,7 @@ const adapter: SimpleAdapter = {
       start: "2023-06-28",
     },
   },
+  methodology,
 };
 
 export default adapter;
