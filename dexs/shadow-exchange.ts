@@ -29,7 +29,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = createBalances();
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
-  const dailyTokenTaxes = createBalances()
   const dailySupplySideRevenue = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
   const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools"}).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
@@ -45,9 +44,8 @@ const fetch = async (options: FetchOptions) => {
     shadowPenaltyAmount += Number(log.amount) / 1e18;
   }
 
-  // Calculate xSHADOW rebase revenue in USD
-  dailyTokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
-  dailyFees.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
+  // xSHADOW instant-exit penalty is redistributed to remaining xSHADOW holders
+  dailyHoldersRevenue.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
   const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
 
@@ -127,31 +125,34 @@ const fetch = async (options: FetchOptions) => {
 
   if (errorFound) throw errorFound
   const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
+  // Exclude bribes by external protocols
+  const dailyUserFees = createBalances()
+  dailyUserFees.addBalances(dailyHoldersRevenue)
+  dailyUserFees.addBalances(dailySupplySideRevenue)
+  dailyUserFees.addBalances(dailyProtocolRevenue)
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue)
   dailyRevenue.addBalances(dailyProtocolRevenue)
   dailyRevenue.addBalances(dailyHoldersRevenue)
   dailyFees.addBalances(dailyRevenue)
   dailyFees.addBalances(dailySupplySideRevenue)
 
-  return { 
-    dailyVolume, 
+  return {
+    dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees, 
-    dailyRevenue, 
-    dailyHoldersRevenue, 
+    dailyUserFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue, 
-    dailyBribesRevenue 
+    dailyProtocolRevenue,
   }
 };
 
 const methodology = {
   Fees: "User pays fees on each swap.",
-  UserFees: "User pays fees on each swap.",
+  UserFees: "Swap fees paid by traders.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
+  HoldersRevenue: "Fees from gauged pools, voting bribes, and the xSHADOW instant-exit penalty are all distributed among xSHADOW holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xSHADOW stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {
