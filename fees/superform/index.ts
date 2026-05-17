@@ -125,7 +125,7 @@ const methodology = {
     UserFees: "Performance and management fees paid by SuperVault depositors.",
     SupplySideRevenue: "Yield distributed to SuperVault depositors after protocol fees.",
     Revenue: "Performance and management fees collected by Superform.",
-    HoldersRevenue: "20% of protocol fees routed to the sUP vault stakers.",
+    HoldersRevenue: "20% of protocol fees routed to sUP vault stakers.",
     ProtocolRevenue: "80% of protocol fees routed to the Superform Foundation treasury."
 };
 
