@@ -16,7 +16,7 @@ const fetch = async (_a:any, _b:any, options:FetchOptions) => {
   const dailyFees = Number(earniumData.fees24h)
   const dailyVolume = Number(earniumData.volume24h)
   const dailyProtocolRevenue = dailyFees * 0.01;
-  const dailySupplySideRevenue = dailyFees * 0.9;
+  const dailySupplySideRevenue = dailyFees * 0.99; // 90% LPs + 9% referrers
 
   return {
     dailyVolume,
@@ -33,7 +33,7 @@ const methodology = {
   Revenue: "1% of swap fees goes to protocol",
   ProtocolRevenue: "1% of swap fees goes to protocol",
   HoldersRevenue: "No holders revenue",
-  SupplySideRevenue: "90% of swap fees goes to LPs"
+  SupplySideRevenue: "99% of swap fees goes to LPs (90%) and referrers (9%)"
 }
 
 const adapter: SimpleAdapter = {
