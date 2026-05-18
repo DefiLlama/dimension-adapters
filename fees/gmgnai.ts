@@ -90,6 +90,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       start: '2024-12-02'
     },
+    [CHAIN.ETHEREUM]: {
+      start: '2024-01-13'
+    },
+    [CHAIN.BASE]: {
+      start: '2024-09-19'
+    },
      [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-03-20'
