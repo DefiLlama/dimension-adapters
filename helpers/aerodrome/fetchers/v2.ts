@@ -5,6 +5,7 @@ import type * as HelperTypes from "../types";
 import type { FetchOptions } from "../../../adapters/types";
 import * as ABI from "../abis";
 import ADDRESSES from "../../coreAssets.json";
+import { getPoolStakedShares } from "./common";
 import { addOneToken } from "../../prices";
 
 export const getV2Pools = async (
@@ -92,17 +93,23 @@ export const getV2PoolMetrics = async (
 ) => {
 	const volume = fetchOptions.createBalances();
 	const fees = fetchOptions.createBalances();
+	const voterRevenue = fetchOptions.createBalances();
 	const supplySideRevenue = fetchOptions.createBalances();
 
 	const poolAddresses = Object.keys(options.pools);
 	if (poolAddresses.length) {
-		const swaps = await getV2Swaps(fetchOptions, { pools: Object.keys(options.pools) });
+		const swaps = await getV2Swaps(fetchOptions, { pools: poolAddresses });
+		const poolStakedShares = await getPoolStakedShares(fetchOptions, {
+			poolGauges: options.poolGauges,
+			SCALE: ABI.V2_POOL_FACTORY.FEE_SCALE
+		});
 
 		const shareOf = (scaledPercent: number, total: BigNumber) =>
-			total.times(scaledPercent).div(ABI.V2_POOL_FACTORY.FEE_SCALE);
+			total.times(scaledPercent).div(ABI.V2_POOL_FACTORY.FEE_SCALE).integerValue();
 
 		for (const { poolAddress, amount0, amount1 } of swaps) {
 			const pool = options.pools[poolAddress];
+			const stakedShare = poolStakedShares[poolAddress] ?? 0;
 			const [token0, token1] = pool.tokens;
 			const fee0 = shareOf(pool.fee, amount0);
 			const fee1 = shareOf(pool.fee, amount1);
@@ -124,16 +131,30 @@ export const getV2PoolMetrics = async (
 				amount1: fee1
 			});
 
-			addOneToken({
-				chain: fetchOptions.chain,
-				balances: supplySideRevenue,
-				token0,
-				token1,
-				amount0: fee0,
-				amount1: fee1
-			});
+			if (stakedShare > 0) {
+				addOneToken({
+					chain: fetchOptions.chain,
+					balances: voterRevenue,
+					token0,
+					token1,
+					amount0: shareOf(stakedShare, fee0),
+					amount1: shareOf(stakedShare, fee1)
+				});
+			}
+
+			if (stakedShare < ABI.V2_POOL_FACTORY.FEE_SCALE) {
+				const supplyShare = ABI.V2_POOL_FACTORY.FEE_SCALE - stakedShare;
+				addOneToken({
+					chain: fetchOptions.chain,
+					balances: supplySideRevenue,
+					token0,
+					token1,
+					amount0: shareOf(supplyShare, fee0),
+					amount1: shareOf(supplyShare, fee1)
+				});
+			}
 		}
 	}
 
-	return { volume, fees, supplySideRevenue };
+	return { volume, fees, voterRevenue, supplySideRevenue };
 };

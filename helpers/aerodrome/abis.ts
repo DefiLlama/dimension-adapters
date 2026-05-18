@@ -14,3 +14,17 @@ export const V2_POOL_FACTORY = {
 		getFee: "function getFee(address, bool) external view returns (uint256)"
 	}
 };
+
+export const VOTER = {
+	function: {
+		gauges: "function gauges(address) view returns (address)",
+		gaugeToBribe: "function gaugeToBribe(address) external view returns (address)"
+	}
+};
+
+export const BRIBE = {
+	event: {
+		NotifyReward:
+			"event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)"
+	}
+};

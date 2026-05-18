@@ -10,6 +10,7 @@ export interface SwapFetcherOptions {
 
 export interface PoolMetricsFetcherOptions {
 	pools: Record<string, Pool>;
+	poolGauges: Record<string, string>;
 }
 
 export interface Pool {
