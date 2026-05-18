@@ -35,6 +35,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ZETA],
   fetch,
   start: '2024-10-17',
+  deadFrom: '2025-07-17',
   methodology,
 };
 

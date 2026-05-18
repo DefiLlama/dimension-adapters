@@ -1135,6 +1135,7 @@ const deadFromMap: Record<string, string> = {
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",
   "wagyuswap": "2026-03-16",
+  "zircon-gamma": '2023-03-26',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
