@@ -26,9 +26,9 @@ const abi = {
 }
 
 const METRICS = {
-  jusdInsuranceMintRedeem: "JUSD Mint/Redeem Fees",
+  jusdMintRedeem: "JUSD Mint/Redeem Fees",
   sjusdStakersYield: "sJUSD Staker Yield",
-  sjusdInsuranceInstantUnstaking: "sJUSD Unstaking Fees",
+  sjusdInstantUnstaking: "sJUSD Unstaking Fees",
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -49,7 +49,7 @@ const fetch = async (options: FetchOptions) => {
     const feeUsd = Number(log.fee) / 1e18
     dailyFees.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES)
     dailyUserFees.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES)
-    dailySupplySideRevenue.addUSDValue(feeUsd, METRICS.jusdInsuranceMintRedeem)
+    dailySupplySideRevenue.addUSDValue(feeUsd, METRICS.jusdMintRedeem)
   })
 
   const instantTargets = activeVaults.filter(({ instant }) => instant).map(({ target }) => target)
@@ -72,17 +72,14 @@ const fetch = async (options: FetchOptions) => {
     (sum, [asset, value]) => sum + Number(value) / 10 ** (decimalsByAsset[asset.toLowerCase()] ?? 18),
     0,
   )
-
-  if (vaultYieldUsd > 0) {
     dailyFees.addUSDValue(vaultYieldUsd, METRIC.ASSETS_YIELDS)
     dailySupplySideRevenue.addUSDValue(vaultYieldUsd, METRICS.sjusdStakersYield)
-  }
 
   instantLogs.forEach((log: any) => {
     const feeUsd = Number(log.fee) / 1e18
     dailyFees.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES)
     dailyUserFees.addUSDValue(feeUsd, METRIC.DEPOSIT_WITHDRAW_FEES)
-    dailySupplySideRevenue.addUSDValue(feeUsd, METRICS.sjusdInsuranceInstantUnstaking)
+    dailySupplySideRevenue.addUSDValue(feeUsd, METRICS.sjusdInstantUnstaking)
   })
 
   return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue, dailyUserFees }
@@ -92,6 +89,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: chainConfig,
+  allowNegativeValue: true,
   fetch,
   methodology: {
     Fees: "sJUSD vault yield, JUSD mint and redeem fees, and sJUSD instant unstaking fees, all treated as USD-denominated stablecoin flows.",
@@ -106,9 +104,9 @@ const adapter: SimpleAdapter = {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees charged when users instant-unstake sJUSD, counted at face-value USD.",
     },
     SupplySideRevenue: {
-      [METRICS.jusdInsuranceMintRedeem]: "JUSD mint and redeem fees kept in the insurance fund, counted at face-value USD.",
+      [METRICS.jusdMintRedeem]: "JUSD mint and redeem fees kept in the insurance fund, counted at face-value USD.",
       [METRICS.sjusdStakersYield]: "Yield earned by sJUSD stakers, counted at face-value USD.",
-      [METRICS.sjusdInsuranceInstantUnstaking]: "sJUSD instant unstaking fees kept in the insurance fund, counted at face-value USD.",
+      [METRICS.sjusdInstantUnstaking]: "sJUSD instant unstaking fees kept in the insurance fund, counted at face-value USD.",
     },
   },
 }
