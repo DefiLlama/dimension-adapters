@@ -24,6 +24,7 @@ const GET_CLAIM_CONDITION_ABI =
     "function getClaimConditionById(uint256 _tokenId, uint256 _conditionId) view returns ((uint256 startTimestamp, uint256 maxClaimableSupply, uint256 supplyClaimed, uint256 quantityLimitPerWallet, bytes32 merkleRoot, uint256 pricePerToken, address currency, string metadata) condition)";
 
 const NATIVE_ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // Trade.feeInWei carries the total user-paid fee on every fee-generating path
 // (IPO buy + all sells). UserSharesChanged.totalFeesInWei is emitted 1:1 with
@@ -63,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
         // Sell: priceInWei is net; gross = priceInWei + feeInWei
         const fee = log.feeInWei;
         const grossVolume = log.isBuy ? log.priceInWei : log.priceInWei + fee;
-        dailyVolume.addGasToken(grossVolume, 'Trading Volume');
+        dailyVolume.addGasToken(grossVolume);
         dailyFees.addGasToken(fee, METRIC.TRADING_FEES);
     }
 
@@ -110,14 +111,12 @@ const fetch = async (options: FetchOptions) => {
 
         for (const log of claimLogs) {
             const cond = priceByPair.get(pairKey(log.tokenId, log.claimConditionIndex));
-            // Skip ERC-20 priced drops — we only attribute native-ETH packs to
-            // the gas-token balances stream. If pack pricing ever moves to a
-            // stablecoin, extend here with an addToken branch.
-            if (!cond || cond.currency !== NATIVE_ETH) continue;
+            if (!cond) continue;
+            if(cond.currency === NATIVE_ETH) cond.currency = NULL_ADDRESS;
             const paid = cond.price * BigInt(log.quantityClaimed);
             if (paid === 0n) continue;
-            dailyVolume.addGasToken(paid, 'Pack Sales');
-            dailyFees.addGasToken(paid, 'Pack Sales');
+            dailyVolume.add(cond.currency, paid);
+            dailyFees.add(cond.currency, paid, 'Pack Sales');
         }
     }
 
