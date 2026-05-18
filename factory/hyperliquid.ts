@@ -214,6 +214,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
       ProtocolRevenue: "0.008% builder code fees collected by GRIDer from Hyperliquid Perps grid trading.",
     },
+  },
+  "tradoor-perps": {
+    addresses: ["0x92345453cE2000642d7D4ceeae4FcCC6c2E41d23"],
+    start: "2026-02-20",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid Perps trades opened via Tradoor's automated market-making bots (also covers HIP-3 venues that settle on Hyperliquid such as Kinetiq Markets and Trade.xyz).",
+      Revenue: "Builder code revenue collected by Tradoor from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue collected by Tradoor from Hyperliquid Perps Trades.",
+    },
   }
 };
 
