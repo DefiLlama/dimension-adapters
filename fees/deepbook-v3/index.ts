@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const ORDER_FILLED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::order_info::OrderFilled";
 const POOL_CREATED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::pool::PoolCreated<%";
@@ -63,70 +64,10 @@ pool AS (
   ) t
 ),
 
-prices AS (
-  SELECT
-    date,
-    SUM(CASE WHEN pool_id = '${DEEP_USDC_POOL}' THEN quote_qty / 1e6 END)
-      / NULLIF(SUM(CASE WHEN pool_id = '${DEEP_USDC_POOL}' THEN base_qty / 1e6 END), 0) AS deep_usd,
-    SUM(CASE WHEN pool_id = '${SUI_USDC_POOL}' THEN quote_qty / 1e6 END)
-      / NULLIF(SUM(CASE WHEN pool_id = '${SUI_USDC_POOL}' THEN base_qty / 1e9 END), 0) AS sui_usd
-  FROM order_fills
-  GROUP BY 1
-),
-
-priced_pools AS (
-  SELECT
-    f.date,
-    f.pool_id,
-    p.quote_kind,
-    p.qdec,
-    pr.deep_usd,
-    CASE WHEN p.quote_kind = 'SUI' THEN pr.sui_usd WHEN p.quote_kind = 'STABLE' THEN 1.0 END AS qusd,
-    SUM(f.quote_qty) / NULLIF(SUM(f.base_qty), 0) AS quote_per_base_raw
-  FROM order_fills f
-  JOIN pool p ON f.pool_id = p.pool_id
-  JOIN prices pr ON f.date = pr.date
-  GROUP BY 1, 2, 3, 4, 5, 6
-),
-
-trading_fees AS (
-  SELECT
-    f.date,
-    SUM(
-      (
-        CASE WHEN f.taker_fee_is_deep THEN f.taker_fee ELSE 0 END
-        + CASE WHEN f.maker_fee_is_deep THEN f.maker_fee ELSE 0 END
-      ) / 1e6 * pp.deep_usd
-      +
-      CASE
-        WHEN pp.qusd IS NULL THEN 0
-        WHEN NOT f.taker_fee_is_deep AND f.taker_is_bid THEN f.taker_fee / POWER(10, pp.qdec) * pp.qusd
-        WHEN NOT f.taker_fee_is_deep AND NOT f.taker_is_bid AND f.base_qty > 0
-          THEN f.taker_fee * f.quote_qty / NULLIF(f.base_qty, 0) / POWER(10, pp.qdec) * pp.qusd
-        ELSE 0
-      END
-      +
-      CASE
-        WHEN pp.qusd IS NULL THEN 0
-        WHEN NOT f.maker_fee_is_deep AND NOT f.taker_is_bid THEN f.maker_fee / POWER(10, pp.qdec) * pp.qusd
-        WHEN NOT f.maker_fee_is_deep AND f.taker_is_bid AND f.base_qty > 0
-          THEN f.maker_fee * f.quote_qty / NULLIF(f.base_qty, 0) / POWER(10, pp.qdec) * pp.qusd
-        ELSE 0
-      END
-    ) AS daily_fees_usd,
-    SUM(CASE
-      WHEN pp.quote_kind = 'UNKNOWN' AND (NOT f.taker_fee_is_deep OR NOT f.maker_fee_is_deep)
-      THEN 1 ELSE 0
-    END) AS unknown_quote_pair_fee_fills
-  FROM order_fills f
-  JOIN priced_pools pp ON f.date = pp.date AND f.pool_id = pp.pool_id
-  GROUP BY 1
-),
-
 burns AS (
   SELECT
     e.date,
-    SUM(CAST(json_extract_scalar(e.event_json, '$.deep_burned') AS double)) / 1e6 AS deep_burned
+    SUM(CAST(json_extract_scalar(e.event_json, '$.deep_burned') AS double)) AS deep_burned
   FROM sui.events e
   WHERE e.event_type LIKE '%::pool::DeepBurned%'
     AND from_unixtime(CAST(e.timestamp_ms AS double) / 1000) >= from_unixtime(${start})
@@ -163,42 +104,106 @@ supply_events AS (
     AND e.date BETWEEN CAST(from_unixtime(${start}) AS date) AND CAST(from_unixtime(${end}) AS date)
 ),
 
+prices AS (
+  SELECT
+    date,
+    SUM(CASE WHEN pool_id = '${DEEP_USDC_POOL}' THEN quote_qty / 1e6 END)
+      / NULLIF(SUM(CASE WHEN pool_id = '${DEEP_USDC_POOL}' THEN base_qty / 1e6 END), 0) AS deep_usd,
+    SUM(CASE WHEN pool_id = '${SUI_USDC_POOL}' THEN quote_qty / 1e6 END)
+      / NULLIF(SUM(CASE WHEN pool_id = '${SUI_USDC_POOL}' THEN base_qty / 1e9 END), 0) AS sui_usd
+  FROM order_fills
+  GROUP BY 1
+),
+
+priced_pools AS (
+  SELECT
+    f.date,
+    f.pool_id,
+    p.quote_kind,
+    p.qdec,
+    pr.deep_usd,
+    CASE WHEN p.quote_kind = 'SUI' THEN pr.sui_usd WHEN p.quote_kind = 'STABLE' THEN 1.0 END AS qusd,
+    SUM(f.quote_qty) / NULLIF(SUM(f.base_qty), 0) AS quote_per_base_raw
+  FROM order_fills f
+  JOIN pool p ON f.pool_id = p.pool_id
+  JOIN prices pr ON f.date = pr.date
+  GROUP BY 1, 2, 3, 4, 5, 6
+),
+
+trading_fees AS (
+  SELECT
+    f.date,
+    SUM(
+      CASE
+        WHEN NOT f.taker_fee_is_deep OR pp.deep_usd IS NULL THEN 0
+        ELSE f.taker_fee / 1e6 * pp.deep_usd
+      END
+      +
+      CASE
+        WHEN NOT f.maker_fee_is_deep OR pp.deep_usd IS NULL THEN 0
+        ELSE f.maker_fee / 1e6 * pp.deep_usd
+      END
+      +
+      CASE
+        WHEN pp.qusd IS NULL THEN 0
+        WHEN NOT f.taker_fee_is_deep AND f.taker_is_bid THEN f.taker_fee / POWER(10, pp.qdec) * pp.qusd
+        WHEN NOT f.taker_fee_is_deep AND NOT f.taker_is_bid AND f.base_qty > 0
+          THEN f.taker_fee * f.quote_qty / NULLIF(f.base_qty, 0) / POWER(10, pp.qdec) * pp.qusd
+        ELSE 0
+      END
+      +
+      CASE
+        WHEN pp.qusd IS NULL THEN 0
+        WHEN NOT f.maker_fee_is_deep AND NOT f.taker_is_bid THEN f.maker_fee / POWER(10, pp.qdec) * pp.qusd
+        WHEN NOT f.maker_fee_is_deep AND f.taker_is_bid AND f.base_qty > 0
+          THEN f.maker_fee * f.quote_qty / NULLIF(f.base_qty, 0) / POWER(10, pp.qdec) * pp.qusd
+        ELSE 0
+      END
+    ) AS daily_fees_usd
+  FROM order_fills f
+  JOIN priced_pools pp ON f.date = pp.date AND f.pool_id = pp.pool_id
+  GROUP BY 1
+),
+
 supply_side AS (
   SELECT
     se.date,
     SUM(
       CASE WHEN se.kind = 'referral' THEN
-        se.deep_fee / 1e6 * pp.deep_usd
+        CASE WHEN pp.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pp.deep_usd END
         + CASE WHEN pp.qusd IS NULL THEN 0 ELSE se.quote_fee / POWER(10, pp.qdec) * pp.qusd END
         + CASE WHEN pp.qusd IS NULL OR pp.quote_per_base_raw IS NULL THEN 0 ELSE se.base_fee * pp.quote_per_base_raw / POWER(10, pp.qdec) * pp.qusd END
       ELSE 0 END
     ) AS referral_fees_usd,
     SUM(
       CASE WHEN se.kind = 'rebate' THEN
-        se.deep_fee / 1e6 * pp.deep_usd
+        CASE WHEN pp.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pp.deep_usd END
         + CASE WHEN pp.qusd IS NULL THEN 0 ELSE se.quote_fee / POWER(10, pp.qdec) * pp.qusd END
         + CASE WHEN pp.qusd IS NULL OR pp.quote_per_base_raw IS NULL THEN 0 ELSE se.base_fee * pp.quote_per_base_raw / POWER(10, pp.qdec) * pp.qusd END
       ELSE 0 END
-    ) AS rebates_claimed_usd,
-    SUM(CASE WHEN se.kind = 'referral' AND pp.quote_kind = 'UNKNOWN' THEN 1 ELSE 0 END) AS unknown_referral_quote_events,
-    SUM(CASE WHEN se.kind = 'rebate' AND pp.quote_kind = 'UNKNOWN' THEN 1 ELSE 0 END) AS unknown_rebate_quote_events
+    ) AS rebates_claimed_usd
   FROM supply_events se
-  JOIN priced_pools pp ON se.date = pp.date AND se.pool_id = pp.pool_id
+  LEFT JOIN priced_pools pp ON se.date = pp.date AND se.pool_id = pp.pool_id
   GROUP BY 1
+),
+
+active_dates AS (
+  SELECT date FROM trading_fees
+  UNION
+  SELECT date FROM burns
+  UNION
+  SELECT date FROM supply_side
 )
 
 SELECT
   SUM(tf.daily_fees_usd) AS daily_fees_usd,
-  SUM(COALESCE(b.deep_burned * pr.deep_usd, 0)) AS daily_revenue_usd,
+  SUM(COALESCE(b.deep_burned, 0)) AS deep_burned,
   SUM(COALESCE(ss.referral_fees_usd, 0)) AS referral_fees_usd,
-  SUM(COALESCE(ss.rebates_claimed_usd, 0)) AS rebates_claimed_usd,
-  SUM(tf.unknown_quote_pair_fee_fills) AS unknown_quote_pair_fee_fills,
-  SUM(COALESCE(ss.unknown_referral_quote_events, 0)) AS unknown_referral_quote_events,
-  SUM(COALESCE(ss.unknown_rebate_quote_events, 0)) AS unknown_rebate_quote_events
-FROM trading_fees tf
-LEFT JOIN prices pr ON tf.date = pr.date
-LEFT JOIN burns b ON tf.date = b.date
-LEFT JOIN supply_side ss ON tf.date = ss.date
+  SUM(COALESCE(ss.rebates_claimed_usd, 0)) AS rebates_claimed_usd
+FROM active_dates d
+LEFT JOIN trading_fees tf ON d.date = tf.date
+LEFT JOIN burns b ON d.date = b.date
+LEFT JOIN supply_side ss ON d.date = ss.date
 `;
 
   const [row = {}]: any = await queryDuneSql(options, query, {
@@ -211,8 +216,8 @@ LEFT JOIN supply_side ss ON tf.date = ss.date
   const dailySupplySideRevenue = options.createBalances();
 
   dailyFees.addUSDValue(Number(row.daily_fees_usd ?? 0), METRICS.TRADING_FEES);
-  dailyRevenue.addUSDValue(Number(row.daily_revenue_usd ?? 0), METRICS.TRADING_FEES_BURNED);
-  dailyHoldersRevenue.addUSDValue(Number(row.daily_revenue_usd ?? 0), METRICS.TRADING_FEES_BURNED);
+  dailyRevenue.add(ADDRESSES.sui.DEEP, Number(row.deep_burned ?? 0), METRICS.TRADING_FEES_BURNED);
+  dailyHoldersRevenue.add(ADDRESSES.sui.DEEP, Number(row.deep_burned ?? 0), METRICS.TRADING_FEES_BURNED);
   dailySupplySideRevenue.addUSDValue(Number(row.referral_fees_usd ?? 0), METRICS.REFERRAL_FEES);
   dailySupplySideRevenue.addUSDValue(Number(row.rebates_claimed_usd ?? 0), METRICS.MAKER_REBATES);
 
