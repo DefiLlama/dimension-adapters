@@ -29,8 +29,10 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(Number(log.fee) / 1e8);
   }
 
-  // Pika v4 trading fee split: 50% to the vault (LPs), 30% to PIKA stakers,
-  // 20% to the protocol treasury.
+  // Fee split sources:
+  //   - 50% vault (LPs) / 50% protocol: https://docs.pikaprotocol.com/features
+  //   - 30% of total fees to PIKA stakers: https://docs.pikaprotocol.com/reward-program
+  //   → remaining 20% goes to protocol treasury (50% protocol share − 30% stakers)
   return {
     dailyVolume,
     dailyFees,
