@@ -36,7 +36,10 @@ const fetch = async (options: FetchOptions) => {
     const tvlData = responses[i * 2][token]?.data ?? [];
     const aprData = responses[i * 2 + 1][token]?.data ?? [];
     const tvl = tvlData.find((item: any) => item.timestamp === timestamp)?.value;
-    const apr = aprData.filter((item: any) => item.timestamp <= timestamp).at(-1)?.value;
+    const apr = aprData
+      .sort((a: any, b: any) => Number(a.timestamp) - Number(b.timestamp))
+      .filter((item: any) => Number(item.timestamp) <= timestamp)
+      .at(-1)?.value;
 
     if (tvl === undefined || apr === undefined) continue;
 
