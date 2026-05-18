@@ -290,7 +290,7 @@ const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
   dailyRevenue.addUSDValue(data.managementFees, METRIC.MANAGEMENT_FEES);
   dailySupplySideRevenue.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const breakdownMethodology = {
@@ -321,6 +321,8 @@ const adapter: SimpleAdapter = {
       "Estimated fund expenses retained by Franklin Templeton.",
     SupplySideRevenue:
       "Net income distributed to BENJI holders. Negative yield reduces this amount.",
+    ProtocolRevenue:
+      "Estimated fund expenses retained by Franklin Templeton.",
   },
   breakdownMethodology,
   isExpensiveAdapter: true,
