@@ -42,9 +42,9 @@ const abi = {
 const METRICS = {
   yusdHoldersYield: "YUSD Holder Yield",
   yusdInsuranceYield: "YUSD Insurance Yield",
-  yusdInsuranceMintRedeem: "YUSD Mint/Redeem Fees",
+  yusdMintRedeem: "YUSD Mint/Redeem Fees",
   syusdStakersYield: "sYUSD Staker Yield",
-  syusdInsuranceInstantUnstaking: "sYUSD Unstaking Fees",
+  syusdInstantUnstaking: "sYUSD Unstaking Fees",
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -54,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyUserFees = options.createBalances()
   const mintRedeemTargets = config.mintRedeem.map(({ target }) => target)
   const incomeTargets = config.mintRedeem.filter(({ income }) => income).map(({ target }) => target)
-  const activeVaults = config.vaults.filter(({ start }) => !start || options.startTimestamp >= Date.parse(start) / 1000)
+  const activeVaults = config.vaults.filter(({ start }) => !start || options.dateString >= start)
   const vaultTargets = activeVaults.map(({ target }) => target)
 
   const [incomeLogs, mintLogs, redeemLogs] = await Promise.all([
@@ -72,23 +72,23 @@ const fetch = async (options: FetchOptions) => {
   mintLogs.concat(redeemLogs).forEach((log: any) => {
     dailyFees.add(config.yusd, log.fee, METRIC.MINT_REDEEM_FEES)
     dailyUserFees.add(config.yusd, log.fee, METRIC.MINT_REDEEM_FEES)
-    dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.yusdInsuranceMintRedeem)
+    dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.yusdMintRedeem)
   })
 
   const instantTargets = activeVaults.filter(({ instant }) => instant).map(({ target }) => target)
-  const [vaultYield, instantLogs] = await Promise.all([
-    getERC4626VaultsYield({ options, vaults: vaultTargets }),
-    options.getLogs({ targets: instantTargets, eventAbi: abi.instantUnstaking }),
-  ])
 
+  const vaultYield = await getERC4626VaultsYield({ options, vaults: vaultTargets });
   dailyFees.addBalances(vaultYield, METRIC.ASSETS_YIELDS)
   dailySupplySideRevenue.addBalances(vaultYield, METRICS.syusdStakersYield)
 
-  instantLogs.forEach((log: any) => {
-    dailyFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
-    dailyUserFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
-    dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.syusdInsuranceInstantUnstaking)
-  })
+  if(instantTargets.length > 0){
+    const instantLogs = await options.getLogs({ targets: instantTargets, eventAbi: abi.instantUnstaking });
+    instantLogs.forEach((log: any) => {
+      dailyFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
+      dailyUserFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
+      dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.syusdInstantUnstaking)
+    })
+  }
 
   return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue, dailyUserFees }
 }
@@ -113,9 +113,9 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: {
       [METRICS.yusdHoldersYield]: "YUSD rewards distributed to YUSD holders.",
       [METRICS.yusdInsuranceYield]: "YUSD yield kept in the insurance fund.",
-      [METRICS.yusdInsuranceMintRedeem]: "YUSD mint and redeem fees kept in the insurance fund.",
+      [METRICS.yusdMintRedeem]: "YUSD mint and redeem fees kept in the insurance fund.",
       [METRICS.syusdStakersYield]: "Yield earned by sYUSD stakers.",
-      [METRICS.syusdInsuranceInstantUnstaking]: "sYUSD instant unstaking fees kept in the insurance fund.",
+      [METRICS.syusdInstantUnstaking]: "sYUSD instant unstaking fees kept in the insurance fund.",
     },
   },
 }
