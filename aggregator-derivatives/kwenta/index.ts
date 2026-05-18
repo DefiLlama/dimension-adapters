@@ -82,7 +82,7 @@ const adapter: SimpleAdapter = {
   ),
   pullHourly: true,
   version: 2,
-  deadFrom: '2025-07-17',
+  deadFrom: '2025-08-26',
 };
 
 export default adapter;
