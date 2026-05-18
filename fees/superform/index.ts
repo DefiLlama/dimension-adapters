@@ -87,7 +87,11 @@ const fetch = async (options: FetchOptions) => {
         if (!underlying) continue;
         dailyFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
         dailyUserFees.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
+        if (manageLogs.args.recipient.toLowerCase() === SUPERBANK.toLowerCase()) {
+            dailyRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.MANAGEMENT_FEES);
+        } else {
+            dailySupplySideRevenue.add(underlying, manageLogs.args.feeAssets, METRIC.CURATORS_FEES);
+        };
     };
 
     const revenueDistributionLogs = await getLogs({
@@ -130,7 +134,7 @@ const breakdownMethodology = {
     },
     SupplySideRevenue: {
         [METRIC.ASSETS_YIELDS]: "Yield distributed to SuperVault depositors after fees.",
-        [METRIC.CURATORS_FEES]: "Performance fees distributed to vault strategy curators."
+        [METRIC.CURATORS_FEES]: "Management and performance fees distributed to vault strategy curators."
     },
     Revenue: {
         [METRIC.PERFORMANCE_FEES]: "Performance fees collected by Superform.",
