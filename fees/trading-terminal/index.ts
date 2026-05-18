@@ -5,8 +5,12 @@ import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-const TRADING_TERMINAL_FEES = 'Trading Terminal Fees'
-const CASHBACK_REFERRAL_PAYOUTS = 'Cashback/Referral Payouts'
+
+const LABELS = {
+  TRADING_TERMINAL_FEES: 'Trading Terminal Fees',
+  TRADING_TERMINAL_FEES_TO_PROTOCOL: 'Trading Terminal Fees To Protocol',
+  CASHBACK_REFERRAL_PAYOUTS: 'Cashback/Referral Payouts',
+} as const
 
 const solanaConfig = {
   mainFeeWallet: 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5',
@@ -110,9 +114,9 @@ async function fetchSolana(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.add(ADDRESSES.solana.SOL, tradingFees, TRADING_TERMINAL_FEES);
-  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackPayouts, CASHBACK_REFERRAL_PAYOUTS);
-  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - buybackBurnAmount, TRADING_TERMINAL_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, tradingFees, LABELS.TRADING_TERMINAL_FEES);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackPayouts, LABELS.CASHBACK_REFERRAL_PAYOUTS);
+  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - buybackBurnAmount, LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
@@ -136,27 +140,28 @@ export const fetch = async (_: any, _1: any, options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
 
   const fees = await fetchEvm(options)
-  const dailyFees = fees.clone(1, TRADING_TERMINAL_FEES)
+  const dailyFees = fees.clone(1, LABELS.TRADING_TERMINAL_FEES)
+  const dailyRevenue = fees.clone(1, LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 
 export const breakdownMethodology = {
   Fees: {
-    [TRADING_TERMINAL_FEES]: 'Fees charged on each trade executed through the trading terminal.',
+    [LABELS.TRADING_TERMINAL_FEES]: 'Fees charged on each trade executed through the trading terminal.',
   },
   Revenue: {
-    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
+    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
   },
   ProtocolRevenue: {
-    [TRADING_TERMINAL_FEES]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
+    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
   },
   SupplySideRevenue: {
-    [CASHBACK_REFERRAL_PAYOUTS]: 'All outbound transfers from the cashback/referral wallet.',
+    [LABELS.CASHBACK_REFERRAL_PAYOUTS]: 'All outbound transfers from the cashback/referral wallet.',
   },
 }
 
