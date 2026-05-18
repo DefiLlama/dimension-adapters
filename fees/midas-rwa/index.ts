@@ -476,8 +476,8 @@ const fetch = async (options: FetchOptions) => {
 		const [redeemLogs, redeemCustomLogs, depositLogs, depositCustomLogs, redeemRequestLogs, redeemRequestCustomLogs, depositRequestLogs, depositRequestCustomLogs] = await Promise.all([
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositInstant }),
-			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.depositInstant}),
+			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom}),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest }),
 			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositRequest }),
@@ -526,12 +526,28 @@ const fetch = async (options: FetchOptions) => {
 			dailyRevenue.addUSDValue(feeUsd, METRIC.MINT_REDEEM_FEES);
 		}
 
+		const combinedDepositLogs = [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs];
+
+		const uniqueTokenIns = [...new Set(combinedDepositLogs.map((log) => log.tokenIn))];
+
+		const [tokenInsDecimals] = await Promise.all(
+			[api.multiCall({ abi: ABI.decimals, calls: uniqueTokenIns, permitFailure: true })]);
+
+		const tokenInsDecMap: Record<string, number> = {};
+
+		uniqueTokenIns.forEach((tokenIn, i) => {
+			if (tokenInsDecimals[i] != null) tokenInsDecMap[tokenIn] = Number(tokenInsDecimals[i]);
+		});
+
 		// Process deposit fees — instant + request-based
 		for (const log of [...depositLogs, ...depositCustomLogs, ...depositRequestLogs, ...depositRequestCustomLogs]) {
 			const fee = Number(log.fee);
 			if (fee <= 0) continue;
-			dailyFees.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
-			dailyRevenue.add(log.tokenIn, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+			const tokenInDec = tokenInsDecMap[log.tokenIn];
+			if(!tokenInDec) throw new Error(`Invalid tokenIn decimals for ${log.tokenIn}`);
+			const normalizedFee = fee * (10 ** (tokenInDec - 18));
+			dailyFees.add(log.tokenIn, normalizedFee, METRIC.DEPOSIT_WITHDRAW_FEES);
+			dailyRevenue.add(log.tokenIn, normalizedFee, METRIC.DEPOSIT_WITHDRAW_FEES);
 		}
 	}
 
@@ -551,7 +567,7 @@ const adapter: SimpleAdapter = {
 		[CHAIN.BASE]: { fetch, start: "2025-01-15" },
 		[CHAIN.OPTIMISM]: { fetch, start: "2025-04-01" },
 		[CHAIN.PLUME]: { fetch, start: "2025-05-01" },
-		[CHAIN.ETHERLINK]: { fetch, start: "2025-02-14" },
+		//[CHAIN.ETHERLINK]: { fetch, start: "2025-02-14" },
 		[CHAIN.MONAD]: { fetch, start: "2025-12-13" },
 		[CHAIN.PLASMA]: { fetch, start: "2025-10-07" },
 		[CHAIN.KATANA]: { fetch, start: "2026-01-27" },

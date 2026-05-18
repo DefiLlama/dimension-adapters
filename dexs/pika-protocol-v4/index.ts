@@ -29,13 +29,27 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(Number(log.fee) / 1e8);
   }
 
+  // Fee split sources:
+  //   - 50% vault (LPs) / 50% protocol: https://docs.pikaprotocol.com/features
+  //   - 30% of total fees to PIKA stakers: https://docs.pikaprotocol.com/reward-program
+  //   → remaining 20% goes to protocol treasury (50% protocol share − 30% stakers)
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees.clone(0.5),
-    dailyProtocolRevenue: dailyFees.clone(0.5),
     dailySupplySideRevenue: dailyFees.clone(0.5),
+    dailyHoldersRevenue: dailyFees.clone(0.3),
+    dailyProtocolRevenue: dailyFees.clone(0.2),
   };
+};
+
+const methodology = {
+  Volume: "Notional volume of positions opened and closed (margin * leverage).",
+  Fees: "Trading fees paid by traders on opening and closing positions.",
+  Revenue: "Fees retained by the protocol after the LP/vault share (50% of fees).",
+  SupplySideRevenue: "50% of trading fees distributed to the vault (liquidity providers).",
+  HoldersRevenue: "30% of trading fees distributed to PIKA token stakers.",
+  ProtocolRevenue: "20% of trading fees sent to the protocol treasury.",
 };
 
 const adapter: SimpleAdapter = {
@@ -47,6 +61,7 @@ const adapter: SimpleAdapter = {
       start: "2023-06-28",
     },
   },
+  methodology,
 };
 
 export default adapter;

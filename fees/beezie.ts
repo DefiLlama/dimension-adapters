@@ -100,10 +100,11 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
   const dailyFees = options.createBalances();
 
   if (version === "v2") {
-    // V2: Played(user, amount) — entire amount is protocol fee
+    // V2: Played(user, amount) — 5% blind-box fee on play amount
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV2Abi.played,
+      onlyArgs:false,
     });
 
     for (const log of logs) {
@@ -111,13 +112,14 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, log.amount, "Claw Machine Fees");
+      dailyFees.add(token, BigInt(log.args.amount.toString()) * 500n / 10_000n, "Claw Machine Fees");
     }
   } else {
     // V1: Played(user, amount, commission) — commission goes to protocol
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV1Abi.played,
+      onlyArgs: false,
     });
 
     for (const log of logs) {
@@ -125,7 +127,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, log.commission, "Claw Machine Fees");
+      dailyFees.add(token, log.args.commission, "Claw Machine Fees");
     }
   }
 
@@ -188,11 +190,11 @@ const fetch = async (options: FetchOptions) => {
   const bids = await fetchBidRouterVolume(options, chainConfig.bidRouter);
 
   // 4. Combine fees
-  // Daily fees = claw fees + 6% of claw swaps + 5% of marketplace
+  // Daily fees = claw fees + 6% of claw swaps + 6% of marketplace
   const dailyFees = options.createBalances();
   dailyFees.addBalances(claw.dailyFees, "Claw Machine Fees");
   dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
-  dailyFees.addBalances(bids.marketplaceVolume.clone(0.05), "Marketplace Fees");
+  dailyFees.addBalances(bids.marketplaceVolume.clone(0.06), "Marketplace Fees");
 
   return {
     dailyFees,
@@ -202,14 +204,14 @@ const fetch = async (options: FetchOptions) => {
 // --- Methodology ---
 
 const methodology = {
-  Fees: "Fees from claw machine plays (V1: commission, V2: full amount), 6% on BidRouter swaps, and 5% on marketplace purchases.",
+  Fees: "Fees from claw machine plays (V1: commission, V2: 5% of blind-box play amount), 6% on BidRouter swaps, and 6% on marketplace purchases.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Claw Machine Fees": "Fees from claw machine plays (V1: commission, V2: full amount)",
+    "Claw Machine Fees": "Fees from claw machine plays (V1: commission, V2: 5% of blind-box play amount)",
     "Swap Fees": "6% fee on BidRouter swaps from claw managers",
-    "Marketplace Fees": "5% fee on BidRouter marketplace purchases",
+    "Marketplace Fees": "6% fee on BidRouter marketplace purchases",
   },
 };
 

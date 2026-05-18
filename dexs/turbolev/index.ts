@@ -38,7 +38,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  dailyVolume:
+  Volume:
     "Sum of daily perpetual trading volume from POSITION_OPENED events within the requested period, grouped by token.",
 };
 

@@ -24,9 +24,9 @@ const fetch = async (_: any, _tt: any, options: FetchOptions) => {
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    dailyFees.addUSDValue(KaminoLiquidityFeesUsd, METRIC.SWAP_FEES);
-    dailyRevenue.addUSDValue(KaminoLiquidityRevenueUsd, METRIC.SWAP_FEES);
-    dailySupplySideRevenue.addUSDValue(KaminoLiquidityFeesUsd - KaminoLiquidityRevenueUsd, METRIC.SWAP_FEES);
+    dailyFees.addUSDValue(KaminoLiquidityFeesUsd, "Liquidity vault fees");
+    dailyRevenue.addUSDValue(KaminoLiquidityRevenueUsd, "Liquidit vault fees to protocol");
+    dailySupplySideRevenue.addUSDValue(KaminoLiquidityFeesUsd - KaminoLiquidityRevenueUsd, "Liquidity vault fees to liquidity providers");
 
     return {
         dailyFees,
@@ -38,23 +38,23 @@ const fetch = async (_: any, _tt: any, options: FetchOptions) => {
 
 const methodology = {
     Fees: "Swap fees earned by providing liquidity to pools.Fees data is aggregated by Allez Labs using the Kamino API.",
-    Revenue: "Part of swap fees going to the protocol",
-    ProtocolRevenue: "Part of swap fees going to the protocol",
-    SupplySideRevenue: "Part of swap fees going to the liquidity providers",
+    Revenue: "Part of fees earned by providing liquidity to pools going to the protocol",
+    ProtocolRevenue: "Part of fees earned by providing liquidity to pools going to the protocol",
+    SupplySideRevenue: "Part of fees earned by providing liquidity to pools going to the liquidity providers",
 }
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.SWAP_FEES]: "Swap fees earned by providing liquidity to pools",
+        "Liquidity vault fees": "Fees earned by providing liquidity to pools",
     },
     Revenue: {
-        [METRIC.SWAP_FEES]: "Part of swap fees going to the protocol",
+        "Liquidity vault fees to protocol": "Part of fees earned by providing liquidity to pools going to the protocol",
     },
     ProtocolRevenue: {
-        [METRIC.SWAP_FEES]: "Part of swap fees going to the protocol",
+        "Liquidity vault fees to protocol": "Part of fees earned by providing liquidity to pools going to the protocol",
     },
     SupplySideRevenue: {
-        [METRIC.SWAP_FEES]: "Part of swap fees going to the liquidity providers",
+        "Liquidity vault fees to liquidity providers": "Part of fees earned by providing liquidity to pools going to the liquidity providers",
     },
 }
 

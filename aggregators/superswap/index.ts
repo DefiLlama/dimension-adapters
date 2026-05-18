@@ -117,6 +117,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   adapter: chainConfig,
+  methodology,
 }
 
 export default adapter;
