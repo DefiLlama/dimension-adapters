@@ -29,27 +29,25 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(Number(log.fee) / 1e8);
   }
 
-  // Fee split sources:
-  //   - 50% vault (LPs) / 50% protocol: https://docs.pikaprotocol.com/features
-  //   - 30% of total fees to PIKA stakers: https://docs.pikaprotocol.com/reward-program
-  //   → remaining 20% goes to protocol treasury (50% protocol share − 30% stakers)
+  // Fee split: _updatePendingRewards splits reward * ratio / 1e4 per bucket.
+  // Contract source: https://sourcify.dev/server/repository/contracts/full_match/10/0x8c9b6a4a4e61f4635e8e375e05ff98db5516d25e/sources/contracts/perp/PikaPerpV4.sol
+  // Current on-chain values: protocolRewardRatio=5000, pikaRewardRatio=0 (PIKA staking disabled).
+  // → 50% to vault (LPs), 50% to protocol treasury, 0% to PIKA stakers.
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees.clone(0.5),
     dailySupplySideRevenue: dailyFees.clone(0.5),
-    dailyHoldersRevenue: dailyFees.clone(0.3),
-    dailyProtocolRevenue: dailyFees.clone(0.2),
+    dailyProtocolRevenue: dailyFees.clone(0.5),
   };
 };
 
 const methodology = {
   Volume: "Notional volume of positions opened and closed (margin * leverage).",
   Fees: "Trading fees paid by traders on opening and closing positions.",
-  Revenue: "Fees retained by the protocol after the LP/vault share (50% of fees).",
+  Revenue: "50% of trading fees retained by the protocol (protocolRewardRatio=5000/10000).",
   SupplySideRevenue: "50% of trading fees distributed to the vault (liquidity providers).",
-  HoldersRevenue: "30% of trading fees distributed to PIKA token stakers.",
-  ProtocolRevenue: "20% of trading fees sent to the protocol treasury.",
+  ProtocolRevenue: "50% of trading fees sent to the protocol treasury.",
 };
 
 const adapter: SimpleAdapter = {
