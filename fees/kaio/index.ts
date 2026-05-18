@@ -23,6 +23,9 @@ const chainConfig = {
     [CHAIN.NEAR]: "Near",
     [CHAIN.APTOS]: "Aptos",
     [CHAIN.SOLANA]: "Solana",
+    [CHAIN.XDC]: "XDC",
+    [CHAIN.INJECTIVE]: "Injective",
+    [CHAIN.HEDERA]: "Hedera",
 }
 
 async function prefetch(_options: FetchOptions) {
@@ -46,11 +49,10 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     if (options.chain === CHAIN.ETHEREUM) {
         for (const asset of assets) {
-            const managementFees = (asset.tvl || 0) * (MANAGEMENT_FEE_RATES[asset.symbol] || 0) * periodInYears;
-
-            if(asset.tvl > 10_000_000 && MANAGEMENT_FEE_RATES[asset.symbol] === undefined) {
+            if (asset.tvl > 10_000_000 && MANAGEMENT_FEE_RATES[asset.symbol] === undefined) {
                 throw new Error(`Missing management fee rate for ${asset.symbol}`);
             }
+            const managementFees = (asset.tvl || 0) * (MANAGEMENT_FEE_RATES[asset.symbol] || 0) * periodInYears;
 
             dailyFees.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES);
             dailyRevenue.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES);
@@ -59,7 +61,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
             for (const asset of chaindata.assets) {
                 const symbol = instrumentIdToSymbol.get(asset.instrumentId);
                 if (!symbol) continue;
-                const managementFees = (asset.tvl || 0) * (MANAGEMENT_FEE_RATES[symbol]) * periodInYears;
+                const managementFees = (asset.tvl || 0) * (MANAGEMENT_FEE_RATES[symbol] || 0) * periodInYears;
                 dailyFees.addUSDValue(-1 * managementFees, METRIC.MANAGEMENT_FEES);
                 dailyRevenue.addUSDValue(-1 * managementFees, METRIC.MANAGEMENT_FEES);
             }
