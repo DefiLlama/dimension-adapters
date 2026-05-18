@@ -65,6 +65,17 @@ const chainConfig: any = {
 const managementFees = (supply: number, periodSeconds: number) =>
   (supply * NET_EXPENSE_YEAR * periodSeconds) / (365 * 86400);
 
+const getStartTimestamp = (start: string) =>
+  Math.floor(new Date(`${start}T00:00:00Z`).getTime() / 1000);
+
+const toDecimalNumber = (value: bigint, decimals: number) => {
+  const divisor = 10n ** BigInt(decimals);
+  const whole = value / divisor;
+  const fraction = value % divisor;
+
+  return Number(whole) + Number(fraction) / 10 ** decimals;
+};
+
 const formatData = (row: any, options: any, yieldKey = "daily_dividends") => {
   const supply = Number(row?.supply ?? 0);
   return {
@@ -120,14 +131,22 @@ const stellarData = async (options: any) => {
 };
 
 const aptosData = async (options: any) => {
-  const { decimals, tokens: metadata } = chainConfig[CHAIN.APTOS];
+  const {
+    decimals,
+    start,
+    tokens: metadata,
+  } = chainConfig[CHAIN.APTOS];
   const divisor = 10 ** decimals;
+  const startTimestamp = getStartTimestamp(start);
+  const distributor =
+    "0xe10898758351ac7d32835ca8f7ef75a31232d210a1ba9cb628f85aef8a6f8eb6";
   const query = `
     with latest_supply as (
       select
         max_by(json_extract_scalar(move_data, '$.current.value'), block_time) as supply
       from aptos.move_resources
-      where block_time < from_unixtime(${options.endTimestamp})
+      where block_time >= from_unixtime(${startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
         and move_address = ${metadata}
         and move_resource_module = 'fungible_asset'
         and move_resource_name = 'ConcurrentSupply'
@@ -144,7 +163,8 @@ const aptosData = async (options: any) => {
       from aptos.events
       where block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
-        and event_type = '0xe10898758351ac7d32835ca8f7ef75a31232d210a1ba9cb628f85aef8a6f8eb6::fund_token::DividendDistributedEvent'
+        and event_type = '${distributor}::fund_token::DividendDistributedEvent'
+        and guid_account_address = ${distributor}
     )
     select
       coalesce(cast((select supply from latest_supply) as double), 0) / ${divisor} as supply,
@@ -157,47 +177,27 @@ const aptosData = async (options: any) => {
 
 const evmData = async (options: any, config: any) => {
   const { controllers, tokens } = config;
-  const tokenValues = tokens
-    .map((token : any) => `(${token})`)
-    .join(",\n        ");
   const controllerValues = controllers
     .map((controller: string) => `(${controller})`)
     .join(",\n        ");
+  const supplies = await Promise.all(
+    tokens.map((token: string) =>
+      options.api.call({
+        target: token,
+        abi: "erc20:totalSupply",
+      }),
+    ),
+  );
+  const totalSupplyRaw = supplies.reduce(
+    (sum: bigint, value: any) => sum + BigInt(value.toString()),
+    0n,
+  );
+  const supply = toDecimalNumber(totalSupplyRaw, EVM_BENJI_DECIMALS);
 
   const query = `
-    with tokens(contract_address) as (
-      values
-        ${tokenValues}
-    ),
-    controllers(contract_address) as (
+    with controllers(contract_address) as (
       values
         ${controllerValues}
-    ),
-    supply_logs as (
-      select
-        l.topic1,
-        l.topic2,
-        l.data
-      from CHAIN.logs l
-      join tokens t
-        on l.contract_address = t.contract_address
-      where l.block_time < from_unixtime(${options.endTimestamp})
-        and l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-        and (
-          l.topic1 = 0x0000000000000000000000000000000000000000000000000000000000000000
-          or l.topic2 = 0x0000000000000000000000000000000000000000000000000000000000000000
-        )
-    ),
-    supply as (
-      select
-        sum(
-          case
-            when l.topic1 = 0x0000000000000000000000000000000000000000000000000000000000000000 then cast(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) as double)
-            when l.topic2 = 0x0000000000000000000000000000000000000000000000000000000000000000 then -cast(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) as double)
-            else 0
-          end
-        ) / 1e${EVM_BENJI_DECIMALS} as supply
-      from supply_logs l
     ),
     dividends as (
       select
@@ -213,7 +213,6 @@ const evmData = async (options: any, config: any) => {
         and l.topic0 = 0xe0b019f23e4f4948c15bdd9dfa8808b046568a2fda0f2978492dcc284fb79c9a
     )
     select
-      coalesce((select supply from supply), 0) as supply,
       coalesce(sum(shares), 0) as asset_yields
     from dividends
   `;
@@ -221,12 +220,13 @@ const evmData = async (options: any, config: any) => {
   const queryResults = await queryDuneSql(options, query, {
     extraUIDKey: "evm-asset-yields",
   });
-  return formatData(queryResults[0], options, "asset_yields");
+  return formatData({ supply, ...queryResults[0] }, options, "asset_yields");
 };
 
 const solanaData = async (options: any) => {
-  const { decimals, tokens: mint } = chainConfig[CHAIN.SOLANA];
+  const { decimals, start, tokens: mint } = chainConfig[CHAIN.SOLANA];
   const divisor = 10 ** decimals;
+  const startTimestamp = getStartTimestamp(start);
   const query = `
     with supply as (
       select
@@ -238,7 +238,8 @@ const solanaData = async (options: any) => {
           end
         ), 0) as supply
       from tokens_solana.transfers
-      where block_time < from_unixtime(${options.endTimestamp})
+      where block_time >= from_unixtime(${startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
         and token_mint_address = '${mint}'
         and action in ('mint', 'burn')
     ),
