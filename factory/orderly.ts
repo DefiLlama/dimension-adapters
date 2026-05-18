@@ -139,7 +139,7 @@ const feesConfigs: Record<string, Config> = {
     broker_id: "mememax",
     start: "2026-04-09",
     methodology: {
-      Volume: "Maker/taker volume routed through MemeMax's Orderly broker",
+      Volume: "Taker volume routed through MemeMax's Orderly broker",
       Fees: "Builder Fees collected from Orderly Network",
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",
