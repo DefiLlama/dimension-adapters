@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
   const dailyUserFees = options.createBalances()
   const mintRedeemTargets = config.mintRedeem.map(({ target }) => target)
-  const activeVaults = config.vaults.filter(({ start }) => !start || options.startTimestamp >= Date.parse(start) / 1000)
+  const activeVaults = config.vaults.filter(({ start }) => !start || options.dateString >= start)
   const vaultTargets = activeVaults.map(({ target }) => target)
 
   const [mintLogs, redeemLogs] = await Promise.all([
