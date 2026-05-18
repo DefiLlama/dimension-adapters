@@ -5,7 +5,6 @@ import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { METRIC } from "../../helpers/metrics";
 const dataAvaliableTill = (Date.now() / 1e3 - 10 * 3600) // 10 hours ago
 const TRADING_TERMINAL_FEES = 'Trading Terminal Fees'
 const CASHBACK_REFERRAL_PAYOUTS = 'Cashback/Referral Payouts'
@@ -71,7 +70,7 @@ async function fetchSolana(options: FetchOptions) {
     ),
     burnWalletInflows AS (
       SELECT
-        COALESCE(SUM(balance_change), 0) AS holders_revenue_amount
+        COALESCE(SUM(balance_change), 0) AS buyback_burn_amount
       FROM
         solana.account_activity
       WHERE
@@ -97,7 +96,7 @@ async function fetchSolana(options: FetchOptions) {
     SELECT
       SUM(fee) AS fee,
       (SELECT payout_amount FROM cashbackPayouts) AS cashback_payout_amount,
-      (SELECT holders_revenue_amount FROM burnWalletInflows) AS holders_revenue_amount
+      (SELECT buyback_burn_amount FROM burnWalletInflows) AS buyback_burn_amount
     FROM
       botTrades
   `;
@@ -105,19 +104,17 @@ async function fetchSolana(options: FetchOptions) {
   const [row] = await queryDuneSql(options, query);
   const tradingFees = Number(row?.fee ?? 0);
   const cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
-  const holdersRevenue = Number(row?.holders_revenue_amount ?? 0);
+  const buybackBurnAmount = Number(row?.buyback_burn_amount ?? 0);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
 
   dailyFees.add(ADDRESSES.solana.SOL, tradingFees, TRADING_TERMINAL_FEES);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackPayouts, CASHBACK_REFERRAL_PAYOUTS);
-  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, holdersRevenue, METRIC.TOKEN_BUY_BACK);
-  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - holdersRevenue, TRADING_TERMINAL_FEES);
+  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - buybackBurnAmount, TRADING_TERMINAL_FEES);
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
 async function fetchEvm(options: FetchOptions) {
@@ -160,9 +157,6 @@ export const breakdownMethodology = {
   SupplySideRevenue: {
     [CASHBACK_REFERRAL_PAYOUTS]: 'All outbound transfers from the cashback/referral wallet.',
   },
-  HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'Funds sent to the burn wallet for token buyback and burn.',
-  },
 }
 
 const adapter: SimpleAdapter = {
@@ -179,7 +173,6 @@ const adapter: SimpleAdapter = {
     Revenue: "Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.",
     ProtocolRevenue: "Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.",
     SupplySideRevenue: "All outbound transfers from the cashback/referral wallet.",
-    HoldersRevenue: "Funds sent to the burn wallet for token buyback and burn.",
   },
   allowNegativeValue: true,
 };

@@ -15,7 +15,6 @@ const adapter: SimpleAdapter = {
     Revenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts and buyback/burn allocations.",
     ProtocolRevenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts and buyback/burn allocations.",
     SupplySideRevenue: "All outbound transfers from the cashback/referral wallet.",
-    HoldersRevenue: "Funds sent to the burn wallet for token buyback and burn.",
   },
 };
 
