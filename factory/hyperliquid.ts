@@ -217,7 +217,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   "tradoor-perps": {
     addresses: ["0x92345453cE2000642d7D4ceeae4FcCC6c2E41d23"],
-    start: "2026-05-03",
+    start: "2026-02-20",
     methodology: {
       Fees: "Builder code fees paid by users on Hyperliquid Perps trades opened via Tradoor's automated market-making bots (also covers HIP-3 venues that settle on Hyperliquid such as Kinetiq Markets and Trade.xyz).",
       Revenue: "Builder code revenue collected by Tradoor from Hyperliquid Perps Trades.",
@@ -506,21 +506,12 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
     },
   },
   "silhouette-naked": {
-    addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"],
+    addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"], 
     start: "2026-01-16",
     methodology: {
       Fees: "builder code revenue from Open, transparent trading through Silhouette's interface.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
-  "tradoor-perps": {
-    addresses: ["0x92345453cE2000642d7D4ceeae4FcCC6c2E41d23"],
-    start: "2026-05-03",
-    methodology: {
-      Fees: "Builder code fees paid by users on Hyperliquid Perps trades opened via Tradoor's automated market-making bots (also covers HIP-3 venues that settle on Hyperliquid such as Kinetiq Markets and Trade.xyz).",
-      Revenue: "Builder code revenue collected by Tradoor from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "Builder code revenue collected by Tradoor from Hyperliquid Perps Trades.",
     },
   }
 };
