@@ -355,6 +355,9 @@ const configs: Record<string, Record<string, any>> = {
   'fluxflow-v3': {
     [CHAIN.FLUENT]: { factory: '0x69Be606be7Fd2d27C8f9821329c748c77d24FF4f', start: '2026-04-12', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
   },
+  "krokoswap-v3": {
+    [CHAIN.KASPLEX]: { factory: '0x0dfb1Bb755d872EA1fa4d95E4ad0c2E6317Ce9B9', start: '2026-03-04', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
 }
 
 const optionsMap: Record<string, any> = {
