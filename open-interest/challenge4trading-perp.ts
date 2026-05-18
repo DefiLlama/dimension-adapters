@@ -1,49 +1,24 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
 
-const toNumberOrZero = (value: any) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
+const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
+    const res = await fetchURL(
+        `https://api-backend-mainnet.up.railway.app/defillama/derivatives?start=${startTimestamp}&end=${endTimestamp}`
+    );
 
-const adapterFetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-  const res = await globalThis.fetch(
-    `https://api-backend-mainnet.up.railway.app/defillama/derivatives?start=${startTimestamp}&end=${endTimestamp}`
-  );
-
-  if (!res.ok) {
-    console.error(`challenge4trading-perp open-interest fetch failed: ${res.status} ${res.statusText}`);
     return {
-      openInterestAtEnd: 0,
-      longOpenInterestAtEnd: 0,
-      shortOpenInterestAtEnd: 0,
+        openInterestAtEnd: res.openInterestAtEndUsd,
+        longOpenInterestAtEnd: res.longOpenInterestAtEndUsd,
+        shortOpenInterestAtEnd: res.shortOpenInterestAtEndUsd,
     };
-  }
-
-  const data = await res.json();
-
-  return {
-    openInterestAtEnd: toNumberOrZero(data.openInterestAtEndUsd),
-    longOpenInterestAtEnd: toNumberOrZero(data.longOpenInterestAtEndUsd),
-    shortOpenInterestAtEnd: toNumberOrZero(data.shortOpenInterestAtEndUsd),
-  };
-};
-
-const methodology = {
-  OpenInterest:
-    "Open interest is computed by the live production backend from positions that remain open at the end of the requested time window.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    arbitrum: {
-      fetch: adapterFetch,
-      start: "2026-04-15",
-    },
-  },
-  methodology,
+    version: 2,
+    fetch,
+    chains: [CHAIN.ARBITRUM],
+    start: "2026-04-15",
 };
 
 export default adapter;
-
-
