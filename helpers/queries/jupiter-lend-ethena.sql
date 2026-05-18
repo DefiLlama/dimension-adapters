@@ -3,7 +3,7 @@ with
 timeline as (
     select timestamp as day
     from utils.days
-    where timestamp >= timestamp '2025-07-25'
+    where timestamp >= timestamp '2026-05-13'
         and timestamp < FROM_UNIXTIME({{end}})
 )
 
@@ -39,22 +39,12 @@ timeline as (
     select protocol_type, mint, min(block_date) as block_date
     from (
         select protocol_type, supply_mint as mint, block_date from juplend_protocols
-        union
+        union all
         select protocol_type, borrow_mint as mint, block_date from juplend_protocols
     )
     group by 1, 2
 )
 
--- Get vault addresses and decimals for each token
-, juplend_liquidity_tokens as (
-    select 
-          i.account_mint as mint
-        , i.account_vault as vault
-        , t.decimals
-    from jupiter_solana.liquidity_call_init_token_reserve as i
-    left join tokens_solana.fungible as t
-        on i.account_mint = t.token_mint_address
-)
 
 -- Parse exchange rates from LogOperate events in liquidity_call_operate logs
 , liquidity_log_operate_events as (

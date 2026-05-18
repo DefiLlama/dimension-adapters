@@ -48,7 +48,7 @@ const adapter: SimpleAdapter = {
   start: '2026-05-13',
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: 'All interest paid by borrowers in the Jupiter Lend Ethena (USDe) isolated market.',
+    Fees: 'All interest paid by borrowers in the Jupiter Lend Ethena isolated market. Covers USDe/USDG (~$251M active vault), WSOL/USDe (near-dormant), and USDe savings vault. WSOL/USDG vault excluded as it is not USDe-routed.',
     Revenue: 'Amount of interest share to Jupiter and JUP token holders.',
     ProtocolRevenue: '50% of the revenue goes to Jupiter.',
     HoldersRevenue: '50% of the revenue goes to JUP token holders via buy back.',
