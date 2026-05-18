@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
     version: 1, // rate limits
     fetch,
     chains: [CHAIN.ICP],
-    start: '2026-05-13',
+    start: '2023-02-06',
     methodology: {
         Fees: "CHAT token paid for OpenChat diamond membership.",
         Revenue: "CHAT token paid for OpenChat diamond membership.",
