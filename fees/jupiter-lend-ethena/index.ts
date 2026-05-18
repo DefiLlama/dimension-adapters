@@ -73,7 +73,6 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  doublecounted: true,
 };
 
 export default adapter;
