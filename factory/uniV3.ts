@@ -8,6 +8,9 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "xflows": {
+    [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
+  },
   "warpx-v3": {
     [CHAIN.MEGAETH]: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
   },
