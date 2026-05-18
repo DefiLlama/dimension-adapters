@@ -42,12 +42,12 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  dailyVolume: "Notional volume of positions opened and closed (margin * leverage).",
-  dailyFees: "Trading fees paid by traders on opening and closing positions.",
-  dailyRevenue: "Fees retained by the protocol after the LP/vault share (50% of fees).",
-  dailySupplySideRevenue: "50% of trading fees distributed to the vault (liquidity providers).",
-  dailyHoldersRevenue: "30% of trading fees distributed to PIKA token stakers.",
-  dailyProtocolRevenue: "20% of trading fees sent to the protocol treasury.",
+  Volume: "Notional volume of positions opened and closed (margin * leverage).",
+  Fees: "Trading fees paid by traders on opening and closing positions.",
+  Revenue: "Fees retained by the protocol after the LP/vault share (50% of fees).",
+  SupplySideRevenue: "50% of trading fees distributed to the vault (liquidity providers).",
+  HoldersRevenue: "30% of trading fees distributed to PIKA token stakers.",
+  ProtocolRevenue: "20% of trading fees sent to the protocol treasury.",
 };
 
 const adapter: SimpleAdapter = {
