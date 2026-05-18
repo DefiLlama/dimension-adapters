@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils"
 import { METRIC } from "../../helpers/metrics";
+import { ProtocolType } from "../../adapters/types";
 
 const getRavenMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
   const addresses = [
@@ -159,6 +160,7 @@ const adapter: Adapter = {
   start: '2025-12-17',
   methodology,
   breakdownMethodology,
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
