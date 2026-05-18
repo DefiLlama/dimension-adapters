@@ -13,7 +13,7 @@ const methodology = {
     OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
   },
   quickswap: {
-    dailyVolume: "Total cumulativeVolumeUsd for specified chain for the given day",
+    Volume: "Total cumulativeVolumeUsd for specified chain for the given day",
   },
 };
 

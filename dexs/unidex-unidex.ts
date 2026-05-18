@@ -57,7 +57,7 @@ const fetch = (chain: Chain) => {
 };
 
 const methodology = {
-  dailyVolume: "Sum of cumulativeVolumeUsd for all products on the specified chain for the given day",
+  Volume: "Sum of cumulativeVolumeUsd for all products on the specified chain for the given day",
 };
 
 const adapter: SimpleAdapter = {
