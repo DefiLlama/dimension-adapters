@@ -70,14 +70,14 @@ export const chainConfigMap: any = {
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
   [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
-  [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18', burnRatio: 0.8 },
-  [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
-  [CHAIN.SX]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
+  [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start: '2021-12-18', burnRatio: 0.8 },
+  [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start: '2025-02-20' },
+  [CHAIN.SX]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start: '2024-12-05' },
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },
-  [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
+  [CHAIN.RARI]: { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
-  [CHAIN.CAPX] : { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/"},
+  [CHAIN.CAPX]: { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/" },
   [CHAIN.SANKO]: { CGToken: 'dream-machine-token', explorer: 'https://explorer.sanko.xyz/' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'adventure-gold', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
@@ -143,6 +143,7 @@ export const chainConfigMap: any = {
   [CHAIN.MOCA]: { CGToken: 'mocaverse', explorer: 'https://scan.mocachain.org', start: '2026-01-26' },
   [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz', allStatsApi: 'https://fluentscan.xyz/node-api/proxy' },
   [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
+  [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
 }
 
 function getTimeString(timestamp: number) {
