@@ -7,7 +7,8 @@ export enum AERODROME_METRIC {
 	SWAP_FEES = METRIC.SWAP_FEES,
 	VOTER_FEES = "VOTER_FEES",
 	BRIBES_REVENUE = "BRIBES_REVENUE",
-	LP_FEES = "LP_FEES"
+	LP_FEES = "LP_FEES",
+	LP_GAUGE_REWARDS = "LP Gauge Rewards"
 }
 
 interface AerodromeABI {
@@ -59,6 +60,11 @@ export const getAerodromeV2Export = (
 			gauges
 		});
 
+		const tokenIncentives = await CommonFetchers.getGaugesIncentive(fetchOptions, {
+			VOTER_ADDRESS: config.VOTER_ADDRESS,
+			gauges
+		});
+
 		const dailyHoldersRevenue = fetchOptions.createBalances();
 		dailyHoldersRevenue.add(voterRevenue, AERODROME_METRIC.VOTER_FEES);
 		dailyHoldersRevenue.add(bribesRevenue, AERODROME_METRIC.BRIBES_REVENUE);
@@ -68,7 +74,8 @@ export const getAerodromeV2Export = (
 			dailyFees: fees,
 			dailyRevenue: voterRevenue,
 			dailySupplySideRevenue: supplySideRevenue,
-			dailyHoldersRevenue
+			dailyHoldersRevenue,
+			tokenIncentives
 		};
 	};
 };

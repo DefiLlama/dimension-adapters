@@ -18,7 +18,16 @@ export const V2_POOL_FACTORY = {
 export const VOTER = {
 	function: {
 		gauges: "function gauges(address) view returns (address)",
-		gaugeToBribe: "function gaugeToBribe(address) external view returns (address)"
+		gaugeToBribe: "function gaugeToBribe(address) external view returns (address)",
+		epochStart: "function epochStart(uint256) internal pure returns (uint256)",
+		epochNext: "function epochNext(uint256) internal pure returns (uint256)"
+	}
+};
+
+export const GAUGE = {
+	function: {
+		rewardToken: "address:rewardToken",
+		rewardRateByEpoch: "function rewardRateByEpoch(uint256) external view returns (uint256)"
 	}
 };
 

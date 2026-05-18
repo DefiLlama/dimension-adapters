@@ -120,3 +120,86 @@ export const getBribesRevenue = async (
 
 	return balance;
 };
+
+export interface EpochFetcherOptions {
+	VOTER_ADDRESS: string;
+}
+
+export const getEpochs = async (
+	fetchOptions: FetchOptions,
+	options: EpochFetcherOptions
+): Promise<number[]> => {
+	const { api, fromTimestamp, toTimestamp } = fetchOptions;
+	const epochStart = await api.call({
+		target: options.VOTER_ADDRESS,
+		abi: ABI.VOTER.function.epochStart,
+		params: [fromTimestamp],
+		permitFailure: true
+	});
+
+	if (!epochStart) return [];
+
+	const epochs: number[] = [Number(epochStart)];
+	while (true) {
+		const lastFetchedEpoch = epochs[epochs.length - 1];
+		const epochNext = Number(
+			await api.call({
+				target: options.VOTER_ADDRESS,
+				abi: ABI.VOTER.function.epochNext,
+				params: [lastFetchedEpoch]
+			})
+		);
+
+		if (epochNext >= toTimestamp) break;
+		epochs.push(epochNext);
+	}
+
+	return epochs;
+};
+
+export interface GaugesIncentiveFetcherOptions {
+	VOTER_ADDRESS: string;
+	gauges: string[];
+}
+
+export const getGaugesIncentive = async (
+	fetchOptions: FetchOptions,
+	options: GaugesIncentiveFetcherOptions
+) => {
+	const balance = fetchOptions.createBalances();
+	if (!options.gauges.length) return balance;
+
+	const { api, fromTimestamp, toTimestamp } = fetchOptions;
+	const epochs = await getEpochs(fetchOptions, {
+		VOTER_ADDRESS: options.VOTER_ADDRESS
+	});
+
+	const epochRates = await api.multiCall({
+		abi: ABI.GAUGE.function.rewardRateByEpoch,
+		calls: epochs
+			.map((epoch) =>
+				options.gauges.map((gauge) => ({
+					target: gauge,
+					params: [epoch]
+				}))
+			)
+			.flat()
+	});
+
+	const rewardTokens = await api.multiCall({
+		abi: ABI.GAUGE.function.rewardToken,
+		calls: options.gauges
+	});
+
+	const step = options.gauges.length;
+	epochRates.forEach((epochRate, i) => {
+		const epochIndex = Math.floor(i / step);
+		const _fromTs = epochIndex === 0 ? fromTimestamp : epochs[epochIndex];
+		const _toTs = epochs[epochIndex + 1] ?? toTimestamp;
+		const durationInSeconds = _toTs - _fromTs;
+
+		balance.add(rewardTokens[i % step], BigNumber(epochRate).times(durationInSeconds));
+	});
+
+	return balance;
+};
