@@ -33,7 +33,7 @@ export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: s
   const bribes_contract = logs_gauge_created
     .filter((log) => (log.address || log.source).toLowerCase() === voter.toLowerCase())
   const pools = bribes_contract.map(log => log.args.pool.toLowerCase())
-  const poolsFactories = (await fetchOptions.api.multiCall({ abi:'address:factory', calls: pools}))
+  const poolsFactories = (await fetchOptions.api.multiCall({ abi: 'address:factory', calls: pools }))
   const bribes_contracts_v2 = bribes_contract.filter((_, index) => poolsFactories[index].toLowerCase() === factory.toLowerCase()).map((log) => log.args.feeDistributor.toLowerCase())
   const bribeSet = new Set(bribes_contracts_v2)
 
@@ -52,11 +52,9 @@ export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: s
 const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailyHoldersRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
-  const dailyProtocolRevenue = createBalances() 
+  const gaugedFees = createBalances()
+  const supplySideFees = createBalances()
+  const protocolFees = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${CONFIG.factory.toLowerCase()}-${chain}.json`
@@ -65,9 +63,9 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   pairs.forEach((pair: string, i: number) => {
     pairObject[pair] = [token0s[i], token1s[i]]
   })
-  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances })
   const poolAddresses = Object.keys(filteredPools)
-  const fees = await api.multiCall({ abi: abis.fee,  calls: poolAddresses })
+  const fees = await api.multiCall({ abi: abis.fee, calls: poolAddresses })
   const feeRecipients = await api.multiCall({ abi: 'address:feeRecipient', calls: poolAddresses })
   const aeroPoolSet = new Set()
   const poolInfoMap = {} as any
@@ -120,11 +118,11 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
           const fee1 = amount1 * fee
           addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
           if (hasGauge) {
-            addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
+            addOneToken({ chain, balances: gaugedFees, token0, token1, amount0: fee0, amount1: fee1 })
           }
           else {
-            addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
-            addOneToken({ chain, balances: dailyProtocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
+            addOneToken({ chain, balances: supplySideFees, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
+            addOneToken({ chain, balances: protocolFees, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
           }
         })
       } catch (e) {
@@ -136,15 +134,30 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   if (errorFound) throw errorFound
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
-  // Exclude bribes by external protocols
-  const dailyUserFees = createBalances()
-  dailyUserFees.addBalances(dailyHoldersRevenue)
+
+  const dailyHoldersRevenue = createBalances()
+  dailyHoldersRevenue.addBalances(gaugedFees, 'Gauged Pool Fees')
+
+  const dailySupplySideRevenue = createBalances()
+  dailySupplySideRevenue.addBalances(supplySideFees, 'Swap Fees To LPs')
+
+  const dailyProtocolRevenue = createBalances()
+  dailyProtocolRevenue.addBalances(protocolFees, 'Protocol Fee')
+
+  // UserFees = all user-paid swap fees (before external bribes)
+  const dailyUserFees = dailyHoldersRevenue.clone(1)
   dailyUserFees.addBalances(dailySupplySideRevenue)
   dailyUserFees.addBalances(dailyProtocolRevenue)
-  dailyHoldersRevenue.addBalances(dailyBribesRevenue)
-  dailyRevenue.addBalances(dailyProtocolRevenue)
-  dailyRevenue.addBalances(dailyHoldersRevenue)
-  dailyFees.addBalances(dailyRevenue)
+
+  // Snapshot pre-bribe holders revenue for fee/revenue rollups
+  const feeDerivedHoldersRevenue = dailyHoldersRevenue.clone(1)
+  // External bribes only in holdersRevenue, not in fees/revenue
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Voting Bribes')
+
+  const dailyRevenue = dailyProtocolRevenue.clone(1)
+  dailyRevenue.addBalances(feeDerivedHoldersRevenue)
+
+  const dailyFees = dailyRevenue.clone(1)
   dailyFees.addBalances(dailySupplySideRevenue)
 
   return {
@@ -158,11 +171,38 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   }
 }
 const methodology = {
-  Fees: "User pays fees on each swap.",
+  Fees: "Swap fees paid by traders on all pools.",
   UserFees: "Swap fees paid by traders.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "Fees from gauged pools and voting bribes are distributed among xSHADOW holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
+  ProtocolRevenue: "5% of non-gauged pool fees going to the protocol treasury.",
+  HoldersRevenue: "Fees from gauged pools and voting bribes distributed to xSHADOW holders.",
+  SupplySideRevenue: "95% of non-gauged pool fees distributed to LPs.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Gauged Pool Fees': 'Swap fees from gauge-enabled pools.',
+    'Swap Fees To LPs': '95% of swap fees from non-gauged pools distributed to LPs.',
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
+  UserFees: {
+    'Gauged Pool Fees': 'Swap fees paid by traders on gauge-enabled pools.',
+    'Swap Fees To LPs': 'Swap fees paid by traders on non-gauged pools (LP portion).',
+    'Protocol Fee': 'Swap fees paid by traders on non-gauged pools (protocol portion).',
+  },
+  Revenue: {
+    'Gauged Pool Fees': 'Swap fees from gauged pools distributed to xSHADOW holders.',
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
+  HoldersRevenue: {
+    'Gauged Pool Fees': 'Swap fees from gauged pools distributed to xSHADOW holders.',
+    'Voting Bribes': 'External incentives deposited by protocols to attract xSHADOW voter liquidity.',
+  },
+  SupplySideRevenue: {
+    'Swap Fees To LPs': '95% of swap fees from non-gauged pools distributed to LPs.',
+  },
+  ProtocolRevenue: {
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -170,6 +210,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology,
+  breakdownMethodology,
   chains: [CHAIN.SONIC],
   start: '2025-02-02',
 }

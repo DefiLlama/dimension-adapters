@@ -24,14 +24,12 @@ const CONFIG = {
 
 const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = options
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
   const dailyVolume = createBalances();
-  const dailyHoldersRevenue = createBalances()
-  const dailyProtocolRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
+  const gaugedFees = createBalances()
+  const supplySideFees = createBalances()
+  const protocolFees = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools"}).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
+  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools" }).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
   const poolsWithGaugesSet = new Set(poolsWithGauges)
   const InstantExitLogs = await getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
@@ -44,9 +42,6 @@ const fetch = async (options: FetchOptions) => {
     shadowPenaltyAmount += Number(log.amount) / 1e18;
   }
 
-  // xSHADOW instant-exit penalty is redistributed to remaining xSHADOW holders
-  dailyHoldersRevenue.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
-
   const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
 
   const pairObject: IJSON<string[]> = {}
@@ -57,9 +52,9 @@ const fetch = async (options: FetchOptions) => {
     pairObject[log.pool] = [log.token0, log.token1]
   })
 
-  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances })
   const poolAddresses = Object.keys(filteredPools)
-  const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
+  const fees = await api.multiCall({ abi: 'uint256:fee', calls: poolAddresses })
   const aeroPoolSet = new Set()
   const poolInfoMap = {} as any
   poolAddresses.forEach((pair, index) => {
@@ -110,11 +105,11 @@ const fetch = async (options: FetchOptions) => {
           const fee1 = amount1 * fee
           addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
           if (hasGauge) {
-            addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
+            addOneToken({ chain, balances: gaugedFees, token0, token1, amount0: fee0, amount1: fee1 })
           }
           else {
-            addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
-            addOneToken({ chain, balances: dailyProtocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
+            addOneToken({ chain, balances: supplySideFees, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
+            addOneToken({ chain, balances: protocolFees, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
           }
         })
       } catch (e) {
@@ -125,15 +120,30 @@ const fetch = async (options: FetchOptions) => {
 
   if (errorFound) throw errorFound
   const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
-  // Exclude bribes by external protocols
-  const dailyUserFees = createBalances()
-  dailyUserFees.addBalances(dailyHoldersRevenue)
+
+  const dailyHoldersRevenue = createBalances()
+  dailyHoldersRevenue.addBalances(gaugedFees, 'Gauged Pool Fees')
+  dailyHoldersRevenue.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount, 'xSHADOW Exit Penalty')
+
+  const dailySupplySideRevenue = createBalances()
+  dailySupplySideRevenue.addBalances(supplySideFees, 'Swap Fees To LPs')
+
+  const dailyProtocolRevenue = createBalances()
+  dailyProtocolRevenue.addBalances(protocolFees, 'Protocol Fee')
+
+  // UserFees = all user-paid swap fees + exit penalty (before external bribes)
+  const dailyUserFees = dailyHoldersRevenue.clone(1)
   dailyUserFees.addBalances(dailySupplySideRevenue)
   dailyUserFees.addBalances(dailyProtocolRevenue)
-  dailyHoldersRevenue.addBalances(dailyBribesRevenue)
-  dailyRevenue.addBalances(dailyProtocolRevenue)
-  dailyRevenue.addBalances(dailyHoldersRevenue)
-  dailyFees.addBalances(dailyRevenue)
+
+  const feeDerivedHoldersRevenue = dailyHoldersRevenue.clone(1)
+  // External bribes only in holdersRevenue, not in fees/revenue
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Voting Bribes')
+
+  const dailyRevenue = dailyProtocolRevenue.clone(1)
+  dailyRevenue.addBalances(feeDerivedHoldersRevenue)
+
+  const dailyFees = dailyRevenue.clone(1)
   dailyFees.addBalances(dailySupplySideRevenue)
 
   return {
@@ -148,17 +158,49 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "User pays fees on each swap.",
-  UserFees: "Swap fees paid by traders.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "Fees from gauged pools, voting bribes, and the xSHADOW instant-exit penalty are all distributed among xSHADOW holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
+  Fees: "Swap fees paid by traders on all pools, plus xSHADOW instant-exit penalties.",
+  UserFees: "Swap fees paid by traders and xSHADOW instant-exit penalties.",
+  ProtocolRevenue: "5% of non-gauged pool fees going to the protocol treasury.",
+  HoldersRevenue: "Fees from gauged pools, voting bribes, and the xSHADOW instant-exit penalty distributed to xSHADOW holders.",
+  SupplySideRevenue: "95% of non-gauged pool fees distributed to LPs.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Gauged Pool Fees': 'Swap fees from gauge-enabled pools.',
+    'xSHADOW Exit Penalty': 'Instant-exit penalty paid by users redeeming xSHADOW early.',
+    'Swap Fees To LPs': '95% of swap fees from non-gauged pools distributed to LPs.',
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
+  UserFees: {
+    'Gauged Pool Fees': 'Swap fees paid by traders on gauge-enabled pools.',
+    'xSHADOW Exit Penalty': 'Instant-exit penalty paid by users redeeming xSHADOW early.',
+    'Swap Fees To LPs': 'Swap fees paid by traders on non-gauged pools (LP portion).',
+    'Protocol Fee': 'Swap fees paid by traders on non-gauged pools (protocol portion).',
+  },
+  Revenue: {
+    'Gauged Pool Fees': 'Swap fees from gauged pools distributed to xSHADOW holders.',
+    'xSHADOW Exit Penalty': 'xSHADOW instant-exit penalty redistributed to remaining holders.',
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
+  HoldersRevenue: {
+    'Gauged Pool Fees': 'Swap fees from gauged pools distributed to xSHADOW holders.',
+    'xSHADOW Exit Penalty': 'xSHADOW instant-exit penalty redistributed to remaining holders.',
+    'Voting Bribes': 'External incentives deposited by protocols to attract xSHADOW voter liquidity.',
+  },
+  SupplySideRevenue: {
+    'Swap Fees To LPs': '95% of swap fees from non-gauged pools distributed to LPs.',
+  },
+  ProtocolRevenue: {
+    'Protocol Fee': '5% of swap fees from non-gauged pools going to the protocol treasury.',
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
+  breakdownMethodology,
   fetch,
   chains: [CHAIN.SONIC],
   start: "2024-12-27"

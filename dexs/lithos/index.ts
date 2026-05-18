@@ -91,7 +91,7 @@ const getDailyBribesRevenue = async (
     if (!token) return;
 
     const amount = normaliseAmount(log?.reward ?? log?.amount ?? log?.[1] ?? 0);
-    dailyBribesRevenue.add(token, amount);
+    dailyBribesRevenue.add(token, amount, 'Voting Bribes');
   });
 
   return dailyBribesRevenue;
@@ -100,17 +100,17 @@ const getDailyBribesRevenue = async (
 const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   const { dailyVolume, dailyFees: swapFees } = await baseFetch(fetchOptions);
 
+  // External bribes: only goes to veLITH holders, NOT into fees/revenue
   const dailyHoldersRevenue = await getDailyBribesRevenue(fetchOptions);
 
-  const dailyUserFees = swapFees.clone(1);
-  const dailyProtocolRevenue = swapFees.clone(PROTOCOL_FEE_SHARE);
-  const dailySupplySideRevenue = swapFees.clone(LP_FEE_SHARE);
+  const dailyUserFees = swapFees.clone(1, 'Swap Fees');
+  const dailyProtocolRevenue = swapFees.clone(PROTOCOL_FEE_SHARE, 'Protocol Fee');
+  const dailySupplySideRevenue = swapFees.clone(LP_FEE_SHARE, 'LP Fees');
 
+  // Revenue = only protocol cut from swaps, bribes excluded
   const dailyRevenue = dailyProtocolRevenue.clone(1);
-  dailyRevenue.addBalances(dailyHoldersRevenue);
 
-  const dailyFees = swapFees.clone(1);
-  dailyFees.addBalances(dailyHoldersRevenue);
+  const dailyFees = swapFees.clone(1, 'Swap Fees');
 
   return {
     dailyVolume,
@@ -124,20 +124,31 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Users pay 0.25% on volatile swaps and 0.05% on stable swaps, plus external incentives deposited into Lithos bribe contracts.",
+  Fees: "Users pay 0.25% on volatile swaps and 0.05% on stable swaps.",
   UserFees: "Users are charged the full swap fee on every trade.",
-  Revenue: "12% treasury share of swap fees plus external bribes/incentives distributed to veLITH voters.",
-  ProtocolRevenue: "12% treasury share of collected swap fees.",
+  Revenue: "12% of swap fees going to the protocol treasury.",
+  ProtocolRevenue: "12% of collected swap fees going to the protocol treasury.",
   HoldersRevenue: "External incentives deposited into Lithos bribe contracts for veLITH voters.",
-  SupplySideRevenue: "88% of collected swap fees accrue to LPs via internal fee bribes.",
+  SupplySideRevenue: "88% of collected swap fees accruing to LPs.",
+};
+
+const breakdownMethodology = {
+  Fees: { 'Swap Fees': 'Fees paid by traders on volatile (0.25%) and stable (0.05%) swaps.' },
+  UserFees: { 'Swap Fees': 'Fees paid by traders on volatile (0.25%) and stable (0.05%) swaps.' },
+  Revenue: { 'Protocol Fee': '12% of swap fees going to the protocol treasury.' },
+  ProtocolRevenue: { 'Protocol Fee': '12% of swap fees going to the protocol treasury.' },
+  SupplySideRevenue: { 'LP Fees': '88% of swap fees distributed to liquidity providers.' },
+  HoldersRevenue: { 'Voting Bribes': 'External incentives deposited into Lithos bribe contracts for veLITH voters.' },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: START_DATE,
   chains: [CHAIN.PLASMA],
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

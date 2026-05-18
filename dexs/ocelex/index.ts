@@ -46,8 +46,8 @@ export const fees_bribes = async ({
     eventAbi: event_reward_added,
   });
   logs.map((e: any) => {
-    if (e.rewardToken.toLowerCase() === bveOCX) dailyFees.add(OCX, e.reward);
-    else dailyFees.add(e.rewardToken, e.reward);
+    if (e.rewardToken.toLowerCase() === bveOCX) dailyFees.add(OCX, e.reward, 'Voting Bribes');
+    else dailyFees.add(e.rewardToken, e.reward, 'Voting Bribes');
   });
   return dailyFees;
 };
@@ -56,30 +56,42 @@ const fetch = async (options: FetchOptions) => {
   const adapter = getUniV3LogAdapter({ factory: '0x03057ae6294292b299a1863420edD65e0197AFEf', ...config })
   const otherMetrics = await adapter(options)
 
+  // External voting bribes: only in holdersRevenue
   const bribes = await fees_bribes(options)
-  const dailyFees = options.createBalances()
-  dailyFees.addBalances(otherMetrics.dailyFees)
-  dailyFees.addBalances(bribes)
-  const dailyRevenue = options.createBalances()
-  dailyRevenue.addBalances(bribes)
 
   return {
     ...otherMetrics,
-    dailyFees,
-    dailyRevenue,
     dailyHoldersRevenue: bribes,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
-    Fees: 'Users pay dynamic fees per swap, plus voting bribes/incentives paid by protocols.',
+    Fees: 'Users pay dynamic fees per swap.',
     UserFees: 'Users pay dynamic fees per swap.',
-    Revenue: 'Voting bribes/incentives distributed to veOCX holders.',
+    Revenue: 'No protocol revenue from swaps (all swap fees go to LPs).',
     ProtocolRevenue: 'No protocol revenue.',
-    HoldersRevenue: 'Voting bribes/incentives distributed to veOCX holders.',
-    SupplySideRevenue: 'Swap fees distributed to LPs.',
+    HoldersRevenue: 'Voting bribes/incentives deposited by protocols and distributed to veOCX holders.',
+    SupplySideRevenue: 'All swap fees distributed to LPs.',
+  },
+  breakdownMethodology: {
+    UserFees: {
+      'Trading fees': 'Swap fees paid by traders.',
+    },
+    Revenue: {
+      'Protocol fees': 'No protocol cut — all swap fees go to LPs.',
+    },
+    SupplySideRevenue: {
+      'LP fees': 'All swap fees distributed to liquidity providers.',
+    },
+    ProtocolRevenue: {
+      'Protocol fees': 'No protocol cut — all swap fees go to LPs.',
+    },
+    HoldersRevenue: {
+      'Voting Bribes': 'External incentives deposited by protocols to attract veOCX voter liquidity.',
+    },
   },
   adapter: {
     [CHAIN.ZIRCUIT]: { fetch, start: '2024-09-27' },
