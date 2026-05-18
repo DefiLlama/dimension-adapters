@@ -100,7 +100,7 @@ const fetch = async (options: FetchOptions) => {
     });
 
     for (const revShare of revenueDistributionLogs) {
-        dailyHoldersRevenue.add(revShare.upToken, revShare.supAmount, METRIC.STAKING_REWARDS);
+        dailyHoldersRevenue.add(revShare.upToken, revShare.supAmount, "Protocol Fees To sUP Vault");
         dailyProtocolRevenue.add(revShare.upToken, revShare.treasuryAmount, "Protocol Fees To Treasury");
     };
 
@@ -141,7 +141,7 @@ const breakdownMethodology = {
         [METRIC.MANAGEMENT_FEES]: "Management fees collected by Superform.",
     },
     HoldersRevenue: {
-        [METRIC.STAKING_REWARDS]: "Percentage of protocol fees converted to $UP and routed to the sUP strategy vault.",
+        "Protocol Fees To sUP Vault": "Percentage of protocol fees converted to $UP and routed to the sUP strategy vault.",
     },
     ProtocolRevenue: {
         "Protocol Fees To Treasury": "Percentage of protocol fees converted to $UP and routed to the Superform Foundation treasury.",
