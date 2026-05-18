@@ -100,6 +100,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.XDC],
   start: "2023-09-01",
   methodology: {
