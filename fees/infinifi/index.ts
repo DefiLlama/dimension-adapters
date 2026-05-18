@@ -11,15 +11,16 @@ const YIELD_SHARING_ABI = {
 
 const YIELD_SHARING_V2 = "0x1cb9ed33924741f500e739e38c3215a76cd1f579";
 const YIELD_SHARING_V3 = "0x90e91f5bfd9a0a4d925bf30b512add8cd2bbae3b";
-const V3_START_DATE = "2026-04-14";
+const V3_START_TIMESTAMP = 1776170387 //"2026-04-14";
 const WAD = 10n ** 18n;
+const ONE_HOUR_IN_SECONDS = 60 * 60;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const useNewYieldSharingContract = options.dateString >= V3_START_DATE;
+  const useNewYieldSharingContract = options.startTimestamp >= V3_START_TIMESTAMP;
   const YIELD_SHARING_CONTRACT = useNewYieldSharingContract ? YIELD_SHARING_V3 : YIELD_SHARING_V2;
 
   const [performanceFeeRaw, receiptToken] = await options.api.batchCall([
@@ -68,11 +69,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 
   const rawSafetyBufferNetChange = BigInt(safetyBufferAtEndRaw) - BigInt(safetyBufferAtStartRaw);
-  const safetyBufferNetChange =
+  let safetyBufferNetChange =
     rawSafetyBufferNetChange >= 0n
       ? (rawSafetyBufferNetChange > positiveAccrued ? positiveAccrued : rawSafetyBufferNetChange)
       : (-rawSafetyBufferNetChange > negativeAccrued ? -negativeAccrued : rawSafetyBufferNetChange);
-
+  
+  //migration from v2 to v3
+  if(options.startTimestamp >= V3_START_TIMESTAMP && options.endTimestamp < V3_START_TIMESTAMP + ONE_HOUR_IN_SECONDS) {
+    safetyBufferNetChange = 0n;
+  }
+  
   const netUserYield = grossYieldNetOfProtocolFee - safetyBufferNetChange;
 
   dailyFees.add(receiptTokenAddress, protocolFeesCollected, METRIC.PERFORMANCE_FEES);
