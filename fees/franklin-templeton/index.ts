@@ -180,14 +180,10 @@ const evmData = async (options: any, config: any) => {
   const controllerValues = controllers
     .map((controller: string) => `(${controller})`)
     .join(",\n        ");
-  const supplies = await Promise.all(
-    tokens.map((token: string) =>
-      options.api.call({
-        target: token,
-        abi: "erc20:totalSupply",
-      }),
-    ),
-  );
+  const supplies = await options.api.multiCall({
+    abi: "erc20:totalSupply",
+    calls: tokens,
+  });
   const totalSupplyRaw = supplies.reduce(
     (sum: bigint, value: any) => sum + BigInt(value.toString()),
     0n,
