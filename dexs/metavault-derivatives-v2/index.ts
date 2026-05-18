@@ -60,7 +60,7 @@ const fetch = (endpoint) => {
 };
 
 const methodology = {
-  dailyVolume:
+  Volume:
     "Total cumulativeVolumeUsd for specified chain for the given day",
 }
 

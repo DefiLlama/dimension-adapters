@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    dailyVolume: "Volume is calculated by summing the amountIn values from Route events emitted by SuperSwap router contracts across all supported chains."
+    Volume: "Volume is calculated by summing the amountIn values from Route events emitted by SuperSwap router contracts across all supported chains."
   },
 }
 
