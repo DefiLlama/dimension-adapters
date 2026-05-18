@@ -7,7 +7,7 @@ const PROTOCOL_FEE_SHARE = 0.25;
 
 const methodology = {
   Fees: "DragonSwap V3 charges per-pool swap fees (0.01%, 0.05%, or 0.3% per swap).",
-  Revenue: "Protocol share of swap fees.",
+  Revenue: "25% of the swap fees collected by the protocol.",
   ProtocolRevenue: "Protocol's 25% share of swap fees, accrued per pool and collected by the treasury.",
   SupplySideRevenue: "Remaining 75% of swap fees distributed to liquidity providers.",
 }
