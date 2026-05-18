@@ -143,10 +143,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-    Volume: {
-        'Trading Volume': "Gross ETH traded on share buys/sells",
-        'Pack Sales': "Pack shop primary mints (quantity × pricePerToken from the active claim condition, native ETH only)",
-    },
     Fees: {
         [METRIC.TRADING_FEES]: "Trading fees paid by users",
         'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
