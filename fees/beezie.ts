@@ -104,6 +104,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV2Abi.played,
+      onlyArgs:false,
     });
 
     for (const log of logs) {
@@ -111,13 +112,14 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, BigInt(log.amount.toString()) * 500n / 10_000n, "Claw Machine Fees");
+      dailyFees.add(token, BigInt(log.args.amount.toString()) * 500n / 10_000n, "Claw Machine Fees");
     }
   } else {
     // V1: Played(user, amount, commission) — commission goes to protocol
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV1Abi.played,
+      onlyArgs: false,
     });
 
     for (const log of logs) {
@@ -125,7 +127,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, log.commission, "Claw Machine Fees");
+      dailyFees.add(token, log.args.commission, "Claw Machine Fees");
     }
   }
 
