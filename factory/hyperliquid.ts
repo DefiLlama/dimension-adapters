@@ -1,4 +1,4 @@
-import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter } from "../helpers/hyperliquid";
+import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type HyperliquidMarket } from "../helpers/hyperliquid";
 import { createFactoryExports } from "./registry";
 
 interface BuilderConfig {
@@ -8,6 +8,7 @@ interface BuilderConfig {
   methodology?: any;
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
+  market?: HyperliquidMarket;
 }
 
 // Builder adapter configs for dexs: protocol name -> config
@@ -648,6 +649,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
+    market: config.market,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
@@ -667,6 +669,7 @@ for (const [name, config] of Object.entries(builderFeesConfigs)) {
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
+    market: config.market,
   });
 }
 
