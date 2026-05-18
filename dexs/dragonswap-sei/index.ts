@@ -7,7 +7,7 @@ const PROTOCOL_FEE_SHARE = 0.3;
 
 const methodology = {
   Fees: "DragonSwap protocol swap fee (0.3% per swap).",
-    Revenue: "When the protocol fee switch is enabled, the protocol takes 30% of swap fees",
+  Revenue: "The protocol's 30% cut of swap fees collected by the treasury.",
   ProtocolRevenue: "The protocol's 30% cut of swap fees collected by the treasury.",
   SupplySideRevenue: "Fees distributed to the LP providers (70% of total accumulated fees).",
 }
