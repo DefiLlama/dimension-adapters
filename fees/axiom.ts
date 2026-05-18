@@ -5,7 +5,7 @@ import { queryDuneSql } from '../helpers/dune';
 
 const LABELS = {
   TRADING_FEES: 'Trading Fees',
-  TRADING_FEES_TO_PROTOCOL: 'Trading Fees To Protocol',
+  TRADING_FEES_TO_PROTOCOL: 'Trading Fees to protocol',
   REFERRAL_PAYOUTS: 'Referral Payouts',
   CASHBACK_PAYOUTS: 'Cashback Payouts',
 } as const;
