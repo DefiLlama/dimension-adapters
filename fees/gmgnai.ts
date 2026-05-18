@@ -90,15 +90,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       start: '2024-12-02'
     },
-    // GMGN.ai officially supports Solana, BSC, Base, and Ethereum
-    // (https://gmgn.ai). The same fee-collector EOA address is used across
-    // all EVM chains. Verified on-chain (2026-05-17, `eth_getBalance` at the
-    // fee collector across historical blocks):
-    //   - Ethereum: 4.07 ETH 90 days ago -> 306.03 ETH today (~252 ETH / 30d)
-    //   - Base:     27.5 ETH 30 days ago -> 225.93 ETH today (~199 ETH / 30d)
-    //   - BSC:                              1851 BNB today (already tracked)
-    // The Ethereum and Base balances grow continuously with the same pattern
-    // the BSC adapter already tracks, so we add both chains here.
     [CHAIN.ETHEREUM]: {
       start: '2024-01-13'
     },
