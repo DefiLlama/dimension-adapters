@@ -206,6 +206,9 @@ const _queryDune = async (queryId: string, query_parameters: any = {}, options?:
       success = true
       let endTime = +Date.now() / 1e3
 
+      const executionCostCredits = executionCostMap[queryId]
+      log(`[Dune] queryId=${queryId} credits=${executionCostCredits ?? 'n/a'} rows=${rows?.length ?? 0} took=${(endTime - startTime).toFixed(1)}s`)
+
       await elastic.addRuntimeLog({
         runtime: endTime - startTime, success, metadata: {
           ...dimensionProtocolMetadata,
@@ -213,7 +216,7 @@ const _queryDune = async (queryId: string, query_parameters: any = {}, options?:
           ...duneMetadata,
           ...metadata,
           rows: rows?.length,
-          executionCostCredits: executionCostMap[queryId],
+          executionCostCredits,
         },
       })
       return rows
