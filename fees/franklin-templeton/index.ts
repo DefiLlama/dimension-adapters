@@ -285,7 +285,7 @@ const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
   dailyFees.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
 
   dailyRevenue.addUSDValue(data.managementFees, METRIC.MANAGEMENT_FEES);
-  dailySupplySideRevenue.addUSDValue(data.assetYields, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addUSDValue(data.assetYields, 'Assets Yields To Suppliers');
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue };
 };
@@ -302,7 +302,7 @@ const breakdownMethodology = {
       "Estimated fund expenses retained by Franklin Templeton.",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]:
+    "Assets Yields To Suppliers":
       "Net income passed through to BENJI holders.",
   },
 };
