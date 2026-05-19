@@ -1,6 +1,5 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addOneToken } from "../../helpers/prices";
 
 // Clutch Anvil AMM — permissionless NFT AMM. Each market deploys an
 // `NFTAMMVault` that swaps an ERC20 token (paired 1:N to a specific NFT
@@ -24,18 +23,21 @@ import { addOneToken } from "../../helpers/prices";
 // burned (deflationary on the token), staker fee streams to the staking
 // vault as rewards. We expose the full fee tranche as protocol revenue.
 
-const FACTORY_BY_CHAIN: Record<string, { factory: string; fromBlock: number }> = {
+const chainsConfig: Record<string, { factory: string; fromBlock: number; start: string }> = {
   [CHAIN.ETHEREUM]: {
     factory: "0xEA095646EC6A56EDbFEe84cCcf23eFCec12566A0",
     fromBlock: 24720104,
+    start: "2026-03-23",
   },
   [CHAIN.BASE]: {
     factory: "0x5ef900789a0faa1fDE3e9796441B62b66f0ab2Aa",
     fromBlock: 45593260,
+    start: "2026-04-01",
   },
   [CHAIN.APECHAIN]: {
     factory: "0x87B62309B6fF4FA184C89919351bEbd3AC11Fc84",
     fromBlock: 34900822,
+    start: "2026-02-15",
   },
 };
 
@@ -50,16 +52,15 @@ const NFT_SOLD_ABI =
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { chain, createBalances, getLogs } = options;
-  const { factory, fromBlock } = FACTORY_BY_CHAIN[chain];
+  const { factory, fromBlock } = chainsConfig[chain];
 
   const dailyVolume = createBalances();
-  const dailyFees = createBalances();
+  const dailyFees = createBalances();  
 
   const markets = await getLogs({
     target: factory,
     fromBlock,
-    eventAbi: MARKET_CREATED_ABI,
-    onlyArgs: true,
+    eventAbi: MARKET_CREATED_ABI, 
     cacheInCloud: true,
   });
 
@@ -80,35 +81,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       eventAbi: NFT_BOUGHT_ABI,
       flatten: true,
       entireLog: true,
+      parseLog: true,
     }),
     getLogs({
       targets: ammVaults,
       eventAbi: NFT_SOLD_ABI,
       flatten: true,
       entireLog: true,
+      parseLog: true,
     }),
   ]);
 
   for (const log of buyLogs) {
-    const vault = (log.address || log.source || "").toLowerCase();
+    const args = log.args;
+    const vault = log.address.toLowerCase();
     const token = ammByToken.get(vault);
     if (!token) continue;
-    const totalCost = BigInt(log.args?.totalCost ?? log.totalCost ?? 0);
-    const protocolFee = BigInt(log.args?.protocolFee ?? log.protocolFee ?? 0);
-    const stakerFee = BigInt(log.args?.stakerFee ?? log.stakerFee ?? 0);
-    dailyVolume.add(token, totalCost.toString());
-    dailyFees.add(token, (protocolFee + stakerFee).toString());
+    dailyVolume.add(token, args.totalCost);
+    dailyFees.add(token, (args.protocolFee + args.stakerFee));
   }
 
   for (const log of sellLogs) {
-    const vault = (log.address || log.source || "").toLowerCase();
+    const args = log.args;
+    const vault = log.address.toLowerCase();
     const token = ammByToken.get(vault);
     if (!token) continue;
-    const grossPayout = BigInt(log.args?.grossPayout ?? log.grossPayout ?? 0);
-    const protocolFee = BigInt(log.args?.protocolFee ?? log.protocolFee ?? 0);
-    const stakerFee = BigInt(log.args?.stakerFee ?? log.stakerFee ?? 0);
-    dailyVolume.add(token, grossPayout.toString());
-    dailyFees.add(token, (protocolFee + stakerFee).toString());
+    dailyVolume.add(token, args.grossPayout);
+    dailyFees.add(token, (args.protocolFee + args.stakerFee));
   }
 
   return {
@@ -118,32 +117,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   };
 };
 
+const methodology = {
+  Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factory.",
+  Fees: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards.",
+  Revenue: "Equal to Fees — the entire fee tranche is returned to the protocol (burn) or to NFT stakers.",
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2026-03-23",
-      meta: {
-        methodology: {
-          Volume:
-            "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factory.",
-          Fees:
-            "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards.",
-          Revenue:
-            "Equal to Fees — the entire fee tranche is returned to the protocol (burn) or to NFT stakers.",
-        },
-      },
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2026-04-01",
-    },
-    [CHAIN.APECHAIN]: {
-      fetch,
-      start: "2026-02-15",
-    },
-  },
+  pullHourly: true,
+  fetch,
+  adapter: chainsConfig,
+  methodology,
 };
 
 export default adapter;
