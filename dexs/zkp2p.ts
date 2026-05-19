@@ -50,14 +50,25 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp }: FetchOption
   // Page through all fulfilled intents in the window. Daily volume is
   // typically ~100-200 intents, well under one page, but we paginate for
   // safety in case of historical days with higher activity.
-  while (true) {
-    const query = buildQuery(fromTimestamp, toTimestamp, cursor);
-    const res = await request<IntentResponse>(INDEXER, query);
-    const rows = res?.Intent ?? [];
-    if (rows.length === 0) break;
-    for (const r of rows) dailyVolume.add(USDC_BASE, r.amount);
-    if (rows.length < PAGE_SIZE) break;
-    cursor = rows[rows.length - 1].id;
+  try {
+    while (true) {
+      const query = buildQuery(fromTimestamp, toTimestamp, cursor);
+      const res = await request<IntentResponse>(INDEXER, query);
+      const rows = res?.Intent ?? [];
+      if (rows.length === 0) break;
+      for (const r of rows) dailyVolume.add(USDC_BASE, r.amount);
+      if (rows.length < PAGE_SIZE) break;
+      cursor = rows[rows.length - 1].id;
+    }
+  } catch (e) {
+    // Recoverable indexer/network failure: log with context and return a
+    // fresh zero balance so the pipeline can retry without surfacing partial
+    // data as if it were a complete result.
+    console.error(
+      `[zkp2p] volume fetch failed for window ${fromTimestamp}-${toTimestamp} via ${INDEXER}`,
+      e,
+    );
+    return { dailyVolume: createBalances() };
   }
 
   return { dailyVolume };
