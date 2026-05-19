@@ -121,6 +121,7 @@ async function getAlliumData(options: FetchOptions) {
 async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
     const { packPurchases, marketplaceFees, cardBuybacks, tokenBuybackSpends } = await getAlliumData(options);
@@ -129,10 +130,11 @@ async function fetch(options: FetchOptions) {
 
     dailyFees.add(packPurchases, "Pack Purchases");
     dailyFees.add(marketplaceFees, "Marketplace Fees");
-    dailyFees.subtract(cardBuybacks, "Card Buybacks");
+    dailySupplySideRevenue.add(cardBuybacks, "Card Buybacks");
 
     const dailyRevenue = dailyFees.clone();
-    const dailyProtocolRevenue = dailyFees.clone();
+    dailyRevenue.subtract(dailySupplySideRevenue);
+    const dailyProtocolRevenue = dailyRevenue.clone();
 
     dailyHoldersRevenue.add(tokenBuybackSpends, METRIC.TOKEN_BUY_BACK);
 
@@ -143,15 +145,17 @@ async function fetch(options: FetchOptions) {
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
+        dailySupplySideRevenue,
         dailyHoldersRevenue,
     };
 }
 
 const methodology = {
     Volume: "Total spends on card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
-    Fees: "Fees collected from card pack sales and marketplace trades after subtracting card buybacks",
+    Fees: "Gross fees collected from card pack sales and marketplace trades before card buybacks",
     Revenue: "Revenue from card pack sales and marketplace trades after subtracting card buybacks",
     ProtocolRevenue: "Revenue retained by protocol after card buybacks and $READY token buybacks",
+    SupplySideRevenue: "Outbound USDT spent on card buybacks",
     HoldersRevenue: "Part of revenue spent on $READY token buybacks",
 };
 
@@ -159,7 +163,6 @@ const breakdownMethodology = {
     Fees: {
         "Pack Purchases": "Fees collected from card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
         "Marketplace Fees": "Fees collected from marketplace trades",
-        "Card Buybacks": "Outbound USDT spent on card buybacks",
     },
     Revenue: {
         "Pack Purchases": "Fees collected from card pack sales, including web2/spin-credit pack rips recorded through READY|WEB2 on-chain memos",
@@ -171,6 +174,9 @@ const breakdownMethodology = {
         "Marketplace Fees": "Fees collected from marketplace trades",
         "Card Buybacks": "Outbound USDT spent on card buybacks",
         "Token Buyback Spends": "Fees spent on $READY token buybacks",
+    },
+    SupplySideRevenue: {
+        "Card Buybacks": "Outbound USDT spent on card buybacks",
     },
     HoldersRevenue: {
         [METRIC.TOKEN_BUY_BACK]: "Part of revenue going to token buybacks",
