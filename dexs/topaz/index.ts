@@ -142,7 +142,8 @@ const adapters: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.BSC],
-  start: '2026-05-16'
+  start: '2026-05-16',
+  pullHourly: true,
 }
 
 export default adapters
