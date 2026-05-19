@@ -276,7 +276,7 @@ const methodology = {
   Revenue: "Pancakeswap collects amount of swap fees for Treasury and buy back CAKE.",
   SupplySideRevenue: "Fees distributed to LPs",
   ProtocolRevenue: "Swap fees collected by Pancakeswap - distribute to Treasury",
-  HoldersRevenue: "Swap fees collected by Pancakeswap used for buyback and burn CAKE",
+  HoldersRevenue: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools",
 }
 
 const adapter: SimpleAdapter = {
