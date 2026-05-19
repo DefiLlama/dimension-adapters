@@ -36,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const chainName = chainConfig[options.chain].name;
 
-    const pools: PoolMeta[] = await getConfig('metric.xyz-pools', `${API_BASE}/${chainName}/metadata`);
+    const pools: PoolMeta[] = await getConfig(`metric.xyz-pools-${chainName}`, `${API_BASE}/${chainName}/metadata`);
 
     if (!pools.length) return { dailyVolume };
 
