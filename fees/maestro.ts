@@ -18,7 +18,6 @@ const chainConfig: any = {
   [CHAIN.SONIC]: { start: '2025-02-26', feeAddress: '0xB0999731f7c2581844658A9d2ced1be0077b7397' },
   [CHAIN.AVAX]: { start: '2025-06-08', feeAddress: '0xB0999731f7c2581844658A9d2ced1be0077b7397' },
   [CHAIN.SOLANA]: {
-    fetch: fetchSolana,
     start: '2024-03-05',
     feeAddresses: ['MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36', 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'],
     // Maestro-funded wallet that relays SOL referral rewards to users.
@@ -36,7 +35,6 @@ async function fetchEVM(options: FetchOptions) {
   const config = chainConfig[options.chain]
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const chainKey = getAlliumChain(options.chain)
   const feeAddress = config.feeAddress!.toLowerCase()
@@ -80,7 +78,6 @@ async function fetchSolana(options: FetchOptions) {
   const config = chainConfig[CHAIN.SOLANA]
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const feeAddresses = config.feeAddresses.map((address: string) => `'${address}'`).join(', ')
   const query = `
