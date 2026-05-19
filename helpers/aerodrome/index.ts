@@ -21,14 +21,14 @@ interface AerodromeABI {
 	}>;
 }
 
-interface AerodromeExportConfig {
+export interface AerodromeFetchingConfig {
 	VOTER_ADDRESS: string;
 	POOL_FACTORY_ADDRESS: string;
 	ABI?: Partial<AerodromeABI>;
 }
 
-export const getAerodromeV2Export = (
-	config: AerodromeExportConfig
+export const fetchAerodromeV2Metrics = (
+	config: AerodromeFetchingConfig
 ): AdapterTypes.Fetch | AdapterTypes.FetchV2 => {
 	return async (fetchOptions: AdapterTypes.FetchOptions) => {
 		const { api } = fetchOptions;
@@ -77,5 +77,29 @@ export const getAerodromeV2Export = (
 			dailyHoldersRevenue,
 			tokenIncentives
 		};
+	};
+};
+
+export interface AerodromeChainConfig {
+	fetchParams: AerodromeFetchingConfig;
+	start: string;
+}
+
+export const aerodromeV2Exports = (
+	config: Record<string, AerodromeChainConfig>,
+	overrides?: Partial<AdapterTypes.SimpleAdapter>
+): AdapterTypes.SimpleAdapter => {
+	const exportObject: AdapterTypes.BaseAdapter = {};
+	Object.entries(config).map(([chain, chainConfig]) => {
+		exportObject[chain] = {
+			fetch: fetchAerodromeV2Metrics(chainConfig.fetchParams),
+			start: chainConfig.start
+		};
+	});
+
+	return {
+		...overrides,
+		version: 2,
+		adapter: exportObject
 	};
 };

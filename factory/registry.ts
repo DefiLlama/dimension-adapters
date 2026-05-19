@@ -70,6 +70,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'polymarket:fees',
   ],
   'dexs': [
+    'aerodromeV2',
     'helpers/crypto-card',
     'helpers/balancer',
     'uniV2',
