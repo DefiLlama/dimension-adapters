@@ -1,9 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const FEES_VAULT_FACTORY = '0x705C76e29977Ed52cd93d390A7BBcC61189724C0';
+const GAUGE_RATE_PRECISION = 10_000;
+
 // API Configuration Constants
 const API_CONFIG = {
-  FENIX_BASE: 'https://api.nest.aegas.it',
   BLAZE_BASE: 'https://blaze.nest.aegas.it',
   REQUEST_TIMEOUT_MS: 30000, 
   MAX_RETRIES: 3,
@@ -151,45 +153,44 @@ const fetch24hFees = async (
 ): Promise<number> => {
   const url = `${blazeApiBase}/pools/aggregated-fees-sum?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
   const response = await httpGetWithRetry(url);
-  
+
   if (validateResponse(response, ['Sum', 'sum'])) {
     return parseUsdValue(response.Sum || response.sum);
   }
-  
+
   return 0;
 };
 
-const fetch24hMetricsFromV3Pools = async (
-  fenixApiBase: string,
-  oneDayAgoTimestamp: number,
-  toTimestamp: number
+const fetchLiquidityStats = async (
+  blazeApiBase: string,
+  fromDate: string,
+  toDate: string
 ): Promise<{ volume: number; fees: number }> => {
-  const url = `${fenixApiBase}/graph/v3-pools?from=${oneDayAgoTimestamp}`;
+  const url = `${blazeApiBase}/pools/liquidity-stats?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}&intervalSeconds=86400`;
   const response = await httpGetWithRetry(url);
-  
-  const pools = response?.data?.pools || response?.pools || [];
-  let v3DailyVolume = 0;
-  let v3DailyFees = 0;
-  
-  pools.forEach((pool: any) => {
-    const poolDayData = pool.poolDayData || [];
-    poolDayData.forEach((dayData: any) => {
-      // Check if dayData is within the last 24 hours
-      const dayTimestamp = dayData.date * 86400; // Convert day number to timestamp
-      if (dayTimestamp >= oneDayAgoTimestamp && dayTimestamp <= toTimestamp) {
-        v3DailyVolume += parseUsdValue(dayData.volumeUSD);
-        v3DailyFees += parseUsdValue(dayData.feesUSD);
-      }
-    });
-  });
-  
-  return { volume: v3DailyVolume, fees: v3DailyFees };
+  const sum = (pts: any[]) => (pts || []).reduce((acc: number, pt: any) => acc + parseUsdValue(pt.price), 0);
+  return {
+    volume: sum(response?.volume),
+    fees: sum(response?.fees),
+  };
+};
+
+const makeReturn = (volume: number, fees: number, gaugeRate: number) => {
+  const dailyVolume = Math.max(0, volume);
+  const dailyFees = Math.max(0, fees);
+  return {
+    dailyVolume: dailyVolume.toString(),
+    dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyFees.toString(),
+    dailyProtocolRevenue: (dailyFees * (1 - gaugeRate)).toString(),
+    dailySupplySideRevenue: "0",
+    dailyHoldersRevenue: (dailyFees * gaugeRate).toString(),
+  };
 };
 
 const chainConfig: any = {
   [CHAIN.HYPERLIQUID]: {
-    start: '2025-11-12', 
-    fenixApiBase: API_CONFIG.FENIX_BASE,
+    start: '2025-11-12',
     blazeApiBase: API_CONFIG.BLAZE_BASE,
   },
 };
@@ -219,57 +220,40 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error('Invalid date range: from date must be before to date');
   }
 
+  const gaugeConfig = await options.api.call({
+    target: FEES_VAULT_FACTORY,
+    abi: 'function defaultDistributionConfig() view returns (uint256 toGaugeRate, address[] recipients, uint256[] rates)',
+  });
+  const rawGaugeRate = gaugeConfig?.toGaugeRate ?? gaugeConfig?.[0];
+  const gaugeRate = Number(rawGaugeRate) / GAUGE_RATE_PRECISION;
+  if (!Number.isFinite(gaugeRate) || gaugeRate < 0 || gaugeRate > 1) {
+    throw new Error('Invalid gauge rate');
+  }
+
   try {
     const [blazeVolume, blazeFees] = await Promise.all([
       fetch24hVolume(config.blazeApiBase, fromDate, toDate),
       fetch24hFees(config.blazeApiBase, fromDate, toDate),
     ]);
-
-    let dailyVolume = blazeVolume;
-    let dailyFees = blazeFees;
-
-    if (dailyVolume === 0 || dailyFees === 0) {
-      console.warn('Blaze API returned zero or invalid data, using fallback: Fetching 24h metrics from V3 pools day data');
-      const v3Metrics = await fetch24hMetricsFromV3Pools(
-        config.fenixApiBase,
-        oneDayAgoTimestamp,
-        options.toTimestamp
-      );
-
-      if (dailyVolume === 0) {
-        dailyVolume = v3Metrics.volume;
-      }
-
-      if (dailyFees === 0) {
-        dailyFees = v3Metrics.fees;
-      } else {
-        dailyFees = blazeFees;
-      }
+    return makeReturn(blazeVolume, blazeFees, gaugeRate);
+  } catch {
+    console.warn(`Nest primary endpoints failed (${options.dateString}), trying liquidity-stats fallback`);
+    try {
+      const { volume, fees } = await fetchLiquidityStats(config.blazeApiBase, fromDate, toDate);
+      return makeReturn(volume, fees, gaugeRate);
+    } catch {
+      throw new Error(`Error fetching Nest platform data for date ${options.dateString}`);
     }
-
-    dailyVolume = Math.max(0, dailyVolume);
-    dailyFees = Math.max(0, dailyFees);
-
-    return {
-      dailyVolume: dailyVolume.toString(),
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString(),
-      dailyProtocolRevenue: 0,
-      dailySupplySideRevenue: 0,
-      dailyHoldersRevenue: dailyFees.toString()
-    };
-  } catch (error) {
-    throw new Error(`Error fetching Nest platform data for date ${options.dateString}`);
   }
 };
 
 const methodology = {
   Volume: "Volume is collected from all pools via the Blaze API aggregated-volume-sum endpoint.",
   Fees: "Platform fees are collected from all pools via the Blaze API aggregated-fees-sum endpoint.",
-  Revenue: "All fees go to veNest lockers.",
-  ProtocolRevenue: "There is no protocol revenue.",
+  Revenue: "All swap fees accrue to the protocol (no LP share).",
+  ProtocolRevenue: "Portion of swap fees going to the protocol treasury.",
   SupplySideRevenue: "LPs do not earn fees; instead, they are compensated with NEST tokens.",
-  HoldersRevenue: "All fees go to veNest lockers."
+  HoldersRevenue: "97% of swap fees go to veNest lockers."
 };
 
 const adapter: SimpleAdapter = {

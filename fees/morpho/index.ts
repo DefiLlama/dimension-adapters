@@ -113,6 +113,21 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xD5D960E8C380B724a48AC59E2DfF1b2CB4a1eAee",
     start: "2025-11-23",
   },
+  [CHAIN.PLUME]: {
+    fromBlock: 765994,
+    blue: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+    start: "2025-04-22",
+  },
+  [CHAIN.CELO]: {
+    fromBlock: 40249329,
+    blue: "0xd24ECdD8C1e0E57a4E26B1a7bbeAa3e95466A569",
+    start: "2025-07-10",
+  },
+  [CHAIN.ABSTRACT]: {
+    fromBlock: 13947713,
+    blue: "0xc85CE8ffdA27b646D269516B8d0Fa6ec2E958B55",
+    start: "2025-07-10",
+  },
   // [CHAIN.STABLE]: {
   //   fromBlock: 4342501,
   //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",

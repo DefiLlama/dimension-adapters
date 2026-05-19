@@ -67,6 +67,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'joeLiquidityBook',
     'curve',
     'subscan',
+    'polymarket:fees',
   ],
   'dexs': [
     'helpers/crypto-card',

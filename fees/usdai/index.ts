@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { processPoolLoans, getLegacyPools } from "./legacyUtils";
 import { request, gql } from "graphql-request";
+import { METRICS } from "./metrics";
 
 // Loan Router Subgraph API
 const LOAN_ROUTER_SUBGRAPH_API = 'https://api.goldsky.com/api/public/project_clzibgddg2epg01ze4lq55scx/subgraphs/loan_router_arbitrum/0.0.3/gn';
@@ -50,26 +51,6 @@ const methodology = {
   ProtocolRevenue: "Admin fees going to protocol treasury",
   SupplySideRevenue: "Interest paid to Staked USDai holders"
 };
-
-const METRICS = {
-  ASSET_YIELDS_WRAPPED_M : 'Asset yields - Wrapped M',
-  ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL : 'Asset yields - Wrapped M to protocol',
-  ASSET_YIELDS_WRAPPED_M_TO_SUSDAI : 'Asset yields - Wrapped M to staked USDai',
-  ASSET_YIELDS_PYUSD : 'Asset yields - PYUSD',
-  ASSET_YIELDS_PYUSD_TO_PROTOCOL : 'Asset yields - PYUSD to protocol',
-  ASSET_YIELDS_PYUSD_TO_SUSDAI : 'Asset yields - PYUSD to staked USDai',
-  ASSET_YIELDS_GPU_FINANCING : 'Asset yields - GPU-financing',
-  ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL : 'Asset yields - GPU-financing to protocol',
-  ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI : 'Asset yields - GPU-financing to staked USDai',
-  GPU_FINANCING_ORIGINATION_FEE : 'GPU-financing origination fee',
-  GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL : 'GPU-financing origination fee to protocol',
-  GPU_FINANCING_EXIT_FEE : 'GPU-financing exit fee',
-  GPU_FINANCING_EXIT_FEE_TO_PROTOCOL : 'GPU-financing exit fee to protocol',
-  GPU_FINANCING_LIQUIDATION_FEE : 'GPU-financing liquidation fee',
-  GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL : 'GPU-financing liquidation fee to protocol',
-  GPU_FINANCING_LENDER_LIQUIDATION_REPAID : 'GPU-financing lender liquidation repaid',
-  GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI : 'GPU-financing lender liquidation repaid to staked USDai',
-}
 
 const breakdownMethodology = {
   Fees: {

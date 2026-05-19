@@ -8,6 +8,9 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "xflows": {
+    [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
+  },
   "warpx-v3": {
     [CHAIN.MEGAETH]: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
   },
@@ -345,6 +348,15 @@ const configs: Record<string, Record<string, any>> = {
   },
   "ubeswap-v3": {
     [CHAIN.CELO]: { factory: '0x67FEa58D5a5a4162cED847E13c2c81c73bf8aeC4', start: '2024-05-20', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  'phlox': {
+    [CHAIN.LUKSO]: { factory: '0xFce4C544f07E2ca758a179788fe56e6A2941E681', start: '2026-04-21', userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
+  },
+  'fluxflow-v3': {
+    [CHAIN.FLUENT]: { factory: '0x69Be606be7Fd2d27C8f9821329c748c77d24FF4f', start: '2026-04-12', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
+  },
+  "krokoswap-v3": {
+    [CHAIN.KASPLEX]: { factory: '0x0dfb1Bb755d872EA1fa4d95E4ad0c2E6317Ce9B9', start: '2026-03-04', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
   },
 }
 
