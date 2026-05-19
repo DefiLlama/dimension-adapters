@@ -220,7 +220,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         AND block_time < from_unixtime(${options.endTimestamp})
       GROUP BY "to"
     `)
-    const sources = [chainConfig[chain].treasury, ...fundedWallets.map(w => w.pendle_funded_wallet)]
+    const sources = Array.from(new Set(
+      [chainConfig[chain].treasury, ...fundedWallets.map(w => w.pendle_funded_wallet)]
+        .map(a => a.toLowerCase())
+    ))
     tokenToDistributor = await addTokensReceived({
       options,
       target: AIRDROP_DISTRIBUTOR,
