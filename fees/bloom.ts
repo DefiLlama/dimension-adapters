@@ -90,9 +90,7 @@ async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
       FROM
         tokens_solana.transfers
       WHERE
-        block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND block_date <= date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+        TIME_RANGE
         AND action = 'transfer'
         AND token_mint_address IN (
           'So11111111111111111111111111111111111111111',
