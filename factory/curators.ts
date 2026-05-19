@@ -323,8 +323,8 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         // Morpho V2 vaults — "RockawayX USDC Yield" (0xE018...1965) + "RockawayX wETH" (0x64C1...9cB9)
-        morphoVaultV2Owners: ['0xbBacDCFB9691DFA1066aB29edfcc4A73f6DEf918'],
-        start: '2026-03-24',
+        morphoVaultV2Owners: ['0x9ECBf5aB609E33EC90D69888362639d652Eb8bf3'],
+        start: '2026-03-06',
       },
       [CHAIN.BSC]: {
         // Lista/Moolah vault "RockawayX PT Yield" — fork MetaMorpho, fee() = 10%
@@ -334,7 +334,7 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.SEI]: {
         // Feather PYUSD0 — vault MetaMorpho v1 sur Sei, fee() = 15%
         morpho: ['0x6137dcfdd3c83fe2922b1cba4105d2e92b327a06'],
-        start: '2026-01-01',
+        start: '2026-03-22',
       },
     },
   },
