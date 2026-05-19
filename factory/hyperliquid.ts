@@ -73,15 +73,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "insilico": {
-    addresses: ["0x2868fc0d9786a740b491577a43502259efa78a39"],
-    start: "2024-10-27",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
   "phantom-perps": {
     addresses: ["0xb84168cf3be63c6b8dad05ff5d755e97432ff80b"],
     start: "2025-07-08",
@@ -315,15 +306,6 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
   "infinex-perps": {
     addresses: ["0xcf56dd84ed85eb4929e0a76a0f2f04049b4ffc1a"],
     start: "2025-08-18",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
-  "insilico": {
-    addresses: ["0x2868fc0d9786a740b491577a43502259efa78a39"],
-    start: "2024-10-27",
     methodology: {
       Fees: "builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
