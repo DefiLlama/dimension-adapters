@@ -48,7 +48,7 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.OP_BNB), start: '2023-10-07'
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: '2023-11-01', deadFrom: '2026-02-01'
+      fetch: fetch(CHAIN.MANTA), start: '2023-11-01', deadFrom: '2026-05-12'
     },
     [CHAIN.TAIKO]: {
       fetch: fetch(CHAIN.TAIKO), start: '2024-05-30', deadFrom: '2026-02-10'
