@@ -40,7 +40,7 @@ const events = {
 };
 
 async function fetchAllOffPlanAssets(api: any) {
-	const pageSize = 20;
+	const pageSize = 100;
 	let page = 0;
 	let allOffPlanAssets: string[] = [];
 
@@ -143,14 +143,14 @@ async function calculateRentalIncomeFees(options: FetchOptions, dailyFees: any, 
 	const platformFee = (totalRent * RENT_PLATFORM_NUM) / 100n;
 
 	// dailyFees = total rental income (100%)
-	dailyFees.add(USDT, totalRent, 'Rental Income Fees');
+	dailyFees.add(USDT, totalRent, 'Rental Income');
 	// dailySupplySideRevenue = 80% to token holders + 18% to management oracle = 98%
-	dailySupplySideRevenue.add(USDT, totalRent - platformFee, 'Rental Income Fees to token holders and management oracle');
+	dailySupplySideRevenue.add(USDT, totalRent - platformFee, 'Rental Income to token holders and management oracle');
 	// dailyRevenue = 2% platform fee
-	dailyRevenue.add(USDT, platformFee, 'Rental Income Fees');
+	dailyRevenue.add(USDT, platformFee, 'Rental Income');
 	// 70% of platform fee to BNRX stakers, 30% to treasury
-	dailyHoldersRevenue.add(USDT, platformFee * 70n / 100n, 'Rental Income Fees to holders');
-	dailyProtocolRevenue.add(USDT, platformFee * 30n / 100n, 'Rental Income Fees to protocol');
+	dailyHoldersRevenue.add(USDT, platformFee * 70n / 100n, 'Rental Income to holders');
+	dailyProtocolRevenue.add(USDT, platformFee * 30n / 100n, 'Rental Income to protocol');
 }
 
 // marketplace fee from OrderFulfilled events
@@ -180,12 +180,10 @@ const fetch = async (options: FetchOptions) => {
 	const dailyHoldersRevenue = options.createBalances();
 	const dailyProtocolRevenue = options.createBalances();
 
-	await Promise.all([
-		calculateOffPlanTokenizationFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue),
-		calculateRentalTokenizationFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue),
-		calculateRentalIncomeFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue),
-		calculateMarketplaceFees(options, dailyFees, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue),
-	]);
+	await calculateOffPlanTokenizationFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue)
+	await calculateRentalTokenizationFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue)
+	await calculateRentalIncomeFees(options, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue)
+	await calculateMarketplaceFees(options, dailyFees, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue)
 
 	return {
 		dailyFees,
@@ -215,26 +213,26 @@ const adapter: SimpleAdapter = {
 	breakdownMethodology: {
 		Fees: {
 			'Tokenization Fees': "15% of funds collected from new property investments (8% platform + 6% repair pool + 1% audit oracle), derived from on-chain sell progress and token supply changes.",
-			'Rental Income Fees': "Total rental income from tokenized properties, derived from on-chain rent claim events on the RentTracker contract.",
+			'Rental Income': "Total rental income from tokenized properties, derived from on-chain rent claim events on the RentTracker contract.",
 			'Marketplace Fees': "2.5% fee on secondary marketplace trades, derived from OrderFulfilled events on the Marketplace contract.",
 		},
 		Revenue: {
 			'Tokenization Fees': "8% tokenization fees retained by the Binaryx ecosystem.",
-			'Rental Income Fees': "2% platform share of rental income.",
+			'Rental Income': "2% platform share of rental income.",
 			'Marketplace Fees': "2.5% marketplace fees retained by the Binaryx ecosystem.",
 		},
 		ProtocolRevenue: {
 			'Tokenization Fees to protocol': "30% of tokenization fees retained by Binaryx treasury.",
-			'Rental Income Fees to protocol': "30% of the 2% platform rental fee retained by Binaryx treasury.",
+			'Rental Income to protocol': "30% of the 2% platform rental fee retained by Binaryx treasury.",
 			'Marketplace Fees to protocol': "30% of marketplace fees retained by Binaryx treasury.",
 		},
 		SupplySideRevenue: {
 			'Tokenization Fees of repair pool and audit oracle': "7% of tokenization investments: 6% to repair pool and 1% to audit oracle.",
-			'Rental Income Fees to token holders and management oracle': "98% of rental income: 80% to property token holders and 18% to management oracles.",
+			'Rental Income to token holders and management oracle': "98% of rental income: 80% to property token holders and 18% to management oracles.",
 		},
 		HoldersRevenue: {
 			'Tokenization Fees to holders': "70% of tokenization fees distributed to BNRX stakers.",
-			'Rental Income Fees to holders': "70% of the 2% platform rental fee distributed to BNRX stakers.",
+			'Rental Income to holders': "70% of the 2% platform rental fee distributed to BNRX stakers.",
 			'Marketplace Fees to holders': "70% of marketplace fees distributed to BNRX stakers.",
 		},
 	},
