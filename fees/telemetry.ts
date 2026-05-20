@@ -2,9 +2,9 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const LABELS = {
-  TERMINAL_FEES: "Trading fees paid by users",
   TERMINAL_REVENUE: "Trading fees excluding referral or cashback rewards",
   REWARDS: "Referral or cashback rewards",
 };
@@ -17,7 +17,7 @@ const chainConfig: Record<string, { start: string; feeWallet: string; rewardWall
   },
 };
 
-const fetch = async (options: FetchOptions) => {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
   const { feeWallet, rewardWallet } = chainConfig[options.chain];
   const query = `
     WITH
@@ -28,8 +28,7 @@ const fetch = async (options: FetchOptions) => {
         SUM(CASE WHEN address = '${rewardWallet}' AND balance_change > 0 THEN balance_change ELSE 0 END) AS reward_lamports,
         MAX(CASE WHEN address = '${feeWallet}' THEN 1 ELSE 0 END) AS fee_wallet_rows
       FROM solana.account_activity
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND tx_success
         AND token_mint_address IS NULL
         AND address IN ('${feeWallet}', '${rewardWallet}')
@@ -44,9 +43,7 @@ const fetch = async (options: FetchOptions) => {
     botTrades AS (
       SELECT tx_id
       FROM dex_solana.trades
-      WHERE block_month BETWEEN CAST(date_trunc('month', date(from_unixtime(${options.startTimestamp}))) AS date) AND CAST(date_trunc('month', date(from_unixtime(${options.endTimestamp}))) AS date)
-        AND block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND trader_id = '${feeWallet}'
       GROUP BY 1
     )
@@ -66,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.add(ADDRESSES.solana.SOL, fees, LABELS.TERMINAL_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, fees, METRIC.TRADING_FEES);
   dailyRevenue.add(ADDRESSES.solana.SOL, revenue, LABELS.TERMINAL_REVENUE);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackRewards, LABELS.REWARDS);
 
@@ -77,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
-};
+}
 
 const methodology = {
   Fees: "All SOL inflows to Telemetry's main fee wallet.",
@@ -89,7 +86,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.TERMINAL_FEES]: "All SOL inflows to Telemetry's fee wallet.",
+    [METRIC.TRADING_FEES]: "All SOL inflows to Telemetry's fee wallet.",
   },
   Revenue: {
     [LABELS.TERMINAL_REVENUE]: "Trading fees retained by Telemetry after referral or cashback rewards.",
@@ -103,7 +100,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
