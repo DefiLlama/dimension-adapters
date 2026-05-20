@@ -1,4 +1,4 @@
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL, { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
@@ -31,26 +31,25 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1 },
   fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io", version: 2 },
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1 },
-  "hashkey chain": { chain: CHAIN.HASHKEY, baseUrl: "https://hashkey.blockscout.com", version: 2 },
+  "hashkey": { chain: CHAIN.HASHKEY, baseUrl: "https://hashkey.blockscout.com", version: 2 },
   hpp: { chain: CHAIN.HPP, baseUrl: "https://explorer.hpp.io", version: 1 },
-  "immutable zkevm": { chain: CHAIN.IMX, baseUrl: "https://explorer.immutable.com", version: 2 },
+  "immutablex": { chain: CHAIN.IMX, baseUrl: "https://explorer.immutable.com", version: 2 },
   ink: { chain: CHAIN.INK, baseUrl: "https://explorer.inkonchain.com", version: 2 },
-  "iota evm": { chain: CHAIN.IOTAEVM, baseUrl: "https://explorer.evm.iota.org", version: 2 },
+  "iota_evm": { chain: CHAIN.IOTAEVM, baseUrl: "https://explorer.evm.iota.org", version: 2 },
   kub: { chain: CHAIN.KUB, baseUrl: "https://www.kubscan.com", version: 1 },
   lightlink: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io", version: 2 },
   lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com", version: 2 },
-  mantle: { chain: CHAIN.MANTLE, baseUrl: "https://mantle-blockscout-stats.mantle.xyz", version: 1 },
   matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 },
   mode: { chain: CHAIN.MODE, baseUrl: "https://explorer.mode.network", version: 2 },
   neon: { chain: CHAIN.NEON, baseUrl: "https://neon.blockscout.com", version: 2 },
-  "edu chain": { chain: CHAIN.EDU_CHAIN, baseUrl: "https://educhain.blockscout.com", version: 2 },
-  orderly: { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 },
+  "edu-chain": { chain: CHAIN.EDU_CHAIN, baseUrl: "https://educhain.blockscout.com", version: 2 },
+  "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 },
   perennial: { chain: CHAIN.PERENNIAL, baseUrl: "https://explorer.perennial.foundation", version: 1 },
-  "plume mainnet": { chain: CHAIN.PLUME, baseUrl: "https://explorer.plume.org", version: 1 },
+  plume: { chain: CHAIN.PLUME, baseUrl: "https://explorer.plume.org", version: 1 },
   prom: { chain: CHAIN.PROM, baseUrl: "https://promscan.io", version: 2 },
   redstone: { chain: CHAIN.REDSTONE, baseUrl: "https://explorer.redstone.xyz", version: 2 },
   reyachain: { chain: CHAIN.REYA, baseUrl: "https://explorer.reya.network", version: 2 },
-  rsk: { chain: CHAIN.ROOTSTOCK, baseUrl: "https://rootstock.blockscout.com", version: 2 },
+  rootstock: { chain: CHAIN.ROOTSTOCK, baseUrl: "https://rootstock.blockscout.com", version: 2 },
   shape: { chain: CHAIN.SHAPE, baseUrl: "https://shapescan.xyz", version: 2 },
   shimmerevm: { chain: CHAIN.SHIMMER_EVM, baseUrl: "https://explorer.evm.shimmer.network", version: 2 },
   songbird: { chain: CHAIN.SONGBIRD, baseUrl: "https://songbird-explorer.flare.network", version: 1 },
@@ -63,19 +62,19 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   syscoin: { chain: CHAIN.SYSCOIN, baseUrl: "https://explorer.syscoin.org", version: 1 },
   tac: { chain: CHAIN.TAC, baseUrl: "https://explorer.tac.build", version: 2 },
   unichain: { chain: CHAIN.UNICHAIN, baseUrl: "https://unichain.blockscout.com", version: 2 },
-  "world chain": { chain: CHAIN.WC, baseUrl: "https://worldchain-mainnet.explorer.alchemy.com", version: 2 },
-  xdai: { chain: CHAIN.XDAI, baseUrl: "https://blockscout.com/xdai/mainnet", version: 2 },
+  worldchain: { chain: CHAIN.WC, baseUrl: "https://worldchain-mainnet.explorer.alchemy.com", version: 2 },
+  gnosis: { chain: CHAIN.XDAI, baseUrl: "https://blockscout.com/xdai/mainnet", version: 2 },
   zetachain: { chain: CHAIN.ZETA, baseUrl: "https://zetachain.blockscout.com", version: 2 },
   zilliqa: { chain: CHAIN.ZILLIQA, baseUrl: "https://zilliqa.blockscout.com", version: 2 },
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1 },
-  zksync: { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
+  "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
   const path = config.version === 1 ? "/api/v1/lines" : "/stats-service/api/v1/lines";
   const baseUrl = config.baseUrl.replace(/\/$/, "");
-  const data = await httpGet(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`);
-  return Number(data.chart.find((item: any) => item.date === date)?.value ?? 0);
+  const data = await fetchURL(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`);
+  return Number(data.chart.find((item: any) => item.date === date).value);
 }
 
 function getBlockscoutUsers(config: ChainConfig) {
