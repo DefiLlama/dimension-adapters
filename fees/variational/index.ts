@@ -14,7 +14,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = treasuryInflow.clone(10);
   const dailyRevenue = treasuryInflow;
   const dailyProtocolRevenue = treasuryInflow;
-  const dailySupplySideRevenue = treasuryInflow.clone(90);
+  const dailySupplySideRevenue = treasuryInflow.clone(9);
 
   return {
     dailyFees,
