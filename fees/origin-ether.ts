@@ -6,6 +6,7 @@ import {
   ORIGIN_YIELD_LABEL,
   ORIGIN_PROTOCOL_FEE_LABEL,
   ORIGIN_REBASE_LABEL,
+  STAKING_REWARDS_LABEL,
 } from "../helpers/origin-protocol";
 
 const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
@@ -35,11 +36,8 @@ const breakdownMethodology = {
   Revenue: {
     [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault yield × on-chain trusteeFeeBps from each OToken vault.",
   },
-  ProtocolRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault yield × on-chain trusteeFeeBps from each OToken vault.",
-  },
   HoldersRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+    [STAKING_REWARDS_LABEL]: "Performance fee forwarded to OGN stakers.",
   },
   SupplySideRevenue: {
     [ORIGIN_REBASE_LABEL]: "Yield net of performance fee, distributed to OETH / Super OETH holders via rebase.",
