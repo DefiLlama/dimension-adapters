@@ -32,18 +32,6 @@ const addFee = (
   }
 };
 
-const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
-const MAX_FEE_TIER = 1 / 100;
-
-type VolumeDay = {
-  day: string;
-  volumeLovelace: string;
-};
-
-type HistoricalVolumeResponse = {
-  response: VolumeDay[];
-};
-
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -55,24 +43,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const end = formatDate(options.endTimestamp);
 
   const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
-
-  const historicalVolumeResponse =
-    await fetchURL(historicalVolumeEndpoint) as Partial<HistoricalVolumeResponse>;
-
-  if (!Array.isArray(historicalVolumeResponse.response)) {
-    throw new Error(
-      `Invalid historical volume response for ${options.dateString}`
-    );
-  }
-
-  const volumeToday = historicalVolumeResponse.response.find(dayItem => dayItem.day === options.dateString)
-
-  if (!volumeToday) {
-    throw new Error(`No volume data for ${options.dateString}`);
-  }
-
-  const dailyVolume = options.createBalances();
-  dailyVolume.addGasToken(volumeToday.volumeLovelace);
 
   const query = `
     query fetchPools($start: String!, $end: String!) {
@@ -113,14 +83,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   dailyFees.addBalances(dailySupplySideRevenue, METRIC.LP_FEES);
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
 
-  const volumeInUsd = await dailyVolume.getUSDValue();
-  const feesInUsd = await dailyFees.getUSDValue();
-
-  const isBadSpike = feesInUsd > volumeInUsd * MAX_FEE_TIER;
-
-  if (isBadSpike) {
-    throw new Error(`Bad spike in fees for ${options.dateString}, volume: ${volumeInUsd}, fees: ${feesInUsd}`);
-  }
 
   return {
     dailyFees,
