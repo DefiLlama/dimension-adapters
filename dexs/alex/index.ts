@@ -90,19 +90,34 @@ async function fetchLegacy(dayStart: number): Promise<number> {
     ) { token avg_price_usd }
   }`;
 
-  let priceRows: Array<{ token: string; avg_price_usd: number }> =
+  const priceRows: Array<{ token: string; avg_price_usd: number }> =
     (await postURL(V1_GQL, { query: buildPriceQuery(dayStart, dayEnd) }))
       .data.laplace_history_price_v2;
 
-  if (!priceRows.length) {
-    priceRows = (
-      await postURL(V1_GQL, { query: buildPriceQuery(dayStart - 7 * 86400, dayEnd) })
-    ).data.laplace_history_price_v2;
-  }
-
   const prices: Record<string, number> = {};
   for (const r of priceRows) {
-    if (!(r.token in prices)) prices[r.token] = r.avg_price_usd;
+    if (!(r.token in prices)) prices[r.token] = Number(r.avg_price_usd);
+  }
+
+  const missingTokens = tokenNames.filter((token) => !(token in prices));
+  if (missingTokens.length) {
+    const backfillRows: Array<{ token: string; avg_price_usd: number }> = (
+      await postURL(V1_GQL, {
+        query: `{
+          laplace_history_price_v2(
+            where: {
+              burn_block_time: { _gte: ${dayStart - 7 * 86400}, _lt: ${dayEnd} }
+              token: { _in: ${JSON.stringify(missingTokens)} }
+            }
+            order_by: { burn_block_time: desc }
+          ) { token avg_price_usd }
+        }`,
+      })
+    ).data.laplace_history_price_v2;
+
+    for (const r of backfillRows) {
+      if (!(r.token in prices)) prices[r.token] = Number(r.avg_price_usd);
+    }
   }
 
   let totalUSD = 0;
@@ -125,7 +140,7 @@ const fetch = async (timestamp: number) => {
     dailyVolume = await fetchLegacy(dayStart);
   }
 
-  return { dailyVolume: dailyVolume || undefined };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
