@@ -1,5 +1,5 @@
-import request from "graphql-request";
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { postURL } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
 
@@ -53,22 +53,15 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp }: FetchOption
   try {
     while (true) {
       const query = buildQuery(fromTimestamp, toTimestamp, cursor);
-      const res = await request<IntentResponse>(INDEXER, query);
-      const rows = res?.Intent ?? [];
+      const res : {data: IntentResponse} = await postURL(INDEXER, { query });
+      const rows = res.data.Intent;
       if (rows.length === 0) break;
       for (const r of rows) dailyVolume.add(USDC_BASE, r.amount);
       if (rows.length < PAGE_SIZE) break;
       cursor = rows[rows.length - 1].id;
     }
   } catch (e) {
-    // Recoverable indexer/network failure: log with context and return a
-    // fresh zero balance so the pipeline can retry without surfacing partial
-    // data as if it were a complete result.
-    console.error(
-      `[zkp2p] volume fetch failed for window ${fromTimestamp}-${toTimestamp} via ${INDEXER}`,
-      e,
-    );
-    return { dailyVolume: createBalances() };
+    throw new Error(`Failed to fetch zkp2p volume for ${fromTimestamp}-${toTimestamp}`);
   }
 
   return { dailyVolume };
@@ -76,6 +69,7 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp }: FetchOption
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "Sum of `amount` across all intents with `status = FULFILLED` and `fulfillTimestamp` in the day window, sourced from the protocol's public Envio GraphQL indexer. Intent amounts are denominated in USDC on Base.",
