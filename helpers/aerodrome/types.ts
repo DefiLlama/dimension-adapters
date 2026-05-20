@@ -18,3 +18,10 @@ export interface Pool {
 	tokens: string[];
 	fee: number;
 }
+
+export type PreLaunchBribe = {
+	tokenAddress: string;
+	decimals: number;
+	priceUsd: number;
+	tradingStartedAt: number;
+};

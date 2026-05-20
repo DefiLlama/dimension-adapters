@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import * as sdk from "@defillama/sdk";
 import BigNumber from "bignumber.js";
 import type { FetchOptions } from "../../../adapters/types";
+import type * as HelperTypes from "../types";
 import ADDRESSES from "../../coreAssets.json";
 import * as ABI from "../abis";
 
@@ -84,17 +85,22 @@ export const getPoolStakedShares = async (
 export interface BribesRevenueFetcherOptions {
 	VOTER_ADDRESS: string;
 	gauges: string[];
+	preLaunchBribes?: HelperTypes.PreLaunchBribe[];
 	itemAbi?: string;
 }
 
 export const getBribesRevenue = async (
 	fetchOptions: FetchOptions,
-	{ itemAbi = ABI.VOTER.function.gaugeToBribe, ...options }: BribesRevenueFetcherOptions
+	{
+		itemAbi = ABI.VOTER.function.gaugeToBribe,
+		preLaunchBribes = [],
+		...options
+	}: BribesRevenueFetcherOptions
 ) => {
 	const balance = fetchOptions.createBalances();
 	if (!options.gauges.length) return balance;
 
-	const { api, getLogs } = fetchOptions;
+	const { api, getLogs, startTimestamp } = fetchOptions;
 	const bribes = await api
 		.multiCall({
 			target: options.VOTER_ADDRESS,
@@ -114,8 +120,21 @@ export const getBribesRevenue = async (
 	notifyRewardsLogs.forEach((log) => {
 		if (!bribes.includes(sdk.util.normalizeAddress(log.address))) return;
 		const [, reward, , amount] = bribeIface.parseLog(log)?.args ?? [0, 0, 0, 0];
+		const preLaunchBribe = preLaunchBribes.find(
+			({ tokenAddress }) =>
+				sdk.util.normalizeAddress(tokenAddress) === sdk.util.normalizeAddress(reward)
+		);
 
-		balance.add(reward, amount);
+		if (preLaunchBribe && startTimestamp < preLaunchBribe.tradingStartedAt) {
+			balance.addUSDValue(
+				BigNumber(amount)
+					.times(preLaunchBribe.priceUsd)
+					.div(10 ** preLaunchBribe.decimals)
+					.integerValue()
+			);
+		} else {
+			balance.add(reward, amount);
+		}
 	});
 
 	return balance;

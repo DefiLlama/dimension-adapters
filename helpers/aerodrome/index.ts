@@ -2,6 +2,7 @@ import { METRIC } from "../metrics";
 import * as V2Fetchers from "./fetchers/v2";
 import * as CommonFetchers from "./fetchers/common";
 import type * as AdapterTypes from "../../adapters/types";
+import type * as HelperTypes from "./types";
 
 export enum AERODROME_METRIC {
 	SWAP_FEES = METRIC.SWAP_FEES,
@@ -25,6 +26,7 @@ export interface AerodromeFetchingConfig {
 	VOTER_ADDRESS: string;
 	POOL_FACTORY_ADDRESS: string;
 	ABI?: Partial<AerodromeABI>;
+	PRE_LAUNCH_BRIBE_PRICING?: HelperTypes.PreLaunchBribe[];
 }
 
 export const fetchAerodromeV2Metrics = (
@@ -57,6 +59,7 @@ export const fetchAerodromeV2Metrics = (
 		const bribesRevenue = await CommonFetchers.getBribesRevenue(fetchOptions, {
 			VOTER_ADDRESS: config.VOTER_ADDRESS,
 			itemAbi: config.ABI?.VOTER_FACTORY?.bribesItemAbi,
+			preLaunchBribes: config.PRE_LAUNCH_BRIBE_PRICING,
 			gauges
 		});
 
