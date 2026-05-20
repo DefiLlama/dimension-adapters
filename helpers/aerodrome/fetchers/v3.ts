@@ -7,47 +7,38 @@ import * as ABI from "../abis";
 
 export const getV3Pools = async (
 	fetchOptions: FetchOptions,
-	{
-		itemAbi = ABI.POOL_FACTORY.function.allPairs,
-		lengthAbi = ABI.POOL_FACTORY.function.allPairsLength,
-		...options
-	}: HelperTypes.PoolFetcherOptions
+	options: HelperTypes.PoolFetcherOptions
 ): Promise<Record<string, HelperTypes.Pool>> => {
-	const { api } = fetchOptions;
-	const pools: string[] = await api.fetchList({
-		target: options.POOL_FACTORY_ADDRESS,
-		lengthAbi,
-		itemAbi
-	});
+	const { api, getLogs } = fetchOptions;
+	const pools: Record<string, HelperTypes.Pool> = {};
 
-	const filteredPools = pools.filter((pool) => pool !== ADDRESSES.null);
+	for (const factory of options.factories) {
+		const poolCreatedLogs = await getLogs({
+			target: factory.address,
+			fromBlock: factory.fromBlock,
+			eventAbi: ABI.V3_POOL_FACTORY.event.PoolCreated,
+			onlyArgs: true,
+			skipIndexer: true,
+			cacheInCloud: true
+		});
 
-	const [tokens0, tokens1] = await Promise.all([
-		api.multiCall({ abi: "address:token0", calls: filteredPools }),
-		api.multiCall({ abi: "address:token1", calls: filteredPools })
-	]);
+		const poolFees = await api.multiCall({
+			target: factory.address,
+			abi: ABI.V3_POOL_FACTORY.function.getSwapFee,
+			calls: poolCreatedLogs.map(({ pool }) => pool)
+		});
 
-	const poolFees = await api.multiCall({
-		target: options.POOL_FACTORY_ADDRESS,
-		abi: ABI.V3_POOL_FACTORY.function.getSwapFee,
-		calls: filteredPools.map((pool) => ({
-			params: [pool]
-		}))
-	});
-
-	return Object.fromEntries(
-		filteredPools.map((poolAddress: string, poolIndex: number) => [
-			sdk.util.normalizeAddress(poolAddress),
-			{
-				poolAddress: sdk.util.normalizeAddress(poolAddress),
+		poolCreatedLogs.forEach(({ token0, token1, pool }, poolIndex) => {
+			const poolAddress = sdk.util.normalizeAddress(pool);
+			pools[poolAddress] = {
+				poolAddress,
 				fee: Number(poolFees[poolIndex]),
-				tokens: [
-					sdk.util.normalizeAddress(tokens0[poolIndex]),
-					sdk.util.normalizeAddress(tokens1[poolIndex])
-				]
-			}
-		])
-	);
+				tokens: [sdk.util.normalizeAddress(token0), sdk.util.normalizeAddress(token1)]
+			};
+		});
+	}
+
+	return pools;
 };
 
 export const getV3Swaps = async (

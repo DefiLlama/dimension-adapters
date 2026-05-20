@@ -1,7 +1,10 @@
+export interface PoolFactoryParams {
+	address: string;
+	fromBlock: number;
+}
+
 export interface PoolFetcherOptions {
-	POOL_FACTORY_ADDRESS: string;
-	itemAbi?: string;
-	lengthAbi?: string;
+	factories: PoolFactoryParams[];
 }
 
 export interface SwapFetcherOptions {

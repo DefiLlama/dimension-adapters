@@ -14,10 +14,6 @@ export enum AERODROME_METRIC {
 }
 
 interface AerodromeABI {
-	POOL_FACTORY: Partial<{
-		itemAbi: string;
-		lengthAbi: string;
-	}>;
 	VOTER_FACTORY: Partial<{
 		bribesItemAbi: string;
 	}>;
@@ -25,7 +21,7 @@ interface AerodromeABI {
 
 export interface AerodromeFetchingConfig {
 	VOTER_ADDRESS: string;
-	POOL_FACTORY_ADDRESS: string;
+	POOL_FACTORIES: HelperTypes.PoolFactoryParams[];
 	ABI?: Partial<AerodromeABI>;
 	PRE_LAUNCH_BRIBE_PRICING?: HelperTypes.PreLaunchBribe[];
 }
@@ -37,9 +33,7 @@ export const fetchAerodromeV2Metrics = (
 		const { api } = fetchOptions;
 		const protocolName = fetchOptions.metadata?.protocolName ?? "Aerodrome V2 Helper";
 		const pools = await V2Fetchers.getV2Pools(fetchOptions, {
-			POOL_FACTORY_ADDRESS: config.POOL_FACTORY_ADDRESS,
-			itemAbi: config.ABI?.POOL_FACTORY?.itemAbi,
-			lengthAbi: config.ABI?.POOL_FACTORY?.lengthAbi
+			factories: config.POOL_FACTORIES
 		});
 
 		api.log(`${protocolName} got ${Object.keys(pools).length} pools.`);
@@ -91,9 +85,7 @@ export const fetchAerodromeV3Metrics = (
 		const { api } = fetchOptions;
 		const protocolName = fetchOptions.metadata?.protocolName ?? "Aerodrome V3 Helper";
 		const pools = await V3Fetchers.getV3Pools(fetchOptions, {
-			POOL_FACTORY_ADDRESS: config.POOL_FACTORY_ADDRESS,
-			itemAbi: config.ABI?.POOL_FACTORY?.itemAbi,
-			lengthAbi: config.ABI?.POOL_FACTORY?.lengthAbi
+			factories: config.POOL_FACTORIES
 		});
 
 		api.log(`${protocolName} got ${Object.keys(pools).length} pools.`);

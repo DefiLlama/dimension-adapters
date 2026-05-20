@@ -67,7 +67,12 @@ const protocols: Record<string, ProtocolConfig> = {
 				start: "2023-08-28",
 				fetchParams: {
 					VOTER_ADDRESS: "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
-					POOL_FACTORY_ADDRESS: "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+					POOL_FACTORIES: [
+						{
+							address: "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+							fromBlock: 3200668
+						}
+					],
 					PRE_LAUNCH_BRIBE_PRICING: [
 						{
 							tokenAddress: "0x11dc28d01984079b7efe7763b533e6ed9e3722b9",
@@ -110,7 +115,12 @@ const protocols: Record<string, ProtocolConfig> = {
 				start: "2025-10-02",
 				fetchParams: {
 					VOTER_ADDRESS: "0xC0F53703e9f4b79fA2FB09a2aeBA487FA97729c9",
-					POOL_FACTORY_ADDRESS: "0xF6cDfFf7Ad51caaD860e7A35d6D4075d74039a6B"
+					POOL_FACTORIES: [
+						{
+							address: "0xF6cDfFf7Ad51caaD860e7A35d6D4075d74039a6B",
+							fromBlock: 20524597
+						}
+					]
 				}
 			}
 		}
@@ -121,7 +131,9 @@ const protocols: Record<string, ProtocolConfig> = {
 				start: "2025-05-13",
 				fetchParams: {
 					VOTER_ADDRESS: "0x48233cCC97B87Ba93bCA212cbEe48e3210211f03",
-					POOL_FACTORY_ADDRESS: "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248"
+					POOL_FACTORIES: [
+						{ address: "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248", fromBlock: 199859 }
+					]
 				}
 			}
 		}
