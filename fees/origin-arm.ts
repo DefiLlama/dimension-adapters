@@ -6,6 +6,7 @@ import {
   ORIGIN_YIELD_LABEL,
   ORIGIN_PROTOCOL_FEE_LABEL,
   ORIGIN_REBASE_LABEL,
+  STAKING_REWARDS_LABEL,
 } from "../helpers/origin-protocol";
 
 // ARM vaults expose fee() (uint16) instead of trusteeFeeBps() but use the same
@@ -40,11 +41,8 @@ const breakdownMethodology = {
   Revenue: {
     [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault profit × on-chain fee() from each AbstractARM vault.",
   },
-  ProtocolRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Per-vault profit × on-chain fee() from each AbstractARM vault.",
-  },
   HoldersRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+    [STAKING_REWARDS_LABEL]: "Performance fee forwarded to OGN stakers.",
   },
   SupplySideRevenue: {
     [ORIGIN_REBASE_LABEL]: "Profit net of performance fee, distributed to ARM vault depositors.",
