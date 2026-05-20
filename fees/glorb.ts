@@ -56,7 +56,7 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
     dailyRevenue.add(GLORB, e.glorbCost / 10n);  // 10% burn = protocol revenue
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -64,13 +64,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2025-02-01',
+      start: '2026-02-06',
+      deadFrom: '2026-04-29'
     },
   },
   methodology: {
     Fees: 'Total fees: Snatch (10% of buys: buyback + dividends + jackpot) + Mines (all ETH from registration, depth unlocks, prestige + all GLORB from stat upgrades).',
-    Revenue: 'Protocol revenue via deflation: Snatch buyback-and-burn (5% of buys) + Mines GLORB burn (10% of stat upgrade costs).',
-    ProtocolRevenue: 'Same as Revenue — all protocol revenue flows through buyback/burn mechanisms.',
+    Revenue: 'Revenue via deflation: Snatch buyback-and-burn (5% of buys) + Mines GLORB burn (10% of stat upgrade costs).',
+    HoldersRevenue: 'Revenue via deflation: Snatch buyback-and-burn (5% of buys) + Mines GLORB burn (10% of stat upgrade costs).',
   },
 };
 
