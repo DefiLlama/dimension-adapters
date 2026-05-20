@@ -7,6 +7,7 @@ const SwapEvent = "event ElfomoTrade(uint256 indexed quoteId, uint256 indexed pa
 const VaultMetricsEvent = "event VaultMetrics(uint256 indexed vaultId, address indexed refTokenAddress, uint256 prevRate, uint256 newRate, uint256 newPreFeeRate, uint256 newHighWaterMarkRate, uint256 prevTimestamp, uint256 newTimestamp, int256 lastPeriodPreFeeAPRInBps, uint256 feeProtocolInRefToken, uint256 feeCuratorInRefToken, uint256 yieldToLPsInRefToken, uint256 protocolSharesMinted, uint256 curatorSharesMinted, uint256 totalAssetsInRefToken)"
 const ELFOMOFI_SWAP_ADDRESS = "0xf0f0F0F0FB0d738452EfD03A28e8be14C76d5f73"
 const ELFOMOFI_VAULTS_MANAGER = "0xE34CD3682AF9C04303386499FBa215B38Eff6106"
+const VAULT_METRICS_LOOKAHEAD_SECONDS = 7 * 24 * 3600;
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
@@ -29,21 +30,45 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
+    const fromBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
+    const blockTime = (options.toTimestamp - options.fromTimestamp) / (toBlock - fromBlock);
+    const now = Math.floor(Date.now() / 1000);
+    const effectiveLookahead = Math.max(0, Math.min(VAULT_METRICS_LOOKAHEAD_SECONDS, now - options.toTimestamp));
+    const lookaheadBlocks = Math.ceil(effectiveLookahead / blockTime);
+
     const vaultLogs = await options.getLogs({
         target: ELFOMOFI_VAULTS_MANAGER,
         eventAbi: VaultMetricsEvent,
+        toBlock: toBlock + lookaheadBlocks,
     })
 
     for (const log of vaultLogs) {
-        dailyFees.add(log.refTokenAddress, log.yieldToLPsInRefToken, METRIC.ASSETS_YIELDS);
-        dailyFees.add(log.refTokenAddress, log.feeProtocolInRefToken, METRIC.ASSETS_YIELDS);
-        dailyFees.add(log.refTokenAddress, log.feeCuratorInRefToken, METRIC.ASSETS_YIELDS);
+        const prevTs = Number(log.prevTimestamp);
+        const newTs = Number(log.newTimestamp);
+        const totalPeriod = newTs - prevTs;
+        if (totalPeriod <= 0) continue;
 
-        dailySupplySideRevenue.add(log.refTokenAddress, log.yieldToLPsInRefToken, METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.add(log.refTokenAddress, log.feeCuratorInRefToken, METRIC.CURATORS_FEES);
+        const overlapStart = Math.max(prevTs, options.fromTimestamp);
+        const overlapEnd = Math.min(newTs, options.toTimestamp);
+        const overlapDuration = Math.max(0, overlapEnd - overlapStart);
+        if (overlapDuration <= 0) continue;
 
-        dailyRevenue.add(log.refTokenAddress, log.feeProtocolInRefToken, METRIC.PERFORMANCE_FEES);
-        dailyProtocolRevenue.add(log.refTokenAddress, log.feeProtocolInRefToken, METRIC.PERFORMANCE_FEES);
+        const prorate = (amount: any) => BigInt(amount) * BigInt(overlapDuration) / BigInt(totalPeriod);
+
+        const yieldToLPs = prorate(log.yieldToLPsInRefToken);
+        const feeProtocol = prorate(log.feeProtocolInRefToken);
+        const feeCurator = prorate(log.feeCuratorInRefToken);
+
+        dailyFees.add(log.refTokenAddress, yieldToLPs, METRIC.ASSETS_YIELDS);
+        dailyFees.add(log.refTokenAddress, feeProtocol, METRIC.ASSETS_YIELDS);
+        dailyFees.add(log.refTokenAddress, feeCurator, METRIC.ASSETS_YIELDS);
+
+        dailySupplySideRevenue.add(log.refTokenAddress, yieldToLPs, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(log.refTokenAddress, feeCurator, METRIC.CURATORS_FEES);
+
+        dailyRevenue.add(log.refTokenAddress, feeProtocol, METRIC.PERFORMANCE_FEES);
+        dailyProtocolRevenue.add(log.refTokenAddress, feeProtocol, METRIC.PERFORMANCE_FEES);
     }
 
     return {
