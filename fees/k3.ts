@@ -5,10 +5,10 @@ import { CHAIN } from "../helpers/chains";
 const EULER_DAO_SUNSET_DATE = "2026-05-06";
 
 const k3Vaults: any = {
-  // [CHAIN.BSC]: {
-  //   eulerVaultOwners: ['0x5Bb012482Fa43c44a29168C6393657130FDF0506', '0x2E28c94eE56Ac6d82600070300d86b3a14D5d71A'],
-  //   start: '2023-10-02',
-  // },
+  [CHAIN.BSC]: {
+    eulerVaultOwners: ['0x5Bb012482Fa43c44a29168C6393657130FDF0506', '0x2E28c94eE56Ac6d82600070300d86b3a14D5d71A'],
+    start: '2023-10-02',
+  },
   [CHAIN.AVAX]: {
     eulerVaultOwners: ['0xa4dC6C20475fDD05b248fbE51F572bD3154dd03B', '0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'],
     start: '2023-10-02',
