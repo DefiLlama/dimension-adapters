@@ -6,7 +6,15 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 // Instrument contract; new markets show up here automatically, so the adapter
 // is forward-compatible with future SynFutures listings without manual config.
 // Docs: https://docs.synfutures.com/protocol/smart-contract-addresses/base-network
-const GATE = "0x208B443983D8BcC8578e9D86Db23FbA547071270";
+
+const chainConfig = {
+  [CHAIN.BASE]: {
+    gate: "0x208B443983D8BcC8578e9D86Db23FbA547071270",
+  },
+  [CHAIN.BLAST]: {
+    gate: "0x6A372dBc1968f4a07cf2ce352f410962A972c257",
+  }
+}
 
 // Each Instrument contract emits exactly one Trade event per taker fill. The
 // `entryNotional` field is the position's notional value in the quote token,
@@ -22,6 +30,8 @@ const TRADE_EVENT_ABI =
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+
+  const GATE = chainConfig[options.chain].gate;
 
   const instruments: string[] = await options.api.call({
     target: GATE,
@@ -56,10 +66,17 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: [CHAIN.BASE],
-  start: "2024-06-26",
   pullHourly: true,
+  fetch,
+  adapter: {
+    [CHAIN.BASE]: {
+      start: "2024-06-26",
+    },
+    [CHAIN.BLAST]: {
+      start: "2024-02-29",
+      deadFrom: "2025-04-11", //sunset
+    },
+  },
   methodology,
 };
 
