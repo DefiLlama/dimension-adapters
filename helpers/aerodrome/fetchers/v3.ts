@@ -1,0 +1,209 @@
+import { ethers } from "ethers";
+import BigNumber from "bignumber.js";
+import * as sdk from "@defillama/sdk";
+import type * as HelperTypes from "../types";
+import type { FetchOptions } from "../../../adapters/types";
+import * as ABI from "../abis";
+
+export const getV3Pools = async (
+	fetchOptions: FetchOptions,
+	{
+		itemAbi = ABI.POOL_FACTORY.function.allPairs,
+		lengthAbi = ABI.POOL_FACTORY.function.allPairsLength,
+		...options
+	}: HelperTypes.PoolFetcherOptions
+): Promise<Record<string, HelperTypes.Pool>> => {
+	const { api } = fetchOptions;
+	const pools: string[] = await api.fetchList({
+		target: options.POOL_FACTORY_ADDRESS,
+		lengthAbi,
+		itemAbi
+	});
+
+	const filteredPools = pools.filter((pool) => pool !== ADDRESSES.null);
+
+	const [tokens0, tokens1] = await Promise.all([
+		api.multiCall({ abi: "address:token0", calls: filteredPools }),
+		api.multiCall({ abi: "address:token1", calls: filteredPools })
+	]);
+
+	const poolFees = await api.multiCall({
+		target: options.POOL_FACTORY_ADDRESS,
+		abi: ABI.V3_POOL_FACTORY.function.getSwapFee,
+		calls: filteredPools.map((pool) => ({
+			params: [pool]
+		}))
+	});
+
+	return Object.fromEntries(
+		filteredPools.map((poolAddress: string, poolIndex: number) => [
+			sdk.util.normalizeAddress(poolAddress),
+			{
+				poolAddress: sdk.util.normalizeAddress(poolAddress),
+				fee: Number(poolFees[poolIndex]),
+				tokens: [
+					sdk.util.normalizeAddress(tokens0[poolIndex]),
+					sdk.util.normalizeAddress(tokens1[poolIndex])
+				]
+			}
+		])
+	);
+};
+
+export const getV3Swaps = async (
+	fetchOptions: FetchOptions,
+	options: HelperTypes.SwapFetcherOptions
+) => {
+	if (!options.pools.length) return [];
+
+	const { getLogs } = fetchOptions;
+	const swapLogs = await getLogs({
+		noTarget: true,
+		eventAbi: ABI.V3_POOL_FACTORY.event.Swap,
+		parseLog: false,
+		entireLog: true,
+		skipCache: true
+	});
+
+	const swapIface = new ethers.Interface([ABI.V3_POOL_FACTORY.event.Swap]);
+	return swapLogs
+		.map((log) => {
+			const poolAddress = sdk.util.normalizeAddress(log.address);
+			if (!options.pools.includes(poolAddress)) return null;
+
+			const [, , amount0, amount1] = swapIface.parseLog(log)?.args ?? [0, 0, 0, 0];
+
+			return {
+				poolAddress,
+				amount0: BigNumber(amount0),
+				amount1: BigNumber(amount1)
+			};
+		})
+		.filter((log) => !!log);
+};
+
+type PoolFeesMap = Record<string, [BigNumber, BigNumber]>;
+export interface CollectedFeesFetcherOptions {
+	pools: string[];
+}
+
+const getV3PoolCollectedFees = async (
+	fetchOptions: FetchOptions,
+	options: CollectedFeesFetcherOptions
+): Promise<PoolFeesMap> => {
+	const poolFeesMap: PoolFeesMap = {};
+	if (!options.pools.length) return poolFeesMap;
+
+	const collectFeesLogs = await fetchOptions.getLogs({
+		noTarget: true,
+		eventAbi: ABI.V3_POOL.event.CollectFees,
+		entireLog: true
+	});
+
+	collectFeesLogs.forEach((log) => {
+		const poolAddress = sdk.util.normalizeAddress(log.address);
+		if (!options.pools.includes(poolAddress)) return;
+
+		if (!poolFeesMap[poolAddress]) {
+			poolFeesMap[poolAddress] = [BigNumber(0), BigNumber(0)];
+		}
+
+		const fees = poolFeesMap[poolAddress];
+		fees[0] = fees[0].plus(log.args.amount0);
+		fees[1] = fees[1].plus(log.args.amount1);
+	});
+
+	return poolFeesMap;
+};
+
+export interface VoterSwapFeesShareFetcherOptions {
+	pools: Record<string, HelperTypes.Pool>;
+}
+
+const getV3VoterSwapFeesShare = async (
+	fetchOptions: FetchOptions,
+	options: VoterSwapFeesShareFetcherOptions
+) => {
+	const balance = fetchOptions.createBalances();
+	const poolAddresses = Object.keys(options.pools);
+	if (!poolAddresses.length) return balance;
+
+	const collectedPoolFeesMap = await getV3PoolCollectedFees(fetchOptions, {
+		pools: poolAddresses
+	});
+	const [gaugeFeesStart, gaugeFeesEnd] = await Promise.all([
+		fetchOptions.fromApi.multiCall({
+			abi: ABI.V3_POOL.function.gaugeFees,
+			calls: poolAddresses
+		}),
+		fetchOptions.api.multiCall({
+			abi: ABI.V3_POOL.function.gaugeFees,
+			calls: poolAddresses
+		})
+	]);
+
+	Object.entries(options.pools).forEach(([pool, { tokens }], poolIndex) => {
+		const [token0, token1] = tokens;
+		const [gaugeFee0Start, gaugeFee1Start] = gaugeFeesStart[poolIndex] ?? [0, 0];
+		const [gaugeFee0End, gaugeFee1End] = gaugeFeesEnd[poolIndex] ?? [0, 0];
+		const [collectedFee0, collectedFee1] = collectedPoolFeesMap[pool] ?? [
+			BigNumber(0),
+			BigNumber(0)
+		];
+
+		balance.add(token0, collectedFee0.plus(gaugeFee0End - gaugeFee0Start));
+		balance.add(token1, collectedFee1.plus(gaugeFee1End - gaugeFee1Start));
+	});
+
+	return balance;
+};
+
+export const getV3PoolMetrics = async (
+	fetchOptions: FetchOptions,
+	options: HelperTypes.PoolMetricsFetcherOptions
+) => {
+	const volume = fetchOptions.createBalances();
+	const fees = fetchOptions.createBalances();
+	const voterRevenue = fetchOptions.createBalances();
+	const supplySideRevenue = fetchOptions.createBalances();
+
+	const poolAddresses = Object.keys(options.pools);
+	if (poolAddresses.length) {
+		const swaps = await getV3Swaps(fetchOptions, { pools: poolAddresses });
+
+		const shareOf = (scaledPercent: number, total: BigNumber) =>
+			total
+				.times(scaledPercent)
+				.div(ABI.V3_POOL_FACTORY.FEE_SCALE)
+				.integerValue(BigNumber.ROUND_CEIL);
+
+		for (const { poolAddress, amount0, amount1 } of swaps) {
+			const pool = options.pools[poolAddress];
+			const [token0, token1] = pool.tokens;
+
+			if (amount0.isGreaterThan(0)) {
+				volume.add(token0, amount0);
+				fees.add(token0, shareOf(pool.fee, amount0));
+			} else if (amount1.isGreaterThan(0)) {
+				volume.add(token1, amount1);
+				fees.add(token1, shareOf(pool.fee, amount1));
+			}
+		}
+
+		const poolsWithGauge = Object.fromEntries(
+			Object.entries(options.pools).filter(([pool]) => !!options.poolGauges[pool])
+		);
+
+		const voterSwapFeesShare = await getV3VoterSwapFeesShare(fetchOptions, {
+			pools: poolsWithGauge
+		});
+
+		voterRevenue.add(voterSwapFeesShare);
+
+		supplySideRevenue.add(fees);
+		supplySideRevenue.subtract(voterRevenue);
+		supplySideRevenue.removeNegativeBalances();
+	}
+
+	return { volume, fees, voterRevenue, supplySideRevenue };
+};

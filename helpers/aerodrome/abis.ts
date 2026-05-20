@@ -5,6 +5,26 @@ export const POOL_FACTORY = {
 	}
 };
 
+export const V3_POOL_FACTORY = {
+	FEE_SCALE: 1e6,
+	event: {
+		Swap: "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)"
+	},
+	function: {
+		getSwapFee: "function getSwapFee(address) external view override returns (uint24)"
+	}
+};
+
+export const V3_POOL = {
+	event: {
+		CollectFees:
+			"event CollectFees(address indexed recipient, uint128 amount0, uint128 amount1)"
+	},
+	function: {
+		gaugeFees: "function gaugeFees() view returns (uint128 token0, uint128 token1)"
+	}
+};
+
 export const V2_POOL_FACTORY = {
 	FEE_SCALE: 1e4,
 	event: {

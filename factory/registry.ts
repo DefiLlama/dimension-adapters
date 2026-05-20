@@ -71,6 +71,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'dexs': [
     'aerodromeV2',
+    'aerodromeV3',
     'helpers/crypto-card',
     'helpers/balancer',
     'uniV2',
