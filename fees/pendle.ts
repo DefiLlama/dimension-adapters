@@ -229,7 +229,6 @@ const fetch = async (options: FetchOptions) => {
     target: AIRDROP_DISTRIBUTOR,
     fromAdddesses: sources,
   })
-  // }
 
   tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
 
