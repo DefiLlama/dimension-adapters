@@ -2,11 +2,11 @@ import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter, FetchOptions, Dependencies, } from "../adapters/types";
 import { getAlliumChain, queryAllium } from "../helpers/allium";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { METRIC } from "../helpers/metrics";
 
 const LABELS = {
-  BOT_FEES: 'Trading fees paid by users',
   BOT_REVENUE: 'Trading fees excluding referral rewards',
-  REFERRAL_FEES: 'Referral rewards',
+  REWARDS: 'Referral rewards',
 }
 
 // const TONFeeAddress = 'TXNP92LYmnPZzqnXwwsmotizTcNyPGxxEv'
@@ -40,37 +40,28 @@ async function fetchEVM(options: FetchOptions) {
   const feeAddress = config.feeAddress!.toLowerCase()
   const rewardFundingSources = [config.feeAddress, config.dispatcher].filter(Boolean).map((address: string) => `'${address.toLowerCase()}'`).join(', ')
   const internalAddresses = Object.values(chainConfig).flatMap((config: any) => [config.feeAddress, config.dispatcher, config.rewardRelay]).filter((address: any) => address?.startsWith?.('0x')).map((address: string) => `'${address.toLowerCase()}'`).join(', ')
-  const rewardsQuery = config.rewardRelay ? `
-    SELECT COALESCE(SUM(raw_amount), 0) AS amount
-    FROM ${chainKey}.assets.native_token_transfers
-    WHERE to_address = '${config.rewardRelay.toLowerCase()}'
-      AND from_address IN (${rewardFundingSources})
-      AND transfer_type = 'value_transfer'
-      AND raw_amount > 0
-      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  ` : 'SELECT 0 AS amount'
+  const rewardFilter = config.rewardRelay ? `OR (to_address = '${config.rewardRelay.toLowerCase()}' AND from_address IN (${rewardFundingSources}))` : ''
 
   const query = `
-    SELECT
-      (SELECT COALESCE(SUM(raw_amount), 0)
+    WITH data AS (
+      SELECT
+      COALESCE(SUM(CASE WHEN to_address = '${feeAddress}' AND from_address NOT IN (${internalAddresses}) THEN TRY_TO_DECIMAL(raw_amount_str, 38, 0) ELSE 0 END), 0) AS fees,
+      COALESCE(SUM(CASE WHEN ${config.rewardRelay ? `to_address = '${config.rewardRelay.toLowerCase()}' AND from_address IN (${rewardFundingSources})` : 'FALSE'} THEN TRY_TO_DECIMAL(raw_amount_str, 38, 0) ELSE 0 END), 0) AS referral_rewards
       FROM ${chainKey}.assets.native_token_transfers
-      WHERE to_address = '${feeAddress}'
-        AND from_address NOT IN (${internalAddresses})
-        AND transfer_type = 'value_transfer'
+      WHERE transfer_type = 'value_transfer'
         AND raw_amount > 0
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      ) AS fees,
-      (SELECT amount FROM (${rewardsQuery})) AS referral_rewards
+        AND (to_address = '${feeAddress}' ${rewardFilter})
+    )
+    SELECT TO_VARCHAR(fees) AS fees, TO_VARCHAR(referral_rewards) AS referral_rewards, TO_VARCHAR(fees - referral_rewards) AS revenue FROM data
   `
 
   const result = (await queryAllium(query))[0]
-  const revenue = (BigInt(result.fees ?? 0) - BigInt(result.referral_rewards ?? 0)).toString()
 
-  dailyFees.addGasToken(result.fees, LABELS.BOT_FEES)
-  dailyRevenue.addGasToken(revenue, LABELS.BOT_REVENUE)
-  dailySupplySideRevenue.addGasToken(result.referral_rewards, LABELS.REFERRAL_FEES)
+  dailyFees.addGasToken(result.fees, METRIC.TRADING_FEES)
+  dailyRevenue.addGasToken(result.revenue, LABELS.BOT_REVENUE)
+  dailySupplySideRevenue.addGasToken(result.referral_rewards, LABELS.REWARDS)
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -81,39 +72,30 @@ async function fetchSolana(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances()
   const feeAddresses = config.feeAddresses.map((address: string) => `'${address}'`).join(', ')
   const query = `
-    SELECT
-      (SELECT COALESCE(SUM(raw_amount), 0)
+    WITH data AS (
+      SELECT
+      COALESCE(SUM(CASE WHEN to_address IN (${feeAddresses}) AND from_address NOT IN (${feeAddresses}) THEN TRY_TO_DECIMAL(raw_amount_str, 38, 0) ELSE 0 END), 0) AS fees,
+      COALESCE(SUM(CASE WHEN to_address = '${config.rewardRelay}' AND from_address IN (${feeAddresses}) THEN TRY_TO_DECIMAL(raw_amount_str, 38, 0) ELSE 0 END), 0) AS referral_rewards
       FROM solana.assets.transfers
-      WHERE to_address IN (${feeAddresses})
-        AND from_address NOT IN (${feeAddresses})
-        AND mint = '${ADDRESSES.solana.SOL}'
+      WHERE mint = '${ADDRESSES.solana.SOL}'
         AND transfer_type = 'sol_transfer'
         AND raw_amount > 0
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      ) AS fees,
-      (SELECT COALESCE(SUM(raw_amount), 0)
-      FROM solana.assets.transfers
-      WHERE to_address = '${config.rewardRelay}'
-        AND from_address IN (${feeAddresses})
-        AND mint = '${ADDRESSES.solana.SOL}'
-        AND transfer_type = 'sol_transfer'
-        AND raw_amount > 0
-        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      ) AS referral_rewards
+        AND (to_address IN (${feeAddresses}) OR to_address = '${config.rewardRelay}')
+    )
+    SELECT TO_VARCHAR(fees) AS fees, TO_VARCHAR(referral_rewards) AS referral_rewards, TO_VARCHAR(fees - referral_rewards) AS revenue FROM data
   `
 
   const result = (await queryAllium(query))[0]
-  const revenue = (BigInt(result.fees ?? 0) - BigInt(result.referral_rewards ?? 0)).toString()
 
-  dailyFees.add(ADDRESSES.solana.SOL, result.fees, LABELS.BOT_FEES)
-  dailyRevenue.add(ADDRESSES.solana.SOL, revenue, LABELS.BOT_REVENUE)
-  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result.referral_rewards, LABELS.REFERRAL_FEES)
+  dailyFees.add(ADDRESSES.solana.SOL, result.fees, METRIC.TRADING_FEES)
+  dailyRevenue.add(ADDRESSES.solana.SOL, result.revenue, LABELS.BOT_REVENUE)
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result.referral_rewards, LABELS.REWARDS)
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 } 
 
-async function fetch(options: FetchOptions) {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
   return options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEVM(options)
 }
 
@@ -126,7 +108,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.BOT_FEES]: "Trading fees paid by users while using Maestro bot.",
+    [METRIC.TRADING_FEES]: "Trading fees paid by users while using Maestro bot.",
   },
   Revenue: {
     [LABELS.BOT_REVENUE]: "Trading fees kept by Maestro after referral rewards.",
@@ -135,13 +117,12 @@ const breakdownMethodology = {
     [LABELS.BOT_REVENUE]: "Trading fees kept by Maestro after referral rewards.",
   },
   SupplySideRevenue: {
-    [LABELS.REFERRAL_FEES]: "Referral rewards paid to Maestro users.",
+    [LABELS.REWARDS]: "Referral rewards paid to Maestro users.",
   },
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   adapter: chainConfig,
   methodology,
