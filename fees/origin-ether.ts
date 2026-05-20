@@ -17,8 +17,8 @@ const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
   ],
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(options);
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(_a, _b, options);
 };
 
 const methodology = {
@@ -47,7 +47,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   // Origin's daily_revenue API can report negative amountUSD on loss days; the
   // helper now forwards those through instead of dropping them. See
   // helpers/origin-protocol.ts.
