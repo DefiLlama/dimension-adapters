@@ -14,7 +14,6 @@ const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0;
   let offset = 0;
 
-  try {
     while (true) {
       const apiResponse = await httpPost(DEDUST_API, {
         offset,
@@ -43,10 +42,6 @@ const fetch = async (options: FetchOptions) => {
       if (offset >= totalPools) break;
       await sleep(3000);
     }
-  } catch (error) {
-    console.error(`dedust dailyVolume fetch failed (offset=${offset}):`, error);
-    return { dailyVolume: 0 };
-  }
 
   return {
     dailyVolume,
