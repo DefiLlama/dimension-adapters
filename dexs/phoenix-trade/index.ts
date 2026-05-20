@@ -21,7 +21,7 @@ async function fetch(_: any, __: any, options: FetchOptions) {
         .process(async (market) => {
             const ohlcvData = await fetchURLAutoHandleRateLimit(`${PERP_API_URL}/candles/${market}?timeframe=1d&limit=300&startTime=${startTime}&endTime=${endTime}`);
             const todaysData = ohlcvData.filter((data: any) => data.time >= startTime && data.time < endTime);
-            dailyVolume.addUSDValue(todaysData[0]?.volume ?? 0);
+            dailyVolume.addUSDValue(todaysData[0]?.volumeQuote ?? 0);
             await sleep(1000);
         });
 
