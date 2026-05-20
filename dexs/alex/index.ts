@@ -120,6 +120,12 @@ async function fetchLegacy(dayStart: number): Promise<number> {
     }
   }
 
+  const unresolvedTokens = tokenNames.filter((token) => !(token in prices));
+  if (unresolvedTokens.length) {
+    console.error(`ALEX legacy prices missing for ${dayStart}: ${unresolvedTokens.join(",")}`);
+    return 0;
+  }
+
   let totalUSD = 0;
   for (const snap of Object.values(lastSnap)) {
     const tokenName = snap.token_x.split(".").pop()!;
