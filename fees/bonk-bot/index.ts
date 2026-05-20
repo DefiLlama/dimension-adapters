@@ -37,29 +37,18 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     ),
     rewardTransfers AS (
       SELECT
-        tx_id,
-        MAX(block_time) AS block_time,
-        SUM(CASE WHEN address = '${rewardWallet}' AND balance_change > 0 THEN balance_change ELSE 0 END) AS reward_lamports
-      FROM solana.account_activity
+        CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS referralRewards
+      FROM tokens_solana.sol_transfers
       WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})
-        AND token_mint_address IS NULL
-        AND address IN ('${feeWallet}', '${rewardWallet}')
-      GROUP BY 1
-      HAVING
-        SUM(CASE WHEN address = '${feeWallet}' AND balance_change < 0 THEN 1 ELSE 0 END) > 0
-        AND SUM(CASE WHEN address = '${rewardWallet}' AND balance_change > 0 THEN 1 ELSE 0 END) > 0
-    ),
-    referralRewards AS (
-      SELECT
-        CAST(COALESCE(SUM(reward_lamports), 0) AS VARCHAR) AS referralRewards
-      FROM
-        rewardTransfers
+        AND action = 'transfer'
+        AND from_owner = '${feeWallet}'
+        AND to_owner = '${rewardWallet}'
     )
     SELECT
       COALESCE((SELECT SUM(fee_usd) FROM botTrades), 0) AS dailyFees,
-      (SELECT referralRewards FROM referralRewards) AS referralRewards
+      (SELECT referralRewards FROM rewardTransfers) AS referralRewards
   `;
 
   const data = await queryDuneSql(options, query);
