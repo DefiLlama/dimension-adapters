@@ -20,6 +20,7 @@ const FEE_SCALE = 10000;
 export const ORIGIN_YIELD_LABEL = "Origin Product Yield";
 export const ORIGIN_PROTOCOL_FEE_LABEL = "Origin Performance Fee";
 export const ORIGIN_REBASE_LABEL = "Origin Rebase To LST Holders";
+export const STAKING_REWARDS_LABEL = "OGN Staking Rewards";
 
 /**
  * Describes one Origin product that is rolled up into a per-protocol fee
@@ -65,9 +66,10 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
 
     if (products.length === 0) {
-      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue };
+      return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
     }
 
     const feeData: OriginDailyRecord[] = await fetchURL(FEE_API);
@@ -125,12 +127,13 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
       dailyFees.addUSDValue(productFees, ORIGIN_YIELD_LABEL);
       dailyRevenue.addUSDValue(productRevenue, ORIGIN_PROTOCOL_FEE_LABEL);
       dailySupplySideRevenue.addUSDValue(productSupplySide, ORIGIN_REBASE_LABEL);
+      dailyHoldersRevenue.addUSDValue(productFees, STAKING_REWARDS_LABEL);
     }
 
     return {
       dailyFees,
       dailyRevenue,
-      dailyHoldersRevenue: dailyRevenue,
+      dailyHoldersRevenue,
       dailySupplySideRevenue,
     };
   };
