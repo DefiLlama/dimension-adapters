@@ -1,5 +1,4 @@
 import { FetchOptions, FetchResultV2 } from "../adapters/types";
-import { METRIC } from "./metrics";
 import fetchURL from "../utils/fetchURL";
 
 // Per-product daily yield is read from Origin's public daily_revenue endpoint
@@ -20,7 +19,7 @@ const FEE_SCALE = 10000;
 
 export const ORIGIN_YIELD_LABEL = "Origin Product Yield";
 export const ORIGIN_PROTOCOL_FEE_LABEL = "Origin Performance Fee";
-export const ORIGIN_REBASE_LABEL = "Origin Rebase To Holders";
+export const ORIGIN_REBASE_LABEL = "Origin Rebase To LST Holders";
 
 /**
  * Describes one Origin product that is rolled up into a per-protocol fee
@@ -62,7 +61,7 @@ interface OriginDailyRecord {
  *                  isn't deployed on).
  */
 export const fetchOriginFees = (products: OriginProduct[]) =>
-  async (options: FetchOptions): Promise<FetchResultV2> => {
+  async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -74,11 +73,10 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
     const feeData: OriginDailyRecord[] = await fetchURL(FEE_API);
     const day = feeData.find((d) => d.timestamp === options.startOfDay * 1000);
     if (!day) {
-      console.warn(
+      throw new Error(
         `origin-protocol: no daily_revenue record for startOfDay=${options.startOfDay} ` +
         `(${options.dateString ?? ""}) on chain=${options.chain}`,
       );
-      return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailySupplySideRevenue };
     }
 
     // Group products by feeAbi so we can issue one multiCall per ABI variant.
