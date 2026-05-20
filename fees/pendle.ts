@@ -240,10 +240,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.addBalances(dailySupplySideRevenue, 'AMM Swap Fees To LPs');
 
   // https://docs.pendle.finance/ProtocolMechanics/Mechanisms/Fees
-  // Protocol revenue (20% cut) only started in September 2025; before that, 100% went to vePENDLE holders
+  // Protocol revenue (20% cut) only started in September 2025; before that, 100% went to sPENDLE holders
   const protocolRevenueStartDate = new Date('2025-09-01').getTime() / 1000
   const hasProtocolRevenue = options.startOfDay >= protocolRevenueStartDate
-  const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'vePENDLE Distributions') : dailyRevenue.clone(1, 'vePENDLE Distributions')
+  const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'sPENDLE Distributions') : dailyRevenue.clone(1, 'sPENDLE Distributions')
   const dailyProtocolRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.2, 'Treasury And Operations') : dailyRevenue.clone(0)
 
   return {
@@ -259,7 +259,7 @@ const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
     Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees.',
     ProtocolRevenue: '20% revenue to protocol treasury and operations (since September 2025, 0% before).',
-    HoldersRevenue: '80% revenue distributed to vePENDLE holders (100% before September 2025).',
+    HoldersRevenue: '80% revenue distributed to sPENDLE holders (100% before September 2025).',
     SupplySideRevenue: '20% of AMM swap fees distributed to liquidity providers.',
 }
 
@@ -276,7 +276,7 @@ const breakdownMethodology = {
       'AMM Swap Fees To LPs': '20% of AMM swap fees distributed to liquidity providers.',
     },
     HoldersRevenue: {
-      'vePENDLE Distributions': 'Revenue distributed to vePENDLE/sPENDLE holders as yield and reward tokens.',
+      'sPENDLE Distributions': 'Revenue distributed to vePENDLE/sPENDLE holders as yield and reward tokens.',
     },
     ProtocolRevenue: {
       'Treasury And Operations': '20% of revenue split between protocol treasury (10%) and operations (10%), effective since September 2025.',
