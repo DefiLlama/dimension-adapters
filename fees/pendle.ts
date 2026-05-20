@@ -1,12 +1,11 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
 import BigNumber from "bignumber.js";
 import { getConfig } from "../helpers/cache";
 import { ChainApi } from "@defillama/sdk";
-import { queryDuneSql } from "../helpers/dune";
 
 const ABI = {
   assetInfo: "function assetInfo() view returns (uint8,address,uint8)",
@@ -19,16 +18,16 @@ type IConfig = {
   [s: string | Chain]: {
     treasury: string;
     blacklists?: Array<string>;
+    airdropFunders?: Array<string>;
+    usdtAddress: string;
   };
 };
 
 const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
 const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
-const USDT_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
-const PENDLE_DEPLOYER = '0x1fccc097db89a86bfc474a1028f93958295b1fb7'
 
 const BRIDGED_ASSETS = [
   {
@@ -55,37 +54,53 @@ const chainConfig: IConfig = {
     blacklists: [
       '0xe2796707590384430d887f15bdf97c660d95894a',
     ],
+    airdropFunders: [
+      "0x096FBee7b8DFb88993A94c6145211163D2616245",
+      "0xeea6F790F18563E91b18DF00B89d9f79b2E6761F",
+    ],
+    usdtAddress: ADDRESSES.ethereum.USDT
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
+    airdropFunders: ["0x096FBee7b8DFb88993A94c6145211163D2616245"],
+    usdtAddress: ADDRESSES.arbitrum.USDT
   },
   [CHAIN.BSC]: {
     treasury: "0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e",
+    usdtAddress: ADDRESSES.bsc.USDT
   },
   [CHAIN.OPTIMISM]: {
     treasury: "0xe972d450ec5b11b99d97760422e0e054afbc8042",
+    usdtAddress: ADDRESSES.optimism.USDT
   },
   [CHAIN.MANTLE]: {
-    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55",
+    usdtAddress: ADDRESSES.mantle.USDT
   },
   [CHAIN.BASE]: {
-    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
+    usdtAddress: ADDRESSES.base.USDT
   },
   [CHAIN.SONIC]: {
-    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.sonic.USDT
   },
   [CHAIN.BERACHAIN]: {
-    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736"
   }, 
   [CHAIN.PLASMA]: {
-    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
   },
   [CHAIN.HYPERLIQUID]: {
-    treasury: "0x17A191644E750AA24a5ec13A253b9446f4eF178b"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    airdropFunders: ["0xeea6F790F18563E91b18DF00B89d9f79b2E6761F"],
+    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
   }
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { chain } = options;
   const { api, getLogs } = options;
 
@@ -208,30 +223,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // these revenue should be counted in fees too
   // Only track tokens sent from addresses funded by the pendle deployer to the airdrop distributor, matching Pendle's Dune query
   let tokenToDistributor = options.createBalances()
-  if (chain === CHAIN.ETHEREUM) {
-    const fundedWallets: { pendle_funded_wallet: string }[] = await queryDuneSql(options, `
-      SELECT DISTINCT
-        "to" AS pendle_funded_wallet
-      FROM ethereum.transactions
-      WHERE "from" = ${PENDLE_DEPLOYER}
-        AND success = true
-        AND value > 0
-        AND block_time >= DATE '2022-10-17'
-        AND block_time < from_unixtime(${options.endTimestamp})
-      GROUP BY "to"
-    `)
-    const sources = Array.from(new Set(
-      [chainConfig[chain].treasury, ...fundedWallets.map(w => w.pendle_funded_wallet)]
-        .map(a => a.toLowerCase())
-    ))
-    tokenToDistributor = await addTokensReceived({
-      options,
-      target: AIRDROP_DISTRIBUTOR,
-      fromAdddesses: sources,
-    })
-  }
+  const sources = [chainConfig[chain].treasury, ...(chainConfig[chain].airdropFunders ?? [])]
+  tokenToDistributor = await addTokensReceived({
+    options,
+    target: AIRDROP_DISTRIBUTOR,
+    fromAdddesses: sources,
+  })
+  // }
 
-  tokenToDistributor.removeTokenBalance(USDT_ETHEREUM) // ignore USDT airdrop
+  tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
 
   const dailyRevenue = options.createBalances()
   dailyRevenue.addBalances(treasuryInflows, 'YT And Swap Fees')
@@ -284,7 +284,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   // pullHourly: true,
   fetch,
   adapter: {
@@ -301,7 +301,6 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
-  dependencies: [Dependencies.DUNE]
 };
 
 async function getWhitelistedAssets(api: ChainApi): Promise<{
