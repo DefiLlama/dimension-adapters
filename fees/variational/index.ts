@@ -28,6 +28,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ARBITRUM],
+  start: "2025-11-15", // first tx
   methodology: {
     Fees: "Top-line spreads paid by users, derived as 10x the inflow to the protocol treasury (treasury receives a fixed 10% of spreads).",
     Revenue: "Protocol's share of spreads (10% to treasury). The remaining 90% funds the vertically-integrated OLP, loss refunds, and referral rewards, which are treated as cost of revenue.",
