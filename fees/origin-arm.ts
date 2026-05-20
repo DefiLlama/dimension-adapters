@@ -22,8 +22,8 @@ const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
   ],
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(options);
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(_a, _b, options);
 };
 
 const methodology = {
@@ -52,7 +52,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   // ARM vaults can show negative amountUSD on loss days (NAV dipping before
   // the next rebase). The helper forwards those through instead of dropping
   // them so dailyFees / Revenue / SupplySide reflect the true daily delta.
