@@ -6,6 +6,7 @@ import {
   ORIGIN_YIELD_LABEL,
   ORIGIN_PROTOCOL_FEE_LABEL,
   ORIGIN_REBASE_LABEL,
+  STAKING_REWARDS_LABEL,
 } from "../helpers/origin-protocol";
 
 // Origin Sonic (OS) currently has trusteeFeeBps = 1000 (10%) on-chain —
@@ -29,11 +30,8 @@ const breakdownMethodology = {
   Revenue: {
     [ORIGIN_PROTOCOL_FEE_LABEL]: "OS yield × on-chain trusteeFeeBps from the OS vault (currently 10%).",
   },
-  ProtocolRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "OS yield × on-chain trusteeFeeBps from the OS vault (currently 10%).",
-  },
   HoldersRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+    [STAKING_REWARDS_LABEL]: "Performance fee forwarded to OGN stakers.",
   },
   SupplySideRevenue: {
     [ORIGIN_REBASE_LABEL]: "Yield net of performance fee, distributed to OS holders via rebase.",
