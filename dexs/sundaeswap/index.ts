@@ -82,7 +82,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
-  start: "2022-02-01",
+  //start: "2022-02-01",
+  runAtCurrTime: true,
 };
 
 export default adapter;
