@@ -38,7 +38,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   // Origin's daily_revenue API can report negative amountUSD on loss days (rare
   // for OToken vaults but possible for ARM vaults when NAV dips). The helper
   // forwards those through so dailyFees / Revenue / SupplySide reflect the
