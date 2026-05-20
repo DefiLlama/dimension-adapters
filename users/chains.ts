@@ -92,6 +92,10 @@ const alliumChainMap: Record<string, string> = {
     bsc: CHAIN.BSC,
     megaeth: CHAIN.MEGAETH,
     katana: CHAIN.KATANA,
+    abstract: CHAIN.ABSTRACT,
+    linea: CHAIN.LINEA,
+    ronin: CHAIN.RONIN,
+    sonic: CHAIN.SONIC,
 }
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
