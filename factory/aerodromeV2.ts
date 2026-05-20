@@ -4,6 +4,7 @@ import {
 	aerodromeV2Exports,
 	type AerodromeChainConfig
 } from "../helpers/aerodrome";
+import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 const defaultMethodology = {
@@ -46,7 +47,64 @@ interface ProtocolConfig {
 	chains: Record<string, AerodromeChainConfig>;
 }
 
-const protocols: Record<string, ProtocolConfig> = {};
+const protocols: Record<string, ProtocolConfig> = {
+	aerodrome: {
+		adapterParams: {
+			methodology: {
+				Fees: "Total swap fees paid by traders. Per-pool fee rate read from PoolFactory.getFee (default sAMM 0.05%, vAMM 0.30%; customizable per pool) applied to each swap's input amount.",
+				Revenue:
+					"veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
+				HoldersRevenue:
+					"Fees earned by LPs staked in the gauge — forwarded to FeeVotingReward for distribution to veAERO voters. Computed per pool as fees × pool.balanceOf(gauge) / pool.totalSupply and external bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+				SupplySideRevenue:
+					"Unstaked LPs' pro-rata share of swap fees, claimable directly from the pool. Computed per pool as fees × (1 − stakedShare). Aerodrome v2 has no unstaked-LP rake module, so unstaked LPs keep 100% of their share.",
+				TokenIncentives:
+					"Token emissions distributed to LPs staking in gauges. Rewards are calculated per epoch using a gauge-specific emission rate, then streamed over the epoch duration."
+			}
+		},
+		chains: {
+			[CHAIN.BASE]: {
+				start: "2023-08-28",
+				fetchParams: {
+					VOTER_ADDRESS: "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+					POOL_FACTORY_ADDRESS: "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+					PRE_LAUNCH_BRIBE_PRICING: [
+						{
+							tokenAddress: "0x11dc28d01984079b7efe7763b533e6ed9e3722b9",
+							decimals: 18,
+							priceUsd: 1.5887,
+							tradingStartedAt: 1758240000
+						},
+						{
+							tokenAddress: "0xf732a566121fa6362e9e0fbdd6d66e5c8c925e49",
+							decimals: 18,
+							priceUsd: 0.15,
+							tradingStartedAt: 1761782400
+						},
+						{
+							tokenAddress: "0x9126236476efba9ad8ab77855c60eb5bf37586eb",
+							decimals: 18,
+							priceUsd: 0.025,
+							tradingStartedAt: 1766188800
+						},
+						{
+							tokenAddress: "0x194f360d130f2393a5e9f3117a6a1b78abea1624",
+							decimals: 18,
+							priceUsd: 0.01208,
+							tradingStartedAt: 1769126400
+						},
+						{
+							tokenAddress: "0x8e4cbbcc33db6c0a18561fde1f6ba35906d4848b",
+							decimals: 18,
+							priceUsd: 0.07245,
+							tradingStartedAt: 1775088000
+						}
+					]
+				}
+			}
+		}
+	}
+};
 
 export const { protocolList, getAdapter } = createFactoryExports(
 	Object.fromEntries(
