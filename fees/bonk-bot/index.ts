@@ -2,6 +2,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 
 const inflatedFees = [1712275200] // 2024-04-05, Inflated fees (22M fees for 48M volume)
 
@@ -15,7 +16,6 @@ const chainConfig: Record<string, { start: string; fetch: typeof fetch; feeWalle
 };
 
 const LABELS = {
-  BOT_FEES: "BonkBot trading fees",
   BOT_REVENUE: "BonkBot trading fees excluding referral rewards",
   REFERRAL_REWARDS: "Referral rewards",
 };
@@ -39,9 +39,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
       SELECT
         CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS referralRewards
       FROM tokens_solana.sol_transfers
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
+      WHERE TIME_RANGE
         AND action = 'transfer'
         AND from_owner = '${feeWallet}'
         AND to_owner = '${rewardWallet}'
@@ -60,7 +58,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const fees = Number(data[0].dailyFees);
     const referralRewards = data[0].referralRewards;
 
-    dailyFees.addUSDValue(fees, LABELS.BOT_FEES);
+    dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
     dailyRevenue.addUSDValue(fees, LABELS.BOT_REVENUE);
     dailySupplySideRevenue.add(ADDRESSES.solana.SOL, referralRewards, LABELS.REFERRAL_REWARDS);
     dailyRevenue.subtract(dailySupplySideRevenue, LABELS.BOT_REVENUE);
@@ -90,7 +88,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.BOT_FEES]: "All trading fees paid by BonkBot users.",
+      [METRIC.TRADING_FEES]: "All trading fees paid by BonkBot users.",
     },
     Revenue: {
       [LABELS.BOT_REVENUE]: "Trading fees retained by Bonk Bot after referral rewards.",
