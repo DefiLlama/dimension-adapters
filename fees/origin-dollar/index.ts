@@ -6,6 +6,7 @@ import {
   ORIGIN_YIELD_LABEL,
   ORIGIN_PROTOCOL_FEE_LABEL,
   ORIGIN_REBASE_LABEL,
+  STAKING_REWARDS_LABEL,
 } from "../../helpers/origin-protocol";
 
 const PRODUCTS: OriginProduct[] = [
@@ -26,11 +27,8 @@ const breakdownMethodology = {
   Revenue: {
     [ORIGIN_PROTOCOL_FEE_LABEL]: "OUSD yield × on-chain trusteeFeeBps from the OUSD vault (currently 20%).",
   },
-  ProtocolRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "OUSD yield × on-chain trusteeFeeBps from the OUSD vault (currently 20%).",
-  },
   HoldersRevenue: {
-    [ORIGIN_PROTOCOL_FEE_LABEL]: "Performance fee forwarded to OGN stakers.",
+    [STAKING_REWARDS_LABEL]: "Performance fee forwarded to OGN stakers.",
   },
   SupplySideRevenue: {
     [ORIGIN_REBASE_LABEL]: "Yield net of performance fee, distributed to OUSD holders via rebase.",
