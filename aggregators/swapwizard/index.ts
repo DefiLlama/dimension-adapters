@@ -14,16 +14,21 @@ const swapEvent =
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
   const dailyVolume = createBalances();
-  const logs = await getLogs({
-    target: SWAP_WIZARD_CORE[chain],
-    eventAbi: swapEvent,
-  });
-  logs.forEach((log: any) => dailyVolume.add(log.tokenOut, log.amountOut));
+  try {
+    const logs = await getLogs({
+      target: SWAP_WIZARD_CORE[chain],
+      eventAbi: swapEvent,
+    });
+    logs.forEach((log: any) => dailyVolume.add(log.tokenOut, log.amountOut));
+  } catch (e) {
+    console.error(`SwapWizard ${chain} (${SWAP_WIZARD_CORE[chain]}) fetch failed:`, e);
+  }
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: "2026-05-19",
   chains: Object.keys(SWAP_WIZARD_CORE),
