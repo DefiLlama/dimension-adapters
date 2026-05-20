@@ -25,7 +25,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  start: "2026-05-20",
+  start: "2026-05-19",
   chains: Object.keys(SWAP_WIZARD_CORE),
   methodology: {
     Volume: "Swap volume tracked via SwapExecuted events emitted by the SwapWizard aggregator contracts on each chain.",
