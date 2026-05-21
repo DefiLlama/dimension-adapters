@@ -6,9 +6,9 @@ import { METRIC } from "../../helpers/metrics";
 
 // EasyA Kickstart is a Solana memecoin launchpad built on top of Meteora's
 // Dynamic Bonding Curve (DBC) program. Every token launched via Kickstart is
-// a DBC VirtualPool whose `config` field points at one of EasyA's three
+// a DBC VirtualPool whose `config` field points at one of EasyA's four
 // PoolConfig accounts (all share the same fee_claimer EfgbywXHbDn...).
-// All three configs use WSOL as the quote asset.
+// All four configs use WSOL as the quote asset.
 const DBC_PROGRAM = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
 const EASYA_PARTNER_CONFIGS = [
     'FctVFHQvVaj3hTDHCSXZjTmmsRs5bX5ogUPGHFSgrJpU',
@@ -60,16 +60,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `);
 
     const wsol = ADDRESSES.solana.SOL;
+    const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const row = data?.[0];
     if (row) {
+        const volume = Number(row.total_volume || 0);
         const trading = Number(row.total_trading_fees || 0);
         const protocol = Number(row.total_protocol_fees || 0);
         const referral = Number(row.total_referral_fees || 0);
 
+        dailyVolume.add(wsol, volume);
         dailyFees.add(wsol, trading, METRIC.TRADING_FEES);
         dailyFees.add(wsol, protocol, "Protocol Fees to Meteora");
         dailyFees.add(wsol, referral, "Referral Fees");
@@ -86,6 +89,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 
     return {
+        dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: dailyProtocolRevenue,
@@ -95,6 +99,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
+    Volume:
+        'Total swap volume on EasyA Kickstart bonding curves, measured in WSOL quote asset.',
     Fees:
         'Total swap fees paid by users on EasyA Kickstart bonding curves: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.',
     Revenue:
@@ -112,10 +118,10 @@ const breakdownMethodology = {
         "Referral Fees": "DBC Referral Fees going to referrers",
     },
     Revenue: {
-        [METRIC.TRADING_FEES]: "DBC Trading Fees going to EasyA",
+        "Trading Fees to EasyA": "DBC Trading Fees going to EasyA",
     },
     ProtocolRevenue: {
-        [METRIC.TRADING_FEES]: "DBC Trading Fees going to EasyA",
+        "Trading Fees to EasyA": "DBC Trading Fees going to EasyA",
     },
     SupplySideRevenue: {
         "Protocol Fees to Meteora": "DBC Protocol Fees going to Meteora",
