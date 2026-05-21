@@ -92,13 +92,16 @@ const fetchTradingFees = async (options: FetchOptions, tickerToFee: Map<string, 
 
     const dataType = options.dateString >= ordersUpdatedDate ? 'markets' : 'historical';
 
-    const apiResponse = await fetchURLAutoHandleRateLimit(`${KALSHI_API_BASE_URL}/trade-api/v2/${dataType}/trades?limit=${limit}&min_ts=${options.fromTimestamp}&max_ts=${options.toTimestamp}${cursor ? `&cursor=${cursor}` : ''}`);
-    const trades = apiResponse.trades;
-    cursor = apiResponse.cursor;
+    do {
+        const apiResponse = await fetchURLAutoHandleRateLimit(`${KALSHI_API_BASE_URL}/trade-api/v2/${dataType}/trades?limit=${limit}&min_ts=${options.fromTimestamp}&max_ts=${options.toTimestamp}${cursor ? `&cursor=${cursor}` : ''}`);
+        const trades = apiResponse.trades;
+        cursor = apiResponse.cursor;
 
-    for (const trade of trades) {
-        addFees(trade)
+        for (const trade of trades) {
+            addFees(trade)
+        }
     }
+    while (cursor);
 
     return {
         takerFees,
