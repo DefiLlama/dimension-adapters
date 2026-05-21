@@ -119,6 +119,22 @@ const protocols: Record<string, ProtocolConfig> = {
 				}
 			}
 		}
+	},
+	"mezo-tigris-v3": {
+		chains: {
+			[CHAIN.MEZO]: {
+				start: "2026-01-15",
+				fetchParams: {
+					VOTER_ADDRESS: "0x48233cCC97B87Ba93bCA212cbEe48e3210211f03",
+					POOL_FACTORIES: [
+						{
+							address: "0xBB24AF5c6fB88F1d191FA76055e30BF881BeEb79",
+							fromBlock: 6099664
+						}
+					]
+				}
+			}
+		}
 	}
 };
 
