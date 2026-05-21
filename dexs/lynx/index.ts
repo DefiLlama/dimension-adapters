@@ -3,9 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
+// https://lynx-finance.gitbook.io/lynx-finance
 const FRACTION_SCALE = 100000n;
 const LEVERAGE_SCALE = 100n;
-const CHIP_DECIMALS = 18;
 
 const abis = {
   FeeRegistered:
@@ -14,8 +14,11 @@ const abis = {
     "event FeesCharged(bytes32 indexed positionId, address indexed trader, uint16 indexed pairId, (uint256 collateral, uint32 leverage, bool long, uint64 openPrice, uint64 tp) positionRegistrationParams, int256 profitPrecision, uint256 interest, int256 funding, uint256 closingFee, uint256 tradeValue)",
   PerformanceFeeCharging:
     "event PerformanceFeeCharging(bytes32 indexed positionId, uint256 performanceFee)",
+  ProtocolFundingShareAccrued:
+    "event ProtocolFundingShareAccrued(uint16 indexed pairId, uint256 protocolFundingShare)",
   decimals: "uint8:decimals",
   lexPartF: "function lexPartF() view returns (uint32)",
+  liquidationThresholdF: "function liquidationThresholdF() view returns (uint32)",
 };
 
 const config: Record<string, {
@@ -106,8 +109,9 @@ const config: Record<string, {
   },
 };
 
-function toUnderlying(chipAmount: bigint, underlyingDecimals: number): bigint {
-  return chipAmount / BigInt(10 ** (CHIP_DECIMALS - underlyingDecimals));
+function toUnderlying(chipAmount: bigint, chipDec: number, underlyingDec: number): bigint {
+  if (chipDec === underlyingDec) return chipAmount;
+  return chipAmount / BigInt(10 ** (chipDec - underlyingDec));
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -119,16 +123,23 @@ const fetch = async (options: FetchOptions) => {
   const { tradingFloor, chipToToken, poolAccountants } = config[options.chain];
   const paAddresses = Object.keys(poolAccountants);
   const paTokens = Object.values(poolAccountants);
-  const allTokens = [...new Set([...Object.values(chipToToken), ...paTokens])];
+  const chipAddresses = Object.keys(chipToToken);
+  const underlyingTokens = Object.values(chipToToken);
+  const allTokens = [...new Set([...underlyingTokens, ...paTokens])];
 
-  // Read token decimals + lexPartF
-  const [decimalsArr, lexPartFs]: [number[], string[]] = await Promise.all([
+  // Read chip decimals, underlying token decimals, per-PA lexPartF, and liquidation threshold
+  const [chipDecArr, tokenDecArr, lexPartFs, liqThresholds]: [number[], number[], string[], string[]] = await Promise.all([
+    options.api.multiCall({ abi: abis.decimals, calls: chipAddresses }),
     options.api.multiCall({ abi: abis.decimals, calls: allTokens }),
     options.api.multiCall({ abi: abis.lexPartF, calls: paAddresses }),
+    options.api.multiCall({ abi: abis.liquidationThresholdF, calls: paAddresses }),
   ]);
 
+  const chipDec: Record<string, number> = {};
+  chipAddresses.forEach((c, i) => (chipDec[c] = Number(chipDecArr[i])));
+
   const tokenDec: Record<string, number> = {};
-  allTokens.forEach((t, i) => (tokenDec[t] = Number(decimalsArr[i])));
+  allTokens.forEach((t, i) => (tokenDec[t] = Number(tokenDecArr[i])));
 
   // Map chip → lexPartF by finding which PA shares the same underlying token
   const chipToLexPartF: Record<string, bigint> = {};
@@ -147,109 +158,139 @@ const fetch = async (options: FetchOptions) => {
     const chip = e.token.toLowerCase();
     const token = chipToToken[chip];
     if (!token) return;
-    const dec = tokenDec[token] ?? 18;
-    const amount = toUnderlying(BigInt(e.amount), dec);
+    const chipDecimals = chipDec[chip];
+    const tokenDecimals = tokenDec[token];
+    const amount = toUnderlying(BigInt(e.amount), chipDecimals, tokenDecimals);
     const feeType = Number(e.feeType);
 
     if (feeType === 1 || feeType === 2) {
       dailyFees.add(token, amount, METRIC.OPEN_CLOSE_FEES);
-      const lexPartF = chipToLexPartF[chip] ?? 0n;
+      const lexPartF = chipToLexPartF[chip];
       const lpPart = (amount * lexPartF) / FRACTION_SCALE;
       dailySupplySideRevenue.add(token, lpPart, METRIC.LP_FEES);
       dailyRevenue.add(token, amount - lpPart, METRIC.PROTOCOL_FEES);
     } else if (feeType === 3) {
-      dailyFees.add(token, amount, METRIC.OPERATORS_FEES);
-      dailySupplySideRevenue.add(token, amount, METRIC.OPERATORS_FEES);
+      dailyFees.add(token, amount, "Trigger Bot Fees");
+      dailySupplySideRevenue.add(token, amount, "Trigger Bot Fees");
     }
   });
 
-  // Volume + Borrowing fees + Performance fees from PoolAccountants
-  const [feesChargedByPA, perfFeesByPA] = await Promise.all([
+  // Volume + Borrowing fees + Performance fees + Funding fees from PoolAccountants
+  const [feesChargedByPA, perfFeesByPA, fundingFeesByPA] = await Promise.all([
     options.getLogs({ targets: paAddresses, eventAbi: abis.FeesCharged, flatten: false }),
     options.getLogs({ targets: paAddresses, eventAbi: abis.PerformanceFeeCharging, flatten: false }),
+    options.getLogs({ targets: paAddresses, eventAbi: abis.ProtocolFundingShareAccrued, flatten: false }),
   ]);
 
   paAddresses.forEach((_, i) => {
     const token = paTokens[i];
-    const dec = tokenDec[token] ?? 18;
+    const paChip = chipAddresses.find((c) => chipToToken[c] === token)!;
+    const chipDecimals = chipDec[paChip];
+    const tokenDecimals = tokenDec[token];
+    const liqThresholdF = BigInt(liqThresholds[i]);
 
     (feesChargedByPA[i] || []).forEach((e: any) => {
       const params = e.positionRegistrationParams;
       const collateral = BigInt(params.collateral ?? params[0]);
       const leverage = BigInt(params.leverage ?? params[1]);
-      dailyVolume.add(token, toUnderlying((collateral * leverage) / LEVERAGE_SCALE, dec));
+      dailyVolume.add(token, toUnderlying((collateral * leverage) / LEVERAGE_SCALE, chipDecimals, tokenDecimals));
 
       const interest = BigInt(e.interest);
       if (interest > 0n) {
-        const borrowFee = toUnderlying(interest, dec);
+        const borrowFee = toUnderlying(interest, chipDecimals, tokenDecimals);
         dailyFees.add(token, borrowFee, METRIC.BORROW_INTEREST);
         dailySupplySideRevenue.add(token, borrowFee, METRIC.BORROW_INTEREST);
+      }
+
+      // Liquidation
+      const tradeValue = BigInt(e.tradeValue);
+      if (tradeValue === 0n && collateral > 0n) {
+        const liqFee = collateral * (FRACTION_SCALE - liqThresholdF) / FRACTION_SCALE;
+        const liqFeeConverted = toUnderlying(liqFee, chipDecimals, tokenDecimals);
+        dailyFees.add(token, liqFeeConverted, METRIC.LIQUIDATION_FEES);
+        dailySupplySideRevenue.add(token, liqFeeConverted, METRIC.LIQUIDATION_FEES);
       }
     });
 
     (perfFeesByPA[i] || []).forEach((e: any) => {
-      const perfFee = toUnderlying(BigInt(e.performanceFee), dec);
+      const perfFee = toUnderlying(BigInt(e.performanceFee), chipDecimals, tokenDecimals);
       dailyFees.add(token, perfFee, METRIC.PERFORMANCE_FEES);
       dailyRevenue.add(token, perfFee, METRIC.PERFORMANCE_FEES);
+    });
+
+    // Funding fees: LP/reserve portion of funding rate payments
+    (fundingFeesByPA[i] || []).forEach((e: any) => {
+      const fundingShare = toUnderlying(BigInt(e.protocolFundingShare), chipDecimals, tokenDecimals);
+      dailyFees.add(token, fundingShare, "Funding Fees");
+      dailySupplySideRevenue.add(token, fundingShare, "Funding Fees");
     });
   });
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
   };
 };
+
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   isExpensiveAdapter: true,
   adapter: {
-    [CHAIN.SONIC]: { fetch, start: "2024-12-18" },
-    [CHAIN.BOBA]: { fetch, start: "2024-06-01" },
-    [CHAIN.FLARE]: { fetch, start: "2025-01-01" },
+    [CHAIN.SONIC]: { fetch, start: " 2025-08-01" },
+    [CHAIN.BOBA]: { fetch, start: "2025-01-20" },
+    [CHAIN.FLARE]: { fetch, start: "2024-12-23" },
   },
   methodology: {
     Volume:
       "Notional value of settled perpetual trades (collateral x leverage). Includes Regular Mode (2-249x), Cat Mode (250-500x), and Up/Down Options.",
     Fees:
-      "Opening fees (0.09% of position size), closing fees (0.09%), borrow interest (floating rate on utilized amount), performance fees (20% of profit on winning Cat Mode/Options trades), and trigger fees. Excludes funding rate (trader-to-trader) and artificial spread (built into entry price).",
-    UserFees: "All fees are paid by traders.",
-    SupplySideRevenue:
-      "Borrow interest (100% to LexPool LPs), LP share of open/close fees (per-pool lexPartF ratio), and trigger fees to keeper bots.",
+      "Opening/closing fees (percentage of position size, varies by collateral asset and instrument), borrow interest (floating rate on utilized amount), performance fees (percentage of profit on winning Cat Mode/Options trades), funding fees (LP/reserve portion of funding rate payments from the heavier OI side), liquidation fees (remaining collateral after 85% loss threshold), and trigger bot fees. Excludes artificial spread (built into entry price).",
     Revenue:
       "Protocol share of open/close fees (1 - lexPartF) plus performance fees on profitable Cat Mode and Options trades.",
     ProtocolRevenue:
       "Protocol share of open/close fees (1 - lexPartF) plus performance fees on profitable Cat Mode and Options trades.",
+    UserFees: "All fees are paid by traders.",
+    SupplySideRevenue:
+      "Borrow interest (100% to LexPool LPs), LP share of open/close fees (per-pool lexPartF ratio), funding fees (LP/reserve portion diverted from funding rate payments), liquidation fees (remaining collateral sent to liquidity pool), and trigger fees to keeper bots.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.OPEN_CLOSE_FEES]:
-        "0.09% of position size charged on open and close for Regular Mode (2-249x) trades. Cat Mode and Options do not pay open/close fees.",
+        "Percentage of position size charged on open and close for Regular Mode (2-249x) trades. Fee rate varies by collateral asset and traded instrument. Cat Mode and Options do not pay open/close fees.",
       [METRIC.BORROW_INTEREST]:
-        "Floating borrow rate charged on the utilized amount (collateral x TP multiple) while a position is open. Rate follows a single-kink model based on pool utilization.",
+        "Floating borrow rate charged on the utilized amount (collateral x take-profit target) while a position is open. Rate increases with pool utilization and is updated per block.",
       [METRIC.PERFORMANCE_FEES]:
-        "20% of profit on winning Cat Mode (250-500x) and Up/Down Options trades. 0% on losing trades. A minimum cost applies if the fee is below the platform threshold.",
-      [METRIC.OPERATORS_FEES]:
+        "Percentage of profit charged on winning Cat Mode (250-500x) and Up/Down Options trades. 0% on losing trades. A minimum cost applies if the fee is below the platform threshold.",
+      "Trigger Bot Fees":
         "Execution fees paid to keeper bots for limit orders, stop-losses, take-profits, and liquidations.",
-    },
-    SupplySideRevenue: {
-      [METRIC.LP_FEES]:
-        "LexPool LP share of open/close fees, set per pool by the on-chain lexPartF parameter.",
-      [METRIC.BORROW_INTEREST]:
-        "100% of borrow interest goes to LexPool LPs as compensation for supplying trading liquidity.",
-      [METRIC.OPERATORS_FEES]:
-        "Execution fees paid to keeper bots.",
+      [METRIC.LIQUIDATION_FEES]:
+        "When losses reach 85% of collateral (liquidationThresholdF), the position is liquidated and the remaining ~15% of collateral is taken as a fee.",
+      "Funding Fees":
+        "LP/reserve portion of funding rate payments. The heavier OI side pays funding; a portion is diverted to the liquidity pool and reserve fund as risk compensation.",
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]:
         "Protocol treasury share of open/close fees (1 - lexPartF).",
       [METRIC.PERFORMANCE_FEES]:
         "Performance fees from profitable Cat Mode and Options trades.",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]:
+        "LexPool LP share of open/close fees, set per pool by the on-chain lexPartF parameter.",
+      [METRIC.BORROW_INTEREST]:
+        "100% of borrow interest goes to LexPool LPs as compensation for supplying trading liquidity.",
+      "Trigger Bot Fees":
+        "Execution fees paid to keeper bots.",
+      [METRIC.LIQUIDATION_FEES]:
+        "Remaining collateral (~15%) from liquidated positions, sent to the liquidity pool.",
+      "Funding Fees":
+        "LP/reserve portion of funding rate payments diverted to the liquidity pool as risk compensation.",
     },
   },
 };
