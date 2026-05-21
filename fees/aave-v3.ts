@@ -315,7 +315,7 @@ const chainConfig: Record<string, any> = {
     start: '2026-02-09',
   },
   [CHAIN.MANTLE]: {
-    pools: AaveMarkets[CHAIN.MEGAETH],
+    pools: AaveMarkets[CHAIN.MANTLE],
     start: '2026-01-16',
   },
 }
