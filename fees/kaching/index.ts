@@ -1,8 +1,9 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const POTS_URL = "https://api.kaching.vip/pots";
+const MAX_PAGES = 100;
 
 async function fetchAllActivePots() {
   const pots: any[] = [];
@@ -12,14 +13,15 @@ async function fetchAllActivePots() {
     const data = await httpGet(POTS_URL, {
       params: { page, limit: 100, status: "active", includePrivate: true },
     });
+    if (!data?.pots) break;
     pots.push(...data.pots);
     totalPages = data.totalPages;
     page++;
-  } while (page <= totalPages);
+  } while (page <= totalPages && page <= MAX_PAGES);
   return pots;
 }
 
-const fetch = async () => {
+const fetch = async (_a: any, _b: any, _options: FetchOptions) => {
   try {
     const pots = await fetchAllActivePots();
     const revenue = pots.reduce(
@@ -47,8 +49,12 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  dailyFees: "Total revenue from lottery ticket purchases on the Kaching platform (USDC).",
-  dailyRevenue: "Protocol revenue retained from lottery ticket purchases (USDC).",
+  Fees: {
+    "Lottery Ticket Sales": "Fees collected from lottery ticket purchases on the Kaching platform (USDC).",
+  },
+  Revenue: {
+    "Lottery Ticket Sales To Protocol": "Protocol revenue retained from lottery ticket purchases (USDC).",
+  },
 };
 
 const adapter: SimpleAdapter = {
