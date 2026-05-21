@@ -22,6 +22,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2022-03-18" },
     [CHAIN.OPTIMISM]: { fetch, start: "2022-03-09" },
