@@ -47,7 +47,7 @@ const fetchNonStandardFee = async () => {
     return tickerToFee;
 }
 
-const fetchTrades = async (options: FetchOptions, tickerToFee: Map<string, FeeData>) => {
+const fetchTradingFees = async (options: FetchOptions, tickerToFee: Map<string, FeeData>) => {
     const limit = 1000;
     let cursor = null;
     let takerFees = 0;
@@ -155,7 +155,7 @@ const fetchIncentives = async (options: FetchOptions) => {
     }
 }
 
-const fetchInterestsPaid = async (options: FetchOptions) => {
+const fetchHoldingInterestsPaid = async (options: FetchOptions) => {
     const previousDay = new Date(options.dateString).getTime() - 24 * 60 * 60 * 1000;
     const previousDayString = new Date(previousDay).toISOString().split('T')[0];
 
@@ -189,7 +189,7 @@ async function fetch(_t: any, _a: any, options: FetchOptions) {
     const dailySupplySideRevenue = options.createBalances();
 
     const tickerToFee = await fetchNonStandardFee();
-    const { takerFees, makerFees } = await fetchTrades(options, tickerToFee);
+    const { takerFees, makerFees } = await fetchTradingFees(options, tickerToFee);
     dailyFees.addUSDValue(takerFees, "Taker Fees");
     dailyFees.addUSDValue(makerFees, "Maker Fees");
 
@@ -197,7 +197,7 @@ async function fetch(_t: any, _a: any, options: FetchOptions) {
     dailySupplySideRevenue.addUSDValue(liquidityIncentives, "Liquidity Incentives");
     dailySupplySideRevenue.addUSDValue(volumeIncentives, "Volume Incentives");
 
-    const holdingInterestDistributed = await fetchInterestsPaid(options);
+    const holdingInterestDistributed = await fetchHoldingInterestsPaid(options);
     dailySupplySideRevenue.addUSDValue(holdingInterestDistributed, "Interest paid on open positions");
 
     const revenue = takerFees + makerFees - liquidityIncentives - volumeIncentives - holdingInterestDistributed;
