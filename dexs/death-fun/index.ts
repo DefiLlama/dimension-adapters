@@ -70,14 +70,14 @@ const fetch: FetchV2 = async ({
     const amount = BigInt(log.betAmount);
 
     wagered += amount;
-    dailyVolume.addGasToken(amount, "Game Wagers");
+    dailyVolume.addGasToken(amount);
   }
 
   for (const log of betIncreaseLogs) {
     const amount = BigInt(log.amount);
 
     wagered += amount;
-    dailyVolume.addGasToken(amount, "Bet Increases");
+    dailyVolume.addGasToken(amount);
   }
 
   for (const log of payoutLogs) {
@@ -120,12 +120,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    "Game Wagers":
-      "Initial ETH wager amounts paid by players when games are created.",
-    "Bet Increases":
-      "Additional ETH wager amounts added by players during supported games.",
-  },
   Fees: {
     "Gross Gaming Revenue":
       "Total ETH wagered by players minus total ETH paid out to players.",
