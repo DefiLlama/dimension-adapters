@@ -103,6 +103,22 @@ const protocols: Record<string, ProtocolConfig> = {
 				}
 			}
 		}
+	},
+	"aborean-cl": {
+		chains: {
+			[CHAIN.ABSTRACT]: {
+				start: "2025-10-02",
+				fetchParams: {
+					VOTER_ADDRESS: "0xC0F53703e9f4b79fA2FB09a2aeBA487FA97729c9",
+					POOL_FACTORIES: [
+						{
+							address: "0x8cfE21F272FdFDdf42851f6282c0f998756eEf27",
+							fromBlock: 20524597
+						}
+					]
+				}
+			}
+		}
 	}
 };
 
