@@ -1,9 +1,11 @@
 import { ethers } from "ethers";
 import BigNumber from "bignumber.js";
 import * as sdk from "@defillama/sdk";
+import PromisePool from "@supercharge/promise-pool";
 import type * as HelperTypes from "../types";
 import type { FetchOptions } from "../../../adapters/types";
 import * as ABI from "../abis";
+import { MAX_CONCURRENCY, splitRange } from "../utils";
 
 export const getV3Pools = async (
 	fetchOptions: FetchOptions,
@@ -44,33 +46,44 @@ export const getV3Pools = async (
 export const getV3Swaps = async (
 	fetchOptions: FetchOptions,
 	options: HelperTypes.SwapFetcherOptions
-) => {
-	if (!options.pools.length) return [];
+): Promise<HelperTypes.Swap[]> => {
+	const swaps: HelperTypes.Swap[] = [];
+	if (!options.pools.length) return swaps;
 
-	const { getLogs } = fetchOptions;
-	const swapLogs = await getLogs({
-		noTarget: true,
-		eventAbi: ABI.V3_POOL_FACTORY.event.Swap,
-		parseLog: false,
-		entireLog: true,
-		skipCache: true
-	});
-
+	const { getLogs, getFromBlock, getToBlock } = fetchOptions;
 	const swapIface = new ethers.Interface([ABI.V3_POOL_FACTORY.event.Swap]);
-	return swapLogs
-		.map((log) => {
-			const poolAddress = sdk.util.normalizeAddress(log.address);
-			if (!options.pools.includes(poolAddress)) return null;
-
-			const [, , amount0, amount1] = swapIface.parseLog(log)?.args ?? [0, 0, 0, 0];
-
-			return {
-				poolAddress,
-				amount0: BigNumber(amount0),
-				amount1: BigNumber(amount1)
-			};
+	await PromisePool.withConcurrency(MAX_CONCURRENCY)
+		.handleError((e, _, pool) => {
+			pool.stop();
+			throw e;
 		})
-		.filter((log) => !!log);
+		.for(splitRange(await getFromBlock(), await getToBlock()))
+		.process(([fromBlock, toBlock]) =>
+			getLogs({
+				noTarget: true,
+				eventAbi: ABI.V3_POOL_FACTORY.event.Swap,
+				parseLog: false,
+				entireLog: true,
+				skipCache: true,
+				fromBlock,
+				toBlock
+			}).then((logs) => {
+				logs.forEach((log) => {
+					const poolAddress = sdk.util.normalizeAddress(log.address);
+					if (!options.pools.includes(poolAddress)) return;
+
+					const [, , amount0, amount1] = swapIface.parseLog(log)?.args ?? [0, 0, 0, 0];
+
+					swaps.push({
+						poolAddress,
+						amount0: BigNumber(amount0),
+						amount1: BigNumber(amount1)
+					});
+				});
+			})
+		);
+
+	return swaps;
 };
 
 type PoolFeesMap = Record<string, [BigNumber, BigNumber]>;

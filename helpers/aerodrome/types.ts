@@ -28,3 +28,9 @@ export type PreLaunchBribe = {
 	priceUsd: number;
 	tradingStartedAt: number;
 };
+
+export interface Swap {
+	poolAddress: string;
+	amount0: BigNumber;
+	amount1: BigNumber;
+}
