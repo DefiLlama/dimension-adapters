@@ -4,6 +4,7 @@ import {
 	aerodromeV3Exports,
 	type AerodromeChainConfig
 } from "../helpers/aerodrome";
+import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 const defaultMethodology = {
@@ -46,7 +47,64 @@ interface ProtocolConfig {
 	chains: Record<string, AerodromeChainConfig>;
 }
 
-const protocols: Record<string, ProtocolConfig> = {};
+const protocols: Record<string, ProtocolConfig> = {
+	"aerodrome-slipstream": {
+		chains: {
+			[CHAIN.BASE]: {
+				start: "2024-05-03",
+				fetchParams: {
+					VOTER_ADDRESS: "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+					POOL_FACTORIES: [
+						{
+							address: "0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A",
+							fromBlock: 13843704
+						},
+						{
+							address: "0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a",
+							fromBlock: 36953918
+						},
+						{
+							address: "0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef",
+							fromBlock: 44394724
+						}
+					],
+					PRE_LAUNCH_BRIBE_PRICING: [
+						{
+							tokenAddress: "0x11dc28d01984079b7efe7763b533e6ed9e3722b9",
+							decimals: 18,
+							priceUsd: 1.5887,
+							tradingStartedAt: 1758240000
+						},
+						{
+							tokenAddress: "0xf732a566121fa6362e9e0fbdd6d66e5c8c925e49",
+							decimals: 18,
+							priceUsd: 0.15,
+							tradingStartedAt: 1761782400
+						},
+						{
+							tokenAddress: "0x9126236476efba9ad8ab77855c60eb5bf37586eb",
+							decimals: 18,
+							priceUsd: 0.025,
+							tradingStartedAt: 1766188800
+						},
+						{
+							tokenAddress: "0x194f360d130f2393a5e9f3117a6a1b78abea1624",
+							decimals: 18,
+							priceUsd: 0.01208,
+							tradingStartedAt: 1769126400
+						},
+						{
+							tokenAddress: "0x8e4cbbcc33db6c0a18561fde1f6ba35906d4848b",
+							decimals: 18,
+							priceUsd: 0.07245,
+							tradingStartedAt: 1775088000
+						}
+					]
+				}
+			}
+		}
+	}
+};
 
 export const { protocolList, getAdapter } = createFactoryExports(
 	Object.fromEntries(
