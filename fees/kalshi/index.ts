@@ -14,7 +14,7 @@ interface FeeData {
 
 const KALSHI_API_BASE_URL = 'https://external-api.kalshi.com';
 const KALSHI_V1_API_BASE_URL = 'https://api.elections.kalshi.com/v1';
-const CENTI_CENTS_IN_USD = 100 * 100;
+const USD_IN_CENTI_CENTS = 100 * 100;
 const STANDARD_FEE_MULTIPLIER = 0.07;
 const MAKER_FEE_MULTIPLIER = 0.25;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
@@ -136,7 +136,7 @@ const fetchIncentives = async (options: FetchOptions) => {
         for (const incentiveProgram of incentivePrograms) {
             const { start_date, end_date, incentive_type, period_reward } = incentiveProgram;
             const incentiveForCurrentPeriodInCentiCents = getIncentiveForCurrentPeriod(start_date, end_date, period_reward);
-            const incentiveForCurrentPeriodInUSD = incentiveForCurrentPeriodInCentiCents / CENTI_CENTS_IN_USD;
+            const incentiveForCurrentPeriodInUSD = incentiveForCurrentPeriodInCentiCents / USD_IN_CENTI_CENTS;
             if (incentive_type === 'liquidity') {
                 liquidityIncentives += incentiveForCurrentPeriodInUSD;
             } else if (incentive_type === 'volume') {
