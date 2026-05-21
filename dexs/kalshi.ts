@@ -11,7 +11,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     SELECT 
       SUM(price * contracts_traded / 100) AS cash_volume
     FROM kalshi.trade_report
-    WHERE date = date('${dateString}')
+    WHERE date = '${dateString}'
   ),
   market_report_agg AS (
     SELECT 
