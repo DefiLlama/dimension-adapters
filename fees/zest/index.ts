@@ -4,25 +4,30 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const FIXED_ONE = 100_000_000;
+const ZEST_V1_DEPLOYER = "SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N";
+
+interface AssetData {
+  contract: string;
+  cgId: string;
+  decimals: number;
+}
+
+const assetList: AssetData[] = [
+  { contract: `${ZEST_V1_DEPLOYER}.wstx`, cgId: "blockstack", decimals: 6 },
+  { contract: "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token", cgId: "stacking-dao", decimals: 6 },
+  { contract: "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc", cgId: "usd-coin", decimals: 6 },
+  { contract: "SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token-v1", cgId: "hermetica-usdh", decimals: 8 },
+  { contract: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token", cgId: "bitcoin", decimals: 8 },
+  { contract: "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token-v2", cgId: "bitcoin", decimals: 6 },
+];
+const ASSETS: Record<string, AssetData> = Object.fromEntries(assetList.map((asset) => [asset.contract, asset]));
+const ASSET_FILTER = Object.keys(ASSETS).map((asset) => `'${asset}'`).join(",");
 
 const chainConfig = {
-  [CHAIN.STACKS]: {
-    start: "2024-02-23",
-    deployer: "SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N",
-    assets: {
-      "SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N.wstx": ["blockstack", 6],
-      "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token": ["stacking-dao", 6],
-      "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc": ["usd-coin", 6],
-      "SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token-v1": ["hermetica-usdh", 8],
-      "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token": ["bitcoin", 8],
-      "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token-v2": ["bitcoin", 6],
-    } as Record<string, [string, number]>,
-  },
+  [CHAIN.STACKS]: { start: "2024-02-23" },
 };
-const config = chainConfig[CHAIN.STACKS];
-const ASSET_FILTER = `'${Object.keys(config.assets).join("','")}'`;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -48,7 +53,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         AND t.canonical
         AND t.microblock_canonical
         AND e.event_type = 'smart_contract_log'
-        AND e.event_contents:contract_log:contract_id::string = '${config.deployer}.pool-reserve-data'
+        AND e.event_contents:contract_log:contract_id::string = '${ZEST_V1_DEPLOYER}.pool-reserve-data'
         AND e.event_contents:contract_log:value:repr::string LIKE '%(type "set-reserve-state")%'
     ),
     reserve_events AS (
@@ -96,7 +101,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           AND t.canonical
           AND t.microblock_canonical
           AND e.event_type = 'smart_contract_log'
-          AND e.event_contents:contract_log:contract_id::string LIKE '${config.deployer}.pool-borrow%'
+          AND e.event_contents:contract_log:contract_id::string LIKE '${ZEST_V1_DEPLOYER}.pool-borrow%'
           AND e.event_contents:contract_log:value:repr::string LIKE '%(type "flashloan")%'
       )
       WHERE asset IN (${ASSET_FILTER})
@@ -116,7 +121,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `);
 
   for (const row of rows) {
-    const [cgId, decimals] = config.assets[row.asset];
+    const { cgId, decimals } = ASSETS[row.asset];
     const scale = 10 ** decimals;
     const borrowInterest = Number(row.borrow_interest ?? 0) / scale;
     const protocolInterest = Number(row.protocol_interest ?? 0) / scale;
@@ -161,9 +166,10 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   fetch,
   adapter: chainConfig,
+  pullHourly: true,
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology,
