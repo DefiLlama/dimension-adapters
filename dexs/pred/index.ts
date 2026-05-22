@@ -11,12 +11,10 @@
  * Polymarket/ctf-exchange/src/exchange/mixins/Trading.sol::_matchOrders (emits OrderFilled for the
  * taker order) and _fillMakerOrder (emits OrderFilled per maker leg). PRED's NegRiskCtfExchange
  * inherits CTFExchange unchanged, and CrossMatchingAdapter emits the same event signature.
- *
- * Submit by copying this file to `dexs/pred/index.ts` in DefiLlama/dimension-adapters.
  */
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getPolymarketVolume } from "../helpers/polymarket";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getPolymarketVolume } from "../../helpers/polymarket";
 
 // All four contracts emit the canonical CTFExchange OrderFilled signature:
 //   event OrderFilled(
