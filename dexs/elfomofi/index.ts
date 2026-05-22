@@ -1,13 +1,24 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { queryDuneResult } from "../../helpers/dune";
 
 
 const SwapEvent = "event ElfomoTrade(uint256 indexed quoteId, uint256 indexed partnerId, address executor, address receiver, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount)";
-const VaultMetricsEvent = "event VaultMetrics(uint256 indexed vaultId, address indexed refTokenAddress, uint256 prevRate, uint256 newRate, uint256 newPreFeeRate, uint256 newHighWaterMarkRate, uint256 prevTimestamp, uint256 newTimestamp, int256 lastPeriodPreFeeAPRInBps, uint256 feeProtocolInRefToken, uint256 feeCuratorInRefToken, uint256 yieldToLPsInRefToken, uint256 protocolSharesMinted, uint256 curatorSharesMinted, uint256 totalAssetsInRefToken)"
 const ELFOMOFI_SWAP_ADDRESS = "0xf0f0F0F0FB0d738452EfD03A28e8be14C76d5f73"
-const ELFOMOFI_VAULTS_MANAGER = "0xE34CD3682AF9C04303386499FBa215B38Eff6106"
-const VAULT_METRICS_LOOKAHEAD_SECONDS = 7 * 24 * 3600;
+
+// Dune query that decodes the VaultMetrics events and spreads each report's fees/yield evenly across
+// its accrual period, producing one row per (day, ref_token) with amortized amounts in token base
+// units. https://dune.com/queries/7560737
+const DUNE_QUERY_ID = "7560737"
+
+interface IDuneRow {
+    day: string;
+    ref_token: string;
+    fee_protocol: string | number;
+    fee_curator: string | number;
+    yield_lps: string | number;
+}
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
@@ -30,45 +41,36 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
-    const fromBlock = await options.getFromBlock();
-    const toBlock = await options.getToBlock();
-    const blockTime = (options.toTimestamp - options.fromTimestamp) / (toBlock - fromBlock);
-    const now = Math.floor(Date.now() / 1000);
-    const effectiveLookahead = Math.max(0, Math.min(VAULT_METRICS_LOOKAHEAD_SECONDS, now - options.toTimestamp));
-    const lookaheadBlocks = Math.ceil(effectiveLookahead / blockTime);
+    const rows = (await queryDuneResult(options, DUNE_QUERY_ID)) as IDuneRow[];
 
-    const vaultLogs = await options.getLogs({
-        target: ELFOMOFI_VAULTS_MANAGER,
-        eventAbi: VaultMetricsEvent,
-        toBlock: toBlock + lookaheadBlocks,
-    })
+    // The Dune query returns one row per (day, token) holding that whole day's amortized fees.
+    // We attribute to the current fetch window only its share of the day, prorated by overlap, so
+    // fees follow the same time-window as volume
+    const DAY = 86400;
+    const { startTimestamp, endTimestamp } = options;
 
-    for (const log of vaultLogs) {
-        const prevTs = Number(log.prevTimestamp);
-        const newTs = Number(log.newTimestamp);
-        const totalPeriod = newTs - prevTs;
-        if (totalPeriod <= 0) continue;
+    for (const row of rows) {
+        const dayStart = Math.floor(new Date(`${row.day}T00:00:00Z`).getTime() / 1000);
+        const overlap = Math.min(endTimestamp, dayStart + DAY) - Math.max(startTimestamp, dayStart);
+        if (overlap <= 0) continue;
 
-        const overlapStart = Math.max(prevTs, options.fromTimestamp);
-        const overlapEnd = Math.min(newTs, options.toTimestamp);
-        const overlapDuration = Math.max(0, overlapEnd - overlapStart);
-        if (overlapDuration <= 0) continue;
+        const token = row.ref_token;
+        // exact integer proration: raw * overlap / DAY (raw amounts are uint256 base units)
+        const slice = (raw: string | number) => (BigInt(raw) * BigInt(overlap) / BigInt(DAY)).toString();
 
-        const prorate = (amount: any) => BigInt(amount) * BigInt(overlapDuration) / BigInt(totalPeriod);
+        const feeProtocol = slice(row.fee_protocol);
+        const feeCurator = slice(row.fee_curator);
+        const yieldLps = slice(row.yield_lps);
 
-        const yieldToLPs = prorate(log.yieldToLPsInRefToken);
-        const feeProtocol = prorate(log.feeProtocolInRefToken);
-        const feeCurator = prorate(log.feeCuratorInRefToken);
+        dailyFees.add(token, yieldLps, METRIC.ASSETS_YIELDS);
+        dailyFees.add(token, feeProtocol, METRIC.ASSETS_YIELDS);
+        dailyFees.add(token, feeCurator, METRIC.ASSETS_YIELDS);
 
-        dailyFees.add(log.refTokenAddress, yieldToLPs, METRIC.ASSETS_YIELDS);
-        dailyFees.add(log.refTokenAddress, feeProtocol, METRIC.ASSETS_YIELDS);
-        dailyFees.add(log.refTokenAddress, feeCurator, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(token, yieldLps, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(token, feeCurator, METRIC.CURATORS_FEES);
 
-        dailySupplySideRevenue.add(log.refTokenAddress, yieldToLPs, METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.add(log.refTokenAddress, feeCurator, METRIC.CURATORS_FEES);
-
-        dailyRevenue.add(log.refTokenAddress, feeProtocol, METRIC.PERFORMANCE_FEES);
-        dailyProtocolRevenue.add(log.refTokenAddress, feeProtocol, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(token, feeProtocol, METRIC.PERFORMANCE_FEES);
+        dailyProtocolRevenue.add(token, feeProtocol, METRIC.PERFORMANCE_FEES);
     }
 
     return {
@@ -109,6 +111,7 @@ const adapter: SimpleAdapter = {
     pullHourly: true,
     methodology,
     breakdownMethodology,
+    dependencies: [Dependencies.DUNE],
     adapter: {
       [CHAIN.BASE]: {
         fetch,
