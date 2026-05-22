@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const ONE_USD = 1e8;
+const ONE_USD = 100_000_000n;
 
 // Fallback source: KiloEx official queryProducts responses; OI values are always read onchain.
 const FALLBACK_PRODUCT_IDS = [
@@ -59,13 +59,14 @@ const fetch = async (options: FetchOptions) => {
     params: [productIds] as any,
   });
 
-  const longOpenInterestAtEnd = longOis.reduce((sum: number, oi: bigint) => sum + Number(oi) / ONE_USD, 0);
-  const shortOpenInterestAtEnd = shortOis.reduce((sum: number, oi: bigint) => sum + Number(oi) / ONE_USD, 0);
+  const formatOI = (value: bigint) => `${value / ONE_USD}.${(value % ONE_USD).toString().padStart(8, "0")}`.replace(/\.?0+$/, "");
+  const longOpenInterestSum = longOis.reduce((sum: bigint, oi: bigint) => sum + BigInt(oi), 0n);
+  const shortOpenInterestSum = shortOis.reduce((sum: bigint, oi: bigint) => sum + BigInt(oi), 0n);
 
   return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    openInterestAtEnd: formatOI(longOpenInterestSum + shortOpenInterestSum),
+    longOpenInterestAtEnd: formatOI(longOpenInterestSum),
+    shortOpenInterestAtEnd: formatOI(shortOpenInterestSum),
   };
 };
 
