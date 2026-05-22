@@ -23,7 +23,6 @@ const CONFIG: Record<string, { factory: string; start: string }> = {
   [CHAIN.ARBITRUM]: { factory: OLD_FACTORY, start: "2022-06-01" },
   [CHAIN.OPTIMISM]: { factory: OLD_FACTORY, start: "2022-06-01" },
   [CHAIN.POLYGON]: { factory: OLD_FACTORY, start: "2022-06-01" },
-  [CHAIN.BSC]: { factory: OLD_FACTORY, start: "2022-06-01" },
   [CHAIN.XDAI]: { factory: OLD_FACTORY, start: "2022-06-01" },
   [CHAIN.AVAX]: { factory: "0x7d507b4c2d7e54da5731f643506996da8525f4a3", start: "2022-06-01" },
   [CHAIN.BASE]: { factory: NEW_FACTORY, start: "2023-08-01" },
