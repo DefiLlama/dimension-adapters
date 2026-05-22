@@ -133,14 +133,16 @@ const fetch = async (options: FetchOptions) => {
   const liquidationFeeUSD = toUSD(liquidationFeeRaw);
   const borrowFeeUSD = toUSD(borrowFeeRaw);
   let hlFeesUSD = 0;
-  try {
-    const hlRows = await queryDuneSql(options, `
-      SELECT fees FROM dune.supakawaiidesu.dataset_daily_stats
-      WHERE date = DATE '${options.dateString}'
-    `);
-    hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
-  } catch (e) {
-    console.log("Hyperliquid daily stats query failed:", e);
+  if (options.startTimestamp >= 1746835200) { // 2025-05-10
+    try {
+      const hlRows = await queryDuneSql(options, `
+        SELECT fees FROM dune.supakawaiidesu.dataset_daily_stats
+        WHERE date = DATE '${options.dateString}'
+      `);
+      hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
+    } catch (e) {
+      console.log("Hyperliquid daily stats query failed:", e);
+    };
   };
 
   const after = options.startTimestamp >= SPLIT_TIMESTAMP;
