@@ -186,6 +186,7 @@ const adapter: Adapter = {
   chains: [CHAIN.INK],
   start: '2025-11-15',
   methodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;
