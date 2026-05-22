@@ -327,7 +327,7 @@ const chainConfig: Record<string, any> = {
   },
   [CHAIN.XLAYER]: {
     pools: AaveMarkets[CHAIN.XLAYER],
-    start: '2024-10-01',
+    start: '2026-03-30',
   },
 }
 
