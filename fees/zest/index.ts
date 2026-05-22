@@ -6,6 +6,13 @@ import { METRIC } from "../../helpers/metrics";
 const FIXED_ONE = 100_000_000;
 const ZEST_V1_DEPLOYER = "SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N";
 
+const LABEL = {
+  BORROW_TO_TREASURY: "Borrow Interest To Treasury",
+  BORROW_TO_LENDERS: "Borrow Interest To Lenders",
+  FLASHLOAN_TO_TREASURY: "Flashloan Fees To Treasury",
+  FLASHLOAN_TO_LENDERS: "Flashloan Fees To Lenders",
+};
+
 interface AssetData {
   contract: string;
   cgId: string;
@@ -58,16 +65,49 @@ const fetch = async (options: FetchOptions) => {
     ),
     reserve_events AS (
       SELECT * FROM reserve_events_raw
-      WHERE burn_block_time >= TO_TIMESTAMP_NTZ(${options.startOfDay}) AND asset IN (${ASSET_FILTER})
+      WHERE burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND asset IN (${ASSET_FILTER})
       UNION ALL
       SELECT * FROM (
         SELECT * FROM reserve_events_raw
-        WHERE burn_block_time < TO_TIMESTAMP_NTZ(${options.startOfDay}) AND asset IN (${ASSET_FILTER})
+        WHERE burn_block_time < TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND asset IN (${ASSET_FILTER})
         QUALIFY ROW_NUMBER() OVER (PARTITION BY asset ORDER BY burn_block_time DESC, tx_id DESC, event_index DESC) = 1
       )
     ),
+    factor_logs AS (
+      SELECT
+        e.burn_block_time,
+        e.event_contents:contract_log:value:repr::string AS repr
+      FROM stacks.raw.events e
+      JOIN stacks.raw.transactions t ON e.tx_id = t.tx_id
+      WHERE e.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND t.tx_status = 'success'
+        AND t.canonical
+        AND t.microblock_canonical
+        AND e.event_type = 'smart_contract_log'
+        AND e.event_contents:contract_log:contract_id::string LIKE '${ZEST_V1_DEPLOYER}.%'
+        AND e.event_contents:contract_log:value:repr::string LIKE '%reserve-factor%'
+    ),
+    factor_updates AS (
+      SELECT * FROM (
+        SELECT
+          burn_block_time,
+          COALESCE(
+            REGEXP_SUBSTR(repr, '\\(key ''([^'']+)''\\)', 1, 1, 'e', 1),
+            REGEXP_SUBSTR(repr, '\\(asset ''([^'']+)''\\)', 1, 1, 'e', 1)
+          ) AS asset,
+          TRY_TO_NUMBER(COALESCE(
+            REGEXP_SUBSTR(repr, '\\(data u([0-9]+)\\)', 1, 1, 'e', 1),
+            REGEXP_SUBSTR(repr, '\\(new-reserve-factor u([0-9]+)\\)', 1, 1, 'e', 1)
+          )) AS reserve_factor
+        FROM factor_logs
+        WHERE repr LIKE '%set-reserve-factor%' OR repr LIKE '%pre-update-reserve-factor%'
+      )
+      WHERE asset IN (${ASSET_FILTER}) AND reserve_factor > 0
+    ),
     treasury_deltas AS (
       SELECT
+        tx_id,
+        event_index,
         burn_block_time,
         asset,
         GREATEST(accrued - LAG(accrued) OVER (PARTITION BY asset ORDER BY burn_block_time, tx_id, event_index), 0) AS protocol_interest
@@ -76,16 +116,13 @@ const fetch = async (options: FetchOptions) => {
     borrow_interest AS (
       SELECT
         d.asset,
-        protocol_interest * ${FIXED_ONE} / CASE
-          WHEN burn_block_time >= TO_TIMESTAMP_NTZ('2026-04-28 13:43:29') THEN 95000000
-          WHEN burn_block_time >= TO_TIMESTAMP_NTZ('2026-03-02 14:17:00') THEN 50000000
-          WHEN burn_block_time >= TO_TIMESTAMP_NTZ('2026-02-17 18:31:03') THEN 20000000
-          ELSE 10000000
-        END AS borrow_interest,
+        d.protocol_interest * ${FIXED_ONE} / f.reserve_factor AS borrow_interest,
         d.protocol_interest
       FROM treasury_deltas d
-      WHERE d.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startOfDay})
+      JOIN factor_updates f ON f.asset = d.asset AND f.burn_block_time <= d.burn_block_time
+      WHERE d.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND d.protocol_interest > 0
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY d.tx_id, d.event_index ORDER BY f.burn_block_time DESC) = 1
     ),
     flashloans AS (
       SELECT * FROM (
@@ -95,7 +132,7 @@ const fetch = async (options: FetchOptions) => {
           TRY_TO_NUMBER(REGEXP_SUBSTR(e.event_contents:contract_log:value:repr::string, '\\(protocol-fee u([0-9]+)\\)', 1, 1, 'e', 1)) AS flashloan_protocol_fees
         FROM stacks.raw.events e
         JOIN stacks.raw.transactions t ON e.tx_id = t.tx_id
-        WHERE e.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startOfDay})
+        WHERE e.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
           AND e.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
           AND t.tx_status = 'success'
           AND t.canonical
@@ -130,10 +167,10 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.addCGToken(cgId, borrowInterest, METRIC.BORROW_INTEREST);
     dailyFees.addCGToken(cgId, flashloanFees, METRIC.FLASHLOAN_FEES);
-    dailyRevenue.addCGToken(cgId, protocolInterest, METRIC.PROTOCOL_FEES);
-    dailyRevenue.addCGToken(cgId, flashloanProtocolFees, METRIC.FLASHLOAN_FEES);
-    dailySupplySideRevenue.addCGToken(cgId, borrowInterest - protocolInterest, METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.addCGToken(cgId, flashloanFees - flashloanProtocolFees, METRIC.FLASHLOAN_FEES);
+    dailyRevenue.addCGToken(cgId, protocolInterest, LABEL.BORROW_TO_TREASURY);
+    dailyRevenue.addCGToken(cgId, flashloanProtocolFees, LABEL.FLASHLOAN_TO_TREASURY);
+    dailySupplySideRevenue.addCGToken(cgId, borrowInterest - protocolInterest, LABEL.BORROW_TO_LENDERS);
+    dailySupplySideRevenue.addCGToken(cgId, flashloanFees - flashloanProtocolFees, LABEL.FLASHLOAN_TO_LENDERS);
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
@@ -152,16 +189,16 @@ const breakdownMethodology = {
     [METRIC.FLASHLOAN_FEES]: "Fees paid for Zest v1 flashloans.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Zest's share of borrower interest.",
-    [METRIC.FLASHLOAN_FEES]: "Zest's share of flashloan fees.",
+    [LABEL.BORROW_TO_TREASURY]: "Zest's share of borrower interest.",
+    [LABEL.FLASHLOAN_TO_TREASURY]: "Zest's share of flashloan fees.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Zest's share of borrower interest.",
-    [METRIC.FLASHLOAN_FEES]: "Zest's share of flashloan fees.",
+    [LABEL.BORROW_TO_TREASURY]: "Zest's share of borrower interest.",
+    [LABEL.FLASHLOAN_TO_TREASURY]: "Zest's share of flashloan fees.",
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Borrower interest paid to lenders.",
-    [METRIC.FLASHLOAN_FEES]: "Flashloan fees paid to lenders.",
+    [LABEL.BORROW_TO_LENDERS]: "Borrower interest paid to lenders.",
+    [LABEL.FLASHLOAN_TO_LENDERS]: "Flashloan fees paid to lenders.",
   },
 };
 
