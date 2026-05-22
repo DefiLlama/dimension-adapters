@@ -23,8 +23,7 @@ export const getPoolGauges = async (
 			abi: ABI.VOTER.function.gauges,
 			target: options.VOTER_ADDRESS,
 			calls: options.pools,
-			permitFailure: true,
-			excludeFailed: true
+			permitFailure: true
 		})
 		.then((r) =>
 			Object.fromEntries(
@@ -33,7 +32,7 @@ export const getPoolGauges = async (
 						options.pools[gaugeIndex],
 						sdk.util.normalizeAddress(gauge)
 					])
-					.filter(([, gauge]) => gauge !== ADDRESSES.null)
+					.filter(([, gauge]) => gauge && gauge !== ADDRESSES.null)
 			)
 		);
 };
