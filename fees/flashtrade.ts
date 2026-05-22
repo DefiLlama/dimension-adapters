@@ -23,13 +23,17 @@ const calculateteHolderRevenue = (stats: Pool[]) => {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const timestamp = options.startOfDay;
-  const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const targetDate = options.dateString;
 
   // `source=all` returns the protocol's complete trading activity; omitting `poolName`
   // returns the per-pool breakdown for every pool, so new pools are picked up automatically.
   const url = `https://api.prod.flash.trade/pnl-info/cumulative-pool-pnl-per-day?startDate=${targetDate}%2000:00:00&endDate=${targetDate}%2023:59:59&source=all`;
   const res = await fetchURL(url);
-  const poolsForDay: { [poolName: string]: { totalFees: string } } = res[targetDate] || {};
+  const poolsForDay: { [poolName: string]: { totalFees: string } } = res[targetDate];
+
+  if (!poolsForDay) {
+    throw new Error(`No data found for date ${targetDate}`);
+  }
 
   const poolFeesData: { [pool: string]: number } = {};
   let dailyFees = 0;
