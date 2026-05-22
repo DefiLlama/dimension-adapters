@@ -31,7 +31,7 @@ const LABELS = {
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
   const { feeWallet, rewardWallet } = chainConfig[options.chain];
-  const excludedRewardRecipients = [feeWallet, rewardWallet, ...internalWallets].map((wallet) => `'${wallet}'`).join(", ");
+  const excludedBonkRecipients = [feeWallet, rewardWallet, ...internalWallets].map((wallet) => `'${wallet}'`).join(", ");
   const query = `
     WITH botTrades AS (
       SELECT
@@ -52,8 +52,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
       WHERE TIME_RANGE
         AND block_time >= from_unixtime(${solRewardsStart})
         AND action = 'transfer'
-        AND from_owner = '${rewardWallet}'
-        AND to_owner NOT IN (${excludedRewardRecipients})
+        AND from_owner = '${feeWallet}'
+        AND to_owner = '${rewardWallet}'
     ),
     bonkRewardTransfers AS (
       SELECT
@@ -63,7 +63,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         AND block_time < from_unixtime(${solRewardsStart})
         AND token_mint_address = '${ADDRESSES.solana.BONK}'
         AND from_owner = '${rewardWallet}'
-        AND to_owner NOT IN (${excludedRewardRecipients})
+        AND to_owner NOT IN (${excludedBonkRecipients})
     )
     SELECT
       COALESCE((SELECT SUM(fee_usd) FROM botTrades), 0) AS dailyFees,
@@ -121,7 +121,7 @@ const adapter: SimpleAdapter = {
       [LABELS.BOT_REVENUE]: "Trading fees retained by Bonk Bot after referral rewards.",
     },
     SupplySideRevenue: {
-      [LABELS.REFERRAL_REWARDS]: "Referral rewards sent from the Bonk Bot reward wallet to recipients. Rewards are counted in BONK before June 26, 2025 and in SOL from June 26, 2025 onwards.",
+      [LABELS.REFERRAL_REWARDS]: "Referral rewards paid in BONK before June 26, 2025 and SOL afterwards.",
     },
   }
 }
