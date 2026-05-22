@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { nullAddress } from "../helpers/token";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 const BASE = 'https://prod-api.ekubo.org/overview';
 const CHAIN_ID = 1; // Ethereum mainnet
@@ -18,23 +18,29 @@ async function fetch(_ts: number, _blocks: any, options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
+  const dateStr = options.dateString;
 
-  const volumeData: any[] = (await httpGet(`${BASE}/volume?chainId=${CHAIN_ID}`)).volumeByTokenByDate ?? [];
-  const revenueData: any[] = (await httpGet(`${BASE}/revenue?chainId=${CHAIN_ID}`)).revenueByTokenByDate ?? [];
+  const volumeData: any[] = (await fetchURL(`${BASE}/volume?chainId=${CHAIN_ID}`)).volumeByTokenByDate;
+  const revenueData: any[] = (await fetchURL(`${BASE}/revenue?chainId=${CHAIN_ID}`)).revenueByTokenByDate;
 
-  for (const t of volumeData.filter((e: any) => e.date.split('T')[0] === dateStr)) {
+  const todaysVolumeData = volumeData.filter((e: any) => e.date.split('T')[0] === dateStr);
+  const todaysRevenueData = revenueData.filter((e: any) => e.date.split('T')[0] === dateStr);
+
+  if(!todaysVolumeData || !todaysRevenueData) {
+    throw new Error(`No data found for date ${dateStr}`);
+  }
+
+  for (const t of todaysVolumeData) {
     const token = toEvmAddress(t.token);
     dailyVolume.add(token, t.volume);
     dailyFees.add(token, t.fees);
   }
 
-  for (const t of revenueData.filter((e: any) => e.date.split('T')[0] === dateStr)) {
+  for (const t of todaysRevenueData) {
     const token = toEvmAddress(t.token);
     dailyFees.add(token, t.revenue);
     dailyRevenue.add(token, t.revenue);
   }
-
   const dailySupplySideRevenue = dailyFees.clone();
   dailySupplySideRevenue.subtract(dailyRevenue);
 
