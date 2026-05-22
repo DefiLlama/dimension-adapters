@@ -14,39 +14,39 @@ const FALLBACK_PRODUCT_IDS = [
 const PRODUCT_SUMMARY_ABI =
   "function productSummary(uint256[] ids) view returns (int256[] fundingRates, uint256[] maxOpenForLong, uint256[] maxOpenForShort, bool[] isActives, uint256[] openInterestLongs, uint256[] openInterestShorts)";
 
-const chainConfig: Record<string, { target: string; endpoint: string; start: string; deadFrom?: string }> = {
+const chainConfig: Record<string, { perpTradeReader: string; endpoint: string; start: string; deadFrom?: string }> = {
   // Source: KiloEx python SDK config_kiloex.ini view_address (PerpTradeReader).
   [CHAIN.BSC]: {
-    target: "0x078E31821C94e5a99a64Fdc60cCae97E807ffCda",
+    perpTradeReader: "0x078E31821C94e5a99a64Fdc60cCae97E807ffCda",
     endpoint: "https://api.kiloex.io/common/queryProducts",
-    start: "2023-06-12",
+    start: "2024-12-10",
   },
   [CHAIN.OP_BNB]: {
-    target: "0x2f179F55a780C44e319241031cD596eB6f1266bC",
+    perpTradeReader: "0x2f179F55a780C44e319241031cD596eB6f1266bC",
     endpoint: "https://opapi.kiloex.io/common/queryProducts",
-    start: "2023-10-07",
+    start: "2024-12-10",
   },
   [CHAIN.BASE]: {
-    target: "0xC8d733e9fb7c1ebBCfC259A83A49401bDb963292",
+    perpTradeReader: "0xC8d733e9fb7c1ebBCfC259A83A49401bDb963292",
     endpoint: "https://baseapi.kiloex.io/common/queryProducts",
-    start: "2024-10-09",
+    start: "2024-12-10",
   },
   [CHAIN.MANTA]: {
-    target: "0xE47262628F70981177AF961c75d1aA0d29aAd4d0",
+    perpTradeReader: "0xE47262628F70981177AF961c75d1aA0d29aAd4d0",
     endpoint: "https://mantaapi.kiloex.io/common/queryProducts",
-    start: "2023-11-01",
+    start: "2024-12-10",
     deadFrom: "2026-05-12",
   },
   [CHAIN.BSQUARED]: {
-    target: "0xcEa5BC91C2042eDdE918333416A5920A21E501F7",
+    perpTradeReader: "0xcEa5BC91C2042eDdE918333416A5920A21E501F7",
     endpoint: "https://b2api.kiloex.io/common/queryProducts",
-    start: "2024-07-30",
+    start: "2024-12-10",
     deadFrom: "2026-02-24",
   },
 };
 
 const getProductIds = async (options: FetchOptions) => {
-  const products = (await fetchURL(chainConfig[options.chain].endpoint))?.productList;
+  const products = await fetchURL(chainConfig[options.chain].endpoint).then((res) => res?.productList).catch(() => null);
   const ids = products?.map((product: any) => Number(product.productId)).filter((id: number) => Number.isFinite(id));
   return ids?.length ? [...new Set(ids)] : FALLBACK_PRODUCT_IDS;
 };
@@ -54,7 +54,7 @@ const getProductIds = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions) => {
   const productIds = await getProductIds(options);
   const [, , , , longOis, shortOis] = await options.api.call({
-    target: chainConfig[options.chain].target,
+    target: chainConfig[options.chain].perpTradeReader,
     abi: PRODUCT_SUMMARY_ABI,
     params: [productIds] as any,
   });
