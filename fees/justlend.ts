@@ -33,6 +33,12 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
   const tempBalance = dailyProtocolFees.clone();
   tempBalance.subtract(dailyProtocolRevenue);
   dailySupplySideRevenue.addBalances(tempBalance, 'Borrow Interest');
+
+  // Energy Rental Market — JustLend's separate product where users rent
+  // Energy from staked TRX. Fees flow to sTRX stakers; we count them on the
+  // supply side and don't claim a protocol cut (split not published).
+  await getDailyEnergyRentalFees(context, { dailyProtocolFees, dailySupplySideRevenue });
+
   return {
     timestamp,
     dailyFees: dailyProtocolFees,
@@ -161,6 +167,43 @@ const getDailyProtocolFees = async ({
   });
 };
 
+// Tagged on TronScan as `JustLend DAO: Energy Rental`. Each rental closes with
+// a `ReturnResource` event whose `usageRental` field is the fee retained from
+// the renter's security deposit (verified by tracing internal transfers — the
+// deposit refund equals `subedSecurityDeposit - usageRental`).
+const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
+
+const getDailyEnergyRentalFees = async (
+  { startBlock, endBlock }: IContext,
+  { dailyProtocolFees, dailySupplySideRevenue }: { dailyProtocolFees: sdk.Balances, dailySupplySideRevenue: sdk.Balances },
+) => {
+  const trxToken = ADDRESSES.tron.WTRX.toLowerCase();
+  let fingerprint: string | undefined = undefined;
+  for (let page = 0; page < 200; page++) {
+    const params = [
+      'event_name=ReturnResource',
+      `min_block_timestamp=${startBlock}`,
+      `max_block_timestamp=${endBlock}`,
+      'order_by=block_timestamp,asc',
+      'limit=200',
+    ];
+    if (fingerprint) params.push(`fingerprint=${fingerprint}`);
+    const url = `${endpoint}/v1/contracts/${ENERGY_RENTAL_CONTRACT}/events?${params.join('&')}`;
+    const res = await httpGet(url);
+    const events = res.data ?? [];
+    for (const ev of events) {
+      const usageRental = ev.result?.usageRental;
+      if (!usageRental) continue;
+      const sun = Number(usageRental);
+      dailyProtocolFees.add(trxToken, sun, 'Energy Rental Fee');
+      dailySupplySideRevenue.add(trxToken, sun, 'Energy Rental Fee');
+    }
+    fingerprint = res.meta?.fingerprint;
+    if (!fingerprint) break;
+    await delay(2500);
+  }
+};
+
 
 const adapter: Adapter = {
   adapter: {
@@ -171,15 +214,16 @@ const adapter: Adapter = {
     },
   },
   methodology: {
-    Fees: "Total interest paid by borrowers across all lending markets",
+    Fees: "Total interest paid by borrowers across all lending markets, plus usage fees paid by renters on the Energy Rental Market",
     Revenue: "Protocol's share of interest based on each market's reserve factor",
     ProtocolRevenue: "Protocol's share of interest based on each market's reserve factor",
     HoldersRevenue: "No revenue distributed to JST holders",
-    SupplySideRevenue: "Interest paid to lenders in liquidity pools (total interest minus protocol reserve)",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools plus Energy Rental usage fees paid to sTRX stakers",
   },
   breakdownMethodology: {
     Fees: {
       'Borrow Interest': 'Interest accrued from borrowers across all lending markets, calculated from AccrueInterest events',
+      'Energy Rental Fee': 'Usage fees paid by renters on the JustLend Energy Rental Market, from the usageRental field of ReturnResource events',
     },
     Revenue: {
       'Protocol Reserve Share': 'Portion of borrow interest kept by the protocol based on each market\'s reserve factor',
@@ -189,6 +233,7 @@ const adapter: Adapter = {
     },
     SupplySideRevenue: {
       'Borrow Interest': 'Borrow interest distributed to lenders (total interest minus protocol reserve share)',
+      'Energy Rental Fee': 'Energy Rental usage fees distributed to sTRX stakers who provide the delegated TRX',
     },
   }
 };
