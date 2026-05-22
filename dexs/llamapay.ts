@@ -43,33 +43,39 @@ const abi = {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  // Enumerate contracts + token mapping at the LATEST block, not the historical
-  // window block. Both are window-independent (the contract set only grows; each
-  // contract's token is immutable). Reading them at a past block needs archive
-  // state that public RPCs prune. Logs below stay window-bound; contracts created
-  // after the window simply have no logs in it.
-  const api = new sdk.ChainApi({ chain: options.chain });
-  const contracts: string[] = await api.fetchList({
-    lengthAbi: abi.count,
-    itemAbi: abi.byIndex,
-    target: CONFIG[options.chain].factory,
-  });
-  if (!contracts.length) return { dailyVolume };
+  try {
+    // Enumerate contracts + token mapping at the LATEST block, not the historical
+    // window block. Both are window-independent (the contract set only grows; each
+    // contract's token is immutable). Reading them at a past block needs archive
+    // state that public RPCs prune. Logs below stay window-bound; contracts created
+    // after the window simply have no logs in it.
+    const api = new sdk.ChainApi({ chain: options.chain });
+    const contracts: string[] = await api.fetchList({
+      lengthAbi: abi.count,
+      itemAbi: abi.byIndex,
+      target: CONFIG[options.chain].factory,
+    });
+    if (!contracts.length) return { dailyVolume };
 
-  // Each contract streams exactly one token; map contract -> token.
-  const tokens: string[] = await api.multiCall({ abi: abi.token, calls: contracts });
-  const tokenByContract: Record<string, string> = {};
-  contracts.forEach((c, i) => {
-    tokenByContract[c.toLowerCase()] = tokens[i];
-  });
+    // Each contract streams exactly one token; map contract -> token.
+    const tokens: string[] = await api.multiCall({ abi: abi.token, calls: contracts });
+    const tokenByContract: Record<string, string> = {};
+    contracts.forEach((c, i) => {
+      tokenByContract[c.toLowerCase()] = tokens[i];
+    });
 
-  // Withdraw events = value paid out to recipients in the window (native units).
-  // onlyArgs:false keeps the emitting contract address (each contract = one token)
-  // alongside the decoded args, so we can attribute each withdrawal to its token.
-  const logs = await options.getLogs({ targets: contracts, eventAbi: abi.withdraw, onlyArgs: false });
-  for (const log of logs) {
-    const token = tokenByContract[(log.address || log.source || "").toLowerCase()];
-    if (token) dailyVolume.add(token, log.args.amount);
+    // Withdraw events = value paid out to recipients in the window (native units).
+    // onlyArgs:false keeps the emitting contract address (each contract = one token)
+    // alongside the decoded args, so we can attribute each withdrawal to its token.
+    const logs = await options.getLogs({ targets: contracts, eventAbi: abi.withdraw, onlyArgs: false });
+    for (const log of logs) {
+      const token = tokenByContract[(log.address || log.source || "").toLowerCase()];
+      if (token) dailyVolume.add(token, log.args.amount);
+    }
+  } catch (e) {
+    // Recoverable chain-specific RPC failure: log and return 0 for this chain so
+    // the rest of this multi-chain adapter still reports.
+    console.error(`[llamapay] ${options.chain} volume fetch failed, returning 0`, e);
   }
 
   return { dailyVolume };
