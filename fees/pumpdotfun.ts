@@ -134,29 +134,32 @@ async function getDailyApiData(dateString: string): Promise<{ buybackUsd?: numbe
 }
 
 // Primary path (>= 2025-11-05): per-trade fee columns straight from the decoded event.
+// Grouped by quote_mint so USDC-quoted pairs (introduced ~2026-05) are attributed in the
+// correct token. quote_mint may be NULL on older rows / pre-IDL-update data → treat as SOL.
 async function fetchFromTradeEvents(options: FetchOptions) {
   const [rows, apiData] = await Promise.all([
     queryDuneSql(options, `
       SELECT
-        SUM(fee)          / 1e9 AS pump_fee_sol,
-        SUM(creator_fee)  / 1e9 AS creator_fee_sol,
-        SUM(cashback)     / 1e9 AS cashback_sol,
-        SUM(buyback_fee)  / 1e9 AS buyback_fee_sol,
-        SUM(sol_amount)   / 1e9 AS sol_volume_sol
+        quote_mint,
+        SUM(fee)         AS pump_fee,
+        SUM(creator_fee) AS creator_fee,
+        SUM(cashback)    AS cashback
       FROM pumpdotfun_solana.pump_evt_tradeevent
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
         AND evt_block_time <  from_unixtime(${options.endTimestamp})
+      GROUP BY quote_mint
     `, { extraUIDKey: 'pump-trade-events' }),
     getDailyApiData(options.dateString).catch(() => undefined),
   ])
 
-  const row = rows?.[0] ?? {}
-  const pumpFeeLamports    = (row.pump_fee_sol    ?? 0) * 1e9
-  const creatorFeeLamports = (row.creator_fee_sol ?? 0) * 1e9
-  const cashbackLamports   = (row.cashback_sol    ?? 0) * 1e9
-  const buybackUsd         = apiData?.buybackUsd  ?? 0
+  const feeRows: FeeRow[] = (rows ?? []).map((r: any) => ({
+    mint:       r.quote_mint ?? ADDRESSES.solana.SOL,
+    pumpFee:    +(r.pump_fee    ?? 0),
+    creatorFee: +(r.creator_fee ?? 0),
+    cashback:   +(r.cashback    ?? 0),
+  }))
 
-  return buildBalances(options, pumpFeeLamports, creatorFeeLamports, cashbackLamports, buybackUsd)
+  return buildBalances(options, feeRows, apiData?.buybackUsd ?? 0)
 }
 
 // Fallback path (< 2025-11-05): pump_evt_tradeevent isn't populated, so we read pump's
@@ -187,12 +190,17 @@ async function fetchFromDune(options: FetchOptions) {
     getDailyApiData(options.dateString).catch(() => undefined),
   ])
 
-  const pumpFeeLamports    = (pumpFeeRows?.[0]?.total_sol_revenue ?? 0) * 1e9
-  const creatorFeeLamports = pumpFeeLamports * getCreatorFeeRatio(options.startTimestamp)
-  const buybackUsd         = apiData?.buybackUsd ?? 0
+  const pumpFee    = (pumpFeeRows?.[0]?.total_sol_revenue ?? 0) * 1e9
+  const creatorFee = pumpFee * getCreatorFeeRatio(options.startTimestamp)
 
-  return buildBalances(options, pumpFeeLamports, creatorFeeLamports, 0, buybackUsd)
+  return buildBalances(
+    options,
+    [{ mint: ADDRESSES.solana.SOL, pumpFee, creatorFee, cashback: 0 }],
+    apiData?.buybackUsd ?? 0,
+  )
 }
+
+type FeeRow = { mint: string, pumpFee: number, creatorFee: number, cashback: number }
 
 // Shared balance assembly. All three callers (TradeEvent path, Dune fallback, future
 // callers) flow through here so the bucket mapping lives in one place.
@@ -206,9 +214,7 @@ async function fetchFromDune(options: FetchOptions) {
 //   mayhem inflows  → Fees + Revenue + ProtocolRevenue (no splits)
 async function buildBalances(
   options: FetchOptions,
-  pumpFeeLamports: number,
-  creatorFeeLamports: number,
-  cashbackLamports: number,
+  feeRows: FeeRow[],
   buybackUsd: number,
 ) {
   const dailyFees             = options.createBalances()
@@ -217,27 +223,28 @@ async function buildBalances(
   const dailyHoldersRevenue   = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  // Pump's slice: gross fee, also revenue. ProtocolRevenue is the era-ratio share.
-  const protocolLamports = pumpFeeLamports * getProtocolRevenueRatio(options.startTimestamp)
-  if (pumpFeeLamports  > 0) {
-    dailyFees.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
-    dailyRevenue.add(ADDRESSES.solana.SOL, pumpFeeLamports, LABEL.PumpFunProtocolFee)
+  const protocolRatio = getProtocolRevenueRatio(options.startTimestamp)
+  for (const { mint, pumpFee, creatorFee, cashback } of feeRows) {
+    // Pump's slice: gross fee, also revenue. ProtocolRevenue is the era-ratio share.
+    if (pumpFee > 0) {
+      dailyFees.add(mint, pumpFee, LABEL.PumpFunProtocolFee)
+      dailyRevenue.add(mint, pumpFee, LABEL.PumpFunProtocolFee)
+      const protocol = pumpFee * protocolRatio
+      if (protocol > 0) dailyProtocolRevenue.add(mint, protocol, LABEL.PumpFunProtocolFee)
+    }
+    // Supply-side: creator and cashback slices.
+    if (creatorFee > 0) {
+      dailyFees.add(mint, creatorFee, LABEL.PumpFunCreatorFee)
+      dailySupplySideRevenue.add(mint, creatorFee, LABEL.PumpFunCreatorFee)
+    }
+    if (cashback > 0) {
+      dailyFees.add(mint, cashback, LABEL.PumpFunCashback)
+      dailySupplySideRevenue.add(mint, cashback, LABEL.PumpFunCashback)
+    }
   }
-  if (protocolLamports > 0)
-    dailyProtocolRevenue.add(ADDRESSES.solana.SOL, protocolLamports, LABEL.PumpFunProtocolFee)
 
   // HoldersRevenue: PUMP buyback USD from the off-chain API (whole-protocol figure).
   if (buybackUsd > 0) dailyHoldersRevenue.addUSDValue(buybackUsd, METRIC.TOKEN_BUY_BACK)
-
-  // Supply-side: creator and cashback slices.
-  if (creatorFeeLamports > 0) {
-    dailyFees.add(ADDRESSES.solana.SOL, creatorFeeLamports, LABEL.PumpFunCreatorFee)
-    dailySupplySideRevenue.add(ADDRESSES.solana.SOL, creatorFeeLamports, LABEL.PumpFunCreatorFee)
-  }
-  if (cashbackLamports > 0) {
-    dailyFees.add(ADDRESSES.solana.SOL, cashbackLamports, LABEL.PumpFunCashback)
-    dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackLamports, LABEL.PumpFunCashback)
-  }
 
   // Mayhem-mode fees (off-event; captured from wallet inflows). 100% protocol.
   await addMayhemFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
