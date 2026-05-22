@@ -52,6 +52,7 @@ export const getV3Swaps = async (
 
 	const { getLogs, getFromBlock, getToBlock } = fetchOptions;
 	const swapIface = new ethers.Interface([ABI.V3_POOL_FACTORY.event.Swap]);
+	const poolSet = new Set(options.pools);
 	await PromisePool.withConcurrency(MAX_CONCURRENCY)
 		.handleError((e, _, pool) => {
 			pool.stop();
@@ -70,7 +71,7 @@ export const getV3Swaps = async (
 			}).then((logs) => {
 				logs.forEach((log) => {
 					const poolAddress = sdk.util.normalizeAddress(log.address);
-					if (!options.pools.includes(poolAddress)) return;
+					if (!poolSet.has(poolAddress)) return;
 
 					const [, , amount0, amount1] = swapIface.parseLog(log)?.args ?? [0, 0, 0, 0];
 
@@ -104,9 +105,10 @@ const getV3PoolCollectedFees = async (
 		entireLog: true
 	});
 
+	const poolSet = new Set(options.pools);
 	collectFeesLogs.forEach((log) => {
 		const poolAddress = sdk.util.normalizeAddress(log.address);
-		if (!options.pools.includes(poolAddress)) return;
+		if (!poolSet.has(poolAddress)) return;
 
 		if (!poolFeesMap[poolAddress]) {
 			poolFeesMap[poolAddress] = [BigNumber(0), BigNumber(0)];

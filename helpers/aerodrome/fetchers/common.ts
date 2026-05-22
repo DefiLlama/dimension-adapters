@@ -68,17 +68,19 @@ export const getPoolStakedShares = async (
 	]);
 
 	return Object.fromEntries(
-		entriesPoolGauges.map(([pool], i) => [
-			pool,
-			Math.min(
-				options.SCALE,
-				BigNumber(stakedBalances[i] ?? 0)
-					.div(totalSupplies[i] ?? 0)
-					.times(options.SCALE)
-					.integerValue()
-					.toNumber()
-			)
-		])
+		entriesPoolGauges.map(([pool], i) => {
+			const staked = BigNumber(stakedBalances[i] ?? 0);
+			const total = BigNumber(totalSupplies[i] ?? 0);
+			if (total.isZero()) return [pool, 0];
+
+			return [
+				pool,
+				Math.min(
+					options.SCALE,
+					staked.div(total).times(options.SCALE).integerValue().toNumber()
+				)
+			];
+		})
 	);
 };
 
@@ -117,8 +119,10 @@ export const getBribesRevenue = async (
 	});
 
 	const bribeIface = new ethers.Interface([ABI.BRIBE.event.NotifyReward]);
+	const bribeSet = new Set(bribes);
 	notifyRewardsLogs.forEach((log) => {
-		if (!bribes.includes(sdk.util.normalizeAddress(log.address))) return;
+		if (!bribeSet.has(sdk.util.normalizeAddress(log.address))) return;
+
 		const [, reward, , amount] = bribeIface.parseLog(log)?.args ?? [0, 0, 0, 0];
 		const preLaunchBribe = preLaunchBribes.find(
 			({ tokenAddress }) =>
@@ -159,7 +163,8 @@ export const getEpochs = async (
 	if (!epochStart) return [];
 
 	const epochs: number[] = [Number(epochStart)];
-	while (true) {
+	const MAX_EPOCHS = 520; // ~10 years of weekly epochs
+	while (epochs.length < MAX_EPOCHS) {
 		const lastFetchedEpoch = epochs[epochs.length - 1];
 		const epochNext = Number(
 			await api.call({
@@ -169,6 +174,7 @@ export const getEpochs = async (
 			})
 		);
 
+		if (!Number.isFinite(epochNext) || epochNext <= lastFetchedEpoch) break;
 		if (epochNext >= toTimestamp) break;
 		epochs.push(epochNext);
 	}
@@ -202,22 +208,27 @@ export const getGaugesIncentive = async (
 					params: [epoch]
 				}))
 			)
-			.flat()
+			.flat(),
+		permitFailure: true
 	});
 
 	const rewardTokens = await api.multiCall({
 		abi: ABI.GAUGE.function.rewardToken,
-		calls: options.gauges
+		calls: options.gauges,
+		permitFailure: true
 	});
 
 	const step = options.gauges.length;
 	epochRates.forEach((epochRate, i) => {
+		const rewardToken = rewardTokens[i % step];
+		if (!epochRate || !rewardToken) return;
+
 		const epochIndex = Math.floor(i / step);
 		const _fromTs = epochIndex === 0 ? fromTimestamp : epochs[epochIndex];
 		const _toTs = epochs[epochIndex + 1] ?? toTimestamp;
 		const durationInSeconds = _toTs - _fromTs;
 
-		balance.add(rewardTokens[i % step], BigNumber(epochRate).times(durationInSeconds));
+		balance.add(rewardToken, BigNumber(epochRate).times(durationInSeconds));
 	});
 
 	return balance;

@@ -1,3 +1,5 @@
+import BigNumber from "bignumber.js";
+
 export interface PoolFactoryParams {
 	address: string;
 	fromBlock: number;

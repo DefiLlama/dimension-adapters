@@ -30,48 +30,63 @@ export const fetchAerodromeV2Metrics = (
 	config: AerodromeFetchingConfig
 ): AdapterTypes.Fetch | AdapterTypes.FetchV2 => {
 	return async (fetchOptions: AdapterTypes.FetchOptions) => {
-		const { api } = fetchOptions;
+		const { api, createBalances } = fetchOptions;
 		const protocolName = fetchOptions.metadata?.protocolName ?? "Aerodrome V2 Helper";
-		const pools = await V2Fetchers.getV2Pools(fetchOptions, {
-			factories: config.POOL_FACTORIES
-		});
+		const dailyVolume = createBalances();
+		const dailyFees = createBalances();
+		const dailyRevenue = createBalances();
+		const dailySupplySideRevenue = createBalances();
+		const dailyHoldersRevenue = createBalances();
+		const tokenIncentives = createBalances();
 
-		api.log(`${protocolName} got ${Object.keys(pools).length} pools.`);
+		try {
+			const pools = await V2Fetchers.getV2Pools(fetchOptions, {
+				factories: config.POOL_FACTORIES
+			});
 
-		const poolGauges = await CommonFetchers.getPoolGauges(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			pools: Object.keys(pools)
-		});
+			api.log(`[${protocolName}] got ${Object.keys(pools).length} pools.`);
 
-		const gauges = Object.values(poolGauges);
-		api.log(`${protocolName} got ${gauges.length} gauges.`);
+			const poolGauges = await CommonFetchers.getPoolGauges(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				pools: Object.keys(pools)
+			});
 
-		const { volume, fees, voterRevenue, supplySideRevenue } = await V2Fetchers.getV2PoolMetrics(
-			fetchOptions,
-			{ pools, poolGauges }
-		);
+			const gauges = Object.values(poolGauges);
+			api.log(`[${protocolName}] got ${gauges.length} gauges.`);
 
-		const bribesRevenue = await CommonFetchers.getBribesRevenue(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			itemAbi: config.ABI?.VOTER_FACTORY?.bribesItemAbi,
-			preLaunchBribes: config.PRE_LAUNCH_BRIBE_PRICING,
-			gauges
-		});
+			const { volume, fees, voterRevenue, supplySideRevenue } =
+				await V2Fetchers.getV2PoolMetrics(fetchOptions, { pools, poolGauges });
 
-		const tokenIncentives = await CommonFetchers.getGaugesIncentive(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			gauges
-		});
+			dailyVolume.add(volume);
+			dailyFees.add(fees);
+			dailyRevenue.add(voterRevenue);
+			dailySupplySideRevenue.add(supplySideRevenue);
 
-		const dailyHoldersRevenue = fetchOptions.createBalances();
-		dailyHoldersRevenue.add(voterRevenue, AERODROME_METRIC.VOTER_FEES);
-		dailyHoldersRevenue.add(bribesRevenue, AERODROME_METRIC.BRIBES_REVENUE);
+			const bribesRevenue = await CommonFetchers.getBribesRevenue(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				itemAbi: config.ABI?.VOTER_FACTORY?.bribesItemAbi,
+				preLaunchBribes: config.PRE_LAUNCH_BRIBE_PRICING,
+				gauges
+			});
+
+			dailyHoldersRevenue.add(voterRevenue, AERODROME_METRIC.VOTER_FEES);
+			dailyHoldersRevenue.add(bribesRevenue, AERODROME_METRIC.BRIBES_REVENUE);
+
+			const incentives = await CommonFetchers.getGaugesIncentive(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				gauges
+			});
+
+			tokenIncentives.add(incentives);
+		} catch (e) {
+			api.log(`[${protocolName}] metrics fetch failed`, e);
+		}
 
 		return {
-			dailyVolume: volume,
-			dailyFees: fees,
-			dailyRevenue: voterRevenue,
-			dailySupplySideRevenue: supplySideRevenue,
+			dailyVolume,
+			dailyFees,
+			dailyRevenue,
+			dailySupplySideRevenue,
 			dailyHoldersRevenue,
 			tokenIncentives
 		};
@@ -82,48 +97,63 @@ export const fetchAerodromeV3Metrics = (
 	config: AerodromeFetchingConfig
 ): AdapterTypes.Fetch | AdapterTypes.FetchV2 => {
 	return async (fetchOptions: AdapterTypes.FetchOptions) => {
-		const { api } = fetchOptions;
+		const { api, createBalances } = fetchOptions;
 		const protocolName = fetchOptions.metadata?.protocolName ?? "Aerodrome V3 Helper";
-		const pools = await V3Fetchers.getV3Pools(fetchOptions, {
-			factories: config.POOL_FACTORIES
-		});
+		const dailyVolume = createBalances();
+		const dailyFees = createBalances();
+		const dailyRevenue = createBalances();
+		const dailySupplySideRevenue = createBalances();
+		const dailyHoldersRevenue = createBalances();
+		const tokenIncentives = createBalances();
 
-		api.log(`${protocolName} got ${Object.keys(pools).length} pools.`);
+		try {
+			const pools = await V3Fetchers.getV3Pools(fetchOptions, {
+				factories: config.POOL_FACTORIES
+			});
 
-		const poolGauges = await CommonFetchers.getPoolGauges(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			pools: Object.keys(pools)
-		});
+			api.log(`[${protocolName}] got ${Object.keys(pools).length} pools.`);
 
-		const gauges = Object.values(poolGauges);
-		api.log(`${protocolName} got ${gauges.length} gauges.`);
+			const poolGauges = await CommonFetchers.getPoolGauges(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				pools: Object.keys(pools)
+			});
 
-		const { volume, fees, voterRevenue, supplySideRevenue } = await V3Fetchers.getV3PoolMetrics(
-			fetchOptions,
-			{ pools, poolGauges }
-		);
+			const gauges = Object.values(poolGauges);
+			api.log(`[${protocolName}] got ${gauges.length} gauges.`);
 
-		const bribesRevenue = await CommonFetchers.getBribesRevenue(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			itemAbi: config.ABI?.VOTER_FACTORY?.bribesItemAbi,
-			preLaunchBribes: config.PRE_LAUNCH_BRIBE_PRICING,
-			gauges
-		});
+			const { volume, fees, voterRevenue, supplySideRevenue } =
+				await V3Fetchers.getV3PoolMetrics(fetchOptions, { pools, poolGauges });
 
-		const tokenIncentives = await CommonFetchers.getGaugesIncentive(fetchOptions, {
-			VOTER_ADDRESS: config.VOTER_ADDRESS,
-			gauges
-		});
+			dailyVolume.add(volume);
+			dailyFees.add(fees);
+			dailyRevenue.add(voterRevenue);
+			dailySupplySideRevenue.add(supplySideRevenue);
 
-		const dailyHoldersRevenue = fetchOptions.createBalances();
-		dailyHoldersRevenue.add(voterRevenue, AERODROME_METRIC.VOTER_FEES);
-		dailyHoldersRevenue.add(bribesRevenue, AERODROME_METRIC.BRIBES_REVENUE);
+			const bribesRevenue = await CommonFetchers.getBribesRevenue(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				itemAbi: config.ABI?.VOTER_FACTORY?.bribesItemAbi,
+				preLaunchBribes: config.PRE_LAUNCH_BRIBE_PRICING,
+				gauges
+			});
+
+			dailyHoldersRevenue.add(voterRevenue, AERODROME_METRIC.VOTER_FEES);
+			dailyHoldersRevenue.add(bribesRevenue, AERODROME_METRIC.BRIBES_REVENUE);
+
+			const incentives = await CommonFetchers.getGaugesIncentive(fetchOptions, {
+				VOTER_ADDRESS: config.VOTER_ADDRESS,
+				gauges
+			});
+
+			tokenIncentives.add(incentives);
+		} catch (e) {
+			api.log(`[${protocolName}] metrics fetch failed`, e);
+		}
 
 		return {
-			dailyVolume: volume,
-			dailyFees: fees,
-			dailyRevenue: voterRevenue,
-			dailySupplySideRevenue: supplySideRevenue,
+			dailyVolume,
+			dailyFees,
+			dailyRevenue,
+			dailySupplySideRevenue,
 			dailyHoldersRevenue,
 			tokenIncentives
 		};

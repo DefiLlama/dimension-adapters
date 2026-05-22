@@ -56,6 +56,7 @@ export const getV2Swaps = async (
 
 	const { getLogs, getFromBlock, getToBlock } = fetchOptions;
 	const swapIface = new ethers.Interface([ABI.V2_POOL_FACTORY.event.Swap]);
+	const poolSet = new Set(options.pools);
 	await PromisePool.withConcurrency(MAX_CONCURRENCY)
 		.handleError((e, _, pool) => {
 			pool.stop();
@@ -74,7 +75,7 @@ export const getV2Swaps = async (
 			}).then((logs) => {
 				logs.forEach((log) => {
 					const poolAddress = sdk.util.normalizeAddress(log.address);
-					if (!options.pools.includes(poolAddress)) return;
+					if (!poolSet.has(poolAddress)) return;
 
 					const [, , amount0In, amount1In, amount0Out, amount1Out] = swapIface.parseLog(
 						log
