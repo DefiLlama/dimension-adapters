@@ -15,6 +15,15 @@ const chainConfig: Record<string, { start: string; fetch: typeof fetch; feeWalle
   },
 };
 
+const solRewardsStart = 1750896000; // 2025-06-26, fee wallet starts funding the referral wallet
+const internalWallets = [
+  "HvDzh6pzvjukAFUSajhkFgumhMLCUMjhMdFABbuc9YqL",
+  "4mNSrPhWCEUuCH3L4LMfeyiNyDBvJcFVU1PwYpybnyhJ",
+  "6BSxVeqT3bcjYW8jFjxr2Df5kf4BoGefWaeJAuEpKLJX",
+  "572baVHC2MxXeNQfqtDsjYdHqeGABmquvGD4fc57Ra8M",
+  "6Su3CvAxazKcjQLRBJyMVbToM9zdT12VnY7pdj2NEAXH",
+];
+
 const LABELS = {
   BOT_REVENUE: "BonkBot trading fees excluding referral rewards",
   REFERRAL_REWARDS: "Referral rewards",
@@ -22,6 +31,7 @@ const LABELS = {
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
   const { feeWallet, rewardWallet } = chainConfig[options.chain];
+  const excludedRewardRecipients = [feeWallet, rewardWallet, ...internalWallets].map((wallet) => `'${wallet}'`).join(", ");
   const query = `
     WITH botTrades AS (
       SELECT
@@ -35,18 +45,30 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         AND is_last_trade_in_transaction = true
         AND TIME_RANGE
     ),
-    rewardTransfers AS (
+    solRewardTransfers AS (
       SELECT
-        CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS referralRewards
+        CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS solReferralRewards
       FROM tokens_solana.sol_transfers
       WHERE TIME_RANGE
+        AND block_time >= from_unixtime(${solRewardsStart})
         AND action = 'transfer'
-        AND from_owner = '${feeWallet}'
-        AND to_owner = '${rewardWallet}'
+        AND from_owner = '${rewardWallet}'
+        AND to_owner NOT IN (${excludedRewardRecipients})
+    ),
+    bonkRewardTransfers AS (
+      SELECT
+        CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS bonkReferralRewards
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND block_time < from_unixtime(${solRewardsStart})
+        AND token_mint_address = '${ADDRESSES.solana.BONK}'
+        AND from_owner = '${rewardWallet}'
+        AND to_owner NOT IN (${excludedRewardRecipients})
     )
     SELECT
       COALESCE((SELECT SUM(fee_usd) FROM botTrades), 0) AS dailyFees,
-      (SELECT referralRewards FROM rewardTransfers) AS referralRewards
+      (SELECT solReferralRewards FROM solRewardTransfers) AS solReferralRewards,
+      (SELECT bonkReferralRewards FROM bonkRewardTransfers) AS bonkReferralRewards
   `;
 
   const data = await queryDuneSql(options, query);
@@ -56,11 +78,13 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
   if (!inflatedFees.includes(options.startOfDay)){
     const fees = Number(data[0].dailyFees);
-    const referralRewards = data[0].referralRewards;
+    const solReferralRewards = data[0].solReferralRewards;
+    const bonkReferralRewards = data[0].bonkReferralRewards;
 
     dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
     dailyRevenue.addUSDValue(fees, LABELS.BOT_REVENUE);
-    dailySupplySideRevenue.add(ADDRESSES.solana.SOL, referralRewards, LABELS.REFERRAL_REWARDS);
+    dailySupplySideRevenue.add(ADDRESSES.solana.SOL, solReferralRewards, LABELS.REFERRAL_REWARDS);
+    dailySupplySideRevenue.add(ADDRESSES.solana.BONK, bonkReferralRewards, LABELS.REFERRAL_REWARDS);
     dailyRevenue.subtract(dailySupplySideRevenue, LABELS.BOT_REVENUE);
   }
 
@@ -82,8 +106,8 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true,
   methodology: {
     Fees: "All trading fees paid by users while using bot.",
-    Revenue: "Trading fees kept by Bonk Bot after referral rewards paid from the fee wallet to the reward wallet.",
-    ProtocolRevenue: "Trading fees kept by Bonk Bot after referral rewards paid from the fee wallet to the reward wallet.",
+    Revenue: "Trading fees kept by Bonk Bot after referral rewards are paid.",
+    ProtocolRevenue: "Trading fees kept by Bonk Bot after referral rewards are paid.",
     SupplySideRevenue: "Referral rewards funded from the Bonk Bot fee wallet and sent to the reward wallet.",
   },
   breakdownMethodology: {
@@ -97,7 +121,7 @@ const adapter: SimpleAdapter = {
       [LABELS.BOT_REVENUE]: "Trading fees retained by Bonk Bot after referral rewards.",
     },
     SupplySideRevenue: {
-      [LABELS.REFERRAL_REWARDS]: "SOL sent from the Bonk Bot fee wallet to the reward wallet for referral rewards.",
+      [LABELS.REFERRAL_REWARDS]: "Referral rewards sent from the Bonk Bot reward wallet to recipients. Rewards are counted in BONK before June 26, 2025 and in SOL from June 26, 2025 onwards.",
     },
   }
 }
