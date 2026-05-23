@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch = async (_a: number, _b: any, options: FetchOptions) => {
-  const rows = await queryDuneSql(options, `
+  const oiData = await queryDuneSql(options, `
     WITH openInterestChanges AS (
       SELECT *
       FROM query_4086137
@@ -18,19 +18,19 @@ const fetch = async (_a: number, _b: any, options: FetchOptions) => {
       FROM openInterestChanges
       GROUP BY 1
     )
-    SELECT openInterestUSD, longOpenInterestUSD, shortOpenInterestUSD
+    SELECT COALESCE(openInterestUSD, 0) as openInterestUSD, COALESCE(longOpenInterestUSD, 0) as longOpenInterestUSD, COALESCE(shortOpenInterestUSD, 0) as shortOpenInterestUSD
     FROM openInterestByDay
-    WHERE block_date = DATE '${options.dateString}'
+    WHERE block_date <= DATE '${options.dateString}'
+    ORDER BY block_date DESC
+    LIMIT 1
   `);
 
-  const row = rows?.[0];
-
   return {
-    // A handful of datapoints have a negative value, so we guard against that
+    // A handful of datapoints have small negative values (e-11), so we guard against that
     // by rounding those values up to zero
-    openInterestAtEnd: Math.max(0, row?.openInterestUSD ?? 0),
-    longOpenInterestAtEnd: Math.max(0, row?.longOpenInterestUSD ?? 0),
-    shortOpenInterestAtEnd: Math.max(0, row?.shortOpenInterestUSD ?? 0),
+    openInterestAtEnd: Math.max(0, oiData[0].openInterestUSD),
+    longOpenInterestAtEnd: Math.max(0, oiData[0].longOpenInterestUSD),
+    shortOpenInterestAtEnd: Math.max(0, oiData[0].shortOpenInterestUSD),
   };
 };
 
@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
   start: '2024-09-20',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  deadFrom: '2026-01-12',
 };
 
 export default adapter;
