@@ -375,4 +375,5 @@ export enum CHAIN {
   LUKSO = "lukso",
   MOCA = "moca",
   FSC = "fsc",
+  DFIO_META_MAIN = "dfio_meta_main",
 }

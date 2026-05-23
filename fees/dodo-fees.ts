@@ -2,6 +2,7 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { request, gql } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import { addOneToken } from "../helpers/prices";
 
 const feesReq = gql`
 query FetchDashboardPairs($where: Dashboardrate24h_filter) {
@@ -12,6 +13,43 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 	}
 }
 `
+
+const dfioFetch = async (_t: any, _b: any, options: FetchOptions) => {
+  const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
+
+  const poolCreatedLogs = await options.getLogs({
+    target: dvmFactory,
+    eventAbi: "event NewDVM (address baseToken, address quoteToken, address creator, address dvm)",
+    fromBlock: 3510162,
+    cacheInCloud: true,
+  });
+
+  const pools = poolCreatedLogs.map((log) => log.dvm);
+
+  const SWAP_ABI =
+    "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
+
+  const swapFees = options.createBalances();
+
+  const swapLogs = await options.getLogs({
+    targets: pools,
+    eventAbi: SWAP_ABI,
+  });
+
+  for (const log of swapLogs) {
+    addOneToken({ chain: options.chain, balances: swapFees, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+  }
+
+  const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES)
+  const dailySupplySideRevenue = swapFees.clone(1, METRIC.LP_FEES)
+
+  return {
+    dailyFees,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue,
+  };
+}
 
 const fetch = async (_t: any, _b: any, options: FetchOptions) => {
   const pairs = await request("https://gateway.dodoex.io/graphql?opname=FetchDashboardPairs", feesReq,
@@ -55,8 +93,15 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 1,
-  chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.BOBA],
-  fetch,
+  adapter: {
+    [CHAIN.DFIO_META_MAIN]: { fetch: dfioFetch },
+    [CHAIN.ETHEREUM]: { fetch },
+    [CHAIN.BSC]: { fetch },
+    [CHAIN.POLYGON]: { fetch },
+    [CHAIN.ARBITRUM]: { fetch },
+    [CHAIN.AURORA]: { fetch },
+    [CHAIN.BOBA]: { fetch },
+  },
   runAtCurrTime: true,
   methodology,
   breakdownMethodology
