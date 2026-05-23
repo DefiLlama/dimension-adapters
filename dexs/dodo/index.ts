@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
+import { addOneToken } from "../../helpers/prices";
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -19,15 +20,16 @@ import dailyVolumePayload from "./dailyVolumePayload";
 const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
 const chains = [
   CHAIN.ARBITRUM,
-   CHAIN.BSC,
-   CHAIN.ETHEREUM,
-   CHAIN.POLYGON,
-   CHAIN.AVAX,
-   CHAIN.OPTIMISM,
-   CHAIN.BASE,
-   CHAIN.LINEA,
-   CHAIN.SCROLL,
+  CHAIN.BSC,
+  CHAIN.ETHEREUM,
+  CHAIN.POLYGON,
+  CHAIN.AVAX,
+  CHAIN.OPTIMISM,
+  CHAIN.BASE,
+  CHAIN.LINEA,
+  CHAIN.SCROLL,
   //  CHAIN.MANTA
+  CHAIN.DFIO_META_MAIN,
 ]
 
 interface IDailyResponse {
@@ -43,6 +45,38 @@ interface IDailyResponse {
   }
 }
 
+const dfioFetch = async (_ts: number, _t: any, options: FetchOptions) => {
+
+  const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
+
+  const poolCreatedLogs = await options.getLogs({
+    target: dvmFactory,
+    eventAbi: "event NewDVM (address baseToken, address quoteToken, address creator, address dvm)",
+    fromBlock: 3510162,
+    cacheInCloud: true,
+  });
+
+  const pools = poolCreatedLogs.map((log) => log.dvm);
+
+  const SWAP_ABI =
+    "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
+
+  const dailyVolume = options.createBalances();
+
+  const swapLogs = await options.getLogs({
+    targets: pools,
+    eventAbi: SWAP_ABI,
+  });
+
+  for (const log of swapLogs) {
+    addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+  }
+
+  return {
+    dailyVolume,
+  };
+}
+
 const getFetch = (chain: string): Fetch => async (_ts: number, _t: any, options: FetchOptions) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
@@ -55,13 +89,13 @@ const getFetch = (chain: string): Fetch => async (_ts: number, _t: any, options:
 const chainConversion = (chain: string): string => {
   switch (chain) {
     case CHAIN.SCROLL:
-        return 'scr';
+      return 'scr';
     case CHAIN.MANTA:
-        return 'manta';
+      return 'manta';
     case CHAIN.AVAX:
-        return 'avalanche';
+      return 'avalanche';
     default:
-        return chain;
+      return chain;
   }
 }
 
@@ -69,7 +103,7 @@ const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: getFetch(chainConversion(chain)),
+      fetch: chain === CHAIN.DFIO_META_MAIN ? dfioFetch : getFetch(chainConversion(chain)),
     },
   }),
   {}
