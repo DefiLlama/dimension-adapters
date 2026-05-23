@@ -145,15 +145,29 @@ const fetch = async (options: FetchOptions) => {
   //   total CRV     = cvxCrvAmount ÷ lockIncentive × 10_000
   //   LP CRV        = total CRV × supplyBps ÷ 10_000
   //                 = cvxCrvAmount × supplyBps ÷ lockIncentive
+  //
+  // We fetch CRV transfers directly with topic filters rather than reading back
+  // from cvxCrvStakerCRV.getBalances(). The SDK's sumSingleBalance stores values
+  // via Number(bigint).toString(), which produces scientific notation strings
+  // (e.g. "2.9e+22") for large wei amounts — BigInt() cannot parse these, and
+  // the Number() conversion has already discarded the low-order digits.
   const lockBps   = Number(lockIncentive);
   const supplyBps = 10_000 - protocolFeeBps;
 
   const supplySideCRV = createBalances();
   if (lockBps > 0) {
-    const cvxCrvBalances = cvxCrvStakerCRV.getBalances();
-    const crvKey = `${CHAIN.ETHEREUM}:${CRV_TOKEN.toLowerCase()}`;
-    const cvxCrvAmount = BigInt(new BigNumber(cvxCrvBalances[crvKey] ?? "0").toFixed(0));
-    const lpCRVAmount  = cvxCrvAmount * BigInt(supplyBps) / BigInt(lockBps);
+    // Mirror the topic filter used internally by addTokensReceived
+    const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const pad32 = (addr: string) => "0x" + addr.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
+    const stakingTransfers = await options.getLogs({
+      target: CRV_TOKEN,
+      eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+      topics: [TRANSFER_SIG, pad32(BOOSTER), pad32(CVXCRV_STAKING)],
+    });
+    const cvxCrvRawAmount = stakingTransfers.reduce(
+      (acc: bigint, log: any) => acc + BigInt(log.value), 0n
+    );
+    const lpCRVAmount = cvxCrvRawAmount * BigInt(supplyBps) / BigInt(lockBps);
     supplySideCRV.add(CRV_TOKEN, lpCRVAmount, "CRV Revenue");
   }
 
