@@ -1,13 +1,13 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const ABI = {
   market_count: "uint256:market_count",
-  fee: "uint256:fee",
   admin_fee: "uint256:admin_fee",
   coins: "function coins(uint256) view returns(address)",
   markets: "function markets(uint256 arg0) view returns ((address asset_token, address cryptopool, address amm, address lt, address price_oracle, address virtual_pool, address staker))",
-  TokenExchange: 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 packed_price_scale)',
+  TokenExchange: 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 price_oracle)',
 }
 
 interface IFactory {
@@ -17,10 +17,11 @@ interface IFactory {
 
 interface IPool {
   pool: string;
-  feeRate: number;
-  adminFeeRate: number;
+  adminFee: bigint;
   coins: Array<string>;
 }
+
+const ADMIN_FEE_DENOMINATOR = 20_000_000_000n;
 
 const FactoryConfigs: Record<string, IFactory> = {
   [CHAIN.ETHEREUM]: {
@@ -33,6 +34,7 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const markets: Array<any> = await options.api.fetchList({ lengthAbi: ABI.market_count, itemAbi: ABI.markets, target: FactoryConfigs[options.chain].factory })
   const ammAddresses: Array<string> = markets.map((m: any) => m.amm)
@@ -47,10 +49,6 @@ async function fetch(options: FetchOptions) {
       abi: ABI.coins,
       calls,
     })
-    const fees: Array<any> = await options.api.multiCall({
-      abi: ABI.fee,
-      calls: ammAddresses,
-    })
     const admin_fees: Array<any> = await options.api.multiCall({
       abi: ABI.admin_fee,
       calls: ammAddresses,
@@ -62,8 +60,7 @@ async function fetch(options: FetchOptions) {
       pools.push({
         pool: ammAddresses[i],
         coins: [coins[i * 2], coins[i * 2 + 1]],
-        feeRate: Number(fees[i]) / 1e18,
-        adminFeeRate: admin_fees[i] ? Number(admin_fees[i]) / 1e18 : 0,
+        adminFee: BigInt(admin_fees[i] ?? 0),
       })
     }
     
@@ -74,25 +71,30 @@ async function fetch(options: FetchOptions) {
     })
     for (let i = 0; i < pools.length; i++) {
       for (const log of swapLogs[i]) {
-        const volume = Number(log.tokens_sold)
-        const fee = volume * pools[i].feeRate
-        const adminFee = fee * pools[i].adminFeeRate
-  
-        dailyVolume.add(pools[i].coins[Number(log.sold_id)], volume)
-        dailyFees.add(pools[i].coins[Number(log.sold_id)], fee)
-        dailyRevenue.add(pools[i].coins[Number(log.sold_id)], adminFee)
+        // log.fee is the fee rate (self.fee), 1e18-denominated, NOT the token amount.
+        // Actual fee in output token = tokens_bought * feeRate / (1e18 - feeRate).
+        const feeRate = BigInt(log.fee)
+        const tokensOut = BigInt(log.tokens_bought)
+        const fee = tokensOut * feeRate / (10n ** 18n - feeRate)
+        const adminFee = fee * pools[i].adminFee / ADMIN_FEE_DENOMINATOR
+        const supplySideFee = fee - adminFee
+        const feeToken = pools[i].coins[Number(log.bought_id)]
+
+        dailyVolume.add(pools[i].coins[Number(log.sold_id)], log.tokens_sold)
+        dailyFees.add(feeToken, fee, METRIC.SWAP_FEES)
+        dailyRevenue.add(feeToken, adminFee, METRIC.PROTOCOL_FEES)
+        dailySupplySideRevenue.add(feeToken, supplySideFee, METRIC.LP_FEES)
       }
     }
   }
   
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
-  
   return {
     dailyVolume,
-    //dailyFees,
-    //dailyRevenue,
-    //dailySupplySideRevenue,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 
@@ -103,9 +105,18 @@ const adapter: SimpleAdapter = {
   adapter: {},
   doublecounted: true, // all volume and fees are on Curve DEX
   methodology: {
-    Fees: 'Swap fees from users from Curve pools deployed by Yield Basis.',
-    SupplySideRevenue: 'Swap fees distributed to depositors on Yield Basis.',
-    Revenue: 'Admin fees collected on Curve pools deployed by Yield Basis.',
+    Fees: 'Swap fees from TokenExchange events on Yield Basis AMM pools.',
+    UserFees: 'Swap fees paid by traders.',
+    SupplySideRevenue: 'Swap fees net of the veYB admin-fee share.',
+    Revenue: 'veYB admin-fee share of swap fees.',
+    HoldersRevenue: 'veYB admin-fee share of swap fees.',
+  },
+  breakdownMethodology: {
+    Fees: { [METRIC.SWAP_FEES]: 'Swap fees from Yield Basis AMM TokenExchange events.' },
+    UserFees: { [METRIC.SWAP_FEES]: 'Swap fees from Yield Basis AMM TokenExchange events.' },
+    Revenue: { [METRIC.PROTOCOL_FEES]: 'veYB admin-fee share.' },
+    HoldersRevenue: { [METRIC.PROTOCOL_FEES]: 'veYB admin-fee share.' },
+    SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees net of veYB admin-fee share.' },
   },
 }
 
