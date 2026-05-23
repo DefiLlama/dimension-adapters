@@ -1,23 +1,24 @@
-import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { queryDuneResult } from "../../helpers/dune";
 
 
 const SwapEvent = "event ElfomoTrade(uint256 indexed quoteId, uint256 indexed partnerId, address executor, address receiver, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount)";
-const ELFOMOFI_SWAP_ADDRESS = "0xf0f0F0F0FB0d738452EfD03A28e8be14C76d5f73"
+const VaultMetricsEvent = "event VaultMetrics(uint256 indexed vaultId, address indexed refTokenAddress, uint256 prevRate, uint256 newRate, uint256 newPreFeeRate, uint256 newHighWaterMarkRate, uint256 prevTimestamp, uint256 newTimestamp, int256 lastPeriodPreFeeAPRInBps, uint256 feeProtocolInRefToken, uint256 feeCuratorInRefToken, uint256 yieldToLPsInRefToken, uint256 protocolSharesMinted, uint256 curatorSharesMinted, uint256 totalAssetsInRefToken)";
+const ELFOMOFI_SWAP_ADDRESS = "0xf0f0F0F0FB0d738452EfD03A28e8be14C76d5f73";
+const ELFOMOFI_VAULTS_MANAGER = "0xE34CD3682AF9C04303386499FBa215B38Eff6106";
 
-// Dune query that decodes the VaultMetrics events and spreads each report's fees/yield evenly across
-// its accrual period, producing one row per (day, ref_token) with amortized amounts in token base
-// units. https://dune.com/queries/7560737
-const DUNE_QUERY_ID = "7560737"
+const DAY = 86400;
+const DISTRIBUTE_DAYS = 5;
+const DISTRIBUTE_SECONDS = DISTRIBUTE_DAYS * DAY;
+const LOOKBACK_SECONDS = 15 * DAY;
 
-interface IDuneRow {
-    day: string;
-    ref_token: string;
-    fee_protocol: string | number;
-    fee_curator: string | number;
-    yield_lps: string | number;
+interface ISettlement {
+    t: number;
+    token: string;
+    feeProtocol: bigint;
+    feeCurator: bigint;
+    yieldLps: bigint;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
@@ -41,26 +42,41 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
-    const rows = (await queryDuneResult(options, DUNE_QUERY_ID)) as IDuneRow[];
-
-    // The Dune query returns one row per (day, token) holding that whole day's amortized fees.
-    // We attribute to the current fetch window only its share of the day, prorated by overlap, so
-    // fees follow the same time-window as volume
-    const DAY = 86400;
     const { startTimestamp, endTimestamp } = options;
 
-    for (const row of rows) {
-        const dayStart = Math.floor(new Date(`${row.day}T00:00:00Z`).getTime() / 1000);
-        const overlap = Math.min(endTimestamp, dayStart + DAY) - Math.max(startTimestamp, dayStart);
-        if (overlap <= 0) continue;
+    // Read settlements from before the window too, so we can see the one we're mid-distribution on.
+    // Only the lower bound moves back - we never read past the window end, so a stored day stays final.
+    const fromBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
+    const secondsPerBlock = (options.toTimestamp - options.fromTimestamp) / (toBlock - fromBlock);
+    const lookbackBlocks = Math.ceil(LOOKBACK_SECONDS / secondsPerBlock);
 
-        const token = row.ref_token;
-        // exact integer proration: raw * overlap / DAY (raw amounts are uint256 base units)
-        const slice = (raw: string | number) => (BigInt(raw) * BigInt(overlap) / BigInt(DAY)).toString();
+    const vaultLogs = await options.getLogs({
+        target: ELFOMOFI_VAULTS_MANAGER,
+        eventAbi: VaultMetricsEvent,
+        fromBlock: Math.max(0, fromBlock - lookbackBlocks),
+        toBlock,
+    })
 
-        const feeProtocol = slice(row.fee_protocol);
-        const feeCurator = slice(row.fee_curator);
-        const yieldLps = slice(row.yield_lps);
+    // Each vault settles on its own schedule, so distribute it as an independent stream.
+    const byVault = new Map<string, ISettlement[]>();
+    for (const log of vaultLogs) {
+        const t = Number(log.newTimestamp);
+        if (t > endTimestamp) continue; // hasn't happened yet as far as this window is concerned
+        const vaultId = String(log.vaultId);
+        const stream = byVault.get(vaultId) ?? [];
+        stream.push({
+            t,
+            token: log.refTokenAddress,
+            feeProtocol: BigInt(log.feeProtocolInRefToken),
+            feeCurator: BigInt(log.feeCuratorInRefToken),
+            yieldLps: BigInt(log.yieldToLPsInRefToken),
+        });
+        byVault.set(vaultId, stream);
+    }
+
+    const addFees = (token: string, feeProtocol: bigint, feeCurator: bigint, yieldLps: bigint) => {
+        if (feeProtocol === 0n && feeCurator === 0n && yieldLps === 0n) return;
 
         dailyFees.add(token, yieldLps, METRIC.ASSETS_YIELDS);
         dailyFees.add(token, feeProtocol, METRIC.ASSETS_YIELDS);
@@ -71,6 +87,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
         dailyRevenue.add(token, feeProtocol, METRIC.PERFORMANCE_FEES);
         dailyProtocolRevenue.add(token, feeProtocol, METRIC.PERFORMANCE_FEES);
+    };
+
+    for (const stream of byVault.values()) {
+        stream.sort((a, b) => a.t - b.t);
+
+        for (let i = 0; i < stream.length; i++) {
+            const s = stream[i];
+            const next = stream[i + 1];
+
+            // Drip s out at the DISTRIBUTE_SECONDS rate, but stop once the next settlement takes over.
+            const distributeEnd = next ? next.t : endTimestamp;
+            const overlap = Math.min(endTimestamp, distributeEnd) - Math.max(startTimestamp, s.t);
+            if (overlap > 0) {
+                const distribute = (amount: bigint) => amount * BigInt(overlap) / BigInt(DISTRIBUTE_SECONDS);
+                addFees(s.token, distribute(s.feeProtocol), distribute(s.feeCurator), distribute(s.yieldLps));
+            }
+
+            // The moment the next settlement lands, pay out whatever of s we didn't get to
+            if (next && next.t > startTimestamp && next.t <= endTimestamp) {
+                const remainingSeconds = Math.max(0, DISTRIBUTE_SECONDS - (next.t - s.t));
+                if (remainingSeconds > 0) {
+                    const remainder = (amount: bigint) => amount * BigInt(remainingSeconds) / BigInt(DISTRIBUTE_SECONDS);
+                    addFees(s.token, remainder(s.feeProtocol), remainder(s.feeCurator), remainder(s.yieldLps));
+                }
+            }
+        }
     }
 
     return {
@@ -84,7 +126,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const methodology = {
     Volume: "Volume is calculated from the fromAmount of all ElfomoTrade events on the Elfomofi swap contract.",
-    Fees: "Total yield generated by Elfomofi vaults. Sum of yield distributed to LPs, performance fees captured by the protocol, and performance fees directed to curators.",
+    Fees: "Total yield generated by Elfomofi vaults. Sum of yield distributed to LPs, performance fees captured by the protocol, and performance fees directed to curators. Each settlement reports a multi-day period at once, so its fees are distributed evenly forward over the following days.",
     Revenue: "Performance fees captured by the Elfomofi protocol.",
     ProtocolRevenue: "Elfomofi protocol's share of vault performance fees.",
     SupplySideRevenue: "Yield distributed to vault LPs plus performance fees directed to vault curators. Curators are independent operators that manage vault strategies on behalf of LPs.",
@@ -111,7 +153,6 @@ const adapter: SimpleAdapter = {
     pullHourly: true,
     methodology,
     breakdownMethodology,
-    dependencies: [Dependencies.DUNE],
     adapter: {
       [CHAIN.BASE]: {
         fetch,
