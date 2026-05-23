@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { Chain } from "../../adapters/types";
 import {
   Adapter,
@@ -31,9 +30,8 @@ const GET_POOL_ID = "function getPoolIdByPerpetualId(uint24 _perpetualId) view r
 const GET_LIQUIDITY_POOL = "function getLiquidityPool(uint8 _poolId) view returns ((bool isRunning,uint8 iPerpetualCount,uint8 id,int32 fCeilPnLShare,uint8 marginTokenDecimals,uint16 iTargetPoolSizeUpdateTime,address marginTokenAddress,uint64 prevAnchor,int128 fRedemptionRate,address shareTokenAddress,int128 fPnLparticipantsCashCC,int128 fTargetAMMFundSize,int128 fDefaultFundCashCC,int128 fTargetDFSize,int128 fBrokerCollateralLotSize,uint128 prevTokenAmount,uint128 nextTokenAmount,uint128 totalSupplyShareToken,int128 fBrokerFundCashCC))";
 const SUPPLY_SIDE_FEES = "Fees To LPs, Liquidators and Partners";
 
-const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions): Promise<FetchResultV2> => {
   const managerAddr = managerContracts[chain];
-  const metadataApi = new ChainApi({ chain });
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
@@ -61,7 +59,7 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions): Promise
     new Set([...trades, ...liquidations].map((e) => Number(e.perpetualId)))
   );
   const poolIdsByPerpetual = uniquePerpetualIds.length
-    ? await metadataApi.multiCall({
+    ? await api.multiCall({
       target: managerAddr,
       abi: GET_POOL_ID,
       calls: uniquePerpetualIds,
@@ -80,7 +78,7 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions): Promise
     ])
   );
   const poolInfo = poolIds.length
-    ? await metadataApi.multiCall({
+    ? await api.multiCall({
       target: managerAddr,
       abi: GET_LIQUIDITY_POOL,
       calls: poolIds,
@@ -91,7 +89,10 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions): Promise
   poolIds.forEach((poolId, index) => {
     const token = poolInfo[index]?.marginTokenAddress;
     const decimals = Number(poolInfo[index]?.marginTokenDecimals);
-    if (!token || !Number.isFinite(decimals)) return;
+    if (!token || !Number.isFinite(decimals)) {
+      console.warn(`[d8x] Missing pool metadata for poolId=${poolId} on ${chain}`);
+      return;
+    }
     poolById[poolId] = {
       token,
       decimals,
