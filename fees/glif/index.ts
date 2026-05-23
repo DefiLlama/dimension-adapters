@@ -90,10 +90,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const protocolFee = (lpYield * treasuryFeeBps) / (BPS - treasuryFeeBps);
     const totalFees = lpYield + protocolFee;
 
-    dailyFees.add(config.underlying, totalFees.toString(), METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(config.underlying, lpYield.toString(), 'Assets Yields To LP');
+    dailyFees.add(config.underlying, totalFees, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(config.underlying, lpYield, 'Assets Yields To LP');
     if (protocolFee > 0n) {
-        dailyRevenue.add(config.underlying, protocolFee.toString(), 'Assets Yields To Protocol');
+        dailyRevenue.add(config.underlying, protocolFee 'Assets Yields To Protocol');
     }
 
     return {
