@@ -19,7 +19,7 @@ const abis = {
 };
 
 function toBigInt(value: any): bigint {
-  return BigInt(value?.toString() ?? 0);
+  return BigInt(value.toString());
 }
 
 function getFeeFromSettlement(grossAmount: any, settleAmount: any): bigint {
