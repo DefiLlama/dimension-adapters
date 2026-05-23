@@ -4,9 +4,10 @@ import { METRIC } from "../../helpers/metrics";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 
-const PAYOUT_VAULTS = {
+const CONTRACTS = {
   cashback: "0x0a9591c64Fd9e8C1f9A81DB1B668a5f211b5735A",
   vaultV2: "0x026968b5cED079ECCD6CC78f35a5Dfddc13F9Af8",
+  billing: "0xF5dA5b918b8c50d211495F4316070Cfc4Fbe128E",
 };
 
 // EVEDEX payout vaults distribute 6-decimal USDT.
@@ -20,7 +21,9 @@ const URLS = {
 
 const LABELS = {
   tradingFees: METRIC.TRADING_FEES,
+  billingFees: "Billing Fees",
   revenue: "Trading Fees To Protocol",
+  billingRevenue: "Billing Fees To Protocol",
   cashbackVault: "Cashback Vault Payouts",
   vaultV2: "VaultV2 Distributions",
 };
@@ -31,6 +34,7 @@ const EVENT_ABIS = {
     crumbs: "event CashbackWithdrawCrumbs(address indexed recipient, uint256 amount)",
   },
   vaultV2: "event Distribute(address indexed account, address indexed token, uint256 amount)",
+  billing: "event UserCharged(address indexed user, uint256 amount, string subscriptionId)",
 };
 
 const sumAmounts = (logs: any[]) => logs.reduce((sum: number, log: any) => sum + Number(log.amount), 0) / USDT_DECIMALS;
@@ -41,10 +45,11 @@ const fetch = async (options: FetchOptions) => {
     fetchURL(URLS.market),
     fetchURL(URLS.instruments),
   ]);
-  const [cashbackWithdrawLogs, cashbackCrumbsLogs, vaultLogs] = await Promise.all([
-    options.getLogs({ target: PAYOUT_VAULTS.cashback, eventAbi: EVENT_ABIS.cashback.withdraw }),
-    options.getLogs({ target: PAYOUT_VAULTS.cashback, eventAbi: EVENT_ABIS.cashback.crumbs }),
-    options.getLogs({ target: PAYOUT_VAULTS.vaultV2, eventAbi: EVENT_ABIS.vaultV2 }),
+  const [cashbackWithdrawLogs, cashbackCrumbsLogs, vaultLogs, billingLogs] = await Promise.all([
+    options.getLogs({ target: CONTRACTS.cashback, eventAbi: EVENT_ABIS.cashback.withdraw }),
+    options.getLogs({ target: CONTRACTS.cashback, eventAbi: EVENT_ABIS.cashback.crumbs }),
+    options.getLogs({ target: CONTRACTS.vaultV2, eventAbi: EVENT_ABIS.vaultV2 }),
+    options.getLogs({ target: CONTRACTS.billing, eventAbi: EVENT_ABIS.billing }),
   ]);
 
   const markets = instruments
@@ -57,25 +62,35 @@ const fetch = async (options: FetchOptions) => {
     .withConcurrency(2)
     .for(markets)
     .process(async (market) => {
-      const candles = await fetchURLAutoHandleRateLimit(`${URLS.ohlcv}/${market}/list?after=${after}&before=${before}&group=1h`);
+      let candles;
+      try {
+        candles = await fetchURLAutoHandleRateLimit(`${URLS.ohlcv}/${market}/list?after=${after}&before=${before}&group=1h`);
+      } catch (error) {
+        console.error(`EVEDEX OHLCV fetch failed for ${market}`, error);
+        return 0;
+      }
+
       return candles
         .filter((candle: any) => candle[0] >= startTimestamp * 1000 && candle[0] < endTimestamp * 1000)
         .reduce((sum: number, candle: any) => sum + Number(candle[5]), 0);
     });
 
-  if (errors.length > 0) throw errors[0];
+  if (errors.length > 0) console.error("EVEDEX OHLCV PromisePool errors", errors);
 
   const oneSidedVolume = volumes.reduce((sum, volume) => sum + volume, 0) / 2;
   const feeRate = Number(market.fees.maker) + Number(market.fees.taker);
   const cashbackVaultPayouts = sumAmounts([...cashbackWithdrawLogs, ...cashbackCrumbsLogs]);
   const vaultV2Payouts = sumAmounts(vaultLogs);
-  const fees = oneSidedVolume * feeRate;
+  const tradingFees = oneSidedVolume * feeRate;
+  const billingFees = sumAmounts(billingLogs);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(fees, LABELS.tradingFees);
-  dailyRevenue.addUSDValue(fees - (cashbackVaultPayouts + vaultV2Payouts), LABELS.revenue);
+  dailyFees.addUSDValue(tradingFees, LABELS.tradingFees);
+  dailyFees.addUSDValue(billingFees, LABELS.billingFees);
+  dailyRevenue.addUSDValue(tradingFees - (cashbackVaultPayouts + vaultV2Payouts), LABELS.revenue);
+  dailyRevenue.addUSDValue(billingFees, LABELS.billingRevenue);
   dailySupplySideRevenue.addUSDValue(cashbackVaultPayouts, LABELS.cashbackVault);
   dailySupplySideRevenue.addUSDValue(vaultV2Payouts, LABELS.vaultV2);
 
@@ -89,22 +104,25 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees paid by users on EVEDEX perpetual futures.",
-  UserFees: "Trading fees paid by users on EVEDEX perpetual futures.",
-  Revenue: "Trading fees kept by EVEDEX after cashback payouts.",
-  ProtocolRevenue: "Trading fees kept by EVEDEX after cashback payouts.",
+  Fees: "Trading fees paid by users on EVEDEX perpetual futures and billing fees charged by EVEDEX.",
+  UserFees: "Trading fees paid by users on EVEDEX perpetual futures and billing fees charged by EVEDEX.",
+  Revenue: "Trading fees kept by EVEDEX after cashback payouts, plus billing fees.",
+  ProtocolRevenue: "Trading fees kept by EVEDEX after cashback payouts, plus billing fees.",
   SupplySideRevenue: "USDT cashback/Vault yields paid to users.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [LABELS.tradingFees]: "Perpetual futures trading fees, estimated from one-sided trading volume and EVEDEX maker/taker fee rates.",
+    [LABELS.billingFees]: "Billing fees charged by EVEDEX subscriptions.",
   },
   Revenue: {
-    [LABELS.revenue]: "Trading fees retained by EVEDEX after subtracting cashback payouts.",
+    [LABELS.revenue]: "Trading fees retained by EVEDEX after subtracting USDT cashback and VaultV2 payouts.",
+    [LABELS.billingRevenue]: "Subscription fees retained by EVEDEX.",
   },
   ProtocolRevenue: {
-    [LABELS.revenue]: "Trading fees retained by EVEDEX after subtracting cashback payouts.",
+    [LABELS.revenue]: "Trading fees retained by EVEDEX after subtracting USDT cashback and VaultV2 payouts.",
+    [LABELS.billingRevenue]: "Subscription fees retained by EVEDEX.",
   },
   SupplySideRevenue: {
     [LABELS.cashbackVault]: "USDT cashback claimed from CashbackVault.",
