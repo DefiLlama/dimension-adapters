@@ -161,14 +161,23 @@ const fetch = async (
 
   const dailyFees = await get24hrFees(timestamp, products.spot_products, fetchOptions);
   const dailyRevenue = await get24hrRevenue(timestamp, products.spot_products, fetchOptions);
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
   Fees: 'spot trading fees paid by users',
-  Revenue: 'trading fees - maker rebates goes to the protocol treasury',
-  ProtocolRevenue: 'net trading fees goes to the protocol treasury',
+  UserFees: 'spot trading fees paid by users',
+  Revenue: 'trading fees minus maker rebates; goes to the protocol treasury',
+  ProtocolRevenue: 'net trading fees that go to the protocol treasury',
+  SupplySideRevenue: 'maker rebates paid out to liquidity providers',
 }
 
 const adapter: Adapter = {
@@ -177,6 +186,7 @@ const adapter: Adapter = {
   chains: [CHAIN.INK],
   start: '2025-11-15',
   methodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;

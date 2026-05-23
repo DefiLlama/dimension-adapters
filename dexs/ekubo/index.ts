@@ -43,8 +43,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: options.chain === CHAIN.STARKNET ? dailyRevenue : undefined,
+    dailyProtocolRevenue: options.chain === CHAIN.ETHEREUM ? dailyRevenue : undefined,
   };
 }
 

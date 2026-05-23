@@ -178,6 +178,13 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x487c5c669D9eee6057C44973207101276cf73b68',
     },
   ],
+  [CHAIN.XLAYER]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xE3F3Caefdd7180F884c01E57f65Df979Af84f116',
+      dataProvider: '0x6C505C31714f14e8af2A03633EB2Cdfb4959138F',
+    },
+  ],
 }
 
 const methodology = {
@@ -317,6 +324,10 @@ const chainConfig: Record<string, any> = {
   [CHAIN.MANTLE]: {
     pools: AaveMarkets[CHAIN.MANTLE],
     start: '2026-01-16',
+  },
+  [CHAIN.XLAYER]: {
+    pools: AaveMarkets[CHAIN.XLAYER],
+    start: '2026-03-30',
   },
 }
 
