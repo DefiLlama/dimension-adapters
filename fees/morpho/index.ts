@@ -128,6 +128,16 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xc85CE8ffdA27b646D269516B8d0Fa6ec2E958B55",
     start: "2025-07-10",
   },
+  [CHAIN.FLARE]: {
+    fromBlock: 52378788,
+    blue: "0xF4346F5132e810f80a28487a79c7559d9797E8B0",
+    start: "2025-12-16",
+  },
+  [CHAIN.SEI]: {
+    fromBlock: 166036723,
+    blue: "0xc9cDAc20FCeAAF616f7EB0bb6Cd2c69dcfa9094c",
+    start: "2025-09-02",
+  },
   // [CHAIN.STABLE]: {
   //   fromBlock: 4342501,
   //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
