@@ -3,7 +3,6 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
-import { log } from "@defillama/sdk";
 
 // posData: uint256[5]
 //   [0] collateralDelta
@@ -46,9 +45,10 @@ interface PositionWithPnlLog {
 // Fee split changed on 2024-10-16:
 // Before: Stakers 15% + MOLTEN burn 50% + Dev 15% + USDM 20%
 // After:  Stakers 15% + MOLTEN burn 20% + Dev 15% + USDM 50%
-const SPLIT_TIMESTAMP = new Date("2024-10-16").getTime() / 1000;
+const SPLIT_DATE = "2024-10-16";
 const POSITION_VAULT = "0xd8dc5d42c13b8257b97417e89c118cc46056c117";
 const LIQUIDATION_VAULT = "0x8d9db733cfbe8a0da96cb0383233665e93a4caeb";
+const HYPERLIQUID_REFERRAL_START_DATE = '2025-05-10';
 
 const toUSD = (raw: bigint) => Number(raw / 10n ** 24n) / 1e6;
 const abs = (n: bigint) => (n < 0n ? -n : n);
@@ -81,7 +81,6 @@ const getUnidexV4Logs = async (options: FetchOptions) => {
     .process(cfg => options.getLogs(cfg));
 
   if (errors.length) {
-    log(`Errors: ${errors.length} while fetching Unidex V4 logs...`);
     throw errors;
   };
 
@@ -99,7 +98,7 @@ const getUnidexV4Logs = async (options: FetchOptions) => {
     [PositionLog[], PositionWithPnlLog[], PositionWithPnlLog[], PositionWithPnlLog[]];
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const [increaseLogs, decreaseLogs, closeLogs, liquidateLogs] = await getUnidexV4Logs(options);
 
   const dailyVolume = options.createBalances();
@@ -133,26 +132,22 @@ const fetch = async (options: FetchOptions) => {
   const liquidationFeeUSD = toUSD(liquidationFeeRaw);
   const borrowFeeUSD = toUSD(borrowFeeRaw);
   let hlFeesUSD = 0;
-  if (options.startTimestamp >= 1746835200) { // 2025-05-10
-    try {
-      const hlRows = await queryDuneSql(options, `
+  if (options.dateString >= HYPERLIQUID_REFERRAL_START_DATE) { // 2025-05-10
+    const hlRows = await queryDuneSql(options, `
         SELECT fees FROM dune.supakawaiidesu.dataset_daily_stats
         WHERE date = DATE '${options.dateString}'
       `);
-      hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
-    } catch (e) {
-      console.log("Hyperliquid daily stats query failed:", e);
-    };
+    hlFeesUSD = Number(hlRows?.[0]?.fees ?? 0);
   };
 
-  const after = options.startTimestamp >= SPLIT_TIMESTAMP;
+  const isAfterSplitDate = options.dateString >= SPLIT_DATE;
   // Fee split changed on 2024-10-16:
   // Before: USD.m 20% + MOLTEN burn 50% + stakers 15% + dev 15%
   // After:  USD.m 50% + MOLTEN burn 20% + stakers 15% + dev 15%
   const totalFeesUSD = feeUSD + liquidationFeeUSD + borrowFeeUSD + hlFeesUSD;
 
-  const usdmPool = totalFeesUSD * (after ? 0.50 : 0.20);
-  const moltenBurn = totalFeesUSD * (after ? 0.20 : 0.50);
+  const usdmPool = totalFeesUSD * (isAfterSplitDate ? 0.50 : 0.20);
+  const moltenBurn = totalFeesUSD * (isAfterSplitDate ? 0.20 : 0.50);
   const stakers = totalFeesUSD * 0.15;
   const devFund = totalFeesUSD * 0.15;
 
@@ -173,8 +168,8 @@ const fetch = async (options: FetchOptions) => {
   dailyProtocolRevenue.addUSDValue(devFund, 'Dev Fund');
 
   return {
-    dailyFees,
     dailyVolume,
+    dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
@@ -215,7 +210,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2024-09-20',
@@ -223,6 +218,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  deadFrom: '2026-01-12',
 };
 
 export default adapter;
