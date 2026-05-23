@@ -11,7 +11,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
-  const openInterestAtEnd = options.createBalances();
 
   const response = await fetchURL("https://app.carbon.inc/analytics");
 
@@ -20,7 +19,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   );
 
   const analyticsJson = JSON.parse(analyticsData[1]);
-  const { platformChartsData, intentXFEOIAnalytics } = analyticsJson.props.pageProps;
+  const { platformChartsData } = analyticsJson.props.pageProps;
   const {volumeChart, revenueChart} = platformChartsData;
 
   const today = formatDate();
@@ -35,17 +34,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     dailyFees.addUSDValue(todaysRevenueData);
   });
 
-  Object.values(intentXFEOIAnalytics).forEach((value: any) => {
-    const todaysOIData = +value.find((data: any) => data.date === options.dateString).totalOI;
-    openInterestAtEnd.addUSDValue(todaysOIData);
-  });
-
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    openInterestAtEnd,
   };
 };
 
