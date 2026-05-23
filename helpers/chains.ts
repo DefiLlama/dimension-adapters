@@ -122,6 +122,7 @@ export enum CHAIN {
   ZKSYNC = "zksync",
   ERA = "era",
   DFK = "dfk",
+  DFIO_META_MAIN = "dfio_meta_main",
   POLYGON_ZKEVM = "polygon_zkevm",
   ACALA = "acala",
   SORA = "sora",
