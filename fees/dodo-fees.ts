@@ -29,7 +29,7 @@ const dfioFetch = async (_t: any, _b: any, options: FetchOptions) => {
   const SWAP_ABI =
     "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
 
-  const swapFees = options.createBalances();
+  const swapVolume = options.createBalances();
 
   const swapLogs = await options.getLogs({
     targets: pools,
@@ -37,16 +37,17 @@ const dfioFetch = async (_t: any, _b: any, options: FetchOptions) => {
   });
 
   for (const log of swapLogs) {
-    addOneToken({ chain: options.chain, balances: swapFees, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+    addOneToken({ chain: options.chain, balances: swapVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
   }
 
-  const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES)
-  const dailySupplySideRevenue = swapFees.clone(1, METRIC.LP_FEES)
+  const dailyFees = swapVolume.clone(0.3 / 100, METRIC.SWAP_FEES)
+  const dailySupplySideRevenue = swapVolume.clone(0.3 * 0.8 / 100, METRIC.LP_FEES)
+  const dailyProtocolRevenue = swapVolume.clone(0.3 * 0.2 / 100, METRIC.PROTOCOL_FEES)
 
   return {
     dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
   };
 }
