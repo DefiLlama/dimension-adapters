@@ -27,7 +27,7 @@ export const BUILDER_METHODOLOGY = {
   OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
 };
 
-const config: Partial<Record<Chain, string>> = {
+export const config: Partial<Record<Chain, string>> = {
   [CHAIN.ARBITRUM]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/arbitrum_analytics/latest/gn',
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn',
   [CHAIN.BSC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bnb_analytics/latest/gn',
@@ -35,6 +35,7 @@ const config: Partial<Record<Chain, string>> = {
   // [CHAIN.BERACHAIN]:'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bera_analytics/latest/gn',  // goldsky is dropping support for Berachain subgraph
   [CHAIN.MODE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mode_analytics/latest/gn',
   [CHAIN.SONIC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/sonic_analytics/latest/gn',
+  [CHAIN.COTI]: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics',
 };
 
 const affiliateQuery = `
@@ -74,8 +75,11 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
     let dailyRevenue = 0;
     let openInterestAtEnd = 0;
 
-    const { dailyHistories }: { dailyHistories: DailyHistory[] } =
-      await request(endpoint, dailyByDayAndAccounts, { day, accounts });
+    const { dailyHistories = [] } = await request(endpoint, dailyByDayAndAccounts, { day, accounts })
+      .catch((error) => {
+        console.error(`Symmio builder daily histories graph request failed on ${chain} (${endpoint})`, error);
+        return { dailyHistories: [] };
+      }) as { dailyHistories: DailyHistory[] };
 
     dailyHistories.forEach(({ platformFee, symmioShare, tradeVolume, openInterest }) => {
       const fee = Number(platformFee) / 1e18;
@@ -109,10 +113,14 @@ export const fetchBuilderSymmioPerpsByName = (affiliateName: string): Fetch => {
     const endpoint = config[chain];
     if (!endpoint || !affiliateName) return { timestamp };
 
-    const res = await request(endpoint, affiliateQuery) as { symmioEntities: SymmioEntity[] };
+    const res = await request(endpoint, affiliateQuery)
+      .catch((error) => {
+        console.error(`Symmio affiliate graph request failed on ${chain} (${endpoint})`, error);
+        return { symmioEntities: [] };
+      }) as { symmioEntities: SymmioEntity[] };
     const wanted = affiliateName.trim().toLowerCase();
 
-    const addresses = res.symmioEntities
+    const addresses = (res.symmioEntities ?? [])
       .filter(e => e.type === "Affiliate" && e.name?.trim().toLowerCase() === wanted)
       .map(e => e.address)
       .filter(Boolean);
