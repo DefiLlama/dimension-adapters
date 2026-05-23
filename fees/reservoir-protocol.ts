@@ -13,6 +13,41 @@ const PRICE_SCALE    = BigInt('100000000');
 const USDC_THRESHOLD = 1_000_000_000_000n;
 const SCALE_6DEC     = 1_000_000_000_000n;
 
+// ─── Merkl reward tracking ─────────────────────────────────────────────────
+const MERKL_DISTRIBUTOR_ETH = '0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae';
+const TRANSFER_TOPIC        = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const padAddr               = (a: string) => '0x000000000000000000000000' + a.toLowerCase().slice(2);
+
+const MERKL_RECIPIENTS_SET = new Set([
+  '0x3063c5907faa10c01b242181aa689beb23d2bd65',
+  '0x289c204b35859bfb924b9c0759a4fe80f610671c',
+  '0x3fc7ea4cd90967e28e96a7b8b60e909f15a60dc1',
+  '0x65078cfef8f7c07441661393eab6cb93b31db0dd',
+  '0x99a95a9e38e927486fc878f41ff8b118eb632b10',
+  '0x31eae643b679a84b37e3d0b4bd4f5da90fb04a61',
+]);
+// Stablecoins priced at $1; 6-dec ones scaled to 18-dec rUSD via SCALE_6DEC.
+const MERKL_STABLES: [string, number][] = [
+  ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 6],   // USDC
+  ['0xdac17f958d2ee523a2206206994597c13d831ec7', 6],   // USDT
+  ['0x6c3ea9036406852006290770bedfcaba0e23a0e8', 6],   // PYUSD
+  ['0x8292bb45bf1ee4d140127049757c2e0ff06317ed', 18],  // RLUSD
+  ['0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f', 18],  // GHO
+  ['0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', 18],  // USD1
+];
+// Market-priced tokens: added by native address so framework prices via coingecko.
+const MERKL_PRICED = [
+  '0x58d97b57bb95320f9a05dc918aef65434969c2b2', // MORPHO
+  '0xda5e1988097297dcdc1f90d4dfe7909e847cbef6', // WLFI
+];
+
+// ─── Morpho Blue direct market position ──────────────────────────────────────
+const MORPHO_BLUE        = '0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb';
+const MONARCH_MARKET_ID  = '0xef2c308b5abecf5c8750a1aa82b47c558005feb7a03f4f8e1ad682d71ac8d0ba';
+const MONARCH_WALLET     = '0x289C204B35859bFb924B9C0759A4FE80f610671c';
+const morphoMarketAbi    = 'function market(bytes32) view returns (uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee)';
+const morphoPositionAbi  = 'function position(bytes32, address) view returns (uint256 supplyShares, uint128 borrowShares, uint128 collateral)';
+
 const convertToAssetsAbi = 'function convertToAssets(uint256 shares) view returns (uint256)';
 const balanceOfAbi       = 'function balanceOf(address) view returns (uint256)';
 
@@ -179,6 +214,25 @@ function computeRebaseYield(
   return total;
 }
 
+function computeMorphoBlueYield(
+  marketFrom: any, marketTo: any,
+  posFrom: any, posTo: any,
+): bigint {
+  if (!marketFrom || !marketTo || !posFrom || !posTo) return 0n;
+  const totAssetsFrom = BigInt(marketFrom[0]);
+  const totSharesFrom = BigInt(marketFrom[1]);
+  const totAssetsTo   = BigInt(marketTo[0]);
+  const totSharesTo   = BigInt(marketTo[1]);
+  if (totSharesFrom === 0n || totSharesTo === 0n) return 0n;
+  const supSharesFrom = BigInt(posFrom[0]);
+  const supSharesTo   = BigInt(posTo[0]);
+  const valueFrom = supSharesFrom * totAssetsFrom / totSharesFrom;
+  const valueTo   = supSharesTo   * totAssetsTo   / totSharesTo;
+  const delta = valueTo - valueFrom;
+  if (delta <= 0n) return 0n;
+  return delta * SCALE_6DEC; // loan asset is USDC (6 dec); scale to 18-dec rUSD
+}
+
 // ─── prefetch ─────────────────────────────────────────────────────────────────
 
 async function prefetch(options: FetchOptions): Promise<any> {
@@ -200,6 +254,7 @@ async function prefetch(options: FetchOptions): Promise<any> {
     bscBalances,        bscRatesFrom,        bscRatesTo,
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
+    monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
   ] = await Promise.all([
     options.fromApi.call({ target: WSRUSD,        abi: convertToAssetsAbi,  params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
     options.toApi.call({   target: WSRUSD,        abi: convertToAssetsAbi,  params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
@@ -250,6 +305,11 @@ async function prefetch(options: FetchOptions): Promise<any> {
     // Plasma rebasing
     options.fromApi.multiCall({ abi: balanceOfAbi, calls: rebalCalls(REBASE_PLASMA_POSITIONS), permitFailure: true, chain: CHAIN.PLASMA }),
     options.toApi.multiCall({   abi: balanceOfAbi, calls: rebalCalls(REBASE_PLASMA_POSITIONS), permitFailure: true, chain: CHAIN.PLASMA }),
+    // Morpho Blue direct market (Monarch mF-ONE, loan asset USDC)
+    options.fromApi.call({ target: MORPHO_BLUE, abi: morphoMarketAbi,    params: [MONARCH_MARKET_ID],                   chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: MORPHO_BLUE, abi: morphoMarketAbi,    params: [MONARCH_MARKET_ID],                   chain: CHAIN.ETHEREUM }),
+    options.fromApi.call({ target: MORPHO_BLUE, abi: morphoPositionAbi,  params: [MONARCH_MARKET_ID, MONARCH_WALLET],   chain: CHAIN.ETHEREUM }),
+    options.toApi.call({   target: MORPHO_BLUE, abi: morphoPositionAbi,  params: [MONARCH_MARKET_ID, MONARCH_WALLET],   chain: CHAIN.ETHEREUM }),
   ]);
 
   return {
@@ -267,6 +327,7 @@ async function prefetch(options: FetchOptions): Promise<any> {
     bscBalances, bscRatesFrom, bscRatesTo,
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
+    monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
   };
 }
 
@@ -287,6 +348,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     bscBalances, bscRatesFrom, bscRatesTo,
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
+    monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
   } = options.preFetchedResults;
 
   const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
@@ -304,6 +366,38 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const rebaseYield = computeRebaseYield(REBASE_ETH_POSITIONS, rebaseEthBalsFrom, rebaseEthBalsTo);
     if (rebaseYield > 0n) dailyFees.add(RUSD, rebaseYield, METRIC.ASSETS_YIELDS);
 
+    // Morpho Blue direct market yield (Monarch mF-ONE, loan asset USDC)
+    const morphoBlueYield = computeMorphoBlueYield(monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo);
+    if (morphoBlueYield > 0n) dailyFees.add(RUSD, morphoBlueYield, METRIC.ASSETS_YIELDS);
+
+    // Merkl reward claims: ERC20 transfers from distributor to tracked wallets
+    const distributorTopic = padAddr(MERKL_DISTRIBUTOR_ETH);
+    const transferAbi      = 'event Transfer(address indexed from, address indexed to, uint256 value)';
+    const merklLogArrays = await Promise.all([
+      ...MERKL_STABLES.map(([addr]) =>
+        options.getLogs({ target: addr, eventAbi: transferAbi,
+          topics: [TRANSFER_TOPIC, distributorTopic, null as any] })),
+      ...MERKL_PRICED.map((addr) =>
+        options.getLogs({ target: addr, eventAbi: transferAbi,
+          topics: [TRANSFER_TOPIC, distributorTopic, null as any] })),
+    ]);
+    for (let i = 0; i < MERKL_STABLES.length; i++) {
+      const [, decimals] = MERKL_STABLES[i];
+      for (const log of merklLogArrays[i]) {
+        if (!MERKL_RECIPIENTS_SET.has((log.to as string).toLowerCase())) continue;
+        const raw = BigInt(log.value);
+        const val = decimals === 6 ? raw * SCALE_6DEC : raw;
+        dailyFees.add(RUSD, val, METRIC.ASSETS_YIELDS);
+      }
+    }
+    for (let i = 0; i < MERKL_PRICED.length; i++) {
+      const tokenAddr = MERKL_PRICED[i];
+      for (const log of merklLogArrays[MERKL_STABLES.length + i]) {
+        if (!MERKL_RECIPIENTS_SET.has((log.to as string).toLowerCase())) continue;
+        dailyFees.add(tokenAddr, BigInt(log.value), METRIC.ASSETS_YIELDS);
+      }
+    }
+
     // Cost of Revenue: yield paid to wsrUSD + srUSD holders
     const [wsrSupply, srSupply] = await Promise.all([
       options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
@@ -317,9 +411,11 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   } else if (options.chain === CHAIN.ARBITRUM) {
     const y = computeErc4626Yield(ARB_VAULT_POSITIONS, arbBalances, arbRatesFrom, arbRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
-    const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
-    const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
-    if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    try {
+      const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
+      const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
+      if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    } catch (_) {}
 
   } else if (options.chain === CHAIN.BASE) {
     const y = computeErc4626Yield(BASE_VAULT_POSITIONS, baseBalances, baseRatesFrom, baseRatesTo);
@@ -338,9 +434,11 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   } else if (options.chain === CHAIN.MONAD) {
     const y = computeErc4626Yield(MONAD_VAULT_POSITIONS, monadBalances, monadRatesFrom, monadRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
-    const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
-    const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
-    if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    try {
+      const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
+      const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
+      if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+    } catch (_) {}
 
   } else if (options.chain === CHAIN.HYPERLIQUID) {
     const y = computeErc4626Yield(HYPEREVM_VAULT_POSITIONS, hyperevmBalances, hyperevmRatesFrom, hyperevmRatesTo);
@@ -360,12 +458,14 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
   } else {
     // SEI and any future OFT-only chains: fees = supply = OFT yield (revenue = 0)
-    const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
-    const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
-    if (oftYield !== 0n) {
-      dailyFees.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
-    }
+    try {
+      const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
+      const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
+      if (oftYield !== 0n) {
+        dailyFees.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
+      }
+    } catch (_) {}
   }
 
   return { dailyFees, dailySupplySideRevenue };
@@ -374,20 +474,20 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
 const methodology = {
-  Fees: 'Gross Protocol Revenue: ERC4626 yield (shares × ΔconvertToAssets / WAD) and Aave aToken balance-delta yield across all on-chain positions (Euler, Morpho, Fluid, InfiniFi, Cap, Ethena, Hyperithm, IPOR, fund-wrapper vaults, Aave Ethereum/Mantle/Plasma, Treehouse, Dolomite) on Ethereum, Arbitrum, Base, Plasma, Monad, HyperEVM, Katana, Optimism, and BSC. Off-chain RWA yield is not capturable on-chain.',
+  Fees: 'Gross Protocol Revenue: ERC4626 yield (shares × ΔconvertToAssets / WAD), Aave aToken balance-delta yield, Morpho Blue direct market yield, and Merkl reward claims — across all on-chain positions (Euler, Morpho, Fluid, InfiniFi, Cap, Ethena, Hyperithm, IPOR, fund-wrapper vaults, Aave ETH/Mantle/Plasma, Treehouse, Dolomite) on Ethereum, Arbitrum, Base, Plasma, Monad, HyperEVM, Katana, Optimism, and BSC. Off-chain RWA, Solana, and Uniswap LP yield are not capturable on-chain.',
   SupplySideRevenue: 'Cost of Revenue: yield paid to wsrUSD holders (totalSupply × Δexchange rate / WAD) plus srUSD holders (totalSupply × ΔSavingModule price / PRICE_SCALE) on Ethereum; OFT totalSupply × wsrRateDelta / WAD on Arbitrum, Monad, and SEI.',
   Revenue: 'Gross Profit = Fees − SupplySideRevenue.',
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Σ (vault_shares × ΔconvertToAssets / WAD) for ERC4626 vaults + Σ (balanceOf_end − balanceOf_start) for rebasing aTokens, across all chains.',
+    [METRIC.ASSETS_YIELDS]: 'Σ (vault_shares × ΔconvertToAssets / WAD) for ERC4626 vaults + Σ ΔbalanceOf for rebasing aTokens + Morpho Blue direct market yield + Merkl distributor ERC20 transfers to tracked wallets.',
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: 'wsrUSD totalSupply × Δexchange rate / WAD + srUSD totalSupply × ΔSavingModule price / PRICE_SCALE (ETH); OFT totalSupply × wsrRateDelta / WAD (ARB/MONAD/SEI).',
   },
   Revenue: {
-    [METRIC.ASSETS_YIELDS]: 'On-chain yield minus cost of revenue. Negative values occur when on-chain ERC4626/aToken income is less than yield committed to wsrUSD + srUSD holders.',
+    [METRIC.ASSETS_YIELDS]: 'On-chain yield minus cost of revenue. Negative values occur when on-chain income is less than yield committed to wsrUSD + srUSD holders.',
   },
 };
 
