@@ -38,8 +38,10 @@ const PLASMA_USDT0 = "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb";
 const PLASMA_YZUSD = "0x6695c0f8706c5ace3bdf8995073179cca47926dc";
 const MONAD_USD = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // yzPrime asset()
 
-const chainConfig: Record<string, VaultConfig[]> = {
-  [CHAIN.PLASMA]: [
+const chainConfig: Record<string, { start: string, vaults: VaultConfig[] }> = {
+  [CHAIN.PLASMA]: {
+    start: "2025-08-01",
+    vaults: [
     {
       vault: "0xc8a8df9b210243c55d31c73090f06787ad0a1bf6", // syzUSD
       underlying: PLASMA_YZUSD,
@@ -54,8 +56,10 @@ const chainConfig: Record<string, VaultConfig[]> = {
       shareDecimals: 18,
       label: "yzPP First-Loss Tranche Yield To Holders",
     },
-  ],
-  [CHAIN.MONAD]: [
+  ]},
+  [CHAIN.MONAD]: {
+    start: "2026-05-01",
+    vaults: [
     {
       vault: "0xc9ea90692757831d98ac629f2a0140e02b80a7da", // yzPrime
       underlying: MONAD_USD,
@@ -63,7 +67,7 @@ const chainConfig: Record<string, VaultConfig[]> = {
       shareDecimals: 18,
       label: "yzPrime Yield To Holders",
     },
-  ],
+  ]},
 };
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -71,10 +75,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const vaults = chainConfig[options.chain];
-  if (!vaults?.length) {
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
-  }
+  const vaults = chainConfig[options.chain].vaults;
 
   const vaultAddresses = vaults.map((v) => v.vault);
   const totalAssetsAbi = "uint256:totalAssets";
@@ -150,15 +151,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    // yzUSD / syzUSD / yzPP on Plasma launched mid-2025, but early days had
-    // ramping TVL and unreliable per-share rate; start the breakdown from the
-    // window where each vault has stable supply.
-    [CHAIN.PLASMA]: { fetch, start: "2025-08-01" },
-    // yzPrime deployed on Monad in April 2026; supply was effectively zero
-    // until early May, so anchor the start there.
-    [CHAIN.MONAD]: { fetch, start: "2026-05-01" },
-  },
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
   // First-loss yzPP can absorb negative NAV days when realised strategy P&L
