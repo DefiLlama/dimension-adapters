@@ -45,14 +45,14 @@ const chainConfig: Record<string, VaultConfig[]> = {
       underlying: PLASMA_YZUSD,
       underlyingDecimals: 18,
       shareDecimals: 18,
-      label: "syzUSD staking yield",
+      label: "syzUSD Staking Yield To Stakers",
     },
     {
       vault: "0xebfc8c2fe73c431ef2a371aea9132110aab50dca", // yzPP
       underlying: PLASMA_USDT0,
       underlyingDecimals: 6,
       shareDecimals: 18,
-      label: "yzPP first-loss tranche yield",
+      label: "yzPP First-Loss Tranche Yield To Holders",
     },
   ],
   [CHAIN.MONAD]: [
@@ -61,7 +61,7 @@ const chainConfig: Record<string, VaultConfig[]> = {
       underlying: MONAD_USD,
       underlyingDecimals: 6,
       shareDecimals: 18,
-      label: "yzPrime yield",
+      label: "yzPrime Yield To Holders",
     },
   ],
 };
@@ -131,19 +131,20 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "syzUSD staking yield":
+    "syzUSD Staking Yield To Stakers":
       "Daily growth of syzUSD's totalAssets/totalSupply ratio multiplied by today's supply, in yzUSD units.",
-    "yzPP first-loss tranche yield":
+    "yzPP First-Loss Tranche Yield To Holders":
       "Daily growth of yzPP's totalAssets/totalSupply ratio multiplied by today's supply, in USDT0 units. yzPP earns a base yield tracking syzUSD plus a protocol-funded bonus budget from the Reserve Fund.",
-    "yzPrime yield":
+    "yzPrime Yield To Holders":
       "Daily growth of yzPrime's totalAssets/totalSupply ratio multiplied by today's supply. yzPrime is the Yuzu Prime product on Monad with continuous yield distribution.",
   },
   SupplySideRevenue: {
-    "syzUSD staking yield":
+    "syzUSD Staking Yield To Stakers":
       "yzUSD stakers receive 100% of the underlying strategy yield via syzUSD share-rate appreciation.",
-    "yzPP first-loss tranche yield":
+    "yzPP First-Loss Tranche Yield To Holders":
       "yzPP holders receive base yield plus a protocol-funded bonus, in exchange for accepting first-loss risk.",
-    "yzPrime yield": "yzPrime holders receive the full Yuzu Prime yield via share-rate appreciation.",
+    "yzPrime Yield To Holders":
+      "yzPrime holders receive the full Yuzu Prime yield via share-rate appreciation.",
   },
 };
 
