@@ -152,7 +152,7 @@ const fetch = async (options: FetchOptions) => {
   if (lockBps > 0) {
     const cvxCrvBalances = cvxCrvStakerCRV.getBalances();
     const crvKey = `${CHAIN.ETHEREUM}:${CRV_TOKEN.toLowerCase()}`;
-    const cvxCrvAmount = BigInt(cvxCrvBalances[crvKey] ?? "0");
+    const cvxCrvAmount = BigInt(new BigNumber(cvxCrvBalances[crvKey] ?? "0").toFixed(0));
     const lpCRVAmount  = cvxCrvAmount * BigInt(supplyBps) / BigInt(lockBps);
     supplySideCRV.add(CRV_TOKEN, lpCRVAmount, "CRV Revenue");
   }
