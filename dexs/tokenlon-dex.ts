@@ -2,8 +2,8 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const BPS = BigInt(10_000);
-const ZERO = BigInt(0);
+const BPS: bigint = BigInt(10_000);
+const ZERO: bigint = BigInt(0);
 
 const abis = {
   FillOrder:
@@ -18,19 +18,23 @@ const abis = {
     'event Swapped((string source, bytes32 transactionHash, uint256 settleAmount, uint256 receivedAmount, uint16 feeFactor, uint16 subsidyFactor), (address makerAddr, address takerAssetAddr, address makerAssetAddr, uint256 takerAssetAmount, uint256 makerAssetAmount, address userAddr, address receiverAddr, uint256 salt, uint256 deadline) order)',
 };
 
-const getFeeFromSettlement = (grossAmount: any, settleAmount: any) => {
-  const gross = BigInt(grossAmount);
-  const settled = BigInt(settleAmount);
+function toBigInt(value: any): bigint {
+  return BigInt(value?.toString() ?? 0);
+}
+
+function getFeeFromSettlement(grossAmount: any, settleAmount: any): bigint {
+  const gross = toBigInt(grossAmount);
+  const settled = toBigInt(settleAmount);
   return gross > settled ? gross - settled : ZERO;
-};
+}
 
-const getAmmWrapperFee = (log: any, makerAmount: any) => {
-  if (!log) return ZERO;
+function getAmmWrapperFee(log: any, makerAmount: any): bigint {
+  if (!log || makerAmount == null) return ZERO;
 
-  const received = BigInt(log.receivedAmount);
-  const settled = BigInt(log.settleAmount);
-  const maker = BigInt(makerAmount);
-  const feeFactor = BigInt(log.feeFactor);
+  const received = toBigInt(log.receivedAmount);
+  const settled = toBigInt(log.settleAmount);
+  const maker = toBigInt(makerAmount);
+  const feeFactor = toBigInt(log.feeFactor);
 
   if (feeFactor === ZERO || received <= maker) return ZERO;
 
@@ -38,7 +42,7 @@ const getAmmWrapperFee = (log: any, makerAmount: any) => {
   if (settled !== expectedSettle) return ZERO;
 
   return received > settled ? received - settled : ZERO;
-};
+}
 
 const fetchEthereum = async (options: FetchOptions) => {
   const { createBalances, getLogs } = options;
@@ -71,7 +75,8 @@ const fetchEthereum = async (options: FetchOptions) => {
   });
 
   [ammV2Logs].flat().forEach((log: any) => {
-    dailyVolume.add(log.order.makerAssetAddr, log.order.makerAssetAmount);
+    const order = log.order ?? log[1];
+    if (order) dailyVolume.add(order.makerAssetAddr, order.makerAssetAmount);
   });
 
   [rfqv2Logs].flat().forEach((log: any) => {
@@ -96,8 +101,10 @@ const fetchEthereum = async (options: FetchOptions) => {
   ammV2Logs.forEach((log: any) => {
     const quote = log.quote ?? log[0];
     const order = log.order ?? log[1];
-    const fee = getAmmWrapperFee(quote, order?.makerAssetAmount);
-    if (fee > ZERO && order) dailyFees.add(order.makerAssetAddr, fee, METRIC.SWAP_FEES);
+    if (!order) return;
+
+    const fee = getAmmWrapperFee(quote, order.makerAssetAmount);
+    if (fee > ZERO) dailyFees.add(order.makerAssetAddr, fee, METRIC.SWAP_FEES);
   });
 
   return {
