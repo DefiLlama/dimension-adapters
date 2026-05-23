@@ -26,10 +26,6 @@ interface VaultConfig {
   vault: string;
   /** Underlying `asset()` of the vault (yzUSD for syzUSD, USDT0 for yzPP, etc.). */
   underlying: string;
-  /** Decimals of the underlying asset (matters for USD pricing). */
-  underlyingDecimals: number;
-  /** Decimals of the vault share token (typically 18). */
-  shareDecimals: number;
   /** Human-readable label used for breakdownMethodology / logging. */
   label: string;
 }
@@ -45,15 +41,11 @@ const chainConfig: Record<string, { start: string, vaults: VaultConfig[] }> = {
     {
       vault: "0xc8a8df9b210243c55d31c73090f06787ad0a1bf6", // syzUSD
       underlying: PLASMA_YZUSD,
-      underlyingDecimals: 18,
-      shareDecimals: 18,
       label: "syzUSD Staking Yield To Stakers",
     },
     {
       vault: "0xebfc8c2fe73c431ef2a371aea9132110aab50dca", // yzPP
       underlying: PLASMA_USDT0,
-      underlyingDecimals: 6,
-      shareDecimals: 18,
       label: "yzPP First-Loss Tranche Yield To Holders",
     },
   ]},
@@ -63,8 +55,6 @@ const chainConfig: Record<string, { start: string, vaults: VaultConfig[] }> = {
     {
       vault: "0xc9ea90692757831d98ac629f2a0140e02b80a7da", // yzPrime
       underlying: MONAD_USD,
-      underlyingDecimals: 6,
-      shareDecimals: 18,
       label: "yzPrime Yield To Holders",
     },
   ]},
