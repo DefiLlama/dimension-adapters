@@ -106,8 +106,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Trading fees paid by users on EVEDEX perpetual futures and billing fees charged by EVEDEX.",
   UserFees: "Trading fees paid by users on EVEDEX perpetual futures and billing fees charged by EVEDEX.",
-  Revenue: "Trading fees kept by EVEDEX after cashback payouts, plus billing fees.",
-  ProtocolRevenue: "Trading fees kept by EVEDEX after cashback payouts, plus billing fees.",
+  Revenue: "Trading fees kept by EVEDEX after cashback and VaultV2 payouts, plus billing fees.",
+  ProtocolRevenue: "Trading fees kept by EVEDEX after cashback and VaultV2 payouts, plus billing fees.",
   SupplySideRevenue: "USDT cashback/Vault yields paid to users.",
 };
 
