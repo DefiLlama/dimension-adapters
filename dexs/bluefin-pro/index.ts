@@ -5,14 +5,17 @@ import { httpGet } from "../../utils/fetchURL";
 const fetch = async () => {
   const exchangeInfo = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/info`))
   let volume = 0;
+  let openInterest = 0;
   for(const market of exchangeInfo.markets){
     if(market.status !== "ACTIVE") continue;
-    const {quoteVolume24hrE9} = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/ticker?symbol=${market.symbol}`))
+    const {quoteVolume24hrE9, openInterestE9} = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/ticker?symbol=${market.symbol}`))
     volume += Number(quoteVolume24hrE9)
+    openInterest += Number(openInterestE9)
   }
 
   return {
     dailyVolume: volume/1e9,
+    openInterestAtEnd: openInterest / 1e9,
   };
 };
 
