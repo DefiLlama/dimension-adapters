@@ -232,7 +232,7 @@ const protocols = {
     protocolName: 'grvt',
     chains: [CHAIN.GRVT],
     start: '2026-01-20',
-    version: 2,
+    version: 1,
     minContracts: 80
   }),
   'pacifica': dailyNormalizedVolumeAdapter({
