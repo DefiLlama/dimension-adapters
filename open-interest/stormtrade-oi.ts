@@ -1,11 +1,11 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 const MARKETS_URL = "https://api.storm.tg/api/markets";
 const USD_SCALE = 1e9;
 
-const fetch = async () => {
+const fetch = async (_options: FetchOptions) => {
   const markets = await fetchURL(MARKETS_URL);
 
   let longOpenInterestAtEnd = 0;
