@@ -26,14 +26,17 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
-  let dailyVolume = response.reduce((acc, item) => {
+  const dailyVolume = response.reduce((acc, item) => {
     return acc + Number(item.volume);
   }, 0);
 
-  dailyVolume = dailyVolume / 10 ** 18;
+  const openInterestAtEnd = response.reduce((acc, item) => {
+    return acc + Number(item.openInterest);
+  }, 0);
 
   return {
-    dailyVolume: dailyVolume?.toString(),
+    dailyVolume: (dailyVolume / 10 ** 18)?.toString(),
+    openInterestAtEnd: (openInterestAtEnd / 10 ** 18).toString(),
     timestamp: dayTimestamp,
   };
 };
