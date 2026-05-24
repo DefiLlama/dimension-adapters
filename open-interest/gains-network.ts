@@ -44,16 +44,20 @@ const fetch = async (options: FetchOptions) => {
       pairIndexes.map((pairIndex) => ({ target: config.diamond, params: [collateralIndex, pairIndex] }))
     ),
   });
-  const afterV10Ois = await api.batchCall(collaterals.map(({ collateralIndex }: any) => ({
-    target: config.diamond,
+  const afterV10Ois = await api.multiCall({
     abi: ABIS.getPairOisAfterV10Collateral,
-    params: [Array(pairIndexes.length).fill(collateralIndex), pairIndexes],
-  } as any)));
+    calls: collaterals.flatMap(({ collateralIndex }: any) =>
+      pairIndexes.map((pairIndex) => ({
+        target: config.diamond,
+        params: [[collateralIndex], [pairIndex]],
+      }))
+    ),
+  });
 
   collaterals.forEach(({ collateral }: any, collateralIndex: number) => {
-    pairIndexes.forEach((pairIndex, i) => {
+    pairIndexes.forEach((_pairIndex, i) => {
       const beforeV10 = beforeV10Ois[collateralIndex * pairIndexes.length + i];
-      const afterV10 = afterV10Ois[collateralIndex][i];
+      const afterV10 = afterV10Ois[collateralIndex * pairIndexes.length + i][0];
       const longOi = bn(beforeV10.longOi) + bn(afterV10.oiLongCollateral);
       const shortOi = bn(beforeV10.shortOi) + bn(afterV10.oiShortCollateral);
       if (longOi) {
