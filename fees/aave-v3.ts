@@ -375,7 +375,7 @@ const fetch = async (options: FetchOptions) => {
     // (native ETH) to the Aave Collector via Safe.execTransaction, which the
     // standard sdk indexer doesn't surface (internal trace, not top-level tx).
     // Same query shape as fees/safe.ts.
-    if (chainConfig[options.chain].chainlinkSvrDistributor && process.env.INDEXA_DB) {
+    if (chainConfig[options.chain].chainlinkSvrDistributor) {
       const svrTransfers: any = await queryIndexer(`
         SELECT
           sum("value") AS eth_value
