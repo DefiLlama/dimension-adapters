@@ -6,7 +6,7 @@ const API = "https://gray-api.dipcoin.io";
 
 const fetch = async () => {
   const marketsRes = await fetchURLAutoHandleRateLimit(`${API}/api/perp-market-api/list`);
-  const markets = (marketsRes.data || []).filter((market: any) => market.status === 1 && market.visible !== false);
+  const markets = marketsRes.data.filter((market: any) => market.status === 1 && market.visible !== false);
   let openInterest = 0;
 
   for (const market of markets) {
