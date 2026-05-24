@@ -21,7 +21,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.SUI],
-  start: "2025-10-15",
   runAtCurrTime: true,
 };
 
