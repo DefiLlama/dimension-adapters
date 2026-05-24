@@ -32,6 +32,12 @@ const getChainKey = (chain: string) => {
       return 'base';
     case CHAIN.OPTIMISM:
       return 'optimism';
+    case CHAIN.MONAD:
+      return 'monad';
+    case CHAIN.HYPERLIQUID:
+      return 'hyperevm';
+    case CHAIN.SUI:
+      return 'sui';
     default:
       return '';
   }
@@ -109,6 +115,15 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
+    },
+    [CHAIN.MONAD]: {
+      fetch: fetch(CHAIN.MONAD),
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetch(CHAIN.HYPERLIQUID),
+    },
+    [CHAIN.SUI]: {
+      fetch: fetch(CHAIN.SUI),
     },
   },
 };
