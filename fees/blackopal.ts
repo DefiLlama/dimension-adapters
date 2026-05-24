@@ -71,17 +71,13 @@ async function getLogsForFeeHandlers(
   feeHandlers: string[],
   eventAbi: string
 ) {
-  const logs = await Promise.all(
-    feeHandlers.map((target) =>
-      options.getLogs({
-        target,
-        eventAbi,
-        onlyArgs: true,
-      })
-    )
-  );
-
-  return logs.flat();
+  return options.getLogs({
+    targets: feeHandlers,
+    eventAbi,
+    onlyArgs: true,
+    flatten: true,
+    // include pullHourly: true when supported by this getLogs wrapper,
+  });
 }
 
 function addFeeLogs({
@@ -103,15 +99,14 @@ function addFeeLogs({
   for (const log of logs) {
     const valueUsd = usd18ToNumber(log.value);
 
-    balances.dailyFees.addUSDValue(valueUsd, metric);
-    balances.dailyUserFees.addUSDValue(valueUsd, metric);
-
     if (
       !countZeroRecipientAsRevenue &&
       log.recipient.toLowerCase() === ZERO_ADDRESS
     ) {
       continue;
     }
+    balances.dailyFees.addUSDValue(valueUsd, metric);
+    balances.dailyUserFees.addUSDValue(valueUsd, metric);
 
     balances.dailyRevenue.addUSDValue(valueUsd, metric);
     balances.dailyProtocolRevenue.addUSDValue(valueUsd, metric);
@@ -125,37 +120,41 @@ async function fetch(options: FetchOptions) {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const feeHandlers = await getFeeHandlers(options);
+    try {
+    const feeHandlers = await getFeeHandlers(options);
 
-  const balances = {
-    dailyFees,
-    dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-  };
+    const balances = {
+      dailyFees,
+      dailyUserFees,
+      dailyRevenue,
+      dailyProtocolRevenue,
+    };
 
-  const logsByEvent = await Promise.all(
-    FEE_EVENTS.map(async (feeEvent) => {
-      const logs = await getLogsForFeeHandlers(
-        options,
-        feeHandlers,
-        feeEvent.eventAbi
-      );
+    const logsByEvent = await Promise.all(
+      FEE_EVENTS.map(async (feeEvent) => {
+        const logs = await getLogsForFeeHandlers(
+          options,
+          feeHandlers,
+          feeEvent.eventAbi
+        );
 
-      return {
-        ...feeEvent,
-        logs,
-      };
-    })
-  );
+        return {
+          ...feeEvent,
+          logs,
+        };
+      })
+    );
 
-  for (const feeEvent of logsByEvent) {
-    addFeeLogs({
-      logs: feeEvent.logs,
-      metric: feeEvent.metric,
-      balances,
-      countZeroRecipientAsRevenue: feeEvent.countZeroRecipientAsRevenue,
-    });
+    for (const feeEvent of logsByEvent) {
+      addFeeLogs({
+        logs: feeEvent.logs,
+        metric: feeEvent.metric,
+        balances,
+        countZeroRecipientAsRevenue: feeEvent.countZeroRecipientAsRevenue,
+      });
+    }
+  } catch (e) {
+    console.error("blackopal fees fetch failed", e);
   }
 
   return {
