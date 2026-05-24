@@ -30,16 +30,16 @@ const fetch = async (timestamp: number) => {
   const baseUnit = new BigNumber(10).pow(18);
 
   const dailyVolume = response.reduce((acc, item) => {
-    return acc.plus(item.volume || "0");
+    return acc.plus(item.volume);
   }, new BigNumber(0));
 
   const openInterestAtEnd = response.reduce((acc, item) => {
-    return acc.plus(item.openInterest || "0");
+    return acc.plus(item.openInterest);
   }, new BigNumber(0));
 
   return {
-    dailyVolume: dailyVolume.div(baseUnit).toString(),
-    openInterestAtEnd: openInterestAtEnd.div(baseUnit).toString(),
+    dailyVolume: dailyVolume.div(baseUnit),
+    openInterestAtEnd: openInterestAtEnd.div(baseUnit),
     timestamp: dayTimestamp,
   };
 };
