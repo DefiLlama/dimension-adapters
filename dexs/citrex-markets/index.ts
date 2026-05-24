@@ -1,3 +1,4 @@
+import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
@@ -26,17 +27,19 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
+  const baseUnit = new BigNumber(10).pow(18);
+
   const dailyVolume = response.reduce((acc, item) => {
-    return acc + Number(item.volume);
-  }, 0);
+    return acc.plus(item.volume || "0");
+  }, new BigNumber(0));
 
   const openInterestAtEnd = response.reduce((acc, item) => {
-    return acc + Number(item.openInterest);
-  }, 0);
+    return acc.plus(item.openInterest || "0");
+  }, new BigNumber(0));
 
   return {
-    dailyVolume: (dailyVolume / 10 ** 18)?.toString(),
-    openInterestAtEnd: (openInterestAtEnd / 10 ** 18).toString(),
+    dailyVolume: dailyVolume.div(baseUnit).toString(),
+    openInterestAtEnd: openInterestAtEnd.div(baseUnit).toString(),
     timestamp: dayTimestamp,
   };
 };
