@@ -8,6 +8,8 @@ const GRVT_PERPS_API_URL = "https://market-data.grvt.io/lite/v1";
 const headers = {
   "Content-Type": "application/json",
 }
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+const NANOSECONDS_IN_SECOND = 1_000_000_000;
 
 export async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyVolume = options.createBalances();
@@ -15,10 +17,11 @@ export async function fetch(_a: any, _b: any, options: FetchOptions) {
   const instrumentsList = await postURL(`${GRVT_PERPS_API_URL}/all_instruments`, {
     headers,
   })
+
   const perpInstruments = instrumentsList.r.filter((instrument: any) => instrument.k === "PERPETUAL").map((instrument: any) => instrument.i);
 
-  const START_NS = (options.startOfDay * 1e9).toString()
-  const END_NS = ((options.startOfDay + (24 * 60 * 60)) * 1e9).toString()
+  const START_NS = (options.startOfDay * NANOSECONDS_IN_SECOND).toString()
+  const END_NS = ((options.startOfDay + ONE_DAY_IN_SECONDS) * NANOSECONDS_IN_SECOND).toString()
 
   await PromisePool.withConcurrency(3).for(perpInstruments).process(async (instrument) => {
     const body = {
