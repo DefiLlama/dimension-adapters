@@ -11,7 +11,7 @@ const fetch = async () => {
 
   for (const market of markets) {
     const ticker = await fetchURLAutoHandleRateLimit(`${API}/api/perp-market-api/ticker?symbol=${encodeURIComponent(market.symbol)}`);
-    openInterest += Number(ticker.data?.openInterest || 0) / 1e18;
+    openInterest += Number(ticker.data.openInterest) / 1e18;
   }
 
   return { openInterestAtEnd: openInterest };
