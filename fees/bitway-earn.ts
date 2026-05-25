@@ -3,14 +3,24 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 const fetch: any = async (options: FetchOptions) => {
-    const data = await httpGet(
-        `https://api.bitway.com/bitway-earn-api/defillama/fees-revenue?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`
-    );
+    try {
+        const data = await httpGet(
+            `https://api.bitway.com/bitway-earn-api/defillama/fees-revenue?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`
+        );
+    
+        if (data?.fees === undefined || data?.revenue === undefined) {
+            console.error(`Bitway Earn API returned unexpected response: ${JSON.stringify(data)}`);
+            return { dailyFees: 0, dailyRevenue: 0 };
+        }
 
-    return {
-        dailyFees: Number(data.fees),
-        dailyRevenue: Number(data.revenue),
-    };
+        return {
+            dailyFees: Number(data.fees),
+            dailyRevenue: Number(data.revenue),
+        };
+    } catch (e) {
+        console.error(`Bitway Earn API request failed: ${e}`);
+        return { dailyFees: 0, dailyRevenue: 0 };
+    }
 };
 
 const methodology = {
