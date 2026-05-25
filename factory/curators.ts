@@ -361,6 +361,15 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x84ae7f8eb667b391a5ae2f69bd5a0e4b5b77c999'],
         start: '2025-04-30',
       },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
+        morphoVaultV2Owners: ['0x0b1aA22117E38f260e0F3aB3b0F12a22c2691ffC'],
+        start: '2025-07-17',
+      },
+      [CHAIN.KATANA]: {
+        morphoVaultOwners: ['0xe6FC2a011153DD5a230725a9F0c89a9c81aB4887'],
+        start: '2025-06-23',
+      },
       [CHAIN.MONAD]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
         morphoVaultV2Owners: ['0xD546Dc0dB55c28860176147b2D0FEFcc533eCf08'],
