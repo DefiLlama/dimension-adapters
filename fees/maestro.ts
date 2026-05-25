@@ -4,6 +4,7 @@ import { getAlliumChain, queryAllium } from "../helpers/allium";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { METRIC } from "../helpers/metrics";
 
+// Wallets are from personal research findings, not Maestro team docs.
 const LABELS = {
   BOT_REVENUE: 'Trading fees excluding referral rewards',
   REWARDS: 'Referral rewards',
@@ -20,7 +21,7 @@ const chainConfig: any = {
   [CHAIN.SOLANA]: {
     start: '2024-03-05',
     feeAddresses: ['MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36', 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'],
-    // Maestro-funded wallet that relays SOL referral rewards to users.
+    // Reward relay memo: MaestroReferral.
     rewardRelay: 'BNuebGMyAsrLytsS13whc3qUqbnM9mVwUJcumD31m5zA',
   },
   // [CHAIN.TRON]: {
