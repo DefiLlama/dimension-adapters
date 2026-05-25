@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -11,7 +11,7 @@ interface IChartItem {
   fees: number;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalData: IChartItem[] = await fetchURL(historicalDataEndpoint)
 
@@ -21,7 +21,7 @@ const fetch = async (timestamp: number) => {
   const item = findDay(historicalData)
 
   if (!item)
-    throw new Error(`No data found for date ${dayTimestamp}`)
+    throw new Error(`No data found for date ${options.dateString}`)
 
   return {
     dailyVolume: item.vol,
