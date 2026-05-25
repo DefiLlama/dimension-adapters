@@ -4,21 +4,34 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.scopuly.com/api/liquidity_pools_volume"
+const historicalFeesEndpoint = "https://api.scopuly.com/api/liquidity_pools_fees"
 
-interface IVolumeall {
+interface IChartItem {
   vol: number;
   time: number;
+  fees: number;
 }
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
+  const [historicalVolume, historicalFees]: IChartItem[][] = await Promise.all([
+    fetchURL(historicalVolumeEndpoint),
+    fetchURL(historicalFeesEndpoint),
+  ]);
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time))) === dayTimestamp)?.vol
+  const findDay = (items: IChartItem[]) =>
+    items.find(item => getUniqStartOfTodayTimestamp(new Date(Number(item.time))) === dayTimestamp)
+
+  const volItem = findDay(historicalVolume)
+  const feeItem = findDay(historicalFees)
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume: volItem?.vol,
+    dailyFees: feeItem?.fees,
+    dailyUserFees: feeItem?.fees,
+    dailyRevenue: "0",
+    dailyProtocolRevenue: "0",
+    dailySupplySideRevenue: feeItem?.fees,
     timestamp: dayTimestamp,
   };
 };
