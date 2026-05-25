@@ -22,7 +22,7 @@ const fetch = async ({ chain }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.SATORI],
+  chains: [CHAIN.POLYGON_ZKEVM],
   fetch,
   start: '2023-05-13',
   runAtCurrTime: true,
