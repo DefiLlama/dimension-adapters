@@ -52,6 +52,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-10-03',
+  deadFrom: '2026-03-31',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
