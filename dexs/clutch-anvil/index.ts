@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // Clutch Anvil AMM — permissionless NFT AMM. Each market deploys an
 // `NFTAMMVault` that swaps an ERC20 token (paired 1:N to a specific NFT
@@ -55,7 +56,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { factory, fromBlock } = chainsConfig[chain];
 
   const dailyVolume = createBalances();
-  const dailyFees = createBalances();  
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();  
 
   const markets = await getLogs({
     target: factory,
@@ -72,7 +74,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   const ammVaults = Array.from(ammByToken.keys());
   if (ammVaults.length === 0) {
-    return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+    return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue };
   }
 
   const [buyLogs, sellLogs] = await Promise.all([
@@ -98,7 +100,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const token = ammByToken.get(vault);
     if (!token) continue;
     dailyVolume.add(token, args.totalCost);
-    dailyFees.add(token, (args.protocolFee + args.stakerFee));
+    dailyFees.add(token, (args.protocolFee + args.stakerFee), METRIC.TRADING_FEES);
+    dailySupplySideRevenue.add(token, args.protocolFee, 'Fees to NFT burn');
+    dailySupplySideRevenue.add(token, args.stakerFee, 'Fees to NFT stakers');
   }
 
   for (const log of sellLogs) {
@@ -107,14 +111,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const token = ammByToken.get(vault);
     if (!token) continue;
     dailyVolume.add(token, args.grossPayout);
-    dailyFees.add(token, (args.protocolFee + args.stakerFee));
+    dailyFees.add(token, (args.protocolFee + args.stakerFee), METRIC.TRADING_FEES);
+    dailySupplySideRevenue.add(token, args.protocolFee, 'Fees to NFT burn');
+    dailySupplySideRevenue.add(token, args.stakerFee, 'Fees to NFT stakers');
   }
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue,
   };
 };
 
@@ -125,12 +131,23 @@ const methodology = {
   SupplySideRevenue: "Includes NFTs burned from protocol revenue and staker fees distributed to the NFT stakers",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards.",
+  },
+  SupplySideRevenue: {
+    'Fees to NFT burn': "Sum of protocolFee fields from NFTBought + NFTSold events. Protocol fee is burned directly rewarding NFT holders (supply side)",
+    'Fees to NFT stakers': "Sum of stakerFee fields from NFTBought + NFTSold events. Staker fee streams to the NFT staking vault as rewards.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
   adapter: chainsConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
