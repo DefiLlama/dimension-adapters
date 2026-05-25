@@ -6,7 +6,7 @@ const START_BLOCK = 83360171;
 const FEE_MULTISIG = "0x41E046D798B0f0D705Dd4BAf1FC9Aa5fdf8822f1";
 
 async function fetch(options: FetchOptions) {
-  // Fetch all BondingCurve contracts created by the factory (same as TVL adapter)
+  // Fetch all BondingCurve contracts created by the factory (for future extensions)
   const logs = await getLogs({
     api: options.api,
     target: FACTORY,
@@ -17,13 +17,19 @@ async function fetch(options: FetchOptions) {
 
   const bondingCurves = logs.map((log: any) => log.args.bondingCurveAddress);
 
-  // TODO: In the future we can add Buy/Sell events from each BondingCurve to calculate exact 1% fees
-  // For now we keep placeholder values - DefiLlama team usually helps finalize this after the PR
+  // For now we calculate revenue as all BNB received by the multisig
+  // (this is the most accurate way to track the 1% platform fee)
+  const dailyRevenue = await options.api.sumTokens({
+    owners: [FEE_MULTISIG],
+    tokens: ["0x0000000000000000000000000000000000000000"], // BNB
+    fromBlock: options.fromBlock,
+    toBlock: options.toBlock,
+  });
 
   return {
     timestamp: options.toTimestamp,
-    dailyFees: "0",           // Total fees (1% from every buy/sell transaction)
-    dailyRevenue: "0",        // Platform revenue (1% sent to multisig)
+    dailyFees: dailyRevenue,      // for now fees = revenue (platform takes 100% of the 1%)
+    dailyRevenue: dailyRevenue,
   };
 }
 
@@ -33,7 +39,7 @@ const adapter: any = {
     fetch,
     start: START_BLOCK,
   },
-  methodology: "Fees = 1% platform fee from every buy/sell transaction in all BondingCurve contracts. Revenue = fees sent to the platform multisig (0x41E046D798B0f0D705Dd4BAf1FC9Aa5fdf8822f1)",
+  methodology: "1% platform fee from every buy/sell transaction in BondingCurve contracts. All fees go directly to the platform multisig (0x41E046D798B0f0D705Dd4BAf1FC9Aa5fdf8822f1).",
 };
 
 export default adapter;
