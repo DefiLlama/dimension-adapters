@@ -153,7 +153,7 @@ async function fetchFromTradeEvents(options: FetchOptions) {
   ])
 
   const feeRows: FeeRow[] = (rows ?? []).map((r: any) => ({
-    mint:       r.quote_mint ?? ADDRESSES.solana.SOL,
+    mint:       normalizeQuoteMint(r.quote_mint),
     pumpFee:    +(r.pump_fee    ?? 0),
     creatorFee: +(r.creator_fee ?? 0),
     cashback:   +(r.cashback    ?? 0),
@@ -201,6 +201,15 @@ async function fetchFromDune(options: FetchOptions) {
 }
 
 type FeeRow = { mint: string, pumpFee: number, creatorFee: number, cashback: number }
+
+// Pump's tradeevent reports the quote as the System Program id ('11...11') for SOL-quoted
+// pairs (and may emit null/empty pre-IDL-update). Everything else (e.g. USDC mint) is the
+// real SPL mint and passes through unchanged.
+const SYSTEM_PROGRAM = '11111111111111111111111111111111'
+function normalizeQuoteMint(mint: string | null | undefined): string {
+  if (!mint || mint === SYSTEM_PROGRAM || mint === ADDRESSES.solana.SOL) return ADDRESSES.solana.SOL
+  return mint
+}
 
 // Shared balance assembly. All three callers (TradeEvent path, Dune fallback, future
 // callers) flow through here so the bucket mapping lives in one place.
