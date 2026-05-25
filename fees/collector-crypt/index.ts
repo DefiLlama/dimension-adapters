@@ -95,10 +95,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (data && data.length > 0) {
     const result = data[0];
-    let totalGachaSpend = 0;
     for (const tier of GACHA_TIERS) {
       const spend = result[`gacha_spend_${tier}`] || 0;
-      totalGachaSpend += spend;
       if (spend) {
         dailyVolume.addUSDValue(spend);
         dailyFees.addUSDValue(spend, `Gacha $${tier} Pack Sales`);
