@@ -6,18 +6,18 @@ import { METRIC } from "../../helpers/metrics";
 
 // EasyA Kickstart is a Solana memecoin launchpad built on top of Meteora's
 // Dynamic Bonding Curve (DBC) program. Every token launched via Kickstart is
-// a DBC VirtualPool whose `config` field points at one of EasyA's three
+// a DBC VirtualPool whose `config` field points at one of EasyA's four
 // PoolConfig accounts (all share the same fee_claimer EfgbywXHbDn...).
-// All three configs use WSOL as the quote asset.
+// All four configs use WSOL as the quote asset.
 const DBC_PROGRAM = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
 const EASYA_PARTNER_CONFIGS = [
     'FctVFHQvVaj3hTDHCSXZjTmmsRs5bX5ogUPGHFSgrJpU',
     'NHT6MNushFNWpaFgQs5k49HHzsas9jQAVoRvqyXc5Qx',
     '6iEekXhre85eDB1mxRuXbRDHbSG8HeSPYopp9e7fp4BJ',
+    '5WP4ZKstxzM6vUxE4xCahuXowaJeEXgLUhCXCKm7yqRy',
 ];
 
 interface IData {
-    total_volume: string;
     total_trading_fees: string;
     total_protocol_fees: string;
     total_referral_fees: string;
@@ -51,7 +51,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
       )
     SELECT
-      SUM(CASE WHEN trade_direction = 1 THEN COALESCE(amount_in, 0) ELSE COALESCE(amount_out, 0) END) AS total_volume,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(trading_fee,  0) END) AS total_trading_fees,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(protocol_fee, 0) END) AS total_protocol_fees,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(referral_fee, 0) END) AS total_referral_fees
@@ -111,10 +110,10 @@ const breakdownMethodology = {
         "Referral Fees": "DBC Referral Fees going to referrers",
     },
     Revenue: {
-        [METRIC.TRADING_FEES]: "DBC Trading Fees going to EasyA",
+        "Trading Fees to EasyA": "DBC Trading Fees going to EasyA",
     },
     ProtocolRevenue: {
-        [METRIC.TRADING_FEES]: "DBC Trading Fees going to EasyA",
+        "Trading Fees to EasyA": "DBC Trading Fees going to EasyA",
     },
     SupplySideRevenue: {
         "Protocol Fees to Meteora": "DBC Protocol Fees going to Meteora",
