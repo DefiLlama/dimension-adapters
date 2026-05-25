@@ -42,7 +42,7 @@ const ALL_FEE_WALLETS = [TROJAN_BOT_FEE_WALLET, ...TROJAN_TERMINAL_FEE_WALLETS];
 const formatAddresses = (addresses: string[]) =>
   addresses.map(a => `'${a}'`).join(', ');
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const allFeeWalletsSql = formatAddresses(ALL_FEE_WALLETS);
   const terminalFeeWalletsSql = formatAddresses(TROJAN_TERMINAL_FEE_WALLETS);
 
@@ -169,8 +169,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2024-01-04',
