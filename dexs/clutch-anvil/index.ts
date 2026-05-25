@@ -113,14 +113,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factory.",
   Fees: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards.",
-  Revenue: "Equal to Fees — the entire fee tranche is returned to the protocol (burn) or to NFT stakers.",
+  Revenue: "No revenue",
+  SupplySideRevenue: "Includes NFTs burned from protocol revenue and staker fees distributed to the NFT stakers",
 }
 
 const adapter: SimpleAdapter = {
