@@ -14,7 +14,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     .map((tradeSummary: any) => tradeSummary.symbol)
   let dailyVolume = 0;
 
-  const { errors } = await PromisePool.withConcurrency(1)
+  await PromisePool.withConcurrency(1)
     .for(tickers)
     .process(async (ticker) => {
       const data = await fetchURLAutoHandleRateLimit(`https://api.pacifica.fi/api/v1/kline?symbol=${ticker}&interval=1d&start_time=${(options.startOfDay) * 1000}`)
@@ -24,9 +24,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       await new Promise(r => setTimeout(r, 4000));
     })
 
-  if (errors.length > 0) {
-    throw new Error(`Failed to fetch data for ${errors.length} ticker(s): ${errors.map(e => e.message).join(', ')}`);
-  }
 
   return { dailyVolume }
 }
