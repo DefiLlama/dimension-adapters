@@ -1,6 +1,20 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+
+const BASE_API_URL = "https://api.kaching.vip";
+
+const fetchAptos = async (_a: any, _b: any, options: FetchOptions) => {
+  const revenueResponse = await httpGet(`${BASE_API_URL}/transactions/revenue?timestamp=${options.startOfDay}`);
+
+  // Revenue is in USDC
+  const revenue = Number(revenueResponse.today.revenue)
+
+  return {
+    dailyFees: revenue,
+    dailyRevenue: revenue,
+  };
+}
 
 const POTS_URL = "https://api.kaching.vip/pots";
 const MAX_PAGES = 100;
@@ -21,49 +35,41 @@ async function fetchAllActivePots() {
   return pots;
 }
 
-const fetch = async (_a: any, _b: any, _options: FetchOptions) => {
-  try {
-    const pots = await fetchAllActivePots();
-    const revenue = pots.reduce(
-      (sum: number, pot: any) => sum + (pot.prizePool?.currentAmount ?? 0),
-      0
-    );
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+  const pots = await fetchAllActivePots();
+  const revenue = pots.reduce(
+    (sum: number, pot: any) => sum + (pot.prizePool.currentAmount),
+    0
+  );
 
-    if (!isFinite(revenue)) {
-      throw new Error(`Invalid revenue value: ${revenue}`);
-    }
-
-    return {
-      dailyFees: revenue,
-      dailyRevenue: revenue,
-    };
-  } catch (e) {
-    console.error("Kaching fee fetch error:", e);
-    return { dailyFees: 0, dailyRevenue: 0 };
+  if (!isFinite(revenue)) {
+    throw new Error(`Invalid revenue value: ${revenue}`);
   }
-};
+
+  return {
+    dailyFees: revenue,
+    dailyRevenue: revenue,
+  };
+}
 
 const methodology = {
   Fees: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
   Revenue: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
 };
 
-const breakdownMethodology = {
-  Fees: {
-    "Lottery Ticket Sales": "Fees collected from lottery ticket purchases on the Kaching platform (USDC).",
-  },
-  Revenue: {
-    "Lottery Ticket Sales To Protocol": "Protocol revenue retained from lottery ticket purchases (USDC).",
-  },
-};
-
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  start: "2025-11-11",
+  adapter: {
+    [CHAIN.APTOS]: {
+      fetch: fetchAptos,
+      start: '2025-11-11',
+      deadFrom: '2026-05-15'
+    },
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+    }
+  },
+  runAtCurrTime: true,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
