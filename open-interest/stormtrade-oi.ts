@@ -11,9 +11,9 @@ const fetch = async (_options: FetchOptions) => {
   let longOpenInterestAtEnd = 0;
   let shortOpenInterestAtEnd = 0;
   for (const market of markets) {
-    if (market.config?.isHidden) continue;
-    longOpenInterestAtEnd += Number(market.amm?.openInterestLong) / USD_SCALE;
-    shortOpenInterestAtEnd += Number(market.amm?.openInterestShort) / USD_SCALE;
+    if (market.settings.status !== "active") continue;
+    longOpenInterestAtEnd += Number(market.amm.openInterestLong) / USD_SCALE;
+    shortOpenInterestAtEnd += Number(market.amm.openInterestShort) / USD_SCALE;
   }
 
   return {
