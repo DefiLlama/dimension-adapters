@@ -25,8 +25,10 @@ const fetchBounceBitCedefiStats = async (timestamp: any) => {
   return {
     timestamp,
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees * 0.3,
     dailyProtocolRevenue: dailyFees * 0.3,
+    dailySupplySideRevenue: dailyFees * 0.7,
   };
 };
 
@@ -40,8 +42,10 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: 'All yields are generated via delta-neutral basis trading on centralized exchanges.',
-    Revenue: '30% yields are collected by BounceBit as revenue.',
-    ProtocolRevenue: '30% yields are collected by BounceBit as revenue.',
+    UserFees: 'Yields are generated on behalf of depositors via delta-neutral basis trading.',
+    Revenue: '30% of yields are collected by BounceBit as revenue.',
+    ProtocolRevenue: '30% of yields are collected by BounceBit as revenue.',
+    SupplySideRevenue: '70% of yields are distributed to depositors.',
   }
 };
 
