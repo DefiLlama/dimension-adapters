@@ -13,6 +13,9 @@ const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOption
 
     const dailyVolume = apiResponse.volume?.daily;
     const fees = apiResponse.fees?.daily;
+    if (typeof dailyVolume !== "number" || Number.isNaN(dailyVolume) || typeof fees !== "number" || Number.isNaN(fees))
+        throw new Error("Invalid Foxify stats API response");
+
     const growthFees = fees * 0.7;
     const stakerFees = fees * 0.3;
 
