@@ -5,6 +5,8 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { METRIC } from "../helpers/metrics";
 
 // Wallets are from personal research findings, not Maestro team docs.
+// verfied based on the memo as 'maestro referral' in tx
+
 const LABELS = {
   BOT_REVENUE: 'Trading fees excluding referral rewards',
   REWARDS: 'Referral rewards',
