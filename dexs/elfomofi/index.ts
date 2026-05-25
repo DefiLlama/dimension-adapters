@@ -96,22 +96,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
             const s = stream[i];
             const next = stream[i + 1];
 
-            // Drip s out at the DISTRIBUTE_SECONDS rate, but stop once the next settlement takes over.
-            const distributeEnd = next ? next.t : endTimestamp;
-            const overlap = Math.min(endTimestamp, distributeEnd) - Math.max(startTimestamp, s.t);
-            if (overlap > 0) {
-                const distribute = (amount: bigint) => amount * BigInt(overlap) / BigInt(DISTRIBUTE_SECONDS);
-                addFees(s.token, distribute(s.feeProtocol), distribute(s.feeCurator), distribute(s.yieldLps));
-            }
+            // Cumulative share through time T: linear drip over 5 days, capped at 100%.
+            // A later settlement forces the rest of s out immediately at next.t.
+            const attributable = (amount: bigint, T: number) => {
+                if (T <= s.t) return 0n;
+                if (next && T >= next.t) return amount;
+                const elapsed = Math.min(T - s.t, DISTRIBUTE_SECONDS);
+                return amount * BigInt(elapsed) / BigInt(DISTRIBUTE_SECONDS);
+            };
 
-            // The moment the next settlement lands, pay out whatever of s we didn't get to
-            if (next && next.t > startTimestamp && next.t <= endTimestamp) {
-                const remainingSeconds = Math.max(0, DISTRIBUTE_SECONDS - (next.t - s.t));
-                if (remainingSeconds > 0) {
-                    const remainder = (amount: bigint) => amount * BigInt(remainingSeconds) / BigInt(DISTRIBUTE_SECONDS);
-                    addFees(s.token, remainder(s.feeProtocol), remainder(s.feeCurator), remainder(s.yieldLps));
-                }
-            }
+            const windowStart = Math.max(startTimestamp, s.t);
+            const windowEnd = endTimestamp;
+            if (windowEnd <= windowStart) continue;
+
+            const delta = (amount: bigint) => attributable(amount, windowEnd) - attributable(amount, windowStart);
+            addFees(s.token, delta(s.feeProtocol), delta(s.feeCurator), delta(s.yieldLps));
         }
     }
 
