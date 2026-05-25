@@ -29,13 +29,15 @@ const TROJAN_TERMINAL_FEE_WALLETS = [
   '8jgg7moFJkHyTtAv9M6RBSPMp2oXeXhuiUMKW8YbYCWn',
 ];
 
-// Internal treasury sweep destination. The bot wallet periodically performs
-// large (~100 SOL each) sweeps to this SystemProgram EOA, which then forwards
-// via a Squads multisig (`DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH`) into
-// a wSOL treasury account (`ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4`).
-// These sweeps are protocol-internal capital movements, NOT user
-// distributions, and must be excluded from cashback accounting.
-const TROJAN_TREASURY_SWEEP_WALLET = 'DrXMnPrFSiHA4JKKrSktTbAFrfvQCixHKvD7zGHxkzJP';
+// Internal treasury sweeps are identified structurally rather than by a
+// hardcoded destination wallet: every twice-daily sweep is a single-recipient
+// SystemProgram transfer, whereas every cashback / referral batch fans out to
+// ~15 recipients in one tx. The sweep destination has rotated historically
+// (pre-Feb 2026: CvdzGdvw9P4eo1wHFCESKqKCtZ3yMaKVydfMJpyKv4pr; post-Feb 2026:
+// DrXMnPrFSiHA4JKKrSktTbAFrfvQCixHKvD7zGHxkzJP, which then forwards via a
+// Squads multisig DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH into a wSOL
+// treasury ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4), so filtering by
+// recipient count is robust to further rotations.
 
 const ALL_FEE_WALLETS = [TROJAN_BOT_FEE_WALLET, ...TROJAN_TERMINAL_FEE_WALLETS];
 
@@ -48,60 +50,68 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 
   const query = `
     WITH
-    -- Per-trade fee inflows to ANY Trojan fee wallet (bot + terminal).
-    allFeePayments AS (
-      SELECT
-        tx_id,
-        address AS fee_wallet,
-        balance_change AS fee_lamports
+    -- Single pass over the day's partition for ALL fee-wallet activity
+    -- (both bot + terminal inflows AND bot outflows). Downstream CTEs
+    -- filter this materialised set instead of re-scanning the partition.
+    feeWalletActivity AS (
+      SELECT tx_id, address, balance_change
       FROM solana.account_activity
       WHERE TIME_RANGE
         AND tx_success
         AND address IN (${allFeeWalletsSql})
-        AND balance_change > 0
     ),
-    -- Filter to actual DEX trades. dex_solana.trades is the
-    -- spell-decoded view of swap transactions; joining excludes
-    -- arbitrary SOL transfers into the wallet (e.g. team top-ups
-    -- or claims from external sources) so dailyFees is restricted
-    -- to true user trading fees.
+    -- Positive balance changes = per-trade fee inflows.
+    allFeePayments AS (
+      SELECT tx_id, address AS fee_wallet, balance_change AS fee_lamports
+      FROM feeWalletActivity
+      WHERE balance_change > 0
+    ),
+    -- Restrict to txs that are real DEX trades (spell-decoded swaps).
+    -- EXISTS instead of JOIN avoids row blow-up from multi-hop trades
+    -- and lets the planner short-circuit on first qualifying trade row.
     botTrades AS (
-      SELECT
-        trades.tx_id,
-        feePayments.fee_wallet,
-        MAX(feePayments.fee_lamports) AS fee
-      FROM dex_solana.trades AS trades
-      JOIN allFeePayments AS feePayments
-        ON trades.tx_id = feePayments.tx_id
-      WHERE TIME_RANGE
-        AND trades.trader_id NOT IN (${allFeeWalletsSql})
-      GROUP BY trades.tx_id, feePayments.fee_wallet
+      SELECT fp.tx_id, fp.fee_wallet, MAX(fp.fee_lamports) AS fee
+      FROM allFeePayments fp
+      WHERE EXISTS (
+        SELECT 1
+        FROM dex_solana.trades t
+        WHERE t.tx_id = fp.tx_id
+          AND TIME_RANGE
+          AND t.trader_id NOT IN (${allFeeWalletsSql})
+      )
+      GROUP BY fp.tx_id, fp.fee_wallet
     ),
-    -- Identify the internal treasury sweep tx_ids so we can exclude
-    -- them from cashback accounting. These are the periodic ~100 SOL
-    -- transfers where the bot wallet signs a transfer to the multisig
-    -- staging EOA.
-    treasurySweepTxs AS (
-      SELECT DISTINCT tx_id
-      FROM solana.account_activity
-      WHERE TIME_RANGE
-        AND address = '${TROJAN_TREASURY_SWEEP_WALLET}'
-        AND tx_success
-        AND balance_change > 0
-    ),
-    -- Bot wallet outflows that are user distributions (everything
-    -- except the treasury sweeps). Each such tx is a SystemProgram
-    -- batched transfer fanning out to ~15 user trading wallets at
-    -- a minimum of 0.005 SOL each (per the Trojan docs reward
-    -- policy at docs.trojanonsolana.com).
-    cashbackPayouts AS (
-      SELECT COALESCE(SUM(-balance_change), 0) AS payout_lamports
-      FROM solana.account_activity
-      WHERE TIME_RANGE
-        AND address = '${TROJAN_BOT_FEE_WALLET}'
-        AND tx_success
+    -- Negative balance changes from the bot wallet = outflow txs.
+    botOutflowTxs AS (
+      SELECT tx_id, -balance_change AS lamports_out
+      FROM feeWalletActivity
+      WHERE address = '${TROJAN_BOT_FEE_WALLET}'
         AND balance_change < 0
-        AND tx_id NOT IN (SELECT tx_id FROM treasurySweepTxs)
+    ),
+    -- For each outflow tx, count distinct non-bot positive-balance-change
+    -- recipients. Treasury sweeps are single-recipient SystemProgram
+    -- transfers (~200 SOL to the rotating staging EOA); cashback /
+    -- referral batches fan out to ~15 recipients per tx (per Trojan docs:
+    -- 0.005 SOL minimum, twice-daily). The recipient-count heuristic is
+    -- robust to sweep-destination rotations (verified across the
+    -- Jan→Feb 2026 Cvdz→DrXMnP rotation). The tx_id IN-filter narrows
+    -- the scan from "every positive balance_change in the partition" to
+    -- only the handful of bot-outflow txs.
+    outflowRecipients AS (
+      SELECT bo.tx_id, bo.lamports_out, COUNT(DISTINCT aa.address) AS num_recipients
+      FROM botOutflowTxs bo
+      LEFT JOIN solana.account_activity aa
+        ON aa.tx_id = bo.tx_id
+       AND aa.address != '${TROJAN_BOT_FEE_WALLET}'
+       AND aa.balance_change > 0
+      WHERE TIME_RANGE
+        AND aa.tx_id IN (SELECT tx_id FROM botOutflowTxs)
+      GROUP BY bo.tx_id, bo.lamports_out
+    ),
+    cashbackPayouts AS (
+      SELECT COALESCE(SUM(lamports_out), 0) AS payout_lamports
+      FROM outflowRecipients
+      WHERE num_recipients >= 2
     )
     SELECT
       (SELECT COALESCE(SUM(fee), 0)
@@ -181,37 +191,26 @@ const adapter: SimpleAdapter = {
   // across longer windows.
   allowNegativeValue: true,
   methodology: {
-    Fees:
-      'Gross per-trade fees collected by Trojan, restricted to DEX trades. Counts SOL inflows to the Trojan bot fee wallet and the five Trojan Terminal fee wallets when the transaction is present in dex_solana.trades — eliminates funding transfers and non-trade inflows.',
-    Revenue:
-      'Net fees retained by Trojan after cashback and referral rewards have been distributed back to users. Computed as dailyFees minus dailySupplySideRevenue and split between the Bot and Terminal products in proportion to their gross-fee share.',
-    ProtocolRevenue:
-      'Identical to Revenue (Trojan has no separate token-holder distribution at present).',
-    SupplySideRevenue:
-      'Cashback and referral rewards paid back to user trading wallets. Per the Trojan rewards program (docs.trojanonsolana.com): up to 35 percent direct referral revenue share, up to 47.5 percent at higher Honors ranks, plus 20 percent (45 percent at higher ranks) cashback on trading fees, paid out in SOL twice a day with a 0.005 SOL minimum per claim. Tracked as outflows from the Trojan bot wallet excluding the periodic large sweeps to the internal multisig staging EOA (DrXMnP...).',
+    Fees: 'Per-trade fees collected by the Trojan bot and Terminal fee wallets on DEX swaps.',
+    Revenue: 'Fees retained by Trojan after cashback and referral payouts.',
+    ProtocolRevenue: 'Same as Revenue.',
+    SupplySideRevenue: 'Cashback and referral rewards paid out to user trading wallets.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.BOT_FEES]:
-        'Per-trade fees received by the Telegram bot fee wallet 9yMwSPk9... on swaps initiated via the Trojan TG bot.',
-      [LABELS.TERMINAL_FEES]:
-        'Per-trade fees received by the five Trojan Terminal fee wallets (92Med3q, 2jwHNxa, 65gDv7p, BWgb8wR, 8jgg7mo) on swaps initiated via trojan.com terminal.',
+      [LABELS.BOT_FEES]: 'Trading fees from the Trojan Telegram bot.',
+      [LABELS.TERMINAL_FEES]: 'Trading fees from the Trojan Terminal.',
     },
     Revenue: {
-      [LABELS.BOT_REVENUE]:
-        'Bot-side gross fees net of the bot share of cashback / referral payouts (allocated proportionally to gross-fee share).',
-      [LABELS.TERMINAL_REVENUE]:
-        'Terminal-side gross fees net of the terminal share of cashback / referral payouts.',
+      [LABELS.BOT_REVENUE]: 'Bot fees net of cashback / referral payouts.',
+      [LABELS.TERMINAL_REVENUE]: 'Terminal fees net of cashback / referral payouts.',
     },
     ProtocolRevenue: {
-      [LABELS.BOT_REVENUE]:
-        'Bot-side fees retained by Trojan after cashback / referral distributions.',
-      [LABELS.TERMINAL_REVENUE]:
-        'Terminal-side fees retained by Trojan after cashback / referral distributions.',
+      [LABELS.BOT_REVENUE]: 'Bot fees retained by Trojan.',
+      [LABELS.TERMINAL_REVENUE]: 'Terminal fees retained by Trojan.',
     },
     SupplySideRevenue: {
-      [LABELS.CASHBACK_REFERRAL]:
-        'Total cashback + referral rewards sent from the Trojan bot wallet to user trading wallets in twice-daily batched SystemProgram transfers (excludes the periodic 100+ SOL sweeps to the internal multisig staging EOA).',
+      [LABELS.CASHBACK_REFERRAL]: 'Cashback and referral rewards paid to user trading wallets.',
     },
   },
 };
