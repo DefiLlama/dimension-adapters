@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -8,17 +9,21 @@ const klineEndpoint = (instrumentId: string, startTime: number, endTime: number)
 
 const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
   const metadata = await fetchURL(SPOT_META_ENDPOINT);
-  const symbols = metadata.data.symbolList.filter((symbol: { enableTrade: boolean; enableDisplay: boolean }) => symbol.enableTrade && symbol.enableDisplay);
+  const symbols: { symbolId: string }[] = metadata.data.symbolList.filter((symbol: { enableTrade: boolean; enableDisplay: boolean }) => symbol.enableTrade && symbol.enableDisplay);
   const startTime = options.startOfDay * 1000;
   const endTime = options.endTimestamp * 1000;
 
-  let dailyVolume = 0;
-  for (const symbol of symbols) {
-    const response = await fetchURL(klineEndpoint(symbol.symbolId, startTime, endTime));
-    dailyVolume += response.data.dataList.reduce((total: number, kline: { value: string }) => total + Number(kline.value), 0);
-  }
+  const { results, errors } = await PromisePool.withConcurrency(2)
+    .for(symbols)
+    .process(async (symbol: { symbolId: string }) => {
+      const response = await fetchURL(klineEndpoint(symbol.symbolId, startTime, endTime));
+      return response.data.dataList.reduce((total: number, kline: { value: string }) => total + Number(kline.value), 0);
+    });
 
-  return { dailyVolume };
+  if (errors.length) throw errors[0];
+  const volume = results.reduce((total: number, volume: number) => total + volume);
+
+  return { dailyVolume: volume };
 };
 
 const adapter: SimpleAdapter = {
