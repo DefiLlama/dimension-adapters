@@ -15,6 +15,7 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const pools: string[] = await options.api.call({ abi: 'address[]:getDeployedPoolsList', target: factoryAddress })
 
@@ -40,7 +41,8 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
 
       const poolReserves = poolReserveInfoEnd[i][0] - poolReserveInfoStart[i][0];
       if (poolReserves > 0) {
-        dailyFees.add(quoteToken[i], poolReserves / quoteTokenScale[i], "Reserve accumulation")
+        dailyFees.add(quoteToken[i], poolReserves / quoteTokenScale[i], "Reserve Accumulation")
+        dailyProtocolRevenue.add(quoteToken[i], poolReserves / quoteTokenScale[i], "Reserve Accumulation To Protocol")
       }
       const hasBurn = currentBurnEpochEnd[i][0] - currentBurnEpochStart[i][0];
       if (hasBurn) {
@@ -72,12 +74,14 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
   }
 
   dailyFees.addBalances(dailySupplySideRevenue)
-  dailyFees.addBalances(dailyHoldersRevenue)
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyProtocolRevenue: 0,
+    dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -92,14 +96,16 @@ const fetch = async (options: FetchOptions) => {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: "Interest paid by borrowers for loans, with approximately 85-90% distributed to lenders",
-    "Reserve accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns",
-    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns executed through reserve auctions, reducing circulating supply"
+    "Reserve Accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns",
   },
   Revenue: {
-    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns funded by accumulated reserves through periodic auctions"
+    "Reserve Accumulation To Protocol": "Protocol-held reserves pending auction, eventually used to buy back and burn AJNA tokens"
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Interest distributed to lenders who supply liquidity to lending pools"
+  },
+  ProtocolRevenue: {
+    "Reserve Accumulation To Protocol": "Protocol-held reserves pending auction, eventually used to buy back and burn AJNA tokens"
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "AJNA token burns that reduce circulating supply, benefiting all token holders"
@@ -112,11 +118,11 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: '2023-07-04',
   methodology: {
-    Fees: "Fees collected from borrowers, lenders, and penalties",
-    Revenue: "~10-15% net interest margin + origination fees and penalties are used to burn AJNA token",
-    ProtocolRevenue: "Protocol takes no direct fees",
-    HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
-    SupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
+    Fees: "Total interest paid by borrowers: ~85-90% to lenders and ~10-15% to protocol reserves",
+    Revenue: "~10-15% of borrower interest accumulated in pool reserves, held by the protocol pending reserve auctions",
+    ProtocolRevenue: "~10-15% of borrower interest accumulated in pool reserves, held pending reserve auctions",
+    HoldersRevenue: "Accumulated reserves auctioned periodically to buy back and burn AJNA tokens (off-statement; funded by prior periods' reserves)",
+    SupplySideRevenue: "~85-90% of borrower interest distributed to lenders"
   },
   breakdownMethodology,
 };
