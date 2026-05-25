@@ -18,7 +18,6 @@ const EASYA_PARTNER_CONFIGS = [
 ];
 
 interface IData {
-    total_volume: string;
     total_trading_fees: string;
     total_protocol_fees: string;
     total_referral_fees: string;
@@ -52,7 +51,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
       )
     SELECT
-      SUM(CASE WHEN trade_direction = 1 THEN COALESCE(amount_in, 0) ELSE COALESCE(amount_out, 0) END) AS total_volume,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(trading_fee,  0) END) AS total_trading_fees,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(protocol_fee, 0) END) AS total_protocol_fees,
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(referral_fee, 0) END) AS total_referral_fees
@@ -60,19 +58,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `);
 
     const wsol = ADDRESSES.solana.SOL;
-    const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const row = data?.[0];
     if (row) {
-        const volume = Number(row.total_volume || 0);
         const trading = Number(row.total_trading_fees || 0);
         const protocol = Number(row.total_protocol_fees || 0);
         const referral = Number(row.total_referral_fees || 0);
 
-        dailyVolume.add(wsol, volume);
         dailyFees.add(wsol, trading, METRIC.TRADING_FEES);
         dailyFees.add(wsol, protocol, "Protocol Fees to Meteora");
         dailyFees.add(wsol, referral, "Referral Fees");
@@ -89,7 +84,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 
     return {
-        dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: dailyProtocolRevenue,
@@ -99,8 +93,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    Volume:
-        'Total swap volume on EasyA Kickstart bonding curves, measured in WSOL quote asset.',
     Fees:
         'Total swap fees paid by users on EasyA Kickstart bonding curves: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.',
     Revenue:
