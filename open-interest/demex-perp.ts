@@ -7,6 +7,7 @@ const endpoint = "https://api.carbon.network/carbon/marketstats/v1/stats";
 interface IMarketStat {
   market_type: string;
   open_interest: string;
+  mark_price: string;
 }
 
 const fetch = async () => {
@@ -15,7 +16,7 @@ const fetch = async () => {
   const openInterestAtEnd =
     marketstats
       .filter((e: IMarketStat) => e.market_type === "futures")
-      .reduce((a: number, b: IMarketStat) => a + Number(b.open_interest), 0) / 1e18;
+      .reduce((a: number, b: IMarketStat) => a + (Number(b.open_interest) * Number(b.mark_price)), 0) / 1e18;
 
   if (!openInterestAtEnd) throw new Error("No open interest data found");
 
