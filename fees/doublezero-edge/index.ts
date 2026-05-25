@@ -7,6 +7,7 @@ const NETWORK_CONTRIBUTORS = "DoubleZero Network Contributors";
 const SHRED_ORIGINATING_VALIDATORS = "Shred-Originating Validators";
 const PROTOCOL_CLIENT_TEAMS = "Protocol Client Teams";
 const PROTOCOL_SECURITY_BURN = "Protocol Security Burn";
+const EDGE_SHRED_SUBSCRIPTIONS = "Edge Shred Subscriptions";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
@@ -35,7 +36,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT SUM(usdc_amount) AS fees
     FROM settled_transfers`;
     const fees = await queryDuneSql(options, query);
-    dailyFees.add(coreAssets.solana.USDC, fees?.[0]?.fees ?? 0);
+    dailyFees.add(coreAssets.solana.USDC, fees?.[0]?.fees ?? 0, EDGE_SHRED_SUBSCRIPTIONS);
     const dailySupplySideRevenue = options.createBalances();
     dailySupplySideRevenue.addBalances(dailyFees.clone(0.45), NETWORK_CONTRIBUTORS);
     dailySupplySideRevenue.addBalances(dailyFees.clone(0.2925), SHRED_ORIGINATING_VALIDATORS);
@@ -52,6 +53,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const breakdownMethodology = {
+    Fees: {
+        [EDGE_SHRED_SUBSCRIPTIONS]: "USDC payments for DoubleZero Edge shred subscriptions, measured from settled transfers into the shred distribution flow.",
+    },
+    Revenue: {
+        [PROTOCOL_SECURITY_BURN]: "10% of gross Edge revenue is burned in 2Z for protocol security.",
+    },
     SupplySideRevenue: {
         [NETWORK_CONTRIBUTORS]: "45% of gross Edge revenue, equal to 50% of the post-burn remainder, is distributed to DoubleZero network contributors proportional to contribution.",
         [SHRED_ORIGINATING_VALIDATORS]: "29.25% of gross Edge revenue, equal to 32.5% of the post-burn remainder, is distributed to shred-originating validators proportional to leader shreds.",
