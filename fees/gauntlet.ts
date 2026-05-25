@@ -56,6 +56,14 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2025-06-24'
     },
+    [CHAIN.ARBITRUM]: {
+      morphoVaultOwners: [
+        '0x9E33faAE38ff641094fa68c65c2cE600b3410585',
+        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+        '0xF9D8B7e7981986746c4DE236CC72F1a26AFb5851',
+      ],
+      start: '2025-07-14',
+    },
   }
 };
 
