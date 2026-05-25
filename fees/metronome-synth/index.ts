@@ -170,9 +170,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Fees: "Inflows to the main treasury.",
+    Fees: "Synth treasury inflows, MetBasis LP fees from msETH/msUSD pools, other LP rewards claimed to Metronome treasuries, and yield gains on treasury-held vault positions.",
     Revenue: "Same as Fees.",
-    HoldersRevenue: "MET inflows to the distributor contract.",
+    HoldersRevenue: "MET distributed to holders.",
   },
   fetch,
   adapter: {
