@@ -45,18 +45,22 @@ const abi = {
 
 // ─── Bribe helper ─────────────────────────────────────────────────────────────
 const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
-  const url = "https://api.llama.airforce/dashboard/bribes-overview-votium";
-  const response = await httpGet(url);
-  const data = typeof response === "string" ? JSON.parse(response) : response;
-  let total = 0;
-  if (data?.dashboard?.epochs) {
-    data.dashboard.epochs.forEach((epoch: any) => {
-      if (epoch.end === dayTimestamp) {
-        total += epoch.totalAmountDollars;
-      }
-    });
+  try {
+    const url = "https://api.llama.airforce/dashboard/bribes-overview-votium";
+    const response = await httpGet(url);
+    const data = typeof response === "string" ? JSON.parse(response) : response;
+    let total = 0;
+    if (data?.dashboard?.epochs) {
+      data.dashboard.epochs.forEach((epoch: any) => {
+        if (epoch.end === dayTimestamp) {
+          total += epoch.totalAmountDollars;
+        }
+      });
+    }
+    return total;
+  } catch {
+    return 0; // llama.airforce unavailable — skip bribe revenue rather than failing adapter
   }
-  return total;
 };
 
 // ─── Methodology ──────────────────────────────────────────────────────────────
@@ -73,16 +77,18 @@ const breakdownMethodology = {
   Fees: {
     "CRV Revenue": "CRV flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive)",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
-    "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers, LP providers and platform via Convex's Frax-side fee contracts",
+    "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers and LP providers via Convex's Frax-side fee contracts",
     "Others Revenue": "Votium bribes and reUSD locker revenue",
   },
   Revenue: {
     "CRV Revenue": "CRV to cvxCRV stakers and CVX lockers",
-    "FXS Revenue": "FXS distributed to cvxFXS stakers, CVX lockers and platform",
+    "CVX Revenue": "CVX emissions to cvxCRV stakers",
+    "FXS Revenue": "FXS distributed to cvxFXS stakers and CVX lockers",
     "Others Revenue": "Votium bribes and reUSD revenue",
   },
   HoldersRevenue: {
     "CRV Revenue": "CRV directed to cvxCRV stakers and CVX lockers",
+    "CVX Revenue": "CVX emissions to cvxCRV stakers",
     "FXS Revenue": "FXS directed to cvxFXS stakers and CVX lockers",
   },
   SupplySideRevenue: {
@@ -90,7 +96,6 @@ const breakdownMethodology = {
     "FXS Revenue": "FXS rewards to LP providers via Convex's Frax gauge integration",
   },
   ProtocolRevenue: {
-    "FXS Revenue": "FXS retained by Convex platform and caller incentives",
     "Others Revenue": "Votium bribe income and reUSD yield retained by the treasury",
   },
 };
@@ -216,7 +221,7 @@ const fetch = async (options: FetchOptions) => {
 
   // ── reUSD on-chain revenue (existing logic) ────────────────────────────────
   let reUSDRevenue = new BigNumber(0);
-  const isAfterReUSDIntegration = startTimestamp >= 1711152000; // 2025-03-23
+  const isAfterReUSDIntegration = startTimestamp >= 1711152000; // 2024-03-23
   if (isAfterReUSDIntegration) {
     const stakerAddress = await options.api.call({
       target: registry,
@@ -251,19 +256,19 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue  = createBalances();
 
   // CRV to cvxCRV stakers
-  dailyFees.addBalances(cvxCrvStakerCRV);
-  dailyRevenue.addBalances(cvxCrvStakerCRV);
-  dailyHoldersRevenue.addBalances(cvxCrvStakerCRV);
+  dailyFees.addBalances(cvxCrvStakerCRV, "CRV Revenue");
+  dailyRevenue.addBalances(cvxCrvStakerCRV, "CRV Revenue");
+  dailyHoldersRevenue.addBalances(cvxCrvStakerCRV, "CRV Revenue");
 
   // CRV to CVX lockers
-  dailyFees.addBalances(cvxLockerCRV);
-  dailyRevenue.addBalances(cvxLockerCRV);
-  dailyHoldersRevenue.addBalances(cvxLockerCRV);
+  dailyFees.addBalances(cvxLockerCRV, "CRV Revenue");
+  dailyRevenue.addBalances(cvxLockerCRV, "CRV Revenue");
+  dailyHoldersRevenue.addBalances(cvxLockerCRV, "CRV Revenue");
 
   // CVX emissions to cvxCRV stakers
-  dailyFees.addBalances(cvxCrvStakerCVX);
-  dailyRevenue.addBalances(cvxCrvStakerCVX);
-  dailyHoldersRevenue.addBalances(cvxCrvStakerCVX);
+  dailyFees.addBalances(cvxCrvStakerCVX, "CVX Revenue");
+  dailyRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
+  dailyHoldersRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
 
   // LP supply-side CRV (extrapolated)
   dailySupplySideRevenue.addBalances(supplySideCRV);
@@ -273,11 +278,13 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
   dailyHoldersRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
 
-  // FXS to LP providers/platform (FXS_FEE_DISTRIB) → fees + supply-side + protocol
+  // FXS to LP providers (FXS_FEE_DISTRIB) → fees + supply-side only
+  // The fee distributor's primary purpose is LP provider incentives (supply-side).
+  // Without the original subgraph's internal LP/platform/caller split, we cannot
+  // cleanly separate the protocol-retained portion, so the entire distributor
+  // flow is classified as supply-side rather than double-counting across buckets.
   dailyFees.addBalances(fxsDistribRevenue, "FXS Revenue");
-  dailyRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
   dailySupplySideRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
-  dailyProtocolRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
 
   // reUSD revenue → protocol treasury
   dailyFees.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
