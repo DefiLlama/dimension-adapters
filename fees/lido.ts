@@ -12,6 +12,8 @@ const endpoints: Record<string, string> = {
 
 const PROTOCOL_FEE_RATIO = 0.1 // 10%
 const LIDO_MEV_REWARDS_VAULT = '0x388c818ca8b9251b393131c08a736a67ccb19297';
+const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
+const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
 
 const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
@@ -34,6 +36,23 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dailyProtocolRevenueUSD = dailyTotalRevenueUSD * PROTOCOL_FEE_RATIO
   const dailySupplySideRevenueUSD = dailyTotalRevenueUSD - dailyProtocolRevenueUSD
 
+  // Lido's 10% protocol take is split between node operators and the DAO treasury, weighted
+  // across staking modules by their active-validator share. Read the live aggregate split off
+  // the StakingRouter at the window's end block so historical accuracy follows the on-chain
+  // rate (e.g. module 1 changed from 5%/5% to 3.5%/6.5% on 2025-12-24, tx 0x470e74a0…).
+  const feeSplit = await options.toApi.call({
+    target: LIDO_STAKING_ROUTER,
+    abi: STAKING_ROUTER_FEE_DISTRIBUTION_ABI,
+  })
+  const modulesFeeBp = Number(feeSplit.modulesFee)
+  const treasuryFeeBp = Number(feeSplit.treasuryFee)
+  const totalFeeBp = modulesFeeBp + treasuryFeeBp
+  // Fallback when the StakingRouter read yields a zero total (transient RPC fault or a
+  // governance state where module fees are unset). Defaulting treasuryShare to 1 keeps
+  // total Revenue unchanged in degraded reads and only loses the breakdown for those windows.
+  const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0
+  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 1
+
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
   const transactions = await sdk.indexer.getTransactions({
@@ -52,19 +71,29 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const totalMevFees = await mevFeesETH.getUSDValue()
   const protocolMevFees = totalMevFees * PROTOCOL_FEE_RATIO
   const supplySideMevFees = totalMevFees - protocolMevFees
-  
+
+  const stakingProtocolFees = dailyProtocolRevenueUSD - protocolMevFees
+  const stakingSupplySide = dailySupplySideRevenueUSD - supplySideMevFees
+
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
-  
+
   dailyFees.addUSDValue(dailyTotalRevenueUSD - totalMevFees, METRIC.STAKING_REWARDS)
-  dailySupplySideRevenue.addUSDValue(dailySupplySideRevenueUSD - supplySideMevFees, METRIC.STAKING_REWARDS)
-  dailyRevenue.addUSDValue(dailyProtocolRevenueUSD - protocolMevFees, METRIC.STAKING_REWARDS)
-  
   dailyFees.addUSDValue(totalMevFees, METRIC.MEV_REWARDS)
-  dailySupplySideRevenue.addUSDValue(supplySideMevFees, METRIC.MEV_REWARDS)
-  dailyRevenue.addUSDValue(protocolMevFees, METRIC.MEV_REWARDS)
-  
+
+  dailySupplySideRevenue.addUSDValue(stakingSupplySide, 'Staking rewards to ETH stakers')
+  dailySupplySideRevenue.addUSDValue(supplySideMevFees, 'MEV rewards to ETH stakers')
+
+  // Split the protocol take into the DAO-treasury share (kept by the Lido DAO) and the
+  // module-operator share (paid to node operators). Totals are preserved; only the breakdown
+  // gains granularity. Operator and treasury shares are summed across staking + MEV sources.
+  dailyRevenue.addUSDValue(stakingProtocolFees * treasuryShare, METRIC.STAKING_REWARDS)
+  dailyRevenue.addUSDValue(protocolMevFees * treasuryShare, METRIC.MEV_REWARDS)
+
+  dailySupplySideRevenue.addUSDValue(stakingProtocolFees * operatorShare, 'Staking rewards to node operators')
+  dailySupplySideRevenue.addUSDValue(protocolMevFees * operatorShare, 'MEV rewards to node operators')
+
   return {
     dailyFees,
     dailyUserFees: 0,
@@ -82,10 +111,10 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
+    Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
     HoldersRevenue: "No revenue distributed to LDO holders",
-    ProtocolRevenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
-    SupplySideRevenue: "Staking rewards earned by stETH holders"
+    ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
+    SupplySideRevenue: "Staking rewards earned by stETH holders and node operators"
   },
   breakdownMethodology: {
     Fees: {
@@ -93,16 +122,18 @@ const adapter: Adapter = {
       [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to Lido.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to Lido.',
+      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. Ratio read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee).',
+      [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to Lido.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to Lido.',
+      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards.',
+      [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to stakers.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
+      'Staking rewards to ETH stakers': 'Share of ETH rewards from running Beacon chain validators to stakers.',
+      'MEV rewards to ETH stakers': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
+      'Staking rewards to node operators': 'Share of ETH rewards from running Beacon chain validators to node operators.',
+      'MEV rewards to node operators': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to node operators.',
     },
   }
 }
