@@ -68,6 +68,8 @@ const RP11_ADDRESS: any = {
   [CHAIN.POLYGON_ZKEVM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
   [CHAIN.MANTLE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
   [CHAIN.KATANA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ERA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.LINEA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
 }
 
 const ROUTE_RP7_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
@@ -123,5 +125,7 @@ export default {
     [CHAIN.POLYGON_ZKEVM]: { start: '2025-07-04', },
     [CHAIN.MANTLE]: { start: '2025-07-04', },
     [CHAIN.KATANA]: { start: '2025-07-04', },
+    [CHAIN.ERA]: { start: '2026-02-08', },
+    [CHAIN.LINEA]: { start: '2026-02-08', },
   }
 }
