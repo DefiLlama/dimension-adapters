@@ -9,7 +9,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         FROM
             dune.txflow_mainnet.platform_hourly_oi
         WHERE
-            hour_ts = ${options.startOfDay}
+            hour_ts <= ${options.endTimestamp}
+        ORDER BY hour_ts DESC
+        LIMIT 1
     `;
 
     const result = await queryDuneSql(options, duneQuery);
