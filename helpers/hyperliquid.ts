@@ -25,6 +25,8 @@ import { CHAIN } from "./chains";
 // hl indexer only supports data from this date
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400;
 export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = 1776211200;
+export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
+export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
 export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
@@ -209,7 +211,7 @@ export const CoinGeckoMaps: Record<string, string> = {
   USDA: "angle-usd",
 };
 
-export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
+export async function getUnitDeployedCoins(): Promise<Record<string, string>> {
   const coins: Record<string, string> = {};
 
   const response = await httpPost("https://api-ui.hyperliquid.xyz/info", {
@@ -247,6 +249,7 @@ interface QueryIndexerResult {
   // priority fees
   dailyPriorityFeesUsd: Balances;
 
+  // NOTE: deprecated this field
   currentPerpOpenInterest?: number;
 
   hip3Deployers: Record<string, Hip3DeployerMetrics>;
@@ -282,7 +285,7 @@ export async function queryHyperliquidIndexer(
     .replace("-", "");
   const response = await _requestIndexer(endpoint, dateString);
 
-  const coinsDeployedByUnit = await getUnitSeployedCoins();
+  const coinsDeployedByUnit = await getUnitDeployedCoins();
 
   const dailyPerpVolume = options.createBalances();
   const dailySpotVolume = options.createBalances();
@@ -390,6 +393,66 @@ export async function queryHyperliquidIndexer(
     currentPerpOpenInterest,
     hip3Deployers,
   };
+}
+
+interface QueryHyperliquidIndexerOpenInterestResult {
+  totalOpenInterest: number; // include default perps + all HIP-3 perps
+  defaultPerpsOpenInterest: number; // idefault perps only
+  hip3Deployers: Record<string, number>; // HIP-3 perps breakdown
+}
+
+export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions): Promise<QueryHyperliquidIndexerOpenInterestResult> {
+  const result: QueryHyperliquidIndexerOpenInterestResult = {
+    totalOpenInterest: 0,
+    defaultPerpsOpenInterest: 0,
+    hip3Deployers: {},
+  }
+
+  // default perps
+  const metaAndAssetCtxs = await getMetaAndAssetCtxs(options);
+  if (metaAndAssetCtxs) {
+    for (const item of metaAndAssetCtxs[1]) {
+      result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
+      result.defaultPerpsOpenInterest += Number(item.openInterest) * Number(item.markPx);
+    }
+  }
+
+  // HIP-3 markets
+  for (const dex of HYPERLIQUID_HIP3_DEXS) {
+    const metaAndAssetCtxsDex = await getMetaAndAssetCtxs(options, dex);
+    if (metaAndAssetCtxsDex) {
+      result.hip3Deployers[dex] = 0;
+      for (const item of metaAndAssetCtxsDex[1]) {
+        result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
+        result.hip3Deployers[dex] += Number(item.openInterest) * Number(item.markPx);
+      }
+    }
+  }
+  
+  return result;
+}
+
+async function getMetaAndAssetCtxs(options: FetchOptions, dexId?: string): Promise<any> {
+  try {
+    const endpoint = getEnv("LLAMA_HL_INDEXER");
+    const extraKey = dexId ? `-${dexId}` : '';
+    const urlFull = `${endpoint}/v1/data/snapshot/metaAndAssetCtxs${extraKey}/${options.startOfDay}`;
+    const res = await httpGet(urlFull);
+    if (res.data) return res.data;
+    else throw Error(`can not get data from hl indexer, url: ${urlFull}`);
+  } catch (e: any) {
+    const TWO_DAYS = 48 * 3600;
+    const current = Math.floor(new Date().getTime() / 1000);
+    if (options.startOfDay >= current - TWO_DAYS) {
+      const data = await httpPost("https://api.hyperliquid.xyz/info", {
+        type: "metaAndAssetCtxs",
+        dex: dexId ? dexId : undefined,
+      });
+      return data;
+    }
+  }
+
+  return null;
 }
 
 interface QueryHypurrscanApiResult {
