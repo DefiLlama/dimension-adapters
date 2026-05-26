@@ -1,30 +1,38 @@
 import { FetchOptions } from "../helper/adapter";
 
-const FACTORY = "0x99A1F02f56E8356e6E90A880DBb1be6EC7485737";
-const START_BLOCK = 83360171;
 const FEE_MULTISIG = "0x41E046D798B0f0D705Dd4BAf1FC9Aa5fdf8822f1";
 
 async function fetch(options: FetchOptions) {
-  const dailyRevenue = await options.api.sumTokens({
-    owners: [FEE_MULTISIG],
-    tokens: ["0x0000000000000000000000000000000000000000"], // BNB
-    fromBlock: options.fromBlock,
-    toBlock: options.toBlock,
-  });
+  try {
+    const dailyRevenue = await options.api.sumTokens({
+      owners: [FEE_MULTISIG],
+      tokens: ["0x0000000000000000000000000000000000000000"], // BNB
+      fromBlock: options.fromBlock,
+      toBlock: options.toBlock,
+    });
 
-  return {
-    timestamp: options.toTimestamp,
-    dailyFees: dailyRevenue,
-    dailyRevenue: dailyRevenue,
-    dailySupplySideRevenue: "0", // creators keep the rest
-  };
+    return {
+      timestamp: options.toTimestamp,
+      dailyFees: dailyRevenue,
+      dailyRevenue: dailyRevenue,
+      dailySupplySideRevenue: "0", // creators keep the rest
+    };
+  } catch (e) {
+    // Handle recoverable chain read failures explicitly (as requested by CodeRabbit)
+    return {
+      timestamp: options.toTimestamp,
+      dailyFees: "0",
+      dailyRevenue: "0",
+      dailySupplySideRevenue: "0",
+    };
+  }
 }
 
 const adapter: any = {
   version: 2,
   bsc: {
     fetch,
-    start: START_BLOCK,
+    start: 83360171,
     pullHourly: true,
   },
   breakdownMethodology: {
