@@ -15,7 +15,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
                 AND topic0 = 0x9f039a0ca58d6157d7b6914e2d60cedacf65fea21a365e93d708a5e5c25454f3
                 AND TIME_RANGE
         )
-        SELECT SUM(tf.amount_raw) AS volume
+        SELECT COALESCE(SUM(tf.amount_raw), 0) AS volume
         FROM trades t
         JOIN tokens.transfers tf
         ON tf.blockchain = 'megaeth'
