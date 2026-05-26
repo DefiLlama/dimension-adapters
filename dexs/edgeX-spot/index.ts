@@ -13,14 +13,13 @@ const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOption
   const startTime = options.startOfDay * 1000;
   const endTime = options.endTimestamp * 1000;
 
-  const { results, errors } = await PromisePool.withConcurrency(2)
+  const { results } = await PromisePool.withConcurrency(2)
     .for(symbols)
     .process(async (symbol: { symbolId: string }) => {
       const response = await fetchURL(klineEndpoint(symbol.symbolId, startTime, endTime));
       return response.data.dataList.reduce((total: number, kline: { value: string }) => total + Number(kline.value), 0);
     });
 
-  if (errors.length) throw errors[0];
   const volume = results.reduce((total: number, volume: number) => total + volume);
 
   return { dailyVolume: volume };
