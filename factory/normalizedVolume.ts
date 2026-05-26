@@ -215,7 +215,7 @@ const protocols = {
     chains: [CHAIN.PARADEX],
     start: '2026-01-20',
     version: 2,
-    minContracts: 30
+    minContracts: 10
   }),
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
@@ -275,6 +275,13 @@ const protocols = {
     start: '2026-03-06',
     version: 1,
     minContracts: 25
+  }),
+  'risex': dailyNormalizedVolumeAdapter({
+    protocolName: 'risex',
+    chains: [CHAIN.RISE],
+    start: '2026-05-25',
+    version: 2,
+    minContracts: 8
   }),
 
 } as const;
