@@ -67,7 +67,7 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
 // ─── Methodology ──────────────────────────────────────────────────────────────
 const methodology = {
   UserFees: "No user fees",
-  Fees: "CRV and FXS earned by cvxCRV/cvxFXS stakers and CVX lockers from Convex's fee take, plus Votium bribes and reUSD locker revenue. Supply-side LP CRV rewards excluded from dailyFees.",
+  Fees: "CRV and FXS earned by cvxCRV/cvxFXS stakers and CVX lockers from Convex's fee take, plus reUSD locker revenue. Votium bribes are protocol revenue only (not gross fees). Supply-side LP CRV rewards excluded from dailyFees.",
   HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers",
   Revenue: "Sum of protocol revenue and holders' revenue",
   ProtocolRevenue: "Votium bribes and reUSD revenue directed to Convex treasury",
@@ -79,7 +79,7 @@ const breakdownMethodology = {
     "CRV Revenue": "CRV flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive)",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
     "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers and LP providers via Convex's Frax-side fee contracts",
-    "Others Revenue": "Votium bribes and reUSD locker revenue",
+    "Others Revenue": "reUSD locker revenue (Votium bribes are revenue/protocol only, not gross fees)",
   },
   Revenue: {
     "CRV Revenue": "CRV to cvxCRV stakers and CVX lockers",
