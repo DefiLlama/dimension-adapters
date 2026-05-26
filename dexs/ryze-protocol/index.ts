@@ -1,101 +1,87 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { sumTokens2 } from "../../helpers/unwrapLPs";
 
 const FACTORY = '0xdf97B25A935EB72378e0C2D4DC15955ecE612b49';
 
-// Swap(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, FeeDetails feeDetails)
-const SWAP_EVENT_SIGNATURE = '0x513dc41de89f1515e49db81e27a3e9d0dd7f27b37264f8e992617a4829b1a1c6';
-
-async function tvl(api: any) {
-  const pools = await api.fetchList({ lengthAbi: 'getPoolCount', itemAbi: 'pools', target: FACTORY });
-  
-  const poolAssets0 = await api.multiCall({ abi: 'function getPoolAsset(uint256) view returns (address token, uint256 balance, uint256 weight, uint8 decimals)', calls: pools.map((p: any) => ({ target: p, params: [0] })) });
-  const poolAssets1 = await api.multiCall({ abi: 'function getPoolAsset(uint256) view returns (address token, uint256 balance, uint256 weight, uint8 decimals)', calls: pools.map((p: any) => ({ target: p, params: [1] })) });
-
-  const tokensAndOwners: any[] = [];
-  pools.forEach((pool: any, i: number) => {
-    tokensAndOwners.push([poolAssets0[i].token, pool]);
-    tokensAndOwners.push([poolAssets1[i].token, pool]);
-  });
-
-  return sumTokens2({ api, tokensAndOwners });
-}
+const eventAbis = {
+  swap: 'event Swap(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, tuple(tuple(address token, uint256 amount) swapFee, tuple(address token, uint256 amount) takerFee, tuple(address token, uint256 amount) wbfFee, tuple(address token, uint256 amount) slippageFee, tuple(address token, uint256 amount) wbrFee) feeDetails)'
+};
 
 async function fetch(fetchOptions: FetchOptions) {
   const { api, createBalances } = fetchOptions;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
   
   const pools = await api.fetchList({ lengthAbi: 'getPoolCount', itemAbi: 'pools', target: FACTORY });
   
   const logs = await fetchOptions.getLogs({
     targets: pools,
-    topics: [SWAP_EVENT_SIGNATURE],
+    eventAbi: eventAbis.swap,
   });
 
-  logs.forEach((log) => {
-    // Topics:
-    // 0: signature
-    // 1: sender
-    // 2: tokenIn
-    // 3: tokenOut
-    const tokenIn = '0x' + log.topics[2].slice(26);
-    // const tokenOut = '0x' + log.topics[3].slice(26);
+  // Current fee distribution ratios from Ryze Protocol
+  // Swap Fees: 100% to Holders (distributionAddress)
+  // Taker Fees: 100% to Protocol
+  // Slippage Fees: 50% Protocol, 50% Holders
+  // WBF Fees: 25% Protocol, 25% Holders, 50% Treasury (not considered revenue/fees usually)
+  
+  logs.forEach((log: any) => {
+    // The ethers v6 parsed log returns named arguments in log.args (or directly if mapped by SDK)
+    // DefiLlama getLogs with eventAbi puts the parsed args directly on the log object
+    const tokenIn = log.tokenIn;
+    const amountIn = log.amountIn;
+    const feeDetails = log.feeDetails; // This is an array-like Result object containing the 5 tuples
     
-    // Data layout:
-    // 0x00 - 0x20 (32 bytes): amountIn
-    // 0x20 - 0x40 (32 bytes): amountOut
-    // feeDetails struct starts here:
-    // 0x40 - 0x60 (32 bytes): swapFee token address
-    // 0x60 - 0x80 (32 bytes): swapFee amount
-    // 0x80 - 0xa0 (32 bytes): takerFee token address
-    // 0xa0 - 0xc0 (32 bytes): takerFee amount
-    // 0xc0 - 0xe0 (32 bytes): wbfFee token address
-    // 0xe0 - 0x100 (32 bytes): wbfFee amount
-    // 0x100 - 0x120 (32 bytes): slippageFee token address
-    // 0x120 - 0x140 (32 bytes): slippageFee amount
-    // 0x140 - 0x160 (32 bytes): wbrFee token address
-    // 0x160 - 0x180 (32 bytes): wbrFee amount
-    
-    // Remove "0x" prefix for slicing
-    const data = log.data.slice(2);
-    
-    const amountIn = '0x' + data.slice(0, 64);
-    
-    const swapFeeToken = '0x' + data.slice(128 + 24, 192);
-    const swapFeeAmount = '0x' + data.slice(192, 256);
-    
-    const takerFeeToken = '0x' + data.slice(256 + 24, 320);
-    const takerFeeAmount = '0x' + data.slice(320, 384);
-    
-    const wbfFeeToken = '0x' + data.slice(384 + 24, 448);
-    const wbfFeeAmount = '0x' + data.slice(448, 512);
-    
-    const slippageFeeToken = '0x' + data.slice(512 + 24, 576);
-    const slippageFeeAmount = '0x' + data.slice(576, 640);
+    // Arrays matching the tuple structure: [ [token, amount], [token, amount], ... ]
+    // Index 0: swapFee, Index 1: takerFee, Index 2: wbfFee, Index 3: slippageFee, Index 4: wbrFee
+    const swapFee = { token: feeDetails[0].token || feeDetails[0][0], amount: Number(feeDetails[0].amount || feeDetails[0][1]) };
+    const takerFee = { token: feeDetails[1].token || feeDetails[1][0], amount: Number(feeDetails[1].amount || feeDetails[1][1]) };
+    const wbfFee = { token: feeDetails[2].token || feeDetails[2][0], amount: Number(feeDetails[2].amount || feeDetails[2][1]) };
+    const slippageFee = { token: feeDetails[3].token || feeDetails[3][0], amount: Number(feeDetails[3].amount || feeDetails[3][1]) };
     
     // Add volume
     dailyVolume.add(tokenIn, amountIn);
     
-    // Add fees
-    if (swapFeeToken !== '0x0000000000000000000000000000000000000000') {
-      dailyFees.add(swapFeeToken, swapFeeAmount);
+    // Process Swap Fee (100% Holders Revenue)
+    if (swapFee.amount > 0) {
+      dailyFees.add(swapFee.token, swapFee.amount);
+      dailyHoldersRevenue.add(swapFee.token, swapFee.amount);
     }
-    if (takerFeeToken !== '0x0000000000000000000000000000000000000000') {
-      dailyFees.add(takerFeeToken, takerFeeAmount);
+    
+    // Process Taker Fee (100% Protocol Revenue)
+    if (takerFee.amount > 0) {
+      dailyFees.add(takerFee.token, takerFee.amount);
+      dailyProtocolRevenue.add(takerFee.token, takerFee.amount);
     }
-    if (wbfFeeToken !== '0x0000000000000000000000000000000000000000') {
-      dailyFees.add(wbfFeeToken, wbfFeeAmount);
+    
+    // Process WBF Fee (25% Protocol, 25% Holders)
+    if (wbfFee.amount > 0) {
+      dailyFees.add(wbfFee.token, wbfFee.amount);
+      dailyProtocolRevenue.add(wbfFee.token, wbfFee.amount * 0.25);
+      dailyHoldersRevenue.add(wbfFee.token, wbfFee.amount * 0.25);
     }
-    if (slippageFeeToken !== '0x0000000000000000000000000000000000000000') {
-      dailyFees.add(slippageFeeToken, slippageFeeAmount);
+    
+    // Process Slippage Fee (50% Protocol, 50% Holders)
+    if (slippageFee.amount > 0) {
+      dailyFees.add(slippageFee.token, slippageFee.amount);
+      dailyProtocolRevenue.add(slippageFee.token, slippageFee.amount * 0.50);
+      dailyHoldersRevenue.add(slippageFee.token, slippageFee.amount * 0.50);
     }
   });
 
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
+
   return {
     dailyVolume,
-    dailyFees
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue
   };
 }
 
@@ -103,14 +89,17 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      tvl,
       fetch,
-      start: '2024-11-20', // Approximate deploy date based on documentation
+      pullHourly: true,
+      start: '2026-04-01',
       meta: {
         methodology: {
-          TVL: "TVL is calculated by summing the balances of all tokens in Ryze Protocol pools.",
           Volume: "Daily volume is tracked by summing the amountIn of all Swap events across all Ryze pools.",
-          Fees: "Daily fees are calculated by summing the swapFee, takerFee, wbfFee, and slippageFee emitted in Swap events."
+          Fees: "Daily fees are calculated by summing the swapFee, takerFee, wbfFee, and slippageFee emitted in Swap events.",
+          Revenue: "Total Revenue equals Holders Revenue plus Protocol Revenue.",
+          HoldersRevenue: "Holders receive 100% of Swap Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
+          ProtocolRevenue: "Protocol receives 100% of Taker Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
+          SupplySideRevenue: "LPs do not receive direct swap fees; fees are routed to protocol, holders, and treasury."
         }
       }
     }
