@@ -82,15 +82,17 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   dailyFees.addUSDValue(dailyTotalRevenueUSD - totalMevFees, METRIC.STAKING_REWARDS)
   dailyFees.addUSDValue(totalMevFees, METRIC.MEV_REWARDS)
 
-  dailySupplySideRevenue.addUSDValue(stakingSupplySide, METRIC.STAKING_REWARDS)
-  dailySupplySideRevenue.addUSDValue(supplySideMevFees, METRIC.MEV_REWARDS)
+  dailySupplySideRevenue.addUSDValue(stakingSupplySide, 'Staking rewards to ETH stakers')
+  dailySupplySideRevenue.addUSDValue(supplySideMevFees, 'MEV rewards to ETH stakers')
 
   // Split the protocol take into the DAO-treasury share (kept by the Lido DAO) and the
   // module-operator share (paid to node operators). Totals are preserved; only the breakdown
   // gains granularity. Operator and treasury shares are summed across staking + MEV sources.
   dailyRevenue.addUSDValue(stakingProtocolFees * treasuryShare, METRIC.STAKING_REWARDS)
   dailyRevenue.addUSDValue(protocolMevFees * treasuryShare, METRIC.MEV_REWARDS)
-  dailyRevenue.addUSDValue((stakingProtocolFees + protocolMevFees) * operatorShare, METRIC.OPERATORS_FEES)
+
+  dailySupplySideRevenue.addUSDValue(stakingProtocolFees * operatorShare, 'Staking rewards to node operators')
+  dailySupplySideRevenue.addUSDValue(protocolMevFees * operatorShare, 'MEV rewards to node operators')
 
   return {
     dailyFees,
@@ -109,10 +111,10 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), split between the DAO treasury and node operator commissions per the live StakingRouter rate.",
+    Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
     HoldersRevenue: "No revenue distributed to LDO holders",
-    ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), split between the DAO treasury and node operator commissions per the live StakingRouter rate.",
-    SupplySideRevenue: "Staking rewards earned by stETH holders"
+    ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
+    SupplySideRevenue: "Staking rewards earned by stETH holders and node operators"
   },
   breakdownMethodology: {
     Fees: {
@@ -122,16 +124,16 @@ const adapter: Adapter = {
     Revenue: {
       [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. Ratio read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee).',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
-      [METRIC.OPERATORS_FEES]: 'Node operator commission across all active staking modules (NodeOps Curated, Simple DVT, Community Staking). Ratio = modulesFee / (modulesFee + treasuryFee).',
     },
     ProtocolRevenue: {
       [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards.',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
-      [METRIC.OPERATORS_FEES]: 'Node operator commission across all active staking modules.',
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to stakers.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
+      'Staking rewards to ETH stakers': 'Share of ETH rewards from running Beacon chain validators to stakers.',
+      'MEV rewards to ETH stakers': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
+      'Staking rewards to node operators': 'Share of ETH rewards from running Beacon chain validators to node operators.',
+      'MEV rewards to node operators': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to node operators.',
     },
   }
 }
