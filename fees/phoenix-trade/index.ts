@@ -1,99 +1,104 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryAllium } from "../../helpers/allium";
+import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
-const PHOENIX_PERPS_PROGRAM = "phDEVv4w6BcfkLrLNeXr8HhhgQxnxziVGXpGPcaadMf";
+const PHOENIX_PERPS_PROGRAM = "EtrnLzgbS7nMMy5fbD42kXiUzGg8XQzJ972Xtk1cjWih";
 const EVENTS = {
-  log: "8de6d6f209d1cfaa",
-  logEventLengths: "f70786cbb5479947",
-  orderFilled: "03",
-  splineFilled: "05",
-  tradeSummary: "06",
+  log: "0x8de6d6f209d1cfaa",
+  logEventLengths: "0xf70786cbb5479947",
+  orderFilled: "0x03",
+  splineFilled: "0x05",
+  tradeSummary: "0x06",
 };
-const ALLIUM_HEX_TO_INT_LE = "common.udfs.js_hextoint_littleendian_secure";
 
-async function fetch(options: FetchOptions) {
+async function fetch(_: any, __: any, options: FetchOptions) {
   const dailyFees = options.createBalances();
 
   const query = `
-    WITH logs AS (
+    WITH ixs AS (
       SELECT
-        *
-      FROM (
-        SELECT
-          txn_id,
-          instruction_index,
-          inner_instruction_index,
-          common.udfs.js_base58_to_hex_secure(data) AS hex_data
-        FROM solana.raw.success_nonvoting_inner_instructions
-        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-          AND program_id = '${PHOENIX_PERPS_PROGRAM}'
-      ) decoded
-      WHERE SUBSTR(hex_data, 1, 16) IN ('${EVENTS.log}', '${EVENTS.logEventLengths}')
+        tx_id,
+        outer_instruction_index,
+        inner_instruction_index,
+        data
+      FROM solana.instruction_calls
+      WHERE TIME_RANGE
+        AND executing_account = '${PHOENIX_PERPS_PROGRAM}'
+        AND tx_success = true
+        AND is_inner = true
+        AND bytearray_substring(data, 1, 8) IN (${EVENTS.log}, ${EVENTS.logEventLengths})
     ),
     batches AS (
       SELECT
-        l.txn_id,
-        l.instruction_index,
+        l.tx_id,
+        l.outer_instruction_index,
         l.inner_instruction_index,
-        l.hex_data AS log_data,
-        e.hex_data AS lengths_data,
-        ${ALLIUM_HEX_TO_INT_LE}('0x' || SUBSTR(e.hex_data, 25, 8))::INT AS event_count
-      FROM logs l
-      JOIN logs e
-        ON l.txn_id = e.txn_id
-        AND l.instruction_index = e.instruction_index
+        l.data AS log_data,
+        e.data AS lengths_data,
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(e.data, 13, 4))) AS INTEGER) AS event_count
+      FROM ixs l
+      JOIN ixs e
+        ON l.tx_id = e.tx_id
+        AND l.outer_instruction_index = e.outer_instruction_index
         AND l.inner_instruction_index = e.inner_instruction_index + 1
-      WHERE SUBSTR(l.hex_data, 1, 16) = '${EVENTS.log}'
-        AND SUBSTR(e.hex_data, 1, 16) = '${EVENTS.logEventLengths}'
+      WHERE bytearray_substring(l.data, 1, 8) = ${EVENTS.log}
+        AND bytearray_substring(e.data, 1, 8) = ${EVENTS.logEventLengths}
     ),
     lengths AS (
       SELECT
         b.*,
-        f.value::INT AS event_index,
-        ${ALLIUM_HEX_TO_INT_LE}('0x' || SUBSTR(lengths_data, 33 + f.value::INT * 4, 4))::INT AS event_len
+        event_index,
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(lengths_data, 17 + (event_index - 1) * 2, 2))) AS INTEGER) AS event_len
       FROM batches b
-      , LATERAL FLATTEN(input => ARRAY_GENERATE_RANGE(0, event_count)) f
+      CROSS JOIN UNNEST(sequence(1, event_count)) AS t(event_index)
     ),
     events AS (
       SELECT
-        SUBSTR(
+        bytearray_substring(
           log_data,
-          33 + 2 * COALESCE(
+          CAST(17 + COALESCE(
             SUM(event_len) OVER (
-              PARTITION BY txn_id, instruction_index, inner_instruction_index
+              PARTITION BY tx_id, outer_instruction_index, inner_instruction_index
               ORDER BY event_index
               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
             ),
             0
-          ),
-          event_len * 2
+          ) AS INTEGER),
+          event_len
         ) AS event_data
       FROM lengths
     ),
-    fee_events AS (
+    decoded_fees AS (
       SELECT
-        SUBSTR(event_data, 1, 2) AS event_type,
-        ${ALLIUM_HEX_TO_INT_LE}('0x' || SUBSTR(event_data, 133, 16))::DOUBLE AS taker_fee_quote_lots,
-        ${ALLIUM_HEX_TO_INT_LE}('0x' || SUBSTR(event_data, 53, 16))::DOUBLE AS quote_lots_filled,
-        ${ALLIUM_HEX_TO_INT_LE}('0x' || SUBSTR(event_data, 149, 8))::DOUBLE AS maker_fee_rate_raw
+        CASE
+          WHEN bytearray_substring(event_data, 1, 1) = ${EVENTS.tradeSummary}
+            THEN CAST(bytearray_to_bigint(bytearray_reverse(bytearray_substring(event_data, 67, 8))) AS DOUBLE)
+          ELSE 0
+        END AS taker_fee_quote_lots,
+        CASE
+          WHEN bytearray_substring(event_data, 1, 1) IN (${EVENTS.orderFilled}, ${EVENTS.splineFilled})
+            THEN
+              CAST(bytearray_to_bigint(bytearray_reverse(bytearray_substring(event_data, 27, 8))) AS DOUBLE)
+              * (
+                CASE
+                  WHEN CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(event_data, 75, 4))) AS DOUBLE) >= 2147483648
+                    THEN CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(event_data, 75, 4))) AS DOUBLE) - 4294967296
+                  ELSE CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(event_data, 75, 4))) AS DOUBLE)
+                END
+              )
+              / 1e6
+          ELSE 0
+        END AS maker_fee_quote_lots
       FROM events
-      WHERE SUBSTR(event_data, 1, 2) IN ('${EVENTS.tradeSummary}', '${EVENTS.orderFilled}', '${EVENTS.splineFilled}')
+      WHERE bytearray_substring(event_data, 1, 1) IN (${EVENTS.tradeSummary}, ${EVENTS.orderFilled}, ${EVENTS.splineFilled})
     )
     SELECT
-      COALESCE(SUM(
-        IFF(
-          event_type = '${EVENTS.tradeSummary}',
-          taker_fee_quote_lots,
-          quote_lots_filled * IFF(maker_fee_rate_raw >= 2147483648, maker_fee_rate_raw - 4294967296, maker_fee_rate_raw) / 1e6
-        )
-      ), 0) / 1e4 AS trading_fees_usd
-    FROM fee_events
+      COALESCE(SUM(taker_fee_quote_lots + maker_fee_quote_lots), 0) / 1e6 AS trading_fees_usd
+    FROM decoded_fees
   `;
 
-  const [res] = await queryAllium(query);
+  const [res] = await queryDuneSql(options, query);
   const tradingFees = res?.trading_fees_usd ?? 0;
   dailyFees.addUSDValue(tradingFees, METRIC.TRADING_FEES);
 
@@ -123,12 +128,11 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2025-11-18",
-  dependencies: [Dependencies.ALLIUM],
+  start: "2026-02-18",
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
