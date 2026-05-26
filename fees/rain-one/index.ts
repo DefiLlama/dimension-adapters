@@ -9,8 +9,10 @@ const ClaimEvent = "event Claim(address indexed wallet, uint256 winnerOption, ui
 const poolTokenSetEvent =
   "event PoolTokenSet(address indexed poolAddress,address indexed tokenAddress,uint256 tokenDecimals,string tokenName,string tokenSymbol)";
 
-const rainFactories = [
-  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817 },
+const rainFactories: { address: string; fromBlock: number; toBlock?: number }[] = [
+  // retired factory
+  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817, toBlock: 446061342 },
+  // active factory
   { address: "0xA8640B62D755e42C9ed6A86d0fc65CE09e31F264", fromBlock: 446257605 },
 ];
 const poolCreatedEvent =
@@ -25,6 +27,7 @@ const fetch = async (options: FetchOptions) => {
       target: factory.address,
       eventAbi: poolCreatedEvent,
       fromBlock: factory.fromBlock,
+      toBlock: factory.toBlock,
       cacheInCloud: true,
     })
   ))).flat();
@@ -40,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
       target: factory.address,
       eventAbi: poolTokenSetEvent,
       fromBlock: factory.fromBlock,
+      toBlock: factory.toBlock,
       cacheInCloud: true,
     })
   ))).flat();
