@@ -74,14 +74,11 @@ const fetch = async (options: FetchOptions) => {
     const decimalsResults: Array<any> = await options.api.multiCall({
       abi: 'uint8:decimals',
       calls: collateralAssetsV2,
-      permitFailure: true,
     });
     const decByAsset: Record<string, number> = {};
     collateralAssetsV2.forEach((asset, i) => {
       const d = Number(decimalsResults[i]);
-      if (!Number.isFinite(d)) {
-        throw new Error(`ethena: invalid decimals for collateral asset ${asset}`);
-      }
+      if (!Number.isFinite(d)) throw new Error(`ethena: invalid decimals for collateral asset ${asset}`);
       decByAsset[asset] = d;
     });
 
