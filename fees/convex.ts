@@ -191,34 +191,32 @@ const fetch = async (options: FetchOptions) => {
     supplySideCRV.add(CRV_TOKEN, lpCRVAmount, "CRV Revenue");
   }
 
-  // ── FXS revenue via Convex's Frax-side fee contracts ──────────────────────
-  // The original adapter tracked 5 FXS sub-flows via a Convex subgraph:
-  //   fxsRevenueToLpProviders, fxsRevenueToCvxFxsStakers,
-  //   fxsRevenueToCvxStakers, fxsRevenueToCallers, fxsRevenueToPlatform
-  // Without the subgraph's internal accounting we cannot split these cleanly,
-  // so we track the two on-chain recipient contracts directly:
-  //   STKFXS_STAKING   → stkCvxFxs staking rewards (cvxFXS stakers + CVX lockers)
-  //   FXS_FEE_DISTRIB  → fee distributor (LP providers + platform)
-  // Both flows are aggregated under 'FXS Revenue'. Post-2024 Frax gauge
-  // wind-down means these return ~$0 on recent dates, but the buckets are
-  // live and will capture any renewed FXS distribution automatically.
-  const fxsStakingRevenue  = createBalances();
-  const fxsDistribRevenue  = createBalances();
-
-  await Promise.all([
-    addTokensReceived({
-      token: FXS_TOKEN,
-      target: STKFXS_STAKING,
-      options,
-      balances: fxsStakingRevenue,
-    }),
-    addTokensReceived({
-      token: FXS_TOKEN,
+  // ── FXS revenue via on-chain distribution events ──────────────────────────
+  // Previous approach tracked inbound FXS transfers to these contracts, which
+  // misrepresents daily revenue (FXS arrives in batches, not per-distribution).
+  // noateden: use reward distribution/claim events instead.
+  //
+  //   FXS_FEE_DISTRIB → RewardDistributed(gauge_address, reward_amount)
+  //     FXS pushed out to each gauge → supply-side (LP providers)
+  //   STKFXS_STAKING  → RewardPaid(_user, _rewardsToken, _reward) filtered by FXS
+  //     FXS claimed by cvxFXS stakers / CVX lockers → holders revenue
+  const [fxsDistribLogs, fxsStakingLogs] = await Promise.all([
+    options.getLogs({
       target: FXS_FEE_DISTRIB,
-      options,
-      balances: fxsDistribRevenue,
+      eventAbi: "event RewardDistributed(address indexed gauge_address, uint256 reward_amount)",
+    }),
+    options.getLogs({
+      target: STKFXS_STAKING,
+      eventAbi: "event RewardPaid(address indexed _user, address indexed _rewardsToken, uint256 _reward)",
     }),
   ]);
+
+  const fxsDistribAmount = fxsDistribLogs.reduce(
+    (acc: bigint, log: any) => acc + BigInt(log.reward_amount), 0n
+  );
+  const fxsStakingAmount = fxsStakingLogs
+    .filter((log: any) => log._rewardsToken.toLowerCase() === FXS_TOKEN.toLowerCase())
+    .reduce((acc: bigint, log: any) => acc + BigInt(log._reward), 0n);
 
   // ── reUSD on-chain revenue (existing logic) ────────────────────────────────
   let reUSDRevenue = new BigNumber(0);
@@ -274,18 +272,18 @@ const fetch = async (options: FetchOptions) => {
   // LP supply-side CRV (extrapolated)
   dailySupplySideRevenue.addBalances(supplySideCRV);
 
-  // FXS to cvxFXS stakers/CVX lockers (STKFXS_STAKING) → fees + revenue + holders
-  dailyFees.addBalances(fxsStakingRevenue, "FXS Revenue");
-  dailyRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
-  dailyHoldersRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
+  // FXS claimed by cvxFXS stakers / CVX lockers (STKFXS_STAKING) → fees + revenue + holders
+  if (fxsStakingAmount > 0n) {
+    dailyFees.add(FXS_TOKEN, fxsStakingAmount, "FXS Revenue");
+    dailyRevenue.add(FXS_TOKEN, fxsStakingAmount, "FXS Revenue");
+    dailyHoldersRevenue.add(FXS_TOKEN, fxsStakingAmount, "FXS Revenue");
+  }
 
-  // FXS to LP providers (FXS_FEE_DISTRIB) → fees + supply-side only
-  // The fee distributor's primary purpose is LP provider incentives (supply-side).
-  // Without the original subgraph's internal LP/platform/caller split, we cannot
-  // cleanly separate the protocol-retained portion, so the entire distributor
-  // flow is classified as supply-side rather than double-counting across buckets.
-  dailyFees.addBalances(fxsDistribRevenue, "FXS Revenue");
-  dailySupplySideRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
+  // FXS distributed to gauges/LP providers (FXS_FEE_DISTRIB) → fees + supply-side only
+  if (fxsDistribAmount > 0n) {
+    dailyFees.add(FXS_TOKEN, fxsDistribAmount, "FXS Revenue");
+    dailySupplySideRevenue.add(FXS_TOKEN, fxsDistribAmount, "FXS Revenue");
+  }
 
   // reUSD revenue → protocol treasury
   dailyFees.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
