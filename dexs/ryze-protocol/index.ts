@@ -31,9 +31,9 @@ async function fetch(fetchOptions: FetchOptions) {
   logs.forEach((log: any) => {
     // The ethers v6 parsed log returns named arguments in log.args (or directly if mapped by SDK)
     // DefiLlama getLogs with eventAbi puts the parsed args directly on the log object
-    const tokenIn = log.tokenIn;
-    const amountIn = log.amountIn;
-    const feeDetails = log.feeDetails; // This is an array-like Result object containing the 5 tuples
+    const tokenIn = log.tokenIn || log.args?.tokenIn;
+    const amountIn = log.amountIn || log.args?.amountIn;
+    const feeDetails = log.feeDetails || log.args?.feeDetails; // This is an array-like Result object containing the 5 tuples
     
     // Arrays matching the tuple structure: [ [token, amount], [token, amount], ... ]
     // Index 0: swapFee, Index 1: takerFee, Index 2: wbfFee, Index 3: slippageFee, Index 4: wbrFee
@@ -83,8 +83,8 @@ async function fetch(fetchOptions: FetchOptions) {
     }
   });
 
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtractBalances(dailySupplySideRevenue);
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
 
   return {
     dailyVolume,
