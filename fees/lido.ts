@@ -47,8 +47,11 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const modulesFeeBp = Number(feeSplit.modulesFee)
   const treasuryFeeBp = Number(feeSplit.treasuryFee)
   const totalFeeBp = modulesFeeBp + treasuryFeeBp
+  // Fallback when the StakingRouter read yields a zero total (transient RPC fault or a
+  // governance state where module fees are unset). Defaulting treasuryShare to 1 keeps
+  // total Revenue unchanged in degraded reads and only loses the breakdown for those windows.
   const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0
-  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 0
+  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 1
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
