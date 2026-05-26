@@ -133,6 +133,11 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xF4346F5132e810f80a28487a79c7559d9797E8B0",
     start: "2025-12-16",
   },
+  [CHAIN.CITREA]: {
+    fromBlock: 2528230,
+    blue: "0x99D31FEcc885204b4136ea5D2ef2a37F36E3AeB8",
+    start: "2026-01-23",
+  },
   // [CHAIN.STABLE]: {
   //   fromBlock: 4342501,
   //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
