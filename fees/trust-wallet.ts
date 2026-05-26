@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 
@@ -201,6 +201,7 @@ const fetchFees = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
