@@ -7,7 +7,7 @@
  *
  * Events:
  * - 0x9f848aa20dc3829b23079d595ed719f55eec932a6805acf4909be88c88dd4d66::pools::SwapEventV2
- * - 0x75655b507f88d6dd8ee791eb8b1ffc4b8364bdde98e3c8467b360dbf177dd3aa::pools::SwapEvent
+ * - 0x759ead4f35266aff94d74d68d7c063e605742a496095c997e1cc9b07f7dd5f37::pools::SwapEvent
  * USDC: 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b
  */
 
