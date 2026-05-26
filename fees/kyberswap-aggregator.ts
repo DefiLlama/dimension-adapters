@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains"
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
@@ -95,6 +95,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   fetch,
   adapter: chainConfig,
   methodology,
