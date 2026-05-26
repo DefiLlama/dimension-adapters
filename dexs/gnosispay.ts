@@ -1,9 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const configs: Record<string, { spendModule: string, start: string }> = {
+const configs: Record<string, { spendModule: string }> = {
   [CHAIN.XDAI]: {
-    start: '2023-12-28',
     spendModule: '0xcff260bfbc199dc82717494299b1acade25f549b',
   }
 }
@@ -27,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  start: '2023-12-28',
   fetch,
   chains: [CHAIN.XDAI],
 };

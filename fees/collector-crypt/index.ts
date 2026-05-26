@@ -2,6 +2,8 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
+const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000];
+
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
@@ -9,7 +11,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     WITH gacha_in AS (
       SELECT 
-        SUM(amount / POWER(10, 6)) AS inflow
+        SUM(CASE WHEN amount / POWER(10, 6) = 25 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_25,
+        SUM(CASE WHEN amount / POWER(10, 6) = 50 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_50,
+        SUM(CASE WHEN amount / POWER(10, 6) = 75 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_75,
+        SUM(CASE WHEN amount / POWER(10, 6) = 80 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_80,
+        SUM(CASE WHEN amount / POWER(10, 6) = 100 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_100,
+        SUM(CASE WHEN amount / POWER(10, 6) = 250 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_250,
+        SUM(CASE WHEN amount / POWER(10, 6) = 1000 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_1000
       FROM tokens_solana.transfers
       WHERE to_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3','96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s')
         AND from_owner NOT IN (
@@ -29,7 +37,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
           'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8'
         )
-        AND amount / power(10, 6) IN (25, 50, 100, 250, 1000)
+        AND amount / power(10, 6) IN (25, 50, 75, 80, 100, 250, 1000)
         AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
         AND TIME_RANGE
     ),
@@ -69,10 +77,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         AND TIME_RANGE
     )
     SELECT 
-      COALESCE(g.inflow, 0) AS gacha_spend,
+      COALESCE(g.gacha_spend_25, 0) AS gacha_spend_25,
+      COALESCE(g.gacha_spend_50, 0) AS gacha_spend_50,
+      COALESCE(g.gacha_spend_75, 0) AS gacha_spend_75,
+      COALESCE(g.gacha_spend_80, 0) AS gacha_spend_80,
+      COALESCE(g.gacha_spend_100, 0) AS gacha_spend_100,
+      COALESCE(g.gacha_spend_250, 0) AS gacha_spend_250,
+      COALESCE(g.gacha_spend_1000, 0) AS gacha_spend_1000,
       COALESCE(f.inflow, 0) AS fees_royalty,
-      COALESCE(b.buyback, 0) AS buyback,
-      COALESCE(g.inflow, 0) + COALESCE(f.inflow, 0) - COALESCE(b.buyback, 0) AS net_revenue
+      COALESCE(b.buyback, 0) AS buyback
     FROM gacha_in g
       CROSS JOIN fees f
       CROSS JOIN buyback b
@@ -82,9 +95,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (data && data.length > 0) {
     const result = data[0];
-    const netRevenue = result.net_revenue || 0;
-    dailyFees.addUSDValue(netRevenue);
-    dailyVolume.addUSDValue(result.gacha_spend);
+    for (const tier of GACHA_TIERS) {
+      const spend = result[`gacha_spend_${tier}`] || 0;
+      if (spend) {
+        dailyVolume.addUSDValue(spend);
+        dailyFees.addUSDValue(spend, `Gacha $${tier} Pack Sales`);
+      }
+    }
+    dailyFees.addUSDValue(result.fees_royalty, 'Royalty Fees');
+    dailyFees.addUSDValue(-result.buyback, 'Pack Buyback Spends');
   }
 
   return {
@@ -104,6 +123,31 @@ const methodology = {
   ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
 }
 
+const breakdownMethodology = {
+  Fees: {
+    "Gacha $25 Pack Sales": "Gacha pack sales at $25.",
+    "Gacha $50 Pack Sales": "Gacha pack sales at $50.",
+    "Gacha $75 Pack Sales": "Gacha pack sales at $75.",
+    "Gacha $80 Pack Sales": "Gacha pack sales at $80.",
+    "Gacha $100 Pack Sales": "Gacha pack sales at $100.",
+    "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
+    "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
+    "Royalty Fees": "Royalty fees from marketplace transactions.",
+    "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
+  },
+  Revenue: {
+    "Gacha $25 Pack Sales": "Gacha pack sales at $25.",
+    "Gacha $50 Pack Sales": "Gacha pack sales at $50.",
+    "Gacha $75 Pack Sales": "Gacha pack sales at $75.",
+    "Gacha $80 Pack Sales": "Gacha pack sales at $80.",
+    "Gacha $100 Pack Sales": "Gacha pack sales at $100.",
+    "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
+    "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
+    "Royalty Fees": "Royalty fees from marketplace transactions.",
+    "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -111,6 +155,7 @@ const adapter: SimpleAdapter = {
   start: '2025-06-04',
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
   allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
 }
 
