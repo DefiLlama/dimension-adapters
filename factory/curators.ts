@@ -141,6 +141,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x16fa314141C76D4a0675f5e8e3CCBE4E0fA22C7c'],
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
       },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
+        start: '2025-09-04',
+      },
       [CHAIN.KATANA]: {
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
         start: '2025-12-22'
@@ -171,8 +175,17 @@ const configs: Record<string, CuratorConfig> = {
   "mev-capital": {
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0x06590Fef209Ebc1f8eEF83dA05984cD4eFf0d0E3', '0x650741eB4f6AB0776B9bF98A3280E3Cd6A2F1BF1', '0x6fA5d361Ab8165347F636217001E22a7cEF09B48'],
+        morphoVaultOwners: ['0x06590Fef209Ebc1f8eEF83dA05984cD4eFf0d0E3', '0x650741eB4f6AB0776B9bF98A3280E3Cd6A2F1BF1', '0x6fA5d361Ab8165347F636217001E22a7cEF09B48', '0x0f2dc4f7d060e5cee687b3acabd85d5c94efb756'],
         eulerVaultOwners: ['0xF1B4Ad34B4DbBAab120e4A04Eb3D3707Ea41b6eb', '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1'],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        morphoVaultOwners: [
+          '0x444543b439b1169cefc50be42caa628b0ea35d85',
+          '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1',
+          '0x6fA5d361Ab8165347F636217001E22a7cEF09B48',
+          '0x0f2dc4f7d060e5cee687b3acabd85d5c94efb756',
+        ],
+        start: '2025-04-24',
       },
       [CHAIN.SONIC]: {
         eulerVaultOwners: ['0xb1a084b03a75f4bBb895b91BF1f5E9615A28F17D', '0xB672Ea44A1EC692A9Baf851dC90a1Ee3DB25F1C4', '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1', '0x3fEcc0d59BF024De157996914e548047ec0ccCE5'],
@@ -443,6 +456,10 @@ const configs: Record<string, CuratorConfig> = {
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x50b75d586929ab2f75dc15f07e1b921b7c4ba8fa'],
+      },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B'],
+        start: '2025-07-22',
       },
       [CHAIN.KATANA]: {
         start: '2025-06-30',
