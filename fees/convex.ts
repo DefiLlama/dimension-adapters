@@ -58,7 +58,8 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
       });
     }
     return total;
-  } catch {
+  } catch (e) {
+    console.error("Convex: Failed to fetch Votium bribes", (e as Error).message);
     return 0; // llama.airforce unavailable — skip bribe revenue rather than failing adapter
   }
 };
