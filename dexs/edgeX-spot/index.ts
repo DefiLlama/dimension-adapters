@@ -1,7 +1,8 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 const SPOT_META_ENDPOINT = "https://spot.edgex.exchange/api/v1/public/meta/getMetaData";
 const klineEndpoint = (instrumentId: string, startTime: number, endTime: number) =>
@@ -16,7 +17,8 @@ const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOption
   const { results } = await PromisePool.withConcurrency(2)
     .for(symbols)
     .process(async (symbol: { symbolId: string }) => {
-      const response = await fetchURL(klineEndpoint(symbol.symbolId, startTime, endTime));
+      const response = await fetchURLAutoHandleRateLimit(klineEndpoint(symbol.symbolId, startTime, endTime));
+      await sleep(500);
       return response.data.dataList.reduce((total: number, kline: { value: string }) => total + Number(kline.value), 0);
     });
 
