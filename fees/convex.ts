@@ -270,7 +270,7 @@ const fetch = async (options: FetchOptions) => {
   dailyHoldersRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
 
   // LP supply-side CRV (extrapolated)
-  dailySupplySideRevenue.addBalances(supplySideCRV);
+  dailySupplySideRevenue.addBalances(supplySideCRV, "CRV Revenue");
 
   // FXS claimed by cvxFXS stakers / CVX lockers (STKFXS_STAKING) → fees + revenue + holders
   if (fxsStakingAmount > 0n) {
