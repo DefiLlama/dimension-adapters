@@ -757,6 +757,11 @@ const configs: Record<string, Record<string, any>> = {
   "qie-dex": {
     [CHAIN.QIEV3]: { factory: "0x8E23128a5511223bE6c0d64106e2D4508C08398C", start: '2025-08-05', fees: 0.003, revenueRatio: 0, }
   },
+  "wswap": {
+    [CHAIN.WCHAIN]: { factory: "0x2A44f013aD7D6a1083d8F499605Cf1148fbaCE31", start: '2025-06-19', fees: 0.003, revenueRatio: 0, },
+    [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },
+    [CHAIN.BSC]: { factory: "0x5105989c863e801fC610396529BE9f2A6B95bF0A", start: '2026-05-20', fees: 0.003, revenueRatio: 0, }
+  }
 }
 
 const optionsMap: Record<string, any> = {
