@@ -39,13 +39,13 @@ const fetch = async (options: FetchOptions) => {
     const performanceFeeLogs = await getLogs({
         targets: Object.keys(strategyMap),
         eventAbi: PERFORMANCE_FEE_EVENT,
-        entireLog: true,
+        onlyArgs: false,
     });
 
     const updateLogs = await getLogs({
         targets: Object.keys(strategyMap),
         eventAbi: HWMPPS_UPDATE_EVENT,
-        entireLog: true,
+        onlyArgs: false,
     });
 
     const combinedLogs: { 
@@ -79,7 +79,7 @@ const fetch = async (options: FetchOptions) => {
     const managementFeeLogs = await getLogs({
         targets: Object.keys(strategyMap),
         eventAbi: MANAGEMENT_FEE_EVENT,
-        entireLog: true,
+        onlyArgs: false,
     });
 
     for (const manageLogs of managementFeeLogs) {
@@ -155,8 +155,14 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   fetch,
-  chains: [CHAIN.ETHEREUM, CHAIN.BASE],
-  start: "2025-12-03"
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      start: "2025-12-03",
+    },
+    [CHAIN.BASE]: {
+      start: "2026-01-29",
+    },
+  }
 };
 
 
