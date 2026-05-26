@@ -16,6 +16,15 @@ const FXS_TOKEN = "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"; // Frax Share
 const CVXCRV_STAKING = "0x3Fe65692bfCD0e6CF84cB1E7d24108E434A7587e"; // lockRewards (10% of CRV)
 const CVX_LOCKER_REWARDS = "0xcf50b810e57ac33b91dcf525c6ddd9881b139332"; // stakerRewards (~4.5% of CRV)
 
+// FXS revenue recipients — Convex's Frax-side fee distribution contracts.
+// stkCvxFxs staking contract receives FXS for cvxFXS stakers and CVX lockers.
+// FXS fee distributor handles LP provider and platform FXS allocations.
+// Note: Frax gauge-based FXS emissions have wound down significantly post-2024;
+// flows are near-zero on recent dates but the buckets remain for parity with
+// the original adapter and will capture any future FXS revenue correctly.
+const STKFXS_STAKING = "0x49b4d1dF40442f0C31b1BbAEA3EDE7c38e37E31a"; // stkCvxFxs rewards
+const FXS_FEE_DISTRIB = "0x278dC748edA1d8eFEf1aDFB518542612b49Fcd34"; // FXS fee distributor
+
 // On-chain reUSD revenue (existing logic — retained unchanged)
 const CONVEX_PERMA_STAKER = "0xCCCCCccc94bFeCDd365b4Ee6B86108fC91848901".toLowerCase();
 const reUSD     = "0x57aB1E0003F623289CD798B1824Be09a793e4Bec";
@@ -53,8 +62,8 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
 // ─── Methodology ──────────────────────────────────────────────────────────────
 const methodology = {
   UserFees: "No user fees",
-  Fees: "CRV earned by cvxCRV stakers and CVX lockers from Convex's fee take, plus Votium bribes and reUSD locker revenue. Supply-side LP CRV rewards excluded from dailyFees.",
-  HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV stakers",
+  Fees: "CRV and FXS earned by cvxCRV/cvxFXS stakers and CVX lockers from Convex's fee take, plus Votium bribes and reUSD locker revenue. Supply-side LP CRV rewards excluded from dailyFees.",
+  HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers",
   Revenue: "Sum of protocol revenue and holders' revenue",
   ProtocolRevenue: "Votium bribes and reUSD revenue directed to Convex treasury",
   SupplySideRevenue: "CRV rewards received by LP stakers on Convex pools",
@@ -64,19 +73,24 @@ const breakdownMethodology = {
   Fees: {
     "CRV Revenue": "CRV flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive)",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
+    "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers, LP providers and platform via Convex's Frax-side fee contracts",
     "Others Revenue": "Votium bribes and reUSD locker revenue",
   },
   Revenue: {
     "CRV Revenue": "CRV to cvxCRV stakers and CVX lockers",
+    "FXS Revenue": "FXS distributed to cvxFXS stakers, CVX lockers and platform",
     "Others Revenue": "Votium bribes and reUSD revenue",
   },
   HoldersRevenue: {
     "CRV Revenue": "CRV directed to cvxCRV stakers and CVX lockers",
+    "FXS Revenue": "FXS directed to cvxFXS stakers and CVX lockers",
   },
   SupplySideRevenue: {
     "CRV Revenue": "CRV rewards to LP stakers via Convex pool reward contracts",
+    "FXS Revenue": "FXS rewards to LP providers via Convex's Frax gauge integration",
   },
   ProtocolRevenue: {
+    "FXS Revenue": "FXS retained by Convex platform and caller incentives",
     "Others Revenue": "Votium bribe income and reUSD yield retained by the treasury",
   },
 };
@@ -171,6 +185,35 @@ const fetch = async (options: FetchOptions) => {
     supplySideCRV.add(CRV_TOKEN, lpCRVAmount, "CRV Revenue");
   }
 
+  // ── FXS revenue via Convex's Frax-side fee contracts ──────────────────────
+  // The original adapter tracked 5 FXS sub-flows via a Convex subgraph:
+  //   fxsRevenueToLpProviders, fxsRevenueToCvxFxsStakers,
+  //   fxsRevenueToCvxStakers, fxsRevenueToCallers, fxsRevenueToPlatform
+  // Without the subgraph's internal accounting we cannot split these cleanly,
+  // so we track the two on-chain recipient contracts directly:
+  //   STKFXS_STAKING   → stkCvxFxs staking rewards (cvxFXS stakers + CVX lockers)
+  //   FXS_FEE_DISTRIB  → fee distributor (LP providers + platform)
+  // Both flows are aggregated under 'FXS Revenue'. Post-2024 Frax gauge
+  // wind-down means these return ~$0 on recent dates, but the buckets are
+  // live and will capture any renewed FXS distribution automatically.
+  const fxsStakingRevenue  = createBalances();
+  const fxsDistribRevenue  = createBalances();
+
+  await Promise.all([
+    addTokensReceived({
+      token: FXS_TOKEN,
+      target: STKFXS_STAKING,
+      options,
+      balances: fxsStakingRevenue,
+    }),
+    addTokensReceived({
+      token: FXS_TOKEN,
+      target: FXS_FEE_DISTRIB,
+      options,
+      balances: fxsDistribRevenue,
+    }),
+  ]);
+
   // ── reUSD on-chain revenue (existing logic) ────────────────────────────────
   let reUSDRevenue = new BigNumber(0);
   const isAfterReUSDIntegration = startTimestamp >= 1711152000; // 2025-03-23
@@ -224,6 +267,17 @@ const fetch = async (options: FetchOptions) => {
 
   // LP supply-side CRV (extrapolated)
   dailySupplySideRevenue.addBalances(supplySideCRV);
+
+  // FXS to cvxFXS stakers/CVX lockers (STKFXS_STAKING) → fees + revenue + holders
+  dailyFees.addBalances(fxsStakingRevenue, "FXS Revenue");
+  dailyRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
+  dailyHoldersRevenue.addBalances(fxsStakingRevenue, "FXS Revenue");
+
+  // FXS to LP providers/platform (FXS_FEE_DISTRIB) → fees + supply-side + protocol
+  dailyFees.addBalances(fxsDistribRevenue, "FXS Revenue");
+  dailyRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
+  dailySupplySideRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
+  dailyProtocolRevenue.addBalances(fxsDistribRevenue, "FXS Revenue");
 
   // reUSD revenue → protocol treasury
   dailyFees.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
