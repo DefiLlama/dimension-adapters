@@ -2,14 +2,14 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const chainConfig: Record<string, { endpoint: string; start: number }> = {
+const chainConfig: Record<string, { endpoint: string; start: string }> = {
   [CHAIN.CRONOS]: {
     endpoint: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-    start: 1677470400,
+    start: '2023-02-27',
   },
   [CHAIN.CRONOS_ZKEVM]: {
     endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
-    start: 1723698700,
+    start: '2024-08-15',
   },
 };
 const toUSD = (value: string | bigint) => Number(BigInt(value) / 10n ** 24n) / 1e6;
