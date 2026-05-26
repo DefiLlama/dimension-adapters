@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { sumTokens2 } from "../../helpers/unwrapLPs";
-import { addOneToken } from "../../helpers/prices";
 
 const FACTORY = '0xdf97B25A935EB72378e0C2D4DC15955ecE612b49';
 
