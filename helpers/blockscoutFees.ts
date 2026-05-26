@@ -144,6 +144,7 @@ export const chainConfigMap: any = {
   [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz', allStatsApi: 'https://fluentscan.xyz/node-api/proxy' },
   [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
   [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
+  [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
 }
 
 function getTimeString(timestamp: number) {
