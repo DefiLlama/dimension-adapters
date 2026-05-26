@@ -31,10 +31,6 @@ const fetch = async (options: FetchOptions) => {
 
   const pools = poolCreationLogs.map((log) => log.poolAddress);
 
-  const poolsEndTime = await options.api.multiCall({ abi: "uint256:endTime", calls: pools, });
-
-  const filteredPools = pools.filter((_, i) => poolsEndTime[i] >= options.fromTimestamp,);
-
   const poolTokenSetLogs = (await Promise.all(rainFactories.map((factory) =>
     options.getLogs({
       target: factory.address,
@@ -64,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
     noTarget: true,
     eventAbi: enterOptionEvent,
     entireLog: true,
-    targetsFilter: filteredPools,
+    targetsFilter: pools,
     processor: (logs) => {
       console.log(`Processed ${Array.isArray(logs) ? logs.length : 1} enterOption logs`)
       logs.forEach((log: any) => {
