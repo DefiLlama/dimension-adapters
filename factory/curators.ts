@@ -323,6 +323,7 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         eulerVaultOwners: ['0x5aB5FE7d04CFDeFb9daf61f6f569a58A53D05eE1'],
+        morphoVaultOwners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
         morphoVaultV2Owners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
       },
     },
@@ -438,7 +439,7 @@ const configs: Record<string, CuratorConfig> = {
     breakdownFees: true,
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B'],
+        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x75a1253432356f90611546a487b5350CEF08780D'],
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x50b75d586929ab2f75dc15f07e1b921b7c4ba8fa'],
