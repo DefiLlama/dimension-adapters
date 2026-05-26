@@ -33,7 +33,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  start: '2025-09-19',
+  start: '2026-05-01',
   chains: [CHAIN.MEGAETH],
   dependencies: [Dependencies.DUNE],
 }
