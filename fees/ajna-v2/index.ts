@@ -85,16 +85,12 @@ const fetch = async (options: FetchOptions) => {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: "Interest paid by borrowers for loans, with approximately 85-90% distributed to lenders",
-    "Reserve Accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns",
   },
   Revenue: {
-    "Reserve Accumulation To Protocol": "Protocol-held reserves pending auction, eventually used to buy back and burn AJNA tokens"
+    "Reserve Accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns"
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Interest distributed to lenders who supply liquidity to lending pools"
-  },
-  ProtocolRevenue: {
-    "Reserve Accumulation To Protocol": "Protocol-held reserves pending auction, eventually used to buy back and burn AJNA tokens"
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "AJNA token burns that reduce circulating supply, benefiting all token holders"
@@ -108,7 +104,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Total interest paid by borrowers: ~85-90% to lenders and ~10-15% to protocol reserves",
     Revenue: "~10-15% of borrower interest accumulated in pool reserves, held by the protocol pending reserve auctions",
-    ProtocolRevenue: "~10-15% of borrower interest accumulated in pool reserves, held pending reserve auctions",
+    ProtocolRevenue: "No revenue were collected by Ajna protocol.",
     HoldersRevenue: "Accumulated reserves auctioned periodically to buy back and burn AJNA tokens",
     SupplySideRevenue: "~85-90% of borrower interest distributed to lenders"
   },
