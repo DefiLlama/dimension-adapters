@@ -1,7 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
+// Holders revenue is calculated in edgex-v1 and resembles all products buyback
 const API_ENDPOINT = "https://edgex-prod-v2.edgex.exchange/api/v2/public/quote/fee";
 
 interface EdgeXFeeResponse {
@@ -22,9 +24,15 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     throw new Error(`No fee data found for timestamp ${options.dateString} (ms: ${startOfDayUTC}) in edgeX v2 response`);
   }
 
-  const dailyFees = dayData.fee;
-  const dailyRevenue = dayData.revenue;
-  const dailySupplySideRevenue = Number(dailyFees) - Number(dailyRevenue);
+  const fees = Number(dayData.fee);
+  const revenue = Number(dayData.revenue);
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
+  dailyRevenue.addUSDValue(revenue, METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(fees - revenue, "Trading Fees To Buyback");
 
   return {
     dailyFees,
@@ -33,11 +41,31 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Total trading fees paid by users on edgeX v2.",
+  Revenue: "The portion of trading fees kept by the protocol.",
+  SupplySideRevenue: "The portion of trading fees used to buyback EDGE token.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "All trading fees paid by users on edgeX v2.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "Trading fees kept by the edgeX protocol.",
+  },
+  SupplySideRevenue: {
+    ["Trading Fees To Buyback"]: "The portion of trading fees used to buyback EDGE token.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.EDGEX],
   start: "2026-05-12",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
