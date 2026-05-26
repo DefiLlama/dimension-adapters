@@ -21,36 +21,28 @@ const fetch = async (options: FetchOptions) => {
 
   const poolCreationLogs: any[] = [];
   for (const factory of rainFactories) {
-    try {
-      const logs = await options.getLogs({
-        target: factory.address,
-        eventAbi: poolCreatedEvent,
-        fromBlock: factory.fromBlock,
-        toBlock: factory.toBlock,
-        cacheInCloud: true,
-      });
-      poolCreationLogs.push(...logs);
-    } catch (e) {
-      console.error(`PoolCreated getLogs failed for factory ${factory.address}`, e);
-    }
+    const logs = await options.getLogs({
+      target: factory.address,
+      eventAbi: poolCreatedEvent,
+      fromBlock: factory.fromBlock,
+      toBlock: factory.toBlock,
+      cacheInCloud: true,
+    });
+    poolCreationLogs.push(...logs);
   }
 
   const pools = poolCreationLogs.map((log) => log.poolAddress);
 
   const poolTokenSetLogs: any[] = [];
   for (const factory of rainFactories) {
-    try {
-      const logs = await options.getLogs({
-        target: factory.address,
-        eventAbi: poolTokenSetEvent,
-        fromBlock: factory.fromBlock,
-        toBlock: factory.toBlock,
-        cacheInCloud: true,
-      });
-      poolTokenSetLogs.push(...logs);
-    } catch (e) {
-      console.error(`PoolTokenSet getLogs failed for factory ${factory.address}`, e);
-    }
+    const logs = await options.getLogs({
+      target: factory.address,
+      eventAbi: poolTokenSetEvent,
+      fromBlock: factory.fromBlock,
+      toBlock: factory.toBlock,
+      cacheInCloud: true,
+    });
+    poolTokenSetLogs.push(...logs);
   }
 
   const poolTokenMap: Record<string, { token: string; decimals: number }> = {};
