@@ -54,6 +54,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2025-07-09",
   methodology,
+  deadFrom: "2025-11-13",
 };
 
 export default adapter;

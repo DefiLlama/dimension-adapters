@@ -11,7 +11,8 @@ const methodology = {
 };
 
 const API_INFLATED_DAYS = [
-  1772755200 // 2026-03-06
+  1772755200, // 2026-03-06
+  1773446400 // 2026-03-14
 ]
 
 const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
@@ -22,7 +23,6 @@ const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
       },
     },
   );
-  
   const _dailyVolume = platformData.find(
     (dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay,
   );

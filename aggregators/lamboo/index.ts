@@ -63,38 +63,84 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
       WHERE ut.block_date >= d.start_ts
         AND ut.block_date < d.end_ts
     ),
+    event_flows AS (
+      SELECT
+        e.tx_version,
+        e.block_date,
+        JSON_EXTRACT_SCALAR(e.data, '$.store') AS store_address,
+        CAST(JSON_EXTRACT_SCALAR(e.data, '$.amount') AS DOUBLE) AS amount,
+        e.event_type
+      FROM aptos.events e
+      INNER JOIN fee_events fe
+        ON e.tx_version = fe.tx_version
+      CROSS JOIN date_filter d
+      WHERE e.block_date >= d.start_ts
+        AND e.block_date < d.end_ts
+        AND e.event_type IN ('${DEPOSIT_EVENT}', '${WITHDRAW_EVENT}')
+    ),
+    distinct_stores AS (
+      SELECT DISTINCT store_address
+      FROM event_flows
+    ),
+    store_metadata AS (
+      SELECT
+        mr.move_address AS store_address,
+        MAX(
+          CASE
+            WHEN move_resource_module = 'fungible_asset' AND move_resource_name = 'FungibleStore'
+            THEN json_extract_scalar(move_data, '$.metadata.inner')
+          END
+        ) AS token,
+        MAX(
+          CASE
+            WHEN move_resource_module = 'object' AND move_resource_name = 'ObjectCore'
+            THEN json_extract_scalar(move_data, '$.owner')
+          END
+        ) AS owner
+
+      FROM aptos.move_resources mr
+      INNER JOIN distinct_stores ds
+        ON ltrim(regexp_replace(CAST(mr.move_address AS VARCHAR), '^0x', ''), '0') = ltrim(regexp_replace(ds.store_address, '^0x', ''), '0')
+
+      CROSS JOIN date_filter d
+      WHERE mr.block_date >= d.start_ts
+        AND mr.block_date < d.end_ts
+        AND (
+          (move_resource_module = 'object' AND move_resource_name = 'ObjectCore')
+          OR
+          (move_resource_module = 'fungible_asset' AND move_resource_name = 'FungibleStore')
+        )
+      GROUP BY mr.move_address
+    ),
     final_volume AS (
       SELECT
-        date_trunc('day', faa.block_date) AS day,
+        date_trunc('day', ef.block_date) AS day,
         CASE
-          WHEN faa.asset_type IN (${APT_TOKEN_TYPES})
+          WHEN sm.token IN (${APT_TOKEN_TYPES})
             THEN '${APT_CANONICAL}'
-          WHEN faa.asset_type IN (${USD1_TOKEN_TYPES})
+          WHEN sm.token IN (${USD1_TOKEN_TYPES})
             THEN '${USD1_TOKEN}'
-          ELSE faa.asset_type
+          ELSE sm.token
         END AS token,
         ABS(SUM(
           CASE
-            WHEN faa.event_type = '${DEPOSIT_EVENT}' THEN faa.amount
-            WHEN faa.event_type = '${WITHDRAW_EVENT}' THEN -faa.amount
+            WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
+            WHEN ef.event_type = '${WITHDRAW_EVENT}' THEN -ef.amount
             ELSE 0
           END
         )) AS amount
-      FROM aptos_fungible_asset.activities faa
+      FROM event_flows ef
+      INNER JOIN store_metadata sm
+        ON ltrim(regexp_replace(ef.store_address, '^0x', ''), '0') = ltrim(regexp_replace(CAST(sm.store_address AS VARCHAR), '^0x', ''), '0')
       INNER JOIN fee_transactions ft
-        ON faa.tx_version = ft.tx_version
-       AND faa.owner_address = ft.sender
-      CROSS JOIN date_filter d
-      WHERE faa.block_date >= d.start_ts
-        AND faa.block_date < d.end_ts
-        AND faa.asset_type IN (
-          ${TRACKED_TOKEN_TYPES}
-        )
-      GROUP BY 1, 2, faa.tx_version
+        ON ef.tx_version = ft.tx_version
+      AND ltrim(regexp_replace(sm.owner, '^0x', ''), '0') = ltrim(regexp_replace(CAST(ft.sender AS VARCHAR), '^0x', ''), '0')
+      WHERE sm.token IN (${TRACKED_TOKEN_TYPES})
+      GROUP BY 1, 2, ef.tx_version
       HAVING ABS(SUM(
         CASE
-          WHEN faa.event_type = '${DEPOSIT_EVENT}' THEN faa.amount
-          WHEN faa.event_type = '${WITHDRAW_EVENT}' THEN -faa.amount
+          WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
+          WHEN ef.event_type = '${WITHDRAW_EVENT}' THEN -ef.amount
           ELSE 0
         END
       )) > 0.0001

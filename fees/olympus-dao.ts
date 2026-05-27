@@ -544,6 +544,39 @@ async function fetchBeraIBeraSales(options: FetchOptions) {
 }
 
 /**
+ * CEX-brokered BERA sales (static historical entries).
+ *
+ * Olympus sold BERA treasury holdings via an OTC intermediary (Binance).
+ * The flow: Treasury sent native BERA to broker EOA on Berachain → broker
+ * sold on Binance → broker sent USDS proceeds to Olympus Treasury MS on Ethereum.
+ *
+ * Native BERA transfers are not ERC-20 events and cannot be detected via log
+ * scanning. These sales are recorded as static entries, referenced by the
+ * Ethereum-side settlement tx hashes for auditability.
+ *
+ * Settlement receipts (Ethereum mainnet, USDS to Treasury MS 0x245cc372...):
+ *   OTC 1 (2026-02-07): 0x7382e6e899651d672d5cbbd5a4334b4b15a45a7d87da7bcb878de453f10d9d5f — $303,935 USDS
+ *   OTC 2 (2026-02-24): 0x48ca88614ba667ec3e7f48c696b6df6cd7130cd6f65762a50c5ac90131984f76 — $156,729 USDS
+ *
+ * Future BERA sales: wrap to WBERA before transferring to broker so sales are
+ * automatically captured as ERC-20 Transfer events by fetchBeraIBeraSales.
+ */
+const BERA_CEX_SETTLEMENTS: Array<{ dateUtc: string; timestamp: number; usdAmount: number }> = [
+  { dateUtc: "2026-02-07", timestamp: 1770422400, usdAmount: 303935.00 }, // 589,626 BERA — settlement: 0x7382e6e8...
+  { dateUtc: "2026-02-24", timestamp: 1771891200, usdAmount: 156729.20 }, // 257,570 BERA — settlement: 0x48ca8861...
+];
+
+function fetchBerachainCexSettlements(options: FetchOptions) {
+  const fees = options.createBalances();
+
+  for (const s of BERA_CEX_SETTLEMENTS) {
+    if (s.timestamp >= options.fromTimestamp && s.timestamp < options.toTimestamp)
+      fees.addUSDValue(s.usdAmount);
+  }
+  return fees;
+}
+
+/**
  * Aggregate all Berachain revenue streams
  */
 async function fetchBerachain(options: FetchOptions) {
@@ -554,11 +587,14 @@ async function fetchBerachain(options: FetchOptions) {
     fetchBeraIBeraSales(options),
   ]);
 
+  const cexSettlements = fetchBerachainCexSettlements(options);
+
   const dailyFees = options.createBalances();
   dailyFees.addBalances(ibgtSales);
   dailyFees.addBalances(iberaYield);
   dailyFees.addBalances(oberoExercises);
   dailyFees.addBalances(beraSales);
+  dailyFees.addBalances(cexSettlements);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }

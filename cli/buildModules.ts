@@ -15,7 +15,7 @@ async function run() {
 
 
 
-  const excludeKeys = new Set(["index", "README", '.gitkeep'])
+  const excludeKeys = new Set(["index", "README", '.gitkeep', 'GUIDELINES.md'])
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
@@ -154,7 +154,9 @@ async function run() {
 function mockFunctions(obj: any) {
   if (typeof obj === "function") {
     return '_f'  // llamaMockedTVLFunction
-  } else if (typeof obj === "object") {
+  } else if (typeof obj === "bigint") {
+    return Number(obj)
+  } else if (typeof obj === "object" && obj !== null) {
     Object.keys(obj).forEach((key) => obj[key] = mockFunctions(obj[key]))
   }
   return obj

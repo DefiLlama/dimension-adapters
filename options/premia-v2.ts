@@ -99,6 +99,7 @@ async function getV2Data(url: string, timestamp: string) {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-01-29',
   methodology: {
     UserFees:
       "Traders pay taker fees on each trade up to 3% of the option premium.",

@@ -60,7 +60,7 @@ const fetch = (endpoint) => {
 };
 
 const methodology = {
-  dailyVolume:
+  Volume:
     "Total cumulativeVolumeUsd for specified chain for the given day",
 }
 
@@ -76,6 +76,7 @@ const adapter: SimpleAdapter = {
       start: '2024-03-01',
     },
   },
+  deadFrom: "2025-06-04",
 };
 
 export default adapter;

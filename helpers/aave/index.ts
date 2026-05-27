@@ -54,27 +54,33 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     abi: AaveAbis.getReserveConfiguration,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
-  
+
   // get reserves factors
   const reserveFactors: Array<number> = pool.version === 1
     ? reservesList.map(_ => 0)
-    : reserveConfigs.map((config: any) => Number(config.reserveFactor))
+    : reserveConfigs.map((config: any) => config ? Number(config.reserveFactor) : 0)
 
   // count fees by growth liquidity index
   const reserveDataBefore = await options.fromApi.multiCall({
     abi: pool.version === 1 ? AaveAbis.getReserveDataV1 : pool.version === 2 ? AaveAbis.getReserveDataV2 : AaveAbis.getReserveDataV3,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
   const reserveDataAfter = await options.toApi.multiCall({
     abi: pool.version === 1 ? AaveAbis.getReserveDataV1 : pool.version === 2 ? AaveAbis.getReserveDataV2 : AaveAbis.getReserveDataV3,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
 
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
+    if (!reserveDataBefore[reserveIndex] || !reserveDataAfter[reserveIndex]) continue
+    if (pool.version !== 1 && !reserveConfigs[reserveIndex]) continue
+
     let totalLiquidity = BigInt(0)
     let totalVariableDebt = BigInt(0)
     if (pool.version === 1) {
@@ -1200,6 +1206,68 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 3,
             lendingPoolProxy: '0x3C7FEA4d4c3EbBf19E73b6C99CE4B8884B87Bfa6',
             dataProvider: '0x94e8122dF227B34998Ba7523ad88c943191cF4F1',
+          },
+        ],
+      },
+    },
+  },
+  'primefi-xyz': {
+    config: {
+      [CHAIN.BASE]: {
+        start: '2025-09-25',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
+            dataProvider: '0x7b7Cd09465ff2cab67360D5CD24A3Cc3ad0C856a',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-09-25',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0xb339448E13E273f6F46e3390e0932Ab7fF9F113F',
+            dataProvider: '0x3Bc108Ca0202739FC65bf453A255E5c49Ba6544a',
+          },
+        ],
+      },
+      [CHAIN.XDC]: {
+        start: '2025-10-13',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
+            dataProvider: '0x2E6bA568aaebadb4db3E018313ee34baD0328988',
+          },
+        ],
+      },
+    },
+  },
+  'zentra': {
+    config: {
+      [CHAIN.CITREA]: {
+        start: '2026-01-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xfb7908150b738e7dB9862007c66C9eb7850706F5',
+            dataProvider: '0x0FC811fE6bD0Be53717f9ca722E30a7bc4B90C31',
+          },
+        ],
+      },
+    },
+  },
+  'vena-finance': {
+    config: {
+      [CHAIN.FLUENT]: {
+        start: '2026-04-03',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
+            dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
           },
         ],
       },

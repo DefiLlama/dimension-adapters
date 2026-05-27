@@ -209,7 +209,7 @@ async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Pro
   return orderbooks;
 }
 
-function getFetch(type: 'PERPS' | 'SPOT') {
+export function getFetch(type: 'PERPS' | 'SPOT', traderId?: number) {
   return async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
@@ -244,105 +244,109 @@ function getFetch(type: 'PERPS' | 'SPOT') {
         
         const { fromFee, toFee, fromQuantity, toQuantity } = parseMatchQuantities(BigInt(log.spotMatchQuantities));
         
-        if (fromQuantity > 0n) {
-          dailyVolume.add(orderbooks.tokenAddresses[baseId], positionRawToErc20Raw(fromQuantity, basePosD, baseErc))
-        } else {
-          dailyVolume.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(toQuantity, quotePosD, quoteErc))
+        if (traderId === undefined || Number(log.buyer) === traderId || Number(log.seller) === traderId) {
+          if (fromQuantity > 0n) {
+            dailyVolume.add(orderbooks.tokenAddresses[baseId], positionRawToErc20Raw(fromQuantity, basePosD, baseErc))
+          } else {
+            dailyVolume.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(toQuantity, quotePosD, quoteErc))
+          }
+          
+          if (type === 'PERPS') {
+            // Perp: both fees in quote (position raw)
+            dailyFees.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(fromFee + toFee, quotePosD, quoteErc), METRICS.PerpsFees)
+          } else {
+            // Spot: fromFee = buyer fee in base (position raw), toFee = seller fee in quote (position raw)
+            dailyFees.add(orderbooks.tokenAddresses[baseId], positionRawToErc20Raw(fromFee, basePosD, baseErc), METRICS.SpotFees)
+            dailyFees.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(toFee, quotePosD, quoteErc), METRICS.SpotFees)
+          }
         }
-        
-        if (type === 'PERPS') {
-          // Perp: both fees in quote (position raw)
-          dailyFees.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(fromFee + toFee, quotePosD, quoteErc), METRICS.PerpsFees)
-        } else {
-          // Spot: fromFee = buyer fee in base (position raw), toFee = seller fee in quote (position raw)
-          dailyFees.add(orderbooks.tokenAddresses[baseId], positionRawToErc20Raw(fromFee, basePosD, baseErc), METRICS.SpotFees)
-          dailyFees.add(orderbooks.tokenAddresses[quoteId], positionRawToErc20Raw(toFee, quotePosD, quoteErc), METRICS.SpotFees)
-        }
       }
     }
     
-    const interestPaidLogs = await options.getLogs({
-      target: COMPOSITE_EXCHANGE,
-      eventAbi: INTEREST_PAID_EVENT,
-    });
-    
-    const positionIds = [...new Set((interestPaidLogs as any[]).map((l) => l.args?.positionId ?? l.positionId).filter(Boolean))];
-    const positionToTokenId: Record<string, number> = {};
-    
-    const [closedLogs, changedLogs] = await Promise.all([
-      options.getLogs({
+    if (traderId === undefined) {
+      const interestPaidLogs = await options.getLogs({
         target: COMPOSITE_EXCHANGE,
-        eventAbi: LEND_POSITION_CLOSED_EVENT,
-      }),
-      options.getLogs({
-        target: COMPOSITE_EXCHANGE,
-        eventAbi: LEND_POSITION_CHANGED_EVENT,
-      }),
-    ]);
-    for (const log of closedLogs as any[]) {
-      const positionId = String(log.positionId);
-      const raw = log.lendMatch;
-      if (positionId && raw != null && raw !== 0n) {
-        const tid = tokenIdFromLendMatch(BigInt(raw));
-        if (tid !== 0) positionToTokenId[positionId] = tid;
-      }
-    }
-    for (const log of changedLogs as any[]) {
-      const positionId = String(log.positionId);
-      const raw = log.lendMatch;
-      if (positionId && raw != null && raw !== 0n) {
-        const tid = tokenIdFromLendingEventData(BigInt(raw));
-        if (tid !== 0) positionToTokenId[positionId] = tid;
-      }
-    }
-    
-    const missingPositionIds = positionIds.filter((id) => positionToTokenId[String(id)] == null);
-    if (missingPositionIds.length > 0) {
-      const lendPositions = await options.api.multiCall({
-        abi: ABI_GET_LEND_POSITION,
-        target: COMPOSITE_EXCHANGE,
-        calls: missingPositionIds.map((positionId) => ({ target: COMPOSITE_EXCHANGE, params: [positionId] })),
-        permitFailure: true,
+        eventAbi: INTEREST_PAID_EVENT,
       });
-      missingPositionIds.forEach((positionId, i) => {
-        const raw = lendPositions[i];
-        if (raw != null && raw !== 0n) {
+      
+      const positionIds = [...new Set((interestPaidLogs as any[]).map((l) => l.args?.positionId ?? l.positionId).filter(Boolean))];
+      const positionToTokenId: Record<string, number> = {};
+      
+      const [closedLogs, changedLogs] = await Promise.all([
+        options.getLogs({
+          target: COMPOSITE_EXCHANGE,
+          eventAbi: LEND_POSITION_CLOSED_EVENT,
+        }),
+        options.getLogs({
+          target: COMPOSITE_EXCHANGE,
+          eventAbi: LEND_POSITION_CHANGED_EVENT,
+        }),
+      ]);
+      for (const log of closedLogs as any[]) {
+        const positionId = String(log.positionId);
+        const raw = log.lendMatch;
+        if (positionId && raw != null && raw !== 0n) {
           const tid = tokenIdFromLendMatch(BigInt(raw));
-          if (tid !== 0) positionToTokenId[String(positionId)] = tid;
+          if (tid !== 0) positionToTokenId[positionId] = tid;
         }
+      }
+      for (const log of changedLogs as any[]) {
+        const positionId = String(log.positionId);
+        const raw = log.lendMatch;
+        if (positionId && raw != null && raw !== 0n) {
+          const tid = tokenIdFromLendingEventData(BigInt(raw));
+          if (tid !== 0) positionToTokenId[positionId] = tid;
+        }
+      }
+      
+      const missingPositionIds = positionIds.filter((id) => positionToTokenId[String(id)] == null);
+      if (missingPositionIds.length > 0) {
+        const lendPositions = await options.api.multiCall({
+          abi: ABI_GET_LEND_POSITION,
+          target: COMPOSITE_EXCHANGE,
+          calls: missingPositionIds.map((positionId) => ({ target: COMPOSITE_EXCHANGE, params: [positionId] })),
+          permitFailure: true,
+        });
+        missingPositionIds.forEach((positionId, i) => {
+          const raw = lendPositions[i];
+          if (raw != null && raw !== 0n) {
+            const tid = tokenIdFromLendMatch(BigInt(raw));
+            if (tid !== 0) positionToTokenId[String(positionId)] = tid;
+          }
+        });
+      }
+      
+      for (const log of interestPaidLogs as any[]) {
+        const positionId = log.positionId
+        const interestAndFeesRaw = log.interestAndFees;
+        if (interestAndFeesRaw == null) continue;
+        const { fees } = parseInterestPaidData(BigInt(interestAndFeesRaw));
+        const tokenId = positionToTokenId[String(positionId)];
+    
+        if (fees === 0n) continue;
+        if (tokenId == null || tokenId === 0) continue; // position closed/unreadable or invalid
+        const vaultDecimals = orderbooks.tokenVaultDecimals[tokenId] ?? 18;
+        const erc20Decimals = orderbooks.tokenErc20Decimals[tokenId] ?? vaultDecimals;
+        const rawErc20 = vaultRawToErc20Raw(fees, vaultDecimals, erc20Decimals);
+        
+        dailyFees.add(orderbooks.tokenAddresses[tokenId], rawErc20, METRICS.LendingInterest);
+      }
+      
+      const liquidationLogs = await options.getLogs({
+        target: COMPOSITE_EXCHANGE,
+        eventAbi: LIQUIDATION_EVENT,
       });
-    }
-    
-    for (const log of interestPaidLogs as any[]) {
-      const positionId = log.positionId
-      const interestAndFeesRaw = log.interestAndFees;
-      if (interestAndFeesRaw == null) continue;
-      const { fees } = parseInterestPaidData(BigInt(interestAndFeesRaw));
-      const tokenId = positionToTokenId[String(positionId)];
-  
-      if (fees === 0n) continue;
-      if (tokenId == null || tokenId === 0) continue; // position closed/unreadable or invalid
-      const vaultDecimals = orderbooks.tokenVaultDecimals[tokenId] ?? 18;
-      const erc20Decimals = orderbooks.tokenErc20Decimals[tokenId] ?? vaultDecimals;
-      const rawErc20 = vaultRawToErc20Raw(fees, vaultDecimals, erc20Decimals);
-      
-      dailyFees.add(orderbooks.tokenAddresses[tokenId], rawErc20, METRICS.LendingInterest);
-    }
-    
-    const liquidationLogs = await options.getLogs({
-      target: COMPOSITE_EXCHANGE,
-      eventAbi: LIQUIDATION_EVENT,
-    });
-    const usdmVaultDecimals = orderbooks.tokenVaultDecimals[USDM_TOKEN_ID] ?? 18;
-    const usdmErc20Decimals = orderbooks.tokenErc20Decimals[USDM_TOKEN_ID] ?? usdmVaultDecimals;
-    for (const log of liquidationLogs as any[]) {
-      const raw = log.liquidatoinPayoff
-      if (raw == null) continue;
-      const quantity = parseLiquidationPayoffQuantity(BigInt(raw));
-      if (quantity === 0n) continue;
-      const rawErc20 = vaultRawToErc20Raw(quantity, usdmVaultDecimals, usdmErc20Decimals);
-      
-      dailyFees.add(orderbooks.tokenAddresses[USDM_TOKEN_ID], rawErc20, METRICS.LiquidationFees);
+      const usdmVaultDecimals = orderbooks.tokenVaultDecimals[USDM_TOKEN_ID] ?? 18;
+      const usdmErc20Decimals = orderbooks.tokenErc20Decimals[USDM_TOKEN_ID] ?? usdmVaultDecimals;
+      for (const log of liquidationLogs as any[]) {
+        const raw = log.liquidatoinPayoff
+        if (raw == null) continue;
+        const quantity = parseLiquidationPayoffQuantity(BigInt(raw));
+        if (quantity === 0n) continue;
+        const rawErc20 = vaultRawToErc20Raw(quantity, usdmVaultDecimals, usdmErc20Decimals);
+        
+        dailyFees.add(orderbooks.tokenAddresses[USDM_TOKEN_ID], rawErc20, METRICS.LiquidationFees);
+      }
     }
     
     return {

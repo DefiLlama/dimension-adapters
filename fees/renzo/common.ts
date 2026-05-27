@@ -98,28 +98,28 @@ const ethFeesQuery = gql`
   query RenzoETHFeesQuery($start: Timestamp!, $end: Timestamp!) {
     stakingConsensusProtocolFeeStats(
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalFeeAmountWei
     }
     
     stakingExecutionProtocolFeeStats(
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalFeeAmountWei
     }
     
     rewardDepositProtocolFeeStats(
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalFeeAmountWei
     }
     
     rewardForwardProtocolFeeStats(
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalFeeAmountWei
     }
@@ -128,7 +128,7 @@ const ethFeesQuery = gql`
       interval: day
       where: {
         timestamp_gte: $start,
-        timestamp_lte: $end,
+        timestamp_lt: $end,
         withdrawnToken: "${ETH_TOKEN_ID}"
       }
     ) {
@@ -141,35 +141,35 @@ const ethEarningsQuery = gql`
   query RenzoETHEarningsQuery($start: Timestamp!, $end: Timestamp!) {
     stakingConsensusEarningStats (
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalAmountWei
     }
 
     stakingExecutionEarningStats (
       interval: day 
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalAmountWei
     }
 
     rewardDepositEarningStats (
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalAmountWei
     }
 
     rewardForwardEarningStats (
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalAmountWei
     }
 
     lidoDistributionEarningStats (
       interval: day
-      where: { timestamp_gte: $start, timestamp_lte: $end }
+      where: { timestamp_gte: $start, timestamp_lt: $end }
     ) {
       totalDistributionEarned
     }
@@ -184,7 +184,7 @@ const erc20FeesQuery = gql`
       where: {
         feeType: vault,
         timestamp_gte: $start,
-        timestamp_lte: $end,
+        timestamp_lt: $end,
       }
     ) {
       feeToken {
@@ -204,7 +204,7 @@ const erc20FeesQuery = gql`
           id_in: $vaults
         },
         timestamp_gte: $start,
-        timestamp_lte: $end
+        timestamp_lt: $end
       }
     ) {
       feeToken {
@@ -220,7 +220,7 @@ const erc20FeesQuery = gql`
       interval: day
       where: {
         timestamp_gte: $start,
-        timestamp_lte: $end,
+        timestamp_lt: $end,
         withdrawnToken_: {
           id_not: "${ETH_TOKEN_ID}"
         }
@@ -242,7 +242,7 @@ const erc20EarningsQuery = gql`
       interval: day
       where: {
         timestamp_gte: $start,
-        timestamp_lte: $end,
+        timestamp_lt: $end,
         vault_: {
           id_in: $vaults
         }
@@ -260,7 +260,7 @@ const erc20EarningsQuery = gql`
       interval: day
       where: {
         timestamp_gte: $start,
-        timestamp_lte: $end,
+        timestamp_lt: $end,
         vault_: {
           id_in: $vaults
         }

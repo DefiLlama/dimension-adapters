@@ -6,13 +6,17 @@ import { METRIC } from '../../helpers/metrics'
 const breakdownMethodology = {
   Fees: {
     [METRIC.LP_FEES]: 'Fees paid by traders on token swaps, distributed to liquidity providers',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'Fees paid by traders on token swaps, distributed to liquidity providers',
   }
 }
 
 export default {
   version: 2,
   methodology: {
-    Fees: 'Fees collected from borrowers and traders.'
+    Fees: 'Fees collected from borrowers and traders.',
+    SupplySideRevenue: 'All the fees collected from borrowers and traders are distributed to liquidity providers.',
   },
   breakdownMethodology,
   runAtCurrTime: true,
@@ -29,7 +33,7 @@ export default {
           dailyFees.add(pool.base_address, pool.base_lp_fees_24h * (10 ** pool.base_decimals), METRIC.LP_FEES)
           dailyFees.add(pool.quote_address, pool.quote_lp_fees_24h * (10 ** pool.quote_decimals), METRIC.LP_FEES)
         })
-        return { dailyVolume, dailyFees, }
+        return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees }
       },
     },
   }

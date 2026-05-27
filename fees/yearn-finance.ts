@@ -32,7 +32,7 @@ const breakdownMethodology = {
   },
 }
 
-const vaultListApi = (chainId: number) => `https://ydaemon.yearn.finance/vaults/all?chainids=${chainId}&limit=100000`
+const vaultListApi = (chainId: number) => `https://ydaemon.yearn.fi/vaults/all?chainids=${chainId}&limit=100000`
 
 const YearnVaultsV1: Array<string> = [
   '0x597aD1e0c13Bfe8025993D9e79C69E1c0233522e',
@@ -80,12 +80,13 @@ const ContractAbis = {
   decimals: 'uint8:decimals',
 }
 
-const ChainIds: { [key: string]: number } = {
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.OPTIMISM]: 10,
-  [CHAIN.POLYGON]: 137,
-  [CHAIN.ARBITRUM]: 42161,
-  [CHAIN.BASE]: 8453,
+const chainConfig: { [key: string]: { chainId: number, start: string } } = {
+  [CHAIN.ETHEREUM]: { chainId: 1, start: '2020-07-27' },
+  [CHAIN.OPTIMISM]: { chainId: 10, start: '2024-01-01' },
+  [CHAIN.POLYGON]: { chainId: 137, start: '2024-01-01' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2024-01-01' },
+  [CHAIN.BASE]: { chainId: 8453, start: '2024-01-01' },
+  [CHAIN.KATANA]: { chainId: 747474, start: '2025-06-10' },
 }
 
 interface IVault {
@@ -165,7 +166,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }
 
   // get v2, v3 vaults data
-  const configs = await getConfig(`yearn/vaults-${options.chain}`, vaultListApi(ChainIds[options.chain]))
+  const configs = await getConfig(`yearn/vaults-${options.chain}`, vaultListApi(chainConfig[options.chain].chainId))
   const vaultTotalSupply = await options.api.multiCall({
     abi: ContractAbis.totalSupply,
     calls: configs.map((config: any) => config.address),
@@ -259,13 +260,7 @@ const adapter: Adapter = {
   breakdownMethodology,
   fetch,
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: '2020-07-27', },
-    [CHAIN.POLYGON]: { start: '2024-01-01', },
-    [CHAIN.OPTIMISM]: { start: '2024-01-01', },
-    [CHAIN.ARBITRUM]: { start: '2024-01-01', },
-    [CHAIN.BASE]: { start: '2024-01-01', },
-  },
+  adapter: chainConfig,
 };
 
 export default adapter;

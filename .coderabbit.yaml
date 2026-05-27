@@ -1,0 +1,174 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: true
+  suggested_reviewers: true
+  
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - master
+
+  # Pre-merge checks (Pro feature)
+  pre_merge_checks:
+    docstrings:
+      mode: "warning"
+      threshold: 50
+    title:
+      mode: "warning"
+      requirements: "Title should be descriptive and follow format: [type] protocol-name - description"
+    description:
+      mode: "warning"
+    custom_checks:
+      - name: "Breakdown Methodology Check"
+        mode: "warning"
+        instructions: "For fees adapters: verify that all breakdown labels used in .add() calls have corresponding entries in breakdownMethodology object. Check that breakdownMethodology is exported in the adapter."
+      - name: "Income Statement Compliance"
+        mode: "warning"
+        instructions: "For fees adapters: verify dailyFees represents Gross Protocol Revenue (all potential fees), dailyRevenue represents Gross Profit (protocol's portion), and dailySupplySideRevenue represents Cost of Funds (supplier payments). Ensure dailyRevenue = dailyFees - dailySupplySideRevenue conceptually."
+      - name: "Version 2 Required"
+        mode: "warning"
+        instructions: "New adapters must use version: 2 format. Check that the adapter exports version: 2 unless it's updating an existing v1 adapter."
+
+  # Finishing touches (Pro feature)
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: true
+
+  # Path-specific review instructions
+  path_instructions:
+    - path: "fees/**"
+      instructions: |
+        Review fees adapters for:
+        - Correct income statement mapping (dailyFees = Gross Protocol Revenue, dailyRevenue = Gross Profit, dailySupplySideRevenue = Cost of Funds)
+        - All breakdown labels must have corresponding breakdownMethodology entries
+        - Labels should be descriptive (not vague like "Protocol Fees" or "Other")
+        - dailySupplySideRevenue required when protocol pays suppliers (LPs, lenders, stakers, integrators, referrers)
+        - Block rewards are incentives NOT fees
+        - Use web search to verify protocol's fee structure if unclear
+    
+    - path: "dexs/**"
+      instructions: |
+        Review DEX adapters for:
+        - Volume calculation accuracy
+        - For perpetuals: ONLY track taker volume (do NOT double-count maker+taker)
+        - Wash trading concerns on low-fee chains
+        - If fees are tracked, verify income statement compliance (see fees/ guidelines)
+        - Use helper functions when available (uniV2Exports, uniV3Exports)
+    
+    - path: "aggregators/**"
+      instructions: |
+        Review aggregator adapters for:
+        - Volume should be routed volume, NOT double-counted with underlying DEX volume
+        - Check for integration/partner fees as supply-side costs
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-derivatives/**"
+      instructions: |
+        Review derivatives aggregator adapters for:
+        - ONLY track taker volume (no maker+taker double-counting)
+        - Check open interest tracking if applicable
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-options/**"
+      instructions: |
+        Review options aggregator adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Ensure routed options volume is not double-counted with underlying protocols
+        - If fees tracked, verify income statement compliance
+    
+    - path: "bridge-aggregators/**"
+      instructions: |
+        Review bridge aggregator adapters for:
+        - Track routed bridge volume only (dailyBridgeVolume)
+        - Avoid double-counting with underlying bridge protocols
+        - Verify multi-chain transfer accounting consistency
+        - If fees tracked, verify income statement compliance
+    
+    - path: "options/**"
+      instructions: |
+        Review options adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Don't confuse notional vs premium volume
+        - If fees tracked, verify income statement compliance
+    
+    - path: "incentives/**"
+      instructions: |
+        Review incentives adapters for:
+        - Block rewards and emissions classified as incentives, not fees
+        - dailyTokenIncentives required; dailyIncentives when applicable
+        - No double-counting with fees adapters
+    
+    - path: "helpers/**"
+      instructions: |
+        Review helper code for:
+        - Reusability across multiple adapters
+        - Proper TypeScript types
+        - No npm dependencies allowed
+        - Use api.multiCall for batching, not Promise.all
+
+  # Labeling suggestions
+  labeling_instructions:
+    - label: "fees"
+      instructions: "Apply when PR changes files in fees/ directory"
+    - label: "dexs"
+      instructions: "Apply when PR changes files in dexs/ directory"
+    - label: "aggregators"
+      instructions: "Apply when PR changes files in aggregators/ directory"
+    - label: "new-adapter"
+      instructions: "Apply when PR adds a new adapter file that didn't exist before"
+    - label: "methodology"
+      instructions: "Apply when PR changes fee/revenue calculation methodology or breakdownMethodology"
+    - label: "helper"
+      instructions: "Apply when PR changes files in helpers/ directory"
+    - label: "bug-fix"
+      instructions: "Apply when PR fixes a bug in existing adapter"
+
+  # Tools for linting
+  tools:
+    biome:
+      enabled: true
+    eslint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 300000
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  web_search:
+    enabled: true
+  opt_out: false
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/GUIDELINES.md"
+  learnings:
+    scope: global
+  issues:
+    scope: global
+  pull_requests:
+    scope: global

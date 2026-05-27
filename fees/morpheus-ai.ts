@@ -79,7 +79,6 @@ const DEPOSIT_POOLS = {
 const MetricLabels = {
   LIDO_STAKING: 'Lido stETH Staking Rewards',
   AAVE_LENDING: 'Aave Borrow Interest',
-  MOR_EMISSION: 'MOR Token Emission',
   TOKEN_BUY_BACK: METRIC.TOKEN_BUY_BACK,
 }
 
@@ -191,26 +190,10 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 3. Track MOR emissions to users (supply side)
-  // MintMessageSent is emitted when users claim MOR rewards
-  const dailySupplySideRevenue = options.createBalances()
-
-  const mintMessageLogs = await options.getLogs({
-    target: L1_SENDER_V2,
-    eventAbi: 'event MintMessageSent(address user, uint256 amount)',
-  })
-
-  for (const log of mintMessageLogs) {
-    // Track MOR emissions - convert from wei (18 decimals) to whole tokens
-    const morAmount = Number(log.amount) / 1e18
-    dailySupplySideRevenue.addCGToken(MOR_COINGECKO_ID, morAmount, MetricLabels.MOR_EMISSION)
-    dailyFees.addCGToken(MOR_COINGECKO_ID, morAmount, MetricLabels.MOR_EMISSION)
-  }
-
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue, // MOR token emissions to depositors (separate from captured yield)
+    dailySupplySideRevenue: 0,
 
     // buy back on arbitrum
     dailyHoldersRevenue: 0,
@@ -264,25 +247,17 @@ const adapter: SimpleAdapter = {
     Fees: 'Yield captured from deposits: stETH rebasing (Lido) + Aave V3 interest on wETH, USDC, USDT, wBTC.',
     Revenue: 'All captured yield (100%).',
     HoldersRevenue: 'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL.',
-    SupplySideRevenue:
-      'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
   },
   breakdownMethodology: {
     Fees: {
       [MetricLabels.LIDO_STAKING]: 'Yield captured from stETH rebasing (Lido)',
       [MetricLabels.AAVE_LENDING]: 'Yield captured from Aave V3 interest on wETH, USDC, USDT, wBTC',
-      [MetricLabels.MOR_EMISSION]:
-        'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
       [MetricLabels.TOKEN_BUY_BACK]:
         'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL',
     },
     Revenue: {
       [MetricLabels.LIDO_STAKING]: 'Yield captured from stETH rebasing (Lido)',
       [MetricLabels.AAVE_LENDING]: 'Yield captured from Aave V3 interest on wETH, USDC, USDT, wBTC',
-    },
-    SupplySideRevenue: {
-      [MetricLabels.MOR_EMISSION]:
-        'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
     },
     HoldersRevenue: {
       [MetricLabels.TOKEN_BUY_BACK]:

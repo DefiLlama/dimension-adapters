@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -9,7 +10,21 @@ interface IData {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data: IData[] = await queryAllium(
-    `WITH volume_data AS (
+    `WITH pool_filter AS (
+      SELECT DISTINCT
+        liquidity_pool_address
+      FROM solana.dex.pools
+      WHERE project = 'pumpswap'
+        AND token1_address IN (
+          '${ADDRESSES.solana.SOL}',
+          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+          '${ADDRESSES.solana.USDC}',
+          '${ADDRESSES.solana.USDT}',
+          '${ADDRESSES.solana.PUMP}',
+          'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
+        )
+    ),
+    volume_data AS (
       SELECT 
         pool,
         sender_token_acc,
@@ -18,13 +33,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       WHERE project = 'pumpswap'
         AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
         AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        AND pool IN (SELECT liquidity_pool_address FROM pool_filter)
       GROUP BY pool, sender_token_acc
     ),
     pool_volume AS (
       SELECT 
         pool,
         SUM(volume_usd) as total_volume_usd,
-        COUNT(DISTINCT sender_token_acc) as unique_senders
+        COUNT(DISTINCT sender_token_acc) as unique_traders
       FROM volume_data
       GROUP BY pool
     ),
@@ -53,7 +69,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
     SELECT 
       SUM(CASE 
-        WHEN pt.total_tvl_usd >= 5000 AND pv.unique_senders >= 50 THEN pv.total_volume_usd 
+        WHEN pt.total_tvl_usd >= 5000 AND pv.unique_traders >= 50 THEN pv.total_volume_usd 
         ELSE 0 
       END) as clean_volume
     FROM pool_volume pv
@@ -75,7 +91,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with TVL < $5,000 or fewer than 50 unique traders.",
+    Volume: "Volume is the total volume of all pools on PumpSwap where the quote token is SOL, mSOL, USDC, USDT, PUNP, or BONK, and the pool has TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
   }
 }
 

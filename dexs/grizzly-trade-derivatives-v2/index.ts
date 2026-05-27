@@ -50,7 +50,7 @@ const fetch = () => {
 };
 
 const methodology = {
-  dailyVolume:
+  Volume:
     "Total cumulativeVolumeUsd for specified chain for the given day",
 };
 
@@ -62,6 +62,7 @@ const adapter: SimpleAdapter = {
       start: '2024-02-02',
     },
   },
+  deadFrom: "2024-10-27"
 };
 
 export default adapter;

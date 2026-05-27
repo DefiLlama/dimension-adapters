@@ -212,10 +212,10 @@ export default {
             fetch,
             start: '2022-03-10',
         },
-        [CHAIN.ECLIPSE]: {
-            fetch,
-            start: '2022-09-14',
-        }
+        // [CHAIN.ECLIPSE]: {
+        //     fetch,
+        //     start: '2022-09-14',
+        // }
     },
     isExpensiveAdapter: true,
 }

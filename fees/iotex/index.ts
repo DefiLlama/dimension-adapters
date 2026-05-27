@@ -11,6 +11,7 @@ const fetch = async (timestamp, _, { createBalances}: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue:0,
     timestamp,
   };
 };

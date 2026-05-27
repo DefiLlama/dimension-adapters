@@ -87,19 +87,19 @@ const configs: Record<string, Config> = {
     chains: { [CHAIN.AVAX]: { comptroller: "0xdc13687554205E5b89Ac783db14bb5bba4A1eDaC", start: '2021-10-11' } },
     options: { protocolRevenueRatio: 1 },
   },
-  "venus-finance": {
-    chains: {
-      [CHAIN.BSC]: { comptroller: "0xfD36E2c2a6789Db23113685031d7F16329158384", start: '2020-11-23' },
-      [CHAIN.ETHEREUM]: { comptroller: "0x687a01ecF6d3907658f7A7c714749fAC32336D1B", start: '2024-01-10' },
-      [CHAIN.OP_BNB]: { comptroller: "0xd6e3e2a1d8d95cae355d15b3b9f8e5c2511874dd", start: '2024-02-16' },
-      [CHAIN.ARBITRUM]: { comptroller: "0x317c1A5739F39046E20b08ac9BeEa3f10fD43326", start: '2024-05-30' },
-      [CHAIN.ERA]: { comptroller: "0xddE4D098D9995B659724ae6d5E3FB9681Ac941B1", start: '2024-09-06' },
-      [CHAIN.BASE]: { comptroller: "0x0C7973F9598AA62f9e03B94E92C967fD5437426C", start: '2024-12-07' },
-      [CHAIN.OPTIMISM]: { comptroller: "0x5593FF68bE84C966821eEf5F0a988C285D5B7CeC", start: '2024-10-01' },
-      [CHAIN.UNICHAIN]: { comptroller: "0xe22af1e6b78318e1Fe1053Edbd7209b8Fc62c4Fe", start: '2025-02-08' },
-    },
-    options: { protocolRevenueRatio: 0.6, holdersRevenueRatio: 0.4 },
-  },
+//   "venus-finance": {
+//     chains: {
+//       [CHAIN.BSC]: { comptroller: "0xfD36E2c2a6789Db23113685031d7F16329158384", start: '2020-11-23' },
+//       [CHAIN.ETHEREUM]: { comptroller: "0x687a01ecF6d3907658f7A7c714749fAC32336D1B", start: '2024-01-10' },
+//       [CHAIN.OP_BNB]: { comptroller: "0xd6e3e2a1d8d95cae355d15b3b9f8e5c2511874dd", start: '2024-02-16' },
+//       [CHAIN.ARBITRUM]: { comptroller: "0x317c1A5739F39046E20b08ac9BeEa3f10fD43326", start: '2024-05-30' },
+//       [CHAIN.ERA]: { comptroller: "0xddE4D098D9995B659724ae6d5E3FB9681Ac941B1", start: '2024-09-06' },
+//       [CHAIN.BASE]: { comptroller: "0x0C7973F9598AA62f9e03B94E92C967fD5437426C", start: '2024-12-07' },
+//       [CHAIN.OPTIMISM]: { comptroller: "0x5593FF68bE84C966821eEf5F0a988C285D5B7CeC", start: '2024-10-01' },
+//       [CHAIN.UNICHAIN]: { comptroller: "0xe22af1e6b78318e1Fe1053Edbd7209b8Fc62c4Fe", start: '2025-02-08' },
+//     },
+//     options: { protocolRevenueRatio: 0.6, holdersRevenueRatio: 0.4 },
+//   },
   "mare-finance-v2": {
     chains: { [CHAIN.KAVA]: { comptroller: "0xFcD7D41D5cfF03C7f6D573c9732B0506C72f5C72", start: '2023-07-13' } },
   },
@@ -108,6 +108,13 @@ const configs: Record<string, Config> = {
       [CHAIN.MONAD]: { comptroller: '0xFc57bF0733e5e65d8549fc2922919Cfb97e62D5f', start: '2025-11-26' },
       [CHAIN.MEGAETH]: { comptroller: '0x1F1416EbbeAb7a13fC5B6111A1E77696Be600413', start: '2026-02-08' },
     },
+  },
+  'xpert': {
+    comptrollers: {
+      [CHAIN.INK]: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7',
+    }, options: { start: {
+      [CHAIN.INK]: '2026-03-17',
+    } },
   },
 };
 

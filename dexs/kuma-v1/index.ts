@@ -18,6 +18,7 @@ const adapter: SimpleAdapter = {
       fetch,
       start: "2025-03-06",
       runAtCurrTime: true,
+      deadFrom: "2026-01-10",
     },
   },
 };

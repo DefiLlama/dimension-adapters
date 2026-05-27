@@ -55,6 +55,7 @@ const adapter: SimpleAdapter = {
       start: startTimestamps[CHAIN.ARBITRUM],
     }
   },
+  deadFrom: "2025-06-25",
 };
 
 export default adapter;

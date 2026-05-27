@@ -47,6 +47,15 @@ export type FetchOptions = {
   preFetchedResults?: any,
   moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
+  metadata?: {
+    [key: string]: any
+    adapterType?: string
+    protocolName?: string
+    name?: string
+    id?: string
+    runType?: string
+    isHourlyAdapter?: boolean
+  }
 }
 
 export type FetchGetLogsOptions = {
@@ -213,7 +222,7 @@ export enum AdapterType {
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
   NORMALIZED_VOLUME = 'normalized-volume',
-  // NFT_VOLUME = 'nft-volume',  // not used anywhere?
+  NFT_VOLUME = 'nft-volume',
   ACTIVE_USERS = 'active-users',
   NEW_USERS = 'new-users',
   LIQUIDATIONS = 'liquidations',

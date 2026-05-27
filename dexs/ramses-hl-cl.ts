@@ -1,12 +1,15 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
+import { METRIC } from "../helpers/metrics";
 
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
 const XRAM_TOKEN_CONTRACT = "	0xAE6D5FcE541216BDA471D311425B5412D9f1DEb9";
 
 export const subgraphEndpoints: any = {
+  [CHAIN.ARBITRUM]: "https://arbitrumv2.kingdomsubgraph.com/subgraphs/name/ramses-pruned",
   [CHAIN.HYPERLIQUID]: "https://hyperevm.kingdomsubgraph.com/subgraphs/name/ramses-v3-pruned/",
+  [CHAIN.POLYGON]: "https://polygon.kingdomsubgraph.com/subgraphs/name/ramses-pruned",
 };
 
 const subgraphQueryLimit = 1000;
@@ -23,6 +26,8 @@ interface IGraphRes {
   clUserFeesRevenueUSD: number;
   legacyUserFeesRevenueUSD: number;
 }
+
+type IProtocolDayStats = Omit<IGraphRes, "clBribeRevenueUSD" | "legacyBribeRevenueUSD">;
 
 interface IVoteBribe {
   id: string;
@@ -94,7 +99,7 @@ async function getBribes(options: FetchOptions) {
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  
+
   // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
     query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
@@ -120,7 +125,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       first,
       skip,
       startOfDay: options.startOfDay,
-    }).then((data) => 
+    }).then((data) =>
       // Transform tokenDayDatas to match expected token format
       data.tokenDayDatas.map((td: any) => ({
         id: td.token.id,
@@ -132,36 +137,13 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
 }
 
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
-  const statsQuery = gql`
-    query getProtocolDayData($startOfDay: Int!) {
-      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay: $startOfDay }) {
-        startOfDay
-        volumeUsd: volumeUSD
-        feesUsd: feesUSD
-        voterFeesUsd: voterFeesUSD
-        treasuryFeesUsd: treasuryFeesUSD
-      }
-      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay: $startOfDay }) {
-        startOfDay
-        volumeUsd: volumeUSD
-        feesUsd: feesUSD
-        voterFeesUsd: voterFeesUSD
-        treasuryFeesUsd: treasuryFeesUSD
-      }
-    }
-  `;
+  const protocolDayStats = await fetchProtocolDayStats(options);
 
   const voteBribes = await getBribes(options);
   const tokenIds = new Set(voteBribes.map((e) => e.token.id));
   tokenIds.add(RAM_TOKEN_CONTRACT.toLowerCase());
 
   const tokens = await getTokens(options, Array.from(tokenIds));
-  const {
-    ClProtocolDayData: clProtocolDayData,
-    LegacyProtocolDayData: legacyProtocolDayData,
-  } = await request(subgraphEndpoints[options.chain], statsQuery, {
-    startOfDay: options.startOfDay,
-  });
 
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
@@ -176,12 +158,46 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   }, 0);
 
   return {
+    ...protocolDayStats,
+    clBribeRevenueUSD: clUserBribeRevenueUSD,
+    legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
+  };
+};
+
+const statsQuery = gql`
+  query getProtocolDayData($startOfDay: Int!) {
+    ClProtocolDayData: clProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+      startOfDay
+      volumeUsd: volumeUSD
+      feesUsd: feesUSD
+      voterFeesUsd: voterFeesUSD
+      treasuryFeesUsd: treasuryFeesUSD
+    }
+    LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+      startOfDay
+      volumeUsd: volumeUSD
+      feesUsd: feesUSD
+      voterFeesUsd: voterFeesUSD
+      treasuryFeesUsd: treasuryFeesUSD
+    }
+  }
+`;
+
+export async function fetchProtocolDayStats(
+  options: FetchOptions,
+): Promise<IProtocolDayStats> {
+  const {
+    ClProtocolDayData: clProtocolDayData,
+    LegacyProtocolDayData: legacyProtocolDayData,
+  } = await request(subgraphEndpoints[options.chain], statsQuery, {
+    startOfDay: options.startOfDay,
+  });
+
+  return {
     clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
     clFeesUSD: Number(clProtocolDayData?.[0]?.feesUsd ?? 0),
     legacyVolumeUSD: Number(legacyProtocolDayData?.[0]?.volumeUsd ?? 0),
     legacyFeesUSD: Number(legacyProtocolDayData?.[0]?.feesUsd ?? 0),
-    clBribeRevenueUSD: clUserBribeRevenueUSD,
-    legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
     clUserFeesRevenueUSD: Number(clProtocolDayData?.[0]?.voterFeesUsd ?? 0),
     legacyUserFeesRevenueUSD: Number(
       legacyProtocolDayData?.[0]?.voterFeesUsd ?? 0,
@@ -189,50 +205,133 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
     legacyProtocolRevenueUSD: Number(
       legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
-    )  };
-};
-
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
-  const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD;
-  const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
-  const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
-
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyHoldersRevenue,
-    dailyProtocolRevenue,
-    dailyRevenue,
-    dailySupplySideRevenue,
-    dailyBribesRevenue,
+    ),
   };
-};
+}
 
-const methodology = {
-  Fees: "Fees are collected from users on each swap.",
+type PoolType = 'cl' | 'legacy';
+
+interface PoolStats {
+  volumeUSD: number;
+  feesUSD: number;
+  userFeesRevenueUSD: number;
+  protocolRevenueUSD: number;
+  bribeRevenueUSD: number;
+}
+
+function getPoolStats(stats: IGraphRes, poolType: PoolType): PoolStats {
+  if (poolType === 'legacy') {
+    return {
+      volumeUSD: stats.legacyVolumeUSD,
+      feesUSD: stats.legacyFeesUSD,
+      userFeesRevenueUSD: stats.legacyUserFeesRevenueUSD,
+      protocolRevenueUSD: stats.legacyProtocolRevenueUSD,
+      bribeRevenueUSD: stats.legacyBribeRevenueUSD,
+    };
+  }
+  return {
+    volumeUSD: stats.clVolumeUSD,
+    feesUSD: stats.clFeesUSD,
+    userFeesRevenueUSD: stats.clUserFeesRevenueUSD,
+    protocolRevenueUSD: stats.clProtocolRevenueUSD,
+    bribeRevenueUSD: stats.clBribeRevenueUSD,
+  };
+}
+
+function createFetchHandler(poolType: PoolType) {
+  return async (_: any, _1: any, options: FetchOptions) => {
+    const stats = await fetchStats(options);
+    const poolStats = getPoolStats(stats, poolType);
+
+    const dailyVolume = poolStats.volumeUSD;
+
+    const dailyFees = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(poolStats.feesUSD, METRIC.SWAP_FEES);
+    dailyHoldersRevenue.addUSDValue(poolStats.userFeesRevenueUSD, 'Swap Fees to holders');
+    dailyProtocolRevenue.addUSDValue(poolStats.protocolRevenueUSD, 'Swap Fees to protocol');
+
+    dailyFees.addUSDValue(poolStats.bribeRevenueUSD, 'Bribes');
+    dailyHoldersRevenue.addUSDValue(poolStats.bribeRevenueUSD, 'Bribes to holders');
+
+    const dailyRevenue = dailyProtocolRevenue.clone();
+    dailyRevenue.add(dailyHoldersRevenue);
+
+    dailySupplySideRevenue.addUSDValue(
+      poolStats.feesUSD - poolStats.userFeesRevenueUSD - poolStats.protocolRevenueUSD,
+      'Swap Fees to LPs'
+    );
+
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyHoldersRevenue,
+      dailyProtocolRevenue,
+      dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  };
+}
+
+const fetch = createFetchHandler('cl');
+
+export const methodology = {
+  Fees: "Includes swap fees and bribes paid by protocols",
   Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xRAM stakers instant exit penalty",
+  ProtocolRevenue: "Swap fees going to the protocol",
+  HoldersRevenue: "Swap fees distributed to holders and all the bribes go to holders",
+  SupplySideRevenue: "Swap fees distributed to LPs (from gauged pools).",
 };
 
-const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.HYPERLIQUID],
-  start: '2025-11-08',
-  methodology,
+export const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees are collected from users on each swap.",
+    ["Bribes"]: "Bribes paid by protocols",
+  },
+  Revenue: {
+    ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    ["Swap Fees to holders"]: "User fees are distributed among holders.",
+    ["Bribes to holders"]: "Bribes paid by protocols to holders",
+  },
+  ProtocolRevenue: {
+    ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+  },
+  SupplySideRevenue: {
+    ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
+  },
+  HoldersRevenue: {
+    ["Swap Fees to holders"]: "User fees are distributed among holders.",
+    ["Bribes to holders"]: "Bribes paid by protocols to holders",
+  },
 };
+
+export function createClAdapter(chain: string, start: string): SimpleAdapter {
+  return {
+    fetch,
+    chains: [chain],
+    start,
+    methodology,
+    breakdownMethodology,
+  };
+}
+
+const legacyFetch = createFetchHandler('legacy');
+
+export function createLegacyAdapter(chain: string, start: string): SimpleAdapter {
+  return {
+    fetch: legacyFetch,
+    chains: [chain],
+    start,
+    methodology,
+    breakdownMethodology,
+  };
+}
+
+const adapter: SimpleAdapter = createClAdapter(CHAIN.HYPERLIQUID, '2025-11-08');
 
 export default adapter;

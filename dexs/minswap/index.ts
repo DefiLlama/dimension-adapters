@@ -23,11 +23,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
   }
 }
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
-  return (new Date(Number(historicalVolume[0].time)).getTime()) / 1000;
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {

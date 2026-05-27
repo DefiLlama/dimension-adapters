@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 // // Previously it was Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)
@@ -31,7 +30,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
       dailyFees: 0,
       dailyRevenue: 0,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
     };
   }
 
@@ -45,8 +43,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
 
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
   dailyFees.addUSDValue(Number(data.fees), "Builder fees");
   dailyVolume.addUSDValue(Number(data.volume));
 
@@ -55,7 +51,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue,
   };
 }
 

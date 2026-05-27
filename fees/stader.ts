@@ -32,7 +32,7 @@ const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
 
   const date = new Date(option.startOfDay * 1000).toISOString().split("T")[0];
 
-  const sql = getSqlFromFile("helpers/queries/stader.sql", { target_date: date });
+  const sql = getSqlFromFile("helpers/queries/stader.sql", { target_date: date, start: option.startTimestamp, end: option.endTimestamp });
   const res: { user_rewards: string; stader_revenue: string }[] = await queryDuneSql(option, sql);
 
   res.forEach((item) => {

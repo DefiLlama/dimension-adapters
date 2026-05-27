@@ -128,15 +128,15 @@ const comptrollers = [
             ]
         }
     },
-    {
-        id: "450",
-        name: "Scream",
-        comptrollers:{
-            "fantom":[
-                "0x260e596dabe3afc463e75b6cc05d8c46acacfb09",
-            ]
-        }
-    },
+    // {  // unsupported chain
+    //     id: "450",
+    //     name: "Scream",
+    //     comptrollers:{
+    //         "fantom":[
+    //             "0x260e596dabe3afc463e75b6cc05d8c46acacfb09",
+    //         ]
+    //     }
+    // },
     {
         id: "1631",
         name: "Onyx Protocol",
@@ -522,15 +522,15 @@ const comptrollers = [
             ]
         }
     },
-    {
-        id:"1234",
-        name:"Agile Finance",
-        comptrollers:{
-            "cronos":[
-                "0x643dc7C5105d1a3147Bd9524DFC3c5831a373F1e",
-            ]
-        }
-    },
+    // {  // unsupported chain
+    //     id:"1234",
+    //     name:"Agile Finance",
+    //     comptrollers:{
+    //         "cronos":[
+    //             "0x643dc7C5105d1a3147Bd9524DFC3c5831a373F1e",
+    //         ]
+    //     }
+    // },
     {
         id:"2177",
         name:"Fortress Loans",

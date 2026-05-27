@@ -93,7 +93,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   swapEvents.forEach((i) => dailyVolume.add(i.outToken, Number(i.amountOut)))
   feeCollectedEvents.forEach((i) => dailyFees.add(i.token, Number(i.amount)))
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: '0' };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {

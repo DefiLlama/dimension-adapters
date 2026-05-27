@@ -90,6 +90,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: getFetch(allFeesData,userFeesData)(CHAIN.ARBITRUM),
       start: '2023-08-05',
+      deadFrom: "2025-03-15",
     },
   },
   version: 1

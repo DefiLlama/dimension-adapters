@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { httpPost } from "../../utils/fetchURL";
 
-const graphUrl = 'https://mira-dex.squids.live/mira-indexer@v2/api/graphql'
+const graphUrl = 'https://mira-dex.squids.live/mira-indexer@v3/api/graphql'
 
 const fetchVolume = async (timestamp: number, _:any, options: FetchOptions) => {
   const start = options.startOfDay;
@@ -35,7 +35,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.FUEL]: {
       fetch: fetchVolume,
-      start: '2020-09-30',
+      start: '2024-10-16',
     }
   }
 }

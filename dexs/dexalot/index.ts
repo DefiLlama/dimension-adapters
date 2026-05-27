@@ -40,14 +40,6 @@ const fetch = async (_a: any, _t: any, options: FetchOptions): Promise<FetchResu
   };
 }
 
-const getStartTimestamp = (chain: CHAIN) => {
-  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
-  return async () => {
-    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
-    return (new Date(historicalVolume[0].date).getTime()) / 1000
-  }
-}
-
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: supportedChains.reduce((acc, chain) => {
@@ -55,7 +47,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: getStartTimestamp(chain),
       }
     }
   }, {} as BaseAdapter),

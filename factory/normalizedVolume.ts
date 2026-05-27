@@ -196,7 +196,7 @@ const protocols = {
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
     start: '2026-01-20',
-    minContracts: 100
+    minContracts: 90
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
@@ -215,7 +215,7 @@ const protocols = {
     chains: [CHAIN.PARADEX],
     start: '2026-01-20',
     version: 2,
-    minContracts: 90
+    minContracts: 10
   }),
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
@@ -232,14 +232,14 @@ const protocols = {
     protocolName: 'grvt',
     chains: [CHAIN.GRVT],
     start: '2026-01-20',
-    version: 2,
+    version: 1,
     minContracts: 80
   }),
   'pacifica': dailyNormalizedVolumeAdapter({
     protocolName: 'pacifica',
     chains: [CHAIN.SOLANA],
     start: '2026-01-20',
-    version: 2,
+    version: 1,
     minContracts: 45
   }),
   'extended': dailyNormalizedVolumeAdapter({
@@ -248,6 +248,42 @@ const protocols = {
     start: '2026-01-20',
     minContracts: 75
   }),
+  'nado': dailyNormalizedVolumeAdapter({
+    protocolName: 'nado',
+    chains: [CHAIN.INK],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 30
+  }),
+  'standx': dailyNormalizedVolumeAdapter({
+    protocolName: 'standx',
+    chains: [CHAIN.STANDX],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 4
+  }),
+  'evedex': dailyNormalizedVolumeAdapter({
+    protocolName: 'evedex',
+    chains: [CHAIN.EVENTUM],
+    start: '2026-03-30',
+    version: 1,
+    minContracts: 14
+  }),
+  'antarctic': dailyNormalizedVolumeAdapter({
+    protocolName: 'antarctic',
+    chains: [CHAIN.OFF_CHAIN],
+    start: '2026-03-06',
+    version: 1,
+    minContracts: 25
+  }),
+  'risex': dailyNormalizedVolumeAdapter({
+    protocolName: 'risex',
+    chains: [CHAIN.RISE],
+    start: '2026-05-25',
+    version: 2,
+    minContracts: 8
+  }),
+
 } as const;
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);

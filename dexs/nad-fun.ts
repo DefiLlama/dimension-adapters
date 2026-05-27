@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const bondingCurve = "0xA7283d07812a02AFB7C09B60f8896bCEA3F90aCE";
 const lpManager = "0xAebe5522749b65eaE7b2A35c593145CC3128b515";
+const feeDistributor = "0x1d91A6339f6C484aD9A29dac34d2403E8688A423";
 
 const abi = {
   CurveBuy:
@@ -15,6 +16,8 @@ const abi = {
     "event CurveSell(address indexed sender, address indexed token, uint256 amountIn, uint256 amountOut)",
   LpManagerCollect:
     "event LpManagerCollect(address indexed token, address indexed pool, uint256 monAmount, uint256 tokenAmount, uint256 lastCollectTime)",
+  Distributed:
+    "event Distributed(address indexed token, uint256 tokenAmount, uint256 monReceived, uint256 foundationAmount, uint256 creatorAmount)",
   config:
     "function config() view returns (uint24 communityTreasuryFeeRate, uint24 creatorTreasuryFeeRate, uint24 foundationTreasuryFeeRate)",
 };
@@ -62,6 +65,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     sellLogs,
     graduateLogs,
     lpManagerCollectLogs,
+    distributedLogs,
   ] = await Promise.all([
     options.api.call({ target: lpManager, abi: abi.config }),
     options.getLogs({ target: bondingCurve, eventAbi: abi.CurveCreate }),
@@ -69,6 +73,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.getLogs({ target: bondingCurve, eventAbi: abi.CurveSell }),
     options.getLogs({ target: bondingCurve, eventAbi: abi.CurveGraduate }),
     options.getLogs({ target: lpManager, eventAbi: abi.LpManagerCollect }),
+    options.getLogs({ target: feeDistributor, eventAbi: abi.Distributed }),
   ]);
 
   const { communityRate, creatorRate, foundationRate } =
@@ -109,6 +114,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       metrics.CreatorsFees,
     );
   });
+
+  distributedLogs.forEach(
+    (log: {
+      foundationAmount: string | number;
+      creatorAmount: string | number;
+    }) => {
+      const foundationAmount = Number(log.foundationAmount);
+      const creatorAmount = Number(log.creatorAmount);
+
+      dailyFees.addGasToken(foundationAmount, metrics.FoundationFees);
+      dailyFees.addGasToken(creatorAmount, metrics.CreatorsFees);
+
+      dailyRevenue.addGasToken(foundationAmount, metrics.FoundationFees);
+
+      dailySupplySideRevenue.addGasToken(creatorAmount, metrics.CreatorsFees);
+    },
+  );
 
   buyLogs.forEach((log) => {
     const fee = (Number(log.amountIn) * 1) / 100; // 1% fee on buys

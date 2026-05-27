@@ -81,5 +81,6 @@ const adapter = {
     Fees: "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
     ProtocolRevenue: "The daily revenue going to the protocol is 25% of the daily fees.",
   },
+  deadFrom: "2026-03-31",
 };
 export default adapter;

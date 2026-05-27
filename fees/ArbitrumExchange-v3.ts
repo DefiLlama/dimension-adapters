@@ -27,6 +27,7 @@ const fetch = getUniV3LogAdapter({
 });
 
 const methodology = {
+  Fees: "Swap fees paid by users, ranging from 0.008% to 1% depending on the pool.",
   UserFees: "User pays a variable percentage on each swap depending on the pool. Minimum: 0.008%, maximum: 1%.",
   ProtocolRevenue: "No protocol revenue.",
   SupplySideRevenue: "LPs have no revenue.",

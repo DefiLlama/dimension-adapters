@@ -3,11 +3,7 @@ import { fetch, configs } from "../aggregators/metamask";
 import { getSolanaReceivedDune } from "../helpers/token";
 import { CHAIN } from "../helpers/chains";
 
-async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
-  return await fetch(options);
-}
-
-async function fetchSol(_a: any, _b: any, options: FetchOptions) {
+async function fetchSol(options: FetchOptions) {
   const dailyFees = await getSolanaReceivedDune({
     options,
     targets: [
@@ -31,8 +27,9 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 1,
-  fetch: fetchEVM,
+  version: 2,
+  fetch: fetch,
+  pullHourly: true,
   dependencies: [Dependencies.DUNE],
   adapter: {
     ...configs,

@@ -45,6 +45,7 @@ const adapter: Adapter = {
     [CHAIN.SONEIUM]: {
       fetch,
       start: "2024-12-27",
+      deadFrom: "2026-01-03",
     },
   },
 };

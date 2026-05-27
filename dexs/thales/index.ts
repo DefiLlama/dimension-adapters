@@ -94,6 +94,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   return {
     dailyVolume: dailyPremiumVolume,
+    dailyNotionalVolume: dailyNotionalVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,

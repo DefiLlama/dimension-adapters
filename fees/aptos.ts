@@ -4,7 +4,7 @@ import { FetchOptions } from "../adapters/types";
 import { ProtocolType } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
   SELECT 
       SUM(gas_used * gas_unit_price) AS tx_fees
@@ -18,16 +18,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   }
 }
 
+const methodology = {
+  Fees: "Transaction fees paid by users for executing transactions on the Aptos network",
+  Revenue: "All the transaction fees paid are burnt",
+  HoldersRevenue: "All the transaction fees paid are burned",
+}
+
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.APTOS],
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   protocolType: ProtocolType.CHAIN,
+  methodology,
 };
 
 export default adapter;

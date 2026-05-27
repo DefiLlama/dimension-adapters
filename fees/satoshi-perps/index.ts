@@ -60,7 +60,6 @@ const fetch = (chain: string) => {
       dailyFees,
       dailyRevenue: dailyFees,
       dailyProtocolRevenue: `${dailyFees * 0.4}`,
-      dailyHoldersRevenue: `${dailyFees * 0.6}`,
       timestamp,
     };
   };

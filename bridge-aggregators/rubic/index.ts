@@ -52,7 +52,7 @@ const chains: Record<string, string> = {
     [CHAIN.DOGECHAIN]: 'dogecoin',
     [CHAIN.FILECOIN]: 'filecoin',
     [CHAIN.FLOW]: 'flow',
-    [CHAIN.HEDERA]: 'hedera', 
+    [CHAIN.HEDERA]: 'hedera',
     [CHAIN.ICP]: 'icp',
     [CHAIN.SUI]: 'sui',
     [CHAIN.UNICHAIN]: 'unichain',
@@ -84,7 +84,12 @@ const chains: Record<string, string> = {
     [CHAIN.WAX]: 'wax',
     [CHAIN.XDC]: 'xdc',
     [CHAIN.NEO]: 'neo',
-    [CHAIN.HEMI]: 'hemi'
+    [CHAIN.HEMI]: 'hemi',
+    [CHAIN.ZILLIQA]: 'zilliqa',
+    [CHAIN.MONAD]: 'monad',
+    [CHAIN.MEGAETH]: 'megaeth',
+    [CHAIN.PLASMA]: 'plasma',
+    [CHAIN.HYPERLIQUID]: 'hyper-evm',
 };
 
 interface ApiResponse {
@@ -105,7 +110,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions): Promise<Fetc
   if (BadDataDays.includes(options.startOfDay) && options.chain === CHAIN.ARBITRUM) {
     // bad data
     dailyBridgeVolume = '0';
-  }response?.daily_volume_in_usd || '0'
+  }
 
   return {
     dailyBridgeVolume,

@@ -54,6 +54,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniSubgraph',
     'blockscout',
     'hyperliquid:fees',
+    'hyperliquid:validatorFees',
     'hyperliquid',
     'symmio',
     'compoundV2',
@@ -65,6 +66,8 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'solLst',
     'joeLiquidityBook',
     'curve',
+    'subscan',
+    'polymarket:fees',
   ],
   'dexs': [
     'helpers/crypto-card',
@@ -82,6 +85,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'polymarket',
     'saddle',
     'alliumSolanaDex',
+    'duneSolanaDex',
     'joeLiquidityBook',
     'curve',
   ],
@@ -147,6 +151,7 @@ export function getAdapterFromHelpers(
         }
       }
     } catch (error) {
+      // console.log(error)
       // Skip if factory doesn't exist or has errors
       continue;
     }

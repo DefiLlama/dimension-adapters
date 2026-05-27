@@ -5,7 +5,6 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const metaDataEndpoint = "https://pro.edgex.exchange/api/v1/public/meta/getMetaData"
 const klineDailyEndpoint = (contractId: string, startTime: number, endTime: number) => `https://pro.edgex.exchange/api/v1/public/quote/getKline?contractId=${contractId}&klineType=DAY_1&filterBeginKlineTimeInclusive=${startTime}&filterEndKlineTimeExclusive=${endTime}&priceType=LAST_PRICE`
-const openInterestEndpoint = "https://pro.edgex.exchange/api/v1/public/quote/getTicketSummary?period=LAST_DAY_1"
 
 interface KlineData {
   contractId: string;
@@ -43,12 +42,11 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     const response: ApiResponse = await fetchURLAutoHandleRateLimit(klineDailyEndpoint(contractId, dayTimestamp, toTimestamp), 5);
     klines.push(response.data.dataList);
   }
-  const oi = await fetchURL(openInterestEndpoint);
   const volumes = klines
     .flat()
     .map(kline => parseFloat(kline.value))
     .reduce((acc, value) => acc + value, 0);
-  return { dailyVolume: volumes, openInterestAtEnd: oi.data.tickerSummary.openInterest };
+  return { dailyVolume: volumes };
 };
 
 const adapter: SimpleAdapter = {

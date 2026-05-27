@@ -19,6 +19,7 @@ const adapter = {
       fetch,
       runAtCurrTime: true,
       start: '2023-08-31',
+      deadFrom: '2026-04-27',
     },
   },
 };

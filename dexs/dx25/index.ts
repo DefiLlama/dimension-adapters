@@ -27,7 +27,8 @@ const adapter: SimpleAdapter = {
         return {
           dailyVolume: data.daily_volume,
         }
-      }
+      },
+      deadFrom: '2025-01-05',
     }
   }
 };

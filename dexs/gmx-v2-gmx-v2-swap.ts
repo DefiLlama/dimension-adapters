@@ -3,12 +3,10 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]:
-    'https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql',
-  [CHAIN.AVAX]:
-    'https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql',
-  [CHAIN.BOTANIX]:
-    'https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql',
+  [CHAIN.ARBITRUM]: 'https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql',
+  [CHAIN.AVAX]: 'https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql',
+  [CHAIN.BOTANIX]: 'https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql',
+  [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth:prod/api/graphql",
 };
 
 const historicalDataSwap = gql`
@@ -65,6 +63,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BOTANIX]: {
       start: '2025-05-30',
     },
+    [CHAIN.MEGAETH]: { start: '2026-04-08', },
   },
 };
 

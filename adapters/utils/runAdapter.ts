@@ -25,6 +25,14 @@ function genUID(length: number = 10): string {
   return result
 }
 
+function roundValue(value: any): number {
+  const num = Number(value)
+  const abs = Math.abs(num)
+  if (abs < 1) return +num.toFixed(4)
+  if (abs < 10) return +num.toFixed(2)
+  return +num.toFixed(0)
+}
+
 // const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
@@ -91,40 +99,27 @@ type AdapterRunOptions = {
   name?: string,
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
-  cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  cacheResults?: boolean, // deprecated, if true, caches the results in adapterRunResponseCache
   runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
+  metadata?: {
+    [key: string]: any
+    adapterType?: string
+    protocolName?: string
+    name?: string
+    id?: string
+    runType?: string
+    isHourlyAdapter?: boolean
+  }
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module, cacheResults = false } = options
+  const { module,} = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
   return _runAdapter(options)
-
-/*  Disable caching run results
-
-  if (!cacheResults) return _runAdapter(options)
-
-  const runKey = getRunKey(options)
-
-  if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
-  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
-
-  function clone(obj: any) {
-    return JSON.parse(JSON.stringify(obj))
-  }
-
-
-   */
 }
-/* 
-function getRunKey(options: AdapterRunOptions) {
-  const randomUID = options.module._randomUID ?? genUID(10)
-  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
-} */
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
@@ -142,6 +137,7 @@ async function _runAdapter({
   withMetadata = false,
   deadChains = new Set(),
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
+  metadata = {},
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -293,7 +289,7 @@ async function _runAdapter({
             const breakData = breakdownByLabelByChain[recordType]
 
             for (let [label, labelValue] of Object.entries(labelBreakdown)) {
-              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              labelValue = roundValue(labelValue)
               aggData[label] = (aggData[label] || 0) + labelValue
               if (!breakData[label]) breakData[label] = {}
               breakData[label][chain] = labelValue
@@ -301,7 +297,7 @@ async function _runAdapter({
           }
         }
 
-        result[recordType] = +Number(result[recordType]).toFixed(0)
+        result[recordType] = roundValue(result[recordType])
         if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
         aggregated[recordType].value += result[recordType]
         aggregated[recordType].chains[chain] = result[recordType]
@@ -449,6 +445,7 @@ async function _runAdapter({
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
       streamLogs,
+      metadata,
     }
   }
 

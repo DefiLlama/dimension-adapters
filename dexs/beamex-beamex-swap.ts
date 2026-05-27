@@ -75,6 +75,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: methodologyBeamex,
+  deadFrom: "2025-08-12",
 };
 
 export default adapter;

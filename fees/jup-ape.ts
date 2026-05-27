@@ -8,7 +8,7 @@ const JUP_FEE_RECEIVER = '5YET3YapxD6to6rqPqTWB3R9pSbURy6yduuUtoZkzoPX';
 const fetch = async (_as: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
-      SUM(balance_change/1e9) AS total_fees
+      COALESCE(SUM(balance_change/1e9), 0) AS total_fees
     FROM solana.account_activity
     WHERE address = '${JUP_FEE_RECEIVER}'
       AND balance_change > 0
@@ -16,7 +16,6 @@ const fetch = async (_as: any, _b: any, options: FetchOptions) => {
       AND TIME_RANGE
   `;
   const res = await queryDuneSql(options, query);
-  const apeFees = options.createBalances();
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

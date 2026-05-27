@@ -3,12 +3,13 @@ import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryDuneSql } from "../helpers/dune";
 
-const chainConfig: Record<string, { factory: string, source: string, start: string, duneId?: string }> = {
+const chainConfig: Record<string, { factory: string, source: string, start: string, duneId?: string, feeSwitchDate?: string }> = {
   [CHAIN.ETHEREUM]: {
     factory: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
     source: 'DUNE',
     start: '2020-04-19',
-    duneId: 'ethereum'
+    duneId: 'ethereum',
+    feeSwitchDate: "2025-12-29",
   },
   [CHAIN.POLYGON]: {
     factory: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
@@ -21,18 +22,21 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     source: 'DUNE',
     start: '2024-02-13',
     duneId: 'base',
+    feeSwitchDate: "2026-03-08",
   },
   [CHAIN.OPTIMISM]: {
     factory: '0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf',
     source: 'LOGS',
     start: '2024-02-13',
     duneId: 'optimism',
+    feeSwitchDate: "2026-03-08",
   },
   [CHAIN.ARBITRUM]: {
     factory: '0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9',
     source: 'DUNE',
     start: '2024-02-08',
     duneId: 'arbitrum',
+    feeSwitchDate: "2026-03-08",
   },
   [CHAIN.BSC]: {
     factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
@@ -63,6 +67,7 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     source: 'DUNE',
     start: '2024-02-27',
     duneId: 'zora',
+    feeSwitchDate: "2026-03-08",
   },
   [CHAIN.MONAD]: {
     factory: '0x182a927119d56008d921126764bf884221b10f59',
@@ -74,7 +79,8 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     factory: '0xDf38F24fE153761634Be942F9d859f3DBA857E95',
     source: 'DUNE',
     start: '2026-01-05',
-    duneId: 'xlayer'
+    duneId: 'xlayer',
+    feeSwitchDate: "2026-03-08",
   },
 }
 
@@ -109,9 +115,10 @@ const prefetch = async (options: FetchOptions) => {
 }
 
 function getLogAdapterConfig(options: FetchOptions) {
-  if ((options.startOfDay >= 1766966400 && options.chain === CHAIN.ETHEREUM) || (options.startOfDay >= 1772928000)) {
-    // UNIfication has officially been executed onchain
+      // UNIfication has officially been executed onchain
     // https://x.com/Uniswap/status/2005018127260942798
+    const feeSwitchDate = chainConfig[options.chain]?.feeSwitchDate;
+  if (feeSwitchDate && options.dateString >= feeSwitchDate) {
     return {
       userFeesRatio: 1,
       revenueRatio: 0.05 / 0.3,
@@ -163,10 +170,10 @@ const fetch = async (_t:any, _tb: any , options: FetchOptions) => {
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI.',
+  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI.',
+  SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs, From 8 Mar 2026, 83% (100% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains are distributed to LPs.',
+  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
 }
 
 const adapter: Adapter = {

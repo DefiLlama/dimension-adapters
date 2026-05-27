@@ -27,8 +27,9 @@ const adapter: SimpleAdapter = {
           dailyFees: data.daily_fees,
         }
       }
-    }
-  }
+    },
+  },
+  deadFrom: "2024-12-31",
 };
 
 export default adapter;

@@ -13,6 +13,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
+  deadFrom: '2026-03-25', // https://x.com/MagnumDexBot/status/2036705094595649802
   methodology: {
     Fees: "All trading fees paid by users while using bot.",
     Revenue: "Trading fees are collected by protocol.",

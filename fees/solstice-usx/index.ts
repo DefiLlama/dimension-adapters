@@ -1,30 +1,59 @@
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { getTokenSupply } from '../../helpers/solana';
 import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 const EUSX = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
-const PYTH_EUSX_REDEMPTION_PRICE_API = 'https://insights.pyth.network/historical-prices?symbol=Crypto.EUSX%2FUSX.RR';
+const PYTH_EUSX_REDEMPTION_PRICE_ID = 'f36e12e65d2969b242fb97d3ebaa32ec55d5794189b64d1a07dc4f41425c9378';
+const PYTH_HERMES_PRICE_API = 'https://hermes.pyth.network/v2/updates/price';
+const FEES_YIELD_LABEL = METRIC.ASSETS_YIELDS;
+const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
+
+const getRedemptionPrice = async (timestamp: number) => {
+  const response = await fetchURL(`${PYTH_HERMES_PRICE_API}/${timestamp}?ids%5B%5D=${PYTH_EUSX_REDEMPTION_PRICE_ID}`);
+  const pythPrice = response?.parsed?.[0]?.price;
+  const price = Number(pythPrice?.price);
+  const exponent = Number(pythPrice?.expo);
+
+  if (!Number.isFinite(price) || !Number.isInteger(exponent))
+    throw new Error(`Pyth Hermes returned invalid EUSX redemption price for ${timestamp}`);
+
+  return price * 10 ** exponent;
+};
 
 const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
-  const response = await fetchURL(`${PYTH_EUSX_REDEMPTION_PRICE_API}&from=${options.fromTimestamp}&to=${options.endTimestamp}&resolution=1H&cluster=pythnet`);
+  const { results, errors } = await PromisePool
+    .withConcurrency(2)
+    .for([options.fromTimestamp, options.endTimestamp])
+    .process(async (timestamp) => [timestamp, await getRedemptionPrice(timestamp)] as const);
 
-  if (!response || response.length < 2)
-    throw new Error("Pyth API returned invalid reposnse");
+  if (errors.length > 0) throw errors[0];
 
-  const totalResponses = response.length;
-  const priceYesterday = response[0].price;
-  const priceToday = response[totalResponses-1].price;
+  const pricesByTimestamp = new Map(results);
+  const priceYesterday = pricesByTimestamp.get(options.fromTimestamp);
+  const priceToday = pricesByTimestamp.get(options.endTimestamp);
+
+  if (!priceToday || !priceYesterday || !Number.isFinite(priceYesterday) || !Number.isFinite(priceToday))
+    throw new Error("Pyth Hermes returned incomplete EUSX redemption prices");
 
   const totalSupply = await getTokenSupply(EUSX)
-  dailyFees.addUSDValue((priceToday - priceYesterday) * totalSupply);
+  const dailyYield = (priceToday - priceYesterday) * totalSupply;
+
+  if (!Number.isFinite(dailyYield))
+    throw new Error("Pyth API returned invalid EUSX redemption prices");
+
+  dailyFees.addUSDValue(dailyYield, FEES_YIELD_LABEL);
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(dailyYield, SUPPLY_SIDE_YIELD_LABEL);
 
   return {
     dailyFees,
     dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue,
   };
 };
 
@@ -38,6 +67,16 @@ const adapters: SimpleAdapter = {
     Fees: 'Yield generated from Solstice various strategies',
     Revenue: 'No protocol revenue (yield fully passed to eUSX holders)',
     SupplySideRevenue: 'Total yield accrued through eUSX price appreciation, distributed to holders',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [FEES_YIELD_LABEL]: 'Daily change in eUSX/USX redemption rate multiplied by total eUSX supply',
+    },
+    Revenue: 'No protocol revenue; all eUSX redemption-rate yield is passed through to eUSX holders.',
+    SupplySideRevenue: {
+      [SUPPLY_SIDE_YIELD_LABEL]: '100% of eUSX redemption-rate yield is distributed to eUSX holders',
+    },
+    HoldersRevenue: 'Not separately tracked in this adapter; holder distributions are represented in SupplySideRevenue.',
   }
 };
 

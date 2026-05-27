@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "0.02% of the swap fee is distributed to LPs",
     HoldersRevenue: "Stakers received $GLINT in staking rewards.",
   },
+  deadFrom: "2025-08-12",
 }
 
 export default adapter;

@@ -40,6 +40,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  deadFrom: '2024-11-05',
   adapter: {
     [CHAIN.POLYGON]: {
       fetch,

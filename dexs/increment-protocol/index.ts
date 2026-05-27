@@ -31,7 +31,8 @@ export default {
         );
         return { dailyVolume };
       },
-      start: '2024-03-18'
+      start: '2024-03-18',
+      deadFrom: "2025-02-05"
     }
   }
 };

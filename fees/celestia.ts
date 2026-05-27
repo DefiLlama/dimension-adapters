@@ -15,7 +15,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   res.forEach(fee => {
     dailyFees.addCGToken('celestia', Number(fee.value) / 1e6)
   })
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: 0 }
 }
 
 const adapter: SimpleAdapter = {

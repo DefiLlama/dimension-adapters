@@ -45,6 +45,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Update unlisted
       run: |
-        curl --fail https://born-to-llama.llama.fi/refresh
+        curl --fail https://born-to-llama.llama.fi/refresh-dimensions
         exit $?
           

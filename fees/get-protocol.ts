@@ -7,6 +7,7 @@ const PROTOCOL_SUBGRAPH = sdk.graph.modifyEndpoint('5CW9dVhyCBHhhxpaEwqtZrfGms3g
 const TOKEN_SUBGRAPH_POLYGON = sdk.graph.modifyEndpoint('EjxRk3KsW58veQVZaeKNFk9G7qo56hTJh98bcFJEY5HS');
 const TOKEN_SUBGRAPH_ETHEREUM = sdk.graph.modifyEndpoint('HGzbNN7tVyE3eT3uJbZuyMo9Vtf59uAGieLcNXvp94pA');
 const PRICE_ID = "get-token";
+const DEAD_FROM = '2025-08-01';
 
 const sumKeys = (keys: string[], obj: any) => keys.reduce((tally: number, key: string) => tally + (obj[key] || 0), 0);
 
@@ -54,12 +55,10 @@ const graphs = () => {
 
     // Transform staking rewards from both Polygon and Ethereum networks into an object indexed by the reward type.
     // The value of the each type will be the USD amount of GET rewarded using the price at that point in time.
-    const stakingFees = graphEthFees.stakingRewards.concat(graphPolyFees.stakingRewards).reduce(
-      (tally: any, reward: any) => ({
-        [reward.type]: ((tally[reward.type] || 0) + Number(BigInt(reward.totalRewards) / BigInt(10e18))),
-      }),
-      {}
-    );
+    const stakingFees = graphEthFees.stakingRewards.concat(graphPolyFees.stakingRewards).reduce((tally: any, reward: any) => {
+      tally[reward.type] = (tally[reward.type] || 0) + Number(BigInt(reward.totalRewards) / (10n ** 18n));
+      return tally;
+    }, {});
 
     // dailyFees includes the Uniswap LP collected fees, the dailyUserFees does not.
     dailyFees.addCGToken('tether', +sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees), 'Staking Fees');
@@ -81,6 +80,7 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: {
       fetch: graphs(),
       start: '2021-09-01',
+      deadFrom: DEAD_FROM,
     },
   },
   methodology: {

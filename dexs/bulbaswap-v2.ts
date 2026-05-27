@@ -23,7 +23,7 @@ const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
     query: factoryQuery,
   });
 
-  const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD || "0";
+  const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD
 
   const result = {
     dailyVolume,
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MORPH]: {
       fetch: fetchV2Data,
-      start: '2021-04-14',
+      start: '2024-10-27',
     },
   },
 };

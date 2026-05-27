@@ -1,10 +1,10 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import pLimit from "p-limit";
+import { PromisePool } from "@supercharge/promise-pool";
+import { sleep } from "../../utils/utils";
 
 const apiEndpoint = "https://perps.standx.com/api";
-const limit = pLimit(5);
 
 interface SymbolInfo {
   symbol: string;
@@ -12,38 +12,46 @@ interface SymbolInfo {
 }
 
 interface MarketInfo {
-  symbol: string;
-  volume_quote_24h: number;
-  open_interest_notional: string;
+  s: string;
+  t: number[];
+  c: number[];
+  o: number[];
+  h: number[];
+  l: number[];
+  v: number[];
 }
 
-const fetch = async (_timestamp: number): Promise<FetchResultVolume> => {
-  const symbolsResponse: SymbolInfo[] = await fetchURL(
-    `${apiEndpoint}/query_symbol_info`
-  );
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = options.createBalances();
+  const symbolsResponse: SymbolInfo[] = await fetchURL(`${apiEndpoint}/query_symbol_info`);
+  const symbols = symbolsResponse.map((item) => item.symbol);
 
-  const symbols: string[] = symbolsResponse.filter(
-    (item) => item.status === "trading" || item.status === "reduce_only"
-  ).map((item) => item.symbol);
+  await PromisePool.withConcurrency(1).for(symbols).process(async (symbol) => {
+    const marketInfo: MarketInfo = await fetchURLAutoHandleRateLimit(
+      `${apiEndpoint}/kline/history?symbol=${symbol}&from=${options.startOfDay}&to=${options.endTimestamp}&resolution=60&countback=50`,
+    );
+    const todaysDataPositions = marketInfo.t
+      .map((t: number, i: number) => (t >= options.startOfDay && t < options.endTimestamp ? i : -1))
+      .filter((i: number) => i >= 0);
+    const volUsd = todaysDataPositions.reduce((acc: number, i: number) => acc + marketInfo?.v[i] * marketInfo?.c[i], 0);
+    dailyVolume.addUSDValue(volUsd);
+    await sleep(1000);
+  });
 
-  const marketInfo: MarketInfo[] = await Promise.all(symbols.map((symbol: string) => limit(() => fetchURL(`${apiEndpoint}/query_symbol_market?symbol=${symbol}`))));
-
-  const { dailyVolume, openInterestAtEnd } = marketInfo.reduce((acc: any, curr: any) => {
-    acc.dailyVolume += curr.volume_quote_24h;
-    acc.openInterestAtEnd += +curr.open_interest_notional;
-    return acc;
-  }, { dailyVolume: 0, openInterestAtEnd: 0 });
-  
   return {
     dailyVolume,
-    openInterestAtEnd,
   };
 };
+
+const methodology = {
+  Volume: "Trading volume is calculated using standx OHLCV API",
+}
 
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.STANDX],
-  runAtCurrTime: true
+  start: '2025-11-24',
+  methodology,
 };
 
 export default adapter;

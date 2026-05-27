@@ -15,6 +15,15 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
+export const SanctumMetric = {
+  InfinityStakingRewards: 'Infinity Staking Rewards',
+  LstStakingRewards: 'LSTs Staking Rewards',
+  DepositWithdrawFees: 'Deposit And Withdraw Fees',
+  ReserveStakingRewards: 'Reserve Pool Staking Rewards',
+  StakingRewardsToProtocol: 'Staking Rewards To Protocol',
+  StakingRewardsToStakers: 'Staking Rewards To Stakers',
+}
+
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
@@ -77,9 +86,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   );
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("solana", fees[0].daily_fees);
+  const dailyRevenue = options.createBalances();
+  
+  dailyFees.addCGToken("solana", fees[0].daily_fees, SanctumMetric.ReserveStakingRewards);
+  dailyRevenue.addCGToken("solana", fees[0].daily_fees, SanctumMetric.StakingRewardsToProtocol);
 
-  return { dailyFees, dailyRevenue: dailyFees.clone() };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
@@ -95,6 +107,14 @@ const adapter: SimpleAdapter = {
   start: "2022-07-22", // First unstake transaction
   methodology,
   isExpensiveAdapter: true,
+  breakdownMethodology: {
+    Fees: {
+      [SanctumMetric.ReserveStakingRewards]: 'Reserve pool staking rewards.',
+    },
+    Revenue: {
+      [SanctumMetric.ReserveStakingRewards]: 'Reserve pool staking rewards to Sanctum.',
+    },
+  }
 };
 
 export default adapter;

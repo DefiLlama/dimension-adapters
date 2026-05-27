@@ -1,6 +1,7 @@
 import { httpGet } from "../utils/fetchURL";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+
 const config_rule = {
   headers: {
     "user-agent": "axios/1.6.7",
@@ -8,8 +9,7 @@ const config_rule = {
   withCredentials: true,
 };
 
-const collexDappUrl =
-  "https://api.collex.fun/api/v1/tool/defillama/dimension-adapters?type=";
+const collexDappUrl = "https://api.collex.fun/api/v1/tool/defillama/dimension-adapters?type=";
 
 const dayEndpoint = (endTimestamp: number, timeframe: string) =>
   collexDappUrl + timeframe + `&endTimestamp=${endTimestamp}`;
@@ -19,9 +19,9 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dayVolumeQuery = await httpGet(
-    dayEndpoint(timestamp, "VOLUME_1H"),
+    dayEndpoint(options.startOfDay, "VOLUME_1H"),
     config_rule
   );
   const dailyVolume = dayVolumeQuery.reduce(
@@ -29,7 +29,7 @@ const fetch = async (timestamp: number) => {
     0
   );
 
-  const dayFeesQuery = await httpGet(dayEndpoint(timestamp, "FEE_1H"), config_rule);
+  const dayFeesQuery = await httpGet(dayEndpoint(options.startOfDay, "FEE_1H"), config_rule);
   const dailyFees = dayFeesQuery.reduce(
     (partialSum: number, a: IVolumeall) => partialSum + a.value,
     0
@@ -44,16 +44,18 @@ const fetch = async (timestamp: number) => {
     dailyRevenue: dailyFees,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2025-10-08",
-    },
+  version: 1,
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: '2025-10-08',
+  deadFrom: '2026-03-13', 
+  methodology: {
+    Fees: "Fees from the Collex marketplace/trading.",
+    Revenue: "Revenue from the Collex marketplace/trading.",
   },
 };
 

@@ -35,18 +35,12 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions): Promise<Fe
   };
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[chain])));
-  return (new Date(historical[0].timestamp).getTime() / 1000);
-}
-
 const adapter: SimpleAdapter = {
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch,
-        start: () => getStartTimestamp(chain)
       }
     }
   }, {})

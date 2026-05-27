@@ -3,10 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    
-    const query = `
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+
+  const query = `
         WITH filtered_transfers AS (
           SELECT
             token_mint_address,
@@ -47,40 +48,44 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         FROM gacha_in g
         CROSS JOIN buyback b
     `;
-    
-    const data = await queryDuneSql(options, query);
-    
-    if (data && data.length > 0) {
-        const result = data[0];
-        const netRevenue = result.net_revenue || 0;        
-        if (netRevenue > 0) {
-            dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
-        }
-    }
 
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyUserFees: dailyFees,
-        dailyProtocolRevenue: dailyFees,
-        dailyHoldersRevenue: '0',
+  const data = await queryDuneSql(options, query);
+
+  if (data && data.length > 0) {
+    const result = data[0];
+    const netRevenue = result.net_revenue || 0;
+    if (netRevenue > 0) {
+      dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
     }
+    dailyVolume.add(ADDRESSES.solana.USDC, result.gacha_spend * 1e6 || 0);
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue: '0',
+  }
 }
 
 const methodology = {
-    Fees: "Total fees from gacha (card pack sales).",
-    Revenue: "Revenue from gacha sales.",
-    UserFees: "Total fees paid by users for gacha.",
-    ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
+  Volume: "Volume from gacha (card pack sales).",
+  Fees: "Total fees from gacha (card pack sales).",
+  Revenue: "Revenue from gacha sales.",
+  UserFees: "Total fees paid by users for gacha.",
+  ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    dependencies: [Dependencies.DUNE],
-    chains: [CHAIN.SOLANA],
-    start: '2025-05-20',
-    methodology,
+  version: 1,
+  fetch,
+  dependencies: [Dependencies.DUNE],
+  chains: [CHAIN.SOLANA],
+  start: '2025-05-20',
+  deadFrom: '2026-01-18', // https://x.com/TCG_Emporium/status/2016555946391027985
+  methodology,
 }
 
 export default adapter;

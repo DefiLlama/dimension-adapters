@@ -15,42 +15,46 @@ const eventAbis = {
   tokenPurchasedAndMinted: "event TokenPurchasedAndMinted(address indexed mintedToAddress, address mintedTokenAddress, uint256 mintedTokenId, address paymentTokenAddress, uint256 paymentAmount)",
 }
 
-const getMintedNFTs = async (minters: string [], options: FetchOptions, dailyFees: Balances, dailyRevenue: Balances) => {
+const getMintedNFTs = async (minters: string [], options: FetchOptions, dailyFees: Balances, dailyRevenue: Balances, dailyVolume: Balances) => {
   const datas = await options.getLogs({ targets: minters, eventAbi: eventAbis.tokenPurchasedAndMinted })
   return datas.map(({ paymentTokenAddress, paymentAmount }) => {
     dailyFees.add(paymentTokenAddress, paymentAmount * 6n / 100n)
     dailyRevenue.add(paymentTokenAddress, paymentAmount * 6n / 100n)
+    dailyVolume.add(paymentTokenAddress, paymentAmount)
   })
 }
 
-const getMarketsPlaceDatas = async (allowedAddresses: string [], options: FetchOptions, dailyFees: Balances, dailyRevenue: Balances) => {
+const getMarketsPlaceDatas = async (allowedAddresses: string [], options: FetchOptions, dailyFees: Balances, dailyRevenue: Balances, dailyVolume: Balances) => {
   const datas = await options.getLogs({ targets: allowedAddresses, eventAbi: eventAbis.tradeExecuted })
-  return datas.map(({ erc20Token, feeAccrued }) => {
+  datas.map(({ erc20Token, feeAccrued, amount }) => {
     dailyFees.add(erc20Token, feeAccrued)
     dailyRevenue.add(erc20Token, feeAccrued)
+    dailyVolume.add(erc20Token, amount)
   })
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailyVolume = options.createBalances()
 
   const listTrustedOperatorRoleMembers = await options.api.call({ target: registry, abi: abis.listTrustedOperatorRoleMembers })
   const listTrustedForwarderRoleMembers = await options.api.call({ target: registry, abi: abis.listTrustedForwarderRoleMembers })
   const listMinterRoleMembers = await options.api.call({ target: registry, abi: abis.listMinterRoleMembers })
   
   const allowedAddresses = [...new Set([...listTrustedOperatorRoleMembers, ...listTrustedForwarderRoleMembers].map(a => a.toLowerCase()))]
-  await getMarketsPlaceDatas(allowedAddresses, options, dailyFees, dailyRevenue)
-  await getMintedNFTs(listMinterRoleMembers.map((x: string) => x.toLowerCase()), options, dailyFees, dailyRevenue)
+  await getMarketsPlaceDatas(allowedAddresses, options, dailyFees, dailyRevenue, dailyVolume)
+  await getMintedNFTs(listMinterRoleMembers.map((x: string) => x.toLowerCase()), options, dailyFees, dailyRevenue, dailyVolume)
 
-  return { dailyFees, dailyRevenue, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyRevenue }
+  return { dailyVolume, dailyFees, dailyRevenue, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyRevenue }
 }
 
 const methodology = {
+  Volume: "Volume from nfts sales and marketplace transactions.",
   Fees: "Total fees from nfts (card pack sales) and marketplace transactions.",
   Revenue: "Revenue from nfts sales + marketplace fees/royalties.",
   UserFees: "Total fees paid by users for nfts and marketplace transactions.",
-  ProtocolRevenue: "Net revenue after accounting for nfts buyback expenses."
+  ProtocolRevenue: "Net revenue after accounting for nfts buyback expenses.",
 };
 
 const adapter: SimpleAdapter = {

@@ -21,6 +21,7 @@ export default {
     [CHAIN.CARDANO]: {
       fetch: fetch,
       start: '2023-10-11',
+      deadFrom: '2025-10-03',
     },
   },
 };

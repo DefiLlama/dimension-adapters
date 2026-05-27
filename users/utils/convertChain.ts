@@ -3,7 +3,7 @@ export const convertChain = (chain: string) => ({
     avalanche: "avax"
 }[chain] ?? chain)
 
-export const convertChainToFlipside = (chain: string) => ({
+export const convertChainToAllium = (chain: string) => ({
     xdai: "gnosis",
     avax: "avalanche"
 }[chain] ?? chain)

@@ -56,7 +56,7 @@ const fetch = async (_timestamp: number, _block: any, options: FetchOptions) => 
 };
 
 const methodology = {
-  dailyVolume: "Sum of daily swap or margin volume for RFX subgraph.",
+  Volume: "Sum of daily swap or margin volume for RFX subgraph.",
 };
 
 const adapter: SimpleAdapter = {
@@ -64,6 +64,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ZKSYNC]: {
       fetch,
       start: 1733356800,
+      deadFrom: "2025-08-12",
     },
   },
   methodology,

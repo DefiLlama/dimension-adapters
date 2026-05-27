@@ -63,6 +63,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2023-11-01",
   methodology,
+  deadFrom: "2026-01-08",
 };
 
 export default adapter;

@@ -114,7 +114,10 @@ const chains: {
     start: "2025-06-01",
     protocolSubgraphUrl:
       "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/prod/gn",
-    blacklistPools: ["0x60f393a4a7e41aae2bfa0f401e1f114c3ad088f6"] // Returns inflated values, for example this 4$ transaction returns 195k in volume: https://hyperevmscan.io/tx/0x4502e2238e3def500bc11387c40ab85b08b062b9572619a9a4051b36f7b4fb84
+    blacklistPools: [
+      "0x60f393a4a7e41aae2bfa0f401e1f114c3ad088f6", // Returns inflated values, for example this 4$ transaction returns 195k in volume: https://hyperevmscan.io/tx/0x4502e2238e3def500bc11387c40ab85b08b062b9572619a9a4051b36f7b4fb84
+      "0x2e8c7e71695bcc98da887d6b1298cc08b0941867", // very low liquidity pool
+    ]
   },
   [CHAIN.KATANA]: {
     id: 747474,

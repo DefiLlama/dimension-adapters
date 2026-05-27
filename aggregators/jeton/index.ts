@@ -63,6 +63,7 @@ const adapter: Adapter = {
         [key]: {
           fetch: fetch(key),
           start: '2023-09-04',
+          deadFrom: "2026-01-16",
         },
       };
     }, {}),

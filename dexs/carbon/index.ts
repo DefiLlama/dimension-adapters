@@ -20,16 +20,17 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   );
 
   const analyticsJson = JSON.parse(analyticsData[1]);
-  const { tradeVolumeFEData, revenueFEData, intentXFEOIAnalytics } = analyticsJson.props.pageProps;
+  const { platformChartsData, intentXFEOIAnalytics } = analyticsJson.props.pageProps;
+  const {volumeChart, revenueChart} = platformChartsData;
 
   const today = formatDate();
 
-  Object.values(tradeVolumeFEData).forEach((value: any) => {
+  Object.values(volumeChart).forEach((value: any) => {
     const todaysVolumeData = value.find((data: any) => data.time === today).value;
     dailyVolume.addUSDValue(todaysVolumeData);
   });
 
-  Object.values(revenueFEData).forEach((value: any) => {
+  Object.values(revenueChart).forEach((value: any) => {
     const todaysRevenueData = value.find((data: any) => data.time === today).value;
     dailyFees.addUSDValue(todaysRevenueData);
   });

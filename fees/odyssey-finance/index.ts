@@ -6,6 +6,7 @@ const TREASURY = {
   [CHAIN.ETHEREUM]: "0xd44a3e93a256c445f17a12f35a0ffef975ec6817",
   [CHAIN.BASE]:     "0xd44a3e93a256c445f17a12f35a0ffef975ec6817",
   [CHAIN.OPTIMISM]: "0xd44a3e93a256c445f17a12f35a0ffef975ec6817",
+  [CHAIN.PLASMA]:   "0xd44a3e93a256c445f17a12f35a0ffef975ec6817",
 };
 
 const TOKENS = {
@@ -22,6 +23,8 @@ const TOKENS = {
     "0x4Dbe3f01aBe271D3E65432c74851625a8c30Aa7B", // vaSTETH
     "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee", // weETH
     "0xdC035D45d973E3EC169d2276DDab16f1e407384F", // USDS
+    "0xDBDC1Ef57537E34680B898E1FEBD3D68c7389bCB", // siUSD
+    "0xDD9F61a85fFE73E41eF889817972f0B0AaE6D6Dd", // vaRETH
   ],
   [CHAIN.BASE]: [
     "0x7FcD174E80f264448ebeE8c88a7C4476AAF58Ea6", // wsuperOETHb
@@ -37,6 +40,11 @@ const TOKENS = {
     "0xCcF3d1AcF799bAe67F6e354d685295557cf64761", // vaETH
     "0x539505Dde2B9771dEBE0898a84441c5E7fDF6BC0", // vaUSDC
     "0x2416092f143378750bb29b79eD961ab195CcEea5", // ezETH
+  ],
+  [CHAIN.PLASMA]: [
+    "0xA3D68b74bF0528fdD07263c60d6488749044914b", // weETH
+    "0x211Cc4DD073734dA055fbF44a2b4667d5E5fE5d2", // sUSDe
+    "0x0B2b2B2076d95dda7817e785989fE353fe955ef9", // sUSDai
   ],
 };
 
@@ -63,8 +71,20 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "All protocol revenue equals fees.",
   },
   fetch,
-  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.OPTIMISM],
-  start: "2025-02-01",
+  adapter:{
+    [CHAIN.ETHEREUM]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.BASE]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.OPTIMISM]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.PLASMA]: {
+      start: "2025-10-15",
+    },
+  }
 };
 
 export default adapter;

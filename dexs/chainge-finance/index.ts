@@ -19,6 +19,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2026-04-01",
   adapter: {
     [CHAIN.FUSION]: {
       fetch,

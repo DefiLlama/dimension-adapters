@@ -10,10 +10,10 @@ import { queryAllium } from "../../helpers/allium";
 
 // ============ EVM Chain Config ============
 const evmChainConfig: Record<string, { start: string; contract: string }> = {
-  [CHAIN.OG]: {
-    start: "2024-06-01",
-    contract: "0x2880ab155794e7179c9ee2e38200202908c17b43",
-  },
+  // [CHAIN.OG]: {
+  //   start: "2024-06-01",
+  //   contract: "0x2880ab155794e7179c9ee2e38200202908c17b43",
+  // },
   [CHAIN.ETHEREUM]: {
     start: "2023-07-01",
     contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
@@ -70,10 +70,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2023-07-01",
     contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
   },
-  [CHAIN.BITTORRENT]: {
-    start: "2023-07-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.BITTORRENT]: {
+  //   start: "2023-07-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.CORE]: {
     start: "2023-07-01",
     contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
@@ -154,10 +154,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2024-01-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
-  [CHAIN.LIGHTLINK_PHOENIX]: {
-    start: "2024-01-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.LIGHTLINK_PHOENIX]: {
+  //   start: "2024-01-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.ETHERLINK]: {
     start: "2024-06-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
@@ -254,10 +254,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2024-06-01",
     contract: "0x056f829183Ec806A78c26C98961678c24faB71af",
   },
-  [CHAIN.ZKFAIR]: {
-    start: "2024-01-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.ZKFAIR]: {
+  //   start: "2024-01-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.CAMP]: {
     start: "2024-06-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
@@ -271,25 +271,16 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
 
-  // bad rpcs chains
-  // [CHAIN.SEI]: { start: "2024-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
+  // Re-enabled chains (previously marked as bad RPCs)
+  // [CHAIN.SEI]: {
+  //   start: "2024-01-01",
+  //   contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  // },
+  // [CHAIN.INJECTIVE]: {
+  //   start: "2024-06-01",
+  //   contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
+  // },
   // [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
-  // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
-};
-
-// Fee per price feed update by chain (from https://docs.pyth.network/price-feeds/core/current-fees)
-const feePerUpdateByChain: Record<string, bigint> = {
-  [CHAIN.AURORA]: 3000000000000n,
-  [CHAIN.AVAX]: 250000000000000n,
-  [CHAIN.CONFLUX]: 100000000000000000n,
-  [CHAIN.CRONOS]: 60000000000000000n,
-  [CHAIN.METER]: 20000000000000000n,
-  [CHAIN.OP_BNB]: 186000000000000n,
-  [CHAIN.RONIN]: 1000000000000000n,
-  [CHAIN.SEI]: 10000000000000000n,
-  [CHAIN.SHIMMER_EVM]: 1000000000000000000n,
-  [CHAIN.SWELLCHAIN]: 50000000000000n,
-  [CHAIN.WC]: 10000000000000n,
 };
 
 const DEFAULT_FEE = 1n;
@@ -303,6 +294,9 @@ const SUI_FEE_RECIPIENT =
 const APTOS_PYTH_CONTRACT =
   "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387";
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
+
+// ============ ABI for fee query ============
+const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
 
 // ============ EVM Fetch Function ============
 async function fetchEvm(
@@ -319,9 +313,19 @@ async function fetchEvm(
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
+    let updateFee = await options.api.call({
+      abi: SINGLE_UPDATE_FEE_ABI,
+      target: config.contract,
+      permitFailure: true,
+    })
+
+    //Not throwing error because there are many chains and accidentally some can fail
+    if (!updateFee) {
+      updateFee = 0
+    }
+
     const updateCount = updateLogs.length;
-    const feePerUpdate = feePerUpdateByChain[options.chain] || DEFAULT_FEE;
-    dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
+    dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
   }
 
   return {
@@ -389,11 +393,11 @@ async function fetchAptos(
   const dailyFees = options.createBalances();
 
   const query = `
-    SELECT SUM(amount) AS total_fees
-    FROM aptos.core.fungible_asset_activities
-    WHERE owner_address = '${APTOS_PYTH_CONTRACT}'
-      AND asset_type = '${APTOS_COIN_TYPE}'
-      AND activity_type = 'deposit'
+    SELECT COALESCE(sum(amount), 0) as total_fees
+    FROM aptos.assets.fungible_transfers
+    WHERE to_address = '${APTOS_PYTH_CONTRACT}'
+      AND token_address = '${APTOS_COIN_TYPE}'
+      AND deposit_metadata:type::STRING = '0x1::fungible_asset::Deposit'
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
@@ -417,11 +421,14 @@ async function fetchNear(
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const query = `
-    SELECT SUM(deposit) AS total_fees
-    FROM near.raw.receipts
+    SELECT
+      COALESCE(SUM(TRY_CAST(action_contents:deposit::STRING AS DECIMAL(38, 0))), 0) AS total_fees
+    FROM near.raw.transaction_actions
     WHERE receiver_id = '${NEAR_PYTH_CONTRACT}'
-    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-    AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND action = 'FunctionCall'
+      AND action_contents:method_name::STRING = 'update_price_feeds'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
@@ -444,15 +451,15 @@ const adapter: SimpleAdapter = {
     ...evmAdapterEntries,
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2023-01-01" },
     [CHAIN.SUI]: { fetch: fetchSui, start: "2023-06-01" },
-    // [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
-    // [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
+    [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
+    [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
   },
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Fees paid by users to update Pyth price feeds on-chain",
-    Revenue: "All update fees accrue to the Pyth protocol",
-    ProtocolRevenue: "All update fees accrue to the Pyth protocol",
+    Fees: "Fees paid by users to update Pyth price feeds on-chain. Fee amounts per chain are set by Pyth DAO governance via singleUpdateFeeInWei() on each contract.",
+    Revenue: "All update fees accrue to the Pyth protocol treasury.",
+    ProtocolRevenue: "All update fees accrue to the Pyth protocol treasury.",
   },
 };
 

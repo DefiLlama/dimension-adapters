@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -52,8 +53,11 @@ const fetch = async (options: FetchOptions) => {
     options,
     target: feeWallet,
   });
-  
-  for (const token of blacklistTokens) {
+
+  const defaultBlacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+  const allBlacklistedTokens = [...new Set([...blacklistTokens, ...defaultBlacklistedTokens])]
+
+  for (const token of allBlacklistedTokens) {
     dailyFees.removeTokenBalance(token)
   }
 

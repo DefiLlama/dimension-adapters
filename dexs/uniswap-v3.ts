@@ -21,7 +21,7 @@ const v3Endpoints = {
   // [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
   [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX'),
-  [CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
+  //[CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
 };
 
 type TStartTime = {
@@ -38,6 +38,17 @@ const startTimeV3: TStartTime = {
   [CHAIN.BASE]: 1691280000,
   [CHAIN.ERA]: 1693440000,
   [CHAIN.XLAYER]: 1767571200,
+}
+
+const FEE_SWITCH_DATE: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "2025-12-29",
+  [CHAIN.OPTIMISM]: "2026-03-08",
+  [CHAIN.ARBITRUM]: "2026-03-08",
+  [CHAIN.BASE]: "2026-03-08",
+  [CHAIN.CELO]: "2026-03-08",
+  [CHAIN.WC]: "2026-03-08",
+  [CHAIN.ZORA]: "2026-03-08",
+  [CHAIN.XLAYER]: "2026-03-08",
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -110,10 +121,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'All fees are distributed to LPs.',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
+  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
 }
 
 const adapter: SimpleAdapter = {
@@ -130,7 +141,7 @@ const adapter: SimpleAdapter = {
 };
 
 const okuChains = [
-  CHAIN.OPTIMISM,
+  //CHAIN.OPTIMISM,
   CHAIN.POLYGON,
   CHAIN.ERA,
   CHAIN.SEI,
@@ -150,7 +161,7 @@ const okuChains = [
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
   CHAIN.TELOS,
-  CHAIN.CELO,
+  //CHAIN.CELO,
   CHAIN.NIBIRU,
   CHAIN.MONAD,
   CHAIN.SONIC,
@@ -185,14 +196,6 @@ okuChains.forEach(chain => {
   },
 };
 
-(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
 (adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
@@ -220,7 +223,7 @@ okuChains.forEach(chain => {
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
 
-async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number) => number, onlyWhitelisedTokens?: boolean }) {
+async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number, options: FetchOptions) => number, onlyWhitelisedTokens?: boolean }) {
   const { options, factory, fromBlock, getRevenueShare, onlyWhitelisedTokens } = props;
   
   const whitelistedTokens: Array<string> | undefined = onlyWhitelisedTokens ? await getDefaultDexTokensWhitelisted({ chain: options.chain }) : undefined;
@@ -241,7 +244,7 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
     
     pairObject[log.pool] = [log.token0, log.token1]
     fees[log.pool] = (log.fee?.toString() || 0) / 1e6
-    revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6) : 0
+    revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6, options) : 0
   })
   
   const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
@@ -269,16 +272,17 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue }
 }
 
+function getRevenueShare(fee: number, options: FetchOptions): number {
+  if (!FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) return 0;
+  if (fee === 0.0001) return 0.000025;
+  if (fee === 0.0005) return 0.000125;
+  if (fee === 0.003) return 0.0005;
+  if (fee === 0.01) return 0.001666;
+  return 0;
+}
+
 (adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    function getRevenueShare(fee: number): number {
-      // https://docs.uniswap.org/contracts/protocol-fee/fee-setting-rational
-      if (fee === 0.0001) return 0.000025;
-      if (fee === 0.0005) return 0.0000125;
-      if (fee === 0.003) return 0.0005;
-      if (fee === 0.01) return 0.001666;
-      return 0;
-    }
     return await customUniswapGetLogsAdapter({
       options,
       factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
@@ -301,17 +305,18 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
 
 export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
   const tokens = await getDefaultDexTokensWhitelisted({ chain: options.chain });
-  return `
-    SELECT
-        project_contract_address AS pool
-        , SUM(
-          CASE 
+  const cleanVolumeExpr = tokens.length === 0
+    ? 'amount_usd'
+    : `CASE 
               WHEN token_sold_address IN (${tokens.toString()})
               AND token_bought_address IN (${tokens.toString()})
               THEN amount_usd
               ELSE 0
-          END
-        ) AS clean_volume_usd
+          END`;
+  return `
+    SELECT
+        project_contract_address AS pool
+        , SUM(${cleanVolumeExpr}) AS clean_volume_usd
         , SUM(amount_usd) AS total_volume_usd 
     FROM dex.trades
     WHERE blockchain = '${options.chain}'
@@ -327,8 +332,9 @@ export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
 async function fetchDune(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  
-  const poolsAndVolumes = await queryDune('3996608',{
+  const dailyRevenue = options.createBalances();
+
+  const poolsAndVolumes = await queryDune('3996608', {
     fullQuery: await UNISWAP_V3_QUERY(options),
   }, options);
   const poolFees = await options.api.multiCall({
@@ -338,19 +344,24 @@ async function fetchDune(options: FetchOptions) {
   for (let i = 0; i < poolsAndVolumes.length; i++) {
     if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
       const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
+      const revenueRatio = getRevenueShare(fee, options)
       // add clean volume, exclude blacklist token
       dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
       dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
+      dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * revenueRatio)
     }
   }
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
+    dailySupplySideRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
   }
 }
 
@@ -361,6 +372,36 @@ async function fetchDune(options: FetchOptions) {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    return await fetchDune(options);
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    return await fetchDune(options);
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    return await fetchDune(options);
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    return await fetchDune(options);
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    return await fetchDune(options);
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
     return await fetchDune(options);
   },

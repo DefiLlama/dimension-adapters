@@ -15,77 +15,68 @@ interface IData {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const data: IData[] = await queryDuneSql(options, `WITH
-        decoded_pool AS (
+    const data: IData[] = await queryDuneSql(options, `
+        WITH pools AS (
             SELECT
-                to_base58 (bytearray_substring (data, 182, 32)) AS pool,
-                to_base58 (bytearray_substring (data, 91, 32)) AS quoteMint
+                pool,
+                quote_mint AS quoteMint
             FROM
-                solana.instruction_calls
-            WHERE
-                varbinary_starts_with (data, 0xe445a52e51cb9a1db1310cd2a076a774)
-                AND executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-                AND tx_success = true
+                pumpdotfun_solana.pump_amm_evt_createpoolevent
         ),
-        decoded_swap AS (
+        sells AS (
             SELECT
-                tx_id,
-                block_time,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 73, 8))
-                ) AS quoteAmountOutorIn,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 89, 8))
-                ) AS lpFee,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 105, 8))
-                ) AS protocolFee,
-                COALESCE(CASE WHEN BYTEARRAY_LENGTH(data) >= 368 THEN BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 361, 8))) ELSE 0 END, 0) AS coinCreatorFee,
-                to_base58 (bytearray_substring (data, 129, 32)) AS pool
+                quote_amount_out AS amount,
+                lp_fee,
+                protocol_fee,
+                coin_creator_fee,
+                pool
             FROM
-                solana.instruction_calls
+                pumpdotfun_solana.pump_amm_evt_sellevent
             WHERE
-                tx_success = TRUE
-                AND inner_executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-                AND (
-                    VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d3e2f370aa503dc2a)
-                    OR VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d67f4521f2cf57777)
-                )
-                AND TIME_RANGE
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+        ),
+        buys AS (
+            SELECT
+                quote_amount_in AS amount,
+                lp_fee,
+                protocol_fee,
+                coin_creator_fee,
+                pool
+            FROM
+                pumpdotfun_solana.pump_amm_evt_buyevent
+            WHERE
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
         ),
         pumpswap_trades AS (
             SELECT
-                s.block_time,
-                DATE_TRUNC('day', s.block_time) AS dt,
-                s.quoteAmountOutorIn,
                 p.quoteMint,
-                s.protocolFee,
-                s.lpFee,
-                s.coinCreatorFee
+                s.amount,
+                s.protocol_fee AS protocolFee,
+                s.lp_fee AS lpFee,
+                s.coin_creator_fee AS coinCreatorFee
             FROM
-                decoded_swap s
-                JOIN decoded_pool p ON s.pool = p.pool
+                (SELECT * FROM buys UNION ALL SELECT * FROM sells) s
+                JOIN pools p ON s.pool = p.pool
             WHERE
-                s.block_time >= TIMESTAMP '2025-03-15'
-                AND p.quoteMint IN (
+                p.quoteMint IN (
                     '${ADDRESSES.solana.SOL}',
                     'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
                     '${ADDRESSES.solana.USDC}',
                     '${ADDRESSES.solana.USDT}',
+                    '${ADDRESSES.solana.PUMP}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
-                AND TIME_RANGE
         )
         SELECT
             quoteMint,
-            SUM(quoteAmountOutorIn) AS quoteAmountOutorIn,
-            SUM(protocolFee) as protocolFee,
-            SUM(lpFee) as lpFee,
-            SUM(coinCreatorFee) as coinCreatorFee
+            SUM(amount) AS quoteAmountOutorIn,
+            SUM(protocolFee) AS protocolFee,
+            SUM(lpFee) AS lpFee,
+            SUM(coinCreatorFee) AS coinCreatorFee
         FROM
             pumpswap_trades
         WHERE
-            quoteAmountOutorIn IS NOT NULL
+            amount IS NOT NULL
         GROUP BY
             quoteMint
     `)

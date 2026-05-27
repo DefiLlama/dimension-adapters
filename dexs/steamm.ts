@@ -2,7 +2,7 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const suilendPoolsURL = () => `https://api.suilend.fi/steamm/pools/all`;
+const suilendPoolsURL = () => `https://global.suilend.fi/steamm/pools/all`;
 
 interface PoolInfo {
   id: string;
@@ -20,7 +20,7 @@ const suilendPoolHistoricalURL = (
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
+  `https://global.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
 
 
 async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Promise<Array<PoolInfo>> {

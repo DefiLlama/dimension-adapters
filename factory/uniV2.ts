@@ -7,10 +7,11 @@ import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
+const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
-  'testing-please-ignore': {
-    [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
+  "katana": {
+    [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
   },
   'fusionx-v2': {
     [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
@@ -123,6 +124,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "miaswap": {
     [CHAIN.ONUS]: { factory: '0xA5DA4dC244c7aD33a0D8a10Ed5d8cFf078E86Ef3' },
+  },
+  "mimo": {
+    [CHAIN.IOTEX]: { factory: '0xda257cBe968202Dea212bBB65aB49f174Da58b9D', start: '2021-06-22', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, allowReadPairs: true },
   },
   "mistswap": {
     [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0' },
@@ -358,7 +362,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BOBA]: { factory: '0x06350499760aa3ea20FEd2837321a84a92417f39', userFeesRatio: 1, revenueRatio: 0 },
   },
   "cl-dex": {
-    [CHAIN.KLAYTN]: { factory: '0x2A4C5eCaafB26460F17d509EA4d15741AF5F5f0a', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
+    [CHAIN.KLAYTN]: { factory: '0x93fa0E1deE99ac4158a617a6EC79cB941bD9a39F', userFeesRatio: 1, protocolRevenueRatio: 0.3, revenueRatio: 0.3, holdersRevenueRatio: 0 },
   },
   "lynex-v1": {
     [CHAIN.LINEA]: { factory: '0xbc7695fd00e3b32d08124b7a4287493aee99f9ee', start: '2024-02-11', fees: 0.0025, stableFees: 0.0001, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1 },
@@ -478,7 +482,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.OPTIMISM]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-16', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.BASE]: { factory: '0x71524b4f93c58fcbf659783284e38825f0622859', start: '2023-08-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.SONIC]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    // [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.LINEA]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.METIS]: { factory: '0x580ED43F3BBa06555785C81c2957efCCa71f7483', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
   },
@@ -726,6 +730,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
+  "shapeswap-v2": {
+    [CHAIN.SHAPE]: { factory: '0xb411eAF2f2070822B26E372E3Ea63c5060BA45E6', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
   "hyperjump": {
     [CHAIN.BSC]: { factory: '0xac653ce27e04c6ac565fd87f18128ad33ca03ba2', start: '2020-11-10' },
     [CHAIN.FANTOM]: { factory: '0x991152411A7B5A14A8CF0cDDE8439435328070dF', start: '2021-04-19' },
@@ -733,6 +740,22 @@ const configs: Record<string, Record<string, any>> = {
   },
   "tideswap-dex": {
     [CHAIN.INK]: { factory: '0x2ebE0528aDED9fA8d745B7C7082fb90d7C7B6Ec8', start: '2026-02-20' },
+  },
+  "forest-v1": {
+    [CHAIN.BSC]: { factory: '0x9d5ef0f61a5e88d90fb231f84413b5fc43bf6a9e', start: '2025-12-09' },
+  },
+  "virtus-protocol": {
+    [CHAIN.BASE]: { factory: '0x7F03ae4452192b0E280fB0d4f9c225DDa88C7623', swapEvent: velodromeSwapEvent, start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1 },
+  },
+  "stableswap-xyz": {
+    [CHAIN.STABLE]: { factory: "0x25D2d657F539F2bB16eC82773cBE5ee49ddD3c69", fees: 0.003, revenueRatio: 0, }
+  },
+  "zealousswap": {
+    [CHAIN.KASPLEX]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2025-09-26', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+    [CHAIN.IGRA]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-04-03', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+  },
+  "qie-dex": {
+    [CHAIN.QIEV3]: { factory: "0x8E23128a5511223bE6c0d64106e2D4508C08398C", start: '2025-08-05', fees: 0.003, revenueRatio: 0, }
   },
 }
 
@@ -963,6 +986,14 @@ const methodologyMap: Record<string, any> = {
     Revenue: 'No revenue',
     SupplySideRevenue: 'Swap fees distributed to LPs.',
   },
+  "mimo": {
+    UserFees: "Users pay 0.30% fees on each swap.",
+    Fees: "Swap fees paid by users.",
+    Revenue: "Mimo Exchange does not collect protocol revenue.",
+    ProtocolRevenue: "Mimo Exchange does not collect protocol revenue.",
+    SupplySideRevenue: "Swap fees are distributed to liquidity providers.",
+    HoldersRevenue: "Mimo Exchange does not distribute swap fees to token holders.",
+  },
   "zkswap": {
     Fees: "Total swap fees paided by users.",
     Revenue: "Revenue collected from 100% swap fees.",
@@ -1088,11 +1119,23 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: 'All user fees are distributed among LPs.',
     HoldersRevenue: 'Holders have no revenue.',
   },
+  "shapeswap-v2": {
+    Fees: 'Swap fees paid by users on each trade.',
+    UserFees: 'User pays fees on each swap.',
+    Revenue: 'Protocol has no revenue.',
+    ProtocolRevenue: 'Protocol has no revenue.',
+    SupplySideRevenue: 'All user fees are distributed among LPs.',
+    HoldersRevenue: 'Holders have no revenue.',
+  },
 }
 
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
   "fcon-dex": '2023-12-12',
+  "metavault-amm-v2": '2025-06-04',
+  "beamswap": "2025-08-12",
+  "wagyuswap": "2026-03-16",
+  "zircon-gamma": '2023-03-26',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1148,6 +1191,9 @@ const feesConfigs: Record<string, Record<string, any>> = {
   },
   "biswap": {
     [CHAIN.BSC]: { factory: '0x858e3312ed3a876947ea49d572a7c42de08af7ee', fees: 0.002, start: '2021-05-24' },
+  },
+  'bcswap': {
+    [CHAIN.BCYPHER]: { factory: '0x927bf500361987b365f6d0ff38c1d45155f4975c', start: '2026-01-01' }
   },
   "velox": {
     [CHAIN.BASE]: { factory: "0xa28dBAE4D926067F4c343aA8071e833b04C8b99E", fees: 0.0001, start: "2026-03-08" }
@@ -1212,6 +1258,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
     },
     factoriesName: "factories",
+    deadFrom: "2026-02-11",
   },
   "pyeswap": {
     endpoints: {
@@ -1277,6 +1324,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.GODWOKEN_V1]: "https://www.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
     },
     factoriesName: "yokaiFactories",
+    deadFrom: "2025-12-31",
   },
   "zircon-gamma": {
     endpoints: {
@@ -1389,21 +1437,21 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
     },
   },
-  "katana": {
-    endpoints: {
-      [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
-    },
-    factoriesName: "katanaFactories",
-    totalVolume: "totalVolumeUSD",
-    feeConfig: {
-      totalFees: 0.003,
-      protocolFees: 0.0005,
-      supplySideRevenue: 0.0025,
-      revenue: 0.0005,
-      userFees: 0.003,
-    },
-    start: '2021-11-01',
-  },
+  // "katana": {
+  //   endpoints: {
+  //     [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
+  //   },
+  //   factoriesName: "katanaFactories",
+  //   totalVolume: "totalVolumeUSD",
+  //   feeConfig: {
+  //     totalFees: 0.003,
+  //     protocolFees: 0.0005,
+  //     supplySideRevenue: 0.0025,
+  //     revenue: 0.0005,
+  //     userFees: 0.003,
+  //   },
+  //   start: '2021-11-01',
+  // },
   "defi-swap": {
     endpoints: {
       [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('G7W3G1JGcFbWseucNkHHvQorxyjQLEQt7vt9yPN97hri'),
@@ -1492,6 +1540,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "legacyFactories",
     totalFeesField: "totalFeeUSD",
+    deadFrom: "2026-01-15",
   },
   "ramses-exchange-v2": {
     endpoints: {

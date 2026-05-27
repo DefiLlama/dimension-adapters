@@ -49,6 +49,7 @@ const adapter: SimpleAdapter = {
     Volume:
       "USD Volume of Umbra V3 using datasource from protocol's indexed data.",
   },
+  deadFrom: "2025-11-18",
 };
 
 export default adapter;
