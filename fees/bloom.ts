@@ -16,8 +16,34 @@ const LABELS = {
 const chainConfig: any = {
   [CHAIN.SOLANA]: {
     start: '2024-10-01',
+    // Solana wallets below are our own on-chain research, not protocol/team-provided.
+    // Found by tracing SOL/wSOL flows from the fee wallet on Dune/Helius: 77k/6yj are reward relayers,
+    // while the internal wallets receive operational/team transfers and are excluded from reward payouts.
     feesWallet: '7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM',
-    teamWallet: '9PbhcxBs4u6v6a21seg1SGCNxhqSVb2rChDHgSBZhjm8',
+    rewardRelayers: [
+      '77k7gzmr7UAtGUrWeL3oA5ZHvmufavZWFzCkQstb3w1c',
+      '6yjgxVSev9QRe7CB3H3xziWysgtCa3qEuwnUWQQuQfAi',
+    ],
+    internalWallets: [
+      '9PbhcxBs4u6v6a21seg1SGCNxhqSVb2rChDHgSBZhjm8',
+      '8LMsKein81fYRsoyvMjNhNrTiZu5WsS1uqM9itSJZY8N',
+      '5iJius1vmqAAUYYYU8fHLAJR9Mf2F8tYAZLfrG7VCYu4',
+      'FBaFVAhRztehfyY1eGufZZib7XpvZZG53HkM6nGzaoG',
+      '9JcLbWSVjBMujSfqxUBeZgFwgTu9VJZVfXoYzeu5WQxB',
+      'CTyFguG69kwYrzk24P3UuBvY1rR5atu9kf2S6XEwAU8X',
+      '2PjC7fw76prHWxP4sKRnvjUdXT5QX4AKeKSXMeJsigfb',
+      '7P7sHjhTeSCdeR6zD8MmLA3yvE8gUvHXztHhgpSQ6S72',
+      'Bu1WfCjd8xF3VhArDWf1CgiDu6r3dbmu5hVrWo8QrZKy',
+      '7uobGeZaqfMELPLPTPkk14eijBFCiWmVdXjzrpQTKciZ',
+      'BdiaKYXV69zuu2iJmPapxvoRS3Y1xuK875V4zDLoQs5f',
+      'C9zDTyy9GeuoZNoTuJ5fXcx8KH6KWzecyU5Pie1tuUAe',
+      'sBWcWyiG51qdad9f7xkJPe4vjkQyNBw1TZF3wG5p3NN',
+      '3SSV7AbKcjgtUrTQXM8QuJroLBbSnmEAQerYHGHT6yiV',
+      'EgMp6MRqnJ7RNiJAMymXA518bma8pfsuqCp6RdcJpx5e',
+      '5sUSHnxvcKzDkkj9xQuxj5rzqj1bkvnwMUVQbfRMtJpY',
+      'toAPhdPcxDZsm2ziAgKcLLb5FMvhsUxqWpRvxTnYfnP',
+    ],
+    directRewardRelayerStart: '2026-01-20 00:00:00',
   },
   [CHAIN.BSC]: {
     start: '2024-12-12',
@@ -79,11 +105,14 @@ const chainConfig: any = {
 async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const { feesWallet, teamWallet } = chainConfig[CHAIN.SOLANA];
+  const { feesWallet, rewardRelayers, internalWallets, directRewardRelayerStart } = chainConfig[CHAIN.SOLANA];
+  const rewardRelayersSql = rewardRelayers.map((wallet: string) => `'${wallet}'`).join(', ');
+  const internalWalletsSql = internalWallets.map((wallet: string) => `'${wallet}'`).join(', ');
 
   const query = `
     WITH transfers AS (
       SELECT
+        block_time,
         from_owner,
         to_owner,
         amount
@@ -99,12 +128,37 @@ async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
         AND (
           to_owner = '${feesWallet}'
           OR from_owner = '${feesWallet}'
+          OR from_owner IN (${rewardRelayersSql})
         )
     )
     SELECT
-      SUM(CASE WHEN to_owner = '${feesWallet}' THEN amount ELSE uint256 '0' END) AS fees,
       SUM(CASE
-        WHEN from_owner = '${feesWallet}' AND to_owner <> '${teamWallet}'
+        WHEN
+          to_owner = '${feesWallet}'
+          AND (
+            from_owner IS NULL
+            OR (
+              from_owner <> '${feesWallet}'
+              AND from_owner NOT IN (${rewardRelayersSql})
+              AND from_owner NOT IN (${internalWalletsSql})
+            )
+          )
+        THEN amount
+        ELSE uint256 '0'
+      END) AS fees,
+      SUM(CASE
+        WHEN
+          from_owner IN (${rewardRelayersSql})
+          AND to_owner <> '${feesWallet}'
+          AND to_owner NOT IN (${rewardRelayersSql})
+          AND to_owner NOT IN (${internalWalletsSql})
+        THEN amount
+        WHEN
+          from_owner = '${feesWallet}'
+          AND block_time >= TIMESTAMP '${directRewardRelayerStart}'
+          AND to_owner <> '${feesWallet}'
+          AND to_owner NOT IN (${rewardRelayersSql})
+          AND to_owner NOT IN (${internalWalletsSql})
         THEN amount
         ELSE uint256 '0'
       END) AS referral_cashback_rewards
