@@ -358,6 +358,9 @@ const configs: Record<string, Record<string, any>> = {
   "krokoswap-v3": {
     [CHAIN.KASPLEX]: { factory: '0x0dfb1Bb755d872EA1fa4d95E4ad0c2E6317Ce9B9', start: '2026-03-04', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
   },
+  "kublerx-v3": {
+    [CHAIN.BITKUB]: { factory: '0xD679d310008A2595B8d3DeB83bb93EB23F9b0942', start: '2026-05-22', userFeesRatio: 1, revenueRatio: 0 },
+  }
 }
 
 const optionsMap: Record<string, any> = {
