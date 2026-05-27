@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const FEES_VAULT_FACTORY = '0x705C76e29977Ed52cd93d390A7BBcC61189724C0';
 const GAUGE_RATE_PRECISION = 10_000;
@@ -175,16 +176,24 @@ const fetchLiquidityStats = async (
   };
 };
 
-const makeReturn = (volume: number, fees: number, gaugeRate: number) => {
-  const dailyVolume = Math.max(0, volume);
-  const dailyFees = Math.max(0, fees);
+const makeReturn = (options: FetchOptions, volume: number, fees: number, gaugeRate: number) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  dailyVolume.addUSDValue(Math.max(0, volume));
+  dailyFees.addUSDValue(Math.max(0, fees), METRIC.SWAP_FEES);
+  dailyProtocolRevenue.addUSDValue(Math.max(0, fees * (1 - gaugeRate)), 'Swap Fees to protocol');
+  dailyHoldersRevenue.addUSDValue(Math.max(0, fees * gaugeRate)), 'Swap Fees to veNest lockers';
+
   return {
-    dailyVolume: dailyVolume.toString(),
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(),
-    dailyProtocolRevenue: (dailyFees * (1 - gaugeRate)).toString(),
-    dailySupplySideRevenue: "0",
-    dailyHoldersRevenue: (dailyFees * gaugeRate).toString(),
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue: 0,
+    dailyHoldersRevenue,
   };
 };
 
@@ -235,12 +244,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       fetch24hVolume(config.blazeApiBase, fromDate, toDate),
       fetch24hFees(config.blazeApiBase, fromDate, toDate),
     ]);
-    return makeReturn(blazeVolume, blazeFees, gaugeRate);
+    return makeReturn(options, blazeVolume, blazeFees, gaugeRate);
   } catch {
     console.warn(`Nest primary endpoints failed (${options.dateString}), trying liquidity-stats fallback`);
     try {
       const { volume, fees } = await fetchLiquidityStats(config.blazeApiBase, fromDate, toDate);
-      return makeReturn(volume, fees, gaugeRate);
+      return makeReturn(options, volume, fees, gaugeRate);
     } catch {
       throw new Error(`Error fetching Nest platform data for date ${options.dateString}`);
     }
@@ -253,13 +262,30 @@ const methodology = {
   Revenue: "All swap fees accrue to the protocol (no LP share).",
   ProtocolRevenue: "Portion of swap fees going to the protocol treasury.",
   SupplySideRevenue: "LPs do not earn fees; instead, they are compensated with NEST tokens.",
-  HoldersRevenue: "97% of swap fees go to veNest lockers."
+  HoldersRevenue: "Part of swap fees go to veNest lockers (based on the gauge rate - currently 100 % of the swap fees)."
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees collected from all pools.",
+  },
+  Revenue: {
+    'Swap Fees to protocol': "Portion of swap fees going to the protocol treasury.",
+    'Swap Fees to veNest lockers': "Portion of swap fees going to the veNest lockers.",
+  },
+  ProtocolRevenue: {
+    'Swap Fees to protocol': "Portion of swap fees going to the protocol treasury.",
+  },
+  HoldersRevenue: {
+    'Swap Fees to veNest lockers': "Portion of swap fees going to the veNest lockers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   methodology,
+  breakdownMethodology,
   adapter: chainConfig,
 };
 
