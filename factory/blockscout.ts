@@ -73,7 +73,6 @@ const protocolChainMap: Record<string, string> = {
   "molten-network": CHAIN.MOLTEN_NETWORK,
   "syndicate": CHAIN.SYNDICATE,
   "xchain": CHAIN.XCHAIN,
-  "taiko": CHAIN.TAIKO,
   "capx": CHAIN.CAPX,
   "rari": CHAIN.RARI,
   "shibarium": CHAIN.SHIBARIUM,
