@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -166,9 +165,10 @@ const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; 
   ],
 };
 
-async function fetchUniV3Fees(options: FetchOptions, balances: any) {
+async function fetchUniV3Fees(options: FetchOptions) {
+  const balance = options.createBalances();
   const cfg = UNIV3_POSITIONS[options.chain];
-  if (!cfg) return;
+  if (!cfg) return balance;
 
   const treasurySet = new Set(cfg.treasuries.map((a) => a.toLowerCase()));
   const positionIdSet = new Set(cfg.positionIds.map(String));
@@ -207,7 +207,7 @@ async function fetchUniV3Fees(options: FetchOptions, balances: any) {
     })
     .filter((c) => c.amount0 > 0n || c.amount1 > 0n);
 
-  if (feeCollects.length === 0) return;
+  if (feeCollects.length === 0) return balance;
 
   const uniqueTokenIds = [...new Set(feeCollects.map((c) => c.tokenId))];
   const positions = await options.api.multiCall({
@@ -223,13 +223,15 @@ async function fetchUniV3Fees(options: FetchOptions, balances: any) {
   for (const c of feeCollects) {
     const pos = positionCache.get(c.tokenId);
     if (!pos) continue;
-    if (c.amount0 > 0n) balances.add(pos.token0, c.amount0.toString(), UNIV3_LABEL);
-    if (c.amount1 > 0n) balances.add(pos.token1, c.amount1.toString(), UNIV3_LABEL);
+    if (c.amount0 > 0n) balance.add(pos.token0, c.amount0.toString());
+    if (c.amount1 > 0n) balance.add(pos.token1, c.amount1.toString());
   }
+  return balance;
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   // 1. AMO harvest profits (minted to treasury as synth tokens).
   const amoBalances = options.createBalances();
@@ -244,15 +246,18 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 2. Synth swap fees: SyntheticTokenSwapped events, `fee` is minted as
-  //    syntheticTokenOut to the treasury.
+  // 2. Synth swap fees: SyntheticTokenSwapped events, fee is minted as
+  //    syntheticTokenOut to the treasury. Post-filter by SYNTHS list to ignore
+  //    unrelated contracts that may emit a same-signature event.
   const swapFees = options.createBalances();
   if (TREASURY[options.chain]) {
+    const synthSet = new Set((SYNTHS[options.chain] ?? []).map((t) => t.toLowerCase()));
     const swapLogs = await options.getLogs({
       noTarget: true,
       eventAbi: SYNTH_SWAPPED_EVENT_ABI,
     });
     for (const log of swapLogs) {
+      if (!synthSet.has(String(log.syntheticTokenOut).toLowerCase())) continue;
       const fee = BigInt(log.fee.toString());
       if (fee > 0n) swapFees.add(log.syntheticTokenOut, fee);
     }
@@ -295,20 +300,16 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addBalances(totals, group.label);
   }
 
-  await fetchUniV3Fees(options, dailyFees);
+  const uniV3Balances = await fetchUniV3Fees(options);
+  dailyFees.addBalances(uniV3Balances, UNIV3_LABEL);
 
   for (const g of (GOVERNANCE_INFLOWS[options.chain] ?? [])) {
-    const params: any = {
-      options,
-      tokens: [g.token],
-      targets: [g.holder],
-    };
+    const params: any = { options, tokens: [g.token], targets: [g.holder] };
     if (g.fromAddressFilter) params.fromAddressFilter = g.fromAddressFilter;
     const res = await addTokensReceived(params);
     dailyFees.addBalances(res, GOV_LABEL);
   }
 
-  const dailyHoldersRevenue = options.createBalances();
   if (options.chain === CHAIN.ETHEREUM) {
     const metTransfers = await addTokensReceived({
       options,
