@@ -12,18 +12,18 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const marketsInfo = await postURL(HOTSTUFF_API_URL, {
         method: "instruments",
         params: {
-            type: "perps",
+            type: "spot",
         },
     })
 
-    const marketIds: number[] = marketsInfo.perps.map((market: any) => market.id);
+    const marketIds: number[] = marketsInfo.spot.map((market: any) => market.id);
 
     await PromisePool.withConcurrency(10).for(marketIds).process(async (marketId) => {
         const marketInfo = await postURL(HOTSTUFF_API_URL, {
             method: "chart",
             params: {
                 symbol: marketId.toString(),
-                chart_type: "mark",
+                chart_type: "ltp",
                 resolution: "1D",
                 from: options.startOfDay,
                 to: options.endTimestamp,
@@ -37,13 +37,13 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     return { dailyVolume };
 }
 
-const methodology = { Volume: "Daily perps trading volume is taken from Hotstuff's candlestick API" };
+const methodology = { Volume: "Daily spot trading volume is taken from Hotstuff's candlestick API" };
 
 const adapter: SimpleAdapter = {
     fetch,
     methodology,
     chains: [CHAIN.HOTSTUFF],
-    start: "2026-02-06"
+    start: "2026-05-01"
 }
 
 export default adapter;
