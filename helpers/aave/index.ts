@@ -300,7 +300,7 @@ function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: 
   return { version: 2, adapter: aaveExport(config), ...global };
 }
 
-const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
+export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {
@@ -1268,6 +1268,72 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 3,
             lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
             dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
+          },
+        ],
+      },
+    },
+  },
+  'purrlend': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x81D5D25ea81b72E546fC71B5bAa8B059eF0dA702',
+            dataProvider: '0xfCaE4E9Acb1E5C78aa699d43c5cc0eAC5399E754',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-10-27',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xb61218d3efE306f7579eE50D1a606d56bc222048',
+            dataProvider: '0xa8Ca6a4A485485910aA4023b9963Dfd2f3A5aeb0',
+          },
+        ],
+      },
+    },
+  },
+  'edel': {
+    config: {
+      [CHAIN.ETHEREUM]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x3EEeB3cd20f844a578807fc457388Ceb9A67fAa6',
+            dataProvider: '0xf3A3F900151c092007FD495ABf3f0f6162A37501',
+          },
+        ],
+      },
+    },
+  },
+  'zona': {
+    config: {
+      [CHAIN.PHAROS]: {
+        start: '2026-04-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xda464e68208A3083Eb65FE5c522a72AeD1C1372a',
+            dataProvider: '0xA91424C666193C2b2fb684E25dEadf03B333f49A',
+          },
+        ],
+      },
+    },
+  },
+  'kaskad': {
+    config: {
+      [CHAIN.IGRA]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x1Fc4f91E99eFDC90c4B2B8F69fE0b4BFd819a330',
+            dataProvider: '0xFEaD8E14e58ecF72B5cD585458f07523F173E2F4',
           },
         ],
       },
