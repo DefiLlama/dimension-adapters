@@ -10,22 +10,24 @@ const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql
 // earning back ~75% of fees via LP deposits, making farming very cheap)
 const MIN_FEE_RATE = 0.00008; // 0.008%
 
-const fetch = async (options: FetchOptions) => {
-  const startDate = new Date(options.startOfDay * 1000).toISOString();
-  const endDate = new Date(options.endTimestamp * 1000).toISOString();
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const targetDate = new Date(options.startOfDay * 1000).toISOString();
+  const dateStr = targetDate.split('T')[0];
 
   const query = gql`
     {
       volumeRecordDailies(
-        where: {timestamp_gte: "${startDate}", timestamp_lt: "${endDate}"},
-        orderBy: timestamp_ASC
+        where: {timestamp_lte: "${targetDate}"},
+        orderBy: timestamp_DESC,
+        limit: 1
       ) {
         timestamp
         tradeVolume
       }
       feesRecordDailies(
-        where: {timestamp_gte: "${startDate}", timestamp_lt: "${endDate}"},
-        orderBy: timestamp_ASC
+        where: {timestamp_lte: "${targetDate}"},
+        orderBy: timestamp_DESC,
+        limit: 1
       ) {
         timestamp
         totalFees
@@ -35,8 +37,10 @@ const fetch = async (options: FetchOptions) => {
 
   const res = await request(url, query);
 
-  const volumeRecord = res.volumeRecordDailies[0];
-  const feesRecord = res.feesRecordDailies[0];
+  const volumeRecord = res.volumeRecordDailies
+    .find((r: any) => r.timestamp.split('T')[0] === dateStr);
+  const feesRecord = res.feesRecordDailies
+    .find((r: any) => r.timestamp.split('T')[0] === dateStr);
 
   if (!volumeRecord) throw new Error('Not found daily volume data!');
   if (!feesRecord) throw new Error('Not found daily fees data!');
@@ -60,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   fetch,
-  version: 2,
+  version: 1,
   chains: [CHAIN.SOLANA],
   start: '2025-02-12',
 };
