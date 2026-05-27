@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
     fetch,
     methodology,
     chains: [CHAIN.HOTSTUFF],
-    start: "2026-02-06"
+    start: "2026-05-01"
 }
 
 export default adapter;
