@@ -232,6 +232,15 @@ const breakdownMethodology = {
   },
 }
 
+const AaveNonBuybackTransferAddresses = [
+  '0x0000000000000000000000000000000000000000',
+  '0x4da27a545c0c5b758a6ba100e3a049001de870f5', // stkAAVE
+  '0xdef1fa4cefe67365ba046a7c630d6b885298e210', // deployer
+  '0x25f2226b597e8f9514b3f68f00f494cf4f286491', // ecosystem reserve
+  '0x1BDecEAE83c6Ca0f4D78Ee46D40881FAb26b10b1', // vesting
+  '0xA700b4eB416Be35b2911fd5Dee80678ff64fF6C9', // aave_eth
+]
+
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // Chainlink SVR (Smart Value Recapture) distribution Safe. Captures MEV from
@@ -367,8 +376,14 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    const aaveReceived = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: AaveBuyBackTreasury })
-    dailyHoldersRevenue.addBalances(aaveReceived, METRIC.TOKEN_BUY_BACK)
+    const nonBuybackTransferAddresses = new Set(AaveNonBuybackTransferAddresses.map((a) => a.toLowerCase()))
+    const buybackReceived = await addTokensReceived({
+      options,
+      tokens: [ADDRESSES.ethereum.AAVE],
+      target: AaveBuyBackTreasury,
+      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase()),
+    })
+    dailyHoldersRevenue.addBalances(buybackReceived, METRIC.TOKEN_BUY_BACK)
 
     // Chainlink SVR — MEV recapture from Aave V3 Ethereum liquidations.
     // The Chainlink SVR distributor Safe forwards 100% of recaptured value
