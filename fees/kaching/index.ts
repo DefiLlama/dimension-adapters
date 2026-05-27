@@ -2,41 +2,50 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const POTS_URL = "https://api.kaching.vip/pots";
-const MAX_PAGES = 100;
+const TICKET_PURCHASES_URL =
+  "https://api.kaching.vip/transactions/ticket-purchases";
+const PAGE_LIMIT = 50;
+const MAX_PAGES = 200;
 
-async function fetchAllActivePots() {
-  const pots: any[] = [];
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const data = await httpGet(POTS_URL, {
-      params: { page, limit: 100, status: "active", includePrivate: true },
-    });
-    if (!data?.pots) break;
-    pots.push(...data.pots);
-    totalPages = data.totalPages;
-    page++;
-  } while (page <= totalPages && page <= MAX_PAGES);
-  return pots;
+function toDateStr(ts: number): string {
+  return new Date(ts * 1000).toISOString().slice(0, 10);
 }
 
-const fetch = async (_a: any, _b: any, _options: FetchOptions) => {
-  try {
-    const pots = await fetchAllActivePots();
-    const revenue = pots.reduce(
-      (sum: number, pot: any) => sum + (pot.prizePool?.currentAmount ?? 0),
-      0
-    );
+// Fetch all ticket purchases for the given day and return the total USDC amount.
+async function fetchDailyRevenue(date: string): Promise<number> {
+  let total = 0;
+  let page = 1;
 
-    if (!isFinite(revenue)) {
-      throw new Error(`Invalid revenue value: ${revenue}`);
+  while (page <= MAX_PAGES) {
+    const data = await httpGet(TICKET_PURCHASES_URL, {
+      params: { startDate: date, endDate: date, page, limit: PAGE_LIMIT },
+    });
+
+    const rows: any[] = data?.data ?? [];
+    if (!rows.length) break;
+
+    for (const row of rows) {
+      const amt = Number(row.amount ?? 0);
+      if (isFinite(amt) && amt > 0) total += amt;
     }
 
-    return {
-      dailyFees: revenue,
-      dailyRevenue: revenue,
-    };
+    const totalPages: number = data?.totalPages ?? 1;
+    if (page >= totalPages) break;
+    page++;
+  }
+
+  return total;
+}
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  try {
+    // options.startOfDay is always midnight UTC of the day being analyzed
+    const date = toDateStr(options.startOfDay);
+
+    const dailyRevenue = await fetchDailyRevenue(date);
+    console.log(`Kaching: ${date} → $${dailyRevenue.toFixed(2)} USDC`);
+
+    return { dailyFees: dailyRevenue, dailyRevenue };
   } catch (e) {
     console.error("Kaching fee fetch error:", e);
     return { dailyFees: 0, dailyRevenue: 0 };
@@ -44,17 +53,9 @@ const fetch = async (_a: any, _b: any, _options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
-  Revenue: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    "Lottery Ticket Sales": "Fees collected from lottery ticket purchases on the Kaching platform (USDC).",
-  },
-  Revenue: {
-    "Lottery Ticket Sales To Protocol": "Protocol revenue retained from lottery ticket purchases (USDC).",
-  },
+  Fees: "Sum of all lottery ticket purchase amounts (USDC) on the Kaching decentralized lottery platform.",
+  Revenue:
+    "Sum of all lottery ticket purchase amounts (USDC) on the Kaching decentralized lottery platform.",
 };
 
 const adapter: SimpleAdapter = {
@@ -63,7 +64,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2025-11-11",
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;

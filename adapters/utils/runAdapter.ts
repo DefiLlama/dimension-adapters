@@ -28,8 +28,8 @@ function genUID(length: number = 10): string {
 function roundValue(value: any): number {
   const num = Number(value)
   const abs = Math.abs(num)
-  if (abs < 1) return +num.toFixed(4)
-  if (abs < 10) return +num.toFixed(2)
+  if (abs < 1)      return +num.toFixed(4)
+  if (abs < 10000)  return +num.toFixed(2)  // keep cents for values up to $9999
   return +num.toFixed(0)
 }
 
