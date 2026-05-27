@@ -18,7 +18,7 @@ interface EtherlinkVolumeResponse {
 }
 
 const dappSlug = '3route'
-const tezosURL = 'https://dapps-indexer-staging.dipdup.net/v1/graphql';
+const tezosURL = 'https://3route-tezos.dipdup.net/v1/graphql';
 const etherlinkURL = 'https://3route-etherlink.dipdup.net/v1/volume/day'
 
 const query = gql`
