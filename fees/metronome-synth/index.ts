@@ -231,7 +231,7 @@ async function fetchUniV3Fees(options: FetchOptions, balances: any) {
   }
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   if (TREASURY[options.chain]) {
