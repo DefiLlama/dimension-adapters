@@ -17,7 +17,7 @@ const legacyQuery = (options: FetchOptions) => `
   WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
 `;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const sql = options.startOfDay >= DEX_TRADES_START ? newQuery(options) : legacyQuery(options);
   const data = await queryDuneSql(options, sql);
 
@@ -29,7 +29,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: any = {
-  version: 1,
+  version: 2,
   dependencies: [Dependencies.DUNE],
   fetch,
   start: '2023-04-16',
