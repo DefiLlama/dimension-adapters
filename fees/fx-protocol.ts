@@ -92,7 +92,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
-      start: "2023-9-20",
+      start: "2023-09-20",
     },
   },
 };
