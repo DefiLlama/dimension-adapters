@@ -12,6 +12,7 @@ function toDateStr(ts: number): string {
 }
 
 // Fetch all ticket purchases for the given day and return the total USDC amount.
+// Throws if pagination exceeds MAX_PAGES to avoid silently returning partial data.
 async function fetchDailyRevenue(date: string): Promise<number> {
   let total = 0;
   let page = 1;
@@ -30,6 +31,15 @@ async function fetchDailyRevenue(date: string): Promise<number> {
     }
 
     const totalPages: number = data?.totalPages ?? 1;
+
+    // Guard: if actual page count exceeds our cap, fail loudly rather than
+    // return a silent undercount.
+    if (totalPages > MAX_PAGES) {
+      throw new Error(
+        `Kaching: totalPages (${totalPages}) exceeds MAX_PAGES (${MAX_PAGES}). Partial data would be returned — aborting.`
+      );
+    }
+
     if (page >= totalPages) break;
     page++;
   }
@@ -45,7 +55,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyRevenue = await fetchDailyRevenue(date);
     console.log(`Kaching: ${date} → $${dailyRevenue.toFixed(2)} USDC`);
 
-    return { dailyFees: dailyRevenue, dailyRevenue };
+    return {
+      dailyFees: dailyRevenue,
+      dailyRevenue,
+    };
   } catch (e) {
     console.error("Kaching fee fetch error:", e);
     return { dailyFees: 0, dailyRevenue: 0 };
@@ -58,12 +71,24 @@ const methodology = {
     "Sum of all lottery ticket purchase amounts (USDC) on the Kaching decentralized lottery platform.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Ticket Purchases":
+      "USDC paid by users to purchase lottery tickets on the Kaching platform.",
+  },
+  Revenue: {
+    "Ticket Purchases":
+      "USDC revenue collected from lottery ticket sales on the Kaching platform.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-11-11",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
