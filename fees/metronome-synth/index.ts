@@ -26,7 +26,8 @@ const SYNTHS = {
   ],
 };
 
-const SYNTH_LABEL = "Synth Interest + Swap Fees";
+const SYNTH_INTEREST_LABEL = "Synth Interest";
+const SYNTH_SWAP_FEES_LABEL = "Synth Swap Fees";
 const AMO_LABEL = "AMO Fees";
 const METBASIS_LABEL = "MetBasis Fees";
 const VELO_KITE_LABEL = "VELO / KITE Rewards";
@@ -114,27 +115,23 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
   ],
 };
 
-// AMO harvest claims: underlying transferred from Morpho-vault depositor to AMO controller
-const AMO_HARVESTS: Record<string, Array<{ controller: string; depositor: string; underlying: string }>> = {
-  [CHAIN.ETHEREUM]: [
-    {
-      controller: "0x82Ed3Fc9D93112124B04B6C7B35394A5AbA8af39",
-      depositor:  "0xEb7Cc55424250F1108fcD623b0A551d682D1CF28", // msETH Morpho vault depositor
-      underlying: ADDRESSES.GAS_TOKEN_2,                        // WETH
-    },
-    {
-      controller: "0x82Ed3Fc9D93112124B04B6C7B35394A5AbA8af39",
-      depositor:  "0x351567b6F2Ee293c0F724A657F7d59f61361e8b0", // msUSD Morpho vault depositor
-      underlying: ADDRESSES.ethereum.USDC,
-    },
-  ],
-  [CHAIN.BASE]: [
-    {
-      controller: "0xDb9bD9eb1CdD9AE62A2e9569075A5154296CD632",
-      depositor:  "0xEa3C40D0aA13CD935ac5A4a5C5FE8687678f510f", // msETH Morpho vault depositor
-      underlying: ADDRESSES.GAS_TOKEN_2,                        // WETH
-    },
-  ],
+// AMO harvest event:
+//   Harvest(address indexed syntheticToken, address indexed vPool, uint256 profit)
+// `profit` is denominated in the synthetic token (18 decimals); msUSD/msETH/msBTC
+// peg 1:1 to their underlying so the synthetic-token price feed is the correct
+// USD denominator.
+const HARVEST_EVENT_ABI =
+  "event Harvest(address indexed syntheticToken, address indexed vPool, uint256 profit)";
+
+// SyntheticTokenSwapped: emitted by Metronome pools when a user swaps between synths.
+// `fee` is minted as syntheticTokenOut directly to the treasury, so subtract this
+// from total synth → treasury mints when computing Synth Interest.
+const SYNTH_SWAPPED_EVENT_ABI =
+  "event SyntheticTokenSwapped(address indexed account, address indexed syntheticTokenIn, address indexed syntheticTokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
+
+const AMO_CONTROLLERS: Record<string, string[]> = {
+  [CHAIN.ETHEREUM]: ["0x82Ed3Fc9D93112124B04B6C7B35394A5AbA8af39"],
+  [CHAIN.BASE]:     ["0xDb9bD9eb1CdD9AE62A2e9569075A5154296CD632"],
 };
 
 const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
@@ -234,14 +231,48 @@ async function fetchUniV3Fees(options: FetchOptions, balances: any) {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
+  // 1. AMO harvest profits (minted to treasury as synth tokens).
+  const amoBalances = options.createBalances();
+  for (const controller of (AMO_CONTROLLERS[options.chain] ?? [])) {
+    const harvestLogs = await options.getLogs({
+      target: controller,
+      eventAbi: HARVEST_EVENT_ABI,
+    });
+    for (const log of harvestLogs) {
+      const profit = BigInt(log.profit.toString());
+      if (profit > 0n) amoBalances.add(log.syntheticToken, profit);
+    }
+  }
+
+  // 2. Synth swap fees: SyntheticTokenSwapped events, `fee` is minted as
+  //    syntheticTokenOut to the treasury.
+  const swapFees = options.createBalances();
   if (TREASURY[options.chain]) {
-    const synthFees = await addTokensReceived({
+    const swapLogs = await options.getLogs({
+      noTarget: true,
+      eventAbi: SYNTH_SWAPPED_EVENT_ABI,
+    });
+    for (const log of swapLogs) {
+      const fee = BigInt(log.fee.toString());
+      if (fee > 0n) swapFees.add(log.syntheticTokenOut, fee);
+    }
+  }
+
+  // 3. Synth interest = all synth → treasury mints, minus swap fees and AMO harvest mints
+  //    (both of which are already accounted for separately).
+  if (TREASURY[options.chain]) {
+    const synthInflows = await addTokensReceived({
       options,
       tokens: SYNTHS[options.chain],
       targets: [TREASURY[options.chain]],
     });
-    dailyFees.addBalances(synthFees, SYNTH_LABEL);
+    synthInflows.subtract(amoBalances);
+    synthInflows.subtract(swapFees);
+    dailyFees.addBalances(synthInflows, SYNTH_INTEREST_LABEL);
   }
+
+  dailyFees.addBalances(swapFees, SYNTH_SWAP_FEES_LABEL);
+  dailyFees.addBalances(amoBalances, AMO_LABEL);
 
   for (const group of (EXTRA_INFLOWS[options.chain] ?? [])) {
     const baseParams: any = { options, tokens: group.tokens, targets: [group.target] };
@@ -262,16 +293,6 @@ const fetch = async (options: FetchOptions) => {
     }
 
     dailyFees.addBalances(totals, group.label);
-  }
-
-  for (const h of (AMO_HARVESTS[options.chain] ?? [])) {
-    const res = await addTokensReceived({
-      options,
-      tokens: [h.underlying],
-      target: h.controller,
-      fromAddressFilter: h.depositor,
-    });
-    dailyFees.addBalances(res, AMO_LABEL);
   }
 
   await fetchUniV3Fees(options, dailyFees);
@@ -309,33 +330,35 @@ const adapter: SimpleAdapter = {
   // pullHourly: true,
   fetch,
   methodology: {
-    Fees: "Synth treasury inflows, MetBasis LP fees from msETH/msUSD pools, other LP rewards claimed to Metronome treasuries, AMO harvest profits claimed from Morpho vaults, UniV3 LP fees collected by treasury-held positions, and governance reward claims.",
+    Fees: "Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN), UniV3 fees on treasury-owned positions, and governance staking rewards.",
     Revenue: "Same as Fees.",
     HoldersRevenue: "MET distributed to holders.",
   },
   breakdownMethodology: {
     Fees: {
-      [SYNTH_LABEL]: "Synth interest (msUSD 2%, msETH 1%, msBTC 2%) accruing on user debt and SyntheticTokenSwapped swap fees, both minted to the Metronome treasury.",
-      [AMO_LABEL]: "Profit claimed by the AMO controllers from Morpho vaults (underlying WETH/USDC transferred from the vault depositor to the AMO controller on harvest).",
-      [METBASIS_LABEL]: "LP fees from the msETH/msUSD MetBasis pools — AERO from the Base gauge, VELO from the Optimism gauge, msUSD/msETH from the Base and Plasma pools.",
-      [AERO_LABEL]: "AERO LP rewards received by the Base treasury, net of MetBasis AERO (which is bucketed under MetBasis Fees).",
-      [VELO_KITE_LABEL]: "VELO and KITE LP rewards received by the Optimism treasury 0x91ecAD…, net of MetBasis VELO (which is bucketed under MetBasis Fees).",
-      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN LP rewards received by the Ethereum treasury 0xCE318721….",
-      [UNIV3_LABEL]: "Trading fees collected from Uniswap V3 NFT positions held by Metronome treasuries on Ethereum, net of liquidity withdrawals collected in the same transaction. Plasma UniV3 fees are captured under MetBasis Fees instead.",
-      [GOV_LABEL]: "Rewards claimed from governance staking positions (Convex vlCVX → CVX).",
+      [SYNTH_INTEREST_LABEL]: "Interest accrued on user debt (msUSD 2%, msETH 1%, msBTC 2%), measured as residual treasury synth mints after subtracting Swap Fees and AMO Fees.",
+      [SYNTH_SWAP_FEES_LABEL]: "Fee field of SyntheticTokenSwapped events, denominated in syntheticTokenOut.",
+      [AMO_LABEL]: "Profit field of AMO controller Harvest events (fully protocol-owned, transferred to treasury as the synthetic token).",
+      [METBASIS_LABEL]: "msETH/msUSD MetBasis LP fees: AERO (Base gauge), VELO (Optimism gauge), msUSD+msETH (Base + Plasma pools).",
+      [AERO_LABEL]: "AERO received by the Base treasury, excluding the MetBasis gauge.",
+      [VELO_KITE_LABEL]: "VELO + KITE received by the Optimism treasury 0x91ecAD…, excluding the MetBasis gauge.",
+      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN received by the Ethereum treasury 0xCE318721….",
+      [UNIV3_LABEL]: "Ethereum UniV3 NFT position fees from Collect events, net of same-tx DecreaseLiquidity. Plasma UniV3 fees are bucketed under MetBasis Fees.",
+      [GOV_LABEL]: "Convex vlCVX reward claims (CVX).",
     },
     Revenue: {
-      [SYNTH_LABEL]: "Synth interest (msUSD 2%, msETH 1%, msBTC 2%) accruing on user debt and SyntheticTokenSwapped swap fees, both minted to the Metronome treasury.",
-      [AMO_LABEL]: "Profit claimed by the AMO controllers from Morpho vaults (underlying WETH/USDC transferred from the vault depositor to the AMO controller on harvest).",
-      [METBASIS_LABEL]: "LP fees from the msETH/msUSD MetBasis pools — AERO from the Base gauge, VELO from the Optimism gauge, msUSD/msETH from the Base and Plasma pools.",
-      [AERO_LABEL]: "AERO LP rewards received by the Base treasury, net of MetBasis AERO (which is bucketed under MetBasis Fees).",
-      [VELO_KITE_LABEL]: "VELO and KITE LP rewards received by the Optimism treasury 0x91ecAD…, net of MetBasis VELO (which is bucketed under MetBasis Fees).",
-      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN LP rewards received by the Ethereum treasury 0xCE318721….",
-      [UNIV3_LABEL]: "Trading fees collected from Uniswap V3 NFT positions held by Metronome treasuries on Ethereum, net of liquidity withdrawals collected in the same transaction. Plasma UniV3 fees are captured under MetBasis Fees instead.",
-      [GOV_LABEL]: "Rewards claimed from governance staking positions (Convex vlCVX → CVX).",
+      [SYNTH_INTEREST_LABEL]: "Interest accrued on user debt (msUSD 2%, msETH 1%, msBTC 2%), measured as residual treasury synth mints after subtracting Swap Fees and AMO Fees.",
+      [SYNTH_SWAP_FEES_LABEL]: "Fee field of SyntheticTokenSwapped events, denominated in syntheticTokenOut.",
+      [AMO_LABEL]: "Profit field of AMO controller Harvest events (fully protocol-owned, transferred to treasury as the synthetic token).",
+      [METBASIS_LABEL]: "msETH/msUSD MetBasis LP fees: AERO (Base gauge), VELO (Optimism gauge), msUSD+msETH (Base + Plasma pools).",
+      [AERO_LABEL]: "AERO received by the Base treasury, excluding the MetBasis gauge.",
+      [VELO_KITE_LABEL]: "VELO + KITE received by the Optimism treasury 0x91ecAD…, excluding the MetBasis gauge.",
+      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN received by the Ethereum treasury 0xCE318721….",
+      [UNIV3_LABEL]: "Ethereum UniV3 NFT position fees from Collect events, net of same-tx DecreaseLiquidity. Plasma UniV3 fees are bucketed under MetBasis Fees.",
+      [GOV_LABEL]: "Convex vlCVX reward claims (CVX).",
     },
     HoldersRevenue: {
-      [MET_DISTRIBUTION_LABEL]: "MET tokens transferred to the holder distributor contract.",
+      [MET_DISTRIBUTION_LABEL]: "MET transferred to the holder distributor contract.",
     },
   },
   adapter: {
