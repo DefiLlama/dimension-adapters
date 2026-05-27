@@ -32,7 +32,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
   dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
   dailyRevenue.addUSDValue(revenue, METRIC.PROTOCOL_FEES);
-  dailySupplySideRevenue.addUSDValue(fees - revenue, "Trading Fees To Buyback");
+  dailySupplySideRevenue.addUSDValue(fees - revenue, 'Referral Rewards');
 
   return {
     dailyFees,
@@ -44,7 +44,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 const methodology = {
   Fees: "Total trading fees paid by users on edgeX v2.",
   Revenue: "The portion of trading fees kept by the protocol.",
-  SupplySideRevenue: "The portion of trading fees used to buyback EDGE token.",
+  SupplySideRevenue: "The portion of trading fees distributed as referral rewards.",
 };
 
 const breakdownMethodology = {
@@ -55,7 +55,7 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: "Trading fees kept by the edgeX protocol.",
   },
   SupplySideRevenue: {
-    ["Trading Fees To Buyback"]: "The portion of trading fees used to buyback EDGE token.",
+    'Referral Rewards': "The portion of trading fees distributed as referral rewards.",
   },
 };
 
