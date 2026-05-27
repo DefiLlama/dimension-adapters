@@ -5,6 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 type Transfer = {
   amount: string;
+  timestamp: number;
   from: {
     blockchain: string;
     decimals: number;
@@ -20,6 +21,12 @@ type NovaApiResponse = {
     transfers: Transfer[];
   };
 };
+
+const invalidSpikeTimestamps = {
+  [CHAIN.TRON]: [
+    1779882686647, // api says 24.7M USDT transferred, but couldn't find it onchain at that time
+  ]
+}
 
 const prefetch = async (options: FetchOptions) => {
   const baseUrl = "https://api.novaswap.io/liquidity/transfers";
@@ -39,6 +46,8 @@ const prefetch = async (options: FetchOptions) => {
 
   for (const transfer of transfers) {
     if (transfer.from.blockchain === transfer.to.blockchain) continue;
+
+    if(invalidSpikeTimestamps[transfer.from.blockchain]?.includes(transfer.timestamp)) continue;
 
     const chain = transfer.from.blockchain;
     const decimals = transfer.from.decimals;
