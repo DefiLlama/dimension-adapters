@@ -239,7 +239,7 @@ const protocols = {
     protocolName: 'pacifica',
     chains: [CHAIN.SOLANA],
     start: '2026-01-20',
-    version: 1,
+    version: 2,
     minContracts: 45
   }),
   'extended': dailyNormalizedVolumeAdapter({
