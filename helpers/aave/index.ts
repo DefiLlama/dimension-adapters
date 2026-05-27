@@ -300,7 +300,7 @@ function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: 
   return { version: 2, adapter: aaveExport(config), ...global };
 }
 
-export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
+const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {
