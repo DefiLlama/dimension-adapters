@@ -13,23 +13,23 @@ type ChainConfig = {
   startBlock: number;
   // Factory upgrade boundary (topic0 0x1fdc1341...ceed42) where Deposit gained the
   // yieldValue field:
-  //   [startBlock, legacyDepositEndBlock] -> legacyDeposit (3-arg)
-  //   (legacyDepositEndBlock, +inf)       -> deposit (4-arg w/ yieldValue)
-  legacyDepositEndBlock: number;
+  //   [startBlock, currentDepositStartBlock] -> legacyDeposit (3-arg)
+  //   (currentDepositStartBlock, +inf)       -> deposit (4-arg w/ yieldValue)
+  currentDepositStartBlock: number;
 };
 
 const config: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
     startBlock: 23831175,
-    legacyDepositEndBlock: 0, // No legacy deposits on Ethereum; the initial Deposit implementation already emitted yieldValue field
+    currentDepositStartBlock: 23831175, // No legacy deposits on Ethereum; the initial Deposit implementation already emitted yieldValue field
   },
   [CHAIN.BASE]: {
     startBlock: 22133150,
-    legacyDepositEndBlock: 30509116, // Upgrade to v4 which added yieldValue field in Deposit event
+    currentDepositStartBlock: 30509116, // Upgrade to v4 which added yieldValue field in Deposit event
   },
   [CHAIN.BERACHAIN]: {
     startBlock: 804138,
-    legacyDepositEndBlock: 5297670, // Upgrade to v4 which added yieldValue field in Deposit event
+    currentDepositStartBlock: 5297670, // Upgrade to v4 which added yieldValue field in Deposit event
   },
 };
 
@@ -72,8 +72,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const fetchFromBlock = await options.getFromBlock();
   const fetchToBlock = await options.getToBlock();
-  const legacyDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.startBlock, chainConfig.legacyDepositEndBlock);
-  const currentDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.legacyDepositEndBlock, fetchToBlock);
+  const legacyDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.startBlock, chainConfig.currentDepositStartBlock - 1);
+  const currentDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.currentDepositStartBlock, fetchToBlock);
 
   // Pull the day's Deposit logs first. The Deposit event's `address` field is
   // the vault contract itself, so we don't need to know the vault list in
