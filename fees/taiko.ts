@@ -6,7 +6,7 @@ import { METRIC } from "../helpers/metrics";
 const L1_EXECUTION_COSTS = "Ethereum L1 Execution Gas Costs";
 const L1_BLOB_COSTS = "Ethereum L1 Blob Data Costs";
 
-const KNOWN_TAIKO_ROLLUP_CONTRACTS = [
+const TAIKO_ROLLUP_CONTRACTS = [
   "0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a", // Taiko Inbox
   "0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9", // Taiko LabProver
   "0x6f21c543a4af5189ebdb0723827577e1ef57ef1f", // Taiko MainnetInbox
@@ -28,7 +28,7 @@ const TAIKO_ROLLUP_SELECTORS = [
 const asVarbinaryList = (values: string[]) => values.join(", ");
 
 const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
-  const contracts = asVarbinaryList(KNOWN_TAIKO_ROLLUP_CONTRACTS);
+  const contracts = asVarbinaryList(TAIKO_ROLLUP_CONTRACTS);
   const selectors = asVarbinaryList(TAIKO_ROLLUP_SELECTORS);
 
   const query = `
@@ -134,7 +134,6 @@ const adapter: Adapter = {
   start: "2024-05-27",
   dependencies: [Dependencies.DUNE],
   protocolType: ProtocolType.CHAIN,
-  isExpensiveAdapter: true,
   allowNegativeValue: true,
   methodology: {
     Fees: "Transaction gas fees paid by users on Taiko.",
