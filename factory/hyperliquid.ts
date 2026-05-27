@@ -157,6 +157,11 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Fees collected by OneKey from Hyperliquid Perps as Builder Revenue.",
     },
   },
+  "outcome-xyz": {
+    addresses: ["0xab5dbc057628bc18523c4cdfc0e1e2ebdbecb704"],
+    start: "2026-05-02",
+    market: "hip4",
+  },
   "pear-interface": {
     addresses: ["0xa47d4d99191db54a4829cdf3de2417e527c3b042"],
     start: "2025-07-08",
