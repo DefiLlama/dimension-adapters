@@ -6,7 +6,7 @@ These guidelines apply to all adapters in the `liquidations/` directory.
 
 | Dimension | Required | Description |
 |-----------|----------|-------------|
-| `dailyCollateralLiquidated` | **YES** | Total USD value of collateral seized from borrowers during liquidation events |
+| `dailyCollateralLiquidated` | **YES** | Total USD value of collateral seized from borrowers during liquidation events (occasionally cannot be derived, e.g. perp dexs that only emit position sizes) |
 | `dailyLiquidationVolume` | Optional | Total USD notional size of liquidated positions (perps/derivatives only) |
 
 ## Data Sources (Preferred Order)

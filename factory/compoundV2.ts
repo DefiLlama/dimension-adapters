@@ -76,8 +76,9 @@ const configs: Record<string, Config> = {
       [CHAIN.BSC]: { comptroller: "0x15B5220024c3242F7D61177D6ff715cfac4909eD", start: '2024-08-31' },
       [CHAIN.BERACHAIN]: { comptroller: "0x16C7d1F9EA48F7DE5E8bc3165A04E8340Da574fA", start: '2025-02-08' },
       [CHAIN.HEMI]: { comptroller: "0xB2fF02eEF85DC4eaE95Ab32AA887E0cC69DF8d8E", start: '2025-03-06' },
+      [CHAIN.MONAD]: { comptroller: "0x2d9b96648C784906253c7FA94817437EF59Cf226", start: '2025-10-29' },
     },
-    options: { protocolRevenueratio: 1 },
+    options: { protocolRevenueRatio: 1 },
   },
   "takara-lend": {
     chains: { [CHAIN.SEI]: { comptroller: "0x71034bf5eC0FAd7aEE81a213403c8892F3d8CAeE", start: '2025-02-13' } },
@@ -110,11 +111,9 @@ const configs: Record<string, Config> = {
     },
   },
   'xpert': {
-    comptrollers: {
-      [CHAIN.INK]: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7',
-    }, options: { start: {
-      [CHAIN.INK]: '2026-03-17',
-    } },
+    chains: {
+      [CHAIN.INK]: { comptroller: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7', start: '2026-03-17' },
+    },
   },
 };
 
