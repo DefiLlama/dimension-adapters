@@ -179,18 +179,23 @@ const fetchLiquidityStats = async (
 const makeReturn = (options: FetchOptions, volume: number, fees: number, gaugeRate: number) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
   dailyVolume.addUSDValue(Math.max(0, volume));
   dailyFees.addUSDValue(Math.max(0, fees), METRIC.SWAP_FEES);
+
+  dailyRevenue.addUSDValue(Math.max(0, fees * (1 - gaugeRate)), 'Swap Fees to protocol');
+  dailyRevenue.addUSDValue(Math.max(0, fees * gaugeRate), 'Swap Fees to veNest lockers');
+
   dailyProtocolRevenue.addUSDValue(Math.max(0, fees * (1 - gaugeRate)), 'Swap Fees to protocol');
   dailyHoldersRevenue.addUSDValue(Math.max(0, fees * gaugeRate)), 'Swap Fees to veNest lockers';
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue: 0,
     dailyHoldersRevenue,
