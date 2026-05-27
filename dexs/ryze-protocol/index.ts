@@ -23,29 +23,29 @@ async function fetch(fetchOptions: FetchOptions) {
   });
 
   // Current fee distribution ratios from Ryze Protocol
-  // Swap Fees: 100% to Holders (distributionAddress)
+  // Swap Fees: 100% to UNIT holders (distributionAddress)
   // Taker Fees: 100% to Protocol
-  // Slippage Fees: 50% Protocol, 50% Holders
-  // WBF Fees: 25% Protocol, 25% Holders, 50% Treasury (not considered revenue/fees usually)
+  // Slippage Fees: 50% Protocol, 50% UNIT holders
+  // WBF Fees: 25% Protocol, 25% UNIT holders, 50% Treasury (not considered revenue/fees usually)
   
   logs.forEach((log: any) => {
     // The ethers v6 parsed log returns named arguments in log.args (or directly if mapped by SDK)
     // DefiLlama getLogs with eventAbi puts the parsed args directly on the log object
-    const tokenIn = log.tokenIn || log.args?.tokenIn;
-    const amountIn = log.amountIn || log.args?.amountIn;
-    const feeDetails = log.feeDetails || log.args?.feeDetails; // This is an array-like Result object containing the 5 tuples
+    const tokenIn = log.tokenIn ?? log.args?.tokenIn;
+    const amountIn = log.amountIn ?? log.args?.amountIn;
+    const feeDetails = log.feeDetails ?? log.args?.feeDetails; // This is an array-like Result object containing the 5 tuples
     
     // Arrays matching the tuple structure: [ [token, amount], [token, amount], ... ]
     // Index 0: swapFee, Index 1: takerFee, Index 2: wbfFee, Index 3: slippageFee, Index 4: wbrFee
-    const swapFee = { token: feeDetails[0].token || feeDetails[0][0], amount: BigInt(feeDetails[0].amount || feeDetails[0][1]) };
-    const takerFee = { token: feeDetails[1].token || feeDetails[1][0], amount: BigInt(feeDetails[1].amount || feeDetails[1][1]) };
-    const wbfFee = { token: feeDetails[2].token || feeDetails[2][0], amount: BigInt(feeDetails[2].amount || feeDetails[2][1]) };
-    const slippageFee = { token: feeDetails[3].token || feeDetails[3][0], amount: BigInt(feeDetails[3].amount || feeDetails[3][1]) };
+    const swapFee = { token: feeDetails[0].token ?? feeDetails[0][0], amount: BigInt(feeDetails[0].amount ?? feeDetails[0][1]) };
+    const takerFee = { token: feeDetails[1].token ?? feeDetails[1][0], amount: BigInt(feeDetails[1].amount ?? feeDetails[1][1]) };
+    const wbfFee = { token: feeDetails[2].token ?? feeDetails[2][0], amount: BigInt(feeDetails[2].amount ?? feeDetails[2][1]) };
+    const slippageFee = { token: feeDetails[3].token ?? feeDetails[3][0], amount: BigInt(feeDetails[3].amount ?? feeDetails[3][1]) };
     
     // Add volume
     dailyVolume.add(tokenIn, amountIn);
     
-    // Process Swap Fee (100% Holders Revenue)
+    // Process Swap Fee (100% UNIT holders Revenue)
     if (swapFee.amount > 0n) {
       dailyFees.add(swapFee.token, swapFee.amount.toString(), { skipChain: false, skipConversion: false }, { breakdown: "swapFee" });
       dailyHoldersRevenue.add(swapFee.token, swapFee.amount.toString(), { skipChain: false, skipConversion: false }, { breakdown: "swapFee" });
@@ -57,7 +57,7 @@ async function fetch(fetchOptions: FetchOptions) {
       dailyProtocolRevenue.add(takerFee.token, takerFee.amount.toString(), { skipChain: false, skipConversion: false }, { breakdown: "takerFee" });
     }
     
-    // Process WBF Fee (25% Protocol, 25% Holders, 50% Treasury)
+    // Process WBF Fee (25% Protocol, 25% UNIT holders, 50% Treasury)
     if (wbfFee.amount > 0n) {
       dailyFees.add(wbfFee.token, wbfFee.amount.toString(), { skipChain: false, skipConversion: false }, { breakdown: "wbfFee" });
       
@@ -71,7 +71,7 @@ async function fetch(fetchOptions: FetchOptions) {
       dailySupplySideRevenue.add(wbfFee.token, wbfSupplySide.toString(), { skipChain: false, skipConversion: false }, { breakdown: "wbfFee_treasury" });
     }
     
-    // Process Slippage Fee (50% Protocol, 50% Holders)
+    // Process Slippage Fee (50% Protocol, 50% UNIT holders)
     if (slippageFee.amount > 0n) {
       dailyFees.add(slippageFee.token, slippageFee.amount.toString(), { skipChain: false, skipConversion: false }, { breakdown: "slippageFee" });
       
@@ -107,20 +107,20 @@ const adapter: SimpleAdapter = {
         methodology: {
           Volume: "Daily volume is tracked by summing the amountIn of all Swap events across all Ryze pools.",
           Fees: "Daily fees are calculated by summing the swapFee, takerFee, wbfFee, and slippageFee emitted in Swap events.",
-          Revenue: "Total Revenue equals Holders Revenue plus Protocol Revenue.",
-          HoldersRevenue: "Holders receive 100% of Swap Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
+          Revenue: "Total Revenue equals UNIT holders Revenue plus Protocol Revenue.",
+          HoldersRevenue: "UNIT holders receive 100% of Swap Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
           ProtocolRevenue: "Protocol receives 100% of Taker Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
-          SupplySideRevenue: "LPs do not receive direct swap fees; fees are routed to protocol, holders, and treasury.",
+          SupplySideRevenue: "LPs do not auto-compound fees; fees are routed to protocol, UNIT holders, and treasury. Treasury WBF fee allocation is mapped here for accounting.",
           breakdownMethodology: {
-            swapFee: "100% of Swap Fees distributed to LPs via gauge.",
+            swapFee: "100% of Swap Fees are distributed to UNIT holders.",
             takerFee: "100% of Taker Fees directed to Protocol.",
             wbfFee: "Weight Breaking Reward fee collected by the protocol.",
             wbfFee_protocol: "25% of WBF Fees directed to Protocol.",
-            wbfFee_holders: "25% of WBF Fees directed to Holders.",
+            wbfFee_holders: "25% of WBF Fees directed to UNIT holders.",
             wbfFee_treasury: "50% of WBF Fees directed to Treasury (counted as SupplySideRevenue to balance fee accounting).",
             slippageFee: "Slippage fee collected from trades.",
             slippageFee_protocol: "50% of Slippage Fees directed to Protocol.",
-            slippageFee_holders: "50% of Slippage Fees directed to Holders."
+            slippageFee_holders: "50% of Slippage Fees directed to UNIT holders."
           }
         }
       }
