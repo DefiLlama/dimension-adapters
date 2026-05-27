@@ -12,22 +12,17 @@ const MIN_FEE_RATE = 0.00008; // 0.008%
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targetDate = new Date(options.startOfDay * 1000).toISOString();
-  const dateStr = targetDate.split('T')[0];
 
   const query = gql`
     {
       volumeRecordDailies(
-        where: {timestamp_lte: "${targetDate}"},
-        orderBy: timestamp_DESC,
-        limit: 1
+        where: {timestamp_eq: "${targetDate}"}
       ) {
         timestamp
         tradeVolume
       }
       feesRecordDailies(
-        where: {timestamp_lte: "${targetDate}"},
-        orderBy: timestamp_DESC,
-        limit: 1
+        where: {timestamp_eq: "${targetDate}"}
       ) {
         timestamp
         totalFees
@@ -37,10 +32,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const res = await request(url, query);
 
-  const volumeRecord = res.volumeRecordDailies
-    .find((r: any) => r.timestamp.split('T')[0] === dateStr);
-  const feesRecord = res.feesRecordDailies
-    .find((r: any) => r.timestamp.split('T')[0] === dateStr);
+  const volumeRecord = res.volumeRecordDailies[0];
+  const feesRecord = res.feesRecordDailies[0];
 
   if (!volumeRecord) throw new Error('Not found daily volume data!');
   if (!feesRecord) throw new Error('Not found daily fees data!');
