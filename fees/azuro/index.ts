@@ -3,6 +3,12 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const prefetch = async (options: FetchOptions) => {
+  const now = Date.now()
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+  }
+
   const query = `
         WITH merged AS (
       SELECT
