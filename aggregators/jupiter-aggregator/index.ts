@@ -1,10 +1,11 @@
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
-const DEX_TRADES_START = 1756684800; // 2025-09-01, aggregator_swaps coverage incomplete from here
+
+const DEX_TRADES_START = '2025-09-01'; //aggregator_swaps coverage incomplete from here
 
 const newQuery = (options: FetchOptions) => `
-  SELECT SUM(amount_usd) AS volume_24
+  SELECT COALESCE(SUM(amount_usd), 0) AS volume_24
   FROM dex_solana.trades
   WHERE block_time >= from_unixtime(${options.startTimestamp})
     AND block_time <  from_unixtime(${options.endTimestamp})
@@ -17,8 +18,16 @@ const legacyQuery = (options: FetchOptions) => `
   WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
 `;
 
-const fetch = async (options: FetchOptions) => {
-  const sql = options.startOfDay >= DEX_TRADES_START ? newQuery(options) : legacyQuery(options);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const useDexTrades = options.dateString >= DEX_TRADES_START;
+  if (useDexTrades) {
+    const now = Date.now();
+    const tenHoursAgo = now - 10 * 60 * 60 * 1000;
+    if (options.toTimestamp * 1000 > tenHoursAgo) {
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+    }
+  }
+  const sql = useDexTrades ? newQuery(options) : legacyQuery(options);
   const data = await queryDuneSql(options, sql);
 
   const chainData = data[0];
@@ -29,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: any = {
-  version: 2,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   fetch,
   start: '2023-04-16',
