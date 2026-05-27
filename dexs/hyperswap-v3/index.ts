@@ -29,9 +29,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   data.uniswapDayDatas.forEach((e: any) => {
     dailyVolume.addUSDValue(Number(e.volumeUSD))
     dailyFees.addUSDValue(Number(e.feesUSD), METRIC.SWAP_FEES)
-    dailyRevenue.addUSDValue(Number(e.feesUSD) * 0.04, 'Token Fees To Protocol')
-    dailyRevenue.addUSDValue(Number(e.feesUSD) * 0.12, 'Token Fees To Buy Back And Burn SWAP')
-    dailyProtocolRevenue.addUSDValue(Number(e.feesUSD) * 0.04, 'Token Fees To Protocol')
+    dailyRevenue.addUSDValue(Number(e.feesUSD) * 0.04, 'Token Swap Fees To Protocol')
+    dailyRevenue.addUSDValue(Number(e.feesUSD) * 0.12, 'Token Swap Fees To Buy Back And Burn SWAP')
+    dailyProtocolRevenue.addUSDValue(Number(e.feesUSD) * 0.04, 'Token Swap Fees To Protocol')
     dailySupplySideRevenue.addUSDValue(Number(e.feesUSD) * 0.84, 'Token Swap Fees To LPs')
     dailyHoldersRevenue.addUSDValue(Number(e.feesUSD) * 0.12, METRIC.TOKEN_BUY_BACK)
   })
