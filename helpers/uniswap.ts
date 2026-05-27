@@ -78,7 +78,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       pairObject[pair] = [token0s[i], token1s[i]]
     })
     const dailyVolume = createBalances()
-    const dailyFees = createBalances()
+    const swapFees = createBalances()
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
@@ -86,7 +86,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
 
     if (!pairIds.length) return {
       dailyVolume,
-      dailyFees,
+      dailyFees: swapFees,
       dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
       dailyRevenue: revenueRatio !== undefined ? 0 : undefined,
       dailySupplySideRevenue: revenueRatio !== undefined ? 0 : undefined,
@@ -111,14 +111,15 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
         }
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
-        addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * _fees, amount1: Number(log.amount1In) * _fees })
-        addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
+        addOneToken({ chain, balances: swapFees, token0, token1, amount0: Number(log.amount0In) * _fees, amount1: Number(log.amount1In) * _fees })
+        addOneToken({ chain, balances: swapFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
       })
     })
 
     if (customLogic)
-      return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
+      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
 
+    const dailyFees = swapFees.clone(1, 'Token Swap Fees');
 
     if (voter) {
       const dailyBribesRevenue = createBalances()
@@ -212,11 +213,11 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
-    const dailyFees = createBalances()
+    const swapFees = createBalances()
 
     if (!Object.keys(filteredPairs).length) return {
       dailyVolume,
-      dailyFees,
+      dailyFees: swapFees,
       dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
       dailyRevenue: revenueRatio !== undefined ? 0 : undefined,
       dailySupplySideRevenue: revenueRatio !== undefined ? 0 : undefined,
@@ -235,13 +236,14 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       const fee = fees[pair]
       logs.forEach((log: any) => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-        addOneToken({ chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
+        addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee})
       })
     })
 
     if (customLogic) {
-      return customLogic({ pairObject, dailyVolume, dailyFees, filteredPairs, fetchOptions })
+      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
     }
+    const dailyFees = swapFees.clone(1, 'Token Swap Fees')
     const response: any = { dailyVolume, dailyFees }
 
     if (revenueRatio || revenueRatio === 0) {
