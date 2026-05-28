@@ -11,7 +11,7 @@ interface DailyFeesResponse {
   timestamp: number
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: DailyFeesResponse = await httpGet(
     `${API_BASE}/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   )
@@ -20,9 +20,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const feesUsd = parseFloat(data.dailyFees)
-  const revenueUsd = parseFloat(data.dailyRevenue)
-  const supplySideUsd = parseFloat(data.dailySupplySideRevenue)
+  const feesUsd = parseFloat(data.dailyFees) || 0
+  const revenueUsd = parseFloat(data.dailyRevenue) || 0
+  const supplySideUsd = parseFloat(data.dailySupplySideRevenue) || 0
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (revenueUsd > 0) dailyRevenue.addUSDValue(revenueUsd, "Swap Fees To Protocol")
@@ -44,7 +44,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-04-20",
