@@ -128,21 +128,26 @@ const AMO_CONTROLLERS: Record<string, string[]> = {
 const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
 const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
 
-const UNIV3_POSITIONS: Record<string, { npm: string; treasuries: string[]; positionIds: number[]; label: string }> = {
+const UNIV3_POSITIONS: Record<string, { npm: string; treasuries: string[]; groups: { label: string; positionIds: number[] }[] }> = {
   [CHAIN.ETHEREUM]: {
     npm: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
     treasuries: [
       "0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33",
       "0xce3187216b39ed222319d877956ac6b2ef1961e9",
     ],
-    positionIds: [295354, 298500, 305148, 305138, 305136, 517851, 1092162],
-    label: UNIV3_LABEL,
+    groups: [
+      { label: UNIV3_LABEL, positionIds: [295354, 298500, 305148, 305138, 305136, 517851, 1092162] },
+    ],
   },
   [CHAIN.PLASMA]: {
     npm: "0x743E03cceB4af2efA3CC76838f6E8B50B63F184c",
     treasuries: ["0xCE3187216B39ED222319D877956aC6b2eF1961E9"],
-    positionIds: [17692, 17691, 17690, 18640, 19059],
-    label: METBASIS_LABEL,
+    groups: [
+      // msUSD/msETH MetBasis pool
+      { label: METBASIS_LABEL, positionIds: [17692, 19059] },
+      // msETH/WETH (17691, 17690) and msUSD/USDT0 (18640)
+      { label: UNIV3_LABEL, positionIds: [17691, 17690, 18640] },
+    ],
   },
 };
 
@@ -161,13 +166,16 @@ const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; 
   ],
 };
 
-async function fetchUniV3Fees(options: FetchOptions) {
-  const balance = options.createBalances();
+async function fetchUniV3Fees(options: FetchOptions): Promise<Record<string, ReturnType<FetchOptions["createBalances"]>>> {
+  const result: Record<string, ReturnType<FetchOptions["createBalances"]>> = {};
   const cfg = UNIV3_POSITIONS[options.chain];
-  if (!cfg) return balance;
+  if (!cfg) return result;
 
   const treasurySet = new Set(cfg.treasuries.map((a) => a.toLowerCase()));
-  const positionIdSet = new Set(cfg.positionIds.map(String));
+  const labelByPositionId = new Map<string, string>();
+  for (const g of cfg.groups) {
+    for (const id of g.positionIds) labelByPositionId.set(String(id), g.label);
+  }
 
   const [collectLogs, decreaseLogs] = await Promise.all([
     options.getLogs({ target: cfg.npm, eventAbi: UNIV3_ABIS.collect, entireLog: true, parseLog: true }),
@@ -188,10 +196,11 @@ async function fetchUniV3Fees(options: FetchOptions) {
     .filter(
       (log) =>
         treasurySet.has(String(log.args.recipient).toLowerCase()) &&
-        positionIdSet.has(String(log.args.tokenId))
+        labelByPositionId.has(String(log.args.tokenId))
     )
     .map((log) => {
-      const key = `${log.transactionHash?.toLowerCase()}-${log.args.tokenId}`;
+      const tokenId = String(log.args.tokenId);
+      const key = `${log.transactionHash?.toLowerCase()}-${tokenId}`;
       const withdrawn = withdrawnMap.get(key);
       let amount0 = BigInt(log.args.amount0 || 0);
       let amount1 = BigInt(log.args.amount1 || 0);
@@ -199,11 +208,11 @@ async function fetchUniV3Fees(options: FetchOptions) {
         amount0 = amount0 > withdrawn.amount0 ? amount0 - withdrawn.amount0 : 0n;
         amount1 = amount1 > withdrawn.amount1 ? amount1 - withdrawn.amount1 : 0n;
       }
-      return { tokenId: String(log.args.tokenId), amount0, amount1 };
+      return { tokenId, amount0, amount1 };
     })
     .filter((c) => c.amount0 > 0n || c.amount1 > 0n);
 
-  if (feeCollects.length === 0) return balance;
+  if (feeCollects.length === 0) return result;
 
   const uniqueTokenIds = [...new Set(feeCollects.map((c) => c.tokenId))];
   const positions = await options.api.multiCall({
@@ -219,10 +228,12 @@ async function fetchUniV3Fees(options: FetchOptions) {
   for (const c of feeCollects) {
     const pos = positionCache.get(c.tokenId);
     if (!pos) continue;
-    if (c.amount0 > 0n) balance.add(pos.token0, c.amount0.toString());
-    if (c.amount1 > 0n) balance.add(pos.token1, c.amount1.toString());
+    const label = labelByPositionId.get(c.tokenId)!;
+    if (!result[label]) result[label] = options.createBalances();
+    if (c.amount0 > 0n) result[label].add(pos.token0, c.amount0.toString());
+    if (c.amount1 > 0n) result[label].add(pos.token1, c.amount1.toString());
   }
-  return balance;
+  return result;
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -296,9 +307,10 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addBalances(totals, group.label);
   }
 
-  const uniV3Balances = await fetchUniV3Fees(options);
-  const uniV3Label = UNIV3_POSITIONS[options.chain]?.label ?? UNIV3_LABEL;
-  dailyFees.addBalances(uniV3Balances, uniV3Label);
+  const uniV3ByLabel = await fetchUniV3Fees(options);
+  for (const [label, bal] of Object.entries(uniV3ByLabel)) {
+    dailyFees.addBalances(bal, label);
+  }
 
   for (const g of (GOVERNANCE_INFLOWS[options.chain] ?? [])) {
     const params: any = { options, tokens: [g.token], targets: [g.holder] };
