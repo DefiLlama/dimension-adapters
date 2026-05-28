@@ -10,13 +10,13 @@ import { sleep } from "../../utils/utils";
 
 const GECKOTERMINAL_POOLS_URL =
   "https://api.geckoterminal.com/api/v2/networks/sei-evm/dexes/yaka-finance-v3/pools";
-const DEFAULT_FEE_RATE = 0.003;
 const COMMUNITY_FEE_SHARE = 0.015;
 const MAX_PAGES = 20;
 
 const getFeeRateFromPoolName = (name = "") => {
   const feeMatch = name.match(/([0-9.]+)%\s*$/);
-  return feeMatch ? Number(feeMatch[1]) / 100 : DEFAULT_FEE_RATE;
+  if (!feeMatch) throw new Error(`Yaka V3: could not parse fee tier from pool name "${name}" — GeckoTerminal naming may have changed`);
+  return Number(feeMatch[1]) / 100;
 };
 
 const fetchPools = async () => {
