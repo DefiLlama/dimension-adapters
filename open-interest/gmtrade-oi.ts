@@ -28,6 +28,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   runAtCurrTime: true,
+  start: '2025-02-13',
 }
 
 export default adapter;
