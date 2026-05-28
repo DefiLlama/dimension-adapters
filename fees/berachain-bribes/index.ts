@@ -181,23 +181,24 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     `;
     const fees = await queryDuneSql(options, query);
 
-    const dailyBribesRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
 
     fees.forEach((row: any) => {
         if (row.token_amount > 0) {
-            dailyBribesRevenue.addToken(row.token, row.token_amount);
+            dailyHoldersRevenue.addToken(row.token, row.token_amount);
         }
     });
 
     return {
         dailyFees: "0",
-        dailyBribesRevenue
+        dailyRevenue: "0",
+        dailyHoldersRevenue,
     };
 };
 
 const methodology = {
     Fees: "No direct fees are charged; this adapter tracks incentive distributions only.",
-    BribesRevenue: "Incentives distributed from Berachain Reward Vaults.",
+    HoldersRevenue: "Incentives distributed to BGT delegators and validators via Berachain Reward Vaults.",
 };
 
 const adapter: SimpleAdapter = {
