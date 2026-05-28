@@ -99,9 +99,9 @@ const fetchFees = async (options: FetchOptions, config: TonLstExportConfigs): Pr
     : depositorRewardsTon;
   const protocolRewardsTon = totalRewardsTon - depositorRewardsTon;
 
-  dailyFees.addCGToken("the-open-network", totalRewardsTon);
-  dailyRevenue.addCGToken("the-open-network", protocolRewardsTon);
-  dailySupplySideRevenue.addCGToken("the-open-network", depositorRewardsTon);
+  dailyFees.addCGToken("the-open-network", totalRewardsTon, 'TON Staking Rewards');
+  dailyRevenue.addCGToken("the-open-network", protocolRewardsTon, 'Staking Rewards Protocol Commission');
+  dailySupplySideRevenue.addCGToken("the-open-network", depositorRewardsTon, 'Staking Rewards To Stakers');
 
   return {
     dailyFees,
@@ -120,7 +120,18 @@ export function tonLstExport(exportConfig: TonLstExportConfigs) {
       UserFees: 'TON staking rewards earned on user deposits.',
       Revenue: 'Share of staking rewards retained by pool governance (read on-chain from the pool contract).',
       ProtocolRevenue: 'Share of staking rewards retained by pool governance.',
-      SupplySideRevenue: 'Net staking rewards distributed to LST holders after governance fee.',
+      SupplySideRevenue: 'Net staking rewards distributed to LST holders after commission/protocol fees.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'TON Staking Rewards': 'All rewards collected from TON Liquid Staking.',
+      },
+      Revenue: {
+        'Staking Rewards Protocol Commission': 'Amount of rewards are collected by protocol.',
+      },
+      SupplySideRevenue: {
+        'Staking Rewards To Stakers': 'Net staking rewards distributed to LST holders after commission/protocol fees.',
+      },
     },
     fetch: (_: any, _1: any, options: FetchOptions) => fetchFees(options, exportConfig),
     chains: [CHAIN.TON],
