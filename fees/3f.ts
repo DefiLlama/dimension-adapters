@@ -7,7 +7,7 @@ const FACTORY_DEPLOY_BLOCK = 24844184;
 
 const Abis = {
   PositionManagerCreated: "event PositionManagerCreated(address indexed positionManager, address indexed owner, address indexed collateralAsset, address debtAsset, uint256 ltv, address transferGuard)",
-  totalAssets: "int256:totalAssets",
+  totalAssets: "uint256:totalAssets",
   assets: "function assets() view returns (address collateralAsset, address debtAsset)",
   feeData: "function feeData() view returns (address feeRecipient, uint24 managementFee, uint24 performanceFee, uint256 lastTotalAssets, uint40 lastFeeAccrualTimestamp)",
 };
@@ -86,8 +86,8 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue.add(debtAsset, performanceFeeAmount, METRIC.PERFORMANCE_FEES);
       }
 
-      // supply side = gains - management fee - performance fee (can be negative)
-      const supplySide = gains - managementFeeAmount - performanceFeeAmount;
+      // supply side
+      const supplySide = gains - performanceFeeAmount;
       dailyFees.add(debtAsset, supplySide, METRIC.ASSETS_YIELDS);
       dailySupplySideRevenue.add(debtAsset, supplySide, METRIC.ASSETS_YIELDS);
     }
