@@ -56,7 +56,16 @@ const CDOS: CDOConfig[] = [
     jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
     srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
     start: "2026-05-01",
-  }
+  },
+  {
+    name: "PRIME",
+    cdo: "0xff408b4843CDD4a33CD49EB2aBe057fE8D71C234",
+    accounting: "0x0e90b8971bC0aBba696641eee85b39fD986267D7",
+    strategy: "0x80187fD8e22E8951104b4Dd5E37037510CF51C9e",
+    jrt: "0xF4C91F24E20EE8ed5eda905E501A1136334C2F27",
+    srt: "0x35bFF778d3fc53a561486BF28e761428499232Eb",
+    start: "2026-05-23",
+  },
 ];
 
 // events 
