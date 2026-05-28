@@ -101,17 +101,9 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
       ],
     },
   ],
-  [CHAIN.PLASMA]: [
-    {
-      label: METBASIS_LABEL,
-      target: "0xCE3187216B39ED222319D877956aC6b2eF1961E9",
-      tokens: [
-        "0x29AD7fE4516909b9e498B5a65339e54791293234", // msUSD
-        "0x7230a9D42D622E18FDf7207041EcA18465F9F1bE", // msETH
-      ],
-      fromAddressFilter: "0xf94EA39c02DfF32494FBaFcF72E546c640143D7D",
-    },
-  ],
+  // Plasma MetBasis fees are sourced from UniV3 Collect events (see UNIV3_POSITIONS),
+  // which correctly nets out same-tx DecreaseLiquidity withdrawals. A raw Transfer-from-pool
+  // filter would over-count principal withdrawals as fees.
 };
 
 // AMO harvest event:
@@ -136,10 +128,7 @@ const AMO_CONTROLLERS: Record<string, string[]> = {
 const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
 const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
 
-// Plasma UniV3 positions are covered by the 4C MetBasis Transfer tracker
-// (pool 0xf94EA39c… → treasury), so they are intentionally NOT listed here to
-// avoid double-counting Collect events vs Transfer events.
-const UNIV3_POSITIONS: Record<string, { npm: string; treasuries: string[]; positionIds: number[] }> = {
+const UNIV3_POSITIONS: Record<string, { npm: string; treasuries: string[]; positionIds: number[]; label: string }> = {
   [CHAIN.ETHEREUM]: {
     npm: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
     treasuries: [
@@ -147,6 +136,13 @@ const UNIV3_POSITIONS: Record<string, { npm: string; treasuries: string[]; posit
       "0xce3187216b39ed222319d877956ac6b2ef1961e9",
     ],
     positionIds: [295354, 298500, 305148, 305138, 305136, 517851, 1092162],
+    label: UNIV3_LABEL,
+  },
+  [CHAIN.PLASMA]: {
+    npm: "0x743E03cceB4af2efA3CC76838f6E8B50B63F184c",
+    treasuries: ["0xCE3187216B39ED222319D877956aC6b2eF1961E9"],
+    positionIds: [17692, 17691, 17690, 18640, 19059],
+    label: METBASIS_LABEL,
   },
 };
 
@@ -301,7 +297,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const uniV3Balances = await fetchUniV3Fees(options);
-  dailyFees.addBalances(uniV3Balances, UNIV3_LABEL);
+  const uniV3Label = UNIV3_POSITIONS[options.chain]?.label ?? UNIV3_LABEL;
+  dailyFees.addBalances(uniV3Balances, uniV3Label);
 
   for (const g of (GOVERNANCE_INFLOWS[options.chain] ?? [])) {
     const params: any = { options, tokens: [g.token], targets: [g.holder] };
@@ -337,29 +334,18 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [SYNTH_INTEREST_LABEL]: "Interest accrued on user debt (msUSD 2%, msETH 1%, msBTC 2%), measured as residual treasury synth mints after subtracting Swap Fees and AMO Fees.",
-      [SYNTH_SWAP_FEES_LABEL]: "Fee field of SyntheticTokenSwapped events, denominated in syntheticTokenOut.",
-      [AMO_LABEL]: "Profit field of AMO controller Harvest events (fully protocol-owned, transferred to treasury as the synthetic token).",
-      [METBASIS_LABEL]: "msETH/msUSD MetBasis LP fees: AERO (Base gauge), VELO (Optimism gauge), msUSD+msETH (Base + Plasma pools).",
-      [AERO_LABEL]: "AERO received by the Base treasury, excluding the MetBasis gauge.",
-      [VELO_KITE_LABEL]: "VELO + KITE received by the Optimism treasury 0x91ecAD…, excluding the MetBasis gauge.",
-      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN received by the Ethereum treasury 0xCE318721….",
-      [UNIV3_LABEL]: "Ethereum UniV3 NFT position fees from Collect events, net of same-tx DecreaseLiquidity. Plasma UniV3 fees are bucketed under MetBasis Fees.",
-      [GOV_LABEL]: "Convex vlCVX reward claims (CVX).",
-    },
-    Revenue: {
-      [SYNTH_INTEREST_LABEL]: "Interest accrued on user debt (msUSD 2%, msETH 1%, msBTC 2%), measured as residual treasury synth mints after subtracting Swap Fees and AMO Fees.",
-      [SYNTH_SWAP_FEES_LABEL]: "Fee field of SyntheticTokenSwapped events, denominated in syntheticTokenOut.",
-      [AMO_LABEL]: "Profit field of AMO controller Harvest events (fully protocol-owned, transferred to treasury as the synthetic token).",
-      [METBASIS_LABEL]: "msETH/msUSD MetBasis LP fees: AERO (Base gauge), VELO (Optimism gauge), msUSD+msETH (Base + Plasma pools).",
-      [AERO_LABEL]: "AERO received by the Base treasury, excluding the MetBasis gauge.",
-      [VELO_KITE_LABEL]: "VELO + KITE received by the Optimism treasury 0x91ecAD…, excluding the MetBasis gauge.",
-      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV, OETH and FXN received by the Ethereum treasury 0xCE318721….",
-      [UNIV3_LABEL]: "Ethereum UniV3 NFT position fees from Collect events, net of same-tx DecreaseLiquidity. Plasma UniV3 fees are bucketed under MetBasis Fees.",
-      [GOV_LABEL]: "Convex vlCVX reward claims (CVX).",
+      [SYNTH_INTEREST_LABEL]: "Interest on user debt (msUSD/msBTC 2%, msETH 1%).",
+      [SYNTH_SWAP_FEES_LABEL]: "Fees on synth-to-synth swaps.",
+      [AMO_LABEL]: "AMO harvest profits.",
+      [METBASIS_LABEL]: "MetBasis LP rewards on Base/OP/Plasma (AERO, VELO, msUSD/msETH).",
+      [AERO_LABEL]: "AERO rewards to the Base treasury (excl. MetBasis).",
+      [VELO_KITE_LABEL]: "VELO/KITE rewards to the Optimism treasury (excl. MetBasis).",
+      [CRV_OETH_FXN_REWARDS_LABEL]: "CRV/OETH/FXN rewards to the Ethereum treasury.",
+      [UNIV3_LABEL]: "Ethereum UniV3 LP fees, net of same-tx liquidity withdrawals.",
+      [GOV_LABEL]: "Convex vlCVX reward claims.",
     },
     HoldersRevenue: {
-      [MET_DISTRIBUTION_LABEL]: "MET transferred to the holder distributor contract.",
+      [MET_DISTRIBUTION_LABEL]: "MET distributed to holders.",
     },
   },
   adapter: {
