@@ -237,15 +237,17 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.subtractToken(lista, amount);
   });
 
+  const feeWithLabel = dailyFees.clone(1, 'Borrow Interest');
+  
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
+    dailyFees: feeWithLabel,
+    dailyRevenue: feeWithLabel,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
