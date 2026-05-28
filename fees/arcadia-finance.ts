@@ -94,12 +94,9 @@ const STAKED_RECOVERY_TOKEN = "0x3889255C5a9A55137DfdF870a0C30A285978176A";
 
 const REDEEM_EVENT = "event Redeemed(address indexed user, uint256 amount)";
 const INTEREST_SYNCED_EVENT = "event InterestSynced(uint256 interest)";
-const BORROW_EVENT =
-  "event Borrow(address indexed account, address indexed by, address to, uint256 amount, uint256 fee, bytes3 indexed referrer)";
-const AUCTION_FINISHED_EVENT =
-  "event AuctionFinished(address indexed account, address indexed creditor, uint256 startDebt, uint256 initiationReward, uint256 terminationReward, uint256 penalty, uint256 badDebt, uint256 surplus)";
-const FEE_PAID_EVENT =
-  "event FeePaid(address indexed account, address indexed receiver, address indexed asset, uint256 amount)";
+const BORROW_EVENT = "event Borrow(address indexed account, address indexed by, address to, uint256 amount, uint256 fee, bytes3 indexed referrer)";
+const AUCTION_FINISHED_EVENT = "event AuctionFinished(address indexed account, address indexed creditor, uint256 startDebt, uint256 initiationReward, uint256 terminationReward, uint256 penalty, uint256 badDebt, uint256 surplus)";
+const FEE_PAID_EVENT = "event FeePaid(address indexed account, address indexed receiver, address indexed asset, uint256 amount)";
 
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
@@ -108,14 +105,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   for (const pool of config.lendingPools) {
     const interestSyncLogs = await options.getLogs({
       target: pool.address,
       eventAbi: INTEREST_SYNCED_EVENT,
     });
+
     for (const interestSync of interestSyncLogs) {
+      // 15% treasury share
       const treasuryShare = interestSync.interest * 15n / 100n;
       const lpShare = interestSync.interest - treasuryShare;
       dailyFees.add(pool.underlying, interestSync.interest, METRIC.BORROW_INTEREST);
@@ -127,16 +125,19 @@ const fetch = async (options: FetchOptions) => {
       target: pool.address,
       eventAbi: BORROW_EVENT,
     });
+
     for (const borrow of borrowLogs) {
-      dailyFees.add(pool.underlying, borrow.fee, "Origination Fee");
-      dailyRevenue.add(pool.underlying, borrow.fee, "Origination Fee");
+      dailyFees.add(pool.underlying, borrow.fee, "Origination Fees");
+      dailyRevenue.add(pool.underlying, borrow.fee, "Origination Fees");
     };
 
     const liquidationLogs = await options.getLogs({
       target: pool.address,
       eventAbi: AUCTION_FINISHED_EVENT,
     });
+
     for (const liquidation of liquidationLogs) {
+      // 50% of penalty goes to treasury
       const treasuryShare = liquidation.penalty / 2n;
       const lpShare = liquidation.penalty - treasuryShare;
       const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
@@ -146,9 +147,7 @@ const fetch = async (options: FetchOptions) => {
 
       dailyRevenue.add(pool.underlying, treasuryShare, METRIC.LIQUIDATION_FEES);
       dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.LIQUIDATION_FEES);
-
-      // dailySupplySideRevenue.add(pool.underlying, liquidation.terminationReward);
-      // dailySupplySideRevenue.add(pool.underlying, liquidation.initiationReward);
+      dailySupplySideRevenue.add(pool.underlying, keeperReward, METRIC.LIQUIDATION_FEES);
     };
   };
 
@@ -168,44 +167,54 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: FEE_PAID_EVENT,
     flatten: true
   });
+
   for (const feePaid of feePaidLogs) {
     dailyFees.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
     dailyRevenue.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
   };
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue, dailyHoldersRevenue };
+  return { 
+    dailyFees, 
+    dailyRevenue, 
+    dailySupplySideRevenue, 
+    dailyProtocolRevenue: dailyRevenue, 
+    dailyHoldersRevenue 
+  };
 };
 
 const methodology = {
-  Fees: "",
-  Revenue: "",
-  SupplySideRevenue: "",
-  ProtocolRevenue: "",
-  HoldersRevenue: "",
+  Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus performance fees on auto-compounding, rebalancing, yield claiming and swap automation.",
+  Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and asset manager performance fees.",
+  SupplySideRevenue: "Lender share of borrow interest and liquidation penalties distributed to lending pool tranches.",
+  ProtocolRevenue: "Gross protocol-side fees collected before ART (Recovery Token) holder rebates are paid out.",
+  HoldersRevenue: "USDC rebates redeemed by ART (Recovery Token) holders. Funded from prior-epoch fee collections.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.BORROW_INTEREST]: "",
-    "Origination Fee": "",
-    [METRIC.LIQUIDATION_FEES]: "",
-    [METRIC.PERFORMANCE_FEES]: "",
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers in Arcadia lending pools.",
+    "Origination Fees": "Fees charged on the principal of new borrows.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties plus initiator/terminator keeper rewards on auctioned accounts.",
+    [METRIC.PERFORMANCE_FEES]: "Fees charged by asset managers on claimed yield and rebalance swaps.",
   },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: "",
-    "Origination Fee": "",
-    [METRIC.PERFORMANCE_FEES]: "",
-    [METRIC.LIQUIDATION_FEES]: "",
+    [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
+    "Origination Fees": "Full origination fee routed to the treasury.",
+    [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
+    [METRIC.PERFORMANCE_FEES]: "Full asset manager fees collected by initiators.",
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "",
-    [METRIC.LIQUIDATION_FEES]: "",
+    [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed across lending pool tranches.",
+    [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalty distributed to the most junior tranche.",
   },
   ProtocolRevenue: {
-
+    [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
+    "Origination Fees": "Full origination fee routed to the treasury.",
+    [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
+    [METRIC.PERFORMANCE_FEES]: "Full asset manager fees collected by initiators.",
   },
   HoldersRevenue: {
-
+    "Recovery Token Redemptions": "USDC paid out when ART holders redeem accumulated rebates.",
   },
 };
 
