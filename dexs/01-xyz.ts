@@ -6,15 +6,15 @@ import { sleep } from "../utils/utils";
 const fetch = async (_options: FetchOptions) => {
   const { markets } = await fetchURL('https://zo-mainnet.n1.xyz/info');
 
-  let openInterestAtEnd = 0
+  let dailyVolume = 0
   for (const market of markets) {
     if (!market.symbol.endsWith('USD')) continue;
     await sleep(200); // to avoid rate limits
-    const { indexPrice, perpStats: { open_interest }} = await fetchURL(`https://zo-mainnet.n1.xyz/market/${market.marketId}/stats`);
-    openInterestAtEnd += open_interest * indexPrice;
+    const { volumeQuote24h } = await fetchURL(`https://zo-mainnet.n1.xyz/market/${market.marketId}/stats`);
+    dailyVolume += volumeQuote24h;
   }
 
-  return { openInterestAtEnd };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -24,6 +24,9 @@ const adapter: SimpleAdapter = {
       fetch,
       runAtCurrTime: true,
     },
+  },
+  methodology: {
+    Volume: "Sum of 24h quote volume across all quoted perpetual markets",
   },
 };
 
