@@ -141,7 +141,7 @@ const adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2024-01-23",
+  start: "2023-10-01",
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,
