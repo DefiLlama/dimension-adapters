@@ -2,8 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const START_TIMESTAMP = 1760400000;
-
 const SHARES = "0x04E5a6f7eE9977D38f57945c31B72178c9Cf1c06";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -42,15 +40,6 @@ const FEE_EVENTS = [
   },
 ];
 
-function usd18ToNumber(value: any): number {
-  const v = BigInt(value.toString());
-
-  // FeeHandler settlement values are denominated in the Shares value asset
-  // with 18 decimals. Convert safely to a JS number while preserving 6
-  // decimals of USD precision.
-  return Number(v / 10n ** 12n) / 1e6;
-}
-
 async function getFeeHandlers(options: FetchOptions): Promise<string[]> {
   const currentFeeHandler = await options.api.call({
     target: SHARES,
@@ -74,9 +63,7 @@ async function getLogsForFeeHandlers(
   return options.getLogs({
     targets: feeHandlers,
     eventAbi,
-    onlyArgs: true,
     flatten: true,
-    // include pullHourly: true when supported by this getLogs wrapper,
   });
 }
 
@@ -97,14 +84,10 @@ function addFeeLogs({
   countZeroRecipientAsRevenue: boolean;
 }) {
   for (const log of logs) {
-    const valueUsd = usd18ToNumber(log.value);
+    if (!countZeroRecipientAsRevenue && log.recipient.toLowerCase() === ZERO_ADDRESS) continue;
 
-    if (
-      !countZeroRecipientAsRevenue &&
-      log.recipient.toLowerCase() === ZERO_ADDRESS
-    ) {
-      continue;
-    }
+    const valueUsd = BigInt(log.value) / BigInt(1e18)
+    
     balances.dailyFees.addUSDValue(valueUsd, metric);
     balances.dailyUserFees.addUSDValue(valueUsd, metric);
 
@@ -120,41 +103,37 @@ async function fetch(options: FetchOptions) {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-    try {
-    const feeHandlers = await getFeeHandlers(options);
+  const feeHandlers = await getFeeHandlers(options);
+  
+  const balances = {
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+  };
+  
+  const logsByEvent = await Promise.all(
+    FEE_EVENTS.map(async (feeEvent) => {
+      const logs = await getLogsForFeeHandlers(
+        options,
+        feeHandlers,
+        feeEvent.eventAbi
+      );
 
-    const balances = {
-      dailyFees,
-      dailyUserFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
-    };
+      return {
+        ...feeEvent,
+        logs,
+      };
+    })
+  );
 
-    const logsByEvent = await Promise.all(
-      FEE_EVENTS.map(async (feeEvent) => {
-        const logs = await getLogsForFeeHandlers(
-          options,
-          feeHandlers,
-          feeEvent.eventAbi
-        );
-
-        return {
-          ...feeEvent,
-          logs,
-        };
-      })
-    );
-
-    for (const feeEvent of logsByEvent) {
-      addFeeLogs({
-        logs: feeEvent.logs,
-        metric: feeEvent.metric,
-        balances,
-        countZeroRecipientAsRevenue: feeEvent.countZeroRecipientAsRevenue,
-      });
-    }
-  } catch (e) {
-    console.error("blackopal fees fetch failed", e);
+  for (const feeEvent of logsByEvent) {
+    addFeeLogs({
+      logs: feeEvent.logs,
+      metric: feeEvent.metric,
+      balances,
+      countZeroRecipientAsRevenue: feeEvent.countZeroRecipientAsRevenue,
+    });
   }
 
   return {
@@ -171,7 +150,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.PLUME]: {
       fetch,
-      start: START_TIMESTAMP,
+      start: '2025-10-14',
     },
   },
   methodology: {
