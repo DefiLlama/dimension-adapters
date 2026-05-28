@@ -119,8 +119,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     if (!metadata) continue;
     const yieldValue = d.yieldValueFromLog ?? metadata.yieldValue;
     const premiumAmount = d.depositAmount * yieldValue / WAD;
-    dailyNotionalVolume.add(metadata.investmentToken, d.depositAmount.toString());
-    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString());
+    dailyNotionalVolume.add(metadata.investmentToken, d.depositAmount.toString(), "Deposit Notional");
+    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString(), "Deposit Premium");
   }
 
   return {
@@ -206,6 +206,7 @@ async function resolveVaultMetadata(
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [
     [CHAIN.ETHEREUM, { start: "2025-11-19" }],
@@ -217,8 +218,8 @@ const adapter: SimpleAdapter = {
     dailyPremiumVolume: "Premium volume is computed from each on-chain Deposit event as deposited principal multiplied by the vault yieldValue, denominated in the same investment token.",
   },
   breakdownMethodology: {
-    dailyNotionalVolume: "On-chain Deposit principal by investment token.",
-    dailyPremiumVolume: "On-chain Deposit principal times yieldValue by investment token.",
+    dailyNotionalVolume: "Deposit Notional: On-chain Deposit principal by investment token.",
+    dailyPremiumVolume: "Deposit Premium: On-chain Deposit principal times yieldValue by investment token.",
   },
 };
 
