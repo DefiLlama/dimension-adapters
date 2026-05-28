@@ -29,12 +29,13 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 	const data = await fetchURL(`${API_URL}/cached/history/analytics/open-interest-snapshot/60`);
 	const openInterest = data.history.find((d: any) => d.date === dateStr)?.openInterestSnapshot;
-	const openInterestAtEnd = openInterest ? openInterest.totalRatio : 0;
 	const dailyVolume = value.history.find((d) => d.date === dateStr)?.volume;
 
 	return {
 		dailyVolume,
-		openInterestAtEnd
+		openInterestAtEnd: openInterest ? openInterest.totalRatio : 0,
+		longOpenInterestAtEnd: openInterest ? openInterest.longTotal : 0,
+		shortOpenInterestAtEnd: openInterest ? openInterest.shortTotal : 0,
 	};
 };
 
