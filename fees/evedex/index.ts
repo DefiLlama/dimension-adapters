@@ -58,24 +58,16 @@ const fetch = async (options: FetchOptions) => {
   const after = new Date(startTimestamp * 1000).toISOString();
   const before = new Date(endTimestamp * 1000).toISOString();
 
-  const { results: volumes, errors } = await PromisePool
+  // Avoid error handling for easy backfill 
+  const { results: volumes } = await PromisePool
     .withConcurrency(2)
     .for(markets)
     .process(async (market) => {
-      let candles;
-      try {
-        candles = await fetchURLAutoHandleRateLimit(`${URLS.ohlcv}/${market}/list?after=${after}&before=${before}&group=1h`);
-      } catch (error) {
-        console.error(`EVEDEX OHLCV fetch failed for ${market}`, error);
-        return 0;
-      }
-
+      const candles = await fetchURLAutoHandleRateLimit(`${URLS.ohlcv}/${market}/list?after=${after}&before=${before}&group=1h`);
       return candles
         .filter((candle: any) => candle[0] >= startTimestamp * 1000 && candle[0] < endTimestamp * 1000)
         .reduce((sum: number, candle: any) => sum + Number(candle[5]), 0);
     });
-
-  if (errors.length > 0) console.error("EVEDEX OHLCV PromisePool errors", errors);
 
   const oneSidedVolume = volumes.reduce((sum, volume) => sum + volume, 0) / 2;
   const feeRate = Number(market.fees.maker) + Number(market.fees.taker);
@@ -135,7 +127,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.EVENTUM],
   start: "2025-06-30",
-  allowNegativeValue: true,
+  allowNegativeValue: true, // Cashbacks are claimed by users from the vault; User claims can be > fees collected at times
   methodology,
   breakdownMethodology,
 };
