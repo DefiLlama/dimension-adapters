@@ -377,4 +377,5 @@ export enum CHAIN {
   FSC = "fsc",
   DFIO_META_MAIN = "dfio_meta_main",
   WCHAIN = "wchain",
+  PHAROS = "pharos",
 }
