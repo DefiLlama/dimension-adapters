@@ -95,7 +95,7 @@ const methodology = {
   Revenue: "Total Revenue equals UNIT holders Revenue plus Protocol Revenue.",
   HoldersRevenue: "UNIT holders receive 100% of Swap Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
   ProtocolRevenue: "Protocol receives 100% of Taker Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
-  SupplySideRevenue: "LPs do not auto-compound fees; fees are routed to protocol, UNIT holders, and treasury. Treasury WBF fee allocation is mapped here for accounting.",
+  SupplySideRevenue: "LPs do not auto-compound fees; fees are routed to protocol, UNIT holders, and treasury.",
 }
 
 const breakdownMethodology = {
