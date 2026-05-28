@@ -75,6 +75,7 @@ const methodology = {
 
 const adapters: SimpleAdapter = {
   version: 1,
+  deadFrom: '2024-07-12',
   methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
