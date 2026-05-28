@@ -3,20 +3,24 @@ import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+
+  const from = new Date(options.fromTimestamp * 1000).toISOString();
+  const to = new Date(options.toTimestamp * 1000).toISOString();
+
     const alliumQuery = `
     WITH first_seen AS (
         SELECT
             sender,
-            MIN(timestamp_ms) AS first_seen_timestamp
+            MIN(checkpoint_timestamp) AS first_seen_timestamp
         FROM sui.raw.transaction_blocks
-        WHERE timestamp_ms < ${options.endTimestamp * 1000}
+        WHERE checkpoint_timestamp < '${to}'
           AND sender IS NOT NULL
         GROUP BY 1
     )
     SELECT COALESCE(count(*), 0) AS new_users
     FROM first_seen
-    WHERE first_seen_timestamp >= ${options.startTimestamp * 1000}
-      AND first_seen_timestamp < ${options.endTimestamp * 1000}
+    WHERE first_seen_timestamp >= '${from}'
+      AND first_seen_timestamp < '${to}'
   `;
 
     const alliumResult = await queryAllium(alliumQuery);
