@@ -86,7 +86,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Borrow interest paid by borrowers on outstanding debt, plus upfront fees charged on opening or increasing a Trove and on premature interest-rate adjustments.',
   Revenue: 'Performance fee retained by the protocol, read live from each market\'s lender vault.',
-  SupplySideRevenue: 'Remaining fees distributed to lenders via the Yearn V3 vault share appreciation.',
+  SupplySideRevenue: 'Remaining fees distributed to lenders.',
 };
 
 const breakdownMethodology = {
