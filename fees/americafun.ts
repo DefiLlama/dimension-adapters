@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { httpGet } from "../utils/fetchURL"
 
-const API_BASE = "https://americafun-api.up.railway.app/api/v1"
+const API_BASE = "https://defillama.america.fun/api/v1"
 
 interface DailyFeesResponse {
   dailyFees: string
