@@ -6,6 +6,13 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const FEE_WALLET = 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX';
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
+
+  const now = Date.now()
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+  }
+
   const result = await queryDuneSql(options, `
     WITH fomo_txs AS (
       SELECT DISTINCT tx_id
