@@ -36,7 +36,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
           OR t.token_sold_symbol = 'USDC'
         )
     )
-    SELECT SUM(amount_usd) AS total_volume
+    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
   `);
 
