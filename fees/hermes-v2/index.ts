@@ -132,8 +132,8 @@ async function getPoolInfo(
 
 /**
  * Get fees and bribes
- * - dailyFees: ALL token transfers into depots
- * - dailyBribesRevenue: transfers NOT from the actual Uniswap V3 pool
+ * - dailyFees: transfers into depots FROM the actual Uniswap V3 pool (swap fees)
+ * - dailyBribesRevenue: transfers NOT from the actual Uniswap V3 pool (external voting bribes)
  */
 async function getFeesAndBribes(
   gauges: string[],
@@ -225,11 +225,13 @@ async function getFeesAndBribes(
 
         if (!value) return;
 
-        // Add to dailyFees
-        dailyFees.add(token, value);
-
-        // Add to dailyBribesRevenue only if not from the actual pool
-        if (from !== pool) {
+        // Swap fees originate from the actual Uniswap V3 pool; every other
+        // transfer into the depot is an external voting bribe (passthrough
+        // incentive). Bucketing them mutually exclusive avoids double-counting
+        // bribes in dailyFees / dailyRevenue downstream.
+        if (from === pool) {
+          dailyFees.add(token, value);
+        } else {
           dailyBribesRevenue.add(token, value);
         }
       });

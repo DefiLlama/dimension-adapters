@@ -224,7 +224,7 @@ const methodology = {
   Revenue: "Swap-fee share kept by the protocol plus swap-fee share distributed to holders. External voting bribes are passthrough incentives and excluded.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "Swap-fee share distributed to holders plus external voting bribes routed to veTHE holders.",
+  HoldersRevenue: "Swap-fee share distributed to holders plus external voting bribes routed to vePHAR holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
 };
 

@@ -187,8 +187,11 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     rexPenaltyAmount += Number(log.amount) / 1e18;
   }
 
-  // Calculate xREX rebase revenue in USD
-  const rexToken = tokens.find((t) => t.id === REX_TOKEN_CONTRACT);
+  // Calculate xREX rebase revenue in USD. The Etherex subgraph returns
+  // token.id lowercased, so lower-case the constant to avoid a case-mismatch
+  // that silently zeroed dailyXrexInstantExitFeeUSD (and via the migration
+  // below also dailyFees / dailyRevenue / dailyHoldersRevenue).
+  const rexToken = tokens.find((t) => t.id === REX_TOKEN_CONTRACT.toLowerCase());
   const rexPriceUSD = Number(rexToken?.priceUSD ?? 0);
   const dailyXrexInstantExitFeeUSD = rexPenaltyAmount * rexPriceUSD; // Voters will get the rex token as rebase
 
