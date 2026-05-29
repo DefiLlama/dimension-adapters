@@ -139,7 +139,7 @@ const fetch = async (options: FetchOptions) => {
       if (type === "liquidation") {
         for (const liquidation of logs) {
           // 50% of penalty goes to treasury
-          const treasuryShare = liquidation.penalty / 2n;
+          const treasuryShare = liquidation.penalty * 50n / 100n;
           const lpShare = liquidation.penalty - treasuryShare;
           const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
 
