@@ -88,7 +88,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     }
 
     const url = `${WHEELX_API_BASE}/orders?${params.toString()}`;
-    console.log("url", url);
     const data: OrdersResponse = await fetchURL(url);
 
     if (data?.orders?.length) {
