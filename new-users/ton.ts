@@ -8,10 +8,7 @@ type MetricPoint = { timestamp: string; value: number };
 
 const QUERY = `
   query DailyStats($period: MetricPeriod!) {
-    activeUsers: metrics(name: "countOfActiveWalletsDaily", period: $period, granularity: Daily) {
-      ... on MetricMeasurement { timestamp value }
-    }
-    txns: metrics(name: "countOfTransactions", period: $period, granularity: Daily) {
+    newUsers: metrics(name: "countOfNewWallets", period: $period, granularity: Daily) {
       ... on MetricMeasurement { timestamp value }
     }
   }
@@ -37,14 +34,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error(`TonStat GraphQL error: ${JSON.stringify(json.errors)}`);
   }
 
-  const { activeUsers, txns } = json.data as {
-    activeUsers: MetricPoint[];
-    txns: MetricPoint[];
+  const { newUsers } = json.data as {
+    newUsers: MetricPoint[];
   };
 
   return {
-    dailyActiveUsers: valueOn(activeUsers, date, "activeUsers"),
-    dailyTransactionsCount: valueOn(txns, date, "txns"),
+    dailyNewUsers: valueOn(newUsers, date, "newUsers"),
   };
 };
 
