@@ -143,11 +143,11 @@ const fetch = async (options: FetchOptions) => {
       const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
 
       dailyFees.add(pool.underlying, liquidation.penalty, METRIC.LIQUIDATION_FEES);
-      dailyFees.add(pool.underlying, keeperReward, METRIC.LIQUIDATION_FEES);
+      dailyFees.add(pool.underlying, keeperReward, "Keeper Rewards");
 
       dailyRevenue.add(pool.underlying, treasuryShare, METRIC.LIQUIDATION_FEES);
       dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.LIQUIDATION_FEES);
-      dailySupplySideRevenue.add(pool.underlying, keeperReward, METRIC.LIQUIDATION_FEES);
+      dailySupplySideRevenue.add(pool.underlying, keeperReward, "Keeper Rewards");
     };
   };
 
@@ -194,7 +194,8 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: "Interest paid by borrowers in Arcadia lending pools.",
     "Origination Fees": "Fees charged on the principal of new borrows.",
-    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties plus initiator/terminator keeper rewards on auctioned accounts.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
+    "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
     [METRIC.PERFORMANCE_FEES]: "Fees charged by asset managers on claimed yield and rebalance swaps.",
   },
   Revenue: {
@@ -206,6 +207,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed across lending pool tranches.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalty distributed to the most junior tranche.",
+    "Keeper Rewards": "Initiator and terminator rewards paid to keepers running liquidation auctions.",
   },
   ProtocolRevenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
