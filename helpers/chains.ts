@@ -47,7 +47,11 @@ export enum CHAIN {
   LITECOIN = "litecoin",
   BITCOIN = "bitcoin",
   BITCOIN_CASH = "bitcoincash",
+<<<<<<< dash-chain-fees
   DASH = "dash",
+=======
+  MONERO = "monero",
+>>>>>>> master
   DOGECHAIN = "dogechain",
   ENERGI = "energi",
   VELAS = "velas",
@@ -379,4 +383,5 @@ export enum CHAIN {
   DFIO_META_MAIN = "dfio_meta_main",
   WCHAIN = "wchain",
   PHAROS = "pharos",
+  BFC = "bfc",
 }
