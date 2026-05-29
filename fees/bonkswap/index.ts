@@ -75,8 +75,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 9, 16))) AS DOUBLE) AS lp_fee,
         CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 25, 16))) AS DOUBLE) AS buyback_fee,
         CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 41, 16))) AS DOUBLE) AS project_fee,
-        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 57, 16))) AS DOUBLE) AS mercanti_fee,
-        CAST(NULL AS DOUBLE) AS provider_fee
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 57, 16))) AS DOUBLE) AS mercanti_fee
       FROM ixs
       WHERE bytearray_substring(data, 1, 8) = ${DISCRIMINATORS.createPool}
 
@@ -88,8 +87,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         CAST(NULL AS DOUBLE) AS lp_fee,
         CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 9, 16))) AS DOUBLE) AS buyback_fee,
         CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 25, 16))) AS DOUBLE) AS project_fee,
-        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 57, 16))) AS DOUBLE) AS mercanti_fee,
-        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 41, 16))) AS DOUBLE) AS provider_fee
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 41, 16))) AS DOUBLE) AS mercanti_fee
       FROM ixs
       WHERE bytearray_substring(data, 1, 8) = ${DISCRIMINATORS.updateFees}
 
@@ -101,8 +99,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         max_by(pc.lp_fee, pc.block_time) AS lp_fee,
         max_by(pc.buyback_fee, pc.block_time) AS buyback_fee,
         max_by(pc.project_fee, pc.block_time) AS project_fee,
-        max_by(pc.mercanti_fee, pc.block_time) AS mercanti_fee,
-        CAST(NULL AS DOUBLE) AS provider_fee
+        max_by(pc.mercanti_fee, pc.block_time) AS mercanti_fee
       FROM custom_pools c
       INNER JOIN pool_configs pc
         ON pc.pool_config = c.pool_config
@@ -129,8 +126,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         max_by(f.lp_fee, f.block_time) FILTER (WHERE f.lp_fee IS NOT NULL) AS lp_fee,
         max_by(f.buyback_fee, f.block_time) FILTER (WHERE f.buyback_fee IS NOT NULL) AS buyback_fee,
         max_by(f.project_fee, f.block_time) FILTER (WHERE f.project_fee IS NOT NULL) AS project_fee,
-        max_by(f.mercanti_fee, f.block_time) FILTER (WHERE f.mercanti_fee IS NOT NULL) AS mercanti_fee,
-        max_by(f.provider_fee, f.block_time) FILTER (WHERE f.provider_fee IS NOT NULL) AS provider_fee
+        max_by(f.mercanti_fee, f.block_time) FILTER (WHERE f.mercanti_fee IS NOT NULL) AS mercanti_fee
       FROM swaps s
       LEFT JOIN fees f
         ON f.pool = s.pool
@@ -139,9 +135,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
     SELECT
       t.token_mint_address AS mint,
-      SUM(t.amount * (COALESCE(s.lp_fee, 1000000000) + COALESCE(s.provider_fee, 0) + COALESCE(s.buyback_fee, 1500000000) + COALESCE(s.project_fee, 500000000) + COALESCE(s.mercanti_fee, 0)) / ${FEE_SCALE}) AS total_fee,
+      SUM(t.amount * (COALESCE(s.lp_fee, 1000000000) + COALESCE(s.buyback_fee, 1500000000) + COALESCE(s.project_fee, 500000000) + COALESCE(s.mercanti_fee, 0)) / ${FEE_SCALE}) AS total_fee,
       SUM(t.amount * COALESCE(s.lp_fee, 1000000000) / ${FEE_SCALE}) AS lp_fee,
-      SUM(t.amount * COALESCE(s.provider_fee, 0) / ${FEE_SCALE}) AS provider_fee,
       SUM(t.amount * COALESCE(s.buyback_fee, 1500000000) / ${FEE_SCALE}) AS buyback_fee,
       SUM(t.amount * COALESCE(s.project_fee, 500000000) / ${FEE_SCALE}) AS project_fee,
       SUM(t.amount * COALESCE(s.mercanti_fee, 0) / ${FEE_SCALE}) AS mercanti_fee
@@ -157,7 +152,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     mint: string,
     total_fee: number,
     lp_fee: number,
-    provider_fee: number,
     buyback_fee: number,
     project_fee: number,
     mercanti_fee: number,
@@ -172,7 +166,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const { mint } = row;
     const totalFee = Number(row.total_fee ?? 0);
     const lpFee = Number(row.lp_fee ?? 0);
-    const providerFee = Number(row.provider_fee ?? 0);
     const buybackFee = Number(row.buyback_fee ?? 0);
     const projectFee = Number(row.project_fee ?? 0);
     const mercantiFee = Number(row.mercanti_fee ?? 0);
@@ -181,7 +174,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyRevenue.add(mint, buybackFee, METRIC.TOKEN_BUY_BACK);
     dailySupplySideRevenue.add(mint, projectFee, "Project Fees");
     dailySupplySideRevenue.add(mint, lpFee, METRIC.LP_FEES);
-    dailySupplySideRevenue.add(mint, providerFee, "Provider Fees");
     dailySupplySideRevenue.add(mint, mercantiFee, "Referrer Fees");
     dailyHoldersRevenue.add(mint, buybackFee, METRIC.TOKEN_BUY_BACK);
   }
@@ -198,7 +190,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Fees: "All swap fees paid by BonkSwap users.",
   Revenue: "Fee share from swaps, used for buybacks.",
-  SupplySideRevenue: "Swap fees allocated to liquidity providers, providers, project owners, and referrers.",
+  SupplySideRevenue: "Swap fees allocated to liquidity providers, project owners, and referrers.",
   HoldersRevenue: "Swap fees allocated to buybacks.",
 };
 
@@ -211,7 +203,6 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRIC.LP_FEES]: "Swap fees allocated to liquidity providers.",
-    "Provider Fees": "Swap fees allocated to providers (updated via update_fees).",
     "Project Fees": "Swap fees allocated to pool project owners.",
     "Referrer Fees": "Swap fees paid to referrers (mercanti fee) during swaps, e.g. Jupiter.",
   },
