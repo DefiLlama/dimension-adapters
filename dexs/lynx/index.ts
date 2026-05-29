@@ -240,10 +240,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  isExpensiveAdapter: true,
   adapter: {
-    [CHAIN.SONIC]: { fetch, start: " 2025-08-01" },
-    [CHAIN.BOBA]: { fetch, start: "2025-01-20" },
+    [CHAIN.SONIC]: { fetch, start: "2024-12-20" },
+    [CHAIN.BOBA]: { fetch, start: "2024-07-14" },
     [CHAIN.FLARE]: { fetch, start: "2024-12-23" },
   },
   methodology: {
