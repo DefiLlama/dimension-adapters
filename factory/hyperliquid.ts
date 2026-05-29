@@ -74,6 +74,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "blink-perps": {
+    addresses: ["0xc7bcb2eee9bbfbf875499960746bc52b2e1a75c6"],
+    start: "2026-05-23",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps via Blink (blink.lat).",
+      Revenue: "Builder code fees collected by Blink from Hyperliquid perps.",
+      ProtocolRevenue: "Builder code fees collected by Blink from Hyperliquid perps.",
+      HoldersRevenue: "No fees distributed to token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
   "phantom-perps": {
     addresses: ["0xb84168cf3be63c6b8dad05ff5d755e97432ff80b"],
     start: "2025-07-08",
