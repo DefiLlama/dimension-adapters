@@ -310,7 +310,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pull
 
 
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1, skipBreakdownValidation: true, } as SimpleAdapter
+    return { adapter: exportObjectV1, version: 1, } as SimpleAdapter
 
 
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter

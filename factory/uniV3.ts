@@ -591,6 +591,7 @@ const feesMethodologyMap: Record<string, any> = {
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
   const adapter = uniV3Exports(config, optionsMap[name])
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   protocols[name] = adapter
@@ -600,6 +601,7 @@ for (const [name, config] of Object.entries(configs)) {
 const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
   const adapter = uniV3Exports(config)
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
