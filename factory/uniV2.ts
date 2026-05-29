@@ -1657,6 +1657,7 @@ function buildSubgraphAdapter(config: SubgraphProtocolConfig): SimpleAdapter {
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
   const adapter = uniV2Exports(config, optionsMap[name])
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   protocols[name] = adapter
@@ -1671,6 +1672,7 @@ for (const [name, config] of Object.entries(subgraphConfigs)) {
 const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
   const adapter = uniV2Exports(config)
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   feesProtocols[name] = adapter
 }
