@@ -261,17 +261,6 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "blink-perps": {
-    addresses: ["0xc7bcb2eee9bbfbf875499960746bc52b2e1a75c6"],
-    start: "2026-05-23",
-    methodology: {
-      Fees: "Builder code fees paid by users on Hyperliquid perps via Blink (blink.lat).",
-      Revenue: "Builder code fees collected by Blink from Hyperliquid perps.",
-      ProtocolRevenue: "Builder code fees collected by Blink from Hyperliquid perps.",
-      HoldersRevenue: "No fees distributed to token holders",
-    },
-    extraReturnFields: { dailyHoldersRevenue: "0" },
-  },
   "dexari": {
     addresses: ["0x7975cafdff839ed5047244ed3a0dd82a89866081"],
     start: "2025-01-28",
