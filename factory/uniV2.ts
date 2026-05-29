@@ -448,7 +448,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.MEGAETH]: { factory: '0xC60940F182F7699522970517f6d753A560546937', start: '2026-02-05', userFeesRatio: 1, revenueRatio: 0 },
   },
   "daoaas-swap": {
-    [CHAIN.ENI]: { factory: '0x548C0E26CE90B333c07abb6d55546304D46d269d', start: '2025-06-01' },
+    [CHAIN.ENI]: { factory: '0x548C0E26CE90B333c07abb6d55546304D46d269d', start: '2025-06-01', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5 },
   },
   "mute.io": {
     [CHAIN.ERA]: { factory: '0x40be1cba6c5b47cdf9da7f963b6f761f4c60627d', start: 1679529600, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
