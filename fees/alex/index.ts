@@ -9,8 +9,19 @@ const FEE_PRECISION = 1e18;
 
 type FeeStats = { fees: number; supplySide: number };
 type PoolVolumeRow = { pool_id: number; volume: string };
-type PoolRateRow = { pool_id: number; fee_rate_x: string; fee_rate_y: string; fee_rebate: string };
-type SnapshotFeeRow = { burn_block_time: number; pool_id: number; fee_24h: string; fee_rebate_24h: string };
+type SnapshotFeeRow = {
+  burn_block_time: number;
+  pool_id: number;
+  fee_24h: string;
+  fee_rebate_24h: string;
+};
+type SnapshotRateRow = {
+  burn_block_time: number;
+  pool_id: number;
+  fee_rate_x: string;
+  fee_rate_y: string;
+  fee_rebate: string;
+};
 
 const emptyStats = (): FeeStats => ({ fees: 0, supplySide: 0 });
 const gql = async <T>(url: string, query: string): Promise<T> => (await postURL(url, { query })).data;
@@ -23,23 +34,41 @@ async function v2Fees(start: number, end: number): Promise<FeeStats> {
   }`);
   const volumeRows = data.sink_mart_amm_pool_v2_1_volume_by_pool_1d;
   if (!volumeRows.length) return emptyStats();
+  const poolIds = [...new Set(volumeRows.map((row) => row.pool_id))];
 
-  const rateData = await gql<{ latest_amm_swap_pool_stats_v2_1: PoolRateRow[] }>(V2_GQL, `{
-    latest_amm_swap_pool_stats_v2_1(
-      where: { pool_id: { _in: ${JSON.stringify(volumeRows.map((row) => row.pool_id))} } }
-    ) { pool_id fee_rate_x fee_rate_y fee_rebate }
+  const blockData = await gql<{ synced_blocks: Array<{ block_height: number }> }>(V2_GQL, `{
+    synced_blocks(
+      where: { burn_block_time: { _lte: ${end} } }
+      order_by: { burn_block_time: desc }
+      limit: 1
+    ) { block_height }
   }`);
-  const ratesByPool: Record<number, { feeRate: number; lpShare: number }> = Object.fromEntries(rateData.latest_amm_swap_pool_stats_v2_1.map((row) => [
-    row.pool_id,
-    {
+  const endBlock = blockData.synced_blocks[0]?.block_height;
+  if (!endBlock) throw new Error(`ALEX block missing for timestamp ${end}`);
+
+  const snapshotQueries = poolIds.map((poolId) => `
+    pool_${poolId}: amm_swap_pool_stats_v2_1(
+      where: { pool_id: { _eq: ${poolId} }, block_height: { _lte: ${endBlock} } }
+      order_by: { block_height: desc }
+      limit: 1
+    ) { pool_id burn_block_time fee_rate_x fee_rate_y fee_rebate }
+  `).join("\n");
+  const snapshotsByPool = await gql<Record<string, SnapshotRateRow[]>>(V2_GQL, `{ ${snapshotQueries} }`);
+
+  const ratesByPool: Record<number, { feeRate: number; lpShare: number }> = {};
+  Object.values(snapshotsByPool).forEach((rows) => {
+    const row = rows[0];
+    if (!row) throw new Error(`ALEX v2 fee snapshot missing for block ${endBlock}`);
+    ratesByPool[row.pool_id] = {
+      // The daily volume table is not directional, so use the average of token-x and token-y fee rates.
       feeRate: (Number(row.fee_rate_x) + Number(row.fee_rate_y)) / 2 / FEE_PRECISION,
       lpShare: Number(row.fee_rebate) / FEE_PRECISION,
-    },
-  ]));
+    };
+  });
 
   const stats = volumeRows.reduce<FeeStats>((acc, row) => {
     const rate = ratesByPool[row.pool_id];
-    if (!rate) throw new Error(`ALEX fee rate missing for pool ${row.pool_id}`);
+    if (!rate) throw new Error(`ALEX v2 fee rate missing for pool ${row.pool_id}`);
     const fees = Number(row.volume) / FEE_PRECISION * rate.feeRate;
     acc.fees += fees;
     acc.supplySide += fees * rate.lpShare;
