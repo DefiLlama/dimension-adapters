@@ -254,32 +254,45 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   const poolInfo = await getPoolInfo(pools, api);
   
   // Step 3: Get fees and bribes
-  const { dailyFees, dailyBribesRevenue } = await getFeesAndBribes(
+  const { dailyFees: swapFees, dailyBribesRevenue } = await getFeesAndBribes(
     gauges,
     gaugeToPool,
     poolInfo,
     fetchOptions
   );
 
-  const dailyHoldersRevenue = dailyFees.clone();
+  const dailyFees = swapFees.clone(1, 'Swap Fees');
+  // Swap fees flow entirely to governance token holders; bribes are external
+  // voting incentives (passthrough), so they accrue to holders but are not
+  // counted as protocol Revenue.
+  const dailyRevenue = swapFees.clone(1, 'Swap Fees');
+  const dailyHoldersRevenue = swapFees.clone(1, 'Swap Fees');
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Voting Bribes');
 
   return {
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailyBribesRevenue,
   };
 };
 
 const methodology = {
-  Fees: "All token transfers into MultiRewardsDepot contracts originating from pools and bribes",
-  Revenue: "100% of fees distributed to governance token holders are revenue.",
-  ProtocolRevenue: "0 - Protocol earns via HERMES emissions DAO share",
-  HoldersRevenue: "100% of fees distributed to governance token holders",
-  SupplySideRevenue: "0 - LPs earn via HERMES emissions",
-  BribesRevenue: "Token transfers into MultiRewardsDepot contracts as voting incentives (excluding fee distributions from pools)",
+  Fees: "Swap fees collected from pools and distributed to governance token holders.",
+  Revenue: "All swap fees accrue to governance token holders; external voting bribes are passthrough and excluded.",
+  ProtocolRevenue: "0 - Protocol earns via HERMES emissions DAO share.",
+  HoldersRevenue: "Swap fees plus external voting bribes distributed to governance token holders.",
+  SupplySideRevenue: "0 - LPs earn via HERMES emissions.",
+};
+
+const breakdownMethodology = {
+  Fees: { 'Swap Fees': 'Fees from pool swaps distributed to governance token holders.' },
+  Revenue: { 'Swap Fees': 'Swap fees that accrue to governance token holders.' },
+  HoldersRevenue: {
+    'Swap Fees': 'Swap fees distributed to governance token holders.',
+    'Voting Bribes': 'External voting incentives deposited into bribe contracts for governance token holders.',
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -292,6 +305,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

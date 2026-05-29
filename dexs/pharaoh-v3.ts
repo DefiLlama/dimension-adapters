@@ -196,14 +196,17 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options);
   const dailyFees = stats.clFeesUSD;
   const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
+  const swapFeesToHolders = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
+  const bribes = stats.clBribeRevenueUSD;
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const dailySupplySideRevenue =
+    stats.clFeesUSD - swapFeesToHolders - dailyProtocolRevenue;
+  // External voting bribes accrue to holders alongside swap-fee revenue, but
+  // are passthrough incentives (not protocol earnings), so they are added to
+  // dailyHoldersRevenue and excluded from dailyRevenue.
+  const dailyHoldersRevenue = swapFeesToHolders + bribes;
+  const dailyRevenue = dailyProtocolRevenue + swapFeesToHolders;
 
   return {
     dailyVolume,
@@ -213,19 +216,16 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyProtocolRevenue,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   };
 };
 
 const methodology = {
   Fees: "Fees are collected from users on each swap.",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
+  Revenue: "Swap-fee share kept by the protocol plus swap-fee share distributed to holders. External voting bribes are passthrough incentives and excluded.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
+  HoldersRevenue: "Swap-fee share distributed to holders plus external voting bribes routed to veTHE holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xREX stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {

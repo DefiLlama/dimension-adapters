@@ -7,9 +7,14 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
   const dailyFees = stats.legacyFeesUSD;
   const dailyVolume = stats.legacyVolumeUSD;
-  const dailyHoldersRevenue = stats.legacyUserFeesRevenueUSD;
+  const swapFeesToHolders = stats.legacyUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.legacyProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.legacyBribeRevenueUSD;
+  const bribes = stats.legacyBribeRevenueUSD;
+
+  // External voting bribes accrue to holders alongside swap-fee revenue, but
+  // are passthrough incentives (not protocol earnings), so they're added to
+  // dailyHoldersRevenue and excluded from dailyRevenue.
+  const dailyHoldersRevenue = swapFeesToHolders + bribes;
 
   return {
     dailyVolume,
@@ -17,20 +22,18 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
-    dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
-    dailySupplySideRevenue: dailyFees - dailyHoldersRevenue - dailyProtocolRevenue,
-    dailyBribesRevenue,
+    dailyRevenue: dailyProtocolRevenue + swapFeesToHolders,
+    dailySupplySideRevenue: dailyFees - swapFeesToHolders - dailyProtocolRevenue,
   };
 };
 
 const methodology = {
   Fees: "Fees are collected from users on each swap.",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
+  Revenue: "Swap-fee share kept by the protocol plus swap-fee share distributed to holders. External voting bribes are passthrough incentives and excluded.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
+  HoldersRevenue: "Swap-fee share distributed to holders plus external voting bribes routed to veREX holders.",
   SupplySideRevenue: "Fees distributed to LPs.",
-  BribesRevenue: "Bribes are distributed among holders.",
 };
 
 const adapter: SimpleAdapter = {

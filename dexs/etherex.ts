@@ -216,15 +216,20 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options);
   const dailyFees = stats.clFeesUSD + stats.dailyXrexInstantExitFeeUSD;
   const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
+  const swapFeesToHolders = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
-  const dailyTokenTaxes = stats.dailyXrexInstantExitFeeUSD;
+  const bribes = stats.clBribeRevenueUSD;
+  const xrexExitPenalty = stats.dailyXrexInstantExitFeeUSD;
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const dailySupplySideRevenue =
+    stats.clFeesUSD - swapFeesToHolders - dailyProtocolRevenue;
+  // Holders accrue swap-fee share + xREX exit penalty (paid to xREX stakers)
+  // + external voting bribes. Bribes are passthrough incentives, so they are
+  // included in dailyHoldersRevenue but excluded from dailyRevenue. The xREX
+  // exit penalty is real protocol/holder earnings (was previously surfaced via
+  // the deprecated dailyTokenTaxes field and therefore missing from Revenue).
+  const dailyHoldersRevenue = swapFeesToHolders + xrexExitPenalty + bribes;
+  const dailyRevenue = dailyProtocolRevenue + swapFeesToHolders + xrexExitPenalty;
 
   return {
     dailyVolume,
@@ -234,20 +239,16 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     dailyProtocolRevenue,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
-    dailyTokenTaxes,
   };
 };
 
 const methodology = {
-  Fees: "Fees are collected from users on each swap.",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
-  UserFees: "User pays fees on each swap.",
+  Fees: "Swap fees collected from users plus xREX instant-exit penalty.",
+  Revenue: "Swap-fee share kept by the protocol, swap-fee share distributed to holders, and the xREX exit penalty paid to xREX stakers. External voting bribes are passthrough incentives and excluded.",
+  UserFees: "User pays fees on each swap plus the xREX instant-exit penalty when unwrapping.",
   ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
+  HoldersRevenue: "Swap-fee share distributed to holders, the xREX instant-exit penalty paid to xREX stakers, and external voting bribes routed to veREX holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xREX stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {
