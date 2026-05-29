@@ -10,7 +10,7 @@ interface MorphoBlueConfig {
   fromBlock?: number;
 }
 
-const blacklistedMarketIds = {
+const blacklistedMarketIds: Record<string, Array<any>> = {
   [CHAIN.WC]: [{
     from: "2025-11-07",
     id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
@@ -198,9 +198,9 @@ const BLUE_API_ENDPOINT = "https://blue-api.morpho.org/graphql";
 
 const query = `
   query GetMarketsData($chainId: Int!, $first: Int!, $skip: Int!) {
-    markets(where: { chainId_in: [$chainId], whitelisted: true }, first: $first, skip: $skip) {
+    markets(where: { chainId_in: [$chainId], listed: true }, first: $first, skip: $skip) {
       items {
-        uniqueKey
+        marketId
         lltv
         loanAsset {
           address
@@ -237,7 +237,7 @@ const _fetchMarkets = async (chainId: number, url: string): Promise<Array<Morpho
     marketsBatch = res.markets.items
     .map((item: any) => {
       return {
-        marketId: item.uniqueKey,
+        marketId: item.marketId,
         loanAsset: item.loanAsset.address,
         collateralAsset: item.collateralAsset ? item.collateralAsset.address : undefined,
         lltv: BigInt(item.lltv),
