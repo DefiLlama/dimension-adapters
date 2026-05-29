@@ -61,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
   })
 
   const dailyFees = dailyFeesProxy.clone(1, METRIC.SWAP_FEES);
-  const dailyHoldersRevenue = dailyFeesProxy.clone(1, 'Swap Fees to veTOPAZ lockers');
+  const dailyHoldersRevenue = dailyFeesProxy.clone(1, 'Swap Fees To veTOPAZ voters');
 
   const gaugeCreatedLogs = await getLogs({ target: CONFIG.voter, fromBlock: 98741567, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
   if (gaugeCreatedLogs.length) {
@@ -73,7 +73,7 @@ const fetch = async (options: FetchOptions) => {
     const bribeLogs = await getLogs({ targets: Array.from(bribeSet), eventAbi: eventAbis.event_notify_reward })
     bribeLogs.forEach((log: any) => {
       dailyFees.add(log.reward, log.amount, "Bribes")
-      dailyHoldersRevenue.add(log.reward, log.amount, "Bribes To Holders")
+      dailyHoldersRevenue.add(log.reward, log.amount, "Bribes To veTOPAZ voters")
     })
   }
 
@@ -102,12 +102,12 @@ const breakdownMethodology = {
     'Bribes': "Bribes collected from users",
   },
   Revenue: {
-    'Swap Fees To Holders': "100% of swap fees go to holders",
-    'Bribes To Holders': "100% of bribes go to holders",
+    'Swap Fees To veTOPAZ voters': "100% of swap fees go to veTOPAZ voters",
+    'Bribes To veTOPAZ voters': "100% of bribes go to veTOPAZ voters",
   },
   HoldersRevenue: {
-    [METRIC.SWAP_FEES]: "100% of swap fees go to holders",
-    'Bribes To Holders': "100% of bribes go to holders",
+    [METRIC.SWAP_FEES]: "100% of swap fees go to veTOPAZ voters",
+    'Bribes To veTOPAZ voters': "100% of bribes go to veTOPAZ voters",
   },
 }
 
