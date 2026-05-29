@@ -66,7 +66,7 @@ async function fetchSolana(options: FetchOptions) {
           OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
         )
     )
-    SELECT SUM(amount_usd) AS total_volume
+    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
   `);
@@ -76,7 +76,7 @@ async function fetchSolana(options: FetchOptions) {
 
 async function fetchBsc(options: FetchOptions) {
   const result = await queryDuneSql(options, `
-    SELECT SUM(amount_usd) AS total_volume
+    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND block_time >= from_unixtime(${options.startTimestamp})
@@ -88,6 +88,12 @@ async function fetchBsc(options: FetchOptions) {
 }
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const now = Date.now()
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+  }
+
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   return fetchBsc(options);
 };
