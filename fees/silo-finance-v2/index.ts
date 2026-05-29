@@ -299,25 +299,29 @@ async function fetch(
 
     dailyFees.add(
       asset,
-      parseUnits(dailyFee.toFixed(tokenDecimals), tokenDecimals)
+      parseUnits(dailyFee.toFixed(tokenDecimals), tokenDecimals),
+      "Silo V2 Market Fees"
     );
     dailyRevenue.add(
       asset,
-      parseUnits(dailyRevenueAsset.toFixed(tokenDecimals), tokenDecimals)
+      parseUnits(dailyRevenueAsset.toFixed(tokenDecimals), tokenDecimals),
+      "Protocol and Deployer Revenue"
     );
     dailyProtocolRevenue.add(
       asset,
       parseUnits(
         dailyProtocolRevenueAsset.toFixed(tokenDecimals),
         tokenDecimals
-      )
+      ),
+      "Silo Protocol Revenue"
     );
     dailySupplySideRevenue.add(
       asset,
       parseUnits(
         dailySupplySideRevenueAsset.toFixed(tokenDecimals),
         tokenDecimals
-      )
+      ),
+      "Borrow Interest To Lenders"
     );
   });
 
@@ -328,6 +332,28 @@ async function fetch(
     dailySupplySideRevenue,
   };
 }
+
+const methodology = {
+  Fees: "Total fees paid by Silo V2 users, including borrow interest, liquidation fees, and flashloan fees.",
+  Revenue: "The portion of Silo V2 fees kept by the protocol and market deployers.",
+  ProtocolRevenue: "The portion of Silo V2 fees kept by the protocol treasury.",
+  SupplySideRevenue: "Borrow interest paid to lenders.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Silo V2 Market Fees": "Fees paid by users in active Silo V2 markets.",
+  },
+  Revenue: {
+    "Protocol and Deployer Revenue": "Fees kept by Silo V2 and market deployers.",
+  },
+  ProtocolRevenue: {
+    "Silo Protocol Revenue": "Fees kept by the Silo V2 protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Borrow Interest To Lenders": "Borrow interest paid to lenders.",
+  },
+};
 
 const adapter: Adapter = {
   adapter: {
@@ -369,6 +395,8 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
