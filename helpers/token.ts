@@ -675,6 +675,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
     [CHAIN.PLASMA]: 'plasma',
     [CHAIN.MONAD]: 'monad',
+    [CHAIN.HYPERLIQUID]: 'hyperevm',
   }
   
   // https://docs.allium.so/changelog/deprecated-schemas
