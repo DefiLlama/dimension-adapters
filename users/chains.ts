@@ -158,7 +158,7 @@ export default [
    },
    {
         name: "xrpl",
-        chain: CHAIN.XRPL_EVM,
+        chain: CHAIN.RIPPLE,
         getUsers: coinmetricsData("xrp"),
         id: "xrpl"
   },

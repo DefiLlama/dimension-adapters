@@ -19,7 +19,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 
   return {
-    dailyNewUsers: today.active_accounts - yesterday.active_accounts,
+    dailyNewUsers: today.accounts - yesterday.accounts,
   };
 };
 
