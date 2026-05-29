@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import ADDRESSES from "../helpers/coreAssets.json";
+import PromisePool from "@supercharge/promise-pool";
 
 type ChainConfig = {
   lendingPools: { address: string, underlying: string }[];
@@ -106,50 +107,56 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  for (const pool of config.lendingPools) {
-    const interestSyncLogs = await options.getLogs({
-      target: pool.address,
-      eventAbi: INTEREST_SYNCED_EVENT,
+  const tasks = config.lendingPools.flatMap(pool => [
+    { pool, type: "interest", event: INTEREST_SYNCED_EVENT },
+    { pool, type: "borrow", event: BORROW_EVENT },
+    { pool, type: "liquidation", event: AUCTION_FINISHED_EVENT },
+  ]);
+
+  const { errors } = await PromisePool
+    .withConcurrency(3)
+    .for(tasks)
+    .process(async ({ pool, type, event }) => {
+      const logs = await options.getLogs({ target: pool.address, eventAbi: event });
+      if (type === "interest") {
+        for (const interestSync of logs) {
+          // 15% treasury share
+          const treasuryShare = interestSync.interest * 15n / 100n;
+          const lpShare = interestSync.interest - treasuryShare;
+          dailyFees.add(pool.underlying, interestSync.interest, METRIC.BORROW_INTEREST);
+          dailyRevenue.add(pool.underlying, treasuryShare, METRIC.BORROW_INTEREST);
+          dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.BORROW_INTEREST);
+        };
+      };
+
+      if (type === "borrow") {
+        for (const borrow of logs) {
+          dailyFees.add(pool.underlying, borrow.fee, "Origination Fees");
+          dailyRevenue.add(pool.underlying, borrow.fee, "Origination Fees");
+        };
+      };
+      
+      if (type === "liquidation") {
+        for (const liquidation of logs) {
+          // 50% of penalty goes to treasury
+          const treasuryShare = liquidation.penalty / 2n;
+          const lpShare = liquidation.penalty - treasuryShare;
+          const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
+
+          dailyFees.add(pool.underlying, liquidation.penalty, METRIC.LIQUIDATION_FEES);
+          dailyFees.add(pool.underlying, keeperReward, "Keeper Rewards");
+
+          dailyRevenue.add(pool.underlying, treasuryShare, METRIC.LIQUIDATION_FEES);
+          dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.LIQUIDATION_FEES);
+          dailySupplySideRevenue.add(pool.underlying, keeperReward, "Keeper Rewards");
+        };
+      };
     });
 
-    for (const interestSync of interestSyncLogs) {
-      // 15% treasury share
-      const treasuryShare = interestSync.interest * 15n / 100n;
-      const lpShare = interestSync.interest - treasuryShare;
-      dailyFees.add(pool.underlying, interestSync.interest, METRIC.BORROW_INTEREST);
-      dailyRevenue.add(pool.underlying, treasuryShare, METRIC.BORROW_INTEREST);
-      dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.BORROW_INTEREST);
-    };
-
-    const borrowLogs = await options.getLogs({
-      target: pool.address,
-      eventAbi: BORROW_EVENT,
-    });
-
-    for (const borrow of borrowLogs) {
-      dailyFees.add(pool.underlying, borrow.fee, "Origination Fees");
-      dailyRevenue.add(pool.underlying, borrow.fee, "Origination Fees");
-    };
-
-    const liquidationLogs = await options.getLogs({
-      target: pool.address,
-      eventAbi: AUCTION_FINISHED_EVENT,
-    });
-
-    for (const liquidation of liquidationLogs) {
-      // 50% of penalty goes to treasury
-      const treasuryShare = liquidation.penalty / 2n;
-      const lpShare = liquidation.penalty - treasuryShare;
-      const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
-
-      dailyFees.add(pool.underlying, liquidation.penalty, METRIC.LIQUIDATION_FEES);
-      dailyFees.add(pool.underlying, keeperReward, "Keeper Rewards");
-
-      dailyRevenue.add(pool.underlying, treasuryShare, METRIC.LIQUIDATION_FEES);
-      dailySupplySideRevenue.add(pool.underlying, lpShare, METRIC.LIQUIDATION_FEES);
-      dailySupplySideRevenue.add(pool.underlying, keeperReward, "Keeper Rewards");
-    };
+  if (errors.length > 0) {
+    throw errors[0];
   };
+  
 
   if (options.chain === CHAIN.BASE) {
     const redeemLogs = await options.getLogs({
