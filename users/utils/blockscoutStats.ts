@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 type ChainConfig = {
   chain: string;
   baseUrl: string;
+  statsUrl?: string;
   version: 1 | 2;
 };
 
@@ -29,6 +30,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   filecoin: { chain: CHAIN.FILECOIN, baseUrl: "https://filecoin.blockscout.com", version: 2 },
   flare: { chain: CHAIN.FLARE, baseUrl: "https://flare-explorer.flare.network", version: 1 },
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1 },
+  flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flowscan.io", statsUrl: "https://evm.flowscan.io:8080", version: 1 },
   fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io", version: 2 },
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1 },
   "hashkey": { chain: CHAIN.HASHKEY, baseUrl: "https://hashkey.blockscout.com", version: 2 },
@@ -72,7 +74,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
   const path = config.version === 1 ? "/api/v1/lines" : "/stats-service/api/v1/lines";
-  const baseUrl = config.baseUrl.replace(/\/$/, "");
+  const baseUrl = (config.statsUrl ?? config.baseUrl).replace(/\/$/, "");
   const data = await fetchURL(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`);
   return Number(data.chart.find((item: any) => item.date === date).value);
 }
