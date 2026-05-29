@@ -13,7 +13,7 @@ type IResponse = Array<{
 
 const BASE_REWARD = 50
 const HALVING_BLOCKS = 210000
-const getBTCRewardByBlock = (block: number) => BASE_REWARD / Math.trunc((block / HALVING_BLOCKS) + 1)
+const getBTCRewardByBlock = (block: number) => BASE_REWARD / Math.pow(2, Math.floor(block / HALVING_BLOCKS))
 
 const getDailyBlocksByTimestampLast24h = async (timestamp: number) => {
     const url = `https://blockchain.info/blocks/${timestamp * 1000}?format=json`
@@ -23,7 +23,7 @@ const getDailyBlocksByTimestampLast24h = async (timestamp: number) => {
 const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncentives> => {
     const dayBlocks = await getDailyBlocksByTimestampLast24h(timestamp)
     const rewardByBlock = getBTCRewardByBlock(dayBlocks[0].height)
-    const tokens = await sdk.Balances.getUSDString({ 'coingecko:bitcoin': dayBlocks.length * rewardByBlock}, timestamp)
+    const tokens = await sdk.Balances.getUSDString({ 'coingecko:bitcoin': dayBlocks.length * rewardByBlock }, timestamp)
     return {
         timestamp,
         block: dayBlocks[0].height,
