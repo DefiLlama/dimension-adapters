@@ -28,7 +28,6 @@ const adapter: SimpleAdapter = {
     runAtCurrTime: true,
     fetch,
     chains: [CHAIN.OFF_CHAIN],
-    start: '2026-02-18',
 }
 
 export default adapter;
