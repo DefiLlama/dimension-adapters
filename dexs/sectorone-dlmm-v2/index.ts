@@ -23,7 +23,7 @@ const chainConfig: Record<string, ChainConfig> = {
   },
   [CHAIN.ETHEREUM]: {
     start: "2026-03-05",
-    uniV2Factory: "0xF5e5eAE03c5ccde623A19117c8B7F788C8812667",
+    uniV2Factory: "0x96559Af835E5A3E9Bb68c17eBA8520295370698f",
     factories: [
       { factory: "0x98501D0bb98d92a3234bae0F2a42beFb5075224A", version: 2, fromBlock: 24626369 },
       { factory: "0x9d8688043150c2B2A4cdCE2eD03eB40b6cCd2c57", version: 2.2, fromBlock: 24626369 },
@@ -41,12 +41,11 @@ const chainConfig: Record<string, ChainConfig> = {
 
 const uniV2Fetch: (options: FetchOptions) => Promise<BalanceResult> = async (options) => {
   const config = chainConfig[options.chain];
-  const [allPairsLength] = await options.api.multiCall({
+  const allPairsLength = await options.api.call({
+    target: config.uniV2Factory,
     abi: "uint256:allPairsLength",
-    calls: [{ target: config.uniV2Factory }],
-    permitFailure: true,
   });
-  if (!Number(allPairsLength)) return {
+  if (Number(allPairsLength) === 0) return {
     dailyVolume: options.createBalances(),
     dailyFees: options.createBalances(),
     dailyRevenue: options.createBalances(),
