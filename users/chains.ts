@@ -170,13 +170,37 @@ export default [
         chain: CHAIN.STELLAR,
         getUsers: coinmetricsData("xlm"),
         id: "stellar"
-   },
-   {
+    },
+    {
         name: "xrpl",
         chain: CHAIN.RIPPLE,
         getUsers: coinmetricsData("xrp"),
         id: "xrpl"
-  },
+    },
+    {
+        name: "icp",
+        chain: CHAIN.ICP,
+        getUsers: coinmetricsData("icp"),
+        id: "icp"
+    },
+    {
+        name: "flow",
+        chain: CHAIN.FLOW,
+        getUsers: coinmetricsData("flow_native"),
+        id: "flow"
+    },
+    {
+        name: "ethereumclassic",
+        chain: CHAIN.ETHEREUM_CLASSIC,
+        getUsers: coinmetricsData("etc"),
+        id: "ethereumclassic"
+    },
+    {
+        name: "zcash",
+        chain: CHAIN.ZEC,
+        getUsers: coinmetricsData("zec"),
+        id: "zcash"
+    },
 ].map(chain => ({
     name: chain.name,
     id: (chain as any).id ?? `chain#${chain.name}`,
