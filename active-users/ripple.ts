@@ -6,7 +6,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const alliumQuery = `
     SELECT
       COALESCE(COUNT(DISTINCT account), 0) AS user_count,
-      COALESCE(COUNT(hash), 0) AS transaction_count
+      COALESCE(COUNT(DISTINCT hash), 0) AS transaction_count
     FROM xrp_ledger.raw.transactions
     WHERE ledger_close_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND ledger_close_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
