@@ -15,8 +15,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 
   return {
-    dailyActiveUsers: todaysData.active_accounts,
-    dailyTransactionsCount: todaysData.txns,
+    dailyNewUsers: todaysData.new_accounts,
   };
 };
 
