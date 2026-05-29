@@ -185,7 +185,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus performance fees on auto-compounding, rebalancing, yield claiming and swap automation.",
   Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and asset manager performance fees.",
-  SupplySideRevenue: "Lender share of borrow interest and liquidation penalties distributed to lending pool tranches.",
+  SupplySideRevenue: "Lender share of borrow interest, plus liquidation penalties distributed to lending pool tranches and keeper bonuses paid to auction initiators/terminators.",
   ProtocolRevenue: "Gross protocol-side fees collected before ART (Recovery Token) holder rebates are paid out.",
   HoldersRevenue: "USDC rebates redeemed by ART (Recovery Token) holders. Funded from prior-epoch fee collections.",
 };
