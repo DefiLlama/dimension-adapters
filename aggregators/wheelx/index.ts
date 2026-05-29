@@ -77,166 +77,70 @@ for (const [wheelxId, dlName] of Object.entries(CHAIN_ID_TO_DEFLILLAMA)) {
   DEFILLAMA_TO_CHAIN_ID[dlName] = Number(wheelxId);
 }
 
-interface OrderStatsResponse {
-  stats: {
-    total_volume_usd: string;
-    total_order_count: number;
-    total_fees_usd: string;
-    total_points_awarded: string;
-    volume_by_chain: Record<string, string>;
-    volume_by_chain_pair: Record<string, string>;
-    order_count_by_status: Record<string, number>;
-    order_count_by_bridge: Record<string, number>;
-    period_start: string | null;
-    period_end: string | null;
-  };
+interface WheelXOrder {
+  order_id: string;
+  from_chain: number;
+  to_chain: number;
+  from_token: string;
+  to_token: string;
+  from_amount: string;
+  to_amount: string;
+  order_value: string;
+  status: string;
+  from_token_info?: {
+    address: string;
+    symbol: string;
+    decimals: number;
+  } | null;
+  to_token_info?: {
+    address: string;
+    symbol: string;
+    decimals: number;
+  } | null;
 }
 
 interface OrdersResponse {
-  orders: Array<{
-    order_id: string;
-    from_chain: number;
-    to_chain: number;
-    from_token: string;
-    to_token: string;
-    from_amount: string;
-    to_amount: string;
-    status: string;
-    from_token_info?: {
-      address: string;
-      symbol: string;
-      decimals: number;
-    } | null;
-    to_token_info?: {
-      address: string;
-      symbol: string;
-      decimals: number;
-    } | null;
-  }>;
+  orders: WheelXOrder[];
   total: number;
 }
 
 /**
- * Fetch WheelX order data from the enhanced /orders endpoint.
- * Returns aggregated volume, fees, and revenue for the given time range and chain.
+ * Fetch WheelX order data from the /orders endpoint.
+ * Returns daily volume per the aggregator guidelines.
  */
-async function fetchWheelxData(
-  options: FetchOptions,
-  chainId: number | null,
-): Promise<{
-  dailyBridgeVolume: any;
-  dailyFees: any;
-  dailyRevenue: any;
-  dailySupplySideRevenue: any;
-}> {
-  const dailyBridgeVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+async function fetchWheelxData(options: FetchOptions, chainId: number | null) {
+  const dailyVolume = options.createBalances();
 
-  const startTimestamp = options.startTimestamp;
-  const endTimestamp = options.endTimestamp;
-  const startDate = new Date(startTimestamp * 1000).toISOString();
-  const endDate = new Date(endTimestamp * 1000).toISOString();
+  const startDate = new Date(options.startTimestamp * 1000).toISOString();
+  const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
   try {
-    // 1. Fetch aggregated stats from the /orders/stats endpoint
-    const statsParams = new URLSearchParams({
-      start_date: startDate,
-      end_date: endDate,
-    });
-    if (chainId !== null) {
-      statsParams.append("from_chain", String(chainId));
-    }
-
-    const statsUrl = `${WHEELX_API_BASE}/orders/stats?${statsParams.toString()}`;
-    let statsData: OrderStatsResponse | null = null;
-    try {
-      statsData = await httpGet(statsUrl);
-    } catch (e) {
-      console.warn(`Failed to fetch stats from ${statsUrl}: ${e}`);
-    }
-
-    // 2. Fetch individual orders for exact token-level accounting
-    const ordersParams = new URLSearchParams({
+    const params = new URLSearchParams({
       start_date: startDate,
       end_date: endDate,
       limit: "500",
     });
     if (chainId !== null) {
-      ordersParams.append("from_chain", String(chainId));
+      params.append("from_chain", String(chainId));
     }
 
-    const ordersUrl = `${WHEELX_API_BASE}/orders?${ordersParams.toString()}`;
-    let ordersData: OrdersResponse | null = null;
-    try {
-      ordersData = await httpGet(ordersUrl);
-    } catch (e) {
-      console.warn(`Failed to fetch orders from ${ordersUrl}: ${e}`);
-    }
+    const url = `${WHEELX_API_BASE}/orders?${params.toString()}`;
+    const data: OrdersResponse = await httpGet(url);
 
-    // 3. Add individual order tokens to the balance tracker
-    //    This uses DefiLlama's oracle to price each token in USD
-    if (ordersData?.orders?.length) {
-      for (const order of ordersData.orders) {
-        const fromAmount = order.from_amount ? parseInt(order.from_amount, 10) : 0;
-        if (fromAmount <= 0) continue;
-
-        const fromToken = order.from_token;
-        const chain = chainId ?? order.from_chain;
-
-        if (!fromToken) continue;
-
-        // Add the token amount — DefiLlama will automatically convert to USD
-        dailyBridgeVolume.addToken(fromToken, fromAmount, { chain: getChainName(chain) });
-      }
-    } else if (statsData?.stats) {
-      // Fallback: use aggregate volume and add as gas token
-      // This is less precise but still useful when order-level data is paginated
-      const stats = statsData.stats;
-      const totalVol = parseInt(stats.total_volume_usd, 10);
-      if (totalVol > 0) {
-        dailyBridgeVolume.addGasToken(totalVol);
-      }
-    }
-
-    // 4. Fees & Revenue
-    //    WheelX collects fees on the source chain.
-    //    Fee structure: bridge_fee + swap_fee (both denominated in the source token).
-    //    After discounts, the protocol's revenue is the discounted portion.
-    if (ordersData?.orders?.length) {
-      // For fee estimation, we assume a typical fee rate of 0.02-0.08%
-      // The actual fee data comes from the `price_impact` field in the database
-      // For now, we estimate fees as 0.05% of volume (typical for bridge aggregators)
-      for (const order of ordersData.orders) {
-        const fromAmount = order.from_amount ? parseInt(order.from_amount, 10) : 0;
-        if (fromAmount <= 0) continue;
-
-        const fromToken = order.from_token;
-        const chain = chainId ?? order.from_chain;
-
-        // Estimate fee at 0.05% of volume
-        const estimatedFee = Math.floor(fromAmount * 5 / 10000);
-        const estimatedRevenue = Math.floor(estimatedFee * 30 / 100); // ~30% protocol keeps
-        const estimatedSupplySide = estimatedFee - estimatedRevenue; // ~70% to LPs/integrators
-
-        if (fromToken) {
-          dailyFees.addToken(fromToken, estimatedFee, { chain: getChainName(chain) });
-          dailyRevenue.addToken(fromToken, estimatedRevenue, { chain: getChainName(chain) });
-          dailySupplySideRevenue.addToken(fromToken, estimatedSupplySide, { chain: getChainName(chain) });
+    if (data?.orders?.length) {
+      for (const order of data.orders) {
+        const value = parseFloat(order.order_value);
+        if (value > 0) {
+          dailyVolume.addUSDValue(value);
         }
       }
     }
 
-    return { dailyBridgeVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyVolume };
   } catch (error) {
     console.error(`Error fetching WheelX data for chain ${chainId}:`, error);
-    return { dailyBridgeVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyVolume };
   }
-}
-
-function getChainName(wheelxChainId: number): string {
-  return CHAIN_ID_TO_DEFLILLAMA[wheelxChainId] ?? `chain_${wheelxChainId}`;
 }
 
 const buildFetch =
