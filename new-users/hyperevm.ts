@@ -7,8 +7,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT
       COALESCE(COUNT(DISTINCT "from"), 0) AS new_users
     FROM hyperevm.transactions
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+    WHERE TIME_RANGE
       AND nonce = 0
   `;
 

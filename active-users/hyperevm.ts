@@ -8,8 +8,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       COALESCE(COUNT(DISTINCT "from"), 0) AS user_count,
       COALESCE(COUNT(*), 0) AS transaction_count
     FROM hyperevm.transactions
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+    WHERE TIME_RANGE
   `;
 
   const result = await queryDuneSql(options, query);
