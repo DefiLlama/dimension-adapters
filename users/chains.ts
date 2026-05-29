@@ -184,18 +184,6 @@ export default [
         id: "icp"
     },
     {
-        name: "flow",
-        chain: CHAIN.FLOW,
-        getUsers: coinmetricsData("flow_native"),
-        id: "flow"
-    },
-    {
-        name: "ethereumclassic",
-        chain: CHAIN.ETHEREUM_CLASSIC,
-        getUsers: coinmetricsData("etc"),
-        id: "ethereumclassic"
-    },
-    {
         name: "zcash",
         chain: CHAIN.ZEC,
         getUsers: coinmetricsData("zec"),
