@@ -93,12 +93,16 @@ async function getSilosWithConfig(
 ): Promise<SiloInfo[]> {
   const silos: SiloInfo[] = [];
   const chain = options.api.chain;
-  if (!configV3[chain]) return silos;
+  if (!configV3[chain]) {
+    throw new Error(`Chain ${chain} is missing configuration`);
+  }
 
-  for (const factory of configV3[chain].factories) {
+  const factories = configV3[chain].factories.map((factory) => factory.SILO_FACTORY);
+  const fromBlock = Math.min(...configV3[chain].factories.map((factory) => factory.START_BLOCK));
+
     const logs = await options.getLogs({
-      target: factory.SILO_FACTORY,
-      fromBlock: factory.START_BLOCK,
+      targets: factories,
+      fromBlock,
       eventAbi: abis.newSiloEvent,
       cacheInCloud: true,
     });
@@ -109,7 +113,6 @@ async function getSilosWithConfig(
         { silo: log.silo1, siloConfig: log.siloConfig }
       );
     }
-  }
 
   return silos;
 }
@@ -279,8 +282,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       dailyProtocolRevenue.add(asset, daoRev, 'Borrow Interest To DAO');
     }
     if (deployerRev > 0n) {
-      dailyRevenue.add(asset, deployerRev, 'Borrow Interest To Deployer');
-      dailyProtocolRevenue.add(asset, deployerRev, 'Borrow Interest To Deployer');
+      dailySupplySideRevenue.add(asset, deployerRev, 'Borrow Interest To Deployer');
     }
     if (flashLoanFeeTotal > 0n) {
       dailyRevenue.add(asset, flashLoanFeeTotal, METRIC.FLASHLOAN_FEES);
@@ -302,18 +304,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    Object.entries(configV3).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
-  ),
+  adapter: configV3,
+  fetch,
   methodology: {
-    Fees:
-      "Interest paid by borrowers and flash loan fees across all Silo V3 lending markets.",
-    Revenue:
-      "DAO and deployer shares of borrow interest and flash loan fees, split proportionally based on configured fee rates per silo.",
-    ProtocolRevenue:
-      "DAO and deployer shares of borrow interest and flash loan fees, split proportionally based on configured fee rates per silo.",
-    SupplySideRevenue:
-      "Portion of borrow interest distributed to lenders (depositors).",
+    Fees: "Interest paid by borrowers and flash loan fees across all Silo V3 lending markets.",
+    Revenue: "DAO share of borrow interest and flash loan fees.",
+    ProtocolRevenue: "DAO share of borrow interest and flash loan fees.",
+    SupplySideRevenue: "Portion of borrow interest distributed to lenders (depositors) and deployer.",
   },
   breakdownMethodology: {
     Fees: {
@@ -324,17 +321,16 @@ const adapter: Adapter = {
     },
     Revenue: {
       'Borrow Interest To DAO': "DAO share of borrow interest, based on the configured daoFee rate.",
-      'Borrow Interest To Deployer': "Deployer share of borrow interest, based on the configured deployerFee rate.",
       [METRIC.FLASHLOAN_FEES]: "Flash loan fees go entirely to the protocol (DAO and deployer).",
     },
     ProtocolRevenue: {
       'Borrow Interest To DAO': "DAO share of borrow interest, based on the configured daoFee rate.",
-      'Borrow Interest To Deployer': "Deployer share of borrow interest, based on the configured deployerFee rate.",
       [METRIC.FLASHLOAN_FEES]: "Flash loan fees go entirely to the protocol (DAO and deployer).",
     },
     SupplySideRevenue: {
       'Borrow Interest To Lenders':
         "Interest distributed to lenders (depositors) after DAO and deployer fees are deducted.",
+      'Borrow Interest To Deployer': "Deployer share of borrow interest, based on the configured deployerFee rate.",
     },
   },
 };
