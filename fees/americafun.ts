@@ -8,6 +8,7 @@ interface DailyFeesResponse {
   dailyFees: string
   dailyRevenue: string
   dailySupplySideRevenue: string
+  meteoraFee: string
   timestamp: number
 }
 
@@ -22,23 +23,26 @@ const fetch = async (options: FetchOptions) => {
 
   const feesUsd = parseFloat(data.dailyFees) || 0
   const revenueUsd = parseFloat(data.dailyRevenue) || 0
-  const supplySideUsd = parseFloat(data.dailySupplySideRevenue) || 0
+  const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
+  const lpAndCreatorFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (revenueUsd > 0) dailyRevenue.addUSDValue(revenueUsd, "Swap Fees To Protocol")
-  if (supplySideUsd > 0) dailySupplySideRevenue.addUSDValue(supplySideUsd, "Swap Fees To Liquidity Providers")
+  if (meteoraFeeUsd > 0) dailySupplySideRevenue.addUSDValue(meteoraFeeUsd, "Swap Fees To Meteora")
+  if (lpAndCreatorFeeUsd > 0) dailySupplySideRevenue.addUSDValue(lpAndCreatorFeeUsd, "Swap Fees To Liquidity Providers")
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools.",
+    "Swap Fees": "Gross trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools, including Meteora's protocol cut.",
   },
   Revenue: {
-    "Swap Fees To Protocol": "Protocol share of trading fees allocated to the treasury and stakers.",
+    "Swap Fees To Protocol": "Protocol share of trading fees allocated to the americafun treasury and stakers.",
   },
   SupplySideRevenue: {
+    "Swap Fees To Meteora": "Meteora protocol fee: 20% of gross trading fees (applies to both DBC and DAMM v2 pools).",
     "Swap Fees To Liquidity Providers": "Share of trading fees paid to liquidity providers and pool creators.",
   },
 }
@@ -49,9 +53,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2026-04-20",
   methodology: {
-    Fees: "Total trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools.",
-    Revenue: "Protocol share of trading fees allocated to the treasury and stakers.",
-    SupplySideRevenue: "Share of trading fees paid to liquidity providers and pool creators.",
+    Fees: "Gross trading fees from DBC and DAMM v2 pools, including Meteora's 20% protocol cut.",
+    Revenue: "americafun protocol share allocated to the treasury and stakers.",
+    SupplySideRevenue: "Meteora protocol fees plus fees distributed to liquidity providers and pool creators.",
   },
   breakdownMethodology,
 }
