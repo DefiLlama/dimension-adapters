@@ -65,12 +65,8 @@ interface OrdersResponse {
   total: number;
 }
 
-/**
- * Fetch WheelX order data from the /orders endpoint.
- * Returns daily volume per the aggregator guidelines.
- */
 async function fetch(_a: any, _b: any, options: FetchOptions) {
-  const dailyVolume = options.createBalances();
+  const dailyBridgeVolume = options.createBalances();
 
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
@@ -94,16 +90,16 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
       for (const order of data.orders) {
         const value = parseFloat(order.order_value);
         if (value > 0) {
-          dailyVolume.addUSDValue(value);
+          dailyBridgeVolume.addUSDValue(value);
         }
       }
     }
 
-    return { dailyVolume };
+    return { dailyBridgeVolume };
   } catch (error) {
     //allow catching errors, as one single chain failure, shouldnt affect all
     console.error(`Error fetching WheelX data for chain ${chainId}:`, error);
-    return { dailyVolume };
+    return { dailyBridgeVolume };
   }
 }
 
@@ -112,9 +108,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: Object.keys(DEFLILLAMA_TO_CHAIN_ID),
   start: "2025-04-01",
-  methodology: {
-    Volume: "Volume is calculated as the sum of all order values in the WheelX API.",
-  }
 };
 
 export default adapter;
