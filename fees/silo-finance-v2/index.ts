@@ -233,8 +233,6 @@ async function fetch(
   ];
 
   uniqueAssets.forEach((asset) => {
-    const dailyFee = getFeeSumWithFilter(dataWithLiquidity, asset);
-
     const dailyRevenueAsset = getFeeSumWithFilter(
       dataWithLiquidity,
       asset,
@@ -289,6 +287,9 @@ async function fetch(
       ["collateral"]
     );
 
+    const borrowInterestAsset =
+      protocolRevenueAsset + deployerRevenueAsset + dailySupplySideRevenueAsset;
+
     const tokenDecimals = Number(
       tokens.find((token) => token.id === asset)?.decimals
     );
@@ -299,8 +300,18 @@ async function fetch(
 
     dailyFees.add(
       asset,
-      parseUnits(dailyFee.toFixed(tokenDecimals), tokenDecimals),
-      "Silo V2 Market Fees"
+      parseUnits(borrowInterestAsset.toFixed(tokenDecimals), tokenDecimals),
+      "Borrow Interest"
+    );
+    dailyFees.add(
+      asset,
+      parseUnits(liquidationRevenueAsset.toFixed(tokenDecimals), tokenDecimals),
+      "Liquidation Fees"
+    );
+    dailyFees.add(
+      asset,
+      parseUnits(flashloanRevenueAsset.toFixed(tokenDecimals), tokenDecimals),
+      "Flashloan Fees"
     );
     dailyRevenue.add(
       asset,
@@ -342,7 +353,9 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Silo V2 Market Fees": "Fees paid by users in active Silo V2 markets.",
+    "Borrow Interest": "Interest paid by borrowers in active Silo V2 markets.",
+    "Liquidation Fees": "Fees from liquidations in active Silo V2 markets.",
+    "Flashloan Fees": "Fees paid by flashloan users in active Silo V2 markets.",
   },
   Revenue: {
     "Protocol and Deployer Revenue": "Fees kept by Silo V2 and market deployers.",
