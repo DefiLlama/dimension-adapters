@@ -106,7 +106,7 @@ const breakdownMethodology = {
     'Bribes To veTOPAZ voters': "100% of bribes go to veTOPAZ voters",
   },
   HoldersRevenue: {
-    [METRIC.SWAP_FEES]: "100% of swap fees go to holders",
+    [METRIC.SWAP_FEES]: "100% of swap fees go to veTOPAZ voters",
     'Bribes To veTOPAZ voters': "100% of bribes go to veTOPAZ voters",
   },
 }
