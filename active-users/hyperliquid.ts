@@ -14,8 +14,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const alliumResult = await queryAllium(alliumQuery);
 
   return {
-    dailyActiveUsers: alliumResult[0]?.user_count ?? 0,
-    dailyTransactionsCount: alliumResult[0]?.transaction_count ?? 0,
+    dailyActiveUsers: alliumResult[0]?.user_count,
+    dailyTransactionsCount: alliumResult[0]?.transaction_count,
   };
 };
 
