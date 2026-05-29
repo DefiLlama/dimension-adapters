@@ -165,6 +165,18 @@ export default [
     //     getUsers: coinmetricsData("bsv"),
     //     id: "bsv"
     // },
+    {
+        name: "stellar",
+        chain: CHAIN.STELLAR,
+        getUsers: coinmetricsData("xlm"),
+        id: "stellar"
+   },
+   {
+        name: "xrpl",
+        chain: CHAIN.RIPPLE,
+        getUsers: coinmetricsData("xrp"),
+        id: "xrpl"
+  },
 ].map(chain => ({
     name: chain.name,
     id: (chain as any).id ?? `chain#${chain.name}`,
