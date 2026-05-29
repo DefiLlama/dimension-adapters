@@ -104,6 +104,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { start: '2026-01-25' },
   },
   isExpensiveAdapter: true,
+  doublecounted: true,
 };
 
 export default adapter;
