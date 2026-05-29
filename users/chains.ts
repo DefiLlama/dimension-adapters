@@ -153,6 +153,12 @@ export default [
         getUsers: coinmetricsData("bch"),
         id: "bch"
     },
+    {
+        name: "dash",
+        chain: CHAIN.DASH,
+        getUsers: coinmetricsData("dash"),
+        id: "dash"
+    },
     // {
     //     name: "bsv",
     //     chain: CHAIN.BITCOIN_SV,
