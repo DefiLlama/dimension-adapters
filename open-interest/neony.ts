@@ -5,7 +5,7 @@ import { fetchNeonyStats } from '../helpers/neony'
 const fetch: Fetch = async (_timestamp, _chainBlocks, options: FetchOptions) => {
   const stats = await fetchNeonyStats(options)
   const openInterestAtEnd = options.createBalances()
-  openInterestAtEnd.addCGToken('usd-coin', stats.openInterestUsd)
+  openInterestAtEnd.addUSDValue(stats.openInterestUsd)
 
   return {
     openInterestAtEnd

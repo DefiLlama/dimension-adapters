@@ -152,8 +152,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   fetch,
-  // runAtCurrTime: true,
   chains: [CHAIN.ARBITRUM],
+  start: "2025-07-28",
 };
 
 export default adapter;
