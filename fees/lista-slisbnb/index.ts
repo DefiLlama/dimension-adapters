@@ -48,7 +48,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addCGToken("binancecoin", supplySideRewards / 0.95, 'BNB Staking Rewards');
   dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards, 'BNB Staking Rewards To Stakers');
 
-  const dailyRevenue = dailyFees.clone(0.05, 'BNB Staking Commission'); // 5%
+  const dailyRevenue = dailyFees.clone(0.05, 'BNB Staking Rewards Commission'); // 5%
   const dailyProtocolRevenue = dailyRevenue.clone(0.5, 'BNB Staking Rewards Commission'); // 50%
   const dailyHoldersRevenue = dailyRevenue.clone(0.5, 'BNB Staking Rewards Distribution'); // 50%
 
