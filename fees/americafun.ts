@@ -12,7 +12,7 @@ interface DailyFeesResponse {
   timestamp: number
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data: DailyFeesResponse = await httpGet(
     `${API_BASE}/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   )
@@ -34,6 +34,12 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
+const methodology = {
+  Fees: "Gross trading fees from DBC and DAMM v2 pools, including Meteora's 20% protocol cut.",
+  Revenue: "americafun protocol share allocated to the treasury and stakers.",
+  SupplySideRevenue: "Meteora protocol fees plus fees distributed to liquidity providers and pool creators.",
+};
+
 const breakdownMethodology = {
   Fees: {
     "Swap Fees": "Gross trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools, including Meteora's protocol cut.",
@@ -48,15 +54,11 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, //api updates once a day
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-04-20",
-  methodology: {
-    Fees: "Gross trading fees from DBC and DAMM v2 pools, including Meteora's 20% protocol cut.",
-    Revenue: "americafun protocol share allocated to the treasury and stakers.",
-    SupplySideRevenue: "Meteora protocol fees plus fees distributed to liquidity providers and pool creators.",
-  },
+  methodology,
   breakdownMethodology,
 }
 
