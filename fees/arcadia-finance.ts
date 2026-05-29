@@ -174,7 +174,8 @@ const fetch = async (options: FetchOptions) => {
   };
 
   return { 
-    dailyFees, 
+    dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue, 
     dailySupplySideRevenue, 
     dailyProtocolRevenue: dailyRevenue, 
@@ -196,13 +197,13 @@ const breakdownMethodology = {
     "Origination Fees": "Fees charged on the principal of new borrows.",
     [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
     "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
-    [METRIC.PERFORMANCE_FEES]: "Fees charged by asset managers on claimed yield and rebalance swaps.",
+    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [METRIC.PERFORMANCE_FEES]: "Full asset manager fees collected by initiators.",
+    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed across lending pool tranches.",
@@ -213,7 +214,7 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [METRIC.PERFORMANCE_FEES]: "Full asset manager fees collected by initiators.",
+    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
   },
   HoldersRevenue: {
     "Recovery Token Redemptions": "USDC paid out when ART holders redeem accumulated rebates.",
