@@ -190,10 +190,10 @@ export default [
         id: "flow"
     },
     {
-        name: "etc",
+        name: "ethereumclassic",
         chain: CHAIN.ETHEREUM_CLASSIC,
         getUsers: coinmetricsData("etc"),
-        id: "etc"
+        id: "ethereumclassic"
     },
     {
         name: "zcash",
