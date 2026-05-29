@@ -1,19 +1,12 @@
-import * as sdk from '@defillama/sdk';
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { addOneToken } from '../../helpers/prices';
-import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
-import { handleBribeToken } from "./utils";
 
 const CONFIG = {
   PoolFactory: '0x65E6cD0eF5D3467030103cf3d433034E570b5784',
   voter: '0x2F80F810a114223AC69E34E84E735CaD515dAD67',
   GaugeFactory: '0xFc080D1EcD7c332022cebf942AEb62d5E1d4Cb08'
-}
-
-const event_topics = {
-  swap: '0xb3e2773606abfd36b5bd91394b3a54d1398336c65005baf7bf7a05efeffaf75b'
 }
 
 const eventAbis = {
@@ -28,43 +21,18 @@ const abis = {
   fees: 'function getFee(address pool, bool _stable) external view returns (uint256)'
 }
 
-const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, startTimestamp } = fetchOptions
-  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
+const fetch = async (options: FetchOptions) => {
+  const { createBalances, api, chain, getLogs } = options
 
-  const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 98741567, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
-  if (!logs_gauge_created?.length) return { dailyBribesRevenue };
-
-  const bribes_contract: string[] = logs_gauge_created
-    .filter((log) => log[2].toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
-    .map((log) => log[4].toLowerCase())
-  const bribeSet = new Set(bribes_contract)
-  // need to manually parse logs, auto parsing fails for some reason
-  const logs = await fetchOptions.getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
-  logs.forEach((log: any) => {
-    const contract = (log.address || log.source).toLowerCase()
-    if (!bribeSet.has(contract)) return;
-    const parsedLog = iface.parseLog(log)
-    const token = parsedLog!.args.reward.toLowerCase()
-    const amount = parsedLog!.args.amount
-    handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
-  })
-
-  return { dailyBribesRevenue }
-}
-
-const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions: FetchOptions) => {
-  const { createBalances, api, chain } = fetchOptions
   const dailyVolume = createBalances()
-  const dailyFees = createBalances()
+  const dailyFeesProxy = createBalances()
 
-  const rawPools = await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 98741567, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true, })
+  const rawPools = await getLogs({ target: CONFIG.PoolFactory, fromBlock: 98741567, eventAbi: eventAbis.event_pool_created, cacheInCloud: true, })
 
   const fees = await api.multiCall({
     abi: abis.fees, target: CONFIG.PoolFactory, calls: rawPools.map(i => ({ params: [i.pool, i.stable] }))
   })
-  const poolInfoMap = {} as any
+  const poolInfoMap = {}
   const aeroPoolSet = new Set()
   rawPools.forEach(({ token0, token1, stable, pool }, index) => {
     pool = pool.toLowerCase()
@@ -73,77 +41,84 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
     aeroPoolSet.add(pool)
   })
 
+  const swapLogs = await getLogs({
+    targets: rawPools.map(i => i.pool),
+    eventAbi: eventAbis.event_swap,
+    entireLog: true,
+    parseLog: true,
+  })
 
-  const blockStep = 2000;
-  let i = 0;
-  let startBlock = fromBlock;
-  let ranges: any = []
+  swapLogs.forEach((log: any) => {
+    const pool = log.address.toLowerCase()
+    if (!aeroPoolSet.has(pool)) return;
+    const { token0, token1, fee } = poolInfoMap[pool]
+    const amount0 = Number(log.args.amount0In) + Number(log.args.amount0Out)
+    const amount1 = Number(log.args.amount1In) + Number(log.args.amount1Out)
+    const fee0 = amount0 * fee
+    const fee1 = amount1 * fee
+    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+    addOneToken({ chain, balances: dailyFeesProxy, token0, token1, amount0: fee0, amount1: fee1 })
+  })
 
+  const dailyFees = dailyFeesProxy.clone(1, METRIC.SWAP_FEES);
+  const dailyHoldersRevenue = dailyFeesProxy.clone(1, 'Swap Fees to veTOPAZ lockers');
 
+  const gaugeCreatedLogs = await getLogs({ target: CONFIG.voter, fromBlock: 98741567, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
+  if (gaugeCreatedLogs.length) {
+    const bribes_contract: string[] = gaugeCreatedLogs
+      .filter((log) => log.gaugeFactory.toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
+      .map((log) => log.bribeVotingReward.toLowerCase())
+    const bribeSet = new Set(bribes_contract)
 
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    ranges.push([startBlock, endBlock])
-    startBlock += blockStep
+    const bribeLogs = await getLogs({ targets: Array.from(bribeSet), eventAbi: eventAbis.event_notify_reward })
+    bribeLogs.forEach((log: any) => {
+      dailyFees.add(log.reward, log.amount, "Bribes")
+      dailyHoldersRevenue.add(log.reward, log.amount, "Bribes To Holders")
+    })
   }
 
-  let errorFound = false
-
-  await PromisePool
-    .withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await fetchOptions.getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          topics: [event_topics.swap],
-          entireLog: true,
-          skipCache: true,
-        })
-        sdk.log(`Topaz got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
-        const iface = new ethers.Interface([eventAbis.event_swap]);
-
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase()
-          if (!aeroPoolSet.has(pool)) return;
-          const parsedLog = iface.parseLog(log)
-          const { token0, token1, fee } = poolInfoMap[pool]
-          const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
-          const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
-          const fee0 = amount0 * fee
-          const fee1 = amount1 * fee
-          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
-        })
-      } catch (e) {
-        errorFound = e
-        throw e
-      }
-    })
-
-  if (errorFound) throw errorFound
-
-  return { dailyVolume, dailyFees }
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: 0
+  }
 }
 
-const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
-  const { getToBlock, getFromBlock } = options
-  const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
-  const { dailyBribesRevenue } = await getBribes(options);
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyVolume, dailyBribesRevenue }
+const methodology = {
+  Volume: "Daily volume is tracked by summing the amountIn of all Swap events across all Topez pools.",
+  Fees: "Includes swap fees and bribes",
+  Revenue: "Includes swap fees and bribes going to holders",
+  HoldersRevenue: "Entire swap fees and bribes go to holders",
+  SupplySideRevenue: "Liquidity providers dont get fee share, they are compensated with $TOPAZ emissions",
+  ProtocolRevenue: "Protocol makes no revenue from fees",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees collected from users",
+    'Bribes': "Bribes collected from users",
+  },
+  Revenue: {
+    'Swap Fees To Holders': "100% of swap fees go to holders",
+    'Bribes To Holders': "100% of bribes go to holders",
+  },
+  HoldersRevenue: {
+    [METRIC.SWAP_FEES]: "100% of swap fees go to holders",
+    'Bribes To Holders': "100% of bribes go to holders",
+  },
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.BSC],
   start: '2026-05-16',
   pullHourly: true,
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapters
