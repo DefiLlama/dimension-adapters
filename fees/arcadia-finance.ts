@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import ADDRESSES from '../helpers/coreAssets.json';
+import ADDRESSES from "../helpers/coreAssets.json";
 
 type ChainConfig = {
   lendingPools: { address: string, underlying: string }[];
@@ -169,8 +169,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const feePaid of feePaidLogs) {
-    dailyFees.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
-    dailyRevenue.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
+    dailyFees.add(feePaid.asset, feePaid.amount, METRIC.MANAGEMENT_FEES);
+    dailyRevenue.add(feePaid.asset, feePaid.amount, METRIC.MANAGEMENT_FEES);
   };
 
   return { 
@@ -184,8 +184,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus performance fees on auto-compounding, rebalancing, yield claiming and swap automation.",
-  Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and asset manager performance fees.",
+  Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus fees on auto-compounding, rebalancing, yield claiming and swap automation.",
+  UserFees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus fees on auto-compounding, rebalancing, yield claiming and swap automation.",
+  Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and automation fees.",
   SupplySideRevenue: "Lender share of borrow interest, plus liquidation penalties distributed to lending pool tranches and keeper bonuses paid to auction initiators/terminators.",
   ProtocolRevenue: "Gross protocol-side fees collected before ART (Recovery Token) holder rebates are paid out.",
   HoldersRevenue: "USDC rebates redeemed by ART (Recovery Token) holders. Funded from prior-epoch fee collections.",
@@ -197,13 +198,20 @@ const breakdownMethodology = {
     "Origination Fees": "Fees charged on the principal of new borrows.",
     [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
     "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
-    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
+    [METRIC.MANAGEMENT_FEES]: "Fees charged on automated actions such as compounding, rebalancing, yield claiming and swaps.",
+  },
+  UserFees: {
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers in Arcadia lending pools.",
+    "Origination Fees": "Fees charged on the principal of new borrows.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
+    "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
+    [METRIC.MANAGEMENT_FEES]: "Fees charged on automated actions such as compounding, rebalancing, yield claiming and swaps.",
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
+    [METRIC.MANAGEMENT_FEES]: "Fees charged on automated actions such as compounding, rebalancing, yield claiming and swaps.",
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed across lending pool tranches.",
@@ -214,7 +222,7 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [METRIC.PERFORMANCE_FEES]: "Fees charged on claimed yield and rebalance swaps.",
+    [METRIC.MANAGEMENT_FEES]: "Fees charged on automated actions such as compounding, rebalancing, yield claiming and swaps.",
   },
   HoldersRevenue: {
     "Recovery Token Redemptions": "USDC paid out when ART holders redeem accumulated rebates.",
