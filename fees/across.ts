@@ -8,7 +8,7 @@
 import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 import { sleep } from "../utils/utils";
 
 interface IResponse {
@@ -83,7 +83,7 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
       limit: String(PAGE_LIMIT),
       skip: String(skip),
     });
-    const deposits: IAcrossDeposit[] = await fetchURL(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
+    const deposits: IAcrossDeposit[] = await fetchURLAutoHandleRateLimit(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
     if (!Array.isArray(deposits) || !deposits.length) break;
 
     let reachedOlderData = false;
@@ -121,7 +121,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
       } catch (error) {
         console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
       }
-      await sleep(5000);
+      await sleep(1000);
       return { dst_chain, relay_fees, lp_fees: 0 };
     });
 
