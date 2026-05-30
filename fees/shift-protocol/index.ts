@@ -58,20 +58,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     if (!baseToken || !totalSupply || !priceBefore || !priceAfter) continue;
 
-    const priceChange = BigInt(priceAfter) - BigInt(priceBefore);
-    const feeYield = BigInt(totalSupply) * priceChange / BigInt(1e18);
+    if (BigInt(priceBefore) === 0n || BigInt(priceAfter) === 0n) continue;
 
-    if (priceChange > 0n) {
+    const priceChange = BigInt(priceAfter) - BigInt(priceBefore);
+    const netYield = BigInt(totalSupply) * priceChange / BigInt(1e18);
+
+    if (vault.performanceFee > 0) {
       const perfFee = BigInt(vault.performanceFee);
-      const grossYield = feeYield * 100n / (100n - perfFee);
-      const perfFeeAmount = grossYield - feeYield;
+      const grossYield = netYield * 100n / (100n - perfFee);
+      const perfFeeAmount = grossYield - netYield;
 
       dailyFees.add(baseToken, grossYield, METRIC.ASSETS_YIELDS);
       dailyRevenue.add(baseToken, perfFeeAmount, METRIC.PERFORMANCE_FEES);
-      dailySupplySideRevenue.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
     } else {
-      dailyFees.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
+      dailyFees.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
     }
 
     if (vault.managementFee > 0) {
