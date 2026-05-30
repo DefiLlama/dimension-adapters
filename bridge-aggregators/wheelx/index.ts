@@ -88,7 +88,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
     if (data?.orders?.length) {
       for (const order of data.orders) {
-        if (order.from_chain === order.to_chain) continue;
+        if ((order.from_chain === order.to_chain) || (order.status !== 'Filled')) continue;
         dailyBridgeVolume.add(order.from_token, Number(order.from_amount));
       }
     }
