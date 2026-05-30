@@ -368,7 +368,7 @@ interface GetTokenListsOptions {
 }
 
 async function getTokenLists(options: GetTokenListsOptions): Promise<Array<string>> {
-  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const blacklisted = getDefaultDexTokensBlacklisted(options.chain)
   const tokens = new Set();
   for (const url of options.lists) {
     const data = await getConfig(`token-list-${url}`, url);
