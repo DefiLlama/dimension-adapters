@@ -5,9 +5,11 @@
  * uses `bridgeFeeUsd` as the relayer fee source of truth.
  */
 
+import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
+import { sleep } from "../utils/utils";
 
 interface IResponse {
   dst_chain: string;
@@ -101,6 +103,7 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 
     skip += PAGE_LIMIT;
     pagesFetched += 1;
+    await sleep(200);
   }
 
   return totalBridgeFeesUsd;
@@ -109,17 +112,18 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions): Promise<any> => {
   const entries = Object.entries(chainIdConfig);
-  const results = await Promise.all(
-    entries.map(async ([dst_chain, destinationChainId]) => {
+  const { results } = await PromisePool.withConcurrency(3)
+    .for(entries)
+    .process(async ([dst_chain, destinationChainId]) => {
       let relay_fees = 0;
       try {
         relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
       } catch (error) {
         console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
       }
+      await sleep(1000);
       return { dst_chain, relay_fees, lp_fees: 0 };
-    })
-  );
+    });
 
   return results as any;
 };
