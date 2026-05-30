@@ -33,7 +33,7 @@ const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances
   const amount = await getTotalPaymentFromLogs(fromBlock, toBlock, getLogs)
 
   dailyFees.addCGToken('chainlink', amount / 10n ** 18n)
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const methodology = {
