@@ -242,6 +242,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees: feeWithLabel,
     dailyRevenue: feeWithLabel,
+    dailyProtocolRevenue: feeWithLabel,
   };
 };
 
@@ -254,6 +255,22 @@ const adapter: SimpleAdapter = {
       start: "2023-08-30",
     },
   },
+  methodology: {
+    Fees: 'Borrow interest paid by borrowers',
+    Revenue: 'All borrow interest paid by borrowers are revenue',
+    ProtocolRevenue: 'All borrow interest paid by borrowers are revenue',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'Borrow interest paid by borrowers',
+    },
+    Revenue: {
+      'Borrow Interest': 'All borrow interest paid by borrowers are revenue',
+    },
+    ProtocolRevenue: {
+      'Borrow Interest': 'All borrow interest paid by borrowers are revenue',
+    },
+  }
 };
 
 export default adapter;
