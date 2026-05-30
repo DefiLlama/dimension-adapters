@@ -13,7 +13,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   let data: any[] = []
 
   if (options.startOfDay >= 1775260800) {
-    data = await queryDuneSql(options, getSqlFromFile('helpers/queries/jupiter-perpetual-oi.sql'));
+    data = await queryDuneSql(options, getSqlFromFile('helpers/queries/jupiter-perpetual-oi.sql', {
+      start: options.startTimestamp,
+      end: options.endTimestamp,
+    }));
   }
   else {
     data = await queryDuneResult(options, queryId);
