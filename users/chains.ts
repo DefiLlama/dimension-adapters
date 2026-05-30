@@ -148,6 +148,12 @@ export default [
         id: "algorand"
     },
     {
+        name: "doge",
+        chain: CHAIN.DOGE,
+        getUsers: coinmetricsData("doge"),
+        id: "doge"
+    },
+    {
         name: "bch",
         chain: CHAIN.BITCOIN_CASH,
         getUsers: coinmetricsData("bch"),
