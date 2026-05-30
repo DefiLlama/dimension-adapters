@@ -7,17 +7,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  // Query Dune for daily ETH revenue by day
-  const sql_query = getSqlFromFile('helpers/queries/bob-blockchain.sql', {})
+  const sql_query = getSqlFromFile('helpers/queries/bob-blockchain.sql', {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+  })
   const results = await queryDuneSql(options, sql_query);
 
-  // Find the row matching our date
   const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-
   if (results && results.length > 0) {
-    const dayData = results.find((row: any) =>
-      row.day && row.day.startsWith(dateString)
-    );
+    const dayData = results.find((row: any) => row.day && row.day.startsWith(dateString));
 
     if (dayData) {
       // Use revenue_value (in wei) instead of revenue_eth
