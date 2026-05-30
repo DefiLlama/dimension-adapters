@@ -121,7 +121,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
       } catch (error) {
         console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
       }
-      await sleep(1000);
+      await sleep(2500);
       return { dst_chain, relay_fees, lp_fees: 0 };
     });
 
