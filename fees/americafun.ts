@@ -14,30 +14,30 @@ interface DailyFeesResponse {
   timestamp: number
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data: DailyFeesResponse = await httpGet(
     `${API_BASE}/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   )
 
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const feesUsd = Number(data.dailyFees)
-  const revenueUsd = Number(data.dailyRevenue)
-  const protocolRevenueUsd = Number(data.dailyProtocolRevenue)
-  const holdersRevenueUsd = Number(data.dailyHoldersRevenue)
-  const meteoraFeeUsd = Number(data.meteoraFee)
-  const lpFeeUsd = Number(data.dailySupplySideRevenue) - meteoraFeeUsd
+  const feesUsd = parseFloat(data.dailyFees) || 0
+  const protocolRevenueUsd = parseFloat(data.dailyProtocolRevenue) || 0
+  const holdersRevenueUsd = parseFloat(data.dailyHoldersRevenue) || 0
+  const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
+  const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
-  if (revenueUsd > 0) dailyRevenue.addUSDValue(revenueUsd, "Swap Fees To Protocol")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
   if (holdersRevenueUsd > 0) dailyHoldersRevenue.addUSDValue(holdersRevenueUsd, "Swap Fees To Stakers")
   if (meteoraFeeUsd > 0) dailySupplySideRevenue.addUSDValue(meteoraFeeUsd, "Swap Fees To Meteora")
   if (lpFeeUsd > 0) dailySupplySideRevenue.addUSDValue(lpFeeUsd, "Swap Fees To Liquidity Providers")
+
+  const dailyRevenue = dailyProtocolRevenue.clone()
+  dailyRevenue.addBalances(dailyHoldersRevenue)
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
 }
@@ -47,7 +47,8 @@ const breakdownMethodology = {
     "Swap Fees": "Gross trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools, including Meteora's protocol cut.",
   },
   Revenue: {
-    "Swap Fees To Protocol": "americafun protocol share: treasury and staker portions of trading fees.",
+    "Swap Fees To Treasury": "Fees allocated to the americafun treasury.",
+    "Swap Fees To Stakers": "Fees distributed to americafun governance token stakers.",
   },
   ProtocolRevenue: {
     "Swap Fees To Treasury": "Fees allocated to the americafun treasury.",
@@ -62,7 +63,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-04-20",
