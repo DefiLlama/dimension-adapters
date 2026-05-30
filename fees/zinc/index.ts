@@ -39,6 +39,9 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(treasuryFlows, METRIC.PROTOCOL_FEES);
   dailyRevenue.addBalances(buybackFlows, METRIC.TOKEN_BUY_BACK);
 
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(treasuryFlows, METRIC.PROTOCOL_FEES);
+
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.addBalances(buybackFlows, METRIC.TOKEN_BUY_BACK);
 
@@ -49,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -66,6 +69,11 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
+    [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault.",
+    "Stockpile Prize Pool": "SOL inflows into the stockpile vault.",
+  },
+  UserFees: {
     [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
     [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault.",
     "Stockpile Prize Pool": "SOL inflows into the stockpile vault.",
