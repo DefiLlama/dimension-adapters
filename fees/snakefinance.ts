@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyFees,
     targets: ['0x7d4c78a4d8a5cbfeec4a3498885749079fab590c', '0xa906B773bf4E1F5C668EeDEed06aa8917057eA7D'],
   })
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -23,6 +23,8 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Total fees paid by users.',
+    Revenue: 'All fees are collected by the Snake Finance protocol addresses.',
+    ProtocolRevenue: 'All fees are collected by the Snake Finance protocol addresses.',
   }
 }
 
