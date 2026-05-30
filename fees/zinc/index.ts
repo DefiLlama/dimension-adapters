@@ -61,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "SOL paid by players when participating in ZINC rounds.",
   UserFees: "SOL paid by players when participating in ZINC rounds.",
-  Revenue: "SOL retained by the ZINC treasury.",
+  Revenue: "SOL retained by the ZINC treasury and buyback vault.",
   ProtocolRevenue: "SOL retained by the ZINC treasury.",
   HoldersRevenue: "SOL accumulated in the buyback vault, later converted to ZINC and distributed to stakers/burned, on a 10/90 ratio.",
   SupplySideRevenue: "SOL accumulated in the stockpile vault and paid out to stockpile winners.",
