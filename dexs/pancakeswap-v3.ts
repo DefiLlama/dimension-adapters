@@ -153,9 +153,6 @@ const buildEvmFetcher = (factory: string) => {
     factory,
     swapEvent: poolSwapEvent,
     userFeesRatio: 1,
-    revenueRatio: 0,
-    protocolRevenueRatio: 0,
-    holdersRevenueRatio: 0,
     getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
       const _protocolRevenueRatio = getProtocolRevenueRatio(poolFeeTier);
       const _holdersRevenueRatio = getHolderRevenueRatio(poolFeeTier);

@@ -42,8 +42,6 @@ for (const [chain, factory] of Object.entries(factories)) {
       factory,
       swapEvent: poolSwapEvent,
       userFeesRatio: 1,
-      revenueRatio: 0,
-      protocolRevenueRatio: 0,
       getRevenueRatio: getDackieRevenueRatio,
     }),
   }

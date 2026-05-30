@@ -248,8 +248,8 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       let pairProtocolRevenueRatio = protocolRevenueRatio;
       let pairHoldersRevenueRatio = holdersRevenueRatio;
 
-      // custom revenue ratio
-      if (getRevenueRatio) {
+      // only use custom revenue ratio when revenueRatio is not set
+      if (revenueRatio === undefined && getRevenueRatio) {
         const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({ poolFeeTier: feeTier, options: fetchOptions })
         
         if (!pairRevenueRatio) pairRevenueRatio = _revenueRatio;

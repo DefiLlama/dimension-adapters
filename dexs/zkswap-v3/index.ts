@@ -38,8 +38,6 @@ for (const [chain, config] of Object.entries(factories)) {
       factory: config.address,
       swapEvent: poolSwapEvent,
       userFeesRatio: 1,
-      revenueRatio: 0,
-      protocolRevenueRatio: 0,
       getRevenueRatio: getZkswapRevenueRatio,
     }),
     start: config.start,
