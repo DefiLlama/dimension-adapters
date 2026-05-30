@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import { getUniV3LogAdapter, UniGetRevenueRatioProps } from "../helpers/uniswap";
 
 const methodology = {
   UserFees: "User pays fees on each swap based pool tier: 0.01%, 0.05%, 0.1%, 0.20%, 0.50%, and 1%.",
@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
         factory: '0x7431A23897ecA6913D5c81666345D39F27d946A4',
         poolCreatedEvent: ABIS.POOL_CREATE,
         swapEvent: ABIS.SWAP_EVENT,
-        getRevenueRatio: (_feeTier: number): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
+        getRevenueRatio: (_props: UniGetRevenueRatioProps): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
           // https://docs.dgswap.io/products/fees
           return { _revenueRatio: 0.2, _protocolRevenueRatio: 0.2 } // same 20% for all pools
         }

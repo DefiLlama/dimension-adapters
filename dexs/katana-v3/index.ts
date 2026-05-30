@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniV3LogAdapter } from '../../helpers/uniswap';
+import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../../helpers/uniswap';
 
 const factory = '0x1f0b70d9a137e3caef0ceacd312bc5f81da0cc0c'
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
@@ -16,10 +16,10 @@ const adapter: SimpleAdapter = {
         swapEvent: poolSwapEvent,
         
         // Source: https://docs.roninchain.com/apps/katana/swap-tokens
-        getRevenueRatio: (feeTier: number): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
-          if (feeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 }; // 20% of fees
-          if (feeTier === 0.003) return { _revenueRatio: 0.0005 / 0.003, _protocolRevenueRatio: 0.0005 / 0.003 }; // ~ 16.6% of fees
-          if (feeTier === 0.01) return { _revenueRatio: 0.15, _protocolRevenueRatio: 0.15 } // 15% of fee
+        getRevenueRatio: (props: UniGetRevenueRatioProps): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
+          if (props.poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 }; // 20% of fees
+          if (props.poolFeeTier === 0.003) return { _revenueRatio: 0.0005 / 0.003, _protocolRevenueRatio: 0.0005 / 0.003 }; // ~ 16.6% of fees
+          if (props.poolFeeTier === 0.01) return { _revenueRatio: 0.15, _protocolRevenueRatio: 0.15 } // 15% of fee
           return { _revenueRatio: 0, _protocolRevenueRatio: 0 }
         }
       }),

@@ -250,7 +250,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
       // custom revenue ratio
       if (getRevenueRatio) {
-        const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio(feeTier)
+        const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({ poolFeeTier: feeTier, options: fetchOptions })
         
         if (!pairRevenueRatio) pairRevenueRatio = _revenueRatio;
         if (!pairProtocolRevenueRatio && _protocolRevenueRatio) pairProtocolRevenueRatio = _protocolRevenueRatio;
@@ -317,6 +317,11 @@ type UniV2Config = {
   allowReadPairs?: boolean;
 }
 
+export interface UniGetRevenueRatioProps {
+  options: FetchOptions;
+  poolFeeTier: number;
+}
+
 type UniV3Config = {
   factory: string,
   poolCreatedEvent?: string,
@@ -334,7 +339,7 @@ type UniV3Config = {
   pools?: string[], // alternative to providing factory
 
   // support to get custom revenue ratio from given pool fee tier
-  getRevenueRatio?: (poolFeeTier: number) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };
+  getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
