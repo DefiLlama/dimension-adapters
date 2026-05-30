@@ -142,9 +142,8 @@ const adapter: SimpleAdapter = {
 	start: '2025-08-02',
     fetch,
     chains: [CHAIN.STARKNET],
-    skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
 	methodology: {
-		Fees: "Tracks total fees paid traders while trading on Extended app.",
+		Fees: "On-chain protocol-fee stream from Extended's trading contract on Starknet, summing per-trade actual_fee values (Trade events) and liquidation fees (Liquidation events). Per Extended's fee schedule, takers pay 0.025% and makers pay 0.000% with a tiered rebate up to 0.013% based on 30-day maker market share. Maker rebates are accrued daily to internal Extended sub-accounts rather than paid out as discrete on-chain transfers, so they cannot be separately attributed from public on-chain data and are not netted from this value. Revenue is therefore left unreported rather than implicitly equated to fees.",
 	},
 }
 
