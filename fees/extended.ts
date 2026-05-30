@@ -3,6 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { FetchOptions } from "../adapters/types";
 
+const TRADER_PAID_FEES = "Trader-Paid Fees";
+
 interface IData {
   day: string;
   daily_protocol_fees: number;
@@ -128,7 +130,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const feeItem = data.find(item => item.day.split(' ')[0] === new Date(options.startOfDay * 1000).toISOString().split('T')[0])
   if (feeItem) {
-    dailyFees.addUSDValue(feeItem.daily_protocol_fees);
+    dailyFees.addUSDValue(feeItem.daily_protocol_fees, TRADER_PAID_FEES);
   }
 
 	return {
@@ -142,8 +144,16 @@ const adapter: SimpleAdapter = {
 	start: '2025-08-02',
     fetch,
     chains: [CHAIN.STARKNET],
+    // Maker rebates are credited to internal Extended sub-accounts (not on-chain transfers),
+    // so the fees:revenue split is not attributable from public on-chain data. See methodology.
+    skipBreakdownValidation: true,
 	methodology: {
 		Fees: "On-chain trader-paid fee stream from Extended's trading contract on Starknet, summing per-trade actual_fee values (Trade events) and liquidation fees (Liquidation events). Per Extended's fee schedule, takers pay 0.025% and makers pay 0.000% with a tiered rebate up to 0.013% based on 30-day maker market share. Maker rebates are accrued daily to internal Extended sub-accounts rather than paid out as discrete on-chain transfers, so they cannot be separately attributed from public on-chain data and are not netted from this value. Revenue is therefore left unreported rather than implicitly equated to fees.",
+	},
+	breakdownMethodology: {
+		Fees: {
+			[TRADER_PAID_FEES]: "Sum of per-trade actual_fee values (Trade events) and liquidation fees (Liquidation events) debited from traders on Extended's Starknet trading contract. Already post-discount; pre-rebate-accrual.",
+		},
 	},
 }
 
