@@ -32,15 +32,19 @@ const fetch: FetchV2 = async (options) => {
 
     const configs: Record<string, { tradingFee: bigint, recipientPct: bigint }> = {};
 
-    for (const marketProxy of marketProxies) {
-        const market = await options.api.call({ target: marketProxy, abi: abi.getMarket });
-        const recipientPct = await options.api.call({ target: marketProxy, abi: abi.tradingFeesRecipientPct });
+    const [markets, recipientPcts] = await Promise.all([
+        options.api.multiCall({ calls: marketProxies, abi: abi.getMarket }),
+        options.api.multiCall({ calls: marketProxies, abi: abi.tradingFeesRecipientPct }),
+    ]);
+
+    marketProxies.forEach((marketProxy, i) => {
+        const market = markets[i];
         const config = market.config ?? market[0];
         configs[marketProxy] = {
             tradingFee: BigInt(config.tradingFee ?? config[2]),
-            recipientPct: BigInt(recipientPct),
+            recipientPct: BigInt(recipientPcts[i]),
         };
-    }
+    });
 
     buyLogs.forEach((buy) => {
         const config = configs[buy.marketProxy.toLowerCase()];

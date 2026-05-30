@@ -27,13 +27,13 @@ const historicalDataSwap = gql`
 const fetchSwapValue = async (timestamp: number): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  for (const api of apiEndPoints) {
-    const swap: VolumeStatsQuery[] = (
-      await request(api, historicalDataSwap, {
-        id: String(t),
-        period: "daily",
-      })
-    ).volumeStats as VolumeStatsQuery[];
+  const results = await Promise.all(
+    apiEndPoints.map((api) =>
+      request(api, historicalDataSwap, { id: String(t), period: "daily" })
+    )
+  );
+  for (const result of results) {
+    const swap = result.volumeStats as VolumeStatsQuery[];
     dailyVolume += Number(swap.reduce((acc, cur) => acc + Number(cur.swap), 0));
   }
   dailyVolume /= 1e30;
