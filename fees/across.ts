@@ -108,21 +108,18 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions): Promise<any> => {
-  const results: IResponse[] = [];
-
-  for (const [dst_chain, destinationChainId] of Object.entries(chainIdConfig)) {
-    let relay_fees = 0;
-    try {
-      relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
-    } catch (error) {
-      console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
-    }
-    results.push({
-      dst_chain,
-      relay_fees,
-      lp_fees: 0,
-    });
-  }
+  const entries = Object.entries(chainIdConfig);
+  const results = await Promise.all(
+    entries.map(async ([dst_chain, destinationChainId]) => {
+      let relay_fees = 0;
+      try {
+        relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
+      } catch (error) {
+        console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
+      }
+      return { dst_chain, relay_fees, lp_fees: 0 };
+    })
+  );
 
   return results as any;
 };
