@@ -23,8 +23,8 @@ const convertSOLBalanceToWSOL = (b: any) => {
 
 const fetch = async (options: FetchOptions) => {
   const treasuryFlows  = await getSolanaReceivedDune({ options, targets: [TREASURY], blacklist_mints: [ZINC_ADDRESS] });
-  const buybackFlows   = await getSolanaReceivedDune({ options, targets: [BUYBACK_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS] });
-  const stockpileFlows = await getSolanaReceivedDune({ options, targets: [STOCKPILE_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS] });
+  const buybackFlows   = await getSolanaReceivedDune({ options, targets: [BUYBACK_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS], blacklists: [TREASURY] });
+  const stockpileFlows = await getSolanaReceivedDune({ options, targets: [STOCKPILE_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS], blacklists: [TREASURY] });
 
   convertSOLBalanceToWSOL(treasuryFlows);
   convertSOLBalanceToWSOL(buybackFlows);
