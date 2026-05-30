@@ -25,12 +25,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const feesUsd = parseFloat(data.dailyFees) || 0
-  const revenueUsd = parseFloat(data.dailyRevenue) || 0
-  const protocolRevenueUsd = parseFloat(data.dailyProtocolRevenue) || 0
-  const holdersRevenueUsd = parseFloat(data.dailyHoldersRevenue) || 0
-  const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
-  const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
+  const feesUsd = Number(data.dailyFees)
+  const revenueUsd = Number(data.dailyRevenue)
+  const protocolRevenueUsd = Number(data.dailyProtocolRevenue)
+  const holdersRevenueUsd = Number(data.dailyHoldersRevenue)
+  const meteoraFeeUsd = Number(data.meteoraFee)
+  const lpFeeUsd = Number(data.dailySupplySideRevenue) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (revenueUsd > 0) dailyRevenue.addUSDValue(revenueUsd, "Swap Fees To Protocol")
