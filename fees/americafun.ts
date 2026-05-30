@@ -47,10 +47,10 @@ const breakdownMethodology = {
     "Swap Fees": "Gross trading fees collected from DBC (Dynamic Bonding Curve) and DAMM v2 liquidity pools, including Meteora's protocol cut.",
   },
   Revenue: {
-    "Swap Fees To Protocol": "americafun protocol share: treasury, creator, and staker portions of trading fees.",
+    "Swap Fees To Protocol": "americafun protocol share: treasury and staker portions of trading fees.",
   },
   ProtocolRevenue: {
-    "Swap Fees To Treasury": "Fees allocated to the americafun treasury and pool creators.",
+    "Swap Fees To Treasury": "Fees allocated to the americafun treasury.",
   },
   HoldersRevenue: {
     "Swap Fees To Stakers": "Fees distributed to americafun governance token stakers.",
@@ -68,8 +68,8 @@ const adapter: SimpleAdapter = {
   start: "2026-04-20",
   methodology: {
     Fees: "Gross trading fees from DBC and DAMM v2 pools, including Meteora's 20% protocol cut.",
-    Revenue: "americafun protocol share: treasury, creator, and staker portions of trading fees.",
-    ProtocolRevenue: "Fees allocated to the americafun treasury and pool creators.",
+    Revenue: "americafun protocol share: treasury and staker portions of trading fees.",
+    ProtocolRevenue: "Fees allocated to the americafun treasury.",
     HoldersRevenue: "Fees distributed to americafun governance token stakers.",
     SupplySideRevenue: "Meteora protocol fees plus fees distributed to liquidity providers.",
   },
