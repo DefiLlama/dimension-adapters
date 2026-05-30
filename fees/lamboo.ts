@@ -98,7 +98,7 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     dailyFees.add(token, amount);
   }
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -112,6 +112,8 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: "Fees are calculated by aggregating the fees collected from transactions associated with the integrator address.",
+    Revenue: "All integrator fees are collected by Lamboo as protocol revenue.",
+    ProtocolRevenue: "All integrator fees are collected by Lamboo as protocol revenue.",
   },
 };
 
