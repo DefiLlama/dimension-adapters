@@ -66,7 +66,7 @@ interface OrdersResponse {
 }
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
-  const dailyBridgeVolume = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
@@ -88,16 +88,16 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
     if (data?.orders?.length) {
       for (const order of data.orders) {
-        if (order.from_chain === order.to_chain) continue;
-        dailyBridgeVolume.add(order.from_token, Number(order.from_amount));
+        if (order.from_chain !== order.to_chain) continue;
+        dailyVolume.add(order.from_token, Number(order.from_amount));
       }
     }
 
-    return { dailyBridgeVolume };
+    return { dailyVolume };
   } catch (error) {
     //allow catching errors, as one single chain failure, shouldnt affect all
     console.error(`Error fetching WheelX data for chain ${chainId}:`, error);
-    return { dailyBridgeVolume };
+    return { dailyVolume };
   }
 }
 
