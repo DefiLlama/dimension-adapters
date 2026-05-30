@@ -26,7 +26,7 @@ const RainBowRouter = {
 // April 1 2026 00:00 UTC — Rainbow switched to sponsor transactions, causing
 // many trades to have tx_to = multicall contract instead of the Rainbow Router.
 // From this date, dex.trades under-reports volume; use the internal swap table instead.
-const APRIL_2026 = 1743465600
+const APRIL_1_2026 = '2026-04-01'
 
 // Pre-April 2026: detect trades via Rainbow Router address in dex.trades
 const PRE_APRIL_SQL = (options: FetchOptions) => `
@@ -161,7 +161,7 @@ const POST_APRIL_SQL = (options: FetchOptions) => `
 `
 
 const prefetch = async (options: FetchOptions) => {
-  const sql = options.startTimestamp < APRIL_2026
+  const sql = options.dateString < APRIL_1_2026
     ? PRE_APRIL_SQL(options)
     : POST_APRIL_SQL(options)
   return queryDuneSql(options, sql)
