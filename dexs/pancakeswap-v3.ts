@@ -1,14 +1,10 @@
 import { CHAIN } from "../helpers/chains";
 import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
-import { cache } from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
-import { ethers } from "ethers";
-import { filterPools } from '../helpers/uniswap';
-import { addOneToken } from "../helpers/prices";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../helpers/uniswap';
 import { queryDune } from "../helpers/dune";
 import axios from "axios";
 
-const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 
 interface Ifactory {
@@ -113,24 +109,7 @@ function getHolderRevenueRatio(fee: number): number {
   return 0;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const factory = String(factories[options.chain].address).toLowerCase()
-  
-  if (!options.chain) throw new Error('Wrong version?')
-  
-  const cacheKey = `tvl-adapter-cache/cache/logs/${options.chain}/${factory}.json`
-  const iface = new ethers.Interface([poolCreatedEvent])
-  let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
-  if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
-  logs = logs.map((log: any) => iface.parseLog(log)?.args)
-
-  const pairObject: IJSON<string[]> = {}
-  const fees: any = {}
-  logs.forEach((log: any) => {
-    pairObject[log.pool] = [log.token0, log.token1]
-    fees[log.pool] = (log.fee?.toString() || 0) / 1e6
-  })
-
+const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
@@ -138,62 +117,53 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  if (options.chain === CHAIN.BSC) {
-    const poolsAndVolumes = await queryDune('3996608',{
-      fullQuery: await PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp),
-    }, options);
+  const poolsAndVolumes = await queryDune('3996608', {
+    fullQuery: await PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp),
+  }, options);
 
-    const poolFees = await options.api.multiCall({
-      abi: 'uint256:fee',
-      calls: poolsAndVolumes.map((item: any) => item.pool)
-    })
-    for (let i = 0; i < poolsAndVolumes.length; i++) {
-      if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
-        // add clean volume, exclude blacklist token
-        dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
+  const poolFees = await options.api.multiCall({
+    abi: 'uint256:fee',
+    calls: poolsAndVolumes.map((item: any) => item.pool)
+  })
+  for (let i = 0; i < poolsAndVolumes.length; i++) {
+    if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
+      // add clean volume, exclude blacklist token
+      dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
 
-        const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
-        const protocolRevenueRatio = getProtocolRevenueRatio(fee);
-        const holdersRevenueRatio = getHolderRevenueRatio(fee);
-        const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
-        const supplySideRevenueRatio = 1 - revenueRatio;
+      const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
+      const protocolRevenueRatio = getProtocolRevenueRatio(fee);
+      const holdersRevenueRatio = getHolderRevenueRatio(fee);
+      const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
+      const supplySideRevenueRatio = 1 - revenueRatio;
 
-        // add fees from total volume, including blacklist tokens
-        dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
-        dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * revenueRatio)
-        dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * protocolRevenueRatio)
-        dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * holdersRevenueRatio)
-        dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * supplySideRevenueRatio)
-      }
+      // add fees from total volume, including blacklist tokens
+      dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
+      dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * revenueRatio)
+      dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * protocolRevenueRatio)
+      dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * holdersRevenueRatio)
+      dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * supplySideRevenueRatio)
     }
-  } else {
-    const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
-    const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
-    allLogs.map((logs: any, index) => {
-      if (!logs.length) return;
-      const pair = Object.keys(filteredPairs)[index]
-      const [token0, token1] = pairObject[pair]
-      const fee = fees[pair]
-      logs.forEach((log: any) => {
-        const protocolRevenueRatio = getProtocolRevenueRatio(fee);
-        const holdersRevenueRatio = getHolderRevenueRatio(fee);
-        const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
-        const supplySideRevenueRatio = 1 - revenueRatio;
-  
-        const amount0 = Number(log.amount0)
-        const amount1 = Number(log.amount1)
-  
-        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-        addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: amount0 * fee, amount1: amount1 * fee })
-        addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: amount0 * fee * revenueRatio, amount1: amount1 * fee * revenueRatio })
-        addOneToken({ chain: options.chain, balances: dailyProtocolRevenue, token0, token1, amount0: amount0 * fee * protocolRevenueRatio, amount1: amount1 * fee * protocolRevenueRatio })
-        addOneToken({ chain: options.chain, balances: dailyHoldersRevenue, token0, token1, amount0: amount0 * fee * holdersRevenueRatio, amount1: amount1 * fee * holdersRevenueRatio })
-        addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: amount0 * fee * supplySideRevenueRatio, amount1: amount1 * fee * supplySideRevenueRatio })
-      })
-    })
   }
-  
+
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
+}
+
+const buildEvmFetcher = (factory: string) => {
+  const evmAdapter = getUniV3LogAdapter({
+    factory,
+    swapEvent: poolSwapEvent,
+    userFeesRatio: 1,
+    getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
+      const _protocolRevenueRatio = getProtocolRevenueRatio(poolFeeTier);
+      const _holdersRevenueRatio = getHolderRevenueRatio(poolFeeTier);
+      return {
+        _revenueRatio: _protocolRevenueRatio + _holdersRevenueRatio,
+        _protocolRevenueRatio,
+        _holdersRevenueRatio,
+      };
+    },
+  })
+  return async (_a: any, _b: any, options: FetchOptions) => evmAdapter(options)
 }
 
 const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'
@@ -293,7 +263,7 @@ const adapter: SimpleAdapter = {
 
 for (const [chain, config] of Object.entries(factories)) {
   (adapter.adapter as BaseAdapter)[chain] = {
-    fetch: fetch,
+    fetch: chain === CHAIN.BSC ? fetchBsc : buildEvmFetcher(config.address),
     start: config.start,
   }
 }
