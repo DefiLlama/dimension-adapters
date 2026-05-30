@@ -152,22 +152,16 @@ async function fetchSolana(options: FetchOptions) {
   const result = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
   dailyFees.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.TRADING_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.TRADING_FEES);
 
   dailyRevenue.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES_TO_PROTOCOL);
 
-  const dailyReferralPayouts = options.createBalances();
-  dailyReferralPayouts.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
-
-  const dailyCashbackPayouts = options.createBalances();
-  dailyCashbackPayouts.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
-
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(dailyReferralPayouts);
-  dailySupplySideRevenue.addBalances(dailyCashbackPayouts);
-
-  dailyFees.addBalances(dailyReferralPayouts);
-  dailyFees.addBalances(dailyCashbackPayouts);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
@@ -206,8 +200,9 @@ async function fetchBsc(options: FetchOptions) {
   `);
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
+  dailyFees.addGasToken(supply_side_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken((BigInt(fees_amount) - BigInt(supply_side_amount)).toString(), LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
@@ -229,16 +224,14 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, //claims may happen at later date
   fetch,
   methodology: {
-    Fees: 'Gross Axiom trading fees paid by users plus claimed referral and cashback payouts',
+    Fees: 'Includes all trading fees paid by Axiom users.',
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
     SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.TRADING_FEES]: 'Trading fees paid by Axiom users. On Solana these are matched from fee-wallet trade payments, and on BNB Chain these are native BNB transfers from the trade contract to the fee receiver.',
-      [LABELS.REFERRAL_PAYOUTS]: 'Claimed SOL referral payouts from Axiom referral vaults.',
-      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+      [LABELS.TRADING_FEES]: 'Trading fees paid by Axiom users.',
     },
     Revenue: {
       [LABELS.TRADING_FEES_TO_PROTOCOL]: 'Trading fees going to the protocol after deducting referral and cashback payouts.',

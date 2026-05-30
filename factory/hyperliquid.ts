@@ -54,6 +54,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       HoldersRevenue: "No fees distributed to token holders",
     },
     extraReturnFields: { dailyHoldersRevenue: "0" },
+    breakdownFees: true,
   },
   "metamask-perps": {
     addresses: ["0xe95a5e31904e005066614247d309e00d8ad753aa"],
