@@ -16,15 +16,16 @@ export function checkArguments(argv: string[]) {
 
 export async function getLatestBlockRetry(chain: string) {
   let lastError: any;
-  for (let i = 0; i < 5; i++) {
+  const maxRetries = 5;
+  for (let i = 0; i < maxRetries; i++) {
     try {
       return await getLatestBlock(chain);
     } catch (e) {
       lastError = e;
-      await new Promise((r) => setTimeout(r, 200 * 2 ** i));
+      if (i < maxRetries - 1) await new Promise((r) => setTimeout(r, 200 * 2 ** i));
     }
   }
-  throw new Error(`Couln't get block heights for chain "${chain}"\n${lastError}`);
+  throw new Error(`Couln't get block heights for chain "${chain}"\n${lastError?.message ?? String(lastError)}`);
 }
 
 export function printVolumes(volumes: any[], _?: SimpleAdapter) {
