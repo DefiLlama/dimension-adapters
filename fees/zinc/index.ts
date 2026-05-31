@@ -1,52 +1,39 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceivedDune } from "../../helpers/token";
-import { METRIC } from "../../helpers/metrics";
+import { getSolanaReceived } from "../../helpers/token";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const TREASURY = "4Ucw8BNkLWBu6gxkQsw3BRG2qRtw5WrG1UxiKpQjScH5";
 const BUYBACK_SOL_VAULT = "8nEo7GArDc3aVDuHoiDYJoVUNLtzgYaVmGGNvxELCZJc";
 const STOCKPILE_SOL_VAULT = "8RxMJD7BtdzxuZkmDqcxhR6gWvegLJ1GNf9NFrPkCmwf";
 
-const ZINC_ADDRESS = "zinc155BS4mSPk8GXQj4R5hkVDQXcW253pTYq5SGyfi";
-
-// Native SOL balances return $0. Convert them to 
-// WSOL so they're priced correctly.
-const NATIVE_SOL_KEY = "solana:So11111111111111111111111111111111111111111";
-const convertSOLBalanceToWSOL = (b: any) => {
-  const native = b._balances?.[NATIVE_SOL_KEY];
-  if (native) {
-    b.add(ADDRESSES.solana.SOL, native);
-    delete b._balances[NATIVE_SOL_KEY];
-  }
-};
+const BURN_SPLIT_FROM_BUYBACKS = 0.9;
+const STAKING_SPLIT_FROM_BUYBACKS = 0.1;
 
 const fetch = async (options: FetchOptions) => {
-  const treasuryFlows  = await getSolanaReceivedDune({ options, targets: [TREASURY], blacklist_mints: [ZINC_ADDRESS] });
-  const buybackFlows   = await getSolanaReceivedDune({ options, targets: [BUYBACK_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS], blacklists: [TREASURY] });
-  const stockpileFlows = await getSolanaReceivedDune({ options, targets: [STOCKPILE_SOL_VAULT], blacklist_mints: [ZINC_ADDRESS], blacklists: [TREASURY] });
-
-  convertSOLBalanceToWSOL(treasuryFlows);
-  convertSOLBalanceToWSOL(buybackFlows);
-  convertSOLBalanceToWSOL(stockpileFlows);
+  const treasuryFlows = await getSolanaReceived({ options, targets: [TREASURY], mints: [ADDRESSES.solana.SOL], });
+  const buybackFlows = await getSolanaReceived({ options, targets: [BUYBACK_SOL_VAULT], mints: [ADDRESSES.solana.SOL], blacklists: [TREASURY] });
+  const stockpileFlows = await getSolanaReceived({ options, targets: [STOCKPILE_SOL_VAULT], mints: [ADDRESSES.solana.SOL], blacklists: [TREASURY] });
 
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(treasuryFlows,  METRIC.PROTOCOL_FEES);
-  dailyFees.addBalances(buybackFlows,   METRIC.TOKEN_BUY_BACK);
-  dailyFees.addBalances(stockpileFlows, "Stockpile Prize Pool");
+  dailyFees.addBalances(treasuryFlows, "Mining Fees");
+  dailyFees.addBalances(buybackFlows, "Mining Fees");
+  dailyFees.addBalances(stockpileFlows, "Mining Fees");
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(treasuryFlows, METRIC.PROTOCOL_FEES);
-  dailyRevenue.addBalances(buybackFlows, METRIC.TOKEN_BUY_BACK);
+  dailyRevenue.addBalances(treasuryFlows, "Mining Fees to Protocol");
+  dailyRevenue.addBalances(buybackFlows.clone(BURN_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Burn");
+  dailyRevenue.addBalances(buybackFlows.clone(STAKING_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Stakers");
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addBalances(treasuryFlows, METRIC.PROTOCOL_FEES);
+  dailyProtocolRevenue.addBalances(treasuryFlows, "Mining Fees to Protocol");
 
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addBalances(buybackFlows, METRIC.TOKEN_BUY_BACK);
+  dailyHoldersRevenue.addBalances(buybackFlows.clone(BURN_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Burn");
+  dailyHoldersRevenue.addBalances(buybackFlows.clone(STAKING_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Stakers");
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(stockpileFlows, "Stockpile Prize Pool");
+  dailySupplySideRevenue.addBalances(stockpileFlows, "Mining Fees to Stockpile Prize Pool");
 
   return {
     dailyFees,
@@ -69,27 +56,25 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
-    [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault.",
-    "Stockpile Prize Pool": "SOL inflows into the stockpile vault.",
+    "Mining Fees": "Mining fees paid by players when participating in ZINC rounds.",
   },
   UserFees: {
-    [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
-    [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault.",
-    "Stockpile Prize Pool": "SOL inflows into the stockpile vault.",
+    "Mining Fees": "Mining fees paid by players when participating in ZINC rounds.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
-    [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault, later converted to ZINC and distributed to stakers/burned, on a 10/90 ratio.",
+    "Mining Fees to Protocol": "Mining fees retained by the ZINC treasury.",
+    "Mining Fees to $ZINC Burn": "Mining fees converted to $ZINC and burned.",
+    "Mining Fees to $ZINC Stakers": "Mining fees converted to $ZINC and distributed to stakers.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "SOL inflows into the ZINC treasury.",
+    "Mining Fees to Protocol": "Mining fees retained by the ZINC treasury.",
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "SOL inflows into the buyback vault, later converted to ZINC and distributed to stakers/burned, on a 10/90 ratio.",
+    "Mining Fees to $ZINC Burn": "Mining fees converted to $ZINC and burned (90% of buyback fees).",
+    "Mining Fees to $ZINC Stakers": "Mining fees converted to $ZINC and distributed to stakers (10% of buyback fees).",
   },
   SupplySideRevenue: {
-    "Stockpile Prize Pool": "SOL inflows into the stockpile vault, paid out to stockpile winners.",
+    "Mining Fees to Stockpile Prize Pool": "Mining fees paid to the stockpile prize pool.",
   },
 };
 
@@ -97,10 +82,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   start: "2026-05-26",
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
