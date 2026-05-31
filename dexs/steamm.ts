@@ -28,11 +28,15 @@ async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Pr
   const poolInfos: Array<PoolInfo> = [];
 
   const poolConfigs = await fetchURL(suilendPoolsURL());
-  const { results: allHistorical } = await PromisePool.withConcurrency(5)
+  const { results: allHistorical , errors } = await PromisePool.withConcurrency(5)
     .for(poolConfigs)
     .process((poolConfig: any) =>
       fetchURL(suilendPoolHistoricalURL(poolConfig.pool.id, startTimestamp, endTimestamp - 1))
     );
+
+  if (errors?.length)
+    throw errors[0];
+  
   poolConfigs.forEach((poolConfig: any, idx: number) => {
     const dayItem = allHistorical[idx]?.find((item: Volume) => Number(item.start) === startTimestamp);
     if (dayItem) {
