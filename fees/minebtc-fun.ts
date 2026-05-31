@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { getSolanaReceived } from "../helpers/token";
 
 // MineBTC Program: 1eotiTH2UxCpPMmtzUDGqf1b8dwM7AMKb8a2Tio51an
@@ -11,6 +11,10 @@ const STAKER_SOL_REWARD_VAULT = "FYnbbqMPUetvN22CDeDxAJb4SSXmqZcGEbrwVvoJREvK";
 
 const TREASURY_BUYBACK_SHARE = 0.7;
 const TREASURY_PROTOCOL_SHARE = 0.3;
+const CASINO_ROLL_FEES = "Casino Roll Fees";
+const CASINO_ROLL_FEES_TO_BUYBACKS = "Casino Roll Fees To Buybacks";
+const CASINO_ROLL_FEES_TO_TREASURY = "Casino Roll Fees To Treasury";
+const CASINO_ROLL_FEES_TO_STAKERS = "Casino Roll Fees To Stakers";
 
 const fetchFees = async (options: FetchOptions) => {
   if (!process.env.ALLIUM_API_KEY) {
@@ -27,22 +31,22 @@ const fetchFees = async (options: FetchOptions) => {
   }
 
   const [treasuryReceipts, stakingRewardReceipts] = await Promise.all([
-    getSolanaReceived({ options, target: SOL_TREASURY }),
-    getSolanaReceived({ options, target: STAKER_SOL_REWARD_VAULT }),
+    getSolanaReceived({ options, target: SOL_TREASURY, mints: [ADDRESSES.solana.SOL] }),
+    getSolanaReceived({ options, target: STAKER_SOL_REWARD_VAULT, mints: [ADDRESSES.solana.SOL] }),
   ]);
 
-  const dailyHoldersRevenue = treasuryReceipts.clone(TREASURY_BUYBACK_SHARE, METRIC.TOKEN_BUY_BACK);
-  const dailyProtocolRevenue = treasuryReceipts.clone(TREASURY_PROTOCOL_SHARE, METRIC.PROTOCOL_FEES);
-  const dailySupplySideRevenue = stakingRewardReceipts.clone(1, METRIC.STAKING_REWARDS);
+  const dailyHoldersRevenue = treasuryReceipts.clone(TREASURY_BUYBACK_SHARE, CASINO_ROLL_FEES_TO_BUYBACKS);
+  const dailyProtocolRevenue = treasuryReceipts.clone(TREASURY_PROTOCOL_SHARE, CASINO_ROLL_FEES_TO_TREASURY);
+  const dailySupplySideRevenue = stakingRewardReceipts.clone(1, CASINO_ROLL_FEES_TO_STAKERS);
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(dailyHoldersRevenue, METRIC.TOKEN_BUY_BACK);
-  dailyRevenue.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES);
+  dailyRevenue.addBalances(dailyHoldersRevenue, CASINO_ROLL_FEES_TO_BUYBACKS);
+  dailyRevenue.addBalances(dailyProtocolRevenue, CASINO_ROLL_FEES_TO_TREASURY);
 
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(dailyHoldersRevenue, "Casino Roll Fees");
-  dailyFees.addBalances(dailyProtocolRevenue, "Casino Roll Fees");
-  dailyFees.addBalances(dailySupplySideRevenue, "Casino Roll Fees");
+  dailyFees.addBalances(dailyHoldersRevenue, CASINO_ROLL_FEES);
+  dailyFees.addBalances(dailyProtocolRevenue, CASINO_ROLL_FEES);
+  dailyFees.addBalances(dailySupplySideRevenue, CASINO_ROLL_FEES);
 
   return {
     dailyFees,
@@ -64,20 +68,20 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Casino Roll Fees": "SOL fees paid by users for MineBTC Casino rolls.",
+    [CASINO_ROLL_FEES]: "SOL fees paid by users for MineBTC Casino rolls.",
   },
   Revenue: {
-    [METRIC.TOKEN_BUY_BACK]: "70% of treasury receipts allocated to dBTC buybacks.",
-    [METRIC.PROTOCOL_FEES]: "30% of treasury receipts retained for protocol-side treasury and market-making flows.",
+    [CASINO_ROLL_FEES_TO_BUYBACKS]: "70% of treasury receipts allocated to dBTC buybacks.",
+    [CASINO_ROLL_FEES_TO_TREASURY]: "30% of treasury receipts retained for protocol-side treasury and market-making flows.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "30% of treasury receipts retained for protocol-side treasury and market-making flows.",
+    [CASINO_ROLL_FEES_TO_TREASURY]: "30% of treasury receipts retained for protocol-side treasury and market-making flows.",
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "70% of treasury receipts allocated to dBTC buybacks.",
+    [CASINO_ROLL_FEES_TO_BUYBACKS]: "70% of treasury receipts allocated to dBTC buybacks.",
   },
   SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: "SOL fees routed to the staking reward vault for dBTC and LP stakers.",
+    [CASINO_ROLL_FEES_TO_STAKERS]: "SOL fees routed to the staking reward vault for dBTC and LP stakers.",
   },
 }
 
