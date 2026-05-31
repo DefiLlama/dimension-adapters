@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
+import { queryAllium } from "../../helpers/allium";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const TREASURY = "4Ucw8BNkLWBu6gxkQsw3BRG2qRtw5WrG1UxiKpQjScH5";
@@ -11,9 +11,35 @@ const BURN_SPLIT_FROM_BUYBACKS = 0.9;
 const STAKING_SPLIT_FROM_BUYBACKS = 0.1;
 
 const fetch = async (options: FetchOptions) => {
-  const treasuryFlows = await getSolanaReceived({ options, targets: [TREASURY], mints: [ADDRESSES.solana.SOL], });
-  const buybackFlows = await getSolanaReceived({ options, targets: [BUYBACK_SOL_VAULT], mints: [ADDRESSES.solana.SOL], blacklists: [TREASURY] });
-  const stockpileFlows = await getSolanaReceived({ options, targets: [STOCKPILE_SOL_VAULT], mints: [ADDRESSES.solana.SOL], blacklists: [TREASURY] });
+  const vaults = [TREASURY, BUYBACK_SOL_VAULT, STOCKPILE_SOL_VAULT];
+  const rows = await queryAllium(`
+    SELECT
+      to_address,
+      SUM(
+        CASE
+          WHEN to_address = '${TREASURY}' THEN raw_amount
+          WHEN from_address != '${TREASURY}' THEN raw_amount
+          ELSE 0
+        END
+      ) AS amount
+    FROM solana.assets.transfers
+    WHERE to_address IN (${vaults.map((a) => `'${a}'`).join(", ")})
+      AND mint = '${ADDRESSES.solana.SOL}'
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    GROUP BY to_address
+  `);
+
+  const treasuryFlows = options.createBalances();
+  const buybackFlows = options.createBalances();
+  const stockpileFlows = options.createBalances();
+  const flowsByVault: Record<string, typeof treasuryFlows> = {
+    [TREASURY]: treasuryFlows,
+    [BUYBACK_SOL_VAULT]: buybackFlows,
+    [STOCKPILE_SOL_VAULT]: stockpileFlows,
+  };
+  rows.forEach((row: { to_address: string; amount: number }) => {
+    flowsByVault[row.to_address]?.add(ADDRESSES.solana.SOL, row.amount);
+  });
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(treasuryFlows, "Mining Fees");
