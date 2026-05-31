@@ -59,12 +59,13 @@ const fetch = async (options: FetchOptions) => {
       // V2 fee rates are configured per pair in the factory, so they cannot be a single constant.
       const [logs, feeNumerators, feeDenominators, protocolFeeRates] = await Promise.all([
         fetchOptions.getLogs({ targets: pairIds, eventAbi: abis.v2SwapEvent, flatten: false }),
-        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getFeeRateNumerator, calls: pairIds }),
-        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getFeeRateDenominator, calls: pairIds }),
-        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getProtocolFeeRate, calls: pairIds }),
+        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getFeeRateNumerator, calls: pairIds, permitFailure: true }),
+        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getFeeRateDenominator, calls: pairIds, permitFailure: true }),
+        fetchOptions.api.multiCall({ target: EVERDEX_V2_FACTORY, abi: abis.getProtocolFeeRate, calls: pairIds, permitFailure: true }),
       ]);
 
       logs.forEach((pairLogs: any[], index: number) => {
+        if (!pairLogs.length || feeNumerators[index] == undefined || feeDenominators[index] == undefined || protocolFeeRates[index] == undefined) return;
         const [token0, token1] = pairObject[pairIds[index]];
         const totalFee = Number(feeNumerators[index]) / Number(feeDenominators[index]);
         const protocolFee = Number(protocolFeeRates[index]) / Number(feeDenominators[index]);
@@ -99,7 +100,7 @@ const fetch = async (options: FetchOptions) => {
 
   for (const [index, logs] of stableLogs.entries()) {
     const { tokens } = pools[index];
-    if (!logs.length) continue;
+    if (!logs.length || stableFeeRates[index] == undefined || stableAdminFees[index] == undefined) continue;
     const fee = Number(stableFeeRates[index]) / 1e10;
     const protocolFee = fee * (Number(stableAdminFees[index]) / 1e10);
     const supplySideFee = fee - protocolFee;
@@ -127,8 +128,8 @@ const fetch = async (options: FetchOptions) => {
 
   dailyVolume.addBalances(swapVolume);
   dailyFees.addBalances(swapFees, "Swap Fees");
-  dailyProtocolRevenue.addBalances(protocolRevenue, "Protocol Swap Fees");
-  dailySupplySideRevenue.addBalances(supplySideRevenue, "LP Swap Fees");
+  dailyProtocolRevenue.addBalances(protocolRevenue, "Swap Fees to Protocol");
+  dailySupplySideRevenue.addBalances(supplySideRevenue, "Swap Fees to LPs");
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
@@ -146,13 +147,13 @@ const breakdownMethodology = {
     "Swap Fees": "Total fees paid on swaps.",
   },
   Revenue: {
-    "Protocol Swap Fees": "Fees kept by the protocol.",
+    "Swap Fees to Protocol": "Fees kept by the protocol.",
   },
   ProtocolRevenue: {
-    "Protocol Swap Fees": "Fees kept by the protocol.",
+    "Swap Fees to Protocol": "Fees kept by the protocol.",
   },
   SupplySideRevenue: {
-    "LP Swap Fees": "Fees paid to liquidity providers.",
+    "Swap Fees to LPs": "Fees paid to liquidity providers.",
   },
 };
 
