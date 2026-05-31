@@ -124,7 +124,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Gross yield from vault exchange rate appreciation, before performance fee split.',
+    [METRIC.ASSETS_YIELDS]: 'Gross yield from vault exchange rate appreciation, including performance fees.',
     [METRIC.MANAGEMENT_FEES]: 'Annual management fee charged on total vault assets.',
   },
   Revenue: {
