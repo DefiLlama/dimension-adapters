@@ -79,7 +79,14 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
-    const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, maxPairSize })
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
+    const pairsToFilter = { ...pairObject }
+    if (blacklistPoolsSet) {
+      Object.keys(pairsToFilter).forEach(pair => {
+        if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
+      })
+    }
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
@@ -94,7 +101,6 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
@@ -211,7 +217,14 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       throw new Error('Either factory or pools must be provided in the config')
     }
 
-    const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
+    const pairsToFilter = { ...pairObject }
+    if (blacklistPoolsSet) {
+      Object.keys(pairsToFilter).forEach(pair => {
+        if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
+      })
+    }
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const revenue = createBalances()
@@ -233,7 +246,6 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairs = Object.keys(filteredPairs)
     const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
 
