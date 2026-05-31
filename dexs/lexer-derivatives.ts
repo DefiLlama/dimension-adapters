@@ -28,13 +28,13 @@ const historicalDataDerivatives = gql`
 const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  for (const api of apiEndPoints) {
-    const derivatives: VolumeStatsQuery[] = (
-      await request(api, historicalDataDerivatives, {
-        id: String(t),
-        period: "daily",
-      })
-    ).volumeStats as VolumeStatsQuery[];
+  const results = await Promise.all(
+    apiEndPoints.map((api) =>
+      request(api, historicalDataDerivatives, { id: String(t), period: "daily" })
+    )
+  );
+  for (const result of results) {
+    const derivatives = result.volumeStats as VolumeStatsQuery[];
     dailyVolume += derivatives.length ? Number(
       Object.values(derivatives[0] || {}).reduce((sum, element) =>
         String(Number(sum) + Number(element))
