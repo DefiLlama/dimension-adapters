@@ -37,6 +37,17 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   return Object.fromEntries(sortedPairs)
 }
 
+function filterBlacklistedPools(pairObject: IJSON<string[]>, blacklistPools?: string[]): IJSON<string[]> {
+  if (!blacklistPools?.length) return pairObject
+
+  const blacklistPoolsSet = new Set(blacklistPools.map(i => i.toLowerCase()))
+  const pairsToFilter: typeof pairObject = { ...pairObject }
+  Object.keys(pairsToFilter).forEach(pair => {
+    if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
+  })
+  return pairsToFilter
+}
+
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
@@ -80,12 +91,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = { ...pairObject }
-    if (blacklistPoolsSet) {
-      Object.keys(pairsToFilter).forEach(pair => {
-        if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
-      })
-    }
+    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
     const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
@@ -218,12 +224,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     }
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = { ...pairObject }
-    if (blacklistPoolsSet) {
-      Object.keys(pairsToFilter).forEach(pair => {
-        if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
-      })
-    }
+    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
     const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
