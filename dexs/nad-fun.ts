@@ -552,54 +552,53 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
   });
 
   if (pairs.length > 0) {
-    const swapLogsByPair = await options.getLogs({
+    await options.streamLogs({
       targets: pairs,
       eventAbi: v2Abi.Swap,
-      flatten: false,
-    });
+      entireLog: true,
+      targetsFilter: pairs,
+      processor: (logs: any[]) => {
+        logs.forEach((rawLog) => {
+          const pair = rawLog.address.toLowerCase();
+          const meta = pairMeta[pair];
+          if (!meta?.quoteToken) return;
 
-    swapLogsByPair.forEach((logs: any[], index: number) => {
-      const pair = pairs[index].toLowerCase();
-      const meta = pairMeta[pair];
-      if (!meta?.quoteToken) return;
+          const quoteIsToken0 =
+            meta.quoteToken.toLowerCase() === meta.token0.toLowerCase();
+          const log = logArgs<{
+            amount0In: string | number | bigint;
+            amount1In: string | number | bigint;
+            amount0Out: string | number | bigint;
+            amount1Out: string | number | bigint;
+          }>(rawLog);
 
-      const quoteIsToken0 =
-        meta.quoteToken.toLowerCase() === meta.token0.toLowerCase();
+          const quoteIn = quoteIsToken0
+            ? toBigInt(log.amount0In)
+            : toBigInt(log.amount1In);
+          const quoteOut = quoteIsToken0
+            ? toBigInt(log.amount0Out)
+            : toBigInt(log.amount1Out);
+          const quoteVolume = quoteIn + quoteOut;
+          const lpFee = mulBps(quoteVolume, 25n); // NadFunPair LP_FEE_RATE = 0.25%
+          const protocolLpFee = lpFee / 5n; // _mintFee captures 1/5 of LP fees
+          const supplySideLpFee = lpFee - protocolLpFee;
 
-      logs.forEach((rawLog) => {
-        const log = logArgs<{
-          amount0In: string | number | bigint;
-          amount1In: string | number | bigint;
-          amount0Out: string | number | bigint;
-          amount1Out: string | number | bigint;
-        }>(rawLog);
-
-        const quoteIn = quoteIsToken0
-          ? toBigInt(log.amount0In)
-          : toBigInt(log.amount1In);
-        const quoteOut = quoteIsToken0
-          ? toBigInt(log.amount0Out)
-          : toBigInt(log.amount1Out);
-        const quoteVolume = quoteIn + quoteOut;
-        const lpFee = mulBps(quoteVolume, 25n); // NadFunPair LP_FEE_RATE = 0.25%
-        const protocolLpFee = lpFee / 5n; // _mintFee captures 1/5 of LP fees
-        const supplySideLpFee = lpFee - protocolLpFee;
-
-        addQuoteBalance(dailyVolume, meta.quoteToken, quoteVolume);
-        addQuoteBalance(dailyFees, meta.quoteToken, lpFee, metrics.V2LpFees);
-        addQuoteBalance(
-          dailyRevenue,
-          meta.quoteToken,
-          protocolLpFee,
-          metrics.V2ProtocolFees,
-        );
-        addQuoteBalance(
-          dailySupplySideRevenue,
-          meta.quoteToken,
-          supplySideLpFee,
-          metrics.V2LpFees,
-        );
-      });
+          addQuoteBalance(dailyVolume, meta.quoteToken, quoteVolume);
+          addQuoteBalance(dailyFees, meta.quoteToken, lpFee, metrics.V2LpFees);
+          addQuoteBalance(
+            dailyRevenue,
+            meta.quoteToken,
+            protocolLpFee,
+            metrics.V2ProtocolFees,
+          );
+          addQuoteBalance(
+            dailySupplySideRevenue,
+            meta.quoteToken,
+            supplySideLpFee,
+            metrics.V2LpFees,
+          );
+        });
+      },
     });
   }
 
