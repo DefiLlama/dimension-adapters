@@ -21,7 +21,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       return typeof row.trading_date === 'string' && row.trading_date.slice(0, 10) === targetDate
     })
     matched.forEach((row: any) => {
-      const fees = row.token_fees_usdc ?? 0
+      // Every SpotSwap pays the 0.5% taker fee on its input, so both legs count:
+      // usdc_fees is the buy-side (USDC in), token_fees_usdc is the sell-side (token in → USDC).
+      // The buy-side was previously omitted, under-counting futarchy fees.
+      const fees = (row.usdc_fees ?? 0) + (row.token_fees_usdc ?? 0)
       dailyFees.addUSDValue(fees, 'futarchy_amm')
     })
 

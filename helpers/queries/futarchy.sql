@@ -223,10 +223,13 @@ futarchy_token_filtered AS (
 ),
 
 futarchy_aggregated AS (
+    -- USDC notional of every swap is directly available: input for buys (USDC in),
+    -- output for sells (USDC out). Summing each leg in USDC avoids reconstructing
+    -- value from a price, which previously blended a single unweighted AVG(price)
+    -- across all DAOs and PASS/FAIL tokens and grossly mis-stated sell fees.
     SELECT
-        SUM(CASE WHEN swap_type = 'buy' THEN input_amount ELSE 0 END) AS buy_volume_usdc,
-        SUM(CASE WHEN swap_type = 'sell' THEN input_amount ELSE 0 END) AS sell_volume_tokens,
-        AVG(price) AS avg_price
+        SUM(CASE WHEN swap_type = 'buy'  THEN input_amount  ELSE 0 END) AS buy_volume_usdc,
+        SUM(CASE WHEN swap_type = 'sell' THEN output_amount ELSE 0 END) AS sell_volume_usdc
     FROM futarchy_token_filtered
     WHERE price > 0
 )
@@ -240,5 +243,5 @@ UNION ALL
 
 SELECT
   'futarchy_amm' AS source,
-  COALESCE(buy_volume_usdc * 0.005, 0) + COALESCE(sell_volume_tokens * COALESCE(avg_price, 0) * 0.005, 0) AS total_fees_usd
+  COALESCE(buy_volume_usdc * 0.005, 0) + COALESCE(sell_volume_usdc * 0.005, 0) AS total_fees_usd
 FROM futarchy_aggregated
