@@ -425,6 +425,9 @@ async function addV2ProtocolTransfers(
 async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
   const { dailyFees, dailyVolume, dailyRevenue, dailySupplySideRevenue } =
     balances;
+
+  if ((await options.getEndBlock()) < v2.startBlock) return;
+
   let feeReceiver: string;
   try {
     feeReceiver = await options.api.call({
@@ -432,13 +435,15 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
       abi: v2Abi.feeReceiver,
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("Nad.fun V2 feeReceiver lookup failed", {
       protocolManager: v2.protocolManager,
       err,
     });
-    // V2 addresses are configured ahead of production deployment. Skip V2
-    // accounting until the ProtocolManager exists on the indexed chain.
-    return;
+    if (/not deployed|contract not found|no contract|empty code/i.test(message)) {
+      return;
+    }
+    throw err;
   }
 
   const [curveBuyLogs, curveSellLogs, collectLogs, { pairs, pairMeta }] =
