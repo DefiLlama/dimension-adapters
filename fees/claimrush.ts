@@ -47,8 +47,8 @@ const fetch = async (options: FetchOptions) => {
     // margin on the royalty stream. 100% of the fee flows to veCLAIM
     // holders as supply-side revenue, satisfying DefiLlama's income
     // statement invariant dailyRevenue == dailyFees - dailySupplySideRevenue.
-    dailySupplySideRevenue.addGasToken(totalWei, "Takeover Royalties");
-    dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties");
+    dailySupplySideRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
+    dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
   }
 
   return {
@@ -77,16 +77,13 @@ const breakdownMethodology = {
     "Takeover Royalties":
       "Same value — the new King of each takeover pays the royalty fraction directly out of `pricePaid`.",
   },
-  Revenue: {
-    "Takeover Royalties":
-      "Zero — no protocol-side cut is taken before distribution.",
-  },
+  Revenue: {},
   SupplySideRevenue: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "Full takeover royalty ETH, routed straight through to veCLAIM holders.",
   },
   HoldersRevenue: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "ETH royalties distributed to veCLAIM holders, indexed against the takeover-time shareholder set.",
   },
 };
