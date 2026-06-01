@@ -71,7 +71,7 @@ const eidToChain = new Map(
 )
 
 const normalizeToken = (token: string) =>
-    token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token;
+    token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token.toLowerCase();;
 
 async function fetch(options: FetchOptions) {
     const fillLogs = await options.getLogs({
@@ -89,8 +89,8 @@ async function fetch(options: FetchOptions) {
         outputs.add(normalizeToken(outputToken), outputAmount)
     })
 
-    const dailyFees = inputs.clone();
-    dailyFees.subtract(outputs);
+    const dailyFees = inputs.clone(1, "Bridge Fees");
+    dailyFees.subtract(outputs, "Bridge Fees");
 
     return {
         dailyFees,
@@ -105,12 +105,25 @@ const methodology = {
     ProtocolRevenue: "All the revenue goes to the protocol.",
 }
 
+const breakdownMethodology = {
+    Fees: {
+        "Bridge Fees": "Bridge fees paid by Aori users, calculated as the difference between input and output amounts.",
+    },
+    Revenue: {
+        "Bridge Fees": "All bridge fees are retained by Aori.",
+    },
+    ProtocolRevenue: {
+        "Bridge Fees": "All bridge fees are retained by Aori.",
+    },
+}
+
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
     adapter: chainConfig,
     methodology,
+    breakdownMethodology,
     allowNegativeValue: true,
 }
 
