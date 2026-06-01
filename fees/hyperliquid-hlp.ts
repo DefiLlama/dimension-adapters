@@ -15,7 +15,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions) {
     spotFees = result.dailySpotFees.clone(hlpShare)
   } else {
     const result = await queryHyperliquidIndexer(options);
-    perpFees = result.dailyPerpRevenue.clone(hlpShare)
+    perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
     spotFees = result.dailySpotRevenue.clone(hlpShare)
   }
 
