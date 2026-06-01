@@ -67,12 +67,14 @@ const fetch = async (
     });
   }
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
   methodology: {
-    Fees: 'All yields collected from invested assets.',
+    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the OpenEden transaction fee (oeFee) charged on subscriptions/redemptions.',
+    Revenue: 'All fees are kept by OpenEden, none is returned to depositors (their return comes from the underlying T-Bills).',
+    ProtocolRevenue: 'All fees accrue to the OpenEden Investment Manager treasury.',
   },
   version: 2,
   adapter: {
