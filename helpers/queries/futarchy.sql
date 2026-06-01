@@ -1,13 +1,14 @@
 /*
   Futarchy Protocol Fees
-  
-  Combines fees from two sources:
-  1. Meteora DAMM pools - ownership-weighted LP fees based on actual liquidity positions
-  2. Futarchy AMM direct swaps (0.5% fee)
-  
+
+  Combines fees from three sources:
+  1. Meteora DAMM pools      - ownership-weighted LP fees based on actual liquidity positions
+  2. Futarchy AMM spot swaps - direct SpotSwap (0.5% fee)
+  3. Futarchy conditional    - winning-market ConditionalSwap fees (0.5%, realized only)
+
   Parameters:
     {{start}} - Unix timestamp for start of period
-    {{end}} - Unix timestamp for end of period
+    {{end}}   - Unix timestamp for end of period
 */
 
 WITH pool_map AS (
@@ -32,6 +33,24 @@ WITH pool_map AS (
   UNION ALL SELECT '2zsbECzM7roqnDcuv2TNGpfv5PAnuqGmMo5YPtqmUz5p',
                     'w1BDxR4FvN4KryBuJwcEuohYKHkyDzD1beNH3AhF6Wn',
                     '98SPcyUZ2rqM2dgjCqqSXS4gJrNTLSNUAAVCF38xYj9u' -- Solomon / USDC
+  UNION ALL SELECT '5M3oyxAhZ68tJXaNJiTPaHXZwgBEsYDCKiYVsvN8Gq8G',
+                    '85QbV1KLqXXCVRt3GeVezJ2zPDToKEnhetijpNSmCkWU',
+                    'Dv5axGVuk3qcoEBNofNLerFFEE3VemmuH8VsmNWUTSR5' -- Jurassic Finance / USDC
+  UNION ALL SELECT '2foMdp9Y9hWttCvHedQef8GUWtCKwCfTgTiciUrTdQFF',
+                    'EunUNcHufVkRpaj17TdKJgZZ3isZj3n5TQxrtBhuPwUh',
+                    '9Rykf7i9fxUaXD8iD6GSGpRaoWQQP51Uiq1oxSE9oDzx' -- P2P / USDC
+  UNION ALL SELECT '9uuneA2PrNhDUi2nVEqKK3nTF3q5BiRw6mBm1X9QV1Dv',
+                    '2FxsHe576R2jQKmYNVYZ2hrKVFoFF8n1tmPMuQ5jPFQA',
+                    '6VsC8PuKkXm5xo54c2vbrAaSfQipkpGHqNuKTxXFySx6' -- Umbra New / USDC
+  UNION ALL SELECT 'JBFvVa5nVLjR3tsDqQwa7ZYBBVceDebQSr6DoCPqwRf8', -- pool
+                    '44t9nPMNEf3WBGaayP2B9xrufk1f7PEK4J13tHinqiht', -- position
+                    '8s6Jdoh7tgUqmU3D2EmpNJHSvuN5U4NybpLAdsiMitwB' -- Omnipair / USDC -- owner
+  UNION ALL SELECT 'E7Dt6DwBNhK5339oH7UsL4MVEm4wNjLhtb9Qmj4VYp9a', -- pool
+                    'FPzs9xcJzTokwf375XqCt4YxNrzkhZSbRTK4EWfNHHjD', -- position
+                    '5ZPnwQDU7dEKdMGqaY5oCQkiuQpwjtYSJNMNpiStTNvU' -- Superclaw / USDC -- owner
+  UNION ALL SELECT '7LWeTej42aKgcsJBTtgK1vFV152G8hUgHJZehrKYX1VT', -- pool
+                    'A4c6o7Wby6T8BYyknD8HLKe7QgH8D2zSgvGvh7ZpUANR', -- position
+                    'FeMyhpB3LJuuuA1oLzXFDuZ48EJz46gyyk3w2xuQA8uw' -- Futardio Cult / USDC -- owner              
 ),
 
 target_pools AS (
@@ -175,7 +194,7 @@ meteora_aggregated AS (
   LEFT JOIN ownership_shares o ON f.pool = o.pool
 ),
 
--- FUTARCHY AMM
+-- FUTARCHY AMM (SPOT)
 futarchy_swaps AS (
     SELECT
         block_time,
@@ -191,7 +210,7 @@ futarchy_swaps AS (
         varbinary_to_bigint(varbinary_reverse(varbinary_substring(data, 106, 8))) / 1e6 AS input_amount,
         varbinary_to_bigint(varbinary_reverse(varbinary_substring(data, 114, 8))) / 1e6 AS output_amount
     FROM solana.instruction_calls
-    WHERE 
+    WHERE
         block_time >= from_unixtime({{start}})
         AND block_time <= from_unixtime({{end}})
         AND tx_success = true
@@ -216,21 +235,106 @@ futarchy_token_filtered AS (
             WHEN swap_type = 'sell' THEN output_amount / NULLIF(input_amount, 0)
         END AS price
     FROM futarchy_swaps
-    WHERE 
+    WHERE
         input_amount > 0
         AND output_amount > 0
         AND token IS NOT NULL
 ),
 
 futarchy_aggregated AS (
-    -- USDC notional of every swap is directly available: input for buys (USDC in),
-    -- output for sells (USDC out). Summing each leg in USDC avoids reconstructing
-    -- value from a price, which previously blended a single unweighted AVG(price)
-    -- across all DAOs and PASS/FAIL tokens and grossly mis-stated sell fees.
     SELECT
         SUM(CASE WHEN swap_type = 'buy'  THEN input_amount  ELSE 0 END) AS buy_volume_usdc,
         SUM(CASE WHEN swap_type = 'sell' THEN output_amount ELSE 0 END) AS sell_volume_usdc
     FROM futarchy_token_filtered
+    WHERE price > 0
+),
+
+-- FUTARCHY CONDITIONAL MARKETS (winning side only, realized fees)
+-- NOTE: not time-bounded on purpose. A swap inside [start, end] can belong to a
+-- proposal that finalizes outside the window; we need the full finalization
+-- universe to resolve which side won.
+finalized_proposals AS (
+    SELECT DISTINCT
+        to_base58(varbinary_substring(data, 41, 32)) AS proposal,
+        CASE varbinary_substring(data, 153, 1)
+            WHEN 0x02 THEN 'Passed'
+            WHEN 0x03 THEN 'Failed'
+        END AS state
+    FROM solana.instruction_calls
+    WHERE
+        tx_success = true
+        AND is_inner = true
+        AND executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
+        AND inner_executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
+        AND account_arguments[1] = 'DGEympSS4qLvdr9r3uGHTfACdN8snShk4iGdJtZPxuBC'
+        AND cardinality(account_arguments) = 1
+        AND varbinary_starts_with(data, 0xe445a52e51cb9a1d)
+        AND any_match(log_messages, x -> strpos(x, 'FinalizeProposal') > 0)
+        AND varbinary_substring(data, 153, 1) IN (0x02, 0x03)
+),
+
+conditional_swaps AS (
+    SELECT
+        block_time,
+        tx_id,
+        to_base58(varbinary_substring(data, 73, 32)) AS proposal,
+        CASE
+            WHEN varbinary_length(data) = 439 THEN to_base58(varbinary_substring(data, 312, 32))
+            WHEN varbinary_length(data) = 703 THEN to_base58(varbinary_substring(data, 576, 32))
+        END AS token,
+        CASE varbinary_substring(data, 137, 1)
+            WHEN 0x01 THEN 'pass'
+            WHEN 0x02 THEN 'fail'
+        END AS market,
+        CASE varbinary_substring(data, 138, 1)
+            WHEN 0x00 THEN 'buy'
+            WHEN 0x01 THEN 'sell'
+        END AS swap_type,
+        varbinary_to_bigint(varbinary_reverse(varbinary_substring(data, 139, 8))) / 1e6 AS input_amount,
+        varbinary_to_bigint(varbinary_reverse(varbinary_substring(data, 147, 8))) / 1e6 AS output_amount
+    FROM solana.instruction_calls
+    WHERE
+        block_time >= from_unixtime({{start}})
+        AND block_time <  from_unixtime({{end}})
+        AND tx_success = true
+        AND is_inner = true
+        AND executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
+        AND inner_executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
+        AND account_arguments[1] = 'DGEympSS4qLvdr9r3uGHTfACdN8snShk4iGdJtZPxuBC'
+        AND cardinality(account_arguments) = 1
+        AND varbinary_starts_with(data, 0xe445a52e51cb9a1d)
+        AND varbinary_length(data) IN (439, 703)
+        AND any_match(log_messages, x -> strpos(x, 'ConditionalSwap') > 0)
+),
+
+winning_market_swaps AS (
+    SELECT
+        c.swap_type,
+        c.input_amount,
+        c.output_amount,
+        CASE
+            WHEN c.swap_type = 'buy'  THEN c.input_amount / NULLIF(c.output_amount, 0)
+            WHEN c.swap_type = 'sell' THEN c.output_amount / NULLIF(c.input_amount, 0)
+        END AS price
+    FROM conditional_swaps c
+    JOIN finalized_proposals p ON p.proposal = c.proposal
+    WHERE
+        c.input_amount > 0
+        AND c.output_amount > 0
+        AND c.token IS NOT NULL
+        AND c.market IN ('pass', 'fail')
+        AND (
+            (p.state = 'Passed' AND c.market = 'pass')
+            OR
+            (p.state = 'Failed' AND c.market = 'fail')
+        )
+),
+
+conditional_aggregated AS (
+    SELECT
+        SUM(CASE WHEN swap_type = 'buy'  THEN input_amount  ELSE 0 END) AS buy_volume_usdc,
+        SUM(CASE WHEN swap_type = 'sell' THEN output_amount ELSE 0 END) AS sell_volume_usdc
+    FROM winning_market_swaps
     WHERE price > 0
 )
 
@@ -243,5 +347,12 @@ UNION ALL
 
 SELECT
   'futarchy_amm' AS source,
-  COALESCE(buy_volume_usdc * 0.005, 0) + COALESCE(sell_volume_usdc * 0.005, 0) AS total_fees_usd
+  (COALESCE(buy_volume_usdc, 0) + COALESCE(sell_volume_usdc, 0)) * 0.005 AS total_fees_usd
 FROM futarchy_aggregated
+
+UNION ALL
+
+SELECT
+  'futarchy_conditional' AS source,
+  (COALESCE(buy_volume_usdc, 0) + COALESCE(sell_volume_usdc, 0)) * 0.005 AS total_fees_usd
+FROM conditional_aggregated

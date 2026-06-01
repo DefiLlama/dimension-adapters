@@ -71,6 +71,7 @@ const breakdownMethodology = {
   Fees: {
     'meteora_damm': 'Ownership-weighted LP fees from Meteora DAMM pools based on actual DAO liquidity positions',
     'futarchy_amm': '0.5% fees from Futarchy AMM swaps',
+    'futarchy_conditional': '0.5% fees from winning Futarchy Conditional Market swaps',
   },
 }
 
