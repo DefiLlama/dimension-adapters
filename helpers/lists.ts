@@ -373,6 +373,7 @@ async function getTokenLists(options: GetTokenListsOptions): Promise<Array<strin
   for (const url of options.lists) {
     const data = await getConfig(`token-list-${url}`, url);
     const items = data.tokens ? data.tokens : data;
+    if (!Array.isArray(items)) continue;
     for (const item of items) {
       if (item.chainId === options.chainId) {
         tokens.add(formatAddress(item.address));
