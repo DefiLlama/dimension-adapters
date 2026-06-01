@@ -71,7 +71,7 @@ const eidToChain = new Map(
 )
 
 const normalizeToken = (token: string) =>
-    token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token.toLowerCase();;
+    token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token.toLowerCase();
 
 async function fetch(options: FetchOptions) {
     const fillLogs = await options.getLogs({
