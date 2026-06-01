@@ -4,6 +4,12 @@ import { CHAIN } from "../helpers/chains"
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists"
 import { addOneToken } from "../helpers/prices"
 
+const METRIC = {
+  SWAP_FEES: 'Token Swap Fees',
+  PROTOCOL_REVENUE: 'Swap Fees To Protocol',
+  LP_REVENUE: 'Swap Fees To Liquidity Providers',
+}
+
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 const config: any = {
   [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
@@ -12,7 +18,28 @@ const config: any = {
 const adapter: SimpleAdapter = {
   pullHourly: true,
   version: 2,
-  adapter: {}
+  adapter: {},
+  methodology: {
+    Fees: 'Total swap fees paid by users.',
+    Revenue: 'Share of swap fees to protocol.',
+    ProtocolRevenue: 'Share of swap fees to protocol.',
+    SupplySideRevenue: 'Share of swap fees to LPs.',
+    HoldersRevenue: 'No revenue share to holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Total swap fees paid by users.',
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_REVENUE]: 'Share of swap fees to protocol.',
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_REVENUE]: 'Share of swap fees to protocol.',
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_REVENUE]: 'Share of swap fees to LPs.',
+    },
+  }
 }
 
 async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
@@ -22,6 +49,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailyHoldersRevenue = createBalances()
 
   const logs = await getLogs({
     target: clPoolManager,
@@ -78,7 +106,17 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
     },
   })
 
-  return { dailyVolume, dailyFees, dailyRevenue }
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, METRIC.SWAP_FEES),
+    dailyRevenue: dailyRevenue.clone(1, METRIC.PROTOCOL_REVENUE),
+    dailyProtocolRevenue: dailyRevenue.clone(1, METRIC.PROTOCOL_REVENUE),
+    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, METRIC.LP_REVENUE),
+    dailyHoldersRevenue: dailyHoldersRevenue,
+  }
 }
 
 Object.keys(config).forEach(chain => {
