@@ -1,7 +1,7 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
-import ADDRESSES from "../helpers/coreAssets.json";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import PromisePool from "@supercharge/promise-pool";
 
 type ChainConfig = {
