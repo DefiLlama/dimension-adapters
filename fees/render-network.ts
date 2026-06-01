@@ -32,16 +32,16 @@ import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 const RENDER_CG_ID = "render-token";
 
 const LABEL = {
-  BMEJobBurn:           "BME Job Burn",
-  NodeOperatorEmission: "BME Node Operator Emission",
-  OTOYServiceFee:       "OTOY Network Operator Service Fee",
+  RenderJobs:                 "Render Jobs",
+  RenderJobsToNodeOperators:  "Render Jobs To Node Operators",
+  RenderJobsToOTOY:           "Render Jobs To OTOY",
 } as const;
 
 interface DailyBurn {
   render_burned: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -56,12 +56,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const burnRender = Number(data[0]?.render_burned || 0);
   if (burnRender > 0) {
     // Gross user-paid value: on-chain burn is the 95% node-operator side.
-    dailyFees.addCGToken(RENDER_CG_ID, burnRender * (100 / 95), LABEL.BMEJobBurn);
+    dailyFees.addCGToken(RENDER_CG_ID, burnRender * (100 / 95), LABEL.RenderJobs);
     // 95% goes to node operators via mints in long-run BME equilibrium.
-    dailySupplySideRevenue.addCGToken(RENDER_CG_ID, burnRender, LABEL.NodeOperatorEmission);
+    dailySupplySideRevenue.addCGToken(RENDER_CG_ID, burnRender, LABEL.RenderJobsToNodeOperators);
     // 5% Network Operator service fee paid to OTOY.
-    dailyProtocolRevenue.addCGToken(RENDER_CG_ID, burnRender * (5 / 95), LABEL.OTOYServiceFee);
-    dailyRevenue.addCGToken(RENDER_CG_ID, burnRender * (5 / 95), LABEL.OTOYServiceFee);
+    dailyProtocolRevenue.addCGToken(RENDER_CG_ID, burnRender * (5 / 95), LABEL.RenderJobsToOTOY);
+    dailyRevenue.addCGToken(RENDER_CG_ID, burnRender * (5 / 95), LABEL.RenderJobsToOTOY);
   }
 
   return {
@@ -96,25 +96,25 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL.BMEJobBurn]:
-      "Gross USD value of render jobs paid by users (burn × 100/95).",
+    [LABEL.RenderJobs]:
+      "Gross USD value of render jobs paid by users under the Burn-Mint Equilibrium model (burn × 100/95).",
   },
   Revenue: {
-    [LABEL.OTOYServiceFee]:
-      "5% Network Operator service fee retained by OTOY for infrastructure maintenance.",
+    [LABEL.RenderJobsToOTOY]:
+      "5% Network Operator service fee paid to OTOY for infrastructure maintenance.",
   },
   ProtocolRevenue: {
-    [LABEL.OTOYServiceFee]:
-      "5% Network Operator service fee retained by OTOY for infrastructure maintenance.",
+    [LABEL.RenderJobsToOTOY]:
+      "5% Network Operator service fee paid to OTOY for infrastructure maintenance.",
   },
   SupplySideRevenue: {
-    [LABEL.NodeOperatorEmission]:
+    [LABEL.RenderJobsToNodeOperators]:
       "RENDER emitted to node operators under the BME schedule (95% of gross job spend in equilibrium).",
   },
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2023-11-02", // RENDER SPL launch / RNDR→RENDER 1:1 swap go-live
