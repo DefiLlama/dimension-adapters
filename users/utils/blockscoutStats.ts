@@ -35,6 +35,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1 },
   "hashkey": { chain: CHAIN.HASHKEY, baseUrl: "https://hashkey.blockscout.com", version: 2 },
   hpp: { chain: CHAIN.HPP, baseUrl: "https://explorer.hpp.io", version: 1 },
+  igra: { chain: CHAIN.IGRA, baseUrl: "https://explorer.igralabs.com", statsUrl: "https://stats.explorer.igralabs.com", version: 1 },
   "immutablex": { chain: CHAIN.IMX, baseUrl: "https://explorer.immutable.com", version: 2 },
   ink: { chain: CHAIN.INK, baseUrl: "https://explorer.inkonchain.com", version: 2 },
   "iota_evm": { chain: CHAIN.IOTAEVM, baseUrl: "https://explorer.evm.iota.org", version: 2 },
