@@ -147,7 +147,7 @@ pancakeStableswapAdapter.methodology = {
 
 const protocols: Record<string, SimpleAdapter> = {
   "ellipsis": ellipsisAdapter,
-  "pancakeswap-stableswap": pancakeStableswapAdapter,
+  // "pancakeswap-stableswap": pancakeStableswapAdapter,
 };
 
 // Default export covers dexs (all protocols)
