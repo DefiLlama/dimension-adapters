@@ -43,9 +43,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const renderBurnt = data[0].render_burnt;
   if (renderBurnt > 0) {
-    dailyFees.addCGToken(RENDER_CG_ID, renderBurnt * (1 / (1 - SERVICE_FEE_RATE)), LABEL.RenderJobs);
+    const grossJobPayment = renderBurnt * (1 / (1 - SERVICE_FEE_RATE));
+    dailyFees.addCGToken(RENDER_CG_ID, grossJobPayment, LABEL.RenderJobs);
     dailyHoldersRevenue.addCGToken(RENDER_CG_ID, renderBurnt, LABEL.RenderBurn);
-    dailyProtocolRevenue.addCGToken(RENDER_CG_ID, renderBurnt * SERVICE_FEE_RATE, LABEL.ServiceFees);
+    dailyProtocolRevenue.addCGToken(RENDER_CG_ID, grossJobPayment * SERVICE_FEE_RATE, LABEL.ServiceFees);
   }
 
   return {
