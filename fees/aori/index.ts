@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
@@ -66,8 +67,11 @@ const FILL_EVENT = `event Fill(
 )`;
 
 const eidToChain = new Map(
-    Object.entries(chainConfig).map(([chainName, config]: [string, any]) => [config.eid, chainName])
+    Object.entries(chainConfig).map(([chainName, config]: [string, any]) => [config.eid.toString(), chainName])
 )
+
+const normalizeToken = (token: string) =>
+    token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token;
 
 async function fetch(options: FetchOptions) {
     const fillLogs = await options.getLogs({
@@ -80,9 +84,9 @@ async function fetch(options: FetchOptions) {
 
     fillLogs.forEach((log: any) => {
         const { inputToken, inputAmount, outputToken, outputAmount, srcEid } = log.order;
-        const srcChain = eidToChain.get(srcEid);
-        if (srcChain) inputs.add(`${srcChain}:${inputToken}`, inputAmount, { skipChain: true })
-        outputs.add(outputToken, outputAmount)
+        const srcChain = eidToChain.get(srcEid.toString());
+        if (srcChain) inputs.add(`${srcChain}:${normalizeToken(inputToken)}`, inputAmount, { skipChain: true })
+        outputs.add(normalizeToken(outputToken), outputAmount)
     })
 
     const dailyFees = inputs.clone();
