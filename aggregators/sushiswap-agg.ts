@@ -548,18 +548,18 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: chain })
   
-  let logs: Array<Log> = [];
-
-  if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  if (RP5_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  if (RP6_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
-  if (RP7_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  if (RP8_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  if (RP11_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  const logFetches: Promise<Log[]>[] = []
+  if (RP4_ADDRESS[chain]) logFetches.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP5_ADDRESS[chain]) logFetches.push(getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP6_ADDRESS[chain]) logFetches.push(getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
+  if (RP7_ADDRESS[chain]) logFetches.push(getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP8_ADDRESS[chain]) logFetches.push(getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP9_ADDRESS[chain]) logFetches.push(getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_1_ADDRESS[chain]) logFetches.push(getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_2_ADDRESS[chain]) logFetches.push(getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP10_ADDRESS[chain]) logFetches.push(getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP11_ADDRESS[chain]) logFetches.push(getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  const logs: Array<Log> = (await Promise.all(logFetches)).flat()
   
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
