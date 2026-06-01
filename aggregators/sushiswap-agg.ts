@@ -559,7 +559,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_2_ADDRESS[chain]) logFetches.push(getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP10_ADDRESS[chain]) logFetches.push(getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP11_ADDRESS[chain]) logFetches.push(getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  const logs: Array<Log> = (await Promise.all(logFetches)).flat()
+  let logs: Array<Log> = (await Promise.all(logFetches)).flat()
   
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
