@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const PSWAP_CONTRACTS: Record<string, string[]>  = {
-    [CHAIN.ARBITRUM]: ["0x3D084Fc4Cc4D5A0B8d6B6517341f359505b35336"],
+    [CHAIN.ARBITRUM]: ["0x3D084Fc4Cc4D5A0B8d6B6517341f359505b35336", "0xeC84f112aa21F62E1b51f7ee7DFD26C6B915b3Fe"],
     [CHAIN.PHAROS]: ["0xee860417fc843a7191d88c62b2937bb891b24bc6"],
 }
 const PUSD = "0xC8Fb643D18F1e53698CFDa5c8Fdf0cdC03C1dBec"
