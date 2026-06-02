@@ -14,13 +14,15 @@ const fetch: any = async ({ createBalances, fromTimestamp, toTimestamp }: FetchO
   const dailyFees = createBalances();
   const statsApiResponse = await fetchDailyStats(fromTimestamp, toTimestamp);
   dailyFees.addGasToken(statsApiResponse.feesETH * 1e18);
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
   version: 2,
   methodology: {
     Fees: "YOLO Games collects a 1% fee for Moon Or Doom and YOLO winnings, and a 3% fee on Poke The Bear winnings.",
+    Revenue: "All game fees are kept by YOLO Games as protocol revenue.",
+    ProtocolRevenue: "All game fees are kept by YOLO Games as protocol revenue.",
   },
   adapter: {
     [CHAIN.BLAST]: {
