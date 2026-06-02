@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 
+// https://github.com/0xBreadguy/mega-names#contracts
 const MEGA_NAMES = "0x5B424C6CCba77b32b9625a6fd5A30D409d20d997";
 
 const fetch = async (options: FetchOptions) => {
