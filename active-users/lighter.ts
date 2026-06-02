@@ -1,64 +1,33 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet, postURL } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
-const API_URL = "https://blockworks.com/api/studio/dashboard/626/visualization/5670/execution?limit=50000&page=1";
-const TOKEN_TERMINAL_API = "https://api.tokenterminal.com/trpc/metrics.postTimeseries";
-const TOKEN_TERMINAL_PUBLIC_TOKEN = "c0e5035a-64f6-4d2c-b5f6-ac1d1cb3da2f";
+const LIGHTER_METRICS_API = "https://mainnet.zklighter.elliot.ai/api/v1/exchangeMetrics";
 
-type LighterUserStats = {
-  dt: string;
-  new_users: number;
-  daus: number;
-};
-
-type TokenTerminalPoint = {
-  timestamp: string;
-  value: number | null;
+type LighterMetricPoint = {
+  timestamp: number;
+  data: number;
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const { results } = await PromisePool.withConcurrency(2)
-    .for(["userStats", "tradeStats"])
-    .process(async (task) => ({
-      task,
-      data: task === "userStats"
-        ? await httpGet(API_URL)
-        : await postURL(
-          TOKEN_TERMINAL_API,
-          {
-            data_ids: ["lighter"],
-            metric_ids: ["trade_count"],
-            interval: "365d",
-            groupBy: "none",
-            start: date,
-            end: date,
-            bridged: true,
-          },
-          3,
-          {
-            headers: {
-              Authorization: `Bearer ${TOKEN_TERMINAL_PUBLIC_TOKEN}`,
-              "x-app-path": "/explorer/projects/lighter/metrics/trade-count",
-            },
-          },
-        ),
-    }));
+  const { results, errors } = await PromisePool.withConcurrency(2)
+    .for(["active_account_count", "trade_count"])
+    .process(async (task) => {
+      const response = await fetchURL(`${LIGHTER_METRICS_API}?period=all&kind=${task}`);
+      const row = (response.metrics as LighterMetricPoint[]).find(({ timestamp }) => timestamp === options.startOfDay);
+      if (!row) throw new Error(`No Lighter ${task} for ${date}`);
+      return { task, data: row.data };
+    });
 
-  const userRows = results.find(({ task }) => task === "userStats")?.data?.data as LighterUserStats[] | undefined;
-  const userRow = Array.isArray(userRows) ? userRows.find(({ dt }) => dt.startsWith(date)) : undefined;
-  if (!userRow) throw new Error(`No Lighter user stats for ${date}`);
+  if (errors.length) throw errors;
 
-  const tradeRows = results.find(({ task }) => task === "tradeStats")?.data?.result?.data?.data as TokenTerminalPoint[] | undefined;
-  const tradeRow = Array.isArray(tradeRows) ? tradeRows.find(({ timestamp }) => timestamp.startsWith(date)) : undefined;
-  if (!tradeRow || tradeRow.value === null) throw new Error(`No Lighter trade count for ${date}`);
+  const metrics = Object.fromEntries(results.map(({ task, data }) => [task, data]));
 
   return {
-    dailyActiveUsers: userRow.daus,
-    dailyNewUsers: userRow.new_users,
-    dailyTransactionsCount: tradeRow.value,
+    dailyActiveUsers: metrics.active_account_count,
+    dailyTransactionsCount: metrics.trade_count,
   };
 };
 
