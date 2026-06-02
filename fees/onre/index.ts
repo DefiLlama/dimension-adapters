@@ -47,6 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
 
     dailyFees.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
 
     const duneQuery = `
         SELECT
