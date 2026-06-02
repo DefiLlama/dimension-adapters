@@ -33,8 +33,12 @@ const fetch = async (options: FetchOptions) => {
       permitFailure: true,
     });
 
-    const feeNum = profitNumerator ? BigInt(profitNumerator as string) : 100n;
-    const feeDen = profitDenominator ? BigInt(profitDenominator as string) : 1000n;
+    const feeNum = (profitNumerator != null)
+      ? BigInt(profitNumerator as string)
+      : 100n;
+    const feeDen = (profitDenominator != null && BigInt(profitDenominator as string) > 0n)
+      ? BigInt(profitDenominator as string)
+      : 1000n;
 
     const totalYield = profitDelta * feeDen / feeNum;
 
