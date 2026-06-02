@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const swapEvent =
   "event Swap(address indexed _from, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
@@ -37,6 +38,7 @@ const config: Record<string, { routers: string[]; start: string; deadFrom?: stri
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const { routers } = config[options.chain];
 
   const logs = await options.getLogs({
@@ -45,24 +47,39 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   });
   for (const log of logs) {
     dailyVolume.add(log.tokenIn, log.amountIn);
-    dailyFees.add(log.tokenOut, log.fee);
+    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES);
+    dailyRevenue.add(log.tokenOut, log.fee, 'Swap fees to protocol');
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
+
+const methodology = {
+  Volume: "Volume is calculated from Swap events emitted by the AkkaRouter contracts.",
+  Fees: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
+  Revenue: "All the fees from swap events go to the protocol.",
+  ProtocolRevenue: "All the fees from swap events go to the protocol.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
+  },
+  Revenue: {
+    'Swap fees to protocol': "All the fees from swap events go to the protocol.",
+  },
+  ProtocolRevenue: {
+    'Swap fees to protocol': "All the fees from swap events go to the protocol.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.entries(config).reduce((acc, [chain, { start, deadFrom }]) => {
-    acc[chain] = { fetch, start, ...(deadFrom ? { deadFrom } : {}) };
-    return acc;
-  }, {} as any),
-  methodology: {
-    Volume: "Volume is calculated from Swap events emitted by the AkkaRouter contracts.",
-    Fees: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
-    Revenue: "All fees go to the protocol treasury.",
-  },
+  adapter: config,
+  fetch,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
