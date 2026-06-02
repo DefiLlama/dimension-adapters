@@ -31,10 +31,10 @@ const TELEGRAM_WALLETS = [
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
   // Workaround for dune indexing issue
   const now = Date.now()
-  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-      console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
-      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+  const twoHoursAgo = now - (2 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > twoHoursAgo) {
+      console.log("End timestamp is less than 2 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(twoHoursAgo).toISOString())
+      throw new Error("End timestamp is less than 2 hours ago, skipping due to dune indexing delay")
   }
 
   const fragmentAddressList = FRAGMENT_ADDRESSES.map(a => `'${a}'`).join(', ');
