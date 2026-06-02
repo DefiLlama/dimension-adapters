@@ -319,7 +319,7 @@ async function getReserveFactorBps(vault: VaultMeta): Promise<bigint> {
 
 // ─── Fetch ──────────────────────────────────────────────────────────────────
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -500,8 +500,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1, // rate limited
   fetch,
   chains: [CHAIN.STACKS],
   start: "2026-01-28",
