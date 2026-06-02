@@ -3,11 +3,18 @@ import fetchURL from '../../utils/fetchURL'
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { SimpleAdapter } from '../../adapters/types';
 
+const INFLATED_VOLUME_THRESHOLD = 500_000_000;
+
 async function fetch(_a: any, b_: any, options: FetchOptions): Promise<FetchResult> {
   const response = await fetchURL(`https://api.upscale.trade/stats?timestamp=${options.startOfDay}`)
+  const dailyVolume = Number(response.fundedTradingVolumeLastDay);
+
+  if(dailyVolume > INFLATED_VOLUME_THRESHOLD) {
+    throw new Error('Volumes are inflated, there is no way to verify')
+  }
 
   return {
-    dailyVolume: Number(response.fundedTradingVolumeLastDay),
+    dailyVolume,
   }
 }
 
@@ -17,7 +24,7 @@ const adapter: SimpleAdapter = {
   },
   adapter: {
     [CHAIN.OFF_CHAIN]: {
-      runAtCurrTime: true,
+      start: '2025-11-25',
       fetch,
     },
   },
