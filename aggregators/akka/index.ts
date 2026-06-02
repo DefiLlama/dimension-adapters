@@ -34,7 +34,7 @@ const config: Record<string, { routers: string[]; start: string; deadFrom?: stri
   },
 };
 
-const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const { routers } = config[options.chain];
