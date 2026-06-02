@@ -5,9 +5,6 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 const STAKED_TD = "0x0CB091e6D9fd696b4CC8571E19e042F456c182Ad";
 const USDC = ADDRESSES.base.USDC;
 
-// TD (18 decimals) → USDC (6 decimals): divide by 1e12
-const TD_TO_USDC = 1e12;
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -22,9 +19,9 @@ const fetch = async (options: FetchOptions) => {
     abi: "uint256:totalProfit",
   });
 
-  const profitDelta = Number(totalProfitAfter) - Number(totalProfitBefore);
+  const profitDelta = BigInt(totalProfitAfter as string) - BigInt(totalProfitBefore as string);
 
-  if (profitDelta > 0) {
+  if (profitDelta > 0n) {
     const profitNumerator = await options.toApi.call({
       target: STAKED_TD,
       abi: "uint256:profitNumerator",
@@ -36,15 +33,14 @@ const fetch = async (options: FetchOptions) => {
       permitFailure: true,
     });
 
-    const feeRate = (profitNumerator && profitDenominator)
-      ? Number(profitNumerator) / Number(profitDenominator)
-      : 0.1;
+    const feeNum = profitNumerator ? BigInt(profitNumerator as string) : 100n;
+    const feeDen = profitDenominator ? BigInt(profitDenominator as string) : 1000n;
 
-    const totalYield = profitDelta / feeRate;
+    const totalYield = profitDelta * feeDen / feeNum;
 
-    dailyFees.add(USDC, totalYield / TD_TO_USDC);
-    dailyRevenue.add(USDC, profitDelta / TD_TO_USDC);
-    dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / TD_TO_USDC);
+    dailyFees.add(USDC, totalYield / BigInt(1e12));
+    dailyRevenue.add(USDC, profitDelta / BigInt(1e12));
+    dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / BigInt(1e12));
   }
 
   return {
