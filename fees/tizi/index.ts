@@ -41,11 +41,10 @@ const fetch = async (options: FetchOptions) => {
   const feeDen = bothValid ? rawDen : 1000n;
 
   const totalYield = profitDelta * feeDen / feeNum;
-  const protocolShare = totalYield > 0n ? profitDelta : 0n;
   
   dailyFees.add(USDC, totalYield / BigInt(1e12), 'Staking Yield');
-  dailyRevenue.add(USDC, protocolShare / BigInt(1e12), 'Staking Yield To Protocol');
-  dailySupplySideRevenue.add(USDC, (totalYield - protocolShare) / BigInt(1e12), 'Staking Yield To Stakers');
+  dailyRevenue.add(USDC, profitDelta / BigInt(1e12), 'Staking Yield To Protocol');
+  dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / BigInt(1e12), 'Staking Yield To Stakers');
 
   return {
     dailyFees,
