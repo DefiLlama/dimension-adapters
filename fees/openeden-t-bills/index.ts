@@ -1,11 +1,11 @@
 // https://docs.openeden.com/treasury-bills-vault/fees
 
-import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { getTokenSupply } from '../../helpers/solana';
 import { rpcCall } from '../../helpers/ripple';
+import { METRIC } from "../../helpers/metrics";
 
 const eventAbi = `event ProcessDeposit(
   address sender,
@@ -50,32 +50,49 @@ const fetch = async (
       }
     ])
     const balanceOnRipple = rippleCallRes.result && rippleCallRes.result.obligations ? Number(rippleCallRes.result.obligations.TBL) : 0
-    dailyFees.addUSDValue(balanceOnRipple * DAILY_MANAGEMENT_FEES)
+    dailyFees.addUSDValue(balanceOnRipple * DAILY_MANAGEMENT_FEES, METRIC.MANAGEMENT_FEES)
   } else if (chain === CHAIN.SOLANA) {
-    dailyFees.addUSDValue((await getTokenSupply(config)) * DAILY_MANAGEMENT_FEES)
+    dailyFees.addUSDValue((await getTokenSupply(config)) * DAILY_MANAGEMENT_FEES, METRIC.MANAGEMENT_FEES)
   } else {
     let [logs, totalUSDC] = await Promise.all([
       getLogs({ target: config, eventAbi }),
       api.call({ target: config, abi: "uint256:totalAssets" }),
     ]);
 
-    dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES);
+    dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES, METRIC.MANAGEMENT_FEES);
 
     logs.forEach((log) => {
       const feeAmount = log[4];
-      dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount);
+      dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount, "Transaction Fees");
     });
   }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
+    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
+    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
+    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+  },
+}
+
+
 const adapter: Adapter = {
   methodology: {
     Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the OpenEden transaction fee (oeFee) charged on subscriptions/redemptions.',
-    Revenue: 'All fees are kept by OpenEden, none is returned to depositors (their return comes from the underlying T-Bills).',
-    ProtocolRevenue: 'All fees accrue to the OpenEden Investment Manager treasury.',
+    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees charged on subscriptions/redemptions.',
+    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees charged on subscriptions/redemptions.',
   },
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
