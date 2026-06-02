@@ -39,15 +39,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const { routers } = config[options.chain];
 
-  for (const router of routers) {
-    const logs = await options.getLogs({
-      target: router,
-      eventAbi: swapEvent,
-    });
-    for (const log of logs) {
-      dailyVolume.add(log.tokenIn, log.amountIn);
-      dailyFees.add(log.tokenOut, log.fee);
-    }
+  const logs = await options.getLogs({
+    targets: routers,
+    eventAbi: swapEvent,
+  });
+  for (const log of logs) {
+    dailyVolume.add(log.tokenIn, log.amountIn);
+    dailyFees.add(log.tokenOut, log.fee);
   }
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
