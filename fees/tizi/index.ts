@@ -33,12 +33,12 @@ const fetch = async (options: FetchOptions) => {
       permitFailure: true,
     });
 
-    const feeNum = (profitNumerator != null && BigInt(profitNumerator as string) > 0n)
-      ? BigInt(profitNumerator as string)
-      : 100n;
-    const feeDen = (profitDenominator != null && BigInt(profitDenominator as string) > 0n)
-      ? BigInt(profitDenominator as string)
-      : 1000n;
+    const rawNum = profitNumerator != null ? BigInt(profitNumerator as string) : 0n;
+    const rawDen = profitDenominator != null ? BigInt(profitDenominator as string) : 0n;
+
+    const bothValid = rawNum > 0n && rawDen > 0n;
+    const feeNum = bothValid ? rawNum : 100n;
+    const feeDen = bothValid ? rawDen : 1000n;
 
     const totalYield = profitDelta * feeDen / feeNum;
 
