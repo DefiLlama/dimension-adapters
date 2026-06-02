@@ -406,7 +406,6 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
-    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',

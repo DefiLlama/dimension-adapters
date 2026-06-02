@@ -84,7 +84,6 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 10% of the fees.',
-      [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
     },
     SupplySideRevenue: {
       [METRIC.LP_REVENUE]: 'LPs receive 50% of the fees.',

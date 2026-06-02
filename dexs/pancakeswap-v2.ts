@@ -490,7 +490,6 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
-    [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'LPs receive 0.17% of the fees.',
