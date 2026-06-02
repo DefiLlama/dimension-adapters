@@ -166,6 +166,23 @@ const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; 
   ],
 };
 
+// Treasury-internal transfers wrongly counted as revenue (e.g. minting synths against
+// own collateral and moving them to another treasury wallet). Excluded by tx hash.
+const BLACKLISTED_TXS: Record<string, Set<string>> = {
+  [CHAIN.ETHEREUM]: new Set([
+    "0x3765921580dfcbb65202e2d00dcc3b20f9d52214fb2cdd2381ee03e6120bbd70".toLowerCase(),
+  ]),
+};
+
+// logFilter excluding blacklisted txs. Handles both the indexer (`transaction_hash`)
+// and the getLogs fallback (`transactionHash`) field names.
+function txBlacklistFilter(chain: string): ((log: any) => boolean) | undefined {
+  const blacklist = BLACKLISTED_TXS[chain];
+  if (!blacklist?.size) return undefined;
+  return (log: any) =>
+    !blacklist.has(String(log.transaction_hash ?? log.transactionHash ?? "").toLowerCase());
+}
+
 async function fetchUniV3Fees(options: FetchOptions): Promise<Record<string, ReturnType<FetchOptions["createBalances"]>>> {
   const result: Record<string, ReturnType<FetchOptions["createBalances"]>> = {};
   const cfg = UNIV3_POSITIONS[options.chain];
@@ -277,6 +294,7 @@ const fetch = async (options: FetchOptions) => {
       options,
       tokens: SYNTHS[options.chain],
       targets: [TREASURY[options.chain]],
+      logFilter: txBlacklistFilter(options.chain),
     });
     synthInflows.subtract(amoBalances);
     synthInflows.subtract(swapFees);
