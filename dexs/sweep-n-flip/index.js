@@ -75,18 +75,24 @@ const fetch = async (options) => {
   let skip = 0
   let totalVolume = 0
   let nftVolume = 0
-  // Paginate PairDay rows for the day (1000/page).
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const data = await request(url, DAY_QUERY, { day: startOfDay, skip })
-    const rows = data.pairDays || []
-    for (const row of rows) {
-      const v = Number(row.volumeUSD) || 0
-      totalVolume += v
-      if (row.pair && row.pair.isNFTPool) nftVolume += v
+  try {
+    // Paginate PairDay rows for the day (1000/page).
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const data = await request(url, DAY_QUERY, { day: startOfDay, skip })
+      const rows = data.pairDays || []
+      for (const row of rows) {
+        const v = Number(row.volumeUSD) || 0
+        totalVolume += v
+        if (row.pair && row.pair.isNFTPool) nftVolume += v
+      }
+      if (rows.length < 1000) break
+      skip += 1000
     }
-    if (rows.length < 1000) break
-    skip += 1000
+  } catch (e) {
+    // Recoverable: a paused Goldsky subgraph / network blip → report 0 for the chain, don't crash the run.
+    console.error(`Sweep n' Flip: ${chain} subgraph error`, e.message)
+    return { dailyVolume: 0, dailyFees: 0, dailyRevenue: 0, dailyProtocolRevenue: 0, dailySupplySideRevenue: 0 }
   }
 
   const dailySupplySideRevenue = nftVolume * SUPPLY_SIDE_FEE_RATE
