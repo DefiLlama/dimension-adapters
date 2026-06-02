@@ -41,8 +41,8 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // SwapPUSDToPGOLD: fee is in PGOLD
-    for (const log of pUSDToPGOLDLogs.concat(USDPMToPGOLDLogs)) {
-        dailyFees.add(PGOLD[options.chain], log.fee);
+    for (const log of [...pUSDToPGOLDLogs, ...USDPMToPGOLDLogs]) {
+        dailyFees.addCGToken("pleasing-gold", Number(log.fee) / 1e18);
     }
 
     return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees };
@@ -58,13 +58,13 @@ const adapter: SimpleAdapter = {
         },
         [CHAIN.PHAROS]: {
             fetch,
-            start: '2025-10-29',
+            start: '2026-05-12',
         }
     },
     methodology: {
-        Fees: "Fees collected on PGOLD<>PUSD swaps via the Pleasing Golden spot market.",
+        Fees: "Fees collected on PGOLD<>PUSD/USDPM swaps via the Pleasing Golden spot market.",
         Revenue: "No revenue",
-        SupplySideRevenue: "All the fees collected on PGOLD<>PUSD swaps generates yield for PGOLD stakers.",
+        SupplySideRevenue: "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers.",
     }
 };
 
