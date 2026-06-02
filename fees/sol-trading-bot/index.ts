@@ -77,7 +77,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const [row] = await queryDuneSql(options, query);
   const totalFees = Number(row?.fees) * 1e9;
-  const rewards = Number(row?.rewards) * 1e9;
+  const rewards = Number(row?.rewards);
 
   dailyFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
   dailyRevenue.add(ADDRESSES.solana.SOL, totalFees - rewards, LABELS.TRADING_FEES_TO_PROTOCOL);
