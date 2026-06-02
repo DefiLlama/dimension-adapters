@@ -10,6 +10,7 @@ type ChainConfig = {
 }
 
 // Gas.zip listed new direct v1 forwarder is wrong via onchain analysis
+// Use active direct forwarder 0x391E...; docs-listed 0xaAaA... has no observed inbound activity on supported chains.
 const DIRECT_FORWARDER = "0x391E7C679d29bD940d63be94AD22A25d25b5A604"
 const CONTRACT_FORWARDER = "0x2a37D63EAdFe4b4682a3c28C1c2cD4F109Cc2762"
 const GAS_LZ_V2 = "0x26DA582889f59EaaE9dA1f063bE0140CD93E6a4f"
