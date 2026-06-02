@@ -22,19 +22,24 @@ const fetch = async (options: FetchOptions) => {
     abi: "uint256:totalProfit",
   });
 
-  const profitNumerator = await options.api.call({
-    target: STAKED_TD,
-    abi: "uint256:profitNumerator",
-  });
-  const profitDenominator = await options.api.call({
-    target: STAKED_TD,
-    abi: "uint256:profitDenominator",
-  });
-
   const profitDelta = Number(totalProfitAfter) - Number(totalProfitBefore);
 
   if (profitDelta > 0) {
-    const feeRate = Number(profitNumerator) / Number(profitDenominator);
+    const profitNumerator = await options.toApi.call({
+      target: STAKED_TD,
+      abi: "uint256:profitNumerator",
+      permitFailure: true,
+    });
+    const profitDenominator = await options.toApi.call({
+      target: STAKED_TD,
+      abi: "uint256:profitDenominator",
+      permitFailure: true,
+    });
+
+    const feeRate = (profitNumerator && profitDenominator)
+      ? Number(profitNumerator) / Number(profitDenominator)
+      : 0.1;
+
     const totalYield = profitDelta / feeRate;
 
     dailyFees.add(USDC, totalYield / TD_TO_USDC);
