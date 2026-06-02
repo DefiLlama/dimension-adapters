@@ -21,6 +21,7 @@ const swapUSDPMToPGOLD = "event SwapUSDpmToPGOLD(address user , uint256 inAmount
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
     const contracts = PSWAP_CONTRACTS[options.chain]
     const pusd = PUSD[options.chain]
 
@@ -34,18 +35,21 @@ const fetch = async (options: FetchOptions) => {
     // SwapPGOLDToPUSD: fee is in PUSD (18 decimals, USD-pegged)
     if (pusd) for (const log of pGoldToPUSDLogs) {
         dailyFees.add(pusd, log.fee, METRIC.SWAP_FEES);
+        dailyHoldersRevenue.add(pusd, log.fee, "Token Swap Fees to Stakers");
     }
     // SwapPGOLDToUSDPM: fee is in USDPM (18 decimals, USD-pegged)
     for (const log of PGOLDToUSDPMLogs) {
         dailyFees.add(USDPM[options.chain], log.fee, METRIC.SWAP_FEES);
+        dailyHoldersRevenue.add(USDPM[options.chain], log.fee, "Token Swap Fees to Stakers");
     }
 
     // SwapPUSDToPGOLD: fee is in PGOLD
     for (const log of [...pUSDToPGOLDLogs, ...USDPMToPGOLDLogs]) {
         dailyFees.addCGToken("pleasing-gold", Number(log.fee) / 1e18, METRIC.SWAP_FEES);
+        dailyHoldersRevenue.addCGToken("pleasing-gold", Number(log.fee) / 1e18, "Token Swap Fees to Stakers");
     }
 
-    return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees };
+    return { dailyFees, dailyRevenue: dailyHoldersRevenue, dailyHoldersRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -63,15 +67,18 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Fees collected on PGOLD<>PUSD/USDPM swaps via the Pleasing Golden spot market.",
-        Revenue: "No revenue",
-        SupplySideRevenue: "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers.",
+        Revenue: "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers",
+        HoldersRevenue: "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers.",
     },
     breakdownMethodology: {
         Fees: {
             [METRIC.SWAP_FEES]: "Fees collected on PGOLD<>PUSD/USDPM swaps via the Pleasing Golden spot market"
         },
-        SupplySideRevenue: {
-            [METRIC.SWAP_FEES]: "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers"
+        Revenue: {
+            "Token Swap Fees to Stakers": "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers"
+        },
+        HoldersRevenue: {
+            "Token Swap Fees to Stakers": "All the fees collected on PGOLD<>PUSD/USDPM swaps generates yield for PGOLD stakers"
         },
     }
 };
