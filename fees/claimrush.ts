@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
   const logs = await options.getLogs({
@@ -43,11 +42,7 @@ const fetch = async (options: FetchOptions) => {
   if (totalWei > 0n) {
     dailyFees.addGasToken(totalWei, "Takeover Royalties");
     dailyUserFees.addGasToken(totalWei, "Takeover Royalties");
-    // dailyRevenue intentionally stays at 0: the protocol retains no
-    // margin on the royalty stream. 100% of the fee flows to veCLAIM
-    // holders as supply-side revenue, satisfying DefiLlama's income
-    // statement invariant dailyRevenue == dailyFees - dailySupplySideRevenue.
-    dailySupplySideRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
+    dailyRevenue.addGasToken(totalWei, "Takeover Royalties");
     dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
   }
 
@@ -55,17 +50,17 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees,
     dailyRevenue,
-    dailySupplySideRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue:0,
   };
 };
 
 const methodology = {
-  Fees: "ETH paid as royalties on every Mine takeover. Gross fee volume is the sum of every `ShareholderTakeoverAllocation.amountEth` emitted by the ShareholderRoyalties contract.",
+  Fees: "ETH paid as royalties on every Mine takeover. Gross protocol revenue is the sum of every `ShareholderTakeoverAllocation.amountEth` emitted by the ShareholderRoyalties contract.",
+  Revenue: "ETH paid as royalties on every Mine takeover.",
+  HoldersRevenue: "100% of takeover royalty ETH is allocated to veCLAIM holders pro-rata to their veCLAIM weight at the time of allocation. Holders claim accrued ETH directly from the ShareholderRoyalties contract.",
   UserFees: "Users (the new King of each takeover) pay the protocol-determined takeover price; the royalty fraction of that payment is what this adapter reports.",
-  Revenue: "Zero. The protocol retains no margin on the royalty stream — every wei is forwarded to veCLAIM holders as supply-side revenue.",
-  SupplySideRevenue: "100% of takeover royalty ETH is distributed to veCLAIM holders — the supply side that locks $CLAIM into voting-escrow positions and provides the royalty-bearing ve-position.",
-  HoldersRevenue: "Same value as SupplySideRevenue. veCLAIM holders are the supply side in ClaimRush's ve-tokenomics: locking $CLAIM is the productive activity that earns royalty ETH.",
+  SupplySideRevenue: "No supply side revenue.",
 };
 
 const breakdownMethodology = {
@@ -77,10 +72,9 @@ const breakdownMethodology = {
     "Takeover Royalties":
       "Same value — the new King of each takeover pays the royalty fraction directly out of `pricePaid`.",
   },
-  Revenue: {},
-  SupplySideRevenue: {
-    "Takeover Royalties To veCLAIM Holders":
-      "Full takeover royalty ETH, routed straight through to veCLAIM holders.",
+  Revenue: {
+    "Takeover Royalties":
+      "ETH allocated to ShareholderRoyalties by MineCore on each successful takeover (via `onTakeover` and the `addPendingShareholderETH` retry path).",
   },
   HoldersRevenue: {
     "Takeover Royalties To veCLAIM Holders":
