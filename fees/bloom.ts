@@ -43,6 +43,11 @@ const chainConfig: any = {
       '5sUSHnxvcKzDkkj9xQuxj5rzqj1bkvnwMUVQbfRMtJpY',
       'toAPhdPcxDZsm2ziAgKcLLb5FMvhsUxqWpRvxTnYfnP',
     ],
+    // Before this date, referral/cashback rewards were only paid out via the reward relayers above.
+    // From this date on, some payouts also go directly from the fees wallet to recipients, so we start
+    // counting direct fees-wallet outflows (to non-internal, non-relayer wallets) as rewards too.
+    // This is a manual cutoff from on-chain tracing (Dune/Helius), not a protocol-provided value -
+    // revisit if the payout mechanism changes again.
     directRewardRelayerStart: '2026-01-20 00:00:00',
   },
   [CHAIN.BSC]: {
@@ -173,11 +178,18 @@ async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, referralCashbackRewards, LABELS.REFERRAL_CASHBACK_PAYOUT);
 
+  // Fees and reward payouts are two independent transfer flows. Payouts lag the fees that fund them
+  // (the fee wallet funds relayers, which disburse rewards later, often in batches), so on a given day
+  // referralCashbackRewards can exceed totalFees and make daily revenue negative. This is expected
+  // timing noise and nets out over time - the adapter sets allowNegativeValue so these days are kept
+  // rather than throwing. See adapter `allowNegativeValue: true` below.
   dailyRevenue.add(ADDRESSES.solana.SOL, totalFees - referralCashbackRewards, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
+// Note: on EVM (BSC/Base) we don't yet track referral/cashback payouts, so all fees are counted as
+// protocol revenue here. If/when EVM referral tracking is added, deduct it like fetchSolana does.
 async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
   const { contracts } = chainConfig[options.chain];
   const logs = await options.getLogs({
@@ -224,6 +236,10 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   isExpensiveAdapter: true,
+  // Solana daily revenue (fees - referral/cashback payouts) can be negative on days where payouts
+  // outpace same-day fees due to batching/lag. Allow it so those days are recorded instead of throwing;
+  // the values net out correctly over time. See fetchSolana for details.
+  allowNegativeValue: true,
   dependencies: [Dependencies.DUNE],
   methodology,
   breakdownMethodology,
