@@ -9,8 +9,8 @@ type ChainConfig = {
   lzContract?: string
 }
 
+// Gas.zip listed new direct v1 forwarder is wrong via onchain analysis
 const DIRECT_FORWARDER = "0x391E7C679d29bD940d63be94AD22A25d25b5A604"
-const NEW_DIRECT_FORWARDER = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
 const CONTRACT_FORWARDER = "0x2a37D63EAdFe4b4682a3c28C1c2cD4F109Cc2762"
 const GAS_LZ_V2 = "0x26DA582889f59EaaE9dA1f063bE0140CD93E6a4f"
 const LOW_128_BITS = (1n << 128n) - 1n
@@ -76,14 +76,14 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.KATANA]: { start: "2025-06-12", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
   [CHAIN.VANA]: { start: "2025-06-21", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
   [CHAIN.SOPHON]: { start: "2025-07-25", directAddress: DIRECT_FORWARDER, contractAddress: "0x6CbC57A6162839d782B2B4a1BD18554135e4Fafa" },
-  [CHAIN.SOMNIA]: { start: "2025-09-02", directAddress: NEW_DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
-  [CHAIN.MONAD]: { start: "2025-09-03", directAddress: NEW_DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
+  [CHAIN.SOMNIA]: { start: "2025-09-02", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
+  [CHAIN.MONAD]: { start: "2025-09-03", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
   [CHAIN.PLASMA]: { start: "2025-09-09", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
   [CHAIN.FLOW]: { start: "2025-09-19", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
   [CHAIN.BOTANIX]: { start: "2025-11-01", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
-  [CHAIN.MEGAETH]: { start: "2025-11-25", directAddress: NEW_DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
-  [CHAIN.ARBITRUM_NOVA]: { start: "2026-03-18", directAddress: NEW_DIRECT_FORWARDER, contractAddress: "0x5D5a72859b8EBAFcf459164F64400012F5A3C5E0" },
-  [CHAIN.PHAROS]: { start: "2026-03-30", directAddress: NEW_DIRECT_FORWARDER, contractAddress: "0x9e22ebec84c7e4c4bd6d4ae7ff6f4d436d6d8390" },
+  [CHAIN.MEGAETH]: { start: "2025-11-25", directAddress: DIRECT_FORWARDER, contractAddress: "0x9E22ebeC84c7e4C4bD6D4aE7FF6f4D436D6D8390" },
+  [CHAIN.ARBITRUM_NOVA]: { start: "2026-03-18", directAddress: DIRECT_FORWARDER, contractAddress: "0x5D5a72859b8EBAFcf459164F64400012F5A3C5E0" },
+  [CHAIN.PHAROS]: { start: "2026-03-30", directAddress: DIRECT_FORWARDER, contractAddress: "0x9e22ebec84c7e4c4bd6d4ae7ff6f4d436d6d8390" },
 }
 
 const fetch = async (options: FetchOptions) => {
