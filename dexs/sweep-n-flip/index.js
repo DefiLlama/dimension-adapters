@@ -34,35 +34,35 @@ import { METRIC } from "../../helpers/metrics";
 const chainConfig = {
   [CHAIN.ETHEREUM]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-mainnet/1.1.0/gn',
-    start: ' 2026-04-15'
+    start: '2026-04-15'
   },
   [CHAIN.BASE]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-base/1.1.0/gn',
-    start: ' 2025-10-25'
+    start: '2025-10-25'
   },
   [CHAIN.ARBITRUM]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-arbitrum/1.0.0/gn',
-    start: ' 2026-04-15'
+    start: '2026-04-15'
   },
   [CHAIN.POLYGON]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-polygon/1.0.0/gn',
-    start: ' 2026-04-15'
+    start: '2026-04-15'
   },
   [CHAIN.HYPERLIQUID]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-hyperevm/1.0.0/gn',
-    start: ' 2025-08-23'
+    start: '2025-08-23'
   },
   [CHAIN.APECHAIN]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-apechain/1.0.0/gn',
-    start: ' 2026-04-28'
+    start: '2026-04-28'
   },
   [CHAIN.BERACHAIN]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-berachain/1.0.0/gn',
-    start: ' 2026-04-28'
+    start: '2026-04-28'
   },
   [CHAIN.MONAD]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-monad/1.0.0/gn',
-    start: ' 2026-03-30'
+    start: '2026-03-30'
   },
 }
 
@@ -118,7 +118,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
   return {
-    dailyVolume: totalVolume,
+    dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
