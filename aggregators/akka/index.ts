@@ -9,6 +9,10 @@ const config: Record<string, { targets: string[]; start: string; end?: string }>
     targets: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
     start: "2026-01-20",
   },
+  [CHAIN.XDC]: {
+    targets: ["0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3"],
+    start: "2024-10-29",
+  },
   [CHAIN.CORE]: {
     targets: [
       "0x7C5Af181D9e9e91B15660830B52f7B7076Be0d64",
@@ -17,6 +21,16 @@ const config: Record<string, { targets: string[]; start: string; end?: string }>
     ],
     start: "2023-11-19",
     end: "2026-05-14",
+  },
+  [CHAIN.BITLAYER]: {
+    targets: ["0x4822b754118e066bf9dccf8b8f105f8b47bb4502"],
+    start: "2024-10-29",
+    end: "2026-01-13",
+  },
+  [CHAIN.BSQUARED]: {
+    targets: ["0x70D80feb53005272E81F3493a69177911D458CbA"],
+    start: "2024-10-29",
+    end: "2026-01-26",
   },
 };
 
