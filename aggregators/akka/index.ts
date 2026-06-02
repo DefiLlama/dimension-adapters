@@ -39,10 +39,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const { routers } = config[options.chain];
 
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  console.log(`[akka] chain=${options.chain} blocks=${fromBlock}-${toBlock} routers=${routers.join(",")}`);
+
+  const rawLogs = await options.getLogs({
+    targets: routers,
+    eventAbi: swapEvent,
+    entireLog: true,
+  });
+  console.log(`[akka] rawLogs=${rawLogs.length}${rawLogs.length > 0 ? ` first=${JSON.stringify(rawLogs[0]).slice(0, 200)}` : ""}`);
+
   const logs = await options.getLogs({
     targets: routers,
     eventAbi: swapEvent,
   });
+  console.log(`[akka] parsedLogs=${logs.length}${logs.length > 0 ? ` first=${JSON.stringify(logs[0]).slice(0, 200)}` : ""}`);
+
   for (const log of logs) {
     dailyVolume.add(log.tokenIn, log.amountIn);
     dailyFees.add(log.tokenOut, log.fee);
