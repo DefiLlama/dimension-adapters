@@ -188,10 +188,10 @@ async function hiroCallRead(
   args: string[] = []
 ): Promise<any> {
   const url = `${HIRO}/v2/contracts/call-read/${addr}/${contract}/${fn}`;
-  const res: any = await httpPost(url, {
+  const res: any = await withRetry(() => httpPost(url, {
     sender: `${addr}.${contract}`,
     arguments: args,
-  });
+  })) ;
   if (!res.okay || !res.result)
     throw new Error(`hiro call-read ${fn}: ${res.cause ?? "unknown"}`);
   return decodeClarity(res.result);
@@ -384,7 +384,7 @@ async function readReserveFactor(
 
 // ─── Fetch ──────────────────────────────────────────────────────────────────
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -445,10 +445,9 @@ const fetch = async (options: FetchOptions) => {
     }
 
     dailyFees.addUSDValue(grossUsd, METRIC.BORROW_INTEREST);
-    dailyRevenue.addUSDValue(protocolUsd, METRIC.BORROW_INTEREST);
-    if (supplierUsd > 0) {
-      dailySupplySideRevenue.addUSDValue(supplierUsd, METRIC.BORROW_INTEREST);
-    }
+    dailyRevenue.addUSDValue(protocolUsd, 'Borrow interest to protocol');
+    dailySupplySideRevenue.addUSDValue(supplierUsd, 'Borrow interest to lenders');
+    
     await sleep(500);
   }
 
@@ -475,24 +474,24 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: "Gross borrower interest accrued across all reserves.",
   },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: "Protocol's share of borrower interest accrued across all reserves.",
+    'Borrow interest to protocol': "Protocol's share of borrower interest accrued across all reserves.",
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "Protocol's share of borrower interest accrued across all reserves.",
+    'Borrow interest to protocol': "Protocol's share of borrower interest accrued across all reserves.",
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Lenders' share of borrower interest across all reserves.",
+    'Borrow interest to lenders': "Lenders' share of borrower interest across all reserves.",
   },
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1, // rate limited
   fetch,
   chains: [CHAIN.STACKS],
   start: "2024-02-23",
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;
