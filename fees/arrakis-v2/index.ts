@@ -1,6 +1,7 @@
 import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 type IVault = {
   helper: string;
@@ -81,9 +82,9 @@ async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOption
       const delta0 = BigInt(currFee0) - BigInt(prevFee0);
       if (delta0 > 0n) {
         const managerCut0 = (delta0 * mgrBPS) / 10000n;
-        dailyFees.add(token0, delta0);
-        dailySupplySideRevenue.add(token0, delta0 - managerCut0);
-        dailyRevenue.add(token0, managerCut0);
+        dailyFees.add(token0, delta0, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(token0, delta0 - managerCut0, 'LP Fees To Depositors');
+        dailyRevenue.add(token0, managerCut0, 'LP Fees To Manager');
       }
     }
 
@@ -91,9 +92,9 @@ async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOption
       const delta1 = BigInt(currFee1) - BigInt(prevFee1);
       if (delta1 > 0n) {
         const managerCut1 = (delta1 * mgrBPS) / 10000n;
-        dailyFees.add(token1, delta1);
-        dailySupplySideRevenue.add(token1, delta1 - managerCut1);
-        dailyRevenue.add(token1, managerCut1);
+        dailyFees.add(token1, delta1, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(token1, delta1 - managerCut1, 'LP Fees To Depositors');
+        dailyRevenue.add(token1, managerCut1, 'LP Fees To Manager');
       }
     }
   });
@@ -107,12 +108,25 @@ const methodology = {
   Revenue: 'Manager fee portion of accrued fees. Manager address is freely set per vault and is not necessarily Arrakis Finance, no Arrakis protocol-level fee exists in V2 core.',
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.LP_FEES]: 'Uniswap V3 trading fees accrued to vault LP positions',
+  },
+  SupplySideRevenue: {
+    'LP Fees To Depositors': 'Uniswap V3 fees remaining in vault after manager fee is subtracted',
+  },
+  Revenue: {
+    'LP Fees To Manager': 'Uniswap V3 fees allocated to vault manager (managerFeeBPS)',
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-08-26',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
