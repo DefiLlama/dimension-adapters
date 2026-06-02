@@ -42,9 +42,9 @@ const fetch = async (options: FetchOptions) => {
 
     const totalYield = profitDelta * feeDen / feeNum;
 
-    dailyFees.add(USDC, totalYield / BigInt(1e12));
-    dailyRevenue.add(USDC, profitDelta / BigInt(1e12));
-    dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / BigInt(1e12));
+    dailyFees.add(USDC, totalYield / BigInt(1e12), 'Staking Yield');
+    dailyRevenue.add(USDC, profitDelta / BigInt(1e12), 'Staking Yield To Protocol');
+    dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / BigInt(1e12), 'Staking Yield To Stakers');
   }
 
   return {
@@ -62,12 +62,25 @@ const methodology = {
   SupplySideRevenue: "Portion of yield distributed to stTD stakers (total yield minus protocol profit).",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'Staking Yield': "Total yield from TD staking rewards distributed via addYield().",
+  },
+  Revenue: {
+    'Staking Yield To Protocol': "Protocol's profit cut (profitNumerator / profitDenominator of yield), sent to profitRecipient.",
+  },
+  SupplySideRevenue: {
+    'Staking Yield To Stakers': "Yield distributed to stTD stakers after deducting protocol profit.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.BASE],
   start: "2026-03-20",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
