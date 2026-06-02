@@ -25,23 +25,29 @@ const fetch = async (options: FetchOptions) => {
   const addresses = bundleVaults.map((v: any) => v.vaultAddress);
 
   // Read Bundle accounts to extract treasury addresses
-  const resp = await httpPost(getEnv("SOLANA_RPC"), {
-    jsonrpc: "2.0", id: 1, method: "getMultipleAccounts",
-    params: [addresses, { encoding: "base64" }],
-  });
-
   const treasuryAddresses: string[] = [];
-  for (const account of resp.result.value) {
-    if (!account?.data?.[0]) continue;
-    treasuryAddresses.push(extractPubkey(account.data[0], TREASURY_OFFSET));
+  for (let i = 0; i < addresses.length; i += 100) {
+    const chunk = addresses.slice(i, i + 100);
+    const resp = await httpPost(getEnv("SOLANA_RPC"), {
+      jsonrpc: "2.0", id: 1, method: "getMultipleAccounts",
+      params: [chunk, { encoding: "base64" }],
+    });
+    if (!resp.result?.value) throw new Error(`getMultipleAccounts failed: ${JSON.stringify(resp.error ?? resp)}`);
+    for (const account of resp.result.value) {
+      if (!account?.data?.[0]) continue;
+      treasuryAddresses.push(extractPubkey(account.data[0], TREASURY_OFFSET));
+    }
   }
 
   // Track all USDC received by vault treasuries (management + performance + deposit/withdrawal fees)
-  const dailyFees = await getSolanaReceived({
+  const received = await getSolanaReceived({
     options,
     targets: treasuryAddresses,
     mints: ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"],
   });
+
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(received, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
