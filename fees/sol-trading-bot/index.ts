@@ -77,6 +77,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const [row] = await queryDuneSql(options, query);
   const totalFees = Number(row?.fees) * 1e9;
+  // rewards come from tokens_solana.sol_transfers.amount, which is already in raw lamports - no scaling.
   const rewards = Number(row?.rewards);
 
   dailyFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
