@@ -19,33 +19,33 @@ const fetch = async (options: FetchOptions) => {
     abi: "uint256:totalProfit",
   });
 
-  const profitDelta = BigInt(totalProfitAfter as string) - BigInt(totalProfitBefore as string);
+  const profitDelta = BigInt(totalProfitAfter) - BigInt(totalProfitBefore);
 
-  if (profitDelta > 0n) {
-    const profitNumerator = await options.toApi.call({
-      target: STAKED_TD,
-      abi: "uint256:profitNumerator",
-      permitFailure: true,
-    });
-    const profitDenominator = await options.toApi.call({
-      target: STAKED_TD,
-      abi: "uint256:profitDenominator",
-      permitFailure: true,
-    });
+  const profitNumerator = await options.toApi.call({
+    target: STAKED_TD,
+    abi: "uint256:profitNumerator",
+    permitFailure: true,
+  });
 
-    const rawNum = profitNumerator != null ? BigInt(profitNumerator as string) : 0n;
-    const rawDen = profitDenominator != null ? BigInt(profitDenominator as string) : 0n;
+  const profitDenominator = await options.toApi.call({
+    target: STAKED_TD,
+    abi: "uint256:profitDenominator",
+    permitFailure: true,
+  });
 
-    const bothValid = rawNum > 0n && rawDen > 0n;
-    const feeNum = bothValid ? rawNum : 100n;
-    const feeDen = bothValid ? rawDen : 1000n;
+  const rawNum = profitNumerator != null ? BigInt(profitNumerator) : 0n;
+  const rawDen = profitDenominator != null ? BigInt(profitDenominator) : 0n;
 
-    const totalYield = profitDelta * feeDen / feeNum;
+  const bothValid = rawNum > 0n && rawDen > 0n;
+  const feeNum = bothValid ? rawNum : 100n;
+  const feeDen = bothValid ? rawDen : 1000n;
 
-    dailyFees.add(USDC, totalYield / BigInt(1e12), 'Staking Yield');
-    dailyRevenue.add(USDC, profitDelta / BigInt(1e12), 'Staking Yield To Protocol');
-    dailySupplySideRevenue.add(USDC, (totalYield - profitDelta) / BigInt(1e12), 'Staking Yield To Stakers');
-  }
+  const totalYield = profitDelta * feeDen / feeNum;
+  const protocolShare = totalYield > 0n ? profitDelta : 0n;
+  
+  dailyFees.add(USDC, totalYield / BigInt(1e12), 'Staking Yield');
+  dailyRevenue.add(USDC, protocolShare / BigInt(1e12), 'Staking Yield To Protocol');
+  dailySupplySideRevenue.add(USDC, (totalYield - protocolShare) / BigInt(1e12), 'Staking Yield To Stakers');
 
   return {
     dailyFees,
@@ -81,6 +81,8 @@ const adapter: SimpleAdapter = {
   start: "2026-03-20",
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
+  pullHourly: true,
 };
 
 export default adapter;
