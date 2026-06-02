@@ -43,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addGasToken(totalWei, "Takeover Royalties");
     dailyUserFees.addGasToken(totalWei, "Takeover Royalties");
     dailyRevenue.addGasToken(totalWei, "Takeover Royalties");
-    dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties");
+    dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
   }
 
   return {
@@ -51,6 +51,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees,
     dailyRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue:0,
   };
 };
 
@@ -59,6 +60,7 @@ const methodology = {
   Revenue: "ETH paid as royalties on every Mine takeover.",
   HoldersRevenue: "100% of takeover royalty ETH is allocated to veCLAIM holders pro-rata to their veCLAIM weight at the time of allocation. Holders claim accrued ETH directly from the ShareholderRoyalties contract.",
   UserFees: "Users (the new King of each takeover) pay the protocol-determined takeover price; the royalty fraction of that payment is what this adapter reports.",
+  SupplySideRevenue: "No supply side revenue.",
 };
 
 const breakdownMethodology = {
@@ -68,14 +70,14 @@ const breakdownMethodology = {
   },
   UserFees: {
     "Takeover Royalties":
-      "ETH allocated to ShareholderRoyalties by MineCore on each successful takeover (via `onTakeover` and the `addPendingShareholderETH` retry path).",
+      "Same value — the new King of each takeover pays the royalty fraction directly out of `pricePaid`.",
   },
   Revenue: {
     "Takeover Royalties":
       "ETH allocated to ShareholderRoyalties by MineCore on each successful takeover (via `onTakeover` and the `addPendingShareholderETH` retry path).",
   },
   HoldersRevenue: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "ETH royalties distributed to veCLAIM holders, indexed against the takeover-time shareholder set.",
   },
 };
