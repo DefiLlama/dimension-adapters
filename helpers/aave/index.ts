@@ -1031,7 +1031,7 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
         ],
       },
       [CHAIN.MANTLE]: {
-        start: '2024-05-117',
+        start: '2024-05-17',
         pools: [
           {
             version: 3,
