@@ -16,9 +16,9 @@ const DAO_SHARE_PERCENT = 60n;
 const TOTAL_PERCENT = 100n;
 
 // Revenue attribution offset: Douro distributes in the first week of month N+1
-// for revenue earned in month N. We shift queries forward by ~5 weeks to
+// for revenue earned in month N. We shift queries forward by ~4 weeks to
 // attribute revenue to the correct earning period.
-const REVENUE_ATTRIBUTION_OFFSET_SECONDS = 35 * 24 * 60 * 60; // ~5 weeks
+const REVENUE_ATTRIBUTION_OFFSET_SECONDS = 28 * 24 * 60 * 60; // ~4 weeks
 
 const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
