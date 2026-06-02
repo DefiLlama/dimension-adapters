@@ -24,30 +24,46 @@
  */
 
 const { request, gql } = require('graphql-request')
-
-const SUBGRAPHS = {
-  ethereum:    'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-mainnet/1.1.0/gn',
-  base:        'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-base/1.1.0/gn',
-  arbitrum:    'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-arbitrum/1.0.0/gn',
-  polygon:     'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-polygon/1.0.0/gn',
-  hyperliquid: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-hyperevm/1.0.0/gn',
-  apechain:    'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-apechain/1.0.0/gn',
-  berachain:   'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-berachain/1.0.0/gn',
-  monad:       'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-monad/1.0.0/gn',
-}
+import { CHAIN } from "../../helpers/chains"
+import { FetchOptions } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 
 // Per-chain start dates = first pool creation, UTC. Verified 2026-06-02 by querying each
 // subgraph for the earliest Pair.createdAtTimestamp. NOTE: Base + HyperEVM predate the 2026-04
 // redeploy wave (HyperEVM live since 2025-08, Base since 2025-10).
-const START = {
-  ethereum:    '2026-04-15',
-  base:        '2025-10-25',
-  arbitrum:    '2026-04-15',
-  polygon:     '2026-04-15',
-  hyperliquid: '2025-08-23',
-  apechain:    '2026-04-28',
-  berachain:   '2026-04-28',
-  monad:       '2026-04-28',
+const chainConfig = {
+  [CHAIN.ETHEREUM]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-mainnet/1.1.0/gn',
+    start: ' 2026-04-15'
+  },
+  [CHAIN.BASE]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-base/1.1.0/gn',
+    start: ' 2025-10-25'
+  },
+  [CHAIN.ARBITRUM]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-arbitrum/1.0.0/gn',
+    start: ' 2026-04-15'
+  },
+  [CHAIN.POLYGON]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-polygon/1.0.0/gn',
+    start: ' 2026-04-15'
+  },
+  [CHAIN.HYPERLIQUID]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-hyperevm/1.0.0/gn',
+    start: ' 2025-08-23'
+  },
+  [CHAIN.APECHAIN]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-apechain/1.0.0/gn',
+    start: ' 2026-04-28'
+  },
+  [CHAIN.BERACHAIN]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-berachain/1.0.0/gn',
+    start: ' 2026-04-28'
+  },
+  [CHAIN.MONAD]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-monad/1.0.0/gn',
+    start: ' 2026-03-30'
+  },
 }
 
 // DERIVED fee model (CONFIRMED 2026-06-01) — applied to NFT-pool volume only.
@@ -65,57 +81,80 @@ const DAY_QUERY = gql`
   }
 `
 
-// dimension-adapters v2 calls fetch(options) with a SINGLE FetchOptions arg (verified in
-// adapters/utils/runAdapter.ts: `(fetchFunction as FetchV2)(options)`). `options.startOfDay` is the
-// start-of-day UNIX timestamp (00:00 UTC) — matches the subgraph's PairDay.day exactly.
-const fetch = async (options) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const { chain, startOfDay } = options
-  const url = SUBGRAPHS[chain]
+  const url = chainConfig[chain].subgraph
 
   let skip = 0
   let totalVolume = 0
   let nftVolume = 0
-  try {
-    // Paginate PairDay rows for the day (1000/page).
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const data = await request(url, DAY_QUERY, { day: startOfDay, skip })
-      const rows = data.pairDays || []
-      for (const row of rows) {
-        const v = Number(row.volumeUSD) || 0
-        totalVolume += v
-        if (row.pair && row.pair.isNFTPool) nftVolume += v
-      }
-      if (rows.length < 1000) break
-      skip += 1000
+
+  // Paginate PairDay rows for the day (1000/page).
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const data = await request(url, DAY_QUERY, { day: startOfDay, skip })
+    const rows = data.pairDays || []
+    for (const row of rows) {
+      const v = Number(row.volumeUSD) || 0
+      totalVolume += v
+      if (row.pair && row.pair.isNFTPool) nftVolume += v
     }
-  } catch (e) {
-    // Recoverable: a paused Goldsky subgraph / network blip → report 0 for the chain, don't crash the run.
-    console.error(`Sweep n' Flip: ${chain} subgraph error`, e.message)
-    return { dailyVolume: 0, dailyFees: 0, dailyRevenue: 0, dailyProtocolRevenue: 0, dailySupplySideRevenue: 0 }
+    if (rows.length < 1000) break
+    skip += 1000
   }
 
-  const dailySupplySideRevenue = nftVolume * SUPPLY_SIDE_FEE_RATE
-  const dailyProtocolRevenue = nftVolume * PROTOCOL_FEE_RATE
-  const dailyFees = dailySupplySideRevenue + dailyProtocolRevenue
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  dailyVolume.addUSDValue(totalVolume)
+
+  dailyFees.addUSDValue(nftVolume * PROTOCOL_FEE_RATE, "Marketplace Fees")
+  dailyRevenue.addUSDValue(nftVolume * PROTOCOL_FEE_RATE, "Marketplace Fees to Protocol")
+
+  dailyFees.addUSDValue(nftVolume * SUPPLY_SIDE_FEE_RATE, METRIC.LP_FEES)
+  dailySupplySideRevenue.addUSDValue(nftVolume * SUPPLY_SIDE_FEE_RATE, "LP Fees to Liquidity Providers")
+
 
   return {
     dailyVolume: totalVolume,
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 }
 
+const methodology = {
+  Volume: "Includes volume from all SnF NFT pools.",
+  Fees: "Includes 2.5% marketplace fees and 2% LP fees.",
+  Revenue: "Includes 2.5% marketplace fees going to the protocol.",
+  ProtocolRevenue: "Includes 2.5% marketplace fees going to the protocol.",
+  SupplySideRevenue: "Includes 2% LP fees going to the liquidity providers.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Marketplace Fees": "2.5% marketplace fees going to the protocol",
+    [METRIC.LP_FEES]: "2% LP fees charged on SnF NFT pools swaps",
+  },
+  Revenue: {
+    "Marketplace Fees to Protocol": "2.5% marketplace fees going to the protocol",
+  },
+  ProtocolRevenue: {
+    "Marketplace Fees to Protocol": "2.5% marketplace fees going to the protocol",
+  },
+  SupplySideRevenue: {
+    "LP Fees to Liquidity Providers": "2% LP fees charged on SnF NFT pools swaps going to the liquidity providers",
+  },
+}
+
 const adapter = {
-  version: 2,
-  adapter: Object.fromEntries(
-    Object.keys(SUBGRAPHS).map((chain) => [
-      chain,
-      { fetch, start: START[chain], runAtCurrTime: false },
-    ])
-  ),
+  fetch,
+  adapter: chainConfig,
+  methodology,
+  breakdownMethodology,
 }
 
 module.exports = adapter
