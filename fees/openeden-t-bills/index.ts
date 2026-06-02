@@ -88,9 +88,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   methodology: {
-    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the OpenEden transaction fee (oeFee) charged on subscriptions/redemptions.',
-    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees charged on subscriptions/redemptions.',
-    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees charged on subscriptions/redemptions.',
+    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the OpenEden transaction fee (oeFee) of 5 basis points charged on subscriptions/redemptions used to cover operational costs.',
+    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
   },
   breakdownMethodology,
   version: 2,
