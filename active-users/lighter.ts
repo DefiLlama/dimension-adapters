@@ -21,7 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       return { task, data: row.data };
     });
 
-  if (errors.length) throw errors;
+  if (errors.length) throw errors[0];
 
   const metrics = Object.fromEntries(results.map(({ task, data }) => [task, data]));
 
