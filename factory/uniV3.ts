@@ -362,7 +362,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BITKUB]: { factory: '0xD679d310008A2595B8d3DeB83bb93EB23F9b0942', start: '2026-05-22', userFeesRatio: 1, revenueRatio: 0 },
   },
   "turbo": {
-    [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+    [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   }
 }
 
