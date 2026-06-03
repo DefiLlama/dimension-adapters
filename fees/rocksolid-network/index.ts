@@ -127,7 +127,6 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
-    pullHourly: true,
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
