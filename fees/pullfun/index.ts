@@ -1,6 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+
+
 const ENDPOINT = "https://pull.fun/api/public/defillama/fees/v2";
 
 interface FeesV2Response {
@@ -25,31 +27,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error(`Pull.Fun: no data for ${options.dateString}`);
   }
 
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-
-  // Always-positive gross components — fees users paid into the protocol.
-  dailyFees.addUSDValue(res.breakdown.gachaGrossUsd, "Gacha Pull Spend");
-  dailyFees.addUSDValue(res.breakdown.marketplaceFeesUsd, "Marketplace Fees");
-  dailyFees.addUSDValue(res.breakdown.redemptionFeesUsd, "Redemption Fees");
-
-  // Always-positive cash payouts flowing back to users.
-  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaBuybacksPaidUsd, "Buyback Payouts");
-  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts");
-
-  // Net realized revenue. Negative on days where buybacks + repool > pull spend;
-  // clamp to 0 — DefiLlama's addUSDValue does not accept negative values.
-  const netUsd = res.dailyRevenueUsd > 0 ? res.dailyRevenueUsd : 0;
-  if (netUsd > 0) {
-    dailyRevenue.addUSDValue(netUsd, "Net Protocol Revenue");
-  }
+  const dailyFeesUsd = res.breakdown.gachaGrossUsd + res.breakdown.marketplaceFeesUsd + res.breakdown.redemptionFeesUsd;
+  const dailySupplySideRevenueUsd = res.breakdown.gachaBuybacksPaidUsd + res.breakdown.gachaRepoolPaidUsd;
+  const dailyRevenueUsd = res.dailyRevenueUsd; // can be negative — allowNegativeValue: true handles it
 
   return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
+    dailyFees: dailyFeesUsd,
+    dailyRevenue: dailyRevenueUsd,
+    dailyProtocolRevenue: dailyRevenueUsd,
+    dailySupplySideRevenue: dailySupplySideRevenueUsd,
   };
 };
 
@@ -82,6 +68,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;
