@@ -85,10 +85,12 @@ const breakdownMethodology = {
     [LABEL.BasenameRegistrationRenewalFees]:
       "Total ETH paid by users for Basename registrations and renewals across all controller versions.",
   },
+  SupplySideRevenue: {},
   Revenue: {
     [LABEL.BasenameRegistrationRenewalFeesToProtocol]:
       "100% of registration and renewal payments retained by the protocol (single payment receiver, no split).",
   },
+  HoldersRevenue: {},
   ProtocolRevenue: {
     [LABEL.BasenameRegistrationRenewalFeesToProtocol]:
       "100% of registration and renewal payments retained by the protocol (single payment receiver, no split).",
