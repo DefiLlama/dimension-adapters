@@ -100,6 +100,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const config = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
 
+  const now = Date.now();
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000);
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+  }
+
   const rows = options.chain === CHAIN.SOLANA ? await fetchSolana(options) : await fetchEvm(options, config);
   const [row] = rows;
   dailyVolume.addUSDValue(Number(row.daily_volume));
