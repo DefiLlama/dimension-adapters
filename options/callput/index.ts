@@ -24,16 +24,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   ]);
 
   for (const log of notionalLogs)
-    dailyNotionalVolume.addCGToken("tether", Number(log.notionalVolume) / PRICE_PRECISION);
+    dailyNotionalVolume.addUSDValue(Number(log.notionalVolume) / PRICE_PRECISION);
 
   for (const log of premiumLogs)
-    dailyPremiumVolume.addCGToken("tether", Number(log.totalExecutionPrice) / PRICE_PRECISION);
+    dailyPremiumVolume.addUSDValue(Number(log.totalExecutionPrice) / PRICE_PRECISION);
 
   return { dailyNotionalVolume, dailyPremiumVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     NotionalVolume:
       "Sum of IncreaseAccumulatedNotionalVolume events emitted by the CallPut Controller on each trade (size * spot price), denominated in USD.",
@@ -44,7 +45,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       // First Controller volume event on Base (matches the Dune dashboard start).
-      start: "2026-01-16",
+      start: "2026-01-30",
     },
   },
 };
