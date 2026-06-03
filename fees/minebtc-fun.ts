@@ -16,24 +16,9 @@ const CASINO_ROLL_FEES_TO_BUYBACKS = "Casino Roll Fees To Buybacks";
 const CASINO_ROLL_FEES_TO_TREASURY = "Casino Roll Fees To Treasury";
 const CASINO_ROLL_FEES_TO_STAKERS = "Casino Roll Fees To Stakers";
 
-const fetchFees = async (options: FetchOptions) => {
-  if (!process.env.ALLIUM_API_KEY) {
-    const empty = options.createBalances();
-
-    return {
-      dailyFees: empty,
-      dailyUserFees: empty,
-      dailyRevenue: empty,
-      dailyProtocolRevenue: empty,
-      dailyHoldersRevenue: empty,
-      dailySupplySideRevenue: empty,
-    };
-  }
-
-  const [treasuryReceipts, stakingRewardReceipts] = await Promise.all([
-    getSolanaReceived({ options, target: SOL_TREASURY, mints: [ADDRESSES.solana.SOL] }),
-    getSolanaReceived({ options, target: STAKER_SOL_REWARD_VAULT, mints: [ADDRESSES.solana.SOL] }),
-  ]);
+const fetch = async (options: FetchOptions) => {
+  const treasuryReceipts = await getSolanaReceived({ options, target: SOL_TREASURY, mints: [ADDRESSES.solana.SOL] });
+  const stakingRewardReceipts = await getSolanaReceived({ options, target: STAKER_SOL_REWARD_VAULT, mints: [ADDRESSES.solana.SOL] });
 
   const dailyHoldersRevenue = treasuryReceipts.clone(TREASURY_BUYBACK_SHARE, CASINO_ROLL_FEES_TO_BUYBACKS);
   const dailyProtocolRevenue = treasuryReceipts.clone(TREASURY_PROTOCOL_SHARE, CASINO_ROLL_FEES_TO_TREASURY);
@@ -88,7 +73,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch: fetchFees,
+  fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-05-21",
   methodology,
