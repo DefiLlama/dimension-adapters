@@ -82,12 +82,12 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const NOT_INCLUDED = "Does NOT include Venice's subscription (Pro/Pro+/Max) or API revenue, nor direct API credit/DIEM purchases: those are paid by card, Coinbase Commerce, or Stripe/Bridge crypto and settle into custodial/fiat accounts, leaving no Venice-attributable on-chain footprint.";
+const NOT_INCLUDED = "Excludes Venice's subscription, API, and credit/DIEM revenue, which settle off-chain (card / Coinbase Commerce / Stripe-Bridge) with no on-chain footprint.";
 
 const methodology = {
-  Fees: `${NOT_INCLUDED} What it DOES include is the on-chain VVV buy-and-burn — the USD value of VVV bought back from the open market and burned. This equals HoldersRevenue, since every dollar tracked here is returned to holders via the burn.`,
-  Revenue: `${NOT_INCLUDED} Includes only the on-chain VVV buy-and-burn, which is fully returned to holders (Revenue = HoldersRevenue).`,
-  HoldersRevenue: "USD value of VVV bought back from the open market and burned (sent to the null address), permanently removing it from supply for the benefit of holders. Covers programmatic per-subscription buy-and-burns ($2 Pro / $5 Pro+ / $10 Max) and discretionary revenue buybacks. Venice's subscription/API revenue itself settles off-chain (custodial) and is not measured here.",
+  Fees: `${NOT_INCLUDED} Includes only the on-chain VVV buy-and-burn (USD value of VVV burned), which equals HoldersRevenue.`,
+  Revenue: `${NOT_INCLUDED} Includes only the VVV buy-and-burn (= HoldersRevenue).`,
+  HoldersRevenue: "USD value of VVV bought back and burned: programmatic per-subscription burns ($2 Pro / $5 Pro+ / $10 Max) plus discretionary revenue buybacks.",
 };
 
 const buybackBreakdown = {
