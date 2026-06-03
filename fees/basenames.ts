@@ -68,7 +68,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: "2024-07-25", // first ETHPaymentProcessed emission
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
