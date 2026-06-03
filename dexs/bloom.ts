@@ -101,8 +101,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const rows = options.chain === CHAIN.SOLANA ? await fetchSolana(options) : await fetchEvm(options, config);
-  const [row = {}] = rows;
-  dailyVolume.addUSDValue(Number(row.daily_volume ?? 0));
+  const [row] = rows;
+  dailyVolume.addUSDValue(Number(row.daily_volume));
 
   return { dailyVolume };
 };
