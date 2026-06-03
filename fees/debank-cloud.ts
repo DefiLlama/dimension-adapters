@@ -46,16 +46,22 @@ const config: Record<string, { depositTargets: string[]; stables: string[] }> = 
   },
 };
 
+const DEBANK_CREDIT = "DeBank Credit Deposits";
+const SWAP = "Swap Fees";
+
 const fetch = async (options: FetchOptions) => {
   const { depositTargets, stables } = config[options.chain];
   const dailyFees = options.createBalances();
 
   // user deposits / top-ups (USDC + USDT)
-  if (depositTargets.length)
-    await addTokensReceived({ options, balances: dailyFees, tokens: stables, targets: depositTargets });
+  if (depositTargets.length) {
+    const deposits = await addTokensReceived({ options, tokens: stables, targets: depositTargets });
+    dailyFees.addBalances(deposits, DEBANK_CREDIT);
+  }
 
   // swap fees, collected in arbitrary tokens (no token filter -> capture all)
-  await addTokensReceived({ options, balances: dailyFees, target: SWAP_FEES });
+  const swapFees = await addTokensReceived({ options, target: SWAP_FEES });
+  dailyFees.addBalances(swapFees, SWAP);
 
   return {
     dailyFees,
@@ -64,8 +70,24 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [DEBANK_CREDIT]: "USDC/USDT deposited by users into DeBank's deposit vaults to top up DeBank Cloud / DeBank credit.",
+    [SWAP]: "Swap fees collected by DeBank (in whatever token each swap pays out).",
+  },
+  Revenue: {
+    [DEBANK_CREDIT]: "USDC/USDT deposits collected by DeBank.",
+    [SWAP]: "Swap fees collected by DeBank.",
+  },
+  ProtocolRevenue: {
+    [DEBANK_CREDIT]: "USDC/USDT deposits collected by DeBank.",
+    [SWAP]: "Swap fees collected by DeBank.",
+  },
+};
+
 const adapter: Adapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   adapter: Object.fromEntries(
     Object.keys(config).map((chain) => [chain, { fetch }])
