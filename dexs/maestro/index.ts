@@ -50,8 +50,8 @@ async function fetchEvm(options: FetchOptions) {
   const chainKey = getAlliumChain(options.chain);
 
   const result = await queryAllium(`
-    WITH maestro_txs AS (
-      SELECT DISTINCT transaction_hash
+    WITH maestro_users AS (
+      SELECT DISTINCT from_address
       FROM ${chainKey}.assets.native_token_transfers
       WHERE to_address = '${FEE_ADDRESS_EVM}'
         AND transfer_type = 'value_transfer'
@@ -67,7 +67,7 @@ async function fetchEvm(options: FetchOptions) {
           ORDER BY t.usd_amount DESC
         ) AS row_num
       FROM ${chainKey}.dex.trades t
-      JOIN maestro_txs a ON t.transaction_hash = a.transaction_hash
+      JOIN maestro_users a ON t.transaction_from_address = a.from_address
       WHERE t.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
         AND t.transaction_from_address != '${FEE_ADDRESS_EVM}'
     )
