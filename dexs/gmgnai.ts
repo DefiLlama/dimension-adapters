@@ -1,14 +1,17 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { queryDuneSql } from "../helpers/dune";
 
 // Source: Dune GMGN dashboard/query shared with the fees adapter.
 type ChainConfig = {
   start: string;
-  duneChain?: string;
   contract?: string;
+  wrappedNative?: string;
   feeAddresses?: string[];
 };
+
+const SWAP_EVENT = "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path)[] descs)";
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.SOLANA]: {
@@ -26,14 +29,14 @@ const chainConfig: Record<string, ChainConfig> = {
     ],
   },
   [CHAIN.BASE]: {
-    start: "2025-08-01",
-    duneChain: "base",
+    start: "2024-07-05",
     contract: "0xd8Ba9D1a99Fc21f0ECA24e9b85737c28A194a4E2",
+    wrappedNative: ADDRESSES.base.WETH,
   },
   [CHAIN.BSC]: {
-    start: "2024-01-01",
-    duneChain: "bnb",
+    start: "2024-11-27",
     contract: "0x1de460f363AF910f51726DEf188F9004276Bf4bc",
+    wrappedNative: ADDRESSES.bsc.WBNB,
   },
 };
 
@@ -41,10 +44,10 @@ type DuneVolumeRow = {
   daily_volume?: string | number | null;
 };
 
-const fetchSolana = (options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
   const feeAddresses = chainConfig[CHAIN.SOLANA].feeAddresses!;
 
-  return queryDuneSql(options, `
+  const rows = await (queryDuneSql(options, `
   WITH gmgn_txs AS (
     SELECT DISTINCT
       id AS tx_id
@@ -65,40 +68,32 @@ const fetchSolana = (options: FetchOptions) => {
     TIME_RANGE
     AND trader_id NOT IN (${feeAddresses.map((address) => `'${address}'`).join(", ")})
     AND tx_id IN (SELECT tx_id FROM gmgn_txs)
-`) as Promise<DuneVolumeRow[]>;
+`) as Promise<DuneVolumeRow[]>);
+
+  return { dailyVolume: Number(rows[0].daily_volume) };
 };
 
-const fetchEvm = (options: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
   const config = chainConfig[options.chain];
+  const dailyVolume = options.createBalances();
+  const nativeTokens = new Set([ADDRESSES.null, config.wrappedNative?.toLowerCase()]);
 
-  return queryDuneSql(options, `
-  WITH bot_trades AS (
-    SELECT
-      trades.tx_hash,
-      trades.evt_index,
-      trades.amount_usd
-    FROM
-      dex.trades
-    WHERE
-      trades.blockchain = '${config.duneChain}'
-      AND trades.tx_to = ${config.contract}
-      AND TIME_RANGE
-  ),
-  last_trades AS (
-    SELECT
-      tx_hash,
-      MAX(evt_index) AS evt_index
-    FROM
-      bot_trades
-    GROUP BY
-      tx_hash
-  )
-  SELECT
-    COALESCE(SUM(bot_trades.amount_usd), 0) AS daily_volume
-  FROM
-    bot_trades
-    JOIN last_trades USING (tx_hash, evt_index)
-`) as Promise<DuneVolumeRow[]>;
+  const logs = await options.getLogs({
+    target: config.contract,
+    eventAbi: SWAP_EVENT,
+  });
+
+  logs.forEach((log: any) => {
+    const firstDesc = log.descs[0];
+    const lastDesc = log.descs[log.descs.length - 1];
+    const tokenIn = (firstDesc.tokenIn ?? firstDesc[1]).toLowerCase();
+    const tokenOut = (lastDesc.tokenOut ?? lastDesc[2]).toLowerCase();
+
+    if (nativeTokens.has(tokenIn)) dailyVolume.addGasToken(log.amountIn);
+    else if (nativeTokens.has(tokenOut)) dailyVolume.addGasToken(log.amountOut);
+  });
+
+  return { dailyVolume };
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
@@ -107,13 +102,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   }
 
-  const rows = options.chain === CHAIN.SOLANA
+  return options.chain === CHAIN.SOLANA
     ? await fetchSolana(options)
     : await fetchEvm(options);
-
-  return {
-    dailyVolume: Number(rows[0].daily_volume),
-  };
 };
 
 const adapter: SimpleAdapter = {
