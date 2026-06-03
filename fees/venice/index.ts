@@ -41,6 +41,11 @@ import { getPrices } from "../../utils/prices";
 //     and cannot be grossed up to a plan, so the full burn value is counted as revenue → holders.
 // The one-time unclaimed-airdrop burn (~33M VVV, 2025-03-12) predates the program and is excluded
 // by the start date.
+//
+// Not captured: direct API credit / DIEM purchases (pay-as-you-go top-ups) do NOT trigger a
+// programmatic burn, so they are out of scope. When bought with cards or Stripe crypto, they settle
+// off-chain or into Stripe/Bridge custody (Venice receives fiat), with no Venice-attributable
+// on-chain footprint, so they cannot be tracked here.
 const VVV = "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
@@ -106,7 +111,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Grossed-up subscription revenue. Each on-chain VVV buy-and-burn corresponds to one new subscription of a known plan ($2 Pro / $5 Pro+ / $10 Max), so burns are counted by plan and multiplied by the plan's standard monthly price (Pro $18 / Pro+ $68 / Max $200). The burn is a flat per-plan amount regardless of billing period, so monthly and annual signups are indistinguishable on-chain; each new signup is recognized at one month of its plan price (annual prepayments, ~10% cheaper for 12 months, are recognized monthly rather than as an upfront spike). Burns fire on NEW signups only, so this reflects new-subscription revenue and undercounts total recurring MRR. Includes off-chain/fiat-funded signups.",
+  Fees: "Grossed-up subscription revenue. Each on-chain VVV buy-and-burn corresponds to one new subscription of a known plan ($2 Pro / $5 Pro+ / $10 Max), so burns are counted by plan and multiplied by the plan's standard monthly price (Pro $18 / Pro+ $68 / Max $200). The burn is a flat per-plan amount regardless of billing period, so monthly and annual signups are indistinguishable on-chain; each new signup is recognized at one month of its plan price (annual prepayments, ~10% cheaper for 12 months, are recognized monthly rather than as an upfront spike). Burns fire on NEW signups only, so this reflects new-subscription revenue and undercounts total recurring MRR. Includes off-chain/fiat-funded signups. Direct API credit/DIEM purchases do not trigger a burn (they settle off-chain or via Stripe/Bridge custody) and are out of scope.",
   Revenue: "Same as Fees — Venice's gross subscription revenue reconstructed from the buy-and-burn (no provider/infra cost split is modeled, as Venice does not disclose it).",
   ProtocolRevenue: "Revenue Venice keeps after the buy-and-burn (Revenue − HoldersRevenue). This is BEFORE compute/inference provider costs, which are not disclosed and not deducted here.",
   HoldersRevenue: "USD value of VVV bought back from the open market and burned, permanently removing it from supply for the benefit of holders.",
