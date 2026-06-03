@@ -96,7 +96,7 @@ const fetchEvm = (options: FetchOptions, config: { start: string; contractAddres
   `) as Promise<DuneVolumeRow[]>;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const config = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
 
@@ -108,7 +108,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
