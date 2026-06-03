@@ -9,8 +9,9 @@ import { getPrices } from "../../utils/prices";
 // $2 Pro / $5 Pro+ / $10 Max. The buy-and-burn is funded from total revenue, including off-chain
 // (fiat / card) payments.
 //
-// This adapter tracks ONLY the buy-and-burn, as HoldersRevenue. It deliberately does NOT try to
-// derive Venice's subscription fees/revenue, because the burn is a poor proxy for revenue:
+// This adapter reports Fees, Revenue, and HoldersRevenue all equal to the on-chain buy-and-burn.
+// It deliberately does NOT extrapolate the burn to gross subscription revenue, because the burn is
+// a poor proxy for it:
 //   - The burn fires once at signup; it does NOT recur on the 2nd month or on renewals, so it
 //     cannot represent ongoing subscription revenue.
 //   - It is a FLAT per-plan amount ($2 / $5 / $10) regardless of billing period, so a monthly
@@ -74,20 +75,32 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue.add(VVV, log.value, label);
   });
 
-  return { dailyHoldersRevenue };
+  return { 
+    dailyFees: dailyHoldersRevenue,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyHoldersRevenue
+  };
 };
 
+const NOT_INCLUDED = "Does NOT include Venice's subscription (Pro/Pro+/Max) or API revenue, nor direct API credit/DIEM purchases: those are paid by card, Coinbase Commerce, or Stripe/Bridge crypto and settle into custodial/fiat accounts, leaving no Venice-attributable on-chain footprint.";
+
 const methodology = {
+  Fees: `${NOT_INCLUDED} What it DOES include is the on-chain VVV buy-and-burn — the USD value of VVV bought back from the open market and burned. This equals HoldersRevenue, since every dollar tracked here is returned to holders via the burn.`,
+  Revenue: `${NOT_INCLUDED} Includes only the on-chain VVV buy-and-burn, which is fully returned to holders (Revenue = HoldersRevenue).`,
   HoldersRevenue: "USD value of VVV bought back from the open market and burned (sent to the null address), permanently removing it from supply for the benefit of holders. Covers programmatic per-subscription buy-and-burns ($2 Pro / $5 Pro+ / $10 Max) and discretionary revenue buybacks. Venice's subscription/API revenue itself settles off-chain (custodial) and is not measured here.",
 };
 
+const buybackBreakdown = {
+  "Pro subscription buy-back": "~$2 of VVV bought back and burned per new Pro signup ($1 at launch).",
+  "Pro+ subscription buy-back": "~$5 of VVV bought back and burned per new Pro+ signup.",
+  "Max subscription buy-back": "~$10 of VVV bought back and burned per new Max signup.",
+  [DISCRETIONARY]: "VVV bought back and burned in bulk (~monthly) from accumulated platform revenue, not tied to a single subscription.",
+};
+
 const breakdownMethodology = {
-  HoldersRevenue: {
-    "Pro subscription buy-back": "~$2 of VVV bought back and burned per new Pro signup ($1 at launch).",
-    "Pro+ subscription buy-back": "~$5 of VVV bought back and burned per new Pro+ signup.",
-    "Max subscription buy-back": "~$10 of VVV bought back and burned per new Max signup.",
-    [DISCRETIONARY]: "VVV bought back and burned in bulk (~monthly) from accumulated platform revenue, not tied to a single subscription.",
-  },
+  Fees: buybackBreakdown,
+  Revenue: buybackBreakdown,
+  HoldersRevenue: buybackBreakdown,
 };
 
 const adapter: SimpleAdapter = {
