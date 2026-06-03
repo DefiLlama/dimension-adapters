@@ -75,7 +75,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "3F charges two fees on its leveraged RWA positions. The performance fee is taken on the return of the leveraged collateral after subtracting the cost of the borrowed debt (for example, on a 10x position it applies to the RWA yield on the full leveraged exposure minus what is paid to service the debt). The management fee is taken on the entire value of the RWA collateral, including the leveraged portion (for example, on a 10x position it is charged on ten times the deposited amount, not just the user's own capital). Fees are accrued and collected when positions are updated, so a single day can include fees that built up over the previous days or weeks.",
+    Fees: "3F charges two fees on its leveraged RWA positions. The performance fee is taken on the return of the leveraged collateral, after subtracting the cost of the borrowed debt. The management fee is taken on the full value of the RWA collateral, including the leveraged portion, rather than only the user's deposited capital. Fees are accrued and collected when positions are updated, so a single day can include fees that built up over the preceding days or weeks.",
     Revenue: "Both the management and performance fees are paid to the protocol, so revenue equals the total fees collected.",
     ProtocolRevenue: "Both the management and performance fees are paid to the protocol, so protocol revenue equals the total fees collected.",
   },
