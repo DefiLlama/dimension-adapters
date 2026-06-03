@@ -43,7 +43,6 @@ const VVV = "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 const DISCRETIONARY = "Discretionary revenue buy-back";
-const UNCLASSIFIED = "VVV buy-and-burn";
 
 // Plans, matched to a burn by its USD value (pegged at ~$2 / $5 / $10; legacy $1 Pro burns fall
 // into Pro). Anything materially larger than the Max burn is a discretionary revenue buyback.
@@ -67,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
   const price = (await getPrices([priceKey], options.toTimestamp))[priceKey];
 
   logs.forEach((log: any) => {
-    let label = UNCLASSIFIED;
+    let label = DISCRETIONARY;
     if (price?.price && price?.decimals !== undefined) {
       const burnUsd = (Number(log.value) / 10 ** price.decimals) * price.price;
       label = PLANS.find((p) => burnUsd < p.burnMax)?.label ?? DISCRETIONARY;
@@ -88,7 +87,6 @@ const breakdownMethodology = {
     "Pro+ subscription buy-back": "~$5 of VVV bought back and burned per new Pro+ signup.",
     "Max subscription buy-back": "~$10 of VVV bought back and burned per new Max signup.",
     [DISCRETIONARY]: "VVV bought back and burned in bulk (~monthly) from accumulated platform revenue, not tied to a single subscription.",
-    [UNCLASSIFIED]: "VVV buy-and-burn that could not be classified by plan (no VVV price available for the window).",
   },
 };
 
