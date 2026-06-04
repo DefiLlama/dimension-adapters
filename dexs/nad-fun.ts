@@ -308,11 +308,15 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
 }
 
 async function getV2PairMetadata(options: FetchOptions) {
-  const pairLogs = await options.getLogs({
+  const pairLogs: any[] = [];
+
+  await options.streamLogs({
     target: v2.nadFunFactory,
     eventAbi: v2Abi.PairCreated,
     fromBlock: v2.startBlock,
-    cacheInCloud: true,
+    processor: (logs: any[]) => {
+      pairLogs.push(...logs);
+    },
   });
 
   const pairs = pairLogs.map((log: any) => log.pair as string);
