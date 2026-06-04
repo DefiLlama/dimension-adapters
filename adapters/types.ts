@@ -47,6 +47,8 @@ export type FetchOptions = {
   preFetchedResults?: any,
   moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
+  runType?: 'store-all' | 'refill-all' | 'default' | 'refill-yesterday', // run mode injected by the server, used to gate indexer-dependent helpers (e.g. dune)
+  version?: number, // adapter version (1 or 2), used to gate indexer-dependent helpers (e.g. dune)
   metadata?: {
     [key: string]: any
     adapterType?: string

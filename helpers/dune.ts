@@ -8,6 +8,24 @@ import { CHAIN } from "./chains";
 
 let _axiosDune: any = null;
 
+// Dune indexers lag behind the chain head, so dune-backed adapters can't be trusted for
+// the hourly/near-real-time path:
+//  - v2 adapters are not supported at all (they run too close to head); they must be v1.
+//  - for the daily store-all run, the 00:00-02:00 UTC window has incomplete data for the
+//    previous day, so we skip it and let the refill-yesterday job backfill it once the
+//    indexer has caught up.
+const INDEXER_DELAY_WINDOW_END_HOUR_UTC = 2;
+
+function assertDuneRunAllowed(options?: FetchOptions) {
+  if (options?.version === 2) {
+    throw new Error("Dune queries are not supported in v2 adapters; please implement this as a v1 adapter")
+  }
+
+  if (options?.runType === "store-all" && new Date().getUTCHours() < INDEXER_DELAY_WINDOW_END_HOUR_UTC) {
+    throw new Error(`[dune] skipped during store-all in the 00:00-0${INDEXER_DELAY_WINDOW_END_HOUR_UTC}:00 UTC indexer-delay window; will be backfilled by the refill-yesterday job`)
+  }
+}
+
 // this wrapper is to ensure that secret is set before we try to use it
 function getAxiosDune() {
   if (_axiosDune) return _axiosDune;
@@ -99,6 +117,7 @@ const batchedQueries = new Map<string, {
 
 
 export function queryDune(queryId: string, query_parameters: any, options: FetchOptions, { extraUIDKey = '' }: { extraUIDKey?: string } = {}) {
+  assertDuneRunAllowed(options)
   const isBulkMode = getEnv('DUNE_BULK_MODE') === 'true'
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
