@@ -94,6 +94,7 @@ const alliumChainMap: Record<string, string> = {
     katana: CHAIN.KATANA,
     abstract: CHAIN.ABSTRACT,
     linea: CHAIN.LINEA,
+    manta_pacific: CHAIN.MANTA,
     ronin: CHAIN.RONIN,
     sonic: CHAIN.SONIC,
     mantle: CHAIN.MANTLE,
