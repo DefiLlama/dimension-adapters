@@ -3,9 +3,10 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneResult } from "../helpers/dune";
 
 const ACTIVE_PLAYERS_QUERY_ID = "7638215";
+const hasDuneApiKey = () => Boolean(process.env.DUNE_API_KEYS);
 
 const fetch = async (options: FetchOptions) => {
-  const rows = await queryDuneResult(options, ACTIVE_PLAYERS_QUERY_ID);
+  const rows = hasDuneApiKey() ? await queryDuneResult(options, ACTIVE_PLAYERS_QUERY_ID) : [];
   const row = rows.find((item: { day?: string }) => String(item.day).slice(0, 10) === options.dateString);
 
   return {

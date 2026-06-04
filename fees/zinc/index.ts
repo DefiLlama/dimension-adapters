@@ -9,9 +9,10 @@ const STAKING_SPLIT_FROM_BUYBACKS = 0.1;
 const TREASURY_SPLIT_FROM_FEES = 0.1;
 const STOCKPILE_SPLIT_FROM_FEES = 0.1;
 const BUYBACK_SPLIT_FROM_FEES = 0.8;
+const hasDuneApiKey = () => Boolean(process.env.DUNE_API_KEYS);
 
 const fetch = async (options: FetchOptions) => {
-  const rows = await queryDuneResult(options, DAILY_VOLUME_AND_FEES_QUERY_ID);
+  const rows = hasDuneApiKey() ? await queryDuneResult(options, DAILY_VOLUME_AND_FEES_QUERY_ID) : [];
   const row = rows.find((item: { day?: string }) => String(item.day).slice(0, 10) === options.dateString);
   const totalDeployFees = Number(row?.daily_revenue_sol ?? 0) * 1e9;
 
