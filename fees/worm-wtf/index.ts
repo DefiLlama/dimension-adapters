@@ -5,7 +5,7 @@ import { queryDuneSql } from "../../helpers/dune";
 const WORM_PROGRAM = "WrgN8d3Xe7qTzZw59kiXaf3fAagHHWg78Mbhkn2dTPD";
 const CREATOR_PROGRAM = "SormXyTMQ69ux8yhn9CBQ8v7UuqepefMHbM5TcNDtkf";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const rows = await queryDuneSql(options, `
     WITH calls AS (
       SELECT
@@ -68,13 +68,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-05-04",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-05-04",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {

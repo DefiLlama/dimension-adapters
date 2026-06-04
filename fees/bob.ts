@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import ADDRESSES from "../helpers/coreAssets.json";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
@@ -33,23 +33,29 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "All fees collected by the Bob L2 sequencer from transaction processing.",
+  Revenue: "All revenue collected by the Bob L2 sequencer from transaction processing.",
+};
+
 const breakdownMethodology = {
   Fees: {
-    'sequencer fees': 'ETH revenue collected by the Bob L2 sequencer from transaction processing, sourced from Dune Analytics.',
+    'sequencer fees': 'All fees collected by the Bob L2 sequencer from transaction processing.',
   },
   Revenue: {
-    'sequencer fees': 'ETH revenue collected by the Bob L2 sequencer from transaction processing, sourced from Dune Analytics.',
+    'sequencer fees': 'All revenue collected by the Bob L2 sequencer from transaction processing.',
   },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
+  methodology,
+  breakdownMethodology,
   chains: [CHAIN.BOB],
   start: "2024-04-12",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  breakdownMethodology,
 };
 
 export default adapter;
