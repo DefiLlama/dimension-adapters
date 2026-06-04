@@ -1,23 +1,14 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { getRevenueRatioShares, queryHypurrscanApi } from "../helpers/hyperliquid";
 
 async function fetch(_1: number, _: any,  options: FetchOptions) {
   const dailyFees = options.createBalances()
 
-  let perpFees = options.createBalances()
-  let spotFees = options.createBalances()
   const { hlpShare } = getRevenueRatioShares(options.startOfDay)
-  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
-    // get fees from hypurrscan, no volume
-    const result = await queryHypurrscanApi(options);
-    perpFees = result.dailyPerpFees.clone(hlpShare)
-    spotFees = result.dailySpotFees.clone(hlpShare)
-  } else {
-    const result = await queryHyperliquidIndexer(options);
-    perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
-    spotFees = result.dailySpotRevenue.clone(hlpShare)
-  }
+  const result = await queryHypurrscanApi(options);
+  const perpFees = result.dailyPerpFees.clone(hlpShare)
+  const spotFees = result.dailySpotFees.clone(hlpShare)
 
   dailyFees.add(perpFees, 'Perp Fees')
   dailyFees.add(spotFees, 'Spot Fees')
@@ -30,19 +21,19 @@ async function fetch(_1: number, _: any,  options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% of perp and spot trading revenue (excluding builders and unit revenue) share for HLP.",
+  Fees: "HLP's share of Hyperliquid perp and spot trading fees, using public cumulative Hypurrscan fee data. HLP received 3% before 30 Aug 2025 and receives 1% after.",
   SupplySideRevenue: 'All fees share of HLP are distributed to vaults suppliers.',
   Revenue: "No revenue.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Perp Fees': 'Share of 1% perp trading revenue.',
-    'Spot Fees': 'Share of 1% spot trading revenue',
+    'Perp Fees': 'HLP share of perp trading fees.',
+    'Spot Fees': 'HLP share of spot trading fees',
   },
   SupplySideRevenue: {
-    'Perp Fees': 'Share of 1% perp trading revenue.',
-    'Spot Fees': 'Share of 1% spot trading revenue',
+    'Perp Fees': 'HLP share of perp trading fees.',
+    'Spot Fees': 'HLP share of spot trading fees',
   },
 }
 
