@@ -12,8 +12,7 @@ const BUYBACK_SPLIT_FROM_FEES = 0.8;
 
 const fetch = async (options: FetchOptions) => {
   const rows = await queryDuneResult(options, DAILY_VOLUME_AND_FEES_QUERY_ID);
-  const dateString = new Date(options.toTimestamp * 1000).toISOString().slice(0, 10);
-  const row = rows.find((item: { day?: string }) => String(item.day).slice(0, 10) === dateString);
+  const row = rows.find((item: { day?: string }) => String(item.day).slice(0, 10) === options.dateString);
   const totalDeployFees = Number(row?.daily_revenue_sol ?? 0) * 1e9;
 
   const treasuryFlows = options.createBalances();

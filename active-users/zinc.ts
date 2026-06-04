@@ -4,7 +4,7 @@ import { queryDuneResult } from "../helpers/dune";
 
 const ACTIVE_PLAYERS_QUERY_ID = "7638215";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const rows = await queryDuneResult(options, ACTIVE_PLAYERS_QUERY_ID);
   const row = rows.find((item: { day?: string }) => String(item.day).slice(0, 10) === options.dateString);
 
@@ -15,7 +15,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
