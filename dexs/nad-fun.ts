@@ -561,7 +561,11 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
         logs.forEach((rawLog) => {
           const pair = rawLog.address.toLowerCase();
           const meta = pairMeta[pair];
-          if (!meta?.quoteToken) return;
+          if (!meta?.quoteToken) {
+            throw new Error(
+              `Missing quoteToken for NadFunPair ${pair}: ${JSON.stringify(meta ?? null)}`,
+            );
+          }
 
           const quoteIsToken0 =
             meta.quoteToken.toLowerCase() === meta.token0.toLowerCase();
