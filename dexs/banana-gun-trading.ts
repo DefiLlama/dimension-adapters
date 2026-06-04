@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-// Log topics fetched from onchain tx history from ethreum txs 
+// Log topics fetched from onchain tx history from ethereum txs 
 const BANANA_GUN_SWAP_TOPIC = "0x9f849d23f4955d98202378ea318f2b0c7533695d3c9fb2a3931f0f919fa8c420";
 const BANANA_GUN_SELL_OUTPUT_TOPIC = "0x522881958b3c4a6fc0840ad3b7fb947b881edc28c004245a62541647422ade97";
 
