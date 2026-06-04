@@ -28,7 +28,7 @@ function parsePoolType(type: string): { coinX: string; coinY: string } {
 
 const poolCache: Record<string, { coinX: string; coinY: string }> = {};
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
   const query = `
     SELECT
       json_extract_scalar(event_json, '$.pool_id') as pool_id,
@@ -82,13 +82,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      start: "2024-05-10",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SUI],
+  start: "2024-05-10",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };
