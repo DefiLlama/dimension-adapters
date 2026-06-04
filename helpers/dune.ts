@@ -10,18 +10,25 @@ let _axiosDune: any = null;
 
 // Dune indexers lag behind the chain head, so dune-backed adapters can't be trusted for
 // the hourly/near-real-time path:
-//  - v2 adapters are not supported at all (they run too close to head); they must be v1.
-//  - for the daily store-all run, the 00:00-02:00 UTC window has incomplete data for the
-//    previous day, so we skip it and let the refill-yesterday job backfill it once the
-//    indexer has caught up.
+//  - v2 adapters run too close to head, so dune in v2 is discouraged. We don't hard-fail
+//    (tests/backfills still run), but we warn and skip it during the store-all run so
+//    incomplete data isn't persisted; the refill-yesterday job backfills it later.
+//  - for v1 adapters, the daily store-all run in the 00:00-02:00 UTC window has incomplete
+//    data for the previous day, so we skip just that window and let refill-yesterday backfill.
 const INDEXER_DELAY_WINDOW_END_HOUR_UTC = 2;
 
 function assertDuneRunAllowed(options?: FetchOptions) {
+  const isStoreAll = options?.runType === "store-all"
+
   if (options?.version === 2) {
-    throw new Error("Dune queries are not supported in v2 adapters; please implement this as a v1 adapter")
+    console.warn("[dune] dune queries in v2 adapters are unreliable due to indexer lag; prefer migrating this to a v1 adapter")
+    if (isStoreAll) {
+      throw new Error("[dune] v2 dune adapter skipped during store-all; will be backfilled by the refill-yesterday job")
+    }
+    return
   }
 
-  if (options?.runType === "store-all" && new Date().getUTCHours() < INDEXER_DELAY_WINDOW_END_HOUR_UTC) {
+  if (isStoreAll && new Date().getUTCHours() < INDEXER_DELAY_WINDOW_END_HOUR_UTC) {
     throw new Error(`[dune] skipped during store-all in the 00:00-0${INDEXER_DELAY_WINDOW_END_HOUR_UTC}:00 UTC indexer-delay window; will be backfilled by the refill-yesterday job`)
   }
 }
