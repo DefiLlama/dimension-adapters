@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   start: "2025-06-17",
   runAtCurrTime: true,
+  deadFrom: "2026-05-17", // Alphalend agreement with Bluefin ended
 };
 
 export default adapter;
