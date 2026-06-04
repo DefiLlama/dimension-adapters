@@ -39,8 +39,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         t.tx_id,
         t.trader_id,
         t.amount_usd,
+        t.outer_instruction_index,
+        t.inner_instruction_index,
         ROW_NUMBER() OVER (
-          PARTITION BY t.tx_id, t.trader_id
+          PARTITION BY t.tx_id, t.trader_id, t.outer_instruction_index, t.inner_instruction_index
           ORDER BY
             CASE WHEN t.token_bought_symbol = 'WSOL' OR t.token_sold_symbol = 'WSOL' THEN 0 ELSE 1 END,
             t.amount_usd DESC
