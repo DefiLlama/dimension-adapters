@@ -32,11 +32,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   // Volume = gross gacha pull spend only (no netting).
   dailyVolume.addUSDValue(res.dailyVolumeUsd, "Gacha Volume");
 
-  // Per-tier pack spend (dynamic keys: gachaPack50Usd, gachaPack100Usd, …).
+  // Gross fees: per-tier pack spend + platform fees.
+  // Dynamic tier keys: gachaPack50Usd, gachaPack100Usd, etc.
   // Falls back to gachaGrossUsd when tier keys are absent.
   const tierKeys = Object.keys(res.breakdown).filter(k => /^gachaPack\d+Usd$/.test(k));
   if (tierKeys.length > 0) {
@@ -47,40 +49,48 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   } else {
     dailyFees.addUSDValue(res.breakdown.gachaGrossUsd, "Gacha Pack Sales");
   }
-
   dailyFees.addUSDValue(res.breakdown.marketplaceFeesUsd, "Marketplace Fees");
   dailyFees.addUSDValue(res.breakdown.redemptionFeesUsd, "Redemption Fees");
 
-  // Cash paid back to users — negative line items reduce net fees/revenue.
-  dailyFees.addUSDValue(-res.breakdown.gachaBuybacksPaidUsd, "Pack Buyback Payouts");
-  dailyFees.addUSDValue(-res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts");
+  // Supply-side costs: cash paid back to users (positive amounts).
+  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaBuybacksPaidUsd, "Pack Buyback Payouts");
+  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts");
 
-  // All four net dimensions are equal (Collector Crypt convention).
+  // dailyRevenue = gross fees − supply-side costs (can be negative on heavy-buyback days).
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(dailyFees);
+  dailyRevenue.subtract(dailySupplySideRevenue);
+
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
     dailyUserFees: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
   Volume: "Gross gacha pull spend (sum of all pack sales, no netting).",
-  Fees: "Net realized revenue: gross gacha + marketplace + redemption fees minus buyback payouts and repool yield/draw payouts. Can be negative on heavy-buyback days.",
-  Revenue: "Same as Fees.",
-  UserFees: "Same as Fees — all fees originate from user activity.",
-  ProtocolRevenue: "Same as Fees — 100% of net revenue accrues to the protocol.",
+  Fees: "Gross protocol revenue: gacha pull spend (paid pulls only — free spins excluded) plus marketplace and redemption fees.",
+  SupplySideRevenue: "Cash paid back to users: instant buyback payouts and repool yield + 85% draw payouts to repool consignors.",
+  Revenue: "Net realized revenue: gross fees minus supply-side costs (buybacks + repool). Can be negative on heavy-buyback days.",
+  UserFees: "Same as Fees — all fees originate from user pull spend and marketplace/redemption activity.",
+  ProtocolRevenue: "Same as Revenue — 100% of net revenue accrues to the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
+    ["Gacha Pack Sales"]: "Total gacha pull spend across all pack tiers.",
     ["Gacha $50 Pack Sales"]: "Pull spend on $50 packs.",
     ["Gacha $100 Pack Sales"]: "Pull spend on $100 packs.",
     ["Gacha $250 Pack Sales"]: "Pull spend on $250 packs.",
     ["Gacha $1000 Pack Sales"]: "Pull spend on $1000 packs.",
     ["Marketplace Fees"]: "Platform cut on peer-to-peer card sales.",
     ["Redemption Fees"]: "Processing + shipping fees when users redeem cards for physical delivery.",
+  },
+  SupplySideRevenue: {
     ["Pack Buyback Payouts"]: "Cash paid to users who instantly sold their card back to the platform.",
     ["Repool Yield + Draw Payouts"]: "Hourly yield + 85% draw payout to users who re-listed their card in the gacha pool.",
   },
