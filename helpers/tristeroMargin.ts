@@ -1,5 +1,6 @@
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
+import { getBlock } from "./getBlock";
 
 type TristeroMarginEscrowConfig = {
   address: string;
@@ -10,6 +11,18 @@ type TristeroMarginEscrowConfig = {
 type TristeroMarginChainConfig = {
   start: string;
   escrows: TristeroMarginEscrowConfig[];
+};
+
+export type TristeroV3MarginEscrowConfig = {
+  address: string;
+  vault: string;
+  start: string;
+  end?: string;
+};
+
+type TristeroV3MarginChainConfig = {
+  start: string;
+  escrows: TristeroV3MarginEscrowConfig[];
 };
 
 export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
@@ -36,18 +49,57 @@ export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> 
   },
 } as const;
 
+export const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
+  [CHAIN.ARBITRUM]: {
+    start: '2026-05-21',
+    escrows: [
+      {
+        address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
+        vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
+        start: '2026-05-21',
+      },
+    ],
+  },
+  [CHAIN.BASE]: {
+    start: '2026-05-21',
+    escrows: [
+      {
+        address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
+        vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
+        start: '2026-05-21',
+      },
+    ],
+  },
+} as const;
+
 export function getTristeroMarginChains(): string[] {
-  return Object.keys(TRISTERO_MARGIN_CONFIGS);
+  return Array.from(new Set([
+    ...Object.keys(TRISTERO_MARGIN_CONFIGS),
+    ...Object.keys(TRISTERO_V3_MARGIN_CONFIGS),
+  ]));
 }
 
 export function getTristeroMarginChainStart(chain: string): string | undefined {
-  return TRISTERO_MARGIN_CONFIGS[chain]?.start;
+  const starts = [TRISTERO_MARGIN_CONFIGS[chain]?.start, TRISTERO_V3_MARGIN_CONFIGS[chain]?.start].filter(Boolean) as string[];
+  return starts.sort()[0];
 }
 
 export function getActiveTristeroMarginEscrows(chain: string, date: string): string[] {
   return (TRISTERO_MARGIN_CONFIGS[chain]?.escrows ?? [])
     .filter(({ start, end }) => date >= start && (!end || date <= end))
     .map(({ address }) => address);
+}
+
+/**
+ * Returns v3 margin escrows that should be included for a chain/date window.
+ *
+ * @param chain DefiLlama chain slug used by the adapter runner.
+ * @param date Adapter date string in YYYY-MM-DD format.
+ * @returns V3 margin escrow/vault configs whose start/end range includes date.
+ */
+export function getActiveTristeroV3MarginEscrows(chain: string, date: string): TristeroV3MarginEscrowConfig[] {
+  return (TRISTERO_V3_MARGIN_CONFIGS[chain]?.escrows ?? [])
+    .filter(({ start, end }) => date >= start && (!end || date <= end));
 }
 
 export const TRISTERO_MARGIN_ABI = {
@@ -60,6 +112,14 @@ export const TRISTERO_MARGIN_ABI = {
   protocolFeeCollected: 'event ProtocolFeeCollected(uint128 indexed positionId, address indexed token, uint256 amount)',
 } as const;
 
+export const TRISTERO_V3_MARGIN_ABI = {
+  ownerOf: 'function ownerOf(uint256 tokenId) view returns (address)',
+  readValue: 'function readValue(address token, uint256 shares) view returns (uint256)',
+  positionOpened: 'event PositionOpened(uint128 indexed positionId, address indexed taker, address indexed filler, (address underlyingAsset, address loanAsset, uint256 notionalShares, uint256 loanShares, uint256 RPS, uint256 lastUpdate) position)',
+  positionReduced: 'event PositionReduced(uint128 indexed positionId, address indexed taker, uint256 repayAmount, uint256 collateralOut, (address underlyingAsset, address loanAsset, uint256 notionalShares, uint256 loanShares, uint256 RPS, uint256 lastUpdate) position)',
+  positionClosed: 'event PositionClosed(uint128 indexed positionId, address indexed filler)',
+} as const;
+
 export interface TristeroMarginPosition {
   taker: string;
   filler: string;
@@ -69,6 +129,61 @@ export interface TristeroMarginPosition {
   loanAmount: bigint;
   liqPrice: bigint;
 }
+
+export interface TristeroV3MarginPosition {
+  escrow: string;
+  vault: string;
+  positionId: number;
+  taker: string;
+  filler: string;
+  underlyingAsset: string;
+  loanAsset: string;
+  notionalShares: bigint;
+  loanShares: bigint;
+  rps: bigint;
+  lastUpdate: bigint;
+  openBlock: number;
+  // PositionClosed is terminal in current v3. Partial changes emit PositionReduced
+  // and update the remaining share fields without setting these close fields.
+  closeBlock?: number;
+  closeTxHash?: string;
+  closeFiller?: string;
+}
+
+export type TristeroV3MarginPositionSnapshotRequest = {
+  escrow: string;
+  positionId: number;
+  block: number;
+};
+
+export type TristeroV3MarginPositionSnapshot = TristeroV3MarginPositionSnapshotRequest & {
+  position: TristeroV3MarginPosition;
+};
+
+type TristeroV3PositionStruct = {
+  underlyingAsset: string;
+  loanAsset: string;
+  notionalShares: bigint;
+  loanShares: bigint;
+  rps: bigint;
+  lastUpdate: bigint;
+};
+
+type TristeroV3ReducedPositionLog = {
+  positionId: number;
+  taker: string;
+  position: TristeroV3PositionStruct;
+  blockNumber: number;
+  logIndex: number;
+};
+
+type TristeroV3ClosedPositionLog = {
+  positionId: number;
+  filler: string;
+  blockNumber: number;
+  logIndex: number;
+  txHash?: string;
+};
 
 export function toBigIntSafe(value: any): bigint {
   if (value === null || value === undefined) {
@@ -94,6 +209,16 @@ export function getPositionIds(totalPositions: any): number[] {
   if (totalPositions === null || totalPositions === undefined) return [];
   const total = Number(toBigIntSafe(totalPositions));
   return Array.from({ length: total }, (_, index) => index + 1);
+}
+
+/**
+ * Builds the stable map key used to join v3 position event state across helpers.
+ *
+ * @param positionRef Escrow address and numeric v3 position id.
+ * @returns Lowercase escrow and position id joined into a unique key.
+ */
+export function getV3PositionKey({ escrow, positionId }: { escrow: string; positionId: number }): string {
+  return `${escrow.toLowerCase()}-${positionId}`;
 }
 
 export function mulDivCeil(a: bigint, b: bigint, denominator: bigint): bigint {
@@ -162,4 +287,357 @@ export async function getAccumulatedInterestAtBlock(options: FetchOptions, escro
   });
 
   return toBigIntOrNull(interest) ?? 0n;
+}
+
+function normalizeAddress(value?: string | null): string {
+  return value?.toLowerCase() ?? "";
+}
+
+function getLogTxHash(log: any): string | undefined {
+  return log?.transactionHash ?? log?.transaction_hash ?? log?.txHash;
+}
+
+function getLogIndex(log: any): number {
+  const value = log?.logIndex ?? log?.log_index ?? log?.index ?? 0;
+  return Number(value);
+}
+
+function normalizeV3PositionStruct(position: any): TristeroV3PositionStruct | null {
+  const underlyingAsset = position.underlyingAsset ?? position[0];
+  const loanAsset = position.loanAsset ?? position[1];
+  const notionalShares = toBigIntOrNull(position.notionalShares ?? position[2]);
+  const loanShares = toBigIntOrNull(position.loanShares ?? position[3]);
+  const rps = toBigIntOrNull(position.RPS ?? position.rps ?? position[4]);
+  const lastUpdate = toBigIntOrNull(position.lastUpdate ?? position[5]);
+
+  if (!underlyingAsset || !loanAsset || notionalShares === null || loanShares === null || rps === null || lastUpdate === null) {
+    return null;
+  }
+
+  return {
+    underlyingAsset: normalizeAddress(underlyingAsset),
+    loanAsset: normalizeAddress(loanAsset),
+    notionalShares,
+    loanShares,
+    rps,
+    lastUpdate,
+  };
+}
+
+function normalizeV3PositionOpenedLog(log: any, config: TristeroV3MarginEscrowConfig): TristeroV3MarginPosition | null {
+  const args = log?.args ?? log;
+  const positionId = args?.positionId ?? args?.[0];
+  const blockNumber = log?.blockNumber;
+  const position = normalizeV3PositionStruct(args?.position ?? args?.[3]);
+
+  if (positionId === null || positionId === undefined || !position || blockNumber === null || blockNumber === undefined) return null;
+
+  return {
+    escrow: config.address.toLowerCase(),
+    vault: config.vault.toLowerCase(),
+    positionId: toPositionId(positionId),
+    taker: normalizeAddress(args?.taker ?? args?.[1]),
+    filler: normalizeAddress(args?.filler ?? args?.[2]),
+    ...position,
+    openBlock: Number(blockNumber),
+  };
+}
+
+function normalizeV3PositionReducedLog(log: any): TristeroV3ReducedPositionLog | null {
+  const args = log?.args ?? log;
+  const positionId = args?.positionId ?? args?.[0];
+  const blockNumber = log?.blockNumber;
+  const position = normalizeV3PositionStruct(args?.position ?? args?.[4]);
+
+  if (positionId === null || positionId === undefined || !position || blockNumber === null || blockNumber === undefined) return null;
+
+  return {
+    positionId: toPositionId(positionId),
+    taker: normalizeAddress(args?.taker ?? args?.[1]),
+    position,
+    blockNumber: Number(blockNumber),
+    logIndex: getLogIndex(log),
+  };
+}
+
+function normalizeV3PositionClosedLog(log: any): TristeroV3ClosedPositionLog | null {
+  const args = log?.args ?? log;
+  const positionId = args?.positionId ?? args?.[0];
+  const blockNumber = log?.blockNumber;
+
+  if (positionId === null || positionId === undefined || blockNumber === null || blockNumber === undefined) return null;
+
+  return {
+    positionId: toPositionId(positionId),
+    filler: normalizeAddress(args?.filler ?? args?.[1]),
+    blockNumber: Number(blockNumber),
+    logIndex: getLogIndex(log),
+    txHash: getLogTxHash(log),
+  };
+}
+
+function cloneV3MarginPosition(position: TristeroV3MarginPosition): TristeroV3MarginPosition {
+  return { ...position };
+}
+
+async function getV3EscrowStartBlock(chain: string, start: string): Promise<number> {
+  const timestamp = Math.floor(new Date(`${start}T00:00:00Z`).getTime() / 1000);
+  const block = await getBlock(timestamp, chain);
+  if (block === null || block === undefined) {
+    throw new Error(`Unable to resolve Tristero v3 margin escrow start block for ${chain} at ${start}`);
+  }
+
+  return Number(block);
+}
+
+/**
+ * Reconstructs v3 margin position snapshots at specific historical blocks.
+ *
+ * The returned positions preserve the loan/notional share state as of the
+ * requested block, so fee adapters can value historical boundaries without
+ * reusing the end-of-window mutated position state.
+ *
+ * @param options DefiLlama fetch options for the current chain/window.
+ * @param configs Active v3 escrow/vault configs to scan.
+ * @param requests Escrow, position id, and block tuples to snapshot.
+ * @returns Position snapshots for requests that existed by the requested block.
+ */
+export async function getTristeroV3MarginPositionSnapshots(
+  options: FetchOptions,
+  configs: TristeroV3MarginEscrowConfig[],
+  requests: TristeroV3MarginPositionSnapshotRequest[],
+): Promise<TristeroV3MarginPositionSnapshot[]> {
+  const snapshots: TristeroV3MarginPositionSnapshot[] = [];
+  if (!requests.length) return snapshots;
+
+  for (const config of configs) {
+    const configRequests = requests
+      .filter((request) => request.escrow.toLowerCase() === config.address.toLowerCase())
+      .map((request) => ({ ...request, escrow: request.escrow.toLowerCase() }))
+      .sort((a, b) => a.block - b.block);
+    if (!configRequests.length) continue;
+
+    const maxBlock = Math.max(...configRequests.map((request) => request.block));
+    const startBlock = await getV3EscrowStartBlock(options.chain, config.start);
+    if (startBlock > maxBlock) continue;
+
+    const [openedLogs, reducedLogs, closedLogs] = await Promise.all([
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionOpened,
+        fromBlock: startBlock,
+        toBlock: maxBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionReduced,
+        fromBlock: startBlock,
+        toBlock: maxBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed,
+        fromBlock: startBlock,
+        toBlock: maxBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+    ]);
+
+    const positionEvents = [
+      ...(openedLogs as any[]).flatMap((log) => {
+        const position = normalizeV3PositionOpenedLog(log, config);
+        return position ? [{ type: 'opened' as const, blockNumber: position.openBlock, logIndex: getLogIndex(log), position }] : [];
+      }),
+      ...(reducedLogs as any[]).flatMap((log) => {
+        const reducedLog = normalizeV3PositionReducedLog(log);
+        return reducedLog ? [{ type: 'reduced' as const, ...reducedLog }] : [];
+      }),
+      ...(closedLogs as any[]).flatMap((log) => {
+        const closedLog = normalizeV3PositionClosedLog(log);
+        return closedLog ? [{ type: 'closed' as const, ...closedLog }] : [];
+      }),
+    ].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
+
+    const positionsByKey = new Map<string, TristeroV3MarginPosition>();
+    let eventIndex = 0;
+
+    configRequests.forEach((request) => {
+      while (eventIndex < positionEvents.length && positionEvents[eventIndex].blockNumber <= request.block) {
+        const event = positionEvents[eventIndex];
+
+        if (event.type === 'opened') {
+          positionsByKey.set(getV3PositionKey(event.position), cloneV3MarginPosition(event.position));
+          eventIndex += 1;
+          continue;
+        }
+
+        const key = getV3PositionKey({ escrow: config.address, positionId: event.positionId });
+        const position = positionsByKey.get(key);
+        if (position) {
+          if (event.type === 'reduced') {
+            position.taker = event.taker;
+            position.underlyingAsset = event.position.underlyingAsset;
+            position.loanAsset = event.position.loanAsset;
+            position.notionalShares = event.position.notionalShares;
+            position.loanShares = event.position.loanShares;
+            position.rps = event.position.rps;
+            position.lastUpdate = event.position.lastUpdate;
+          } else {
+            position.closeBlock = event.blockNumber;
+            position.closeTxHash = event.txHash;
+            position.closeFiller = event.filler;
+          }
+        }
+
+        eventIndex += 1;
+      }
+
+      const snapshot = positionsByKey.get(getV3PositionKey(request));
+      if (snapshot) {
+        snapshots.push({
+          ...request,
+          position: cloneV3MarginPosition(snapshot),
+        });
+      }
+    });
+  }
+
+  return snapshots;
+}
+
+/**
+ * Reconstructs v3 margin positions from PositionOpened and PositionClosed logs.
+ * PositionReduced logs mutate the remaining share state; PositionClosed is terminal.
+ *
+ * @param options DefiLlama fetch options for the current chain/window.
+ * @param configs Active v3 escrow/vault configs to scan.
+ * @param toBlock Last block to include when reconstructing position state.
+ * @returns V3 positions opened up to toBlock, annotated with close data when closed.
+ */
+export async function getTristeroV3MarginPositions(
+  options: FetchOptions,
+  configs: TristeroV3MarginEscrowConfig[],
+  toBlock: number,
+): Promise<TristeroV3MarginPosition[]> {
+  const positionsByKey = new Map<string, TristeroV3MarginPosition>();
+
+  for (const config of configs) {
+    const startBlock = await getV3EscrowStartBlock(options.chain, config.start);
+    if (startBlock > toBlock) continue;
+
+    const [openedLogs, reducedLogs, closedLogs] = await Promise.all([
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionOpened,
+        fromBlock: startBlock,
+        toBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionReduced,
+        fromBlock: startBlock,
+        toBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+      options.getLogs({
+        target: config.address,
+        eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed,
+        fromBlock: startBlock,
+        toBlock,
+        entireLog: true,
+        parseLog: true,
+        cacheInCloud: true,
+      }),
+    ]);
+
+    (openedLogs as any[]).forEach((log) => {
+      const position = normalizeV3PositionOpenedLog(log, config);
+      if (!position) return;
+      positionsByKey.set(getV3PositionKey(position), position);
+    });
+
+    const positionStateLogs = [
+      ...(reducedLogs as any[]).flatMap((log) => {
+        const reducedLog = normalizeV3PositionReducedLog(log);
+        return reducedLog ? [{ type: 'reduced' as const, ...reducedLog }] : [];
+      }),
+      ...(closedLogs as any[]).flatMap((log) => {
+        const closedLog = normalizeV3PositionClosedLog(log);
+        return closedLog ? [{ type: 'closed' as const, ...closedLog }] : [];
+      }),
+    ].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
+
+    positionStateLogs.forEach((log) => {
+      const key = getV3PositionKey({ escrow: config.address, positionId: log.positionId });
+      const position = positionsByKey.get(key);
+      if (!position) return;
+
+      if (log.type === 'reduced') {
+        position.taker = log.taker;
+        position.underlyingAsset = log.position.underlyingAsset;
+        position.loanAsset = log.position.loanAsset;
+        position.notionalShares = log.position.notionalShares;
+        position.loanShares = log.position.loanShares;
+        position.rps = log.position.rps;
+        position.lastUpdate = log.position.lastUpdate;
+        return;
+      }
+
+      position.closeBlock = log.blockNumber;
+      position.closeTxHash = log.txHash;
+      position.closeFiller = log.filler;
+    });
+  }
+
+  return Array.from(positionsByKey.values());
+}
+
+/**
+ * Reconstructs currently open v3 margin positions and verifies each NFT owner.
+ *
+ * @param options DefiLlama fetch options for the current chain/window.
+ * @param configs Active v3 escrow/vault configs to scan.
+ * @returns V3 positions that have not emitted PositionClosed by the end block.
+ */
+export async function getOpenTristeroV3MarginPositions(
+  options: FetchOptions,
+  configs: TristeroV3MarginEscrowConfig[],
+): Promise<TristeroV3MarginPosition[]> {
+  if (!configs.length) return [];
+
+  const toBlock = await options.getToBlock();
+  const positions = await getTristeroV3MarginPositions(options, configs, toBlock);
+  const candidates = positions.filter((position) => position.closeBlock === undefined || position.closeBlock > toBlock);
+  if (!candidates.length) return [];
+
+  const owners = await options.toApi.multiCall({
+    abi: TRISTERO_V3_MARGIN_ABI.ownerOf,
+    calls: candidates.map((position) => ({
+      target: position.escrow,
+      params: [position.positionId],
+    })),
+    permitFailure: true,
+  });
+
+  owners.forEach((owner, index) => {
+    if (!normalizeAddress(owner)) {
+      const position = candidates[index];
+      throw new Error(`Unable to read Tristero v3 ownerOf for ${options.chain} position ${position.positionId} at ${position.escrow}`);
+    }
+  });
+
+  return candidates;
 }
