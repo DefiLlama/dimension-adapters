@@ -47,7 +47,7 @@ const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: F
   const jamSettlement = JAM_SETTLEMENT[chain] || JAM_SETTLEMENT.default
 
   // JAM settlement — data is in events directly, no tx decoding needed
-  const [jamLogs, blendSingleLogs, blendMultiLogs] = await Promise.all([
+  const [jamLogs, blendSingleLogs, blendMultiLogs, blendAggregateLogs] = await Promise.all([
     getLogs({
       target: jamSettlement,
       eventAbi: 'event BebopJamOrderFilled(uint256 indexed nonce, address indexed user, address[] sellTokens, address[] buyTokens, uint256[] sellAmounts, uint256[] buyAmounts)',
@@ -63,6 +63,11 @@ const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: F
       eventAbi: 'event BebopBlendMultiOrderFilled(uint128 indexed eventId, address indexed receiver, address[] sellTokens, address[] buyTokens, uint256[] sellAmounts, uint256[] buyAmounts)',
       onlyArgs: true,
     }),
+    getLogs({
+      target: jamSettlement,
+      eventAbi: 'event BebopBlendAggregateOrderFilled(uint128 indexed eventId, address indexed receiver, address[] sellTokens, address[] buyTokens, uint256[] sellAmounts, uint256[] buyAmounts)',
+      onlyArgs: true,
+    }),
   ])
 
   for (const log of jamLogs) {
@@ -71,7 +76,8 @@ const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: F
   for (const log of blendSingleLogs) {
     dailyVolume.add(log.sellToken, log.sellAmount)
   }
-  for (const log of blendMultiLogs) {
+  // Multi and Aggregate Blend events share the same array shape
+  for (const log of [...blendMultiLogs, ...blendAggregateLogs]) {
     dailyVolume.add(log.sellTokens, log.sellAmounts)
   }
 
