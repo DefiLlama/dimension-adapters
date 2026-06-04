@@ -87,7 +87,10 @@ const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: F
     topics: ['0xadd7095becdaa725f0f33243630938c861b0bba83dfd217d4055701aa768ec2e'], // BebopOrder(uint128)
   })
 
-  const rfqTxs: any[] = await getTransactions(chain, rfqLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop-rfq' })
+  // A single tx can emit several BebopOrder events; dedupe so each settlement
+  // tx's calldata is decoded (and its volume counted) only once.
+  const rfqTxHashes = [...new Set(rfqLogs.map((log: any) => log.transactionHash))]
+  const rfqTxs: any[] = await getTransactions(chain, rfqTxHashes, { cacheKey: 'bebop-rfq' })
   for (const tx of rfqTxs) {
     if (!tx) continue
     // Only count txs that call the RFQ contract directly. Orders routed through
