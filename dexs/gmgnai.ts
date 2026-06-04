@@ -9,9 +9,8 @@ type ChainConfig = {
   contract?: string;
   wrappedNative?: string;
   feeAddresses?: string[];
+  swapEvent?: string;
 };
-
-const SWAP_EVENT = "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path)[] descs)";
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.SOLANA]: {
@@ -32,11 +31,13 @@ const chainConfig: Record<string, ChainConfig> = {
     start: "2024-07-05",
     contract: "0xd8Ba9D1a99Fc21f0ECA24e9b85737c28A194a4E2",
     wrappedNative: ADDRESSES.base.WETH,
+    swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path)[] descs)",
   },
   [CHAIN.BSC]: {
     start: "2024-11-27",
     contract: "0x1de460f363AF910f51726DEf188F9004276Bf4bc",
     wrappedNative: ADDRESSES.bsc.WBNB,
+    swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path, address, bytes32)[] descs)",
   },
 };
 
@@ -80,7 +81,7 @@ const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
 
   const logs = await options.getLogs({
     target: config.contract,
-    eventAbi: SWAP_EVENT,
+    eventAbi: config.swapEvent,
   });
 
   logs.forEach((log: any) => {
