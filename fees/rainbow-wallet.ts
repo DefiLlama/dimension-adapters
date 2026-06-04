@@ -161,6 +161,12 @@ const POST_APRIL_SQL = (options: FetchOptions) => `
 `
 
 const prefetch = async (options: FetchOptions) => {
+  const now = Date.now();
+  const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+  if (options.toTimestamp * 1000 > sixHoursAgo) {
+    throw new Error("End timestamp is less than 6 hours ago, skipping due to dune indexing delay");
+  }
+  
   const sql = options.dateString < APRIL_1_2026
     ? PRE_APRIL_SQL(options)
     : POST_APRIL_SQL(options)
