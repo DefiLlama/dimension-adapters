@@ -10,9 +10,9 @@ const chainConfig = {
       old: 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3',
       current: '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq',
     },
-    cutoffTimestamp: 1731715200,
+    cutoffDate: '2024-11-16',
   },
-} as const;
+};
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
@@ -20,8 +20,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   }
 
-  const { feeWallets, cutoffTimestamp } = chainConfig[CHAIN.SOLANA];
-  const feeWallet = options.startOfDay >= cutoffTimestamp ? feeWallets.current : feeWallets.old;
+  const { feeWallets, cutoffDate } = chainConfig[CHAIN.SOLANA];
+  const feeWallet = options.dateString >= cutoffDate ? feeWallets.current : feeWallets.old;
 
   const data = await queryDuneSql(options, `
     WITH bullx_txs AS (
