@@ -9,7 +9,6 @@ const dexsConfigs: Record<string, [string, string[]]> = {
   "bmx-perps": ["BMX", [CHAIN.BASE, CHAIN.MODE]],
   "carbon-perps": ["Carbon", [CHAIN.BASE]],
   "cloverfield-perps": ["Cloverfield", [CHAIN.BASE, CHAIN.BSC]],
-  "gryps-perps": ["Gryps", [CHAIN.ARBITRUM]],
   "intentx-perps": ["IntentX", [CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.MANTLE]],
   "ivx-perps": ["IVX", [CHAIN.BERACHAIN]],
   "lode-perps": ["Lode", [CHAIN.BERACHAIN]],
