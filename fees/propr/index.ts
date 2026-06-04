@@ -4,6 +4,9 @@ import { httpGet } from "../../utils/fetchURL";
 
 const PROPR_API = "https://www.propr.xyz/api/propr";
 const REVENUE_HISTORY_DAYS = 1000;
+const PAYOUTS = "0x6E810d5c33a4355cE1b4107F5722787bFD7AcF24";
+const PAYOUT_EVENT = "event PayoutEvent(uint8 indexed reason, bytes12 indexed payoutId, bytes12 indexed userId, bytes12 accountId, address token, uint256 amount, address from, address to, address signer)";
+const TRADER_PAYOUT_REASON = 1;
 
 const LABELS = {
   challengeFees: "Challenge Fees & Subscriptions",
@@ -17,16 +20,10 @@ type RevenueHistoryResponse = {
   }>;
 };
 
-type Payout = {
-  status: string;
-  processedAt?: string | null;
-  systemAmount?: string | null;
-};
-
 async function fetch(options: FetchOptions) {
-  const [revenueHistory, payouts]: [RevenueHistoryResponse, Payout[]] = await Promise.all([
+  const [revenueHistory, payoutLogs]: [RevenueHistoryResponse, any[]] = await Promise.all([
     httpGet(`${PROPR_API}/v1/stats/revenue/history?days=${REVENUE_HISTORY_DAYS}`),
-    httpGet("https://www.propr.xyz/api/transparency/api-payouts"),
+    options.getLogs({ target: PAYOUTS, eventAbi: PAYOUT_EVENT }),
   ]);
 
   const dailyFees = options.createBalances();
@@ -35,11 +32,12 @@ async function fetch(options: FetchOptions) {
 
   dailyFees.addUSDValue(Number(revenueRow.dailyRevenue), LABELS.challengeFees);
 
-  const profitSplit = payouts
-    .filter((payout) => payout.status === "processed" && payout.processedAt?.slice(0, 10) === options.dateString)
-    .reduce((sum, payout) => sum + Number(payout.systemAmount ?? 0), 0);
+  for (const log of payoutLogs) {
+    if (Number(log.reason) !== TRADER_PAYOUT_REASON) continue;
 
-  dailyFees.addUSDValue(profitSplit, LABELS.profitSplit);
+    const userPayoutAmount = BigInt(log.amount.toString());
+    dailyFees.add(log.token, userPayoutAmount / 4n, LABELS.profitSplit);
+  }
 
   return {
     dailyFees,
@@ -56,8 +54,8 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-    Fees: "Challenge fees and subscriptions from Propr's public revenue API, plus Propr's retained trader profit split from processed payout records.",
-    Revenue: "Challenge fees and subscriptions from Propr's public revenue API, plus Propr's retained trader profit split from processed payout records.",
+    Fees: "Challenge fees and subscriptions from Propr's public revenue API, plus Propr's retained trader profit split derived from on-chain payout events.",
+    Revenue: "Challenge fees and subscriptions from Propr's public revenue API, plus Propr's retained trader profit split derived from on-chain payout events.",
   },
   breakdownMethodology: {
     Fees: {
