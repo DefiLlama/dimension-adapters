@@ -29,15 +29,9 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(contract).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        start: "2026-05-30",
-      },
-    };
-  }, {}),
+  fetch,
+  chains: Object.keys(contract),
+  start: "2026-05-30",
   version: 2,
   pullHourly: true,
   methodology: {
