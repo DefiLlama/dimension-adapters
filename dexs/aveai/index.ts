@@ -60,16 +60,7 @@ const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
   }
 
   const rows = await queryDuneSql(options, `
-    WITH aveai_txs AS (
-      SELECT
-        id AS tx_id
-      FROM solana.transactions
-      WHERE
-        TIME_RANGE
-        AND success = true
-        AND CONTAINS(account_keys, '${router}')
-    ),
-    bot_trades AS (
+    WITH bot_trades AS (
       SELECT
         t.tx_id,
         t.trader_id,
@@ -79,17 +70,25 @@ const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
           ORDER BY t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
-      JOIN aveai_txs a ON t.tx_id = a.tx_id
       WHERE
         TIME_RANGE
+        AND EXISTS (
+          SELECT 1
+          FROM solana.transactions tx
+          WHERE
+            TIME_RANGE
+            AND tx.id = t.tx_id
+            AND tx.success = true
+            AND CONTAINS(tx.account_keys, '${router}')
+        )
     )
     SELECT
       COALESCE(SUM(amount_usd), 0) AS daily_volume
     FROM bot_trades
     WHERE row_num = 1
-  `) as { daily_volume?: string | number | null }[];
+  `) as { daily_volume?: string | number }[];
 
-  return { dailyVolume: Number(rows[0]?.daily_volume ) };
+  return { dailyVolume: Number(rows[0]?.daily_volume) };
 };
 
 const fetch = async (_timestamp: number, _chainBlocks: unknown, options: FetchOptions): Promise<FetchResult> => {
