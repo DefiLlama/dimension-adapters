@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { uniV2Exports } from "../../helpers/uniswap";
 import { fees_bribes } from './bribes';
 import { METRIC } from "../../helpers/metrics";
+import { breakdownMethodology, createPoolFetchHandler, methodology } from "../../dexs/ramses-hl-cl";
 
 
 const FACTORY_ADDRESS = '0xaaa20d08e59f6561f242b08513d36266c5a29415';
@@ -13,6 +14,9 @@ type TStartTime = {
 const startTimeV2: TStartTime = {
   [CHAIN.ARBITRUM]: 1678838400,
 }
+const arbitrumCutover = Date.UTC(2026, 0, 28) / 1000;
+const currentFetch = createPoolFetchHandler('legacy');
+const fetchCurrent = (options: FetchOptions) => currentFetch(undefined, undefined, options);
 
 const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
   const fromBlock = await getFromBlock()
@@ -27,36 +31,6 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
   };
 };
 
-const methodology = {
-  UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
-  SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.SWAP_FEES]: "Swap fees paid by users",
-    ['Bribes']: "Bribes paid by protocols"
-  },
-  Revenue: {
-    ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
-    ['Swap Fees to holders']: "75% of swap fees go to the holders",
-    ['Bribes to holders']: "All the bribes go to the holders",
-  },
-  ProtocolRevenue: {
-    ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
-  },
-  SupplySideRevenue: {
-    ['Swap Fees to LPs']: "20% of swap fees go to the LPs",
-  },
-  HoldersRevenue: {
-    ['Swap Fees to holders']: "75% of swap fees go to the holders",
-    ['Bribes to holders']: "All the bribes go to the holders",
-  },
-}
-
-
 const feeAdapter = uniV2Exports({
   [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
 }).adapter![CHAIN.ARBITRUM].fetch
@@ -69,6 +43,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
+        if (options.startOfDay >= arbitrumCutover) return fetchCurrent(options);
+
         const v1Results: any = await feeAdapter!(options as any, {}, options)
         const bribesResult = await getBribes(options);
         v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
@@ -104,6 +80,14 @@ const adapter: Adapter = {
         };
       },
       start: startTimeV2[CHAIN.ARBITRUM],
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetchCurrent,
+      start: '2025-11-08',
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetchCurrent,
+      start: '2026-01-28',
     },
   },
 };
