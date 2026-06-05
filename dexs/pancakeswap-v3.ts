@@ -187,9 +187,9 @@ const fetchBsc = async (options: FetchOptions) => {
   const whitelist = new Set(
     (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase()),
   );
-  const blacklist = new Set(
+  const blacklist = new Set([
     '0x95e7c70b58790a1cbd377bc403cd7e9be7e0afb1', // YSL old token
-  );
+  ]);
 
   const rows = await queryClickhouse<BscV3Row>(
     buildBscV3DataSql(
