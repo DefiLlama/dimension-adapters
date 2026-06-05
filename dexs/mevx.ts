@@ -3,9 +3,10 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 // ref https://dune.com/queries/4179280/7034657
-const chainConfig: Record<string, { start: string; wallets: string[] }> = {
+const chainConfig: Record<string, { start: string; duneChain: string; wallets: string[] }> = {
   [CHAIN.SOLANA]: {
     start: "2024-07-26",
+    duneChain: "solana",
     wallets: [
       "3kxSQybWEeQZsMuNWMRJH4TxrhwoDwfv41TNMLRzFP5A",
       "BS3CyJ9rRC4Tp8G7f86r6hGvuu3XdrVGNVpbNM9U5WRZ",
@@ -15,6 +16,7 @@ const chainConfig: Record<string, { start: string; wallets: string[] }> = {
   },
   [CHAIN.BSC]: {
     start: "2025-04-05",
+    duneChain: "bnb",
     wallets: [
       "0xE22B05eEBfd497adF4f54c033e028500e5AC19d8",
       "0x0422B4799A2ea25E9bd72210daA87F2B03CeF18B",
@@ -24,52 +26,51 @@ const chainConfig: Record<string, { start: string; wallets: string[] }> = {
 
 const formatSolanaAddresses = (addresses: string[]) => addresses.map((address) => `'${address}'`).join(", ");
 const formatEvmAddresses = (addresses: string[]) => addresses.map((address) => address.toLowerCase()).join(", ");
-const containsSolanaAddress = (addresses: string[]) => addresses.map((address) => `CONTAINS(account_keys, '${address}')`).join(" OR ");
 
 const fetchSolana = async (options: FetchOptions) => {
   const { wallets } = chainConfig[CHAIN.SOLANA];
   const [row] = await queryDuneSql(options, `
-    WITH mevx_txs AS (
-        SELECT id AS tx_id
-        FROM solana.transactions
-        WHERE TIME_RANGE
-          AND success = true
-          AND (${containsSolanaAddress(wallets)})
-    ),
-    trades AS (
-      SELECT tx_id, amount_usd
-      FROM dex_solana.trades
+    WITH trades AS (
+      SELECT d.tx_id, d.amount_usd
+      FROM dex_solana.trades d
       WHERE TIME_RANGE
-        AND trader_id NOT IN (${formatSolanaAddresses(wallets)})
+        AND d.trader_id NOT IN (${formatSolanaAddresses(wallets)})
+        AND EXISTS (
+          SELECT 1
+          FROM solana.account_activity a
+          WHERE TIME_RANGE
+            AND a.tx_id = d.tx_id
+            AND a.tx_success
+            AND a.address IN (${formatSolanaAddresses(wallets)})
+        )
     )
-    SELECT COALESCE(SUM(trades.amount_usd), 0) AS volume
+    SELECT COALESCE(SUM(amount_usd), 0) AS volume
     FROM trades
-    JOIN mevx_txs ON trades.tx_id = mevx_txs.tx_id
   `);
 
   return Number(row?.volume);
 };
 
 const fetchEvm = async (options: FetchOptions) => {
-  const { wallets } = chainConfig[options.chain];
+  const { duneChain, wallets } = chainConfig[options.chain];
   const [row] = await queryDuneSql(options, `
-    WITH mevx_txs AS (
-        SELECT DISTINCT tx_hash
-        FROM transfers_bnb.bnb
-        WHERE TIME_RANGE
-          AND wallet_address IN (${formatEvmAddresses(wallets)})
-    ),
-    trades AS (
-      SELECT tx_hash, amount_usd
-      FROM dex.trades
+    WITH trades AS (
+      SELECT d.tx_hash, d.amount_usd
+      FROM dex.trades d
       WHERE TIME_RANGE
-        AND blockchain = 'bnb'
-        AND tx_from NOT IN (${formatEvmAddresses(wallets)})
-        AND (taker IS NULL OR taker NOT IN (${formatEvmAddresses(wallets)}))
+        AND d.blockchain = '${duneChain}'
+        AND d.tx_from NOT IN (${formatEvmAddresses(wallets)})
+        AND (d.taker IS NULL OR d.taker NOT IN (${formatEvmAddresses(wallets)}))
+        AND EXISTS (
+          SELECT 1
+          FROM transfers_bnb.bnb t
+          WHERE TIME_RANGE
+            AND t.tx_hash = d.tx_hash
+            AND t.wallet_address IN (${formatEvmAddresses(wallets)})
+        )
     )
-    SELECT COALESCE(SUM(trades.amount_usd), 0) AS volume
+    SELECT COALESCE(SUM(amount_usd), 0) AS volume
     FROM trades
-    JOIN mevx_txs ON trades.tx_hash = mevx_txs.tx_hash
   `);
 
   return Number(row?.volume);
