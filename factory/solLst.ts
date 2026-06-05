@@ -872,7 +872,7 @@ const doublezeroAdapter = (() => {
 /* const jitoAdapter = (() => {
   const cfg = configs["jito-staked-sol"];
 
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
       start: options.startTimestamp,
       end: options.endTimestamp,

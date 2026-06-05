@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 // // Previously it was Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)
 
 // let asterBuilderData: any = null
-// async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
+// async function asterFetch({ dateString }: FetchOptions) {
 //   const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
 //   if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
 //     const dateDataMap: any = {}

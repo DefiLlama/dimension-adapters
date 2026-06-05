@@ -19,7 +19,7 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder }: { optio
 
 export function polymarketBuilderExports({ builder, start }: { builder: string, start: string }) {
 
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     return await fetchPolymarketBuilderVolume({ options, builder });
   }
 

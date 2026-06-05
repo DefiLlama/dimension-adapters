@@ -58,7 +58,7 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
   return {
     adapter: {
       [chain]: {
-        fetch: async (_a: any, _b: any, options: FetchOptions) => {
+        fetch: async (options: FetchOptions) => {
           const transactionFees = await fetchTransactionFees(options)
           return {
             dailyFees: transactionFees,
@@ -79,16 +79,13 @@ export const chainAdapter = (adapterKey: string, assetID: string, startTime: num
   const fetch = async (options: FetchOptions) => {
     const today = new Date(getTimestampAtStartOfDayUTC(options.toTimestamp) * 1000).toISOString()
     const yesterday = new Date(getTimestampAtStartOfPreviousDayUTC(options.toTimestamp) * 1000).toISOString()
-    const dailyFee = await getOneDayFees(assetID, yesterday, today);
-
-    return {
-      dailyFees: dailyFee,
-    };
+    const dailyFees = await getOneDayFees(assetID, yesterday, today);
+    return { dailyFees };
   };
 
   return {
     [adapterKey]: {
-      fetch: fetch,
+      fetch,
       start: startTime
     }
   }

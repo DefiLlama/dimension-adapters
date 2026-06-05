@@ -67,7 +67,7 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
     return data[0]
   }
 
-  async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+  async function fetch({ chain, preFetchedResults }: FetchOptions) {
 
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
@@ -90,7 +90,7 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
 
 function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
 
-  async function fetch(_: any, _1: any, { startTimestamp, endTimestamp, }: FetchOptions) {
+  async function fetch({ startTimestamp, endTimestamp, }: FetchOptions) {
     const [data] = await item.getUsers!(startTimestamp, endTimestamp);
 
     return {
@@ -109,7 +109,7 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
 
 function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
 
-  async function fetch(_: any, _1: any, { startTimestamp, endTimestamp, }: FetchOptions) {
+  async function fetch({ startTimestamp, endTimestamp, }: FetchOptions) {
     const [data] = await item.getNewUsers!(startTimestamp, endTimestamp);
 
     return {

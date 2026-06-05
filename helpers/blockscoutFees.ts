@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
+import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
@@ -166,7 +166,7 @@ export function blockscoutFeeAdapter2(chain: string) {
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async ({ chain, createBalances, startOfDay, }: FetchOptions) => {
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined

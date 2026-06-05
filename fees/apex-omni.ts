@@ -32,7 +32,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 }
 
 // tracks APEX token buybacks
-// const fetchRevenue = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+// const fetchRevenue = async (options: FetchOptions): Promise<FetchResultFees> => {
 //   // Buybacks are not automated, so we have to track this address for any inflows
 //   const dailyHoldersRevenue = await addTokensReceived({ options, token: TOKEN_APEX, target: BUYBACK_VAULT_ADDR})
 
