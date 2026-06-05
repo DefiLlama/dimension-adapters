@@ -13,9 +13,7 @@ interface IGraphFeesResponse {
   }>;
 }
 
-const fetchFees = async (
-_:any, _1:any, options: FetchOptions
-): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyData: IGraphFeesResponse = await request(endpoints[CHAIN.ZKSYNC], `
   query get_fees {
     revenueInfos(where: { period: "1d", timestamp: ${options.startOfDay} }) {
@@ -38,13 +36,10 @@ _:any, _1:any, options: FetchOptions
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ZKSYNC]: {
-      start: '2024-12-05',
-      fetch: fetchFees,
-      deadFrom: "2025-08-12",
-    },
-  },
+  chains: [CHAIN.ZKSYNC],
+  start: '2024-12-05',
+  deadFrom: "2025-08-12",
+  fetch,
   version: 1,
 };
 

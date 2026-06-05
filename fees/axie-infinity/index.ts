@@ -60,7 +60,7 @@ async function fetchHistoricalEth(options: FetchOptions): Promise<FetchResult> {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (options.startTimestamp < TREASURY_MIGRATION) return options.chain === CHAIN.RONIN
     ? fetchHistoricalRonin(options)
     : fetchHistoricalEth(options)

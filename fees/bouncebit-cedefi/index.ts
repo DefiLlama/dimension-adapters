@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
@@ -11,8 +11,8 @@ interface DailyStats {
   timestamp: number;
 }
 
-const fetchBounceBitCedefiStats = async (timestamp: any) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
   const dailyFees = (() => {
@@ -23,7 +23,6 @@ const fetchBounceBitCedefiStats = async (timestamp: any) => {
   })();
 
   return {
-    timestamp,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees * 0.3,
@@ -34,12 +33,9 @@ const fetchBounceBitCedefiStats = async (timestamp: any) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.BOUNCE_BIT]: {
-      fetch: fetchBounceBitCedefiStats,
-      start: "2024-11-11",
-    },
-  },
+  fetch,
+  chains: [CHAIN.BOUNCE_BIT],
+  start: "2024-11-11",
   methodology: {
     Fees: 'All yields are generated via delta-neutral basis trading on centralized exchanges.',
     UserFees: 'Yields are generated on behalf of depositors via delta-neutral basis trading.',

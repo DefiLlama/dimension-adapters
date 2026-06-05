@@ -53,7 +53,7 @@ const prefetch = async (options: FetchOptions) => {
   return results;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const prefetchResults = options.preFetchedResults || [];

@@ -8,7 +8,7 @@ import { queryDuneSql } from "../helpers/dune";
 import { getETHReceived } from '../helpers/token';
 import { METRIC } from '../helpers/metrics';
 
-const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -71,7 +71,7 @@ const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const feeCollector = '0xb8159ba378904F803639D274cEc79F788931c9C8'
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const ethReceived = await getETHReceived({ options: options, target: feeCollector})

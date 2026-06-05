@@ -36,33 +36,30 @@ function startOfDayTimestamp(timestamp: number): number {
   return Math.floor(date.getTime() / 1000);
 }
 
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    const dataPoints = await fetchFromAPI(chain, options.toTimestamp);
+const fetch = async (options: FetchOptions) => {
+  const dataPoints = await fetchFromAPI(options.chain, options.toTimestamp);
 
-    const adjustedTimestamp = startOfDayTimestamp(options.toTimestamp);
+  const adjustedTimestamp = startOfDayTimestamp(options.toTimestamp);
 
-    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+  const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
-    if (!matchingData)
-      throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
+  if (!matchingData)
+    throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
 
-    return {
-      dailyPremiumVolume: '0',
-      dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-      timestamp: matchingData.day
-    };
-  }
+  return {
+    dailyPremiumVolume: '0',
+    dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
+    timestamp: matchingData.day
+  };
 }
 
 const adapter: Adapter = {
+  fetch,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
       start: '2022-09-13',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
       start: '2022-09-13',
     }
   }

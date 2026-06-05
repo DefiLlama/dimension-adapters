@@ -10,7 +10,7 @@ interface IFees {
   feeOfDate: string;
 }
 
-const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const url = `https://omni.apex.exchange/api/v3/data/fee-by-date?time=${options.startOfDay * 1000}`;
   const feesData: IFees = (await httpGet(url)).data;
   if (typeof feesData?.feeOfDate !== "string") throw new Error("No fee data");

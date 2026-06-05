@@ -18,7 +18,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       start: '2023-10-26',
-      fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) => {
+      fetch: async ({ startOfDay }: FetchOptions) => {
         const t = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000));
         const data: DailyStats[] = await fetchURL(apiEVM);
         return {

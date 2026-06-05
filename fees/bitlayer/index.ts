@@ -37,7 +37,7 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.BITLAYER]: {
-      fetch: async (_t: any, _b: any, options: FetchOptions) => {
+      fetch: async (options: FetchOptions) => {
         const url = "https://api.btrscan.com/scan/v1/chain/txForDefillama";
         const dailyFees = await getFeeUSD(options, url);
         return {

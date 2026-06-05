@@ -6,7 +6,7 @@ const STEP = 'StepAscQoEioFxxWGnh2sLBDFp9d8rvKz2Yp39iDpyT';
 const STEP_SOL = 'StPsoHokZryePePFV8N7iXvfEmgUoJ87rivABX7gaW6';
 const FEE_ADDRESS = '5Cebzty8iwgAUx9jyfZVAT2iMvXBECLwEVgT6T8KYmvS';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
 

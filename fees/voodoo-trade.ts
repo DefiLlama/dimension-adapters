@@ -11,7 +11,7 @@ import * as sdk from "@defillama/sdk";
 /// kind for perpetual DEXs.
 
 import { GraphQLClient, gql } from "graphql-request";
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -49,8 +49,8 @@ function sumOfFees(feeStat: FeeStat | null): bigint {
   return BigInt(marginAndLiquidation) + BigInt(swap) + BigInt(mint) + BigInt(burn);
 }
 
-const getFetch = () => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
 
   const {
     feeStat,
@@ -88,7 +88,6 @@ const getFetch = () => async (timestamp: number) => {
   const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
 
   return {
-    timestamp: dayTimestamp,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: dailySupplySideRevenue,
@@ -108,13 +107,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2023-09-06',
   methodology,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: getFetch(),
-      start: '2023-09-06',
-    },
-  },
 }
 
 export default adapter;

@@ -37,7 +37,7 @@ const chainConfig: Record<string, { chainCode: string; start: number }> = {
   [CHAIN.STACKS]: { chainCode: "STKS", start: 1690416000 },
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
   const config = chainConfig[chain];
   if (chain === CHAIN.HECO) { return {} } // skip HECO for now

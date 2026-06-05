@@ -78,7 +78,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // New function to generate fetch logic for a single chain
 const getFetchForChain = (chainShortName: string) => {
-  return async (_a:any, _b:any, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
     const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
     const reserveUrl = `https://vanaheimex.com/api/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;

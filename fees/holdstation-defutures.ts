@@ -45,7 +45,7 @@ const endpointMap: {
 	},
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const { historical, daily } = endpointMap[options.chain];
 
 	const dayTimestamp = getUniqStartOfTodayTimestamp(

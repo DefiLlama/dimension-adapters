@@ -13,7 +13,7 @@ const contract_address: any = {
   [CHAIN.UNICHAIN]: '0x461efe0100be0682545972ebfc8b4a13253bd602'
 }
 
-const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
+const fethcFeesSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -62,7 +62,7 @@ const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const logs = await options.getLogs({

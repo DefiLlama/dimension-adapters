@@ -23,29 +23,27 @@ const chainsMap: chains = {
   [CHAIN.FANTOM]: "Trading - Fantom"
 }
 
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
-    const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
+  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
 
-    const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
-      const [time, title, volume] = e;
-      return {
-        time,
-        volume,
-        title
-      } as IVolumeall;
-    });
-
-    const historical = historicalVolume.filter((e: IVolumeall)  => e.title === chainsMap[chain]);
-    const dailyVolume = historical
-      .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
-
+  const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
+    const [time, title, volume] = e;
     return {
-      dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
-    };
-  }
+      time,
+      volume,
+      title
+    } as IVolumeall;
+  });
+
+  const historical = historicalVolume.filter((e: IVolumeall) => e.title === chainsMap[options.chain]);
+  const dailyVolume = historical
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
+
+  return {
+    dailyVolume: dailyVolume,
+    timestamp: dayTimestamp,
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -53,7 +51,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: fetch(chain as Chain),
+        fetch,
       }
     }
   }, {})

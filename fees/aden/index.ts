@@ -23,7 +23,7 @@ import fetchURL from "../../utils/fetchURL";
 //   return response
 // }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
+async function fetch(options: FetchOptions): Promise<any> {
   if (options.chain !== CHAIN.GATE_LAYER) {
     return {
       dailyVolume: 0,

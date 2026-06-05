@@ -1,10 +1,10 @@
 import fetchURL from "../utils/fetchURL"
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
-const fetch = async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
     // Doesnt work because of CF block
     const historicalVolume: any[] = (await fetchURL(`https://rollbit.com/public/lottery/pools`)).response;
 
@@ -20,12 +20,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2022-02-01',
-        },
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2022-02-01',
     methodology: {
         Fees: "Money that users lose gambling",
         Revenue: "Money that users lose gambling",

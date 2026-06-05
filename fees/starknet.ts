@@ -9,7 +9,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.STARKNET]: {
-      fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      fetch: async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
         const dailyRevenue = options.createBalances();
         const date = new Date(options.startOfDay * 1000).toISOString().split('T')[0];

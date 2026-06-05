@@ -19,10 +19,9 @@ const mapChainId: ChainMapId = {
   [CHAIN.HECO]: 128,
   [CHAIN.BITTORRENT]: 199
 };
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
-    const queryByChainId = `?chain_id=${mapChainId[chain]}`;
+const fetch = async (options: FetchOptions) => {
+    if (options.chain === CHAIN.HECO) { return {}} // skip HECO for now
+    const queryByChainId = `?chain_id=${mapChainId[options.chain]}`;
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
     const dailyVolume = historicalVolume
@@ -33,14 +32,13 @@ const fetch = (chain: Chain) => {
       timestamp: dayTimestamp,
     };
   };
-}
 
 const adapter: SimpleAdapter = {
   adapter: Object.keys(mapChainId).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
-        fetch: fetch(chain as Chain),
+        fetch,
       }
     }
   }, {})

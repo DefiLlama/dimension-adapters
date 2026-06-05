@@ -212,7 +212,7 @@ async function fetchBsc(options: FetchOptions) {
   };
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   return fetchBsc(options);
 }

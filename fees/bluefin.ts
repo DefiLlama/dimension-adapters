@@ -5,7 +5,7 @@ import { METRIC } from "../helpers/metrics";
 
 const url_sui = "https://dapi.api.sui-prod.bluefin.io/marketData/fees"
 
-const fetch = async (_a: number, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const result = await fetchURL(url_sui);
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(Number(result.last24HoursFees), METRIC.TRADING_FEES);

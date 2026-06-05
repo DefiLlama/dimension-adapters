@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -12,10 +12,10 @@ interface IFPI {
   amountUsd: string;
   category: string;
 }
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp) - 1;
-  const date = new Date((timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
+  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp) - 1;
+  const date = new Date((options.toTimestamp * 1000));
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
   const response: IFPI[]  = (await httpGet(endpoint(year, month)))?.details;
@@ -38,12 +38,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2022-05-31',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2022-05-31',
   allowNegativeValue: true, // High CPI Peg Costs, Temporary Losses, Operational or Arbitrage Costs, Yield Insufficiency
   methodology: {
     Fees: 'Fees paid by users.',

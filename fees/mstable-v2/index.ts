@@ -95,7 +95,7 @@ const calculateExitFees = (data: any): number =>
     return acc + result;
   }, 0);
 
-const fetch = async (_1: any, _2: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = CONFIG[options.chain];
   if (!config) throw new Error(`Unsupported chain: ${options.chain}`);
 

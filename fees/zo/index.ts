@@ -5,7 +5,7 @@ import { CHAIN } from '../../helpers/chains';
 const ZO_API_ENDPOINT = 'https://api.zofinance.io';
 const TREASURY_FEE_PERCENTAGE = 0.25;
 
-const fetch = async (_1: number, _: any, { startOfDay, }: FetchOptions) => {
+const fetch = async ({ startOfDay, }: FetchOptions) => {
   const {
     fee: dailyFees,
     tradingFee: dailyTradingFee = 0,
@@ -27,12 +27,9 @@ const fetch = async (_1: number, _: any, { startOfDay, }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      start: '2025-03-24',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  start: '2025-03-24',
 };
 
 export default adapter;

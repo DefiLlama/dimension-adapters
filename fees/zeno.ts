@@ -6,7 +6,7 @@ const endpoints: Record<string, string> = {
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/metis-andromeda-prod-stats",
 };
 
-const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const floorDayTimestamp = options.startOfDay;
   const dailyFeeQuery = gql`
       {
@@ -63,12 +63,9 @@ const fetch = async (_t: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.METIS]: {
-      fetch,
-      start: '2024-03-13',
-    },
-  },
+  fetch,
+  chains: [CHAIN.METIS],
+  start: '2024-03-13',
 };
 
 export default adapter;

@@ -17,8 +17,8 @@ interface IVolumeall {
   date: string;
 }
 
-const fetchAptos = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetchAptos = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const historicalVolume: IVolumeall[] = (await fetchURL(APTOS_VOLUME_ENDPOINT))?.data.list;
   
   const dailyVolume = historicalVolume
@@ -32,7 +32,7 @@ const fetchAptos = async (timestamp: number) => {
   };
 };
 
-const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
+const fetchSui = async (options: FetchOptions) => {
   const events = await queryEvents({
     eventModule: { package: SUI_PACKAGE, module: "swap" },
     options,

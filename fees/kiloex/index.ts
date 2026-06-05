@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -19,28 +19,26 @@ const endpoints: ChainMap = {
 
 interface IFee {
   time: number;
-  dayTradeFee:string;
-  totalTradeFee:string
+  dayTradeFee: string;
+  totalTradeFee: string
 }
 
-const fetch = (chainId: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const fees: IFee[] = (await fetchURL(endpoints[chainId]));
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
+  const fees: IFee[] = (await fetchURL(endpoints[options.chain]));
 
-    const record = fees.find(item => item.time === dayTimestamp)
-    if (!record) return {}
+  const record = fees.find(item => item.time === dayTimestamp)
+  if (!record) return {}
 
-    const dailyFees = Number(record.dayTradeFee)
-    const dailyRevenue = dailyFees * 0.7
-    const dailySupplySideRevenue = dailyFees * 0.3
+  const dailyFees = Number(record.dayTradeFee)
+  const dailyRevenue = dailyFees * 0.7
+  const dailySupplySideRevenue = dailyFees * 0.3
 
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailySupplySideRevenue,
-      dailyProtocolRevenue: dailyRevenue
-    };
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue
   };
 };
 
@@ -54,25 +52,26 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   methodology,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: '2023-06-12'
+      start: '2023-06-12'
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: '2023-10-07'
+      start: '2023-10-07'
     },
     [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: '2023-11-01'
+      start: '2023-11-01'
     },
     [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30', deadFrom: '2026-02-10'
+      start: '2024-05-30', deadFrom: '2026-02-10'
     },
     [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30', deadFrom: '2026-02-24'
+      start: '2024-07-30', deadFrom: '2026-02-24'
     },
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE), start: '2024-10-09'
+      start: '2024-10-09'
     },
   },
 };

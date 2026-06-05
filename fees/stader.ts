@@ -1,11 +1,11 @@
-import { FetchOptions, Fetch, SimpleAdapter, Dependencies } from "../adapters/types";
+import { FetchOptions, SimpleAdapter, Dependencies, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
 // https://staderlabs.notion.site/Introducing-SD-1160c9a4217d477eaafb963e21f90aba
 // stader do buy back using 20% of the revenue generated in the respective quarters
 
-const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
+const fetchEthereum: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
   const dailyRevenue = option.createBalances();
   const dailyMaticXFees = option.createBalances();
@@ -57,7 +57,7 @@ const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   };
 };
 
-const fetch: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
+const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
 
   const logs = await option.getLogs({
