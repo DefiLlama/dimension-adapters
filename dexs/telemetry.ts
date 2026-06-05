@@ -16,19 +16,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   }
 
+  // skip post > pre balance checks as fee may be set t0 0 it will skip all volumes.
   const { feeWallet } = chainConfig[options.chain];
   const query = `
-    WITH telemetry_txs AS (
-      SELECT DISTINCT id AS tx_id
-      FROM solana.transactions
-      CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
-      WHERE TIME_RANGE
-        AND success = true
-        AND CONTAINS(account_keys, '${feeWallet}')
-        AND account_keys[i] = '${feeWallet}'
-        AND post_balances[i] > pre_balances[i]
-    ),
-    bot_trades AS (
+    WITH bot_trades AS (
       SELECT
         t.tx_id,
         t.trader_id,
@@ -42,9 +33,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
-      JOIN telemetry_txs txs ON t.tx_id = txs.tx_id
       WHERE TIME_RANGE
         AND t.trader_id != '${feeWallet}'
+        AND EXISTS (
+          SELECT 1
+          FROM solana.transactions tx
+          CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(tx.account_keys))) AS u(i)
+          WHERE TIME_RANGE
+            AND tx.id = t.tx_id
+            AND tx.success = true
+            AND tx.account_keys[i] = '${feeWallet}'
+        )
     )
     SELECT COALESCE(SUM(amount_usd), 0) AS daily_volume
     FROM bot_trades
