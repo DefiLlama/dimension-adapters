@@ -371,33 +371,33 @@ export function createPoolFetchHandler(poolType: PoolType) {
 const fetch = createPoolFetchHandler('cl');
 
 export const methodology = {
-  Fees: "Swap fees paid by traders and external vote incentives paid by protocols.",
-  Revenue: "Swap fees directed to the protocol treasury plus swap fees and vote incentives distributed to veRAM voters.",
+  Fees: "Swap fees paid by traders and incentives paid by protocols.",
+  Revenue: "Protocol swap fees plus fees and incentives distributed to veRAM voters.",
   UserFees: "Swap fees paid by traders.",
-  ProtocolRevenue: "Share of swap fees directed to the protocol treasury.",
-  HoldersRevenue: "Swap fees and external vote incentives distributed through Ramses fee distributors to veRAM voters for the pools they vote on.",
-  SupplySideRevenue: "Share of swap fees retained by liquidity providers.",
+  ProtocolRevenue: "Protocol share of swap fees.",
+  HoldersRevenue: "Swap fees and incentives distributed to veRAM voters.",
+  SupplySideRevenue: "Swap fees retained by liquidity providers.",
 };
 
 export const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Swap fees paid by traders.",
-    ["Bribes"]: "External vote incentives paid by protocols.",
+    ["Bribes"]: "Incentives paid by protocols.",
   },
   Revenue: {
-    ["Swap Fees to protocol"]: "Share of swap fees directed to the protocol treasury.",
-    ["Swap Fees to holders"]: "Swap fees distributed through fee distributors to veRAM voters for the corresponding pool.",
-    ["Bribes to holders"]: "External vote incentives distributed through fee distributors to veRAM voters for the corresponding pool.",
+    ["Swap Fees to protocol"]: "Protocol share of swap fees.",
+    ["Swap Fees to holders"]: "Swap fees distributed to veRAM voters for the corresponding pool.",
+    ["Bribes to holders"]: "Incentives distributed to veRAM voters for the corresponding pool.",
   },
   ProtocolRevenue: {
-    ["Swap Fees to protocol"]: "Share of swap fees directed to the protocol treasury.",
+    ["Swap Fees to protocol"]: "Protocol share of swap fees.",
   },
   SupplySideRevenue: {
-    ["Swap Fees to LPs"]: "Share of swap fees retained by liquidity providers.",
+    ["Swap Fees to LPs"]: "Swap fees retained by liquidity providers.",
   },
   HoldersRevenue: {
-    ["Swap Fees to holders"]: "Swap fees distributed through fee distributors to veRAM voters for the corresponding pool.",
-    ["Bribes to holders"]: "External vote incentives distributed through fee distributors to veRAM voters for the corresponding pool.",
+    ["Swap Fees to holders"]: "Swap fees distributed to veRAM voters for the corresponding pool.",
+    ["Bribes to holders"]: "Incentives distributed to veRAM voters for the corresponding pool.",
   },
 };
 
