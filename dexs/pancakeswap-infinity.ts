@@ -18,7 +18,7 @@ const config: any = {
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
-  pullHourly: true,
+  // pullHourly: true,
   version: 2,
   adapter: {},
   methodology: {
@@ -121,7 +121,9 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
 
   // https://docs.pancakeswap.finance/trade/pancakeswap-infinity/pool-types/infinity-clamm-and-lbamm
   // 50% to protocol, 50% to burn CAKE
-  dailyRevenue.add(revenue, METRIC.PROTOCOL_REVENUE);
+  dailyRevenue.add(revenue.clone(0.5), METRIC.PROTOCOL_REVENUE);
+  dailyRevenue.add(revenue.clone(0.5), METRIC.HOLDERS_REVENUE);
+
   const dailyProtocolRevenue = revenue.clone(0.5, METRIC.PROTOCOL_REVENUE);
   const dailyHoldersRevenue = revenue.clone(0.5, METRIC.BUY_BACK_AND_BURN);
 
