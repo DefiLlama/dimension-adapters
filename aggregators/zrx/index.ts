@@ -87,6 +87,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: any = {
   version: 1,
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   adapter: {
     ...Object.keys(CHAINS).reduce((acc, chain) => {
       return {
