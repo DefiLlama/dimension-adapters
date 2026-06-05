@@ -53,6 +53,7 @@ const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
 const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
   const { router } = chainConfig[CHAIN.SOLANA];
 
+  // Use 10 hours delay as dune has indexing delay for dex_solana.trades table
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
   if ((options.toTimestamp * 1000) > tenHoursAgo) {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
