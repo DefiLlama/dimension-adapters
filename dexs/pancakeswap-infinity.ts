@@ -121,11 +121,9 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
 
   // https://docs.pancakeswap.finance/trade/pancakeswap-infinity/pool-types/infinity-clamm-and-lbamm
   // 50% to protocol, 50% to burn CAKE
-  dailyRevenue.add(dailyRevenue.clone(0.5), METRIC.PROTOCOL_REVENUE);
-  const dailyProtocolRevenue = dailyRevenue.clone(0.5, METRIC.PROTOCOL_REVENUE);
-
-  dailyRevenue.add(dailyRevenue.clone(0.5), METRIC.HOLDERS_REVENUE);
-  const dailyHoldersRevenue = dailyRevenue.clone(0.5, METRIC.BUY_BACK_AND_BURN);
+  dailyRevenue.add(revenue, METRIC.PROTOCOL_REVENUE);
+  const dailyProtocolRevenue = revenue.clone(0.5, METRIC.PROTOCOL_REVENUE);
+  const dailyHoldersRevenue = revenue.clone(0.5, METRIC.BUY_BACK_AND_BURN);
 
   return {
     dailyVolume,
