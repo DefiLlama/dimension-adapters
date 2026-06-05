@@ -1,4 +1,4 @@
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -37,10 +37,10 @@ function startOfDayTimestamp(timestamp: number): number {
 }
 
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dataPoints = await fetchFromAPI(chain, timestamp);
+  return async (options: FetchOptions) => {
+    const dataPoints = await fetchFromAPI(chain, options.toTimestamp);
 
-    const adjustedTimestamp = startOfDayTimestamp(timestamp);
+    const adjustedTimestamp = startOfDayTimestamp(options.toTimestamp);
 
     const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 

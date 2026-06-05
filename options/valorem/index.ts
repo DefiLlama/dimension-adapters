@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -19,9 +19,9 @@ import {
 
 const graphOptions = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async (timestamp: number): Promise<any /* FetchResultOptions */> => {
+    return async (options: FetchOptions): Promise<any /* FetchResultOptions */> => {
       const formattedTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
+        new Date(options.toTimestamp * 1000)
       );
 
       /** Daily Token Metrics */
@@ -29,7 +29,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
       const allDailyTokenRecords = await getAllDailyTokenRecords(
         graphUrls,
         chain,
-        timestamp
+        options.toTimestamp
       );
 
       let filteredTokenRecords: DailyTokenRecords = {};
@@ -68,7 +68,6 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
       const todaysStats = await getTodaysStats();
       
       return {
-        timestamp,
         dailyNotionalVolume: todaysStats.dailyNotionalVolume,
         dailyPremiumVolume: todaysStats.dailyPremiumVolume,
       };

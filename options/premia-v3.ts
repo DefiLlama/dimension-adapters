@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (_ts: number, _t: any, options: FetchOptions) =>
+        fetch: async (options: FetchOptions) =>
           await getV3Data(v3Endpoints[chain], options.startOfDay, chain),
         start: v3StartTimes[chain],
       },

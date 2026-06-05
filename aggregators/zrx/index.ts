@@ -36,7 +36,7 @@ const inflatedVolume: Record<string, Array<string>> = {
   [CHAIN.BASE]: ["2026-05-02"],
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const response= await httpGet(`https://api.0x.org/stats/volume/daily?timestamp=${options.startOfDay}&chainId=${CHAINS[options.chain]}`, {
     headers: {
       "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY")

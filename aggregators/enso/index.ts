@@ -33,7 +33,7 @@ const prefetch = async (options: FetchOptions) => {
   return httpGet(url, { headers: { origin: "https://defillama.com", }, });
 };
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { chain } = options;
   const config = chainConfig[chain];
   const data: any = options.preFetchedResults

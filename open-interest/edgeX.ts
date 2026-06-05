@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const openInterestEndpoint = "https://pro.edgex.exchange/api/v1/public/quote/getTicketSummary?period=LAST_DAY_1"
 
-const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
     const openInterest = await fetchURL(openInterestEndpoint);
     const openInterestAtEnd = openInterest.data.tickerSummary.openInterest;
     return { openInterestAtEnd };

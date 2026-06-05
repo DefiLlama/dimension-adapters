@@ -63,7 +63,7 @@ const CHAINS: Record<string, { id: string }> = {
   [CHAIN.PULSECHAIN]: {  id: 'pulse' },
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { chain, endTimestamp } = options;
   const info = CHAINS[chain];
   if (!info) return { dailyVolume: 0, timestamp: endTimestamp };

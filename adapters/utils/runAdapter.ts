@@ -251,7 +251,14 @@ async function _runAdapter({
 
       let result: any
       if (adapterVersion === 1) {
-        result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
+        // v1 fetch functions are being migrated from (timestamp, chainBlocks, options) to a
+        // single `options` arg (same shape as v2). Legacy un-migrated adapters still declare
+        // >= 2 params, so call those the old way during the transition; migrated ones take options.
+        result = (fetchFunction as Function).length >= 2
+          ? await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options)
+          : await (fetchFunction as FetchV2)(options);
+        // migrated adapters no longer return `timestamp`; set it like v2 (legacy returns are preserved)
+        if (result.timestamp === undefined) result.timestamp = options.toTimestamp
       } else if (adapterVersion === 2) {
         result = await (fetchFunction as FetchV2)(options);
         result.timestamp = options.toTimestamp

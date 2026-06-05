@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -48,16 +48,16 @@ const _fetchMobyVolumeData = async (timestamp, endPoint) => {
 
 export async function arb_fetchMobyVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
-  return await _fetchMobyVolumeData(timestamp, arb_mobyVolumeEndpoint);
+  return await _fetchMobyVolumeData(options.toTimestamp, arb_mobyVolumeEndpoint);
 }
 
 export async function bera_fetchMobyVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
-  return await _fetchMobyVolumeData(timestamp, bera_mobyVolumeEndpoint);
+  return await _fetchMobyVolumeData(options.toTimestamp, bera_mobyVolumeEndpoint);
 }
 
 async function getMobyVolumeData(endpoint: string): Promise<IMobyVolumeResponse> {

@@ -38,7 +38,7 @@ function getProtocolActiveUsersAdapter(item: typeof routers[0]): Adapter {
     return parseUserResponse(data, item.chains);
   }
 
-  async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+  async function fetch({ chain, preFetchedResults, }: FetchOptions) {
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
         dailyActiveUsers: preFetchedResults?.all.users

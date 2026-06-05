@@ -28,7 +28,7 @@ function toYYYYMMDD(ts: number): bigint {
   );
 }
 
-const fetch = async (_args: any, _options: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startTimestamp, toTimestamp } = options;
 
   const date = toYYYYMMDD(startTimestamp);
