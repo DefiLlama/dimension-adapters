@@ -92,4 +92,6 @@ adapter.breakdownMethodology = {
   },
 }
 
+adapter.start = '2025-04-28';
+
 export default adapter
