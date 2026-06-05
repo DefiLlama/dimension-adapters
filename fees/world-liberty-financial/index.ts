@@ -3,7 +3,7 @@ import { METRIC } from "../../helpers/metrics";
 import { buildStablecoinAdapter } from "../../helpers/attestations-stablecoins";
 
 // { time, circulation (in billions), allocated (in billions), tbillRate? (in %) }
-const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '262', 30 * 3,
+const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '262', 30,
   // https://worldlibertyfinancial.com/usd1/attestation-reports
   [
     {
