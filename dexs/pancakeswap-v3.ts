@@ -37,7 +37,7 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
   },
   [CHAIN.ERA]: {
-    start: '2023-07-24',
+    start: '2024-01-01',
     address: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
   },
   [CHAIN.ARBITRUM]: {
@@ -53,7 +53,7 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.OP_BNB]: {
-    start: '2023-08-31',
+    start: '2024-01-01',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
   },
   [CHAIN.MONAD]: {
@@ -187,6 +187,9 @@ const fetchBsc = async (options: FetchOptions) => {
   const whitelist = new Set(
     (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase()),
   );
+  const blacklist = new Set(
+    '0x95e7c70b58790a1cbd377bc403cd7e9be7e0afb1', // YSL old token
+  );
 
   const rows = await queryClickhouse<BscV3Row>(
     buildBscV3DataSql(
@@ -212,6 +215,8 @@ const fetchBsc = async (options: FetchOptions) => {
       dailyVolume.add(token0, amount0In);
       dailyVolume.add(token1, amount1In);
     }
+
+    if (blacklist.has(token0) || blacklist.has(token1)) continue;
 
     // Fees / revenue: count ALL pools (mirrors the old `total_volume_usd * fee`
     // path). Per-pool fee_tier × revenue ratio derived from PancakeSwap's
