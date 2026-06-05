@@ -62,8 +62,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: 'Users payd fees for data storage.',
-    UserFees: 'Users payd fees for data storage.',
+    Fees: 'Fees paid by users for data storage.',
+    UserFees: 'Fees paid by users for data storage.',
     Revenue: 'Fees paid for data storage are locked and distributed over time to storage providers',
   },
 }
