@@ -212,9 +212,9 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
           const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
 
-          // protocol fees from liquidation bonus
-          const b = BigInt(x) > 0 ? (e - e / x) : 0
-          const b2 = BigInt(x) > 0 ? b * y : b
+          // protocol fees from liquidation bonus, if no bonus (x = 0), expect b = b2
+          const b = x > 0 ? (e - e / x) : 0
+          const b2 = x > 0 ? b * y : b
           
           // count liquidation bonus as fees
           balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
