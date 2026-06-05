@@ -19,37 +19,32 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const { feeAddress } = chainConfig[options.chain];
 
   const rows = await (queryDuneSql(options, `
-    WITH moonshot_txs AS (
-      SELECT DISTINCT
-        tx_id
-      FROM
-        tokens_solana.transfers
-      WHERE
-        TIME_RANGE
-        AND to_owner = '${feeAddress}'
-        AND token_mint_address = '${ADDRESSES.solana.USDC}'
-
-      UNION
-
-      SELECT DISTINCT
-        id AS tx_id
-      FROM
-        solana.transactions
-        CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
-      WHERE
-        TIME_RANGE
-        AND success = true
-        AND account_keys[i] = '${feeAddress}'
-        AND post_balances[i] > pre_balances[i]
-    )
     SELECT
       COALESCE(SUM(amount_usd), 0) AS daily_volume
     FROM
-      dex_solana.trades
+      dex_solana.trades t
     WHERE
       TIME_RANGE
-      AND trader_id != '${feeAddress}'
-      AND tx_id IN (SELECT tx_id FROM moonshot_txs)
+      AND t.trader_id != '${feeAddress}'
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM tokens_solana.transfers tr
+          WHERE TIME_RANGE
+            AND tr.tx_id = t.tx_id
+            AND tr.to_owner = '${feeAddress}'
+            AND tr.token_mint_address = '${ADDRESSES.solana.USDC}'
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM solana.transactions tx
+          CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(tx.account_keys))) AS u(i)
+          WHERE TIME_RANGE
+            AND tx.id = t.tx_id
+            AND tx.success = true
+            AND tx.account_keys[i] = '${feeAddress}'
+        )
+      )
   `) as any);
 
   return { dailyVolume: Number(rows[0].daily_volume) };
