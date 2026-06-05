@@ -145,6 +145,7 @@ export const chainConfigMap: any = {
   [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
   [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
   [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
+  [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2026-04-05' },
 }
 
 function getTimeString(timestamp: number) {
