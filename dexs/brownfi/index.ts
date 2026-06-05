@@ -42,7 +42,7 @@ const abis = {
   protocolFee: "function protocolFee() external view returns (uint64)"
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const factory = chainConfig[options.chain].factory;
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`

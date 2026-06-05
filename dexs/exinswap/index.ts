@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
@@ -10,8 +10,8 @@ interface IAPIResponse {
   volume: number;
 };
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const response: IAPIResponse[] = (await fetchURL(URL))?.data.list.map((e: any) => {
     return {
       time: e[0],
@@ -28,12 +28,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MIXIN]: {
-      fetch,
-      start: '2020-09-21',
-    },
-  }
+  fetch,
+  chains: [CHAIN.MIXIN],
+  start: '2020-09-21',
 };
 
 export default adapter;

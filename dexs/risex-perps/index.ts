@@ -9,7 +9,7 @@ const RISEX_API_URL = "https://api.rise.trade/api/v1";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const NANOSECONDS_IN_SECOND = 1000000000;
 
-const fetch = async (_: any, __: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const marketsResponse = await fetchURL(`${RISEX_API_URL}/markets`);
 
     const marketIds = marketsResponse.data.markets.map((market: any) => Number(market.market_id));

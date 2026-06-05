@@ -10,7 +10,7 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (_,_1,options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const totalVolume = options.createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));

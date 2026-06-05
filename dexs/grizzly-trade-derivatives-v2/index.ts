@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -17,11 +17,10 @@ interface IVolumeStat {
   id: string;
 }
 
-const fetch = () => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    const graphQuery = gql`
+  const graphQuery = gql`
       query MyQuery {
         volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
           cumulativeVolumeUsd
@@ -31,37 +30,27 @@ const fetch = () => {
       }
     `;
 
-    const response = await request(grizzlyPerpsV2Subgraph, graphQuery);
-    const volumeStats: IVolumeStat[] = response.volumeStats;
+  const response = await request(grizzlyPerpsV2Subgraph, graphQuery);
+  const volumeStats: IVolumeStat[] = response.volumeStats;
 
-    let dailyVolumeUSD = BigInt(0);
+  let dailyVolumeUSD = BigInt(0);
 
-    volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.volumeUsd);
-    });
+  volumeStats.forEach((vol) => {
+    dailyVolumeUSD += BigInt(vol.volumeUsd);
+  });
 
-    const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
+  const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
 
-    return {
-      dailyVolume: finalDailyVolume.toString(),
-      timestamp: todaysTimestamp,
-    };
+  return {
+    dailyVolume: finalDailyVolume.toString(),
   };
 };
 
-const methodology = {
-  Volume:
-    "Total cumulativeVolumeUsd for specified chain for the given day",
-};
 
 const adapter: SimpleAdapter = {
-        methodology,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetch(),
-      start: '2024-02-02',
-    },
-  },
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2024-02-02',
   deadFrom: "2024-10-27"
 };
 

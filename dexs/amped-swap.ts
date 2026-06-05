@@ -1,5 +1,5 @@
 import request, { gql, GraphQLClient } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -42,11 +42,10 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-    async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
       const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
+        new Date(options.toTimestamp * 1000)
       );
 
       let dailyData: IGraphResponse;
@@ -103,7 +102,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
       },
     };

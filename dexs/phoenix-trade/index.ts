@@ -7,7 +7,7 @@ import { sleep } from "../../utils/utils";
 
 const PERP_API_URL = 'https://perp-api.phoenix.trade/v1';
 
-async function fetch(_: any, __: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
     const marketsData = await fetchURL(`${PERP_API_URL}/view/markets`);

@@ -110,7 +110,7 @@ const getVolume = async (options: FetchOptions) => {
   };
 };
 
-const v2graphs = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { dailyVolume } = await getVolume(options);
   return {
     timestamp: options.startOfDay,
@@ -120,45 +120,36 @@ const v2graphs = async (_t: any, _tt: any, options: FetchOptions): Promise<Fetch
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: v2graphs,
       start: '2023-07-01',
     },
     [CHAIN.POLYGON]: {
-      fetch: v2graphs,
       start: '2023-06-30',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: v2graphs,
       start: '2023-10-05',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BSC]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BASE]: {
-      fetch: v2graphs,
       start: '2024-05-14',
     },
     [CHAIN.MODE]: {
-      fetch: v2graphs,
       start: '2024-05-02',
     },
     [CHAIN.SCROLL]: {
-      fetch: v2graphs,
       start: '2024-06-27',
     },
     [CHAIN.LINEA]: {
-      fetch: v2graphs,
       start: '2024-06-27',
     },
     [CHAIN.MANTLE]: {
-      fetch: v2graphs,
       start: '2024-06-27',
     },
   },

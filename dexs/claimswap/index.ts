@@ -1,6 +1,6 @@
 
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -18,8 +18,8 @@ interface IVolume {
 
 const START_TIME = 1644568448;
 
-const fetch = async (timestamp: number) => {
-  const dateToday = new Date(timestamp * 1000);
+const fetch = async (options: FetchOptions) => {
+  const dateToday = new Date(options.toTimestamp * 1000);
   const startTime = new Date(START_TIME * 1000);
   const query = `?startdt=${startTime.toISOString()}&enddt=${dateToday.toISOString()}&timeunit=day`;
   const url = `${endpoint}${query}`

@@ -10,7 +10,7 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://api-mainnet-prod.minswap.org/defillama/v2/volume-series";
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   const volData = vols
@@ -24,12 +24,9 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.CARDANO]: {
-      start: '2022-03-24',
-      fetch: fetch,
-    }
-  }
+  fetch,
+  chains: [CHAIN.CARDANO],
+  start: '2022-03-24',
 };
 
 export default adapter;

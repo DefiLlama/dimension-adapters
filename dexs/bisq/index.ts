@@ -9,7 +9,7 @@ interface IVolumeall {
   period_start: number;
 }
 
-const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({startOfDay, createBalances, }: FetchOptions) => {
   const totalVolume = createBalances()
   const dailyVolume = createBalances()
 

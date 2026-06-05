@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
+const fetch = async ({ dateString }: FetchOptions) => {
 
   const data = (await fetchURL('https://flamingo-us-1.b-cdn.net/flamingo/analytics/rolling-30-days/total_data'))
   const dayData = data.find((day: any) => day.date.slice(0, 10) === dateString)
@@ -11,12 +11,9 @@ const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    neo: {
-      fetch,
-      start: '2025-08-18',
-    },
-  },
+  fetch,
+  chains: ['neo'],
+  start: '2025-08-18',
 };
 
 export default adapter;

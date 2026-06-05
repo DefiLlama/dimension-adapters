@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
@@ -6,9 +6,9 @@ import fetchURL from "../../utils/fetchURL";
 const endpoint =
   "https://api.prod.merkle.trade/external/defillama/v1/trading-volume";
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const res = (await fetchURL(`${endpoint}?ts=${timestamp}`));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
+  const res = (await fetchURL(`${endpoint}?ts=${options.toTimestamp}`));
 
   return {
     dailyVolume: res.dailyVolume,
@@ -17,13 +17,10 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetch,
-      start: '2023-10-24',
-      deadFrom: "2026-02-07",
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: '2023-10-24',
+  deadFrom: "2026-02-07",
 };
 
 export default adapter;

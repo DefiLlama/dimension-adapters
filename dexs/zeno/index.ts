@@ -18,7 +18,7 @@ type MarketDailyStat = {
   tradingVolume: string;
 }
 
-const fetch = async (_t: any, _tt: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayId = Math.floor(options.startOfDay / 86400);
   const query = gql`
     {
@@ -40,18 +40,14 @@ const fetch = async (_t: any, _tt: any, options: FetchOptions) => {
     0 as number
   );
   return {
-    timestamp: options.startOfDay,
     dailyVolume: dailyVolume,
   }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.METIS]: {
-      fetch: fetch,
-      start: '2024-03-13',
-    },
-  },
+  fetch,
+  chains: [CHAIN.METIS],
+  start: '2024-03-13',
 };
 
 export default adapter;

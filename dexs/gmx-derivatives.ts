@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -45,8 +45,9 @@ interface IGraphResponseOI {
   }>
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
     id: chain === CHAIN.ARBITRUM
       ? String(dayTimestamp)
@@ -56,15 +57,15 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
 
   const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
     id: chain === CHAIN.ARBITRUM
-    ? String(dayTimestamp)
-    : String(dayTimestamp) + ':daily',
+      ? String(dayTimestamp)
+      : String(dayTimestamp) + ':daily',
     period: 'daily',
   });
   const openInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
   const longOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) : 0;
   const shortOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
 
-  if (dayTimestamp == HACK_TIMESTAMP && chain == CHAIN.ARBITRUM){
+  if (dayTimestamp == HACK_TIMESTAMP && chain == CHAIN.ARBITRUM) {
     return {
       longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
       shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
@@ -94,7 +95,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
         deadFrom: HACK_TIMESTAMP
       }

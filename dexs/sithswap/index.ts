@@ -1,4 +1,4 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -11,8 +11,8 @@ interface DayData {
 }
 const URL = 'https://api.sithswap.info/';
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
     const dayID = (dayTimestamp / 86400);
     const query = gql`
     {
@@ -28,17 +28,13 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     const volume = response.find((data: DayData) => data.id === dayID.toString());
     return {
         dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
-        timestamp: dayTimestamp,
     };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.STARKNET]: {
-          fetch: fetch,
-          start: '2023-01-10',
-        },
-    },
+    fetch,
+    chains: [CHAIN.STARKNET],
+    start: '2023-01-10',
 };
 
 export default adapter;

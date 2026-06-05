@@ -15,7 +15,7 @@ const API_INFLATED_DAYS = [
   1773446400 // 2026-03-14
 ]
 
-const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
   const platformData: Array<any> = await httpGet(`https://server.saucerswap.finance/api/public/pools/platform-data?field=VOLUME_USD&interval=DAY&from=${startOfDay}&to=${startOfDay + 24 * 3600}`,
     {
       headers: {
@@ -50,12 +50,9 @@ const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch,
-      start: "2022-07-31",
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: "2022-07-31",
   methodology,
 };
 

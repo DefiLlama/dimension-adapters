@@ -26,8 +26,8 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalData, {
     id: String(dayTimestamp) + ':daily',
     period: 'daily',

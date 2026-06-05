@@ -348,7 +348,7 @@ const fetchSolanaV3 = async (options: FetchOptions) => {
   }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   let v2Stats: any = {};
   
   const dailyVolume = options.createBalances();

@@ -29,8 +29,8 @@ const CONFIGS: Record<string, any> = {
   },
 }
 
-const fetch = async (timestamp: number, _: any, { chain, createBalances }: FetchOptions): Promise<FetchResult> => { 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async ({ chain, createBalances, toTimestamp }: FetchOptions): Promise<FetchResult> => { 
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000));
   
 	const dailyVolume = createBalances()
 	const dailyFees = createBalances()
@@ -58,13 +58,12 @@ const fetch = async (timestamp: number, _: any, { chain, createBalances }: Fetch
 }
 
 const adapter: SimpleAdapter = {
+	fetch,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
-			fetch: fetch,
 			start: '2024-01-10',
 		},
 		[CHAIN.MONAD]: {
-			fetch: fetch,
 			start: '2025-11-24',
 		},
 	},

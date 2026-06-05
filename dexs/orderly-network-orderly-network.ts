@@ -4,9 +4,8 @@ import { CHAIN } from "../helpers/chains";
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEAR]: {
-      fetch: async (timestamp: number) => {
+      fetch: async (_: any) => {
         return {
-          timestamp: timestamp,
         };
       },
     },

@@ -1,5 +1,4 @@
-import { SimpleAdapter } from '../../adapters/types'
-import { CHAIN } from '../../helpers/chains'
+import { SimpleAdapter, FetchOptions } from '../../adapters/types';import { CHAIN } from '../../helpers/chains'
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume'
 import { httpGet } from '../../utils/fetchURL'
 
@@ -24,26 +23,20 @@ const calVolume = (total: IVolumeall): number => {
   return volume
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint)).intervals
   const dailyVolumeCall = historicalVolume.find(
     (dayItem: IVolumeall) => Number(dayItem.startTime) === dayTimestamp
   )
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall)
 
-  return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
-  }
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.THORCHAIN]: {
-      fetch,
-    },
-  },
+  fetch,
+  chains: [CHAIN.THORCHAIN],
 }
 
 export default adapter

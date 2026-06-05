@@ -1,4 +1,4 @@
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -19,31 +19,23 @@ interface IVolumeall {
   volume: number;
 }
 
-const graphs = (chain: Chain) => {
-  return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    if (chain === CHAIN.KCC && timestamp > 1714867200) return {} // last tx date is 2024-05-05
-    const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const chain = options.chain;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
+  if (chain === CHAIN.KCC && options.toTimestamp > 1714867200) return {} // last tx date is 2024-05-05
+  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+  const dailyVolume = historicalVolume
+    .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
-    return {
-      dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
-    };
-  }
-};
+  return {
+    dailyVolume: dailyVolume,
+  };
+}
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: graphs(chain as Chain),
-      }
-    }
-  }, {})
+  fetch,
+  chains: Object.keys(endpoints) as CHAIN[],
 };
 
 export default adapter;

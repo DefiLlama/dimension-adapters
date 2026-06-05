@@ -53,7 +53,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   return { dailyBribesRevenue }
 }
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()

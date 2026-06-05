@@ -23,8 +23,8 @@ const chains: TChains =  {
   [CHAIN.CRONOS]: 'cro'
 };
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[options.chain])));
 
   const dailyVolume = historicalVolume

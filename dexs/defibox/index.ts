@@ -1,4 +1,4 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL, { httpPost } from "../../utils/fetchURL";
@@ -10,8 +10,8 @@ interface IVolume {
   volume_usd_24h: string;
 }
 const graph = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  return async (options: FetchOptions): Promise<FetchResultVolume> => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
     let volume = 0
     if(chain === CHAIN.EOS){
      const bal_reponse: IVolume = (await fetchURL(bal_endpoint))?.data

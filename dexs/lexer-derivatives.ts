@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResultVolume } from "../adapters/types";
+import { SimpleAdapter, FetchResultVolume, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraph/utils";
@@ -25,9 +25,9 @@ const historicalDataDerivatives = gql`
   }
 `;
 
-const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
-  const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const t = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const results = await Promise.all(
     apiEndPoints.map((api) =>
       request(api, historicalDataDerivatives, { id: String(t), period: "daily" })
@@ -42,19 +42,14 @@ const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolu
     ) : 0
   }
   dailyVolume /= 1e30;
-  return {
-    timestamp,
-    dailyVolume: String(dailyVolume),
-  };
+
+  return { dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchDerivativesValue,
-      start: '2024-01-09',
-    }
-  }
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2024-01-09',
 };
 
 export default adapter;

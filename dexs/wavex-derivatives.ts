@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -25,10 +25,10 @@ const historicalOI = gql`
   }
 `;
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.SONEIUM;
   const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
+    new Date(options.toTimestamp * 1000)
   );
   const dailyData = await request(endpoints[chain], historicalDataDerivatives, {
     id: dayTimestamp.toString(),
@@ -55,7 +55,6 @@ const fetch = async (timestamp: number) => {
   const DECIMALS = 30;
 
   return {
-    timestamp: dayTimestamp,
     longOpenInterestAtEnd: longOpenInterestAtEnd
       ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
       : undefined,
@@ -79,12 +78,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: 1735286448,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONEIUM],
+  start: 1735286448,
 };
 
 export default adapter;

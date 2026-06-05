@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter } from '../../adapters/types';
+import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter, FetchOptions } from '../../adapters/types';
 import fetchURL from '../../utils/fetchURL';
 
 interface ChainData {
@@ -17,14 +17,13 @@ const getVolume = async (chainCode: string, fromDate: string, toDate: string): P
 }
 
 const getVolumeFunction = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
+  return async (options: FetchOptions): Promise<FetchResultVolume> => {
     if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const chainCode = chainCodeMap[chain];
-    const dateString = formatTimestampAsIsoDate(timestamp);
+    const dateString = formatTimestampAsIsoDate(options.toTimestamp);
     const dailyVolume = await getVolume(chainCode, dateString, dateString);
 
     return {
-      timestamp,
       dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
     } as FetchResultVolume;
   }

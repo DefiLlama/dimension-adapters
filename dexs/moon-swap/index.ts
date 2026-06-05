@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
@@ -11,8 +11,8 @@ interface IVolumeall {
   date: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpPost(historical, {start_time: START_TIME, skip: 0}))?.data.uniswapDayDatas;
 
   const dailyVolume = historicalVolume
@@ -20,18 +20,14 @@ const fetch = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.CONFLUX]: {
-      fetch,
-      start: START_TIME,
-    },
-  },
+  fetch,
+  chains: [CHAIN.CONFLUX],
+  start: START_TIME,
 };
 
 export default adapter;

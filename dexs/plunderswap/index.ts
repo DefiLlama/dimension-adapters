@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 
 const historicalVolumeEndpoint = "https://static.plunderswap.com/volume-history"
 
@@ -9,9 +10,9 @@ interface IVolumeall {
   time: string;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay, }: FetchOptions) => {
+const fetch = async ({ createBalances, toTimestamp }: FetchOptions) => {
   const dailyVolume = createBalances()
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
 
   // Format the timestamp without milliseconds
@@ -26,19 +27,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startO
     dailyVolume.addCGToken("zilliqa", Number(dayEntries[0].value));
   }
 
-  return { dailyVolume, timestamp: startOfDay, };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    zilliqa: {
-      fetch: fetch,
-      start: '2024-12-10',
-    },
-  },
-  methodology: {
-    Volume: "Volume of trades on Plunderswap at the start of the day (00:00:00 UTC) for the previous day"
-  }
+  fetch,
+  chains: [CHAIN.ZILLIQA],
+  start: '2024-12-10',
 };
 
 export default adapter;

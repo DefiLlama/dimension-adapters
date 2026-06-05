@@ -19,8 +19,8 @@ const chains: TChains =  {
   [CHAIN.AURORA]: 1313161554,
 };
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historical: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[options.chain])))?.data;
   const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
 

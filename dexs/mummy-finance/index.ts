@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -27,15 +27,14 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDataSwap, {
     id: String(dayTimestamp),
     period: 'daily',
   })
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -49,13 +48,12 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  fetch,
   adapter: {
     [CHAIN.FANTOM]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
       start: startTimestamps[CHAIN.FANTOM],
     },
     [CHAIN.OPTIMISM]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
       start: startTimestamps[CHAIN.OPTIMISM],
     },
   },

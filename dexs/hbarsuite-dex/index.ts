@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 import asyncRetry from "async-retry";
@@ -43,8 +43,8 @@ const methodology = {
   Fees: "All fees comes from the user."
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
 
   // generating a random number, so to grab a random smart-node from the network..
   let randomNode = nodes[Math.floor(Math.random() * nodes.length)];
@@ -60,18 +60,14 @@ const fetch = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolumes.toString(),
-    timestamp: dayTimestamp
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch,
-      start: '2023-01-01',
-      runAtCurrTime: true
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: '2023-01-01',
+  runAtCurrTime: true,
   methodology,
 };
 

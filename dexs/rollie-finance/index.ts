@@ -1,5 +1,5 @@
 import request, { gql } from 'graphql-request';
-import {FetchOptions, SimpleAdapter} from '../../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 
 const ENDPOINTS: { [key: string]: string } = {
@@ -23,31 +23,19 @@ const getVolume = gql`
 `;
 
 
-const getFetch = (chain: string) => async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayIndex = Math.floor(options.startOfDay / 86400);
-  const { market: response } = await request(ENDPOINTS[chain],
-    getVolume, {
-      id: String(dayIndex),
-    });
+  const { market: response } = await request(ENDPOINTS[options.chain], getVolume, { id: String(dayIndex) });
 
-  return {
-    dailyVolume:
-      response.marketDayDatas.length === 1
-        ? (BigInt(response.marketDayDatas[0].tradeVolume) /
-          BigInt(10 ** USDC_DECIMALS[chain])).toString()
-        : '0',
-  };
+  return { dailyVolume: response.marketDayDatas.length === 1 ? (BigInt(response.marketDayDatas[0].tradeVolume) / BigInt(10 ** USDC_DECIMALS[options.chain])).toString() : '0' };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SCROLL]: {
-      fetch: getFetch(CHAIN.SCROLL),
-      start: '2024-05-09',
-      deadFrom: '2025-04-15',
-    },
-  },
+  chains: [CHAIN.SCROLL],
+  fetch,
+  start: '2024-05-09',
+  deadFrom: '2025-04-15',
 };
 
 export default adapter;

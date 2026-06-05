@@ -1,5 +1,5 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -26,8 +26,8 @@ interface IGraphResponse {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const response: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).dailyDexes.nodes;
 
   const dailyVolume = response
@@ -40,12 +40,9 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.KARURA]: {
-      fetch: fetch,
-      start: '2022-07-03',
-    },
-  },
+  fetch,
+  chains: [CHAIN.KARURA],
+  start: '2022-07-03',
 };
 
 export default adapter;

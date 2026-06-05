@@ -14,8 +14,8 @@ interface IGraph {
 
 const URL = 'https://api.v2.jediswap.xyz/graphql';
 
-const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000));
   const dayID = Math.floor(dayTimestamp / 86400);
   const query = gql`
   {
@@ -35,17 +35,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: Fet
   dailyVolume.addCGToken('tether', volume);
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.STARKNET]: {
-          fetch: fetch,
-          start: '2024-02-10',
-        },
-    },
+  fetch,
+  chains: [CHAIN.STARKNET],
+  start: '2024-02-10',
 };
 
 export default adapter;

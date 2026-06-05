@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch: any = async (timestamp: number, _, { getLogs, createBalances, }: FetchOptions) => {
+const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances()
   let eventAbi = "event Swap(address indexed pool, address indexed user, bytes32[] tokenRef, int128[] delta)"
   const logs = await getLogs({ target: "0x1d0188c4B276A09366D05d6Be06aF61a73bC7535", eventAbi, })
@@ -17,16 +17,14 @@ const fetch: any = async (timestamp: number, _, { getLogs, createBalances, }: Fe
       dailyVolume.add(token, volume)
     })
   })
-  return { dailyVolume, timestamp, };
+  return { dailyVolume, };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2023-08-01',
-    },
-  }
+
+  fetch,
+  chains: [CHAIN.LINEA],
+  start: '2023-08-01',
 };
 
 export default adapter;

@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "../../adapters/types";
@@ -20,10 +20,10 @@ const mapChainId: ChainMapId = {
   [CHAIN.BITTORRENT]: 199
 };
 const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
+  return async (options: FetchOptions) => {
     if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const queryByChainId = `?chain_id=${mapChainId[chain]}`;
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
     const dailyVolume = historicalVolume
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.created_time)) === dayTimestamp)?.max_swap_amount

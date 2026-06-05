@@ -25,7 +25,7 @@ async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult
   return { dailyVolume };
 }
 
-async function fetch(_t: any, _tt: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const results = await getSpotDimensions(options);
   return {
     ...results,
@@ -34,13 +34,10 @@ async function fetch(_t: any, _tt: any, options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2023-07-25',
-    },
-  },
-  prefetch: prefetch,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2023-07-25',
+  prefetch,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };

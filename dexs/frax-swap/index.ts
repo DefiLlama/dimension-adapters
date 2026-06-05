@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -31,32 +31,21 @@ interface IVolumeall {
   intervalTimestamp: number;
 }
 
-const graphs = (chain: Chain) => {
-  return async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint)).items;
-    const historicalVolume = historical
-      .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
+  const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint)).items;
+  const historicalVolume = historical
+    .filter(e => e.chain.toLowerCase() === chains[options.chain].toLowerCase());
 
-    const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
+  const dailyVolume = historicalVolume
+    .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
 
-    return {
-      dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
-    };
-  }
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(chains).reduce((acc, chain: any) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: graphs(chain as Chain),
-      }
-    }
-  }, {})
+  fetch,
+  chains: Object.keys(chains),
 };
 
 export default adapter;

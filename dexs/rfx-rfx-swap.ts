@@ -22,18 +22,13 @@ interface IGraphResponse {
   }>;
 }
 
-const fetch = async (_timestamp: number, _block: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.ZKSYNC;
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000));
 
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
     id: `1d:${dayTimestamp}`,
     period: "1d",
-  });
-
-  const totalData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
-    id: "total",
-    period: "total",
   });
 
   let dailyVolume = 0;
@@ -43,31 +38,14 @@ const fetch = async (_timestamp: number, _block: any, options: FetchOptions) => 
     const sumOfFields = Object.values(volumeObj).reduce((sum, val) => sum + Number(val), 0);
     dailyVolume = sumOfFields * 1e-30;
   }
-
-  if (totalData.volumeInfos.length === 1) {
-    const volumeObj = totalData.volumeInfos[0];
-    const sumOfFields = Object.values(volumeObj).reduce((sum, val) => sum + Number(val), 0);
-  }
-
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume: String(dailyVolume),
-  };
-};
-
-const methodology = {
-  Volume: "Sum of daily swap or margin volume for RFX subgraph.",
+  return { dailyVolume }
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ZKSYNC]: {
-      fetch,
-      start: 1733356800,
-      deadFrom: "2025-08-12",
-    },
-  },
-  methodology,
+  fetch,
+  chains: [CHAIN.ZKSYNC],
+  start: 1733356800,
+  deadFrom: "2025-08-12",
 };
 
 export default adapter;

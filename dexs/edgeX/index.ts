@@ -1,5 +1,5 @@
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -33,8 +33,8 @@ function parseContractIds(response: any): string[] {
 }
 
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) * 1000
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000)) * 1000
   const toTimestamp = dayTimestamp + 60 * 60 * 24 * 1000;
   const contractIds: string[] = parseContractIds(await fetchURL(metaDataEndpoint));
   const klines: Array<any> = [];
@@ -50,12 +50,9 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.EDGEX]: {
-      fetch,
-      start: '2024-08-06',
-    },
-  },
+  fetch,
+  chains: [CHAIN.EDGEX],
+  start: '2024-08-06',
 };
 
 export default adapter;

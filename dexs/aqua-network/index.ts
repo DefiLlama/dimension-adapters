@@ -17,7 +17,7 @@ interface IVolumeAll {
 
 let historicalVolume: IVolumeAll[] | any
 
-const fetch = async (_: any, _1: any, { startOfDay, dateString, }: FetchOptions) => {
+const fetch = async ({ startOfDay, dateString, }: FetchOptions) => {
   if (!historicalVolume)
     historicalVolume = fetchURL(AQUA_VOLUME_ENDPOINT)
   historicalVolume = await historicalVolume

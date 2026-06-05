@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -27,12 +27,9 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch =
-  (chain: string) =>
-    async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-      );
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)));
       const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
         id:
           chain === CHAIN.BSC ||
@@ -44,7 +41,6 @@ const getFetch =
       });
 
       return {
-        timestamp: dayTimestamp,
         dailyVolume:
           dailyData.volumeStats.length == 1
             ? String(
@@ -70,7 +66,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
         deadFrom: '2026-02-28',
       },

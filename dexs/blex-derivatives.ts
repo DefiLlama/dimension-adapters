@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { SimpleAdapter, Fetch } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -28,8 +28,9 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], derivativesData, {
     id: "daily:" + String(dayTimestamp),
     period: 'daily',
@@ -48,16 +49,10 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch(chain),
-        start: startTimestamps[chain],
-        deadFrom: "2025-03-15",
-      }
-    }
-  }, {}),
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: startTimestamps[CHAIN.ARBITRUM],
+  deadFrom: "2025-03-15",
 }
 
 export default adapter;

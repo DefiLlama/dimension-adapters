@@ -11,8 +11,8 @@ interface IVolumeall {
 }
 
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint)).vol;
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
     const [time, volume] = e;
@@ -28,18 +28,14 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FLOW]: {
-      fetch,
-      start: '2022-04-25',
-    },
-  },
+  fetch,
+  chains: [CHAIN.FLOW],
+  start: '2022-04-25',
 };
 
 export default adapter;

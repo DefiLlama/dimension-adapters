@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -18,15 +18,15 @@ const blockNumberGraph = {
 
 const headers = { 'sex-dev': 'ServerDev' } as any
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const toTimestamp = options.toTimestamp;
 
-      // Get blockNumers
-      const blockNumerQuery = gql`
-        {
+  // Get blockNumers
+  const blockNumerQuery = gql`
+    {
             blocks(
-              where: {timestamp_lte:${timestamp}}
+              where: {timestamp_lte:${options.toTimestamp}}
               orderBy: timestamp
               orderDirection: desc
               first: 1
@@ -39,7 +39,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const last24hBlockNumberQuery = gql`
         {
             blocks(
-              where: {timestamp_lte:${timestamp - 24 * 60 * 60}}
+              where: {timestamp_lte:${options.toTimestamp - 24 * 60 * 60}}
               orderBy: timestamp
               orderDirection: desc
               first: 1
@@ -53,7 +53,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
         headers: chain === CHAIN.ZETA ? headers : headers,
       });
-      const graphQLClient = new GraphQLClient(graphUrls[chain], {
+      const graphQLClient = new GraphQLClient(endpoints[chain], {
         headers: chain === CHAIN.ZETA ? headers : headers,
       });
 
@@ -95,22 +95,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
 
       return {
-        timestamp,
         dailyVolume: dailyVolume.toString(),
       };
     }
-  };
-};
 
 
 const adapter: Adapter = {
+  fetch,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM) as any,
       start: '2023-11-18',
     },
     [CHAIN.ZETA]: {
-      fetch: graphs(endpoints)(CHAIN.ZETA) as any,
     },
   },
   deadFrom: "2025-10-11",

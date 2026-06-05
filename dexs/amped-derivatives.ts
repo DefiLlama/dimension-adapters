@@ -1,5 +1,5 @@
 import request, { gql, GraphQLClient } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -43,42 +43,41 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-    async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-      );
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dayTimestamp = getUniqStartOfTodayTimestamp(
+    new Date(options.toTimestamp * 1000)
+  );
 
-      let dailyData: IGraphResponse;
+  let dailyData: IGraphResponse;
 
-      // Use bearer token authentication only for Sonic network
-      if (chain === CHAIN.SONIC) {
-        const client = createGraphQLClient(endpoints[chain]);
-        dailyData = await client.request(historicalDataDerivatives, {
-          id: String(dayTimestamp) + ":daily" ,
-          period: "daily",
-        });
-      } else {
-        // Use regular request for other networks
-        dailyData = await request(endpoints[chain], historicalDataDerivatives, {
-          id: String(dayTimestamp) + ":daily" ,
-          period: "daily",
-        });
-      }
+  // Use bearer token authentication only for Sonic network
+  if (chain === CHAIN.SONIC) {
+    const client = createGraphQLClient(endpoints[chain]);
+    dailyData = await client.request(historicalDataDerivatives, {
+      id: String(dayTimestamp) + ":daily",
+      period: "daily",
+    });
+  } else {
+    // Use regular request for other networks
+    dailyData = await request(endpoints[chain], historicalDataDerivatives, {
+      id: String(dayTimestamp) + ":daily",
+      period: "daily",
+    });
+  }
 
-      const dailyVolume = dailyData.volumeStats.length == 1
-        ? Number(
-          Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-            String(Number(sum) + Number(element))
-          )
-        ) * 10 ** -30
-        : undefined;
+  const dailyVolume = dailyData.volumeStats.length == 1
+    ? Number(
+      Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+        String(Number(sum) + Number(element))
+      )
+    ) * 10 ** -30
+    : undefined;
 
-      return {
-        dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
-      };
-    };
+  return {
+    dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
+  };
+}
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.LIGHTLINK_PHOENIX]: 1717199544,
@@ -104,7 +103,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
       },
     };

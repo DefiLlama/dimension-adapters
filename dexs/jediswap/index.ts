@@ -17,8 +17,8 @@ const blackList: string[] = [
   "0x3d56e63387bc55426941a47d6e8b7571d3b98c72253275d8c449a5f216e75a5"
 ]
 
-const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<FetchResult> => {
+    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000));
     const dayID = (dayTimestamp / 86400);
     const query = gql`
     {
@@ -42,17 +42,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: Fet
     dailyVolume.addCGToken('tether', volume);
     return {
         dailyVolume: dailyVolume,
-        timestamp: dayTimestamp,
     };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.STARKNET]: {
-          fetch: fetch,
-          start: '2022-11-28',
-        },
-    },
+  fetch,
+  chains: [CHAIN.STARKNET],
+  start: '2022-11-28',
 };
 
 export default adapter;

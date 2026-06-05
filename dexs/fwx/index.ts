@@ -25,9 +25,9 @@ const endpoints = {
   openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
-const fetch = async (timestamp: number, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1e3)
+    new Date(options.toTimestamp * 1e3)
   );
   const date = new Date(dayTimestamp * 1e3);
   const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
@@ -80,7 +80,6 @@ const fetch = async (timestamp: number, _b: any, options: FetchOptions): Promise
     openInterestAtEnd: convertStringNumber(
       openInterestValue < 0 ? -openInterestValue : openInterestValue
     ),
-    timestamp: timestamp,
   };
 };
 

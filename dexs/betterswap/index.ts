@@ -9,7 +9,7 @@ interface BetterSwapResponse {
 // BetterSwap factoryAddress
 const factoryAddress = "0x5970dcbebac33e75eff315c675f1d2654f7bf1f5";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const startDate = new Date(options.startOfDay * 1000).toISOString().split("T")[0];
     const url = `https://www.betterswap.io/api/volume?startDate=${startDate}&factoryAddress=${factoryAddress}`;
 

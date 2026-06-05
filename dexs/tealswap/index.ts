@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -14,8 +14,8 @@ interface IVolumeall {
   time: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const rawData: IRawData = (await fetchURL(historicalVolumeEndpoint));
   const historicalVolume: any[] = rawData.timestamps.map((value: number, index: number) => {
     return {
@@ -27,20 +27,14 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time * 1000)) === dayTimestamp)?.volume
 
-  return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
-  };
+  return { dailyVolume };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OAS]: {
-      fetch,
-      start: '2022-12-14',
-    },
-  },
+  fetch,
+  chains: [CHAIN.OAS],
+  start: '2022-12-14',
 };
 
 export default adapter;
