@@ -66,9 +66,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const methodology = {
   Volume: "Gross gacha pull spend (sum of all pack sales, no netting).",
-  Fees: "Net realized revenue: gacha pull spend (paid pulls only — free spins excluded) plus marketplace and redemption fees, minus card buyback payouts and repool yield. Can be negative on heavy-buyback days.",
-  Revenue: "Same as Fees.",
-  UserFees: "Same as Fees — all fees originate from user activity.",
+  Fees: "Net fees (adapter-level): gacha pull spend (paid pulls only — free spins excluded) plus marketplace and redemption fees, minus card buyback payouts and repool yield. Follows TCG adapter convention (see Collector Crypt). Can be negative on heavy-buyback days.",
+  Revenue: "Same as Fees — net of buyback and repool payouts.",
+  UserFees: "Same as Fees — all fees originate from user pull spend and marketplace/redemption activity.",
   ProtocolRevenue: "Same as Fees — 100% of net revenue accrues to the protocol.",
 };
 
