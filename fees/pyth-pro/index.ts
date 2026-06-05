@@ -15,28 +15,20 @@ const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
 const DAO_SHARE_PERCENT = 60n;
 const TOTAL_PERCENT = 100n;
 
-// Revenue attribution offset: Douro distributes in the first week of month N+1
-// for revenue earned in month N. We shift queries forward by ~4 weeks to
-// attribute revenue to the correct earning period.
-const REVENUE_ATTRIBUTION_OFFSET_SECONDS = 28 * 24 * 60 * 60; // ~4 weeks
-
 const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Shift query window forward to capture distributions for the earning period
-  // Example: Query for April 15 → looks at May 20, capturing the May 4th distribution
-  const adjustedStart = options.startTimestamp + REVENUE_ATTRIBUTION_OFFSET_SECONDS;
-  const adjustedEnd = options.endTimestamp + REVENUE_ATTRIBUTION_OFFSET_SECONDS;
-
   // Query USDC and PYTH transfers from Douro Labs to Pyth DAO
+  // Note: Douro distributes in month N+1 for revenue earned in month N,
+  // so DefiLlama data lags ~1 month vs actual earning period
   const subscriptionQuery = `
     SELECT
       token_mint_address,
       COALESCE(SUM(amount), 0) as total_amount
     FROM tokens_solana.transfers
-    WHERE block_time BETWEEN FROM_UNIXTIME(${adjustedStart}) AND FROM_UNIXTIME(${adjustedEnd})
+    WHERE block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
       AND token_mint_address IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_owner = '${DOURO_LABS_WALLET}'
       AND to_owner = '${PYTH_DAO_WALLET}'
@@ -73,7 +65,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Total Pyth Pro subscription revenue (100% gross). Douro Labs distributes the DAO's 60% share in the first week of the following month; revenue is attributed to the earning period.",
+    Fees: "Total Pyth Pro subscription revenue (100% gross), calculated from on-chain distributions.",
     Revenue: "Pyth DAO's 60% share of Pyth Pro subscription revenue.",
     SupplySideRevenue: "Douro Labs' 40% share as the official data distributor.",
   },
