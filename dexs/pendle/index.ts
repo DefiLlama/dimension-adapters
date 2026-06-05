@@ -7,6 +7,7 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { Balances } from "@defillama/sdk";
+import { getConfig } from "../../helpers/cache";
 
 type MarketData = {
   address: string;
@@ -91,9 +92,11 @@ async function limitOrder(
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume: Balances = options.createBalances();
-  const res = await fetchURL(
-    `https://api-v2.pendle.finance/core/v1/${chains[options.chain].id}/markets?limit=100&select=pro&is_active=true`,
-  );
+
+  const res = await getConfig(`pendle-markets/${options.chain}`, '', {
+    fetcher: async () => fetchURL(
+      `https://api-v2.pendle.finance/core/v1/${chains[options.chain].id}/markets?limit=100&select=pro&is_active=true`)
+  });
 
   await Promise.all([
     await amm(res.results, options.getLogs, dailyVolume),
@@ -107,12 +110,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
+  fetch,
 };
 
 Object.keys(chains).map((chain) => {
   adapter.adapter![chain] = {
-    fetch,
     start: chains[chain].start,
   };
 });

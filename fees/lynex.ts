@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import request from "graphql-request";
+import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
@@ -53,11 +53,10 @@ export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: Fetch
 }
 
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (options: FetchOptions) => {
     const chain = options.chain;
-    const timestamp = options.startOfDay;
     const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
-    const graphQuery = gql
+    const graphQuery = 
         `
                 {
                     algebraDayData(id: ${dateId}) {
@@ -71,14 +70,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const dailyFeeUSD = graphRes;
     const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
     const dailyBribesRevenue = await fees_bribes(options)
-    if (dailyFee === undefined) return { timestamp }
+    if (dailyFee === undefined) throw new Error("Failed to fetch daily fees for Lynex")
 
     return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyUserFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
-        dailyHoldersRevenue: dailyFee.toString(),
+        dailyFees: dailyFee,
+        dailyUserFees: dailyFee,
+        dailyRevenue: dailyFee,
+        dailyHoldersRevenue: dailyFee,
         dailyBribesRevenue
     };
 }
@@ -103,10 +101,13 @@ const breakdownMethodology = {
 }
 
 const adapter: Adapter = {
-    version: 2,
-    fetch,
-    chains: [CHAIN.LINEA],
-    start: '2023-08-07',
+    version: 1,
+    adapter: {
+        [CHAIN.LINEA]: {
+            fetch,
+            start: '2023-08-07',
+        },
+    },
     methodology,
     breakdownMethodology,
 };

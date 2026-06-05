@@ -37,6 +37,7 @@ const methodology = {
 
 export default {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.INK],
   fetch,
   start: "2025-11-15",

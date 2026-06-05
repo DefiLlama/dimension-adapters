@@ -94,6 +94,7 @@ const adapter: Adapter = {
   },
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
