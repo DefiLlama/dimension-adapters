@@ -19,11 +19,12 @@ interface IGraphResult {
     total: [{ total_fee_generated: number }]
 }
 
-async function fetch(_options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const res: IGraphResult = await request(subgraphEndpoint, query);
     const dailyFees = res.daily.reduce((acc, d) => acc + d.total_swap_fee, 0);
     return {
         dailyFees,
+        timestamp: options.startOfDay,
     };
 }
 

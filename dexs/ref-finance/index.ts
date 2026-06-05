@@ -32,6 +32,7 @@ const adapter: SimpleAdapter = {
         }
         
         return {
+          timestamp: options.startOfDay,
           dailyVolume: volume,
           dailyFees: fees,
           dailyRevenue: fees * 0.2,

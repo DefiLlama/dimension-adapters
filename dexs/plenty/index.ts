@@ -12,6 +12,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolumeItem = plentyData.find(e => e.time === dateString)?.value
 
   return {
+    timestamp: options.startOfDay,
     dailyVolume: dailyVolumeItem,
   }
 }

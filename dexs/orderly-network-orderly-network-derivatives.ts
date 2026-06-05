@@ -86,6 +86,7 @@ const fetch = async (options: FetchOptions) => {
   )?.volume;
 
   return {
+    timestamp: cleanTimestamp,
     dailyVolume: volume?.toString() || "0",
   };
 };

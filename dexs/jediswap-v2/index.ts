@@ -35,6 +35,7 @@ const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<Fe
   dailyVolume.addCGToken('tether', volume);
   return {
     dailyVolume: dailyVolume,
+    timestamp: dayTimestamp,
   };
 }
 

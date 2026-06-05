@@ -30,6 +30,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: "0",
     dailyProtocolRevenue: "0",
     dailySupplySideRevenue: item.fees,
+    timestamp: dayTimestamp,
   };
 };
 

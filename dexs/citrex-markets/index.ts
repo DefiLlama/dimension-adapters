@@ -41,6 +41,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume: dailyVolume.div(baseUnit),
     openInterestAtEnd: openInterestAtEnd.div(baseUnit),
+    timestamp: dayTimestamp,
   };
 };
 

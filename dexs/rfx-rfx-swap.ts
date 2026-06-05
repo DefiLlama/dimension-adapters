@@ -38,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
     const sumOfFields = Object.values(volumeObj).reduce((sum, val) => sum + Number(val), 0);
     dailyVolume = sumOfFields * 1e-30;
   }
-  return { dailyVolume }
+  return { dailyVolume, timestamp: dayTimestamp }
 };
 
 const adapter: SimpleAdapter = {

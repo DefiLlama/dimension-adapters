@@ -18,6 +18,7 @@ const fetch = async (options: FetchOptions) => {
   }, new BigNumber(0));
   return {
     dailyVolume: dailyVolume?.toString(),
+    timestamp: options.startOfDay,
   };
 };
 

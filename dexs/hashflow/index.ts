@@ -39,7 +39,8 @@ const adapter: SimpleAdapter = {
           const response = (await httpGet("https://hashflow2.metabaseapp.com/api/public/dashboard/f4b12fd4-d28c-4f08-95b9-78b00b83cf17/dashcard/104/card/97?parameters=%5B%5D")) as IAPIResponse
           const vol = response.data.rows.filter(([c]) => normalizeChain(c) === chain).find(([_chain, dateString]) => dateToTs(dateString) === cleanTimestamp)
           return {
-            dailyVolume: vol ? vol[2].toString() : undefined
+            dailyVolume: vol ? vol[2].toString() : undefined,
+            timestamp: cleanTimestamp
           }
         },
         // start: async () => getStartTime(chain),

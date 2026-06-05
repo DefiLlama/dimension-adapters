@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
 
-  return { dailyVolume };
+  return { dailyVolume, timestamp: dayTimestamp };
 };
 
 const adapter: SimpleAdapter = {

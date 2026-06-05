@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -48,6 +48,7 @@ const fetch = async (options: FetchOptions) => {
           10 ** -30
         )
         : undefined,
+    timestamp: dayTimestamp,
   };
 };
 

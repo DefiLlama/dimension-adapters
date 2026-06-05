@@ -80,6 +80,7 @@ const fetch = async (options: FetchOptions) => {
   );
 
   return {
+    timestamp: dayTimestamp,
     longOpenInterestAtEnd: longOpenInterestAtEnd
       ? String(longOpenInterestAtEnd * 10 ** -30)
       : undefined,

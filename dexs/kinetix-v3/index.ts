@@ -25,6 +25,7 @@ const fetch = async (options: FetchOptions) => {
   const dayData = response.uniswapDayData;
 
   return {
+    timestamp: dayTimestamp,
     dailyVolume: dayData?.volumeUSD || "0",
     dailyFees: dayData?.feesUSD || "0",
   };

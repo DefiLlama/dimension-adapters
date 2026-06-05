@@ -28,6 +28,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
     return {
       dailyVolume: chainData ? chainData[2]?.toString() : "0",
+      timestamp: options.startOfDay,
     };
   } catch (e: any) {
     return {

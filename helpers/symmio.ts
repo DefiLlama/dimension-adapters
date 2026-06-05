@@ -99,6 +99,7 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]) => {
 
 
     return {
+      timestamp: startOfDay,
       dailyVolume: Number(dailyVolume) / 2,
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),

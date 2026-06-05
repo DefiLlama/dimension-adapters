@@ -36,6 +36,7 @@ const fetch = async (options: FetchOptions) => {
     period: 'daily',
   })
   return {
+    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)

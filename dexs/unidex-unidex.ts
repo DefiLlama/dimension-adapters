@@ -50,6 +50,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
   return {
     dailyVolume: dailyVolumeUSD.toString(),
+    timestamp: todaysTimestamp,
   };
 };
 

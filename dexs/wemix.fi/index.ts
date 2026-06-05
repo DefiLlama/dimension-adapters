@@ -20,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
     .find(dayItem =>  dayItem.dateTime.split(' ')[0] === dateString)?.volume
 
   return {
+    timestamp: dayTimestamp,
     dailyVolume: dailyVolume,
   };
 };

@@ -41,6 +41,7 @@ const fetch = async (options: FetchOptions) => {
   const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
 
   return {
+    timestamp: todaysTimestamp,
     dailyFees: finalDailyFee.toString(),
   };
 };

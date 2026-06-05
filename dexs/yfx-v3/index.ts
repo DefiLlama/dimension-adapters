@@ -44,6 +44,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   return {
+    timestamp: dayTimestamp,
     dailyVolume,
   }
 }

@@ -24,6 +24,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolume ? `${dailyVolume / 2}` : undefined,
+    timestamp: options.startOfDay,
   };
 };
 

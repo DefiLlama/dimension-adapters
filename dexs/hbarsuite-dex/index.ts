@@ -60,6 +60,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolumes.toString(),
+    timestamp: dayTimestamp,
   };
 };
 

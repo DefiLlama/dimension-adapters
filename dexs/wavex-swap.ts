@@ -27,6 +27,7 @@ const fetch = async (options: FetchOptions) => {
   const DECIMALS = 30;
 
   return {
+    timestamp: dayTimestamp,
     dailyVolume: dailyData.volumeStat
       ? String(
           Number(
