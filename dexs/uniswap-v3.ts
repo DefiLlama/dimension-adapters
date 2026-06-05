@@ -45,10 +45,12 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.OPTIMISM]: "2026-03-08",
   [CHAIN.ARBITRUM]: "2026-03-08",
   [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-03-08",
+  [CHAIN.CELO]: "2026-06-02",
   [CHAIN.WC]: "2026-03-08",
   [CHAIN.ZORA]: "2026-03-08",
   [CHAIN.XLAYER]: "2026-03-08",
+  [CHAIN.BSC]: "2026-06-02",
+  [CHAIN.POLYGON]: "2026-06-02",
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -91,14 +93,15 @@ const fetchFromOku = async (options: FetchOptions) => {
     const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+    const dailyRevenue = dailyFees * getRevenueShare(dailyFees, options);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
+      dailySupplySideRevenue: dailyFees - dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
+      dailyHoldersRevenue: dailyRevenue,
     }
   } catch (e) {
     console.error(options.chain, e)
@@ -121,10 +124,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
 }
 
 const adapter: SimpleAdapter = {
@@ -299,6 +302,7 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
       factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
       fromBlock: 26324014,
       onlyWhitelisedTokens: true,
+      getRevenueShare
     })
   },
 };
