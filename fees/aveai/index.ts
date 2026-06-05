@@ -53,7 +53,7 @@ const fetchEVM = async (options: FetchOptions) => {
 };
 
 const fetchSolana = async (options: FetchOptions) => {
-  const { feeWallet, program } = chainConfig[CHAIN.SOLANA];
+  const { feeWallet, program } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
 
   const rows = await queryDuneSql(options, `
