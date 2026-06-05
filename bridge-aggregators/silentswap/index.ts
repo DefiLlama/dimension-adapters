@@ -50,7 +50,7 @@ const fetch = async (_args: any, _options: any, options: FetchOptions) => {
   const dailyInflows = inflowsTillToday - inflowsTillYesterday;
 
   return {
-    dailyVolume: Number(dailyInflows) / 1e6,
+    dailyBridgeVolume: Number(dailyInflows) / 1e6,
   };
 };
 
