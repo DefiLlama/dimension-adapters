@@ -57,24 +57,7 @@ const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const rows = await queryDuneSql(options, `
-    WITH aveai_txs AS (
-      SELECT
-        id AS tx_id
-      FROM solana.transactions
-      WHERE
-        TIME_RANGE
-        AND success = true
-        AND CONTAINS(account_keys, '${program}')
-    ),
-    bot_trades AS (
-      SELECT DISTINCT
-        tx_id
-      FROM dex_solana.trades
-      WHERE
-        TIME_RANGE
-        AND trader_id != '${feeWallet}'
-    ),
-    fee_transfers AS (
+    WITH fee_transfers AS (
       SELECT
         tx_id,
         amount
@@ -92,8 +75,23 @@ const fetchSolana = async (options: FetchOptions) => {
     SELECT
       CAST(COALESCE(SUM(amount), uint256 '0') AS VARCHAR) AS daily_fees
     FROM fee_transfers f
-    JOIN aveai_txs a ON f.tx_id = a.tx_id
-    JOIN bot_trades b ON f.tx_id = b.tx_id
+    WHERE EXISTS (
+      SELECT 1
+      FROM solana.transactions t
+      WHERE
+        TIME_RANGE
+        AND t.id = f.tx_id
+        AND t.success = true
+        AND CONTAINS(t.account_keys, '${program}')
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM dex_solana.trades t
+      WHERE
+        TIME_RANGE
+        AND t.tx_id = f.tx_id
+        AND t.trader_id != '${feeWallet}'
+    )
   `) as { daily_fees?: string | number }[];
 
   dailyFees.add(ADDRESSES.solana.SOL, rows[0]?.daily_fees, METRIC.TRADING_FEES);
