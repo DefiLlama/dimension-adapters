@@ -66,6 +66,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.METIS],
   start: '2024-03-13',
+  deadFrom: '2025-11-14',
 };
 
 export default adapter;

@@ -8,11 +8,6 @@ const endpoints = {
     "https://metisapi.0xgraph.xyz/subgraphs/name/metis-andromeda-prod-stats",
 };
 
-type MarketStat = {
-  id: string;
-  totalTradingVolume: string;
-};
-
 type MarketDailyStat = {
   day: number;
   tradingVolume: string;
@@ -40,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
     0 as number
   );
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   }
 }
 
@@ -48,6 +43,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.METIS],
   start: '2024-03-13',
+  deadFrom: '2025-11-14',
 };
 
 export default adapter;

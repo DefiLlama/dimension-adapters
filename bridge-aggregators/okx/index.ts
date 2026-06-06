@@ -93,7 +93,6 @@ const fetch = async (options: FetchOptions) => {
 
     return {
         dailyBridgeVolume,
-        timestamp: options.endTimestamp,
     };
 };
 

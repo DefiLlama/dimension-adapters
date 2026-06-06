@@ -151,6 +151,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: "2025-07-28",

@@ -66,10 +66,10 @@ const CHAINS: Record<string, { id: string }> = {
 const fetch = async (options: FetchOptions) => {
   const { chain, endTimestamp } = options;
   const info = CHAINS[chain];
-  if (!info) return { dailyVolume: 0, timestamp: endTimestamp };
+  if (!info) return { dailyVolume: 0 };
   const url = `${BACKEND_BASE}/defillama/volume?chain=${info.id}&timestamp=${endTimestamp}`;
   const res = await httpGet(url) as { dailyVolume: number };
-  return { dailyVolume: res?.dailyVolume || 0, timestamp: endTimestamp };
+  return { dailyVolume: res?.dailyVolume || 0 };
 };
 
 const CHAINS_UNION: Record<string, { start: string; id: string }> = Object.entries(LifiDiamonds).reduce((acc, [chain]: any) => {

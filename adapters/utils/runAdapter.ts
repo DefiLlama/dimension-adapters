@@ -257,8 +257,8 @@ async function _runAdapter({
         result = (fetchFunction as Function).length >= 2
           ? await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options)
           : await (fetchFunction as FetchV2)(options);
-        // migrated adapters no longer return `timestamp`; set it like v2 (legacy returns are preserved)
-        if (result.timestamp === undefined) result.timestamp = options.toTimestamp
+        // v1 adapters may return their own `timestamp` (e.g. when reporting a previous day);
+        // when absent we leave it unset and let the caller default it.
       } else if (adapterVersion === 2) {
         result = await (fetchFunction as FetchV2)(options);
         result.timestamp = options.toTimestamp

@@ -49,7 +49,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyPremiumVolume: '0',
     dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-    timestamp: matchingData.day
   };
 }
 

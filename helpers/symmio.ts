@@ -111,7 +111,7 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]) => {
 export const fetchBuilderSymmioPerpsByName = (affiliateName: string) => {
   return async (options: FetchOptions) => {
     const endpoint = config[options.chain];
-    if (!endpoint || !affiliateName) return { timestamp: options.toTimestamp };
+    if (!endpoint || !affiliateName) return { };
 
     const res = await request(endpoint, affiliateQuery)
       .catch((error) => {

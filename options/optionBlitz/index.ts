@@ -39,7 +39,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume);
 
   return {
-    timestamp: dayTimestamp,
     dailyNotionalVolume: 0,
     dailyPremiumVolume:  balances,
   };
