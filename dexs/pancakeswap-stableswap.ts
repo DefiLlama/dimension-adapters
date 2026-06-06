@@ -46,7 +46,7 @@ const PancakeStableswapConfigs: { [key: string]: ICurveDexConfig } = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   chains: Object.keys(PancakeStableswapConfigs),
   fetch: async function (options: FetchOptions) {
     const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, PancakeStableswapConfigs[options.chain])
