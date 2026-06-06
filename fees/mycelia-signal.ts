@@ -23,6 +23,16 @@ const RECEIVERS: Record<string, { address: string; label: string }> = {
 const padTopic = (addr: string) =>
   '0x' + addr.toLowerCase().slice(2).padStart(64, '0');
 
+// Extract raw 20-byte address from a 32-byte topic value
+const topicToAddress = (topic: string) =>
+  '0x' + topic.slice(-40).toLowerCase();
+
+// Mycelia-controlled wallets — used to exclude internal transfers
+// (self-sends and cross-wallet transfers) from fee aggregation
+const INTERNAL_ADDRESSES = new Set(
+  Object.values(RECEIVERS).map(r => r.address.toLowerCase())
+);
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -33,6 +43,11 @@ const fetch = async (options: FetchOptions) => {
     });
 
     for (const log of logs) {
+      // Exclude internal transfers between Mycelia-controlled wallets
+      // (self-sends or cross-wallet rebalancing) to prevent overstating fees
+      const sender = topicToAddress(log.topics[1] as string);
+      if (INTERNAL_ADDRESSES.has(sender)) continue;
+
       // ERC-20 Transfer 'value' lives in the data field as a 32-byte uint
       const amount = BigInt(log.data);
       dailyFees.add(USDC_BASE, amount, receiver.label);
@@ -49,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "USDC payments received via the x402 protocol for Mycelia oracle endpoint calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to both settlement wallets and sums the values.",
+  Fees: "USDC payments received via the x402 protocol for Mycelia oracle endpoint calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to both settlement wallets and sums the values, excluding transfers where the sender is one of the two Mycelia-controlled wallets (self-sends and cross-wallet internal transfers).",
   Revenue: "100% of fees accrue to the protocol treasury. There is no supply-side, LP, integrator, or token-holder revenue split.",
   ProtocolRevenue: "Same as Revenue — all USDC payments accumulate in the protocol-operated receiver wallets.",
   UserFees: "Same as Fees — every payment is made directly by an end user (human or autonomous agent) per API call.",
