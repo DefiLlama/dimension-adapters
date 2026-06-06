@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 
@@ -32,15 +31,14 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historical: IVolumeall[] = (await fetchURL(poolsDataEndpoint)).items;
   const historicalVolume = historical
     .filter(e => e.chain.toLowerCase() === chains[options.chain].toLowerCase());
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
+    .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === options.startOfDay)?.swapVolumeUsdAmount
 
-  return { dailyVolume, timestamp: dayTimestamp };
+  return { dailyVolume, timestamp: options.startOfDay };
 };
 
 const adapter: SimpleAdapter = {

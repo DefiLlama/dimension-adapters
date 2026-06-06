@@ -15,7 +15,6 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const rawData: IRawData = (await fetchURL(historicalVolumeEndpoint));
   const historicalVolume: any[] = rawData.timestamps.map((value: number, index: number) => {
     return {
@@ -25,9 +24,9 @@ const fetch = async (options: FetchOptions) => {
   })
 
   const dailyVolume = historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time * 1000)) === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time * 1000)) === options.startOfDay)?.volume
 
-  return { dailyVolume, timestamp: dayTimestamp };
+  return { dailyVolume, timestamp: options.startOfDay };
 };
 
 

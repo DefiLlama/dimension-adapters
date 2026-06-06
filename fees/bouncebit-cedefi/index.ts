@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 
 const bbscanApiURL = "https://api-portal.bouncebit.io/api/fee/stats";
 
@@ -12,11 +11,10 @@ interface DailyStats {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
   const dailyFees = (() => {
-    const idx = stats.findIndex(stat => stat.timestamp === dayTimestamp);
+    const idx = stats.findIndex(stat => stat.timestamp === options.startOfDay);
     if (idx === -1) return 0;
     if (idx === 0) return stats[0]?.fee || 0;
     return (stats[idx]?.fee || 0) - (stats[idx - 1]?.fee || 0)

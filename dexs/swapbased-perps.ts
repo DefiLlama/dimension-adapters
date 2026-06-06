@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpointsPerps: { [key: string]: string } = {
   [CHAIN.BASE]:
@@ -48,14 +47,11 @@ interface IGraphResponseOI {
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
   const query = historicalDataSwap;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000),
-  );
   const dailyData: IGraphResponse = await request(
     endpointsPerps[chain],
     query,
     {
-      id: String(dayTimestamp) + ":daily",
+      id: String(options.startOfDay) + ":daily",
       period: "daily",
     },
   );
@@ -64,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
     endpointsPerps[chain],
     historicalOI,
     {
-      id: String(dayTimestamp) + ":daily",
+      id: String(options.startOfDay) + ":daily",
       period: "daily",
     },
   );
@@ -80,7 +76,7 @@ const fetch = async (options: FetchOptions) => {
   );
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     longOpenInterestAtEnd: longOpenInterestAtEnd
       ? String(longOpenInterestAtEnd * 10 ** -30)
       : undefined,

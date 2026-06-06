@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 type ChainMap = {
@@ -24,10 +23,9 @@ interface IFee {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const fees: IFee[] = (await fetchURL(endpoints[options.chain]));
 
-  const record = fees.find(item => item.time === dayTimestamp)
+  const record = fees.find(item => item.time === options.startOfDay)
   if (!record) return {}
 
   const dailyFees = Number(record.dayTradeFee)

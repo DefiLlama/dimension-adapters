@@ -1,7 +1,6 @@
 import request, { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.LIGHTLINK_PHOENIX]: "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
@@ -45,9 +44,6 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
 
   let dailyData: IGraphResponse;
 
@@ -55,13 +51,13 @@ const fetch = async (options: FetchOptions) => {
   if (chain === CHAIN.SONIC) {
     const client = createGraphQLClient(endpoints[chain]);
     dailyData = await client.request(historicalDataDerivatives, {
-      id: String(dayTimestamp) + ":daily",
+      id: String(options.startOfDay) + ":daily",
       period: "daily",
     });
   } else {
     // Use regular request for other networks
     dailyData = await request(endpoints[chain], historicalDataDerivatives, {
-      id: String(dayTimestamp) + ":daily",
+      id: String(options.startOfDay) + ":daily",
       period: "daily",
     });
   }

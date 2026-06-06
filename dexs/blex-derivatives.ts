@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('FZz1rRe9kEd3FG6ZiX2tdoryxYiSFH4RnzKjMwny3mFH'),
@@ -30,9 +29,8 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], derivativesData, {
-    id: "daily:" + String(dayTimestamp),
+    id: "daily:" + String(options.startOfDay),
     period: 'daily',
   })
 

@@ -2,7 +2,6 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 import asyncRetry from "async-retry";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 const BigNumber = require("bignumber.js");
 
 /*
@@ -44,8 +43,6 @@ const methodology = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-
   // generating a random number, so to grab a random smart-node from the network..
   let randomNode = nodes[Math.floor(Math.random() * nodes.length)];
 
@@ -60,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolumes.toString(),
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

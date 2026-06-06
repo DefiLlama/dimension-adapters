@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://pabc.endjgfsv.link/swapv2/scan/getAllLiquidityVolume"
 
@@ -11,14 +10,13 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).data;
   const dailyVolume = historicalVolume
-    .find(dayItem =>dayItem.time === dayTimestamp)?.volume
+    .find(dayItem =>dayItem.time === options.startOfDay)?.volume
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

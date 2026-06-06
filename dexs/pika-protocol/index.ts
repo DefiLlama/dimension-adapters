@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 interface IData {
@@ -20,8 +19,7 @@ const endpoints: Record<string, string> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
   const graphQuery = gql
     `
       {

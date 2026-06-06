@@ -1,6 +1,5 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
 import { addOneToken } from "../../helpers/prices";
@@ -78,11 +77,10 @@ const dfioFetch = async (options: FetchOptions) => {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(options.chain))) as IDailyResponse
 
   return {
-    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === dayTimestamp)?.volume[options.chain],
+    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[options.chain],
   }
 }
 

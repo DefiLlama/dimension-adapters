@@ -1,7 +1,6 @@
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`
@@ -43,14 +42,13 @@ export interface IExchangeTotalVolume {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const statsRes = await getGQLClient().request(getDailyVolume());
   const historicalVolume: IExchangeStats = statsRes.exchangeStats;
   return {
     dailyVolume: historicalVolume.volume24H
       ? `${historicalVolume.volume24H}`
       : undefined,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

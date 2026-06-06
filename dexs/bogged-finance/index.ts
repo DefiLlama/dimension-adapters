@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const historicalVolumeEndpoint = (chain: string) => `https://analytics.bog-general-api.com/daily_volume?type=all&chain=${chain}`
@@ -15,7 +14,7 @@ type TChains = {
   [k: Chain | string]: string;
 };
 
-const chains: TChains =  {
+const chains: TChains = {
   [CHAIN.BSC]: 'bsc',
   [CHAIN.AVAX]: 'avax',
   [CHAIN.FANTOM]: 'ftm',
@@ -24,26 +23,19 @@ const chains: TChains =  {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(chains[options.chain])));
 
   const dailyVolume = historicalVolume
-    .find(dayItem => Math.floor(Number(dayItem.timestamp)/1000) === dayTimestamp)?.dailyVolume
+    .find(dayItem => Math.floor(Number(dayItem.timestamp) / 1000) === options.startOfDay)?.dailyVolume
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(chains).reduce((acc, chain: any) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-      }
-    }
-  }, {})
+  fetch,
+  chains: Object.keys(chains),
 };
 
 export default adapter;

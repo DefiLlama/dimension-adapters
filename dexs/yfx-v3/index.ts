@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const KEY = '1079471f4ef05e4e9637de21d4bb7c6a'
 
@@ -33,10 +32,8 @@ interface IGraphResponse {
 
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
-
   const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDailyData, {
-    dayTime: String(dayTimestamp),
+    dayTime: String(options.startOfDay),
   })
   let dailyVolume = 0;
   for (let i in dailyData.marketInfoDailies) {
@@ -44,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyVolume,
   }
 }

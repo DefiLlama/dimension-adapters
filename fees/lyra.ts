@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const UNIT = BigInt("1000000000000000000");
 
@@ -39,13 +38,10 @@ query ($timestamp: Int) {
 `;
 
 const fetch = async (options: FetchOptions) => {
-  const cleanTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
   const previousDayFees: IDayFeesResponse = await request(
     endpoints[options.chain],
     dailyFeesQuery,
-    { timestamp: cleanTimestamp }
+    { timestamp: options.startOfDay }
   ).catch((e) =>
     console.error(`Failed to get total fees on ${options.chain}: ${e.message}`)
   );

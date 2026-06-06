@@ -3,7 +3,6 @@ import { Chain, FetchOptions } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`{
@@ -25,15 +24,14 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).metricsGlobalDays;
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
+    .find(dayItem => (Number(dayItem.timestamp)) === options.startOfDay)?.volUSD
 
   return {
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   }
 }
 

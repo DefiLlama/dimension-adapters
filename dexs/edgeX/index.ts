@@ -1,7 +1,6 @@
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL"
 import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const metaDataEndpoint = "https://pro.edgex.exchange/api/v1/public/meta/getMetaData"
 const klineDailyEndpoint = (contractId: string, startTime: number, endTime: number) => `https://pro.edgex.exchange/api/v1/public/quote/getKline?contractId=${contractId}&klineType=DAY_1&filterBeginKlineTimeInclusive=${startTime}&filterEndKlineTimeExclusive=${endTime}&priceType=LAST_PRICE`
@@ -34,7 +33,7 @@ function parseContractIds(response: any): string[] {
 
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000)) * 1000
+  const dayTimestamp = options.startOfDay * 1000
   const toTimestamp = dayTimestamp + 60 * 60 * 24 * 1000;
   const contractIds: string[] = parseContractIds(await fetchURL(metaDataEndpoint));
   const klines: Array<any> = [];

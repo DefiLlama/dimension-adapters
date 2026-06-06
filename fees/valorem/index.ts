@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { IValoremDayData } from "./interfaces";
 import { getAllDailyRecords } from "./helpers";
 
@@ -13,10 +12,6 @@ const chainConfig: Record<string, { url: string, start: number }> = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const formattedTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
-
   // get all daily records and filter out any that are after the timestamp
   const allDailyRecords = await getAllDailyRecords(
     { [options.chain]: chainConfig[options.chain].url },
@@ -25,7 +20,7 @@ const fetch = async (options: FetchOptions) => {
   );
   const filteredRecords = allDailyRecords
     .map((dayData) => {
-      if (dayData.date <= formattedTimestamp) {
+      if (dayData.date <= options.startOfDay) {
         return dayData;
       }
     })
@@ -33,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
 
   const getTodaysStats = () => {
     let todayStats = filteredRecords.find(
-      (dayData) => dayData.date === formattedTimestamp
+      (dayData) => dayData.date === options.startOfDay
     );
 
     // return with values set to 0 if not found

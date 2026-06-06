@@ -1,6 +1,5 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
 import { IValoremTokenDayData } from "../../fees/valorem/interfaces";
 import { DailyTokenRecords, getAllDailyTokenRecords } from "../../fees/valorem/helpers";
@@ -14,10 +13,6 @@ const chainConfig: Record<string, { url: string, start: number }> = {
 };
 
 const fetch = async (options: FetchOptions): Promise<any /* FetchResultOptions */> => {
-  const formattedTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
-
   /** Daily Token Metrics */
 
   const allDailyTokenRecords = await getAllDailyTokenRecords(
@@ -31,7 +26,7 @@ const fetch = async (options: FetchOptions): Promise<any /* FetchResultOptions *
   Object.keys(allDailyTokenRecords).forEach((tokenDayDataKey) => {
     const filteredTokenDayDatas = allDailyTokenRecords[tokenDayDataKey]
       .map((tokenDayData) => {
-        if (tokenDayData.date <= formattedTimestamp) {
+        if (tokenDayData.date <= options.startOfDay) {
           return tokenDayData;
         }
       })
@@ -48,7 +43,7 @@ const fetch = async (options: FetchOptions): Promise<any /* FetchResultOptions *
 
     Object.keys(filteredTokenRecords).forEach((key) => {
       const todaysDataForToken = filteredTokenRecords[key].find(
-        (dayData) => dayData.date === formattedTimestamp
+        (dayData) => dayData.date === options.startOfDay
       );
       todayStats.dailyNotionalVolume[key] =
         todaysDataForToken?.notionalVolCoreSum ?? '0';

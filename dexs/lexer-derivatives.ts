@@ -1,7 +1,6 @@
 import { SimpleAdapter, FetchResultVolume, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraph/utils";
 
 const apiEndPoints = [
   "https://api.studio.thegraph.com/query/50217/synth-stat-v2-arb-mainnet/version/latest",
@@ -27,10 +26,9 @@ const historicalDataDerivatives = gql`
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
-  const t = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const results = await Promise.all(
     apiEndPoints.map((api) =>
-      request(api, historicalDataDerivatives, { id: String(t), period: "daily" })
+      request(api, historicalDataDerivatives, { id: String(options.startOfDay), period: "daily" })
     )
   );
   for (const result of results) {

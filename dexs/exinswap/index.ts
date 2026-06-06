@@ -11,7 +11,6 @@ interface IAPIResponse {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const response: IAPIResponse[] = (await fetchURL(URL))?.data.list.map((e: any) => {
     return {
       time: e[0],
@@ -20,10 +19,10 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyVolume = response
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time * 1000))) === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time * 1000))) === options.startOfDay)?.volume
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   };
 };
 

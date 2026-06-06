@@ -2,7 +2,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoint = "https://data-api.claimswap.org/dashboard/charts/tradingvolume";
 interface IRawResponse {
@@ -23,7 +22,6 @@ const fetch = async (options: FetchOptions) => {
   const startTime = new Date(START_TIME * 1000);
   const query = `?startdt=${startTime.toISOString()}&enddt=${dateToday.toISOString()}&timeunit=day`;
   const url = `${endpoint}${query}`
-  const dayTimestamp = getUniqStartOfTodayTimestamp(dateToday);
   const response: IRawResponse = (await fetchURL(url));
 
   const historicalVolume: IVolume[] = response.data.map((val: number, index: number) => {
@@ -34,20 +32,15 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.volume
+    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === options.startOfDay)?.volume
 
-  return {
-    dailyVolume: dailyVolume,
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.KLAYTN]: {
-      fetch,
-      start: START_TIME,
-    },
-  }
+  fetch,
+  chains: [CHAIN.KLAYTN],
+  start: START_TIME,
 };
 
 export default adapter;

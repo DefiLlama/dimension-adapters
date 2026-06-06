@@ -1,16 +1,13 @@
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
 import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL =
   "https://api.hyperion.xyz/base/data/public/defillama/volume-fee-stat";
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-
   const { dailyVolume, dailyFees } = await fetchURL(
-    `${BASE_URL}?timestamp=${dayTimestamp}`,
+    `${BASE_URL}?timestamp=${options.startOfDay}`,
   );
   const dailyRevenue = Number(dailyFees) * 0.2;
 

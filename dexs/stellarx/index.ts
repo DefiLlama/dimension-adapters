@@ -11,16 +11,15 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dailyVolume = historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000)) === dayTimestamp)?.volume
-  if (!dailyVolume) throw new Error(`No daily volume found for timestamp: ${dayTimestamp}`);
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000)) === options.startOfDay)?.volume
+  if (!dailyVolume) throw new Error(`No daily volume found for timestamp: ${options.startOfDay}`);
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

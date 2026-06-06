@@ -1,5 +1,4 @@
 import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";

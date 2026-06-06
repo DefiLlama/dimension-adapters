@@ -1,7 +1,6 @@
 import { gql, request } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpointsBeamex = {
   [CHAIN.MOONBEAM]:
@@ -28,14 +27,11 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.MOONBEAM;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
   const dailyData: IGraphResponse = await request(
     endpointsBeamex[chain],
     historicalDataSwap,
     {
-      id: String(dayTimestamp),
+      id: String(options.startOfDay),
       period: "daily",
     }
   );

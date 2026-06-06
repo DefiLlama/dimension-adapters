@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://info.pheasantswap.com/swap/operate/getSwapStatisticsList"
 
@@ -11,14 +10,13 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volumeList;
   const dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.date) === dayTimestamp)?.amount
+    .find(dayItem => Number(dayItem.date) === options.startOfDay)?.amount
 
   return {
     dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

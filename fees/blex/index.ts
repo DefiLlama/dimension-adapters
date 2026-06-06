@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints: { [key: string]: string } = {
@@ -51,8 +50,7 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
-  const searchTimestamp = "daily:" + String(dayTimestamp);
+  const searchTimestamp = "daily:" + String(options.startOfDay);
 
   const dailyAllFeeData: IGraphResponse = await request(endpoints[options.chain], allFeesData, {
     id: searchTimestamp,
@@ -64,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
   })
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyUserFees:
       dailyUserData.fees.length == 1
         ? String(Number(Object.values(dailyUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)

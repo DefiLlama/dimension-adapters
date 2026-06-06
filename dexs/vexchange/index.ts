@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.vexchange.io/v1/pairs"
 

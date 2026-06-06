@@ -1,7 +1,6 @@
-import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IGraph {
   dayId: number;
@@ -14,9 +13,8 @@ interface IGraph {
 
 const URL = 'https://api.v2.jediswap.xyz/graphql';
 
-const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000));
-  const dayID = Math.floor(dayTimestamp / 86400);
+const fetch = async ({ createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => {
+  const dayID = Math.floor(startOfDay / 86400);
   const query = gql`
   {
     poolsDayData(first:1000, orderBy:"dayId", orderByDirection:"desc") {
@@ -33,9 +31,10 @@ const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<Fe
     .reduce((acc: number, e: IGraph) => e.volumeUSD ? acc + Number(e.volumeUSD) : acc, 0);
   const dailyVolume = createBalances();
   dailyVolume.addCGToken('tether', volume);
+
   return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    dailyVolume,
+    timestamp: startOfDay,
   };
 }
 

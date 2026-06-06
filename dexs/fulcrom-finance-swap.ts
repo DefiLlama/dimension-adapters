@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
@@ -29,11 +28,8 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
-    id: "daily:" + String(dayTimestamp),
+    id: "daily:" + String(options.startOfDay),
     period: "daily",
   });
   return {
@@ -48,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
           10 ** -30
         )
         : undefined,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

@@ -1,7 +1,6 @@
 import fetchURL from "../utils/fetchURL"
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { queryEvents } from "../helpers/sui";
 
 const historicalVolumeEndpoint = "https://aptos-mainnet-api.bluemove.net/api/histogram";
@@ -14,11 +13,10 @@ interface IVolumeall {
 }
 
 const fetchAptos = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.data.list;
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
+    .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === options.startOfDay)?.num
   return {
     dailyVolume: dailyVolume,
   };

@@ -2,7 +2,6 @@ import { request, gql } from "graphql-request";
 
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const subgraphEndpoint = 'https://api.core-1.dexter.zone/v1/graphql';
 const query = gql`{
@@ -22,6 +21,7 @@ interface IGraphResult {
 async function fetch(options: FetchOptions) {
     const res: IGraphResult = await request(subgraphEndpoint, query);
     const dailyFees = res.daily.reduce((acc, d) => acc + d.total_swap_fee, 0);
+
     return {
         dailyFees,
         timestamp: options.startOfDay,

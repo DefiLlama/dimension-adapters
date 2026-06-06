@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/bsc_stats/api",
@@ -29,19 +28,18 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)));
       const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
         id:
           chain === CHAIN.BSC ||
             chain === CHAIN.MANTLE ||
             chain === CHAIN.ARBITRUM
-            ? String(dayTimestamp)
-            : String(dayTimestamp) + ":daily",
+            ? String(options.startOfDay)
+            : String(options.startOfDay) + ":daily",
         period: "daily",
       });
 
       return {
-        timestamp: dayTimestamp,
+        timestamp: options.startOfDay,
         dailyVolume:
           dailyData.volumeStats.length == 1
             ? String(

@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-// import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type IUrl = {
   [s: string]: {
@@ -17,12 +16,6 @@ const url: IUrl = {
     poolsStatsUrl: 'https://app.magmafinance.io/api/sui/stats_pools?providers=all',
   },
 };
-
-interface IVolumeData {
-  num: string;
-  date: string;
-}
-
 
 // async function fetchHistoricalVolume(chain: Chain): Promise<IVolumeData[]> {
 //   const response = await fetchURL(url[chain].histogramUrl);

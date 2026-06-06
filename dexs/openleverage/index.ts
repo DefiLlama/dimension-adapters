@@ -1,7 +1,6 @@
 import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 type TEndoint = {
@@ -21,16 +20,15 @@ interface IVolumeall {
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   if (chain === CHAIN.KCC && options.toTimestamp > 1714867200) return {} // last tx date is 2024-05-05
   const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+    .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === options.startOfDay)?.volume
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 }
 

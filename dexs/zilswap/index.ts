@@ -1,6 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const historicalVolumeEndpoint = "https://api.zilstream.com/volume"
@@ -10,11 +9,10 @@ interface IVolumeall {
   time: string;
 }
 
-const fetch = async ({ createBalances, startOfDay, toTimestamp }: FetchOptions) => {
+const fetch = async ({ createBalances, startOfDay }: FetchOptions) => {
   const dailyVolume = createBalances()
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
-  const _dailyVolume = historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === dayTimestamp);
+  const _dailyVolume = historicalVolume.filter(volItem => (new Date(volItem.time.split('T')[0]).getTime() / 1000) === startOfDay);
   const __dailyVolume = Math.abs(Number(_dailyVolume[0].value) - Number(_dailyVolume[_dailyVolume.length - 1].value))
   dailyVolume.addCGToken("zilliqa", __dailyVolume)
   return { dailyVolume, };

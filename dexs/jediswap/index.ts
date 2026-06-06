@@ -1,7 +1,6 @@
-import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IGraph {
   dayId: number;
@@ -17,9 +16,8 @@ const blackList: string[] = [
   "0x3d56e63387bc55426941a47d6e8b7571d3b98c72253275d8c449a5f216e75a5"
 ]
 
-const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000));
-    const dayID = (dayTimestamp / 86400);
+const fetch = async ({  createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => {
+    const dayID = (startOfDay / 86400);
     const query = gql`
     {
       pairDayDatas(first: 1000 where:{dateGt:1669593600}, orderBy:"date", orderByDirection:"dese") {
@@ -42,7 +40,7 @@ const fetch = async ({  createBalances, toTimestamp }: FetchOptions): Promise<Fe
     dailyVolume.addCGToken('tether', volume);
     return {
         dailyVolume: dailyVolume,
-        timestamp: dayTimestamp,
+        timestamp: startOfDay,
     };
 }
 

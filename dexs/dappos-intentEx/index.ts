@@ -1,5 +1,4 @@
 import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -10,8 +9,7 @@ interface Response {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-  const url = `${URL}${dayTimestamp}`
+  const url = `${URL}${options.startOfDay}`
   const respose: Response[] = await httpGet(url);
   const dailyVolume = respose.reduce((acc, item) => {
     return acc + Number(item.daily_trade_volume);
@@ -19,7 +17,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolume?.toString(),
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

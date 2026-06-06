@@ -12,11 +12,10 @@ interface IChartItem {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalData: IChartItem[] = await fetchURL(historicalDataEndpoint)
 
   const findDay = (items: IChartItem[]) =>
-    items.find(item => getUniqStartOfTodayTimestamp(new Date(Number(item.time))) === dayTimestamp)
+    items.find(item => getUniqStartOfTodayTimestamp(new Date(Number(item.time))) === options.startOfDay)
 
   const item = findDay(historicalData)
 
@@ -30,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: "0",
     dailyProtocolRevenue: "0",
     dailySupplySideRevenue: item.fees,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

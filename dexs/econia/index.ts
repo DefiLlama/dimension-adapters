@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IMarkets {
   market_id: number;
@@ -15,8 +14,7 @@ const BASE_URL = "https://aptos-mainnet-econia.nodeinfra.com";
 
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-  const dayISO = new Date(dayTimestamp * 1000).toISOString();
+  const dayISO = new Date(options.startOfDay * 1000).toISOString();
 
   const markets: IMarkets[] = (await fetchURL(`${BASE_URL}/markets?quote_account_address=eq.0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa&quote_module_name=eq.asset&quote_struct_name=eq.USDC`));
   const volumesPerMarket = await Promise.all(

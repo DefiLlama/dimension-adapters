@@ -13,7 +13,6 @@ import * as sdk from "@defillama/sdk";
 import { GraphQLClient, gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 // Smart contract pads values with 10^30. I.e. 10 USD is stored as 10 * 10^30
 const DECIMAL_PLACES = BigInt(10)**BigInt(30);
@@ -50,12 +49,10 @@ function sumOfFees(feeStat: FeeStat | null): bigint {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-
   const {
     feeStat,
   } = await graphQLClient.request<GetFeeByIdResponse>(GET_FEE_BY_ID, {
-    id: `${dayTimestamp}:daily`
+    id: `${options.startOfDay}:daily`
   });
 
   // Hack to retain 2 decimal places. BigInt division doesn't preserve decimal places.
@@ -88,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: dailySupplySideRevenue,

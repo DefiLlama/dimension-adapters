@@ -1,6 +1,5 @@
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 const historical = "https://moonswap.fi/api/route/opt/swap/dashboard/global-chart";
@@ -12,15 +11,14 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpPost(historical, {start_time: START_TIME, skip: 0}))?.data.uniswapDayDatas;
 
   const dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.date) === dayTimestamp)?.dailyVolumeUSD
+    .find(dayItem => Number(dayItem.date) === options.startOfDay)?.dailyVolumeUSD
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

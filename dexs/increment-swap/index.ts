@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://app.increment.fi/info/totalinfos"
 
@@ -12,7 +11,6 @@ interface IVolumeall {
 
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint)).vol;
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
     const [time, volume] = e;
@@ -21,14 +19,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
       volume
     };
   });
-  const date = new Date(dayTimestamp * 1000);
+  const date = new Date(options.startOfDay * 1000);
   const todayDateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.time === todayDateString)?.volume
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

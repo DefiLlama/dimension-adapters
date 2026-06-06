@@ -3,7 +3,6 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const tokens: string[] = [
@@ -55,7 +54,6 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(query, { tokens: tokens})).poolsConsistingOf;
   const dailyVolume = historicalVolume
     .filter((e: IGraphResponse) => Number(e.volume24hUsd) < 10_000_000)
@@ -63,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 }
 

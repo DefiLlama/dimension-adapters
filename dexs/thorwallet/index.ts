@@ -1,5 +1,4 @@
 import { SimpleAdapter, FetchOptions } from '../../adapters/types';import { CHAIN } from '../../helpers/chains'
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume'
 import { httpGet } from '../../utils/fetchURL'
 
 const historicalVolumeEndpoint =
@@ -24,14 +23,13 @@ const calVolume = (total: IVolumeall): number => {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint)).intervals
   const dailyVolumeCall = historicalVolume.find(
-    (dayItem: IVolumeall) => Number(dayItem.startTime) === dayTimestamp
+    (dayItem: IVolumeall) => Number(dayItem.startTime) === options.startOfDay
   )
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall)
 
-  return { dailyVolume, timestamp: dayTimestamp }
+  return { dailyVolume, timestamp: options.startOfDay }
 }
 
 const adapter: SimpleAdapter = {

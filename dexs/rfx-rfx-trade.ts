@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [chain: string]: string } = {
   [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/62681/rfxs-master/version/latest",
@@ -24,10 +23,9 @@ interface IGraphResponse {
 
 const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.ZKSYNC;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000));
 
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-    id: `1d:${dayTimestamp}`,
+    id: `1d:${options.startOfDay}`,
     period: "1d",
   });
 
@@ -39,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume = sumOfFields * 1e-30;
   }
 
-  return { dailyVolume, timestamp: dayTimestamp }
+  return { dailyVolume, timestamp: options.startOfDay }
 };
 
 

@@ -1,6 +1,5 @@
 import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfNextDayUTC } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
 
@@ -13,7 +12,6 @@ interface IFPI {
   category: string;
 }
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.toTimestamp * 1000)))
   const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp) - 1;
   const date = new Date((options.toTimestamp * 1000));
   const month = date.getMonth() + 1;
@@ -21,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
   const response: IFPI[]  = (await httpGet(endpoint(year, month)))?.details;
   const historical = response.filter((e:IFPI) => e.chain === 'ethereum');
   const dailyData = historical
-    .filter((p: IFPI) => p.timestampSec >= dayTimestamp)
+    .filter((p: IFPI) => p.timestampSec >= options.startOfDay)
     .filter((p: IFPI) => p.timestampSec <= yesterdaysTimestamp)
   const dailyFees = dailyData.filter((p: IFPI) =>  p.type === 'income')
     .reduce((a: number, b: IFPI) => a + Number(b.amountUsd), 0);
@@ -29,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
     .reduce((a: number, b: IFPI) => a + Number(b.amountUsd), 0);
   const dailyRevenue = dailyFees - dailyExpens;
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyFees,
     dailyProtocolRevenue: dailyRevenue,
     dailyRevenue,

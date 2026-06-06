@@ -39,33 +39,8 @@ const info: { [key: string]: any } = {
   },
 };
 
-function getUniqStartOfTodayTimestamp(now: Date) {
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-  const day = now.getUTCDate();
-  const startOfDay = new Date(Date.UTC(year, month, day));
-  return startOfDay.getTime() / 1000;
-}
 
 const fetch = async (options: FetchOptions) => {
-  const totdayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
-
-  const graphQLTotal = `
-      {
-        volumeStats(
-          orderBy: "id"
-          orderDirection: desc
-          first: 1
-          where: { period: total }
-        ) {
-          margin
-          liquidation
-        }
-      }
-    `;
-
   const graphQlDaily = `
       {
         volumeStats(
@@ -95,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: totdayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

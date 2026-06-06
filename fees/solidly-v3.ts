@@ -4,7 +4,6 @@ import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 interface IPoolData {
@@ -26,8 +25,7 @@ const endpoints: IURL = {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
+    const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
     const graphQuery = gql
       `
       {

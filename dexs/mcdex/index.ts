@@ -24,7 +24,6 @@ const chainsMap: chains = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
 
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
@@ -38,11 +37,11 @@ const fetch = async (options: FetchOptions) => {
 
   const historical = historicalVolume.filter((e: IVolumeall) => e.title === chainsMap[options.chain]);
   const dailyVolume = historical
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === options.startOfDay)?.volume
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

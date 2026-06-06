@@ -1,6 +1,5 @@
 import { FetchResultFees, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
 interface ChainData {
@@ -66,7 +65,6 @@ const fetchCacheURL = (url: string) => {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const response: ApiResponse = await fetchCacheURL('https://explorer-api.mayan.finance/v3/stats/chains-overview?timeRange=24h');
 
   const chainKey = getChainKey(options.chain);
@@ -74,7 +72,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = volume * FEE_RATE;
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue: dailyFees
   };

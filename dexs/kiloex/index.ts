@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 type ChainMap = {
@@ -24,15 +23,14 @@ interface IVolume {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[options.chain]));
 
   const dailyVolume = historicalVolume
-    .find(item => item.time === dayTimestamp)?.dayTradeAmount
+    .find(item => item.time === options.startOfDay)?.dayTradeAmount
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 

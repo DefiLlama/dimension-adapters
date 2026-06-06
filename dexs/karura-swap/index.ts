@@ -1,7 +1,6 @@
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`query {
@@ -27,14 +26,13 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const response: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).dailyDexes.nodes;
 
   const dailyVolume = response
-    .find(dayItem => (new Date(dayItem.timestamp.split('T')[0]).getTime() / 1000) === dayTimestamp)?.dailyTradeVolumeUSD
+    .find(dayItem => (new Date(dayItem.timestamp.split('T')[0]).getTime() / 1000) === options.startOfDay)?.dailyTradeVolumeUSD
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyVolume: dailyVolume ? (Number(dailyVolume)/1e18).toString() : "0",
   }
 }

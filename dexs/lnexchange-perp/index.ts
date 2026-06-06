@@ -1,5 +1,4 @@
 import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
@@ -14,7 +13,6 @@ const fetch = async (options: FetchOptions) => {
   const respose: Response[] = (
     await httpPost(URL, { dayTimestamp: options.toTimestamp * 1000 })
   ).data;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const dailyVolume = respose.reduce((acc, item) => {
     return acc.plus(item.dayNtlVlm);
   }, new BigNumber(0));

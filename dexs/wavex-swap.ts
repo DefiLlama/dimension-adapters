@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app/",
@@ -17,17 +16,14 @@ const historicalDataSwap = gql`
 
 const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.SONEIUM;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
   const dailyData = await request(endpoints[chain], historicalDataSwap, {
-    id: dayTimestamp.toString(),
+    id: options.startOfDay.toString(),
   });
 
   const DECIMALS = 30;
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     dailyVolume: dailyData.volumeStat
       ? String(
           Number(

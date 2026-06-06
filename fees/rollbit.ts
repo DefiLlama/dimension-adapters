@@ -4,18 +4,17 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const fetch = async (options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
     // Doesnt work because of CF block
     const historicalVolume: any[] = (await fetchURL(`https://rollbit.com/public/lottery/pools`)).response;
 
     const dailyDistributed = historicalVolume
-        .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.distributed_at)) === dayTimestamp)?.distributed
+        .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.distributed_at)) === options.startOfDay)?.distributed
 
     return {
         dailyFees: (dailyDistributed * 5).toString(),
         dailyRevenue: (dailyDistributed * 5).toString(),
         holdersRevenue: (dailyDistributed).toString(),
-        timestamp: dayTimestamp,
+        timestamp: options.startOfDay,
     };
 };
 

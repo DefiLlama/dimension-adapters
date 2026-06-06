@@ -1,5 +1,4 @@
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
@@ -25,8 +24,6 @@ interface ResponseItem {
 const fetch = async (options: FetchOptions) => {
   const response: ResponseItem[] = await httpGet(URL);
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-
   // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
   const baseUnit = new BigNumber(10).pow(18);
 
@@ -41,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume: dailyVolume.div(baseUnit),
     openInterestAtEnd: openInterestAtEnd.div(baseUnit),
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 };
 
@@ -52,4 +49,5 @@ const adapter = {
   start: "2025-02-18",
   runAtCurrTime: true,
 };
+
 export default adapter;

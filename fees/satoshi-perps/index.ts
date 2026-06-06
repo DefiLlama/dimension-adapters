@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/satoshi-perps-mainnet-stats-f0aca40abf13e5b5",
@@ -29,11 +28,9 @@ interface IFeeResponse {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
-
   const graphQuery = gql
     `{
-      feeStats(where: {timestamp:${dayTimestamp}}) {
+      feeStats(where: {timestamp:${options.startOfDay}}) {
         mint
         burn
         marginAndLiquidation
@@ -41,7 +38,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       }
     }`;
   const dailyData: IFeeResponse = await request(endpoints[options.chain], graphQuery, {
-    id: String(dayTimestamp) + ':daily',
+    id: String(options.startOfDay) + ':daily',
     period: 'daily',
   })
 

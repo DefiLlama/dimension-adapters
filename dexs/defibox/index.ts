@@ -1,6 +1,5 @@
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL, { httpPost } from "../../utils/fetchURL";
 
 const endpoint = (chain: string) => `https://${chain}.defibox.io/api/swap/get24HInfo`
@@ -11,7 +10,6 @@ interface IVolume {
 }
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000))
   let volume = 0
   if (chain === CHAIN.EOS) {
     const bal_reponse: IVolume = (await fetchURL(bal_endpoint))?.data
@@ -24,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: volume,
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
   };
 }
 

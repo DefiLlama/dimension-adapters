@@ -1,7 +1,6 @@
 import { Chain, FetchOptions } from "../../adapters/types";
 import { Adapter, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 interface IDailyFeeData {
@@ -24,10 +23,7 @@ const CHAIN_ID = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1e3)
-  );
-  const date = new Date(dayTimestamp * 1e3);
+  const date = new Date(options.startOfDay * 1e3);
   const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
   // * call api for daily fees and revenue

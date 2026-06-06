@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app/",
@@ -27,11 +26,8 @@ const historicalOI = gql`
 
 const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.SONEIUM;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.toTimestamp * 1000)
-  );
   const dailyData = await request(endpoints[chain], historicalDataDerivatives, {
-    id: dayTimestamp.toString(),
+    id: options.startOfDay.toString(),
   });
 
   let openInterestAtEnd = 0;
@@ -39,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
   let shortOpenInterestAtEnd = 0;
 
   const tradingStats = await request(endpoints[chain], historicalOI, {
-    id: dayTimestamp.toString(),
+    id: options.startOfDay.toString(),
   });
 
   if (tradingStats.tradingStat) {
@@ -55,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
   const DECIMALS = 30;
 
   return {
-    timestamp: dayTimestamp,
+    timestamp: options.startOfDay,
     longOpenInterestAtEnd: longOpenInterestAtEnd
       ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
       : undefined,

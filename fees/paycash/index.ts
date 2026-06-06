@@ -11,7 +11,6 @@
 
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.paycashswap.com/";
@@ -23,10 +22,9 @@ const requestBody = {
 
 
 const fetch = async (options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
   const historicalVolume = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value;
+    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === options.startOfDay)?.value;
 
   const dailyFees = Number(dailyVolume) * 0.0025;
   const dailyLiquidityProviderFee = Number(dailyVolume) * 0.002;

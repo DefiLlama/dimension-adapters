@@ -1,7 +1,6 @@
 import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface DayData {
   id: string;
@@ -12,8 +11,7 @@ interface DayData {
 const URL = 'https://api.sithswap.info/';
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.toTimestamp * 1000));
-    const dayID = (dayTimestamp / 86400);
+    const dayID = (options.startOfDay / 86400);
     const query = gql`
     {
       daydatas( orderBy: date, orderDirection: desc) {
@@ -28,7 +26,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const volume = response.find((data: DayData) => data.id === dayID.toString());
     return {
         dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
-        timestamp: dayTimestamp,
+        timestamp: options.startOfDay,
     };
 }
 

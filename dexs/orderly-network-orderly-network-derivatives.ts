@@ -1,6 +1,5 @@
 import type { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
 const apiEVM = "https://api.orderly.org/md/volume/daily_stats";
@@ -67,9 +66,6 @@ const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
   const startOfDay = options.startOfDay;
   const data: DailyStats[] = await fetchURL(apiEVM);
-  const cleanTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(startOfDay * 1000)
-  );
 
   // Find the stats for the requested date
   const targetDate = new Date(startOfDay * 1000).toISOString().split("T")[0];
@@ -77,7 +73,7 @@ const fetch = async (options: FetchOptions) => {
 
   if (!dailyStats)
     return {
-      timestamp: cleanTimestamp,
+      timestamp: startOfDay,
       dailyVolume: "0",
     };
 
@@ -86,7 +82,7 @@ const fetch = async (options: FetchOptions) => {
   )?.volume;
 
   return {
-    timestamp: cleanTimestamp,
+    timestamp: startOfDay,
     dailyVolume: volume?.toString() || "0",
   };
 };
