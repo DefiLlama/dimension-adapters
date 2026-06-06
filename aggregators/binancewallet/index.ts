@@ -19,8 +19,9 @@ const chainConfig: Record<string, { start: string; duneChain: string; address: s
 };
 
 const evmConfig = Object.values(chainConfig).filter((c) => c.duneChain !== "solana");
-const evmChains = evmConfig.map((c) => `'${c.duneChain}'`).join(", ");
-const evmRouters = [...new Set(evmConfig.map((c) => c.address))].join(", ");
+const evmFilter = evmConfig
+  .map((c) => `(blockchain = '${c.duneChain}' AND tx_to = ${c.address})`)
+  .join(" OR ");
 
 const prefetch = async (options: FetchOptions) => {
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
@@ -56,8 +57,7 @@ const prefetch = async (options: FetchOptions) => {
         SUM(amount_usd) AS trading_volume
       FROM dex.trades
       WHERE TIME_RANGE
-        AND blockchain IN (${evmChains})
-        AND tx_to IN (${evmRouters})
+        AND (${evmFilter})
         AND amount_usd IS NOT NULL
         AND amount_usd < 10000000
         AND token_sold_address NOT IN (${blacklisted.toString()})
