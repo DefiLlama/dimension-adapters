@@ -73,10 +73,10 @@ const fetch: any = async (options: FetchOptions) => {
     if (dailyFee === undefined) throw new Error("Failed to fetch daily fees for Lynex")
 
     return {
-        dailyFees: dailyFee,
-        dailyUserFees: dailyFee,
-        dailyRevenue: dailyFee,
-        dailyHoldersRevenue: dailyFee,
+        dailyFees: dailyFee.toString(),
+        dailyUserFees: dailyFee.toString(),
+        dailyRevenue: dailyFee.toString(),
+        dailyHoldersRevenue: dailyFee.toString(),
         dailyBribesRevenue
     };
 }
