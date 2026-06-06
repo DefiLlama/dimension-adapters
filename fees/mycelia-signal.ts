@@ -81,6 +81,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
