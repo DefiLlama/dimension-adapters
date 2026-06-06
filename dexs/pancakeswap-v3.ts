@@ -33,7 +33,7 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.POLYGON_ZKEVM]: {
-    start: '2023-06-08',
+    start: '2023-06-29',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
   },
   [CHAIN.ERA]: {
@@ -49,7 +49,7 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.BASE]: {
-    start: '2023-08-21',
+    start: '2023-09-01',
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.OP_BNB]: {
