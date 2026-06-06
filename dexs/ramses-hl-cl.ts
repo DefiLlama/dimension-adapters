@@ -1,11 +1,10 @@
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 import { getAdapter } from "../factory/uniV2";
 
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
-const XRAM_TOKEN_CONTRACT = "	0xAE6D5FcE541216BDA471D311425B5412D9f1DEb9";
 
 export const subgraphEndpoints: any = {
   [CHAIN.ARBITRUM]: "https://arbitrumv2.kingdomsubgraph.com/subgraphs/name/ramses-pruned",
@@ -297,11 +296,6 @@ async function fetchRecentProtocolStats(options: FetchOptions): Promise<IProtoco
 
 export type PoolType = 'cl' | 'legacy';
 
-type ChainConfig = {
-  chain: string;
-  start: string;
-};
-
 interface PoolStats {
   volumeUSD: number;
   feesUSD: number;
@@ -337,11 +331,13 @@ export function createPoolFetchHandler(poolType: PoolType) {
     const dailyVolume = poolStats.volumeUSD;
 
     const dailyFees = options.createBalances();
+    const dailyUserFees = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     dailyFees.addUSDValue(poolStats.feesUSD, METRIC.SWAP_FEES);
+    dailyUserFees.addUSDValue(poolStats.feesUSD, METRIC.SWAP_FEES);
     dailyHoldersRevenue.addUSDValue(poolStats.userFeesRevenueUSD, 'Swap Fees to holders');
     dailyProtocolRevenue.addUSDValue(poolStats.protocolRevenueUSD, 'Swap Fees to protocol');
 
@@ -359,7 +355,7 @@ export function createPoolFetchHandler(poolType: PoolType) {
     return {
       dailyVolume,
       dailyFees,
-      dailyUserFees: dailyFees,
+      dailyUserFees,
       dailyHoldersRevenue,
       dailyProtocolRevenue,
       dailyRevenue,
@@ -418,20 +414,6 @@ export function createLegacyAdapter(chain: string, start: string): SimpleAdapter
     fetch: legacyFetch,
     chains: [chain],
     start,
-    methodology,
-    breakdownMethodology,
-  };
-}
-
-export function createPoolAdapter(poolType: PoolType, chainConfigs: ChainConfig[]): SimpleAdapter {
-  const fetch = createPoolFetchHandler(poolType);
-
-  return {
-    version: 1,
-    adapter: chainConfigs.reduce((adapter, { chain, start }) => {
-      adapter[chain] = { fetch, start };
-      return adapter;
-    }, {} as BaseAdapter),
     methodology,
     breakdownMethodology,
   };

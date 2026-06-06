@@ -47,9 +47,8 @@ const adapter: Adapter = {
 
         const v1Results: any = await feeAdapter!(options as any, {}, options)
         const bribesResult = await getBribes(options);
-        v1Results.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
-
         const dailyFees = options.createBalances();
+        const dailyUserFees = options.createBalances();
         const dailyProtocolRevenue = options.createBalances();
         const dailySupplySideRevenue = options.createBalances();
         const dailyHoldersRevenue = options.createBalances();
@@ -58,6 +57,7 @@ const adapter: Adapter = {
         const swapFees = Number(await v1Results.dailyFees.getUSDValue());
 
         dailyFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
+        dailyUserFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
         dailyFees.addUSDValue(bribeRevenue, 'Bribes');
 
         dailyHoldersRevenue.addUSDValue(swapFees * 0.75, 'Swap Fees to holders');
@@ -72,7 +72,7 @@ const adapter: Adapter = {
         return {
           dailyVolume: v1Results.dailyVolume,
           dailyFees,
-          dailyUserFees: dailyFees,
+          dailyUserFees,
           dailyRevenue,
           dailyProtocolRevenue,
           dailySupplySideRevenue,

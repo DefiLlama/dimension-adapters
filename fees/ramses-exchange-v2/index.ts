@@ -47,8 +47,8 @@ const v2Graphs = getGraphDimensions2({
     HoldersRevenue: 72,
     ProtocolRevenue: 8,
     SupplySideRevenue: 20,
-    UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80 // Revenue is 100% of collected fees
+    UserFees: 100,
+    Revenue: 80,
   }
 });
 const adapter: Adapter = {
@@ -62,9 +62,8 @@ const adapter: Adapter = {
 
         const v2Result = await v2Graphs(options)
         const bribesResult = await getBribes(options);
-        v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
-
         const dailyFees = options.createBalances();
+        const dailyUserFees = options.createBalances();
         const dailyProtocolRevenue = options.createBalances();
         const dailySupplySideRevenue = options.createBalances();
         const dailyHoldersRevenue = options.createBalances();
@@ -72,6 +71,7 @@ const adapter: Adapter = {
         const bribeRevenue = Number(await bribesResult.dailyBribesRevenue.getUSDValue());
 
         dailyFees.addUSDValue(v2Result.dailyFees, METRIC.SWAP_FEES);
+        dailyUserFees.addUSDValue(v2Result.dailyFees, METRIC.SWAP_FEES);
         dailyFees.addUSDValue(bribeRevenue, 'Bribes');
 
         dailyHoldersRevenue.addUSDValue(Number(v2Result.dailyHoldersRevenue), 'Swap Fees to holders');
@@ -86,7 +86,7 @@ const adapter: Adapter = {
         return {
           dailyVolume: v2Result.dailyVolume,
           dailyFees,
-          dailyUserFees: dailyFees,
+          dailyUserFees,
           dailyRevenue,
           dailyProtocolRevenue,
           dailySupplySideRevenue,
