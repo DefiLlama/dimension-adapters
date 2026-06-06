@@ -14,10 +14,10 @@ const fetchStellarFees = async (options: FetchOptions) => {
     fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
   ]);
   const dailyFees = options.createBalances();
-  if (swapData.fees?.USDC) dailyFees.addCGToken("usd-coin", Number(swapData.fees.USDC));
-  if (swapData.fees?.XLM) dailyFees.addCGToken("stellar", Number(swapData.fees.XLM));
-  if (bridgeData.fees?.USDC) dailyFees.addCGToken("usd-coin", Number(bridgeData.fees.USDC));
-  if (bridgeData.fees?.XLM) dailyFees.addCGToken("stellar", Number(bridgeData.fees.XLM));
+  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "swap-fee-usdc"); }
+  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "swap-fee-xlm"); }
+  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "bridge-fee-usdc"); }
+  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "bridge-fee-xlm"); }
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -228,9 +228,16 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
-  Revenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
-  ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
+  Fees: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  Revenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+};
+
+const stellarBreakdown = {
+  "swap-fee-usdc": "Fee charged in USDC on Stellar swaps (0.25%).",
+  "swap-fee-xlm": "Fee charged in XLM on Stellar swaps (0.25%).",
+  "bridge-fee-usdc": "Fee charged in USDC on Stellar bridges (0.125%).",
+  "bridge-fee-xlm": "Fee charged in XLM on Stellar bridges (0.125%).",
 };
 
 const adapter: SimpleAdapter = {
@@ -239,6 +246,11 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: baseAdapter,
   methodology,
+  breakdownMethodology: {
+    Fees: stellarBreakdown,
+    Revenue: stellarBreakdown,
+    ProtocolRevenue: stellarBreakdown,
+  },
 };
 
 export default adapter;

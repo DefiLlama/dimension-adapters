@@ -11,10 +11,10 @@ const fetchStellarBridge = async (options: FetchOptions) => {
   const data = await fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`);
   const dailyBridgeVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  if (data.volume?.USDC) dailyBridgeVolume.addCGToken("usd-coin", Number(data.volume.USDC));
-  if (data.volume?.XLM) dailyBridgeVolume.addCGToken("stellar", Number(data.volume.XLM));
-  if (data.fees?.USDC) dailyFees.addCGToken("usd-coin", Number(data.fees.USDC));
-  if (data.fees?.XLM) dailyFees.addCGToken("stellar", Number(data.fees.XLM));
+  if (data.volume?.USDC) { const v = Number(data.volume.USDC); if (Number.isFinite(v)) dailyBridgeVolume.addCGToken("usd-coin", v); }
+  if (data.volume?.XLM) { const v = Number(data.volume.XLM); if (Number.isFinite(v)) dailyBridgeVolume.addCGToken("stellar", v); }
+  if (data.fees?.USDC) { const v = Number(data.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v); }
+  if (data.fees?.XLM) { const v = Number(data.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v); }
   return { dailyBridgeVolume, dailyFees };
 };
 
