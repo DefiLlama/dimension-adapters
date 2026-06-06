@@ -13,7 +13,7 @@ const fetch = async ({ createBalances, startOfDay }: FetchOptions): Promise<Fetc
   const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITx[] = await adapterBitqueryFeesEthereumNetwork(form, till, "klaytn");
   const _dailyFees = result.find((a: ITx) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) / 1000) === getTimestampAtStartOfDayUTC(new Date(startOfDay).getTime()))?.gasValue
-  if (!_dailyFees) return { timestamp: startOfDay, };
+  if (!_dailyFees) return {};
   dailyFees.addGasToken(_dailyFees * 1e18);
 
   return {

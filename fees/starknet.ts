@@ -48,7 +48,6 @@ const adapter: SimpleAdapter = {
         const l1Cost = res.find(item => item.currency === 'l1_cost');
         if (l1Cost) dailyRevenue.addCGToken('ethereum', -Number(l1Cost.total_daily_fee));
         return {
-          timestamp: options.startOfDay,
           dailyFees,
           dailyRevenue,
         }

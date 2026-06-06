@@ -35,7 +35,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = Number(daily?.value || 0) * Number(daily?.xtzUsdQuoteHistorical || 0);
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume: dailyVolume.toString(),
   }
 }

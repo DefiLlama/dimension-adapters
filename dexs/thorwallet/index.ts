@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
   )
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall)
 
-  return { dailyVolume, timestamp: options.startOfDay }
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {

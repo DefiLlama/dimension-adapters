@@ -39,7 +39,6 @@ const fetch = async (options: FetchOptions) => {
       });
 
       return {
-        timestamp: options.startOfDay,
         dailyVolume:
           dailyData.volumeStats.length == 1
             ? String(

@@ -24,7 +24,6 @@ async function fetch(options: FetchOptions) {
 
     return {
         dailyFees,
-        timestamp: options.startOfDay,
     };
 }
 

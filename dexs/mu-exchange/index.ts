@@ -31,7 +31,6 @@ const fetch = async (options: FetchOptions) => {
   });
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume:
       response.marketDayDatas.length === 1
         ? (BigInt(response.marketDayDatas[0].tradeVolume) /

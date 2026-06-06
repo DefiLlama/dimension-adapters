@@ -31,7 +31,6 @@ const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
 
   const dailyRevenue = dailyUserFees.clone(0.5)
   return {
-    timestamp: startOfDay,
     dailyUserFees,
     dailyFees: dailyUserFees,
     dailyRevenue,

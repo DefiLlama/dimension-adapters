@@ -25,10 +25,9 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dateString = new Date(options.toTimestamp * 1000).toISOString().split("T")[0];
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).dailyDexes.nodes;
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp.split('T')[0] === dateString)?.dailyTradeVolumeUSD
+    .find(dayItem => dayItem.timestamp.split('T')[0] === options.dateString)?.dailyTradeVolumeUSD
   if (Number(Number(dailyVolume) / 10 ** 18) > 5_000_000) {
     throw new Error("Daily volume is too high");
   }

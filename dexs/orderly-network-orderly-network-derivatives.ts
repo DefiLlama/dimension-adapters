@@ -68,12 +68,10 @@ const fetch = async (options: FetchOptions) => {
   const data: DailyStats[] = await fetchURL(apiEVM);
 
   // Find the stats for the requested date
-  const targetDate = new Date(startOfDay * 1000).toISOString().split("T")[0];
-  const dailyStats = data.find((day) => day.date.startsWith(targetDate));
+  const dailyStats = data.find((day) => day.date.startsWith(options.dateString));
 
   if (!dailyStats)
     return {
-      timestamp: startOfDay,
       dailyVolume: "0",
     };
 
@@ -82,7 +80,6 @@ const fetch = async (options: FetchOptions) => {
   )?.volume;
 
   return {
-    timestamp: startOfDay,
     dailyVolume: volume?.toString() || "0",
   };
 };

@@ -62,7 +62,6 @@ const fetch = async (options: FetchOptions) => {
   })
 
   return {
-    timestamp: options.startOfDay,
     dailyUserFees:
       dailyUserData.fees.length == 1
         ? String(Number(Object.values(dailyUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)

@@ -18,7 +18,6 @@ const fetch = async (options: FetchOptions) => {
   if (!data) throw new Error("No data found for date " + date)
   return {
     dailyVolume: data.volume,
-    timestamp: options.startOfDay,
   }
 }
 

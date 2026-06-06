@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   const config = chainConfig[chain];
   if (chain === CHAIN.HECO) { return {} } // skip HECO for now
   const chainCode = config.chainCode;
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split("T")[0];
+  const dateString = options.dateString;
   const df = await getFees(chainCode, dateString, dateString);
 
   const dailyFees = options.createBalances();

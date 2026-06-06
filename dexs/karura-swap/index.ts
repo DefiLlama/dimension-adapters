@@ -32,7 +32,6 @@ const fetch = async (options: FetchOptions) => {
     .find(dayItem => (new Date(dayItem.timestamp.split('T')[0]).getTime() / 1000) === options.startOfDay)?.dailyTradeVolumeUSD
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume: dailyVolume ? (Number(dailyVolume)/1e18).toString() : "0",
   }
 }

@@ -12,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
     ([date]) => new Date(date).getTime() / 1000 === options.startOfDay
   )?.[1];
   return {
-    timestamp: options.startOfDay,
     dailyVolume: dailyVolume,
   };
 };

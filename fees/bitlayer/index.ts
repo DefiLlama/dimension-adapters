@@ -41,7 +41,6 @@ const adapter: Adapter = {
         const url = "https://api.btrscan.com/scan/v1/chain/txForDefillama";
         const dailyFees = await getFeeUSD(options, url);
         return {
-          timestamp: options.startOfDay,
           dailyFees,
         };
       },

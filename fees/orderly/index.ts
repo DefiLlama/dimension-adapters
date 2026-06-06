@@ -20,7 +20,6 @@ const adapter: Adapter = {
       fetch: async ({ startOfDay }: FetchOptions) => {
         const data: DailyStats[] = await fetchURL(apiEVM);
         return {
-          timestamp: startOfDay,
           dailyFees: data.find(
             ({ createdAt }) => new Date(createdAt).valueOf() / 1_000 === startOfDay
           )?.netFee,

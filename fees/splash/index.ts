@@ -17,7 +17,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.resizeBy(0.5 / 100);
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue,
     dailyVolume: dailyVolume,

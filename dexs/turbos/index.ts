@@ -17,7 +17,7 @@ interface IVolume {
 
 const fetch = async (options: FetchOptions) => {
   const volume: IVolume = (await fetchURL(url[options.chain]));
-  return { dailyVolume: `${volume?.dailyVolume || undefined}`, timestamp: options.startOfDay };
+  return { dailyVolume: `${volume?.dailyVolume || undefined}` };
 }
 
 

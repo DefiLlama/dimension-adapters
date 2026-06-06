@@ -13,7 +13,6 @@ const fetch = async ({ startTimestamp, endTimestamp, startOfDay }: FetchOptions)
         dailyFees: fees.fee,
         dailyRevenue: fees.revenue,
         dailyProtocolRevenue: fees.revenue,
-        timestamp: startOfDay,
     };
 }
 

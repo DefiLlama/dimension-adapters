@@ -18,7 +18,6 @@ const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   dailyVolume.addGasToken(volData?.volume)
 
   return {
-    timestamp: startOfDay,
     dailyVolume,
   }
 }

@@ -12,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall = (await fetchURL(historicalVolumeEndpoint)).data.overview;
   return {
     dailyVolume: historicalVolume ? `${historicalVolume.volume24H}` : undefined,
-    timestamp: options.startOfDay,
   };
 };
 

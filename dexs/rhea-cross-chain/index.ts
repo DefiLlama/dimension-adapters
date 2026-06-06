@@ -9,10 +9,9 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.NEAR]: {
             runAtCurrTime: true,
-            fetch: async (options: FetchOptions) => {
+            fetch: async (_: any) => {
                 const volume24 = await getRheaCrossChainVolume();
                 return {
-                    timestamp: options.startOfDay,
                     dailyVolume: volume24,
                 }
             }

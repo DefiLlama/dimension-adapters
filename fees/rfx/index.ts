@@ -29,7 +29,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   let dailyFees = Number(dailyData.revenueInfos[0].totalFeeUsd) * 1e-30;
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue: dailyFees,
   };

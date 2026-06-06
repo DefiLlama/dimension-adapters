@@ -44,7 +44,6 @@ const fetch = async (options: FetchOptions) => {
           10 ** -30
         )
         : undefined,
-    timestamp: options.startOfDay,
   };
 };
 

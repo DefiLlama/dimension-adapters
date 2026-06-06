@@ -51,7 +51,6 @@ const fetch = async (options: FetchOptions) => {
   const DECIMALS = 30;
 
   return {
-    timestamp: options.startOfDay,
     longOpenInterestAtEnd: longOpenInterestAtEnd
       ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
       : undefined,

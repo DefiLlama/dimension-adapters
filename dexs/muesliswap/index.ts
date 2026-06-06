@@ -20,7 +20,6 @@ const fetch = async (options: FetchOptions) => {
   dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === options.startOfDay)?.volume)
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume,
   }
 }

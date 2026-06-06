@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 const URL = "https://gateway.velar.network/watcherapp/pool";
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
   const { message }: any = await fetchURL(URL);
   let dailyVolume = 0
   let dailyFees = 0
@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
-    timestamp: options.startOfDay,
   };
 };
 

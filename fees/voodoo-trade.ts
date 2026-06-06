@@ -85,7 +85,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: dailySupplySideRevenue,

@@ -24,7 +24,7 @@ const adapter: Adapter = {
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
         dailyFees.addGasToken((dayItem?.amount || 0) * 1e6);
-        return { dailyFees, dailyRevenue: dailyFees, timestamp: options.startOfDay };
+        return { dailyFees, dailyRevenue: dailyFees };
       }) as any,
       start: '2024-08-11',
     },

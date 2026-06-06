@@ -24,7 +24,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = res.poolDayData.aggregates.sum.volumeInUSD;
   return {
     dailyVolume: dailyVolume,
-    timestamp: options.startOfDay,
   };
 };
 

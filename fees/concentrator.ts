@@ -34,7 +34,7 @@ const fetch = async ({ startOfDay, chain }: FetchOptions) => {
   const revenue = usd.toFixed(0);
   const dailyFees = (usd * 2).toFixed(0);
 
-  return { timestamp: startOfDay, dailyFees, dailyRevenue: revenue };
+  return { dailyFees, dailyRevenue: revenue };
 };
 
 const adapter: Adapter = {

@@ -18,7 +18,6 @@ const dailyVolume = historicalVolume
 
   return {
     dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10 ** 7}` : undefined,
-    timestamp: options.startOfDay,
   };
 };
 

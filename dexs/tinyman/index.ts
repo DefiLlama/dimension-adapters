@@ -14,7 +14,6 @@ const fetch = async (options: FetchOptions) => {
   const response: IAPIResponse = (await fetchURL(URL));
   return {
     dailyVolume: `${response.last_day_total_volume_in_usd}`,
-    timestamp: options.startOfDay,
   };
 };
 

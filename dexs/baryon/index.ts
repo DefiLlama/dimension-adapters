@@ -21,7 +21,6 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: v2stats?.dailyVolume,
-    timestamp: options.startOfDay,
   };
 };
 

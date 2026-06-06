@@ -22,7 +22,6 @@ const fetch = async ({ startOfDay, }: FetchOptions) => {
     dailySupplySideRevenue,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    timestamp: startOfDay,
   };
 };
 

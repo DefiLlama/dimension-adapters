@@ -7,12 +7,10 @@ interface IVolumeall {
   time: string;
 }
 const fetch = async (options: FetchOptions) => {
-  const dateString = new Date(options.toTimestamp * 1000).toISOString().split("T")[0];
   const plentyData: IVolumeall[] = (await fetchURL("https://analytics.plenty.network/api/v1/overall-volume/24hours"));
-  const dailyVolumeItem = plentyData.find(e => e.time === dateString)?.value
+  const dailyVolumeItem = plentyData.find(e => e.time === options.dateString)?.value
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume: dailyVolumeItem,
   }
 }

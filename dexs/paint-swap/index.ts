@@ -19,7 +19,6 @@ const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
 
 
   return {
-    timestamp: startOfDay,
     dailyVolume,
   };
 };

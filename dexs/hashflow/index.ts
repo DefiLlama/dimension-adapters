@@ -38,7 +38,6 @@ const adapter: SimpleAdapter = {
           const vol = response.data.rows.filter(([c]) => normalizeChain(c) === chain).find(([_chain, dateString]) => dateToTs(dateString) === options.startOfDay)
           return {
             dailyVolume: vol ? vol[2].toString() : undefined,
-            timestamp: options.startOfDay
           }
         },
         // start: async () => getStartTime(chain),

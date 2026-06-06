@@ -39,7 +39,6 @@ export const fetch = async (options: FetchOptions) => {
   const data = await getData(options.chain, options.startOfDay);
   return {
     dailyVolume: data.dailyVolume,
-    timestamp: options.startOfDay,
   };
 };
 

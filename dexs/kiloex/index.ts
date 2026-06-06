@@ -30,7 +30,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: options.startOfDay,
   };
 };
 

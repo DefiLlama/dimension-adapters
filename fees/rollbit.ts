@@ -14,7 +14,6 @@ const fetch = async (options: FetchOptions) => {
         dailyFees: (dailyDistributed * 5).toString(),
         dailyRevenue: (dailyDistributed * 5).toString(),
         holdersRevenue: (dailyDistributed).toString(),
-        timestamp: options.startOfDay,
     };
 };
 

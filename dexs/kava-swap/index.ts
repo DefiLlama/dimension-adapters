@@ -21,7 +21,6 @@ const fetch = async ({ startOfDay, createBalances,}: FetchOptions): Promise<Fetc
 
   return {
     dailyVolume,
-    timestamp: startOfDay
   }
 }
 

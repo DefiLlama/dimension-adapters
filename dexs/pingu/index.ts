@@ -51,7 +51,6 @@ const fetch = async ({ chain, createBalances, startOfDay }: FetchOptions): Promi
 	return {
 		dailyVolume,
 		dailyFees,
-		timestamp: startOfDay,
 	};
 }
 

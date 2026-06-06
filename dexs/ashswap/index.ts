@@ -21,7 +21,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = results?.totalVolumeUSD24h;
   return {
     dailyVolume: dailyVolume,
-    timestamp: options.startOfDay,
   };
 }
 

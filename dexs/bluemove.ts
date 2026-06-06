@@ -47,7 +47,6 @@ const fetchSui = async (options: FetchOptions) => {
 
   return {
     dailyVolume,
-    timestamp: options.startOfDay,
   };
 };
 

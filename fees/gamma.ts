@@ -32,8 +32,7 @@ const fetchApi = async (from_timestamp: number) => {
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const fromTimestamp = options.toTimestamp - 60 * 60 * 24
   const data: IData[] = await fetchApi(fromTimestamp);
-  const dateString = new Date(options.toTimestamp * 1000).toISOString().split("T")[0];
-  const dailyItem: IData | undefined = data.find((e: IData) => e.datetime.split('T')[0] === dateString)
+  const dailyItem: IData | undefined = data.find((e: IData) => e.datetime.split('T')[0] === options.dateString)
   const result: IData = dailyItem || { datetime: '', items: [] };
   const dailyFees = result.items.filter((e: Item) => e.chain === options.chain)
     .reduce((a: number, b: Item) => a + b.total_fees, 0);

@@ -54,8 +54,7 @@ async function queryDataByApi(path: string) {
 const fetch = async (options: FetchOptions) => {
   const path = `/getOrderDayVolume?bridge=1&chain=${options.chain}&timestamp=${options.startOfDay}`
   const data = await queryDataByApi(path)
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split("T")[0];
-  const dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
+  const dailyVolume = data.find(dayItem => dayItem.date === options.dateString)?.volume
 
   return {
     dailyBridgeVolume: dailyVolume || 0,

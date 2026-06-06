@@ -22,7 +22,7 @@ const adapterHistorical: Adapter = {
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
         dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
-        return { dailyFees, timestamp: options.startOfDay };
+        return { dailyFees };
       }) as any,
       start: '2024-01-06'
     },

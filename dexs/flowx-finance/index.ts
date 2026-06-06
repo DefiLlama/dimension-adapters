@@ -48,7 +48,6 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume: historicalVolume.volume24H
       ? `${historicalVolume.volume24H}`
       : undefined,
-    timestamp: options.startOfDay,
   };
 };
 

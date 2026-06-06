@@ -31,7 +31,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
   return {
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
-    timestamp: options.startOfDay,
   }
 }
 

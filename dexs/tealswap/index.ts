@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = historicalVolume
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time * 1000)) === options.startOfDay)?.volume
 
-  return { dailyVolume, timestamp: options.startOfDay };
+  return { dailyVolume };
 };
 
 

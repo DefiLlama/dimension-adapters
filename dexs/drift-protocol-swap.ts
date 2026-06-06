@@ -29,7 +29,6 @@ async function fetch(options: FetchOptions) {
   const results = await getSpotDimensions(options);
   return {
     ...results,
-    timestamp: options.startOfDay
   };
 }
 

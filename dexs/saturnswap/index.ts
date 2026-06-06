@@ -7,7 +7,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     const response = await fetchURL(`https://api.saturnswap.io/v1/defillama/volume?timestamp=${startOfDay}`);
     return {
         dailyVolume: response.volume.volume.toString(),
-        timestamp: startOfDay,
     };
 };
 

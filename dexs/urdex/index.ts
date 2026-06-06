@@ -8,7 +8,6 @@ const fetch = async (options: FetchOptions) => {
   const volumeData = (await fetchURL(`${volumeEndpoint}?date=${options.startOfDay}`)).data;
   return {
     dailyVolume: volumeData.daily.TotalTradingVolume ? `${volumeData.daily.TotalTradingVolume}` : '0',
-    timestamp: options.startOfDay,
   };
 };
 

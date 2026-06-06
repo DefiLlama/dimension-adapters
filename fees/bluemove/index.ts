@@ -26,7 +26,6 @@ const fetchAptos = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    timestamp: options.startOfDay,
   };
 };
 
@@ -66,7 +65,6 @@ const fetchSui = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailySupplySideRevenue,
-    timestamp: options.startOfDay,
   };
 };
 

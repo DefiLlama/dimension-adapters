@@ -12,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
   const response: IAPIResponse = (await fetchURL(URL)).data;
   return {
     dailyVolume: `${response?.dayVolume}` || undefined,
-    timestamp: options.startOfDay,
   };
 };
 

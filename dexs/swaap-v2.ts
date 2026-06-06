@@ -113,7 +113,6 @@ const getVolume = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { dailyVolume } = await getVolume(options);
   return {
-    timestamp: options.startOfDay,
     dailyVolume,
   };
 };

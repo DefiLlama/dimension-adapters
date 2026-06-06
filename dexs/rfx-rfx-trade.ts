@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume = sumOfFields * 1e-30;
   }
 
-  return { dailyVolume, timestamp: options.startOfDay }
+  return { dailyVolume }
 };
 
 

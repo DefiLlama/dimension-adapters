@@ -70,7 +70,7 @@ const fetch = async ({ createBalances, startOfDay, chain }: FetchOptions) => {
 
   const dailyFees = await dailyFee.getUSDValue();
 
-  return { timestamp: startOfDay, dailyFees, dailyRevenue };
+  return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {

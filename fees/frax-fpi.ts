@@ -27,7 +27,6 @@ const fetch = async (options: FetchOptions) => {
     .reduce((a: number, b: IFPI) => a + Number(b.amountUsd), 0);
   const dailyRevenue = dailyFees - dailyExpens;
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyProtocolRevenue: dailyRevenue,
     dailyRevenue,

@@ -72,7 +72,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = volume * FEE_RATE;
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue: dailyFees
   };
