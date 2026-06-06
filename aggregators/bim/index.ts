@@ -9,7 +9,6 @@ const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
 const fetchStellarSwap = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
   const data = await fetchURL(`${STELLAR_SWAP_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`);
-  console.log("Fetched Stellar Swap data:", data);
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   if (data.volume?.USDC) dailyVolume.addCGToken("usd-coin", Number(data.volume.USDC));
