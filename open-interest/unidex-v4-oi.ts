@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const oiData = await queryDuneSql(options, `
     WITH openInterestChanges AS (
       SELECT *

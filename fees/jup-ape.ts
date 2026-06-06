@@ -5,7 +5,7 @@ import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "./jupiter";
 
 const JUP_FEE_RECEIVER = '5YET3YapxD6to6rqPqTWB3R9pSbURy6yduuUtoZkzoPX';
 
-const fetch = async (_as: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       COALESCE(SUM(balance_change/1e9), 0) AS total_fees

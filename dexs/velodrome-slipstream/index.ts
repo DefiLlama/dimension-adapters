@@ -51,7 +51,7 @@ interface ILog {
 const forSwaps = 'function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])'
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getFromBlock, startOfDay, chain, getLogs } = fetchOptions
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), await api.getBlock() - 100])
   const dailyVolume = createBalances()

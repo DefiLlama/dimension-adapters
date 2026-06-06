@@ -27,7 +27,7 @@ const getTotalPaymentFromLogs = async (fromBlock: number, toBlock: number, getLo
   return totalParsedAmount;
 };
 
-const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, getLogs }: FetchOptions) => {
+const fetch = async ({ getFromBlock, getToBlock, createBalances, getLogs }: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const dailyFees = createBalances()
   const amount = await getTotalPaymentFromLogs(fromBlock, toBlock, getLogs)

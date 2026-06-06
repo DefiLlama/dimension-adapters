@@ -8,7 +8,7 @@ const inflatedVolumes = {
   [CHAIN.BSC]: ["2026-06-03", "2026-06-04"],
 }
 
-const fetch = async (_t: number, _: ChainBlocks, { chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
   if (inflatedVolumes[chain] && inflatedVolumes[chain].includes(dateString)) {
     return {
       dailyVolume: 0,

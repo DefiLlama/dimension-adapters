@@ -10,7 +10,7 @@ const chainConfig: Record<string, { start: string; feeWallet: string }> = {
   },
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
   if ((options.toTimestamp * 1000) > tenHoursAgo) {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");

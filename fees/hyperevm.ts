@@ -21,7 +21,7 @@ const SQL_GAS_FEES = `
 
 type FeesRow = Row & { gas_fees_wei: string };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const fromBlock = Number(options.fromApi.block);

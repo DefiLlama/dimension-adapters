@@ -81,7 +81,7 @@ const DAY_QUERY = gql`
   }
 `
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options) => {
   const { chain, startOfDay } = options
   const url = chainConfig[chain].subgraph
 

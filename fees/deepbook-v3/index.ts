@@ -25,7 +25,7 @@ const stableQuoteFilter = (field: string) => `
   OR ${field} LIKE '%::iusd::%'
 `;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const start = options.startTimestamp;
   const end = options.endTimestamp;
   const stableQuote = stableQuoteFilter("quote_type");

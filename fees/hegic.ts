@@ -14,6 +14,33 @@ interface HegicPosition {
   payOff: number;
 }
 
+
+function dateStringToTimestamp(dateString: string) {
+  return new Date(dateString).getTime() / 1000;
+}
+
+async function fetch(options: FetchOptions): Promise<FetchResultFees> {
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const data = await fetchURL(analyticsEndpoint)
+  const dayData = data.positions.filter((position: HegicPosition) => {
+    if (!position.closeDate) return false
+    const closeDate = dateStringToTimestamp(position.closeDate)
+    return !position.isActive && closeDate >= options.startTimestamp && closeDate <= options.endTimestamp
+  })
+  dailyFees.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.premiumPaid), 0), "Options premiums")
+  dailySupplySideRevenue.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.payOff), 0), "Options payoffs")
+  const dailyRevenue = dailyFees.clone()
+  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums")
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue
+  };
+}
+
 const adapter: Adapter = {
   methodology: {
     Fees: 'All premiums paid by users to purchase options and strategies on Hegic.',
@@ -39,36 +66,10 @@ const adapter: Adapter = {
   allowNegativeValue: true, // payoffs can exceed premiums paid
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: getHegicFees,
+      fetch,
       start: getEarliestAvailableTimestamp,
     },
   },
 };
-
-function dateStringToTimestamp(dateString: string) {
-  return new Date(dateString).getTime() / 1000;
-}
-
-async function getHegicFees(_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> {
-  const dailyFees = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const data = await fetchURL(analyticsEndpoint)
-  const dayData = data.positions.filter((position: HegicPosition) => {
-    if (!position.closeDate) return false
-    const closeDate = dateStringToTimestamp(position.closeDate)
-    return !position.isActive && closeDate >= options.startTimestamp && closeDate <= options.endTimestamp
-  })
-  dailyFees.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.premiumPaid), 0), "Options premiums")
-  dailySupplySideRevenue.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.payOff), 0), "Options payoffs")
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums")
-
-  return {
-    dailyFees,
-    dailySupplySideRevenue,
-    dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue
-  };
-}
 
 export default adapter;

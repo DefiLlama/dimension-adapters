@@ -173,7 +173,7 @@ const prefetch = async (options: FetchOptions) => {
   return queryDuneSql(options, sql)
 }
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const results = options.preFetchedResults || [];
 
   const dailyFees = options.createBalances();
@@ -184,7 +184,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   }
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,

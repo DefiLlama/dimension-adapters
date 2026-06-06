@@ -24,10 +24,10 @@ const methodology = {
     "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
 }
 
-const fetchBucketStats = async (_: any, _1: any, { startTimestamp, dateString }: FetchOptions) => {
+const fetch = async ({ startTimestamp, dateString }: FetchOptions) => {
   const url = `${bucketApiURL}fees?timestamp_ms=${startTimestamp * 1000}`
   const stats: DailyStats = (await fetchURL(url)).data
-  
+
   if (!stats) {
     throw new Error(`No data found for ${dateString}`);
   }
@@ -44,13 +44,10 @@ const fetchBucketStats = async (_: any, _1: any, { startTimestamp, dateString }:
 }
 
 const adapter: Adapter = {
+  fetch,
+  chains: [CHAIN.SUI],
+  start: "2024-02-29",
   methodology,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetchBucketStats,
-      start: "2024-02-29",
-    },
-  },
 }
 
 export default adapter

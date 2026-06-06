@@ -7,7 +7,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from '../helpers/metrics';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   // Determine which address/trader_id to use based on date 2024-11-16
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

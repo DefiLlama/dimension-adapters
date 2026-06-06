@@ -26,7 +26,7 @@ interface IData {
     total_damm_v2_revenue: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const configs = EASYA_PARTNER_CONFIGS.map(c => `'${c}'`).join(',');
 
     const data: IData[] = await queryDuneSql(options, `

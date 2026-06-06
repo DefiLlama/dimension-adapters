@@ -3,7 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const query = `
     SELECT 

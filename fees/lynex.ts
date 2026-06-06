@@ -4,7 +4,6 @@ import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
@@ -28,39 +27,38 @@ const event_reward_added = 'event RewardAdded(address indexed rewardToken,uint25
 const event_gauge_created = 'event GaugeCreated(address indexed gauge, address creator,address internal_bribe,address indexed external_bribe,address indexed pool)'
 
 export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: FetchOptions): Promise<sdk.Balances> => {
-  const voter = '0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5';
-  const dailyFees = createBalances()
-  const logs_geuge_created = (await getLogs({
-    target: voter,
-    fromBlock: 2207763,
-    toBlock: await getToBlock(),
-    eventAbi: event_gauge_created,
-    cacheInCloud: true,
-  }))
-  const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.external_bribe.toLowerCase());
+    const voter = '0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5';
+    const dailyFees = createBalances()
+    const logs_geuge_created = (await getLogs({
+        target: voter,
+        fromBlock: 2207763,
+        toBlock: await getToBlock(),
+        eventAbi: event_gauge_created,
+        cacheInCloud: true,
+    }))
+    const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.external_bribe.toLowerCase());
 
-  const logs = await getLogs({
-    targets: bribes_contract,
-    eventAbi: event_reward_added,
-  })
-  logs.map((e: any) => {
-    // NOTE: bveLYNX is a derivative token 1:1 to LYNX and should be counted as LYNX as it is not tracked in coingecko
-    if (e.rewardToken.toLowerCase() === bveLYNX)
-        dailyFees.add(LYNX, e.reward, 'Bribes from external protocols')
-    else
-        dailyFees.add(e.rewardToken, e.reward, 'Bribes from external protocols')
-  })
-  return dailyFees;
+    const logs = await getLogs({
+        targets: bribes_contract,
+        eventAbi: event_reward_added,
+    })
+    logs.map((e: any) => {
+        // NOTE: bveLYNX is a derivative token 1:1 to LYNX and should be counted as LYNX as it is not tracked in coingecko
+        if (e.rewardToken.toLowerCase() === bveLYNX)
+            dailyFees.add(LYNX, e.reward, 'Bribes from external protocols')
+        else
+            dailyFees.add(e.rewardToken, e.reward, 'Bribes from external protocols')
+    })
+    return dailyFees;
 }
 
 
-const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
-        const chain = fetchOptions.chain;
-        const timestamp = fetchOptions.startOfDay;
-        const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-        const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-        const graphQuery = gql
-            `
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+    const chain = options.chain;
+    const timestamp = options.startOfDay;
+    const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
+    const graphQuery = gql
+        `
                 {
                     algebraDayData(id: ${dateId}) {
                     id
@@ -69,20 +67,20 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
                 }
             `;
 
-        const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
-        const dailyFeeUSD = graphRes;
-        const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
-        const dailyBribesRevenue = await fees_bribes(fetchOptions)
-        if (dailyFee === undefined) return { timestamp }
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
+    const dailyFeeUSD = graphRes;
+    const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
+    const dailyBribesRevenue = await fees_bribes(options)
+    if (dailyFee === undefined) return { timestamp }
 
-        return {
-            timestamp,
-            dailyFees: dailyFee.toString(),
-            dailyUserFees: dailyFee.toString(),
-            dailyRevenue: dailyFee.toString(),
-            dailyHoldersRevenue: dailyFee.toString(),
-            dailyBribesRevenue
-        };
+    return {
+        timestamp,
+        dailyFees: dailyFee.toString(),
+        dailyUserFees: dailyFee.toString(),
+        dailyRevenue: dailyFee.toString(),
+        dailyHoldersRevenue: dailyFee.toString(),
+        dailyBribesRevenue
+    };
 }
 
 const methodology = {
@@ -106,12 +104,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
     version: 2,
-    adapter: {
-        [CHAIN.LINEA]: {
-            fetch: fetch,
-            start: '2023-08-07',
-        },
-    },
+    fetch,
+    chains: [CHAIN.LINEA],
+    start: '2023-08-07',
     methodology,
     breakdownMethodology,
 };

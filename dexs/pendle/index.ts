@@ -5,7 +5,6 @@ import {
   SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { Balances } from "@defillama/sdk";
 
@@ -33,7 +32,7 @@ const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.BSC]: { id: 56, start: '2023-06-09' },
   [CHAIN.OPTIMISM]: { id: 10, start: '2023-08-11' },
   [CHAIN.BASE]: { id: 8453, start: '2024-11-27' },
-  [CHAIN.PLASMA]: { id: 9745, start: "2025-10-01"},
+  [CHAIN.PLASMA]: { id: 9745, start: "2025-10-01" },
 };
 
 async function amm(
@@ -90,21 +89,19 @@ async function limitOrder(
   });
 }
 
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const dailyVolume: Balances = options.createBalances();
-    const res = await fetchURL(
-      `https://api-v2.pendle.finance/core/v1/${chains[chain].id}/markets?limit=100&select=pro&is_active=true`,
-    );
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolume: Balances = options.createBalances();
+  const res = await fetchURL(
+    `https://api-v2.pendle.finance/core/v1/${chains[options.chain].id}/markets?limit=100&select=pro&is_active=true`,
+  );
 
-    await Promise.all([
-      await amm(res.results, options.getLogs, dailyVolume),
-      await limitOrder(res.results, options.getLogs, dailyVolume),
-    ]);
+  await Promise.all([
+    await amm(res.results, options.getLogs, dailyVolume),
+    await limitOrder(res.results, options.getLogs, dailyVolume),
+  ]);
 
-    return {
-      dailyVolume,
-    };
+  return {
+    dailyVolume,
   };
 };
 
@@ -115,7 +112,7 @@ const adapter: SimpleAdapter = {
 
 Object.keys(chains).map((chain) => {
   adapter.adapter![chain] = {
-    fetch: fetch(chain),
+    fetch,
     start: chains[chain].start,
   };
 });

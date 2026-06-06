@@ -1,27 +1,22 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-type VolumeResponse = { timestamp: number; volume: number };
-const fetch = async (timestamp: number) => {
+const fetch = async (_options: FetchOptions) => {
   const response = (await fetchURL(
     "https://myswap-cl-charts.s3.amazonaws.com/data/total_volume.json"
-  )) as VolumeResponse[];
+  )) as { volume: number }[];
   return {
-    timestamp: timestamp,
-    dailyVolume: response[response.length - 1].volume,
+    dailyVolume: response[response.length - 1].volume.toString(),
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.STARKNET]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: '2023-09-19',
-    },
-  },
+  fetch,
+  chains: [CHAIN.STARKNET],
+  runAtCurrTime: true,
+  start: '2023-09-19',
   deadFrom: '2025-05-15',
 };
 

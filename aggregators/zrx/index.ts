@@ -37,7 +37,7 @@ const inflatedVolume: Record<string, Array<string>> = {
   [CHAIN.BASE]: ["2026-05-02"],
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const response = await httpGet(
     `https://api.0x.org/stats/volume/daily?timestamp=${options.startOfDay}&chainId=${CHAINS[options.chain]}`,
     {
@@ -62,7 +62,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const SOLANA_PROGRAM = "Sett1erwx2eqT5A8uvu8GBxDFT2W5TNnhirL7hLmb8m";
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const tenHoursAgo = Date.now() - 10 * 60 * 60 * 1000;
   if (options.toTimestamp * 1000 > tenHoursAgo) {
     throw new Error(
@@ -93,7 +93,7 @@ const adapter: any = {
       return {
         ...acc,
         [chain]: {
-          fetch: fetch,
+          fetch,
           start: "2022-05-17",
         },
       };

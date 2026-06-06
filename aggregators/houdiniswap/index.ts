@@ -50,7 +50,7 @@ const chainConfig: Record<string, string> = {
 
 const URL = "https://api.houdiniswap.com/api/aggregator-vol?";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startTimestamp = options.startOfDay;
   const endTimestamp = startTimestamp + 86400; // 24 hours in seconds
 

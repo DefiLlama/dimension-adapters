@@ -12,7 +12,7 @@ const ADDRESS_LIST = ADDRESSES.map((a) => a.toLowerCase()).join(',')
 const START = '2025-10-30'
 const START_TIMESTAMP = Math.floor(Date.parse(`${START}T00:00:00Z`) / 1000)
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const duneQuery = `
     WITH prior_users AS (
       SELECT DISTINCT "from" AS user

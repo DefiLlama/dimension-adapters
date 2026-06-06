@@ -1,7 +1,6 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`
@@ -26,30 +25,21 @@ interface IGraphResponse {
   volumeUSD: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const value = {fees: false,after: "", type: "DAY", from: 1673136000, to: dayTimestamp }
+const fetch = async (options: FetchOptions) => {
+  const value = {fees: false,after: "", type: "DAY", from: 1673136000, to: options.startOfDay }
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume(), value)).entities.nodes;
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.timestamp <= dayTimestamp)
-    .reduce((acc, { volumeUSD }) => acc + Number(volumeUSD), 0)
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUSD
+    .find(dayItem => dayItem.timestamp === options.startOfDay)?.volumeUSD
 
   return {
-    // totalVolume: totalVolume,
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SORA]: {
-      fetch: fetch,
-      start: '2023-01-08'
-    },
-  },
+  fetch,
+  chains: [CHAIN.SORA],
+  start: '2023-01-08',
 };
 
 export default adapter;

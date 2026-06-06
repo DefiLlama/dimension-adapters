@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
 
 export async function fetchArbitrumAnalyticsData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
@@ -33,13 +33,12 @@ export async function fetchArbitrumAnalyticsData(
     ...analyticsData.positions,
   ];
 
-  const dailyPositions = getPositionsForDaily(allPositions, timestamp);
+  const dailyPositions = getPositionsForDaily(allPositions, options.toTimestamp);
 
   const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions).toFixed(2);
   const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions).toFixed(2);
 
   return {
-    timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
   };

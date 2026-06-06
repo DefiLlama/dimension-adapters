@@ -2,7 +2,7 @@ import { Dependencies, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const alliumQuery = `
     WITH trades AS (
         SELECT maker AS trader, block_timestamp
