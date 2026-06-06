@@ -7,15 +7,18 @@ const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 // Standard ERC-20 Transfer event topic
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-// Mycelia's two settlement wallets. Both are actively receiving payments.
+// Mycelia's two revenue wallets:
+//  1. Direct settlement — full gross USDC from the TypeScript x402 proxy
+//  2. Orbis marketplace payouts — 80% net of Orbis-mediated revenue (Orbis
+//     facilitator retains 20%); paid weekly to the configured payout address.
 const RECEIVERS: Record<string, { address: string; label: string }> = {
   direct: {
     address: '0xD593832Ce9C2B13B192ba50B55dd9AF44e96700d',
     label: 'Direct settlement',
   },
-  legacy: {
-    address: '0x2bB72231Eed303Cc91a462a1fa738B42B6a9aC6D',
-    label: 'Legacy SDK settlement',
+  orbis_payouts: {
+    address: '0xfF51E0339A17f5fcBa6eAf0E06518d0042ac84bf',
+    label: 'Orbis marketplace payouts (80% net)',
   },
 };
 
@@ -64,7 +67,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "USDC payments received via the x402 protocol for Mycelia oracle endpoint calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to both settlement wallets and sums the values, excluding transfers where the sender is one of the two Mycelia-controlled wallets (self-sends and cross-wallet internal transfers).",
+  Fees: "USDC payments received for Mycelia oracle API calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to two protocol-controlled wallets: (1) the direct settlement wallet for payments via the Mycelia-operated x402 proxy (full gross), and (2) the Orbis marketplace payout wallet, which receives weekly payouts representing 80% of revenue from Orbis-mediated traffic (Orbis retains 20% as a facilitator fee). Transfers where the sender is one of the two Mycelia-controlled wallets are excluded (self-sends and cross-wallet internal transfers).",
   Revenue: "100% of fees accrue to the protocol treasury. There is no supply-side, LP, integrator, or token-holder revenue split.",
   ProtocolRevenue: "Same as Revenue — all USDC payments accumulate in the protocol-operated receiver wallets.",
   UserFees: "Same as Fees — every payment is made directly by an end user (human or autonomous agent) per API call.",
@@ -72,8 +75,8 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Direct settlement': 'USDC received via the current TypeScript x402 proxy (myceliasignal-x402-proxy.service), settling to 0xD593832Ce9C2B13B192ba50B55dd9AF44e96700d.',
-    'Legacy SDK settlement': 'USDC received via the original Python SDK proxy path (myceliasignal-x402-sdk.service), settling to 0x2bB72231Eed303Cc91a462a1fa738B42B6a9aC6D. Still actively receiving payments from existing SDK integrations.',
+    'Direct settlement': 'USDC received via the Mycelia-operated TypeScript x402 proxy (myceliasignal-x402-proxy.service), settling directly to 0xD593832Ce9C2B13B192ba50B55dd9AF44e96700d. Represents full gross fees for direct path traffic.',
+    'Orbis marketplace payouts (80% net)': 'USDC received from the Orbis x402 marketplace facilitator at the configured payout address 0xfF51E0339A17f5fcBa6eAf0E06518d0042ac84bf. Represents 80% of customer payments routed through Orbis (the remaining 20% is retained by Orbis as a facilitator fee). Payouts are batched weekly.',
   },
 };
 
