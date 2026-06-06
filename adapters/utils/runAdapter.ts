@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
@@ -251,12 +251,10 @@ async function _runAdapter({
 
       let result: any
       if (adapterVersion === 1) {
-        // v1 fetch functions are being migrated from (timestamp, chainBlocks, options) to a
-        // single `options` arg (same shape as v2). Legacy un-migrated adapters still declare
-        // >= 2 params, so call those the old way during the transition; migrated ones take options.
-        result = (fetchFunction as Function).length >= 2
-          ? await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options)
-          : await (fetchFunction as FetchV2)(options);
+        // v1 fetch functions now take a single `options` arg (same shape as v2). Any adapter
+        // still on the legacy (timestamp, chainBlocks, options) signature will break here,
+        // which is intentional so the remaining un-migrated adapters surface.
+        result = await (fetchFunction as FetchV2)(options);
         // v1 adapters may return their own `timestamp` (e.g. when reporting a previous day);
         // when absent we leave it unset and let the caller default it.
       } else if (adapterVersion === 2) {
