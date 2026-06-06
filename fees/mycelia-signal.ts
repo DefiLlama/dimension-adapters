@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
   for (const receiver of Object.values(RECEIVERS)) {
     const logs = await options.getLogs({
       target: USDC_BASE,
-      topics: [TRANSFER_TOPIC, null, padTopic(receiver.address)],
+      topics: [TRANSFER_TOPIC, null, padTopic(receiver.address)] as any,
     });
 
     for (const log of logs) {
@@ -70,7 +70,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       start: '2026-04-12',
-      pullHourly: true,
     },
   },
 };
