@@ -4,6 +4,27 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
 
+const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
+const STELLAR_BRIDGE_URL = "https://defillama-data.bim.finance/bridge";
+
+const fetchStellarFees = async (options: FetchOptions) => {
+  const { startTimestamp, endTimestamp } = options;
+  const [swapData, bridgeData] = await Promise.all([
+    fetchURL(`${STELLAR_SWAP_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
+    fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
+  ]);
+  const dailyFees = options.createBalances();
+  if (swapData.fees?.USDC) dailyFees.addCGToken("usd-coin", Number(swapData.fees.USDC));
+  if (swapData.fees?.XLM) dailyFees.addCGToken("stellar", Number(swapData.fees.XLM));
+  if (bridgeData.fees?.USDC) dailyFees.addCGToken("usd-coin", Number(bridgeData.fees.USDC));
+  if (bridgeData.fees?.XLM) dailyFees.addCGToken("stellar", Number(bridgeData.fees.XLM));
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+};
+
 const tokenChainsEndpoint = "https://ugcs4scwc8wwckcc40os4oso.bim.finance/token-chains";
 const bridgeAndSwapTarget = "0x1895108f64033F4c0A1fEd0669Adc93e7E017f3C";
 
@@ -133,6 +154,9 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.PLASMA]: {
     start: "2025-10-25",
   },
+  [CHAIN.STELLAR]: {
+    start: "2026-04-19",
+  },
 };
 
 const fetchVaults = (): Promise<any[]> => {
@@ -190,6 +214,7 @@ const getBridgeAndSwapFees = async (options: FetchOptions): Promise<any> => {
 };
 
 const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.STELLAR) return fetchStellarFees(options);
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
   const dailyFees = await stakingFeesPromise;
