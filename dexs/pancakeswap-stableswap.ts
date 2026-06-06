@@ -51,8 +51,9 @@ const adapter: SimpleAdapter = {
   fetch: async function (options: FetchOptions) {
     const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, PancakeStableswapConfigs[options.chain])
 
-    const dailyRevenue = adminFees.clone(0.1, METRIC.PROTOCOL_REVENUE)
-    dailyRevenue.add(adminFees.clone(0.4), METRIC.HOLDERS_REVENUE)
+    const dailyRevenue = options.createBalances()
+    dailyRevenue.add(adminFees.clone(0.2), METRIC.PROTOCOL_REVENUE) // 10% from admin fees
+    dailyRevenue.add(adminFees.clone(0.8), METRIC.HOLDERS_REVENUE) // 40% from admin fees
 
     const lpFees = swapFees.clone(1)
     lpFees.subtract(adminFees)
@@ -61,9 +62,9 @@ const adapter: SimpleAdapter = {
       dailyVolume,
       dailyFees: swapFees.clone(1, METRIC.SWAP_FEES),
       dailyRevenue,
-      dailyProtocolRevenue: adminFees.clone(0.1, METRIC.PROTOCOL_REVENUE),
-      dailySupplySideRevenue: lpFees.clone(0.1, METRIC.LP_REVENUE),
-      dailyHoldersRevenue: adminFees.clone(0.4, METRIC.BUY_BACK_AND_BURN),
+      dailyProtocolRevenue: adminFees.clone(0.2, METRIC.PROTOCOL_REVENUE),
+      dailySupplySideRevenue: lpFees.clone(1, METRIC.LP_REVENUE),
+      dailyHoldersRevenue: adminFees.clone(0.8, METRIC.BUY_BACK_AND_BURN),
     };
   },
   methodology: {
