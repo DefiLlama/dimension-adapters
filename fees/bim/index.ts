@@ -14,10 +14,10 @@ const fetchStellarFees = async (options: FetchOptions) => {
     fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
   ]);
   const dailyFees = options.createBalances();
-  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "swap-fee-usdc"); }
-  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "swap-fee-xlm"); }
-  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "bridge-fee-usdc"); }
-  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "bridge-fee-xlm"); }
+  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Swap Fees"); }
+  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Swap Fees"); }
+  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Bridge Fees"); }
+  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Bridge Fees"); }
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -234,10 +234,8 @@ const methodology = {
 };
 
 const stellarBreakdown = {
-  "swap-fee-usdc": "Fee charged in USDC on Stellar swaps (0.25%).",
-  "swap-fee-xlm": "Fee charged in XLM on Stellar swaps (0.25%).",
-  "bridge-fee-usdc": "Fee charged in USDC on Stellar bridges (0.125%).",
-  "bridge-fee-xlm": "Fee charged in XLM on Stellar bridges (0.125%).",
+  "Swap Fees": "Fee charged in USDC, XLM on Stellar swaps (0.25%).",
+  "Bridge Fees": "Fee charged in USDC, XLM on Stellar bridges (0.125%).",
 };
 
 const adapter: SimpleAdapter = {
