@@ -1,5 +1,5 @@
 import { httpGet } from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 //API
 const config_rule = {
@@ -18,12 +18,12 @@ interface IVolumeall {
     timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
-    const dayVolumeQuery = (await httpGet(dayEndpoint(timestamp, "VOLUME_1H"), config_rule)).data;
+const fetch = async (options: FetchOptions) => {
+    const dayVolumeQuery = (await httpGet(dayEndpoint(options.toTimestamp, "VOLUME_1H"), config_rule)).data;
     const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
 
-    const dayFeesQuery = (await httpGet(dayEndpoint(timestamp, "FEE_1H"), config_rule)).data;
+    const dayFeesQuery = (await httpGet(dayEndpoint(options.toTimestamp, "FEE_1H"), config_rule)).data;
     const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
     const dailyProtocolRevenue = 0;
     const dailyHoldersRevenue = dailyFees;
@@ -34,7 +34,6 @@ const fetch = async (timestamp: number) => {
         dailyRevenue: dailyFees,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
-        timestamp,
     };
 };
 

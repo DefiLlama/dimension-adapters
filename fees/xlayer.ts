@@ -12,7 +12,7 @@ async function getApiKey(): Promise<string> {
   return Buffer.from(`${rotated}|${time}`).toString('base64');
 }
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay)
   const path = `/api/explorer/v2/common/charts/feeUsdDailyTotal?chain=X1&t=${startOfDay * 1e3}`
   const apiKey = await getApiKey()

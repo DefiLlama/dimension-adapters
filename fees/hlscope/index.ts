@@ -59,7 +59,7 @@ async function prefetch(options: FetchOptions) {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

@@ -36,7 +36,7 @@ interface IAuctionsResponse {
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
 
 
-const fetch = async (_: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const feesRes: IFeesResponse = await httpGet(`${BASE_URL}/fees?start_date=${options.dateString}`);
   const auctionRes: IAuctionsResponse = await httpGet(`${BASE_URL}/auction?start_date=${options.dateString}`);
   if (feesRes.days.length !== 1 || auctionRes.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);

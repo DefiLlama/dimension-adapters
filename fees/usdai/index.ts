@@ -87,7 +87,7 @@ const breakdownMethodology = {
 }
 
 // Fetch function
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -200,14 +200,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 // Adapter
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2025-05-13',
+
   methodology,
-  breakdownMethodology,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2025-05-13',
-    }
-  },
+  breakdownMethodology
 };
 
 export default adapter;

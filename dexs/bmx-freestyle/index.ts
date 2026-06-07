@@ -87,7 +87,7 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetch = async ( _a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ( options: FetchOptions): Promise<FetchResultVolume> => {
   const startTime = options.startOfDay;
   const endTime = startTime + ONE_DAY_IN_SECONDS;
   const response: IGraphResponseFreestyle = await request(

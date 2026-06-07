@@ -11,7 +11,7 @@ const endpoints: Record<string, string> = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AV58XWaZUZPJ2w1x2wYmGEivVZmDojGW3fAYggUAujtD'),
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const client = new GraphQLClient(endpoints[options.chain])
   const GET_PROTOCOL_STATS = gql`
     query ProtocolQuery($startBlock: Int!, $endBlock: Int!) {
@@ -24,8 +24,8 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     }
   `
   const [startBlock, endBlock] = await Promise.all([
-    getBlock(timestamp - 86400, options.chain, {}),
-    getBlock(timestamp, options.chain, {}),
+    getBlock(options.toTimestamp - 86400, options.chain, {}),
+    getBlock(options.toTimestamp, options.chain, {}),
   ])
   const graphRes = await client.request(GET_PROTOCOL_STATS, {
     startBlock: startBlock,

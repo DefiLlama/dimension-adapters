@@ -49,41 +49,37 @@ function twosComplementHexToDecimal(hexValue: string): number {
 
 const topic0_trade = '0xeef2964c19d154a021c80f1901318bed137c1214368f991d6a118e9c64c5d9f6';
 
-const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, api }: FetchOptions) => {
-    const dailyVolume = createBalances()
-    const tokens = contracts[chain].map(i => i[1]);
-    const decimals = await api.multiCall({  abi: 'erc20:decimals', calls: tokens})
+const fetch = async ({ createBalances, getLogs, api, chain }: FetchOptions) => {
+  const dailyVolume = createBalances()
+  const tokens = contracts[chain].map(i => i[1]);
+  const decimals = await api.multiCall({ abi: 'erc20:decimals', calls: tokens })
 
-    const logs = await getLogs({
-      targets: contracts[chain].map(i => i[0]),
-      topics: [topic0_trade],
-      flatten: false,
-      skipCacheRead: true,
+  const logs = await getLogs({
+    targets: contracts[chain].map(i => i[0]),
+    topics: [topic0_trade],
+    flatten: false,
+    skipCacheRead: true,
+  })
+  logs.forEach((_logs, index) => {
+    const token = tokens[index]
+    const powDivider = 18 - +decimals[index]
+
+    _logs.forEach((log) => {
+      const data = log.data.replace('0x', '');
+      const price = Number('0x' + data.slice(0, 64)) / 10 ** 18;
+      const amount = twosComplementHexToDecimal('0x' + data.slice(64, 128)) / (10 ** powDivider)
+      dailyVolume.add(token, amount * price);
     })
-    logs.forEach((_logs, index) => {
-      const token = tokens[index]
-      const powDivider =  18 - +decimals[index]
+  })
 
-      _logs.forEach((log) => {
-        const data = log.data.replace('0x', '');
-        const price = Number('0x' + data.slice(0, 64)) / 10 ** 18;
-        const amount = twosComplementHexToDecimal('0x' + data.slice(64, 128)) / (10 ** powDivider)
-        dailyVolume.add(token, amount * price);
-      })
-    })
-
-    return { dailyVolume, timestamp }
-  }
+  return { dailyVolume, }
 }
 
-const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: fetchVolume(CHAIN.POLYGON),
-      start: '2022-09-08'
-    }
-  },
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2022-09-08',
   deadFrom: "2024-03-15",
 }
-export default adapters;
+
+export default adapter;

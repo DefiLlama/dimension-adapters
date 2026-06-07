@@ -263,7 +263,7 @@ async function buildBalances(
 
 // Route by date: pump_evt_tradeevent only exists from 2025-11-05; older days fall back
 // to the wallet-inflow query.
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   return options.startOfDay < TRADE_EVENT_START_TS
     ? fetchFromDune(options)
     : fetchFromTradeEvents(options)

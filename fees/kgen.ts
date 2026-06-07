@@ -10,7 +10,7 @@ const polygonContracts = {
   marketplaceContract: "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51",
 };
 
-const fetchPolygon = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchPolygon = async (options: FetchOptions) => {
   const orderVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -49,7 +49,7 @@ const fetchPolygon = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchAptos = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchAptos = async (options: FetchOptions) => {
   const query = `
   WITH aptos_rev AS (
     SELECT

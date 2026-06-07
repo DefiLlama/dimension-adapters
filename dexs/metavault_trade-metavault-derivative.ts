@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('BMn9XsegbLxw9TL6uyw5NntoiGRyMqRpF2vShkKzusJ3'),
@@ -27,37 +26,24 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (chain: string, query: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: String(dayTimestamp) + ':daily',
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dailyData: IGraphResponse = await request(endpoints[chain], derivativesVolume, {
+    id: String(options.startOfDay) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
-
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
   }
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: getFetch(CHAIN.POLYGON, derivativesVolume),
-      start: 1654041600,
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: 1654041600,
   deadFrom: "2025-06-04",
 }
 

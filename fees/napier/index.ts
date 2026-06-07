@@ -28,7 +28,7 @@ interface DailyFeeEntry {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, chain, api } = options;
   const timestamp = options.toTimestamp;
   const url = `${API_BASE_URL}/v1/market/daily-fees?chainIds=${api.chainId!}&timestamp=${timestamp}`;

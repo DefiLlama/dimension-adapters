@@ -28,7 +28,7 @@ function parsePoolType(type: string): { coinX: string; coinY: string } {
 
 const poolCache: Record<string, { coinX: string; coinY: string }> = {};
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const query = `
     SELECT
       json_extract_scalar(event_json, '$.pool_id') as pool_id,

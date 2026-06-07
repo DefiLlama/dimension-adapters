@@ -1,4 +1,4 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 
@@ -13,7 +13,7 @@ const methodology = {
     "Until waveX’s tokenomics and governance framework are fully established, the remaining 50% of fees will go to the Treasury.",
 };
 
-const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
+const fetch = async ({ chain, startOfDay }: FetchOptions) => {
   const todaysTimestamp = startOfDay;
 
   const res = await axios.get(
@@ -41,13 +41,10 @@ const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
 const adapter: Adapter = {
   version: 1,
   methodology,
-  adapter: {
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: "2024-12-27",
-      deadFrom: "2026-01-03",
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONEIUM],
+  start: "2024-12-27",
+  deadFrom: "2026-01-03",
 };
 
 export default adapter;

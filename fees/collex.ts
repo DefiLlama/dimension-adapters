@@ -19,7 +19,7 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayVolumeQuery = await httpGet(
     dayEndpoint(options.startOfDay, "VOLUME_1H"),
     config_rule

@@ -93,9 +93,9 @@ const computeVolume = async (
 };
 
 
-const fetch = async (timestamp: number, _: any, fetchOptions: FetchOptions) => {
+const fetch = async (fetchOptions: FetchOptions) => {
   const products = await fetchProducts(fetchOptions);
-  const perpVolumes = await computeVolume(timestamp, products.perp_products, fetchOptions);
+  const perpVolumes = await computeVolume(fetchOptions.toTimestamp, products.perp_products, fetchOptions);
   return { dailyVolume: perpVolumes.dailyVolume };
 };
 

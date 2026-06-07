@@ -1,4 +1,4 @@
-import { Fetch, FetchV2, SimpleAdapter } from '../../adapters/types';
+import { FetchV2, SimpleAdapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import axios from 'axios';
 
@@ -11,7 +11,7 @@ type VolumeResponse = {
   result: VolumeItem[];
 };
 
-const fetch: Fetch = async (timestamp) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const baseUrl = 'https://api.umbra.finance/1/explore/volume';
 
   const dailyVolumeFetch = axios
@@ -29,7 +29,7 @@ const fetch: Fetch = async (timestamp) => {
   // sort desc and get latest item found before given timestamp
   const dailyVolumeItem = dailyVolumeItems
     .sort((a, b) => b.timestamp - a.timestamp)
-    .find((item) => item.timestamp <= timestamp);
+    .find((item) => item.timestamp <= options.toTimestamp);
 
   const dailyVolumeUsd = dailyVolumeItem?.data ?? 0;
 
@@ -39,12 +39,9 @@ const fetch: Fetch = async (timestamp) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ECLIPSE]: {
-      fetch: fetch,
-      start: '2025-02-22',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ECLIPSE],
+  start: '2025-02-22',
   methodology: {
     Volume:
       "USD Volume of Umbra V3 using datasource from protocol's indexed data.",

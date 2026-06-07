@@ -27,7 +27,7 @@ interface IHistory {
   intervalTimestamp: number;
 }
 
-const fetch = async (_: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = chains[options.chain];
   const dayTimestamp = options.startOfDay
   const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;

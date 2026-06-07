@@ -4,7 +4,7 @@ import coreAssets from "../../helpers/coreAssets.json"
 import { CHAIN } from "../../helpers/chains";
 
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const query = `
         WITH trades AS (
             SELECT
