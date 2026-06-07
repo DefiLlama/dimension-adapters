@@ -111,6 +111,49 @@ function formatV3ReadValueContext(positions: TristeroV3MarginPosition[]): string
         .join(", ");
 }
 
+type PermitFailureMultiCallParams = {
+    abi: string;
+    calls: Array<{ target?: string; params?: any }>;
+    target?: string;
+    block?: number;
+};
+
+async function permitFailureMultiCallWithFallback(
+    options: FetchOptions,
+    api: any,
+    params: PermitFailureMultiCallParams,
+    context: string,
+): Promise<any[]> {
+    try {
+        return await api.multiCall({ ...params, permitFailure: true });
+    } catch (error) {
+        sdk.log(`Tristero multicall failed on ${options.chain} ${context}: ${formatErrorMessage(error)}`);
+    }
+
+    const block = params.block ?? api.block;
+    return Promise.all(params.calls.map(async (call, index) => {
+        const target = call.target ?? params.target;
+        if (!target) {
+            sdk.log(`Tristero multicall fallback missing target on ${options.chain} ${context} call ${index}`);
+            return null;
+        }
+
+        try {
+            const output = await api.call({
+                target,
+                abi: params.abi,
+                params: call.params,
+                block,
+                permitFailure: true,
+            });
+            return output && typeof output === "object" && "output" in output ? output.output : output;
+        } catch (error) {
+            sdk.log(`Tristero multicall fallback failed on ${options.chain} ${context} call ${index} target ${target}: ${formatErrorMessage(error)}`);
+            return null;
+        }
+    }));
+}
+
 async function readV3LoanValuesAtBlock(
     options: FetchOptions,
     positions: TristeroV3MarginPosition[],
@@ -119,15 +162,14 @@ async function readV3LoanValuesAtBlock(
     let values: any[] = [];
     if (positions.length) {
         try {
-            values = await options.api.multiCall({
+            values = await permitFailureMultiCallWithFallback(options, options.api, {
                 abi: TRISTERO_V3_MARGIN_ABI.readValue,
                 calls: positions.map((position) => ({
                     target: position.vault,
                     params: [position.loanAsset, position.loanShares.toString()],
                 })),
                 block,
-                permitFailure: true,
-            });
+            }, `readValue block ${block} for ${positions.length} positions (${formatV3ReadValueContext(positions)})`);
         } catch (error) {
             sdk.log(`Tristero v3 multicall readValue failed on ${options.chain} at block ${block} for ${positions.length} positions (${formatV3ReadValueContext(positions)}): ${formatErrorMessage(error)}`);
             values = [];
@@ -356,15 +398,14 @@ async function getHistoricalPositions(
     const positionsByRef = new Map<string, TristeroMarginPosition | null>();
 
     for (const [block, positionRefs] of positionRefsByBlock.entries()) {
-        const positions = await options.api.multiCall({
+        const positions = await permitFailureMultiCallWithFallback(options, options.api, {
             abi: TRISTERO_MARGIN_ABI.positions,
             calls: positionRefs.map(({ escrow, positionId }) => ({
                 target: escrow,
                 params: [positionId],
             })),
             block,
-            permitFailure: true,
-        });
+        }, `legacy positions block ${block} for ${positionRefs.length} refs`);
 
         positionRefs.forEach((positionRef, index) => {
             positionsByRef.set(getHistoricalPositionKey(positionRef), normalizePosition(positions[index]));
@@ -389,15 +430,14 @@ async function getHistoricalAccumulatedInterest(
     const interestByRef = new Map<string, bigint | null>();
 
     for (const [block, positionRefs] of positionRefsByBlock.entries()) {
-        const accumulatedInterest = await options.api.multiCall({
+        const accumulatedInterest = await permitFailureMultiCallWithFallback(options, options.api, {
             abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
             calls: positionRefs.map(({ escrow, positionId }) => ({
                 target: escrow,
                 params: [positionId],
             })),
             block,
-            permitFailure: true,
-        });
+        }, `legacy accumulatedInterest block ${block} for ${positionRefs.length} refs`);
 
         positionRefs.forEach((positionRef, index) => {
             interestByRef.set(getHistoricalPositionKey(positionRef), toBigIntOrNull(accumulatedInterest[index]));
@@ -545,11 +585,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         }
     });
 
-    const totalPositionsPerEscrow = await options.toApi.multiCall({
+    const totalPositionsPerEscrow = await permitFailureMultiCallWithFallback(options, options.toApi, {
         abi: TRISTERO_MARGIN_ABI.totalPositions,
         calls: escrows.map((escrow) => ({ target: escrow })),
-        permitFailure: true,
-    });
+    }, `legacy totalPositions for ${escrows.length} escrows`);
 
     const endPositionRefs = totalPositionsPerEscrow.flatMap((totalPositions, index) =>
         getPositionIds(totalPositions).map((positionId) => ({
@@ -559,14 +598,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     );
 
     const endPositionsRaw = endPositionRefs.length
-        ? await options.toApi.multiCall({
+        ? await permitFailureMultiCallWithFallback(options, options.toApi, {
             abi: TRISTERO_MARGIN_ABI.positions,
             calls: endPositionRefs.map(({ escrow, positionId }) => ({
                 target: escrow,
                 params: [positionId],
             })),
-            permitFailure: true,
-        })
+        }, `legacy end positions for ${endPositionRefs.length} refs`)
         : [];
 
     endPositionsRaw.forEach((position: any, index: number) => {
@@ -581,22 +619,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const trackedPositions = Array.from(relevantPositions.values());
     const [startAccruedRaw, endAccruedRaw] = trackedPositions.length
         ? await Promise.all([
-            options.fromApi.multiCall({
+            permitFailureMultiCallWithFallback(options, options.fromApi, {
                 abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
                 calls: trackedPositions.map(({ escrow, positionId }) => ({
                     target: escrow,
                     params: [positionId],
                 })),
-                permitFailure: true,
-            }),
-            options.toApi.multiCall({
+            }, `legacy start accumulatedInterest for ${trackedPositions.length} refs`),
+            permitFailureMultiCallWithFallback(options, options.toApi, {
                 abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
                 calls: trackedPositions.map(({ escrow, positionId }) => ({
                     target: escrow,
                     params: [positionId],
                 })),
-                permitFailure: true,
-            }),
+            }, `legacy end accumulatedInterest for ${trackedPositions.length} refs`),
         ])
         : [[], []];
 
