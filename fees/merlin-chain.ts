@@ -23,6 +23,9 @@ const adapter: Adapter = {
     },
   },
   protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Total transactions fees paid by users, data sourced from MerlinChain explorer api.'
+  }
 };
 
 export default adapter;
