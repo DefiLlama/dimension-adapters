@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { httpPost } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
@@ -10,8 +10,8 @@ interface IOptionsVolumeResponse {
     dailyPremiumVolume: string;
 }
 
-async function fetch(timestamp: number) {
-    const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+async function fetch(options: FetchOptions) {
+    const dayTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp);
     const query = `
     query {
         getOptionsVolume(timestamp: ${dayTimestamp}) {

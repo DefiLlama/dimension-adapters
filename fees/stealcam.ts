@@ -6,7 +6,7 @@ const STEAL_FEE_LABEL = "Steal fees";
 const address = '0x2f60c9cee6450a8090e17a79e3dd2615a1c419eb'
 const event_fees_distibute = 'event Stolen (address from, address to, uint256 id, uint256 value)';
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({ createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = createBalances();
   (await getLogs({
     target: address,
@@ -14,8 +14,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   })).map((e: any) => dailyFees.addGasToken(e.value, STEAL_FEE_LABEL))
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    timestamp
+    dailyRevenue: dailyFees
   }
 }
 
@@ -35,12 +34,9 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: '2023-03-10',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2023-03-10',
   methodology,
   breakdownMethodology
 };

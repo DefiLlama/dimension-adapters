@@ -4,7 +4,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 const BASE_API_URL = "https://api.kaching.vip";
 
-const fetchAptos = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchAptos = async (options: FetchOptions) => {
   const revenueResponse = await httpGet(`${BASE_API_URL}/transactions/revenue?timestamp=${options.startOfDay}`);
   if (!revenueResponse.today.revenue) {
     throw new Error(`No data found for date ${options.dateString}`);
@@ -24,7 +24,7 @@ const TICKET_PURCHASES_URL = "https://api.kaching.vip/transactions/ticket-purcha
 const PAGE_LIMIT = 50;
 const MAX_PAGES = 200;
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   let page = 1;
 

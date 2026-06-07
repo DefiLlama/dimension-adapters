@@ -7,7 +7,7 @@ const GRAPH_URL = 'https://api.subgraph.ormilabs.com/api/public/33c67399-d625-49
 // const SWAP_TOKEN = '0x03832767bdf9a8ef007449942125ad605acfadb8';
 // const BURN_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()

@@ -6,7 +6,7 @@ import PromisePool from "@supercharge/promise-pool";
 const CCXT_MARKETS_URL = "https://aftermath.finance/api/ccxt/markets";
 const CCXT_OHLCV_URL = "https://aftermath.finance/api/ccxt/OHLCV";
 
-const fetch = async (_: any, __: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const markets: any[] = await httpGet(CCXT_MARKETS_URL);
   let dailyVolume = 0;
 

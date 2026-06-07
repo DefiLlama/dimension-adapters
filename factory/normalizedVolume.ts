@@ -26,7 +26,7 @@ interface HourlyVolumeRecord {
 
 
 function fetchV1({ protocolName, minContracts }: { protocolName: string, minContracts?: number }){
-  return async (_a: any, _b: any, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
 
     const response = await elastic.search({
       index: HOURLY_VOLUME_INDEX,

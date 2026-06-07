@@ -39,7 +39,7 @@ const methodology = {
   Revenue: "registration and renew cost",
 };
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const address = addresses[options.chain];
   const dailyFees = options.createBalances();
   if (options.chain === CHAIN.PLUME_LEGACY) {

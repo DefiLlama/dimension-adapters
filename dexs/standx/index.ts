@@ -21,7 +21,7 @@ interface MarketInfo {
   v: number[];
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = options.createBalances();
   const symbolsResponse: SymbolInfo[] = await fetchURL(`${apiEndpoint}/query_symbol_info`);
   const symbols = symbolsResponse.map((item) => item.symbol);

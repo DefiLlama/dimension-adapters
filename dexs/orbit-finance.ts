@@ -24,7 +24,7 @@ const SWAP_DISC = "0xf8c69e91e17587c8";
 // Other pools range 30-90bps but currently have no liquidity/volume
 const AVG_FEE_RATE = 0.02;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
         WITH swap_ixs AS (
             SELECT tx_id, outer_instruction_index

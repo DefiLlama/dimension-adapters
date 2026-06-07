@@ -99,7 +99,7 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
 }
 
 export function getFeesExport(market: string) {
-  return (async (timestamp: number, _: any, options: FetchOptions) => {
+  return (async (options: FetchOptions) => {
     const { dailyFees, dailyRevenue } = await getFees(market, options, {})
     const dailyHoldersRevenue = dailyRevenue
     const dailySupplySideRevenue = options.createBalances()
@@ -107,8 +107,8 @@ export function getFeesExport(market: string) {
     Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
       dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
     })
-    return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
-  }) as Fetch
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+  })
 }
 
 interface CompoundV2ExportOptions {

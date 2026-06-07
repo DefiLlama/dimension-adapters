@@ -1,9 +1,8 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 // https://heliswap-prod-362307.oa.r.appspot.com/query
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const tokens: string[] = [
@@ -54,8 +53,7 @@ interface IGraphResponse {
   volume24hUsd: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(query, { tokens: tokens})).poolsConsistingOf;
   const dailyVolume = historicalVolume
     .filter((e: IGraphResponse) => Number(e.volume24hUsd) < 10_000_000)
@@ -63,18 +61,14 @@ const fetch = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: '2022-10-05'
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: '2022-10-05',
+  runAtCurrTime: true,
 };
 
 export default adapter;

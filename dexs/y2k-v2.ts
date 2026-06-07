@@ -6,7 +6,7 @@ const event_market_create =
   "event MarketCreated (uint256 indexed marketId, address premium, address collateral, address underlyingAsset, address token, string name, uint256 strike, address controller)";
 const event_deposit = "event Deposit (address indexed user, address indexed receiver, uint256 id, uint256 assets)";
 
-const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async ({ getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = createBalances()
   const logs_market_create = await getLogs({
     target: factory,
@@ -24,16 +24,13 @@ const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, 
     logs.forEach((log: any) => dailyVolume.add(tokens[index], log.deposit))
   })
 
-  return { dailyVolume, timestamp, };
+  return { dailyVolume, };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-05-30',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2023-05-30',
 };
 
 export default adapter;

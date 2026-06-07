@@ -14,7 +14,7 @@ const ABIs: TABI = {
 	"getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
 }
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, createBalances }: FetchOptions) => {
+const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 	const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -49,13 +49,13 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
     })
   }))
 
-	return { dailyVolume, dailyFees, dailyRevenue, timestamp };
+	return { dailyVolume, dailyFees, dailyRevenue,};
 }
 
 const adapter: SimpleAdapter = {
-	adapter: {
-		[CHAIN.IOTAEVM]: { fetch, start: '2023-04-10', },
-	}
+  fetch,
+  chains: [CHAIN.IOTAEVM],
+  start: '2023-04-10',
 };
 
 export default adapter;

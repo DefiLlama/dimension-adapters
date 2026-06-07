@@ -8,7 +8,7 @@ const ADDRESSES = [
   '0xaA26B8e5Cadd04430c32787eCC3AA325e99681e9', // Swap Router
 ]
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
     const duneQuery = `
       SELECT 

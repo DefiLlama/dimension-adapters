@@ -8,17 +8,12 @@ const endpoints = {
     "https://metisapi.0xgraph.xyz/subgraphs/name/metis-andromeda-prod-stats",
 };
 
-type MarketStat = {
-  id: string;
-  totalTradingVolume: string;
-};
-
 type MarketDailyStat = {
   day: number;
   tradingVolume: string;
 }
 
-const fetch = async (_t: any, _tt: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayId = Math.floor(options.startOfDay / 86400);
   const query = gql`
     {
@@ -40,18 +35,15 @@ const fetch = async (_t: any, _tt: any, options: FetchOptions) => {
     0 as number
   );
   return {
-    timestamp: options.startOfDay,
-    dailyVolume: dailyVolume,
+    dailyVolume,
   }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.METIS]: {
-      fetch: fetch,
-      start: '2024-03-13',
-    },
-  },
+  fetch,
+  chains: [CHAIN.METIS],
+  start: '2024-03-13',
+  deadFrom: '2025-11-14',
 };
 
 export default adapter;

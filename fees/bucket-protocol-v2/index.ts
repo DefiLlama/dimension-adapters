@@ -16,7 +16,7 @@ const methodology = {
   Revenue: "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
 };
 
-const fetch = async (_a: any, _b: any, { startTimestamp }: FetchOptions) => {
+const fetch = async ({ startTimestamp }: FetchOptions) => {
   const url = `${bucketApiURL}/fee/dailystatus?timestamp_ms=${ startTimestamp * 1000 }`;
   const stats: DailyStats = (await fetchURL(url)).data;
 
