@@ -40,9 +40,9 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (totalWei > 0n) {
-    dailyFees.addGasToken(totalWei, "Takeover Royalties");
-    dailyUserFees.addGasToken(totalWei, "Takeover Royalties");
-    dailyRevenue.addGasToken(totalWei, "Takeover Royalties");
+    dailyFees.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
+    dailyUserFees.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
+    dailyRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
     dailyHoldersRevenue.addGasToken(totalWei, "Takeover Royalties To veCLAIM Holders");
   }
 
@@ -65,15 +65,15 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "ETH allocated to ShareholderRoyalties by MineCore on each successful takeover (via `onTakeover` and the `addPendingShareholderETH` retry path).",
   },
   UserFees: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "Same value — the new King of each takeover pays the royalty fraction directly out of `pricePaid`.",
   },
   Revenue: {
-    "Takeover Royalties":
+    "Takeover Royalties To veCLAIM Holders":
       "ETH allocated to ShareholderRoyalties by MineCore on each successful takeover (via `onTakeover` and the `addPendingShareholderETH` retry path).",
   },
   HoldersRevenue: {
