@@ -9,7 +9,7 @@ const ABI: any = {
 const OPEN_STABLE_INDEX = '0x323c03c48660fE31186fa82c289b0766d331Ce21';
 const VOTE_LOCK_SQUILL = '0x2aEA77C4757D897AaE2710B8a60280777f504e8c';
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();

@@ -24,8 +24,8 @@ interface IAccrueInterestLog {
   totalBorrowsNew: BigNumberish;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
-  const context = await getContext(timestamp, {}, { fromTimestamp, toTimestamp });
+const fetch = async ({ createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
+  const context = await getContext(toTimestamp, {}, { fromTimestamp, toTimestamp });
   const dailyProtocolFees = createBalances();
   const dailyProtocolRevenue = createBalances();
   await getDailyProtocolFees(context, { dailyProtocolFees, dailyProtocolRevenue, });
@@ -40,7 +40,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
   await getDailyEnergyRentalFees(context, { dailyProtocolFees, dailySupplySideRevenue });
 
   return {
-    timestamp,
     dailyFees: dailyProtocolFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyHoldersRevenue: 0,
@@ -226,13 +225,10 @@ const getDailyEnergyRentalFees = async (
 
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.TRON]: {
-      fetch: fetch,
-      start: '2023-11-19',
-      // runAtCurrTime: true,
-    },
-  },
+  fetch,
+  chains: [CHAIN.TRON],
+  start: '2023-11-19',
+  // runAtCurrTime: true,
   methodology: {
     Fees: "Total interest paid by borrowers across all lending markets, plus usage fees paid by renters on the Energy Rental Market",
     Revenue: "Protocol's share of interest based on each market's reserve factor",

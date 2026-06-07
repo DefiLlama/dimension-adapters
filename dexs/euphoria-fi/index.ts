@@ -57,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
   settlementLogs.forEach((log: any) => {
     dailyNotionalVolume.add(ADDRESSES.megaeth.USDm, log.payout);
     dailyFees.add(ADDRESSES.megaeth.USDm, log.fee, METRIC.TRADING_FEES);
-    dailyRevenue.add(ADDRESSES.megaeth.USDm, log.fee, "Trading Fees to protocol");
+    dailyRevenue.add(ADDRESSES.megaeth.USDm, log.fee, "Trading Fees To Protocol");
   });
 
   return {
@@ -85,10 +85,10 @@ const adapter: SimpleAdapter = {
       [METRIC.TRADING_FEES]: "Trading fees paid by Euphoria users.",
     },
     Revenue: {
-      "Trading Fees to protocol": "Trading fees retained by protocol.",
+      "Trading Fees To Protocol": "Trading fees retained by protocol.",
     },
     ProtocolRevenue: {
-      "Trading Fees to protocol": "Trading fees retained by protocol.",
+      "Trading Fees To Protocol": "Trading fees retained by protocol.",
     },
   },
 };

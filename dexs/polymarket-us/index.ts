@@ -28,7 +28,7 @@ function parseTradeCSV(csv: string): Trade[] {
     return trades;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
 
     const manifestData = await fetchURL(`${BASE_URL}/manifest.json`);
     const todaysData = manifestData.files.find((item: any) => item.filename === `${options.dateString.replaceAll('-', '')}-time-and-sales.csv`);

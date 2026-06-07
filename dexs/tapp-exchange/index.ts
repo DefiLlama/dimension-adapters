@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 import { randomInt } from "node:crypto";
@@ -27,8 +27,8 @@ const getDefillamaDimension = async (start: number, end: number) => {
     return dimension.result;
 }
 
-const fetch = async (timestamp: number) => {
-    const startOfDay = getTimestampAtStartOfDayUTC(timestamp) * 1000;
+const fetch = async (options: FetchOptions) => {
+    const startOfDay = getTimestampAtStartOfDayUTC(options.toTimestamp) * 1000;
     const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1000;
 
     const {
@@ -49,12 +49,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.APTOS]: {
-            fetch,
-            start: "2025-06-12",
-        },
-    },
+    chains: [CHAIN.APTOS],
+    fetch,
+    start: "2025-06-12",
     methodology: {
         Fees: "Total fees from swaps, based on the fee tier of each pool.",
         Revenue: "Calculated as 33% of the total fees.",

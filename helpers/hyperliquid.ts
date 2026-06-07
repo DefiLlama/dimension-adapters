@@ -254,9 +254,11 @@ interface QueryIndexerResult {
   dailyPerpVolume: Balances;
   dailySpotVolume: Balances;
 
-  // perp fees = perp revenue + builders revenue
+  // perp fees = hyperliquid revenue + builders revenue + HIP-3 deployers revenue
   dailyPerpRevenue: Balances;
   dailyBuildersRevenue: Balances;
+  dailyHip3DeployersRevenue: Balances;
+  dailyHyperliquidRevenue: Balances;
 
   // spot fees = sport revenue + unit revenue
   dailySpotRevenue: Balances;
@@ -308,6 +310,7 @@ export async function queryHyperliquidIndexer(
   const dailyPerpRevenue = options.createBalances();
   const dailySpotRevenue = options.createBalances();
   const dailyBuildersRevenue = options.createBalances();
+  const dailyHip3DeployersRevenue = options.createBalances();
   const dailyUnitRevenue = options.createBalances();
   const dailyPriorityFeesUsd = options.createBalances();
   const hip3Deployers: Record<string, Hip3DeployerMetrics> = {};
@@ -377,6 +380,7 @@ export async function queryHyperliquidIndexer(
         }
         
         hip3Deployers[deployer].dailyDeployerFee.addCGToken('usd-coin', (metrics as any).deployerFeeUsd || 0);
+        dailyHip3DeployersRevenue.addCGToken('usd-coin', (metrics as any).deployerFeeUsd || 0);
 
         for (const [coin, amount] of Object.entries(
           (metrics as any).perpsFeeTokens,
@@ -398,12 +402,20 @@ export async function queryHyperliquidIndexer(
     }
   }
 
+  const dailyHyperliquidRevenue = options.createBalances();
+  const dailyPerpRevenueUSD = await dailyPerpRevenue.getUSDValue();
+  const dailyBuildersRevenueUSD = await dailyBuildersRevenue.getUSDValue();
+  const dailyHip3DeployersRevenueUSD = await dailyHip3DeployersRevenue.getUSDValue();
+  dailyHyperliquidRevenue.addCGToken('usd-coin', dailyPerpRevenueUSD - dailyBuildersRevenueUSD - dailyHip3DeployersRevenueUSD)
+
   return {
     dailyPerpVolume,
     dailySpotVolume,
     dailyPerpRevenue,
     dailySpotRevenue,
     dailyBuildersRevenue,
+    dailyHip3DeployersRevenue,
+    dailyHyperliquidRevenue,
     dailyUnitRevenue,
     dailyPriorityFeesUsd,
     currentPerpOpenInterest,
@@ -556,7 +568,7 @@ export const exportHIP3DeployerAdapter = (
     doublecounted: true, // all metrics are double-counted to hyperliquid
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const result = await fetchHIP3DeployerData({
             options,
             hip3DeployerId: dexId,
@@ -630,7 +642,7 @@ export const exportBuilderAdapter = (
     start: startDate,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyVolume = options.createBalances();
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
@@ -706,7 +718,7 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
     skipBreakdownValidation: true,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
           const dailySupplySideRevenue = options.createBalances();

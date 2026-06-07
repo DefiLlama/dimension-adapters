@@ -12,7 +12,7 @@ const fromMicro = (value: string) => {
   return (parseFloat(value) / 1e6).toString();
 };
 
-const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
   const { dailyVolume }: IAPIResponse = await fetchURL(
     `${url}?timestamp=${startOfDay}&currency=${currency}`
   );

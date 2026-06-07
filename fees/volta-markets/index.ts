@@ -21,8 +21,8 @@ interface IFeeResponse {
   }>
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions)=> {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+const fetch = async (options: FetchOptions)=> {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
 
   const graphQuery = gql
   `{

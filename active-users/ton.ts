@@ -23,7 +23,7 @@ const valueOn = (series: MetricPoint[], date: string, label: string): number => 
   return Math.round(Number(row.value));
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const date = options.dateString;
 
   const json = await postURL(

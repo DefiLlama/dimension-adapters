@@ -18,7 +18,7 @@ import fetchURL from "../../utils/fetchURL";
 let feeData: any
 let revenueData: any
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const { dateString, createBalances } = options;
 
     const dailyFees = createBalances();
@@ -52,12 +52,9 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    fetch,
     start: '2025-05-06', // First date with data in the API
-    adapter: {
-        [CHAIN.NEAR]: {
-            fetch: fetch,
-        },
-    },
+    chains: [CHAIN.NEAR],
     methodology: {
         Fees: "Total fees collected by NEAR Intents platform.",
         SupplySideRevenue: "Part of fees recieved by NEAR Intents' partners.",

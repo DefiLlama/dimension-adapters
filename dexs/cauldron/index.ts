@@ -31,9 +31,9 @@ const adapter: SimpleAdapter = {
 };
 
 export async function fetchCauldronVolume(
-  timestamp: number, _: any, options: FetchOptions
+  options: FetchOptions
 ): Promise<FetchResult> {
-  const endpoint = `${INDEXER_URL}/cauldron/contract/volume?end=${timestamp}`;
+  const endpoint = `${INDEXER_URL}/cauldron/contract/volume?end=${options.toTimestamp}`;
   const volume = await fetchURL(endpoint)
 
   const daily_sats = volume.reduce((acc: number, token: any) => {
@@ -54,7 +54,6 @@ export async function fetchCauldronVolume(
   dailySupplySideRevenue.addCGToken('bitcoin-cash', feeBch);
 
   return {
-    timestamp,
     dailyVolume,
     dailyFees,
     dailyUserFees,

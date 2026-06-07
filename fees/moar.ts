@@ -12,8 +12,8 @@ interface FeesResponse {
     supplySideRevenue: Record<string, number>;
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-    const feesResponse: FeesResponse = (await fetchURL(`${feesQueryURL}${timestamp}`));
+const fetch = async (options: FetchOptions) => {
+    const feesResponse: FeesResponse = (await fetchURL(`${feesQueryURL}${options.toTimestamp}`));
 
     const dailyFees = options.createBalances()
     for (const [token, amount] of Object.entries(feesResponse.userFees)) {
@@ -37,12 +37,9 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.APTOS]: {
-            fetch,
-            start: '2025-05-07',
-        },
-    },
+    fetch,
+    chains: [CHAIN.APTOS],
+    start: '2025-05-07',
     methodology: {
         Fees: "Sum of all fees, interest accrued and all liquidation penalty",
         Revenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",

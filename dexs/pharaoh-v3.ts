@@ -192,7 +192,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     )  };
 };
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
   const dailyFees = stats.clFeesUSD;
   const dailyVolume = stats.clVolumeUSD;

@@ -18,7 +18,7 @@ const MAX_SWAP_FEE = 10_000; // SyncSwap docs: fee values are 6-decimal uint24; 
 const PAGE_SIZE = 1000;
 const PAIR_BATCH_SIZE = 50; // Subgraph fails on large id_in lists.
 
-async function fetch(_t: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const endpoint = endpoints[options.chain];
   const defaultFeesQuery = gql`
     {

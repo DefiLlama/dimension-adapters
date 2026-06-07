@@ -1,7 +1,6 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request, { gql } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
   terra: "https://server-grdx-api.nexora-tech.org/graphql", 
@@ -23,12 +22,10 @@ interface IHistoricalDataResponse {
   }>;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
+const fetch = async (options: FetchOptions) => {
   const data: IHistoricalDataResponse = await request(endpoints.terra, historicalData, {
-    from: dayTimestamp,
-    to: dayTimestamp + 86400,
+    from: options.startOfDay,
+    to: options.startOfDay + 86400,
   });
   
   return {
@@ -38,12 +35,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.TERRA]: {
-      fetch,
-      start: '2025-02-11',
-    },
-  },
+  fetch,
+  chains: [CHAIN.TERRA],
+  start: '2025-02-11',
 };
 
 export default adapter;

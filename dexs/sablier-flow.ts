@@ -74,10 +74,8 @@ const fetch = async (options: FetchOptions) => {
     const rows = res.data.FlowAction;
     if (!rows.length) break;
     for (const r of rows) {
-      // Flow's single-party Withdraw puts the recipient amount in amountA; the
-      // two-party Void puts the recipient settlement in amountB.
-      const amount = r.category === "Withdraw" ? r.amountA : r.amountB;
-      if (!amount || amount === "0" || !r.stream?.asset_id) continue;
+      const amount = r.amountA;
+      if (!amount || amount === "0" || !r.stream?.asset_id || r.category !== "Withdraw") continue;
       // asset_id format: `asset-<chainId>-<tokenAddress>`; take the address suffix.
       const parts = r.stream.asset_id.split("-");
       const token = parts[parts.length - 1];
@@ -94,7 +92,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Volume:
-      "Value paid out to Sablier Flow stream recipients per chain. Sum of recipient amounts on `FlowAction` rows where category is Withdraw (recipient pulls accrued funds, recorded in `amountA`) or Void (auto-settles the accrued-but-unwithdrawn portion to the recipient on stream termination, recorded in `amountB`). Refund actions are the sender pulling back uncommitted deposits and are excluded. Streams are pre-funded via deposits and topups. Data is sourced from Sablier's public Envio HyperIndex. Flow is the rate-based recurring-payment product used for payroll, grants, and subscriptions.",
+      "Value paid out to Sablier Flow stream recipients per chain. Sum of recipient amounts on `FlowAction` rows where category is Withdraw (recipient pulls accrued funds, recorded in `amountA`).Void actions are excluded. Refund actions are the sender pulling back uncommitted deposits and are excluded. Streams are pre-funded via deposits and topups. Data is sourced from Sablier's public Envio HyperIndex. Flow is the rate-based recurring-payment product used for payroll, grants, and subscriptions.",
   },
   adapter: CONFIG,
   fetch,

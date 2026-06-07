@@ -1,27 +1,20 @@
-import { Adapter, FetchResultVolume } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
+import { Adapter, FetchResultVolume, FetchOptions } from "../../adapters/types";import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch  = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch  = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const { volumeUSD } = await fetchURL('https://uvevg-iyaaa-aaaak-ac27q-cai.raw.ic0.app/overview')
   
-  timestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  options.toTimestamp = options.startOfDay;
   return {
-    dailyVolume: volumeUSD,
-    timestamp
-  }
+    dailyVolume: volumeUSD,}
 }
 
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ICP]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: '2023-07-16',
-    },
-  }
+  fetch,
+  chains: [CHAIN.ICP],
+  start: '2023-07-16',
+  runAtCurrTime: true,
 }
 
 export default adapter;

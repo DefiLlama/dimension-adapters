@@ -98,7 +98,7 @@ async function fetchSolana(options: FetchOptions) {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 } 
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   return options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEVM(options)
 }
 

@@ -6,12 +6,13 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 const TREASURY = "4Ucw8BNkLWBu6gxkQsw3BRG2qRtw5WrG1UxiKpQjScH5";
 const BUYBACK_SOL_VAULT = "8nEo7GArDc3aVDuHoiDYJoVUNLtzgYaVmGGNvxELCZJc";
 const STOCKPILE_SOL_VAULT = "8RxMJD7BtdzxuZkmDqcxhR6gWvegLJ1GNf9NFrPkCmwf";
+const MeteoraPoolAuthority = "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC";
 
 const BURN_SPLIT_FROM_BUYBACKS = 0.9;
 const STAKING_SPLIT_FROM_BUYBACKS = 0.1;
 
 const fetch = async (options: FetchOptions) => {
-  const vaults = [TREASURY, BUYBACK_SOL_VAULT, STOCKPILE_SOL_VAULT];
+  const vaults = [TREASURY, STOCKPILE_SOL_VAULT];
   const rows = await queryAllium(`
     SELECT
       to_address,
@@ -28,6 +29,18 @@ const fetch = async (options: FetchOptions) => {
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY to_address
   `);
+  
+  // count buy back buy SOL were sent to MeteoraPoolAuthority from TREASURY
+  const buybacks = await queryAllium(`
+    SELECT
+      SUM(raw_amount) AS amount
+    FROM solana.assets.transfers
+    WHERE
+      to_address = '${MeteoraPoolAuthority}'
+      AND from_address = '${TREASURY}'
+      AND mint = '${ADDRESSES.solana.SOL}'
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `);
 
   const treasuryFlows = options.createBalances();
   const buybackFlows = options.createBalances();
@@ -40,6 +53,7 @@ const fetch = async (options: FetchOptions) => {
   rows.forEach((row: { to_address: string; amount: number }) => {
     flowsByVault[row.to_address]?.add(ADDRESSES.solana.SOL, row.amount);
   });
+  flowsByVault[BUYBACK_SOL_VAULT].add(ADDRESSES.solana.SOL, buybacks[0].amount)
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(treasuryFlows, "Mining Fees");
