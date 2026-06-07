@@ -18,7 +18,7 @@ const legacyQuery = (options: FetchOptions) => `
   WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
 `;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const useDexTrades = options.dateString >= DEX_TRADES_START;
   if (useDexTrades) {
     const now = Date.now();

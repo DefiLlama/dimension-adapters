@@ -12,7 +12,7 @@ const badDataDays = [
   }
 ]
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const realVolume = badDataDays.find(day => day.date === options.dateString)?.realVolume;
   if (realVolume) {
     return { dailyVolume: realVolume };

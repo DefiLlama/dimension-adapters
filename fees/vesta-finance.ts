@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
 
@@ -26,43 +26,38 @@ const invest_addres: TAddress = {
   [CHAIN.ARBITRUM]: '0x0f5d5e424765bf3b49f932f0e9b8e6f3791d33b1'
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = createBalances();
-    (await getLogs({ target: address[chain], eventAbi: event_borrow_fees_paid })).forEach((e: any) => {
-      dailyFees.add(VST_ADDRESS, e._VSTFee)
-    });
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = createBalances();
+  (await getLogs({ target: address[chain], eventAbi: event_borrow_fees_paid })).forEach((e: any) => {
+    dailyFees.add(VST_ADDRESS, e._VSTFee)
+  });
 
-    (await getLogs({ target: invest_addres[chain], eventAbi: event_interate_mint })).forEach((e: any) => {
-      dailyFees.add(VST_ADDRESS, e.interestMinted)
-    });
+  (await getLogs({ target: invest_addres[chain], eventAbi: event_interate_mint })).forEach((e: any) => {
+    dailyFees.add(VST_ADDRESS, e.interestMinted)
+  });
 
-    (await getLogs({ target: troveMagaer[chain], eventAbi: event_redemption })).forEach((e: any) => {
-      dailyFees.add(e._asset, e._AssetFee)
-    });
+  (await getLogs({ target: troveMagaer[chain], eventAbi: event_redemption })).forEach((e: any) => {
+    dailyFees.add(e._asset, e._AssetFee)
+  });
 
-    (await getLogs({ target: troveMagaer[chain], eventAbi: event_liq_event })).forEach((e: any) => {
-      dailyFees.add(e._asset, e._liquidatedColl)
-      dailyFees.add(VST_ADDRESS, e._liquidatedDebt * -1)
-    });
+  (await getLogs({ target: troveMagaer[chain], eventAbi: event_liq_event })).forEach((e: any) => {
+    dailyFees.add(e._asset, e._liquidatedColl)
+    dailyFees.add(VST_ADDRESS, e._liquidatedDebt * -1)
+  });
 
-    (await getLogs({ target: GMX_STAKER, eventAbi: event_reward_staker, }))
-      .map((e: any) => { dailyFees.addGasToken(e.reward) });
+  (await getLogs({ target: GMX_STAKER, eventAbi: event_reward_staker, }))
+    .map((e: any) => { dailyFees.addGasToken(e.reward) });
 
-    (await getLogs({ target: GLP_STAKER, eventAbi: event_reward_staker, }))
-      .map((e: any) => { dailyFees.addGasToken(e.reward) });
+  (await getLogs({ target: GLP_STAKER, eventAbi: event_reward_staker, }))
+    .map((e: any) => { dailyFees.addGasToken(e.reward) });
 
-    return { dailyFees, dailyRevenue: dailyFees, timestamp }
-  }
+  return { dailyFees, dailyRevenue: dailyFees, }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: '2022-12-29',
-    },
-  }
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2022-12-29',
 }
 
 export default adapter;

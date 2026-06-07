@@ -55,7 +55,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   }
 };
 
-const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = async (options: FetchOptions) => {
   // Volume from TreadTools (MMBot orders only)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
@@ -74,7 +74,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchExtended = async (options: FetchOptions) => {
   // Volume from TreadTools (MMBot orders only)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
@@ -94,7 +94,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchParadex = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;
@@ -113,7 +113,7 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // Nado is a perps exchange on the Ink chain
-const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchInk = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -136,7 +136,7 @@ const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // Aggregates Pacifica + Bybit (both CEX copy-trading on Solana)
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -167,7 +167,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // Aggregates Aster + Binance (both CEX copy-trading on BSC)
-const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchBsc = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;

@@ -8,7 +8,7 @@ interface IChartItem {
   dailyRevenue: number;
 }
 
-const fetch = async (_a:any, _b:any, { dateString }: FetchOptions) => {
+const fetch = async ({ dateString }: FetchOptions) => {
   const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
@@ -27,12 +27,9 @@ const fetch = async (_a:any, _b:any, { dateString }: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.COSMOS]: {
-      fetch,
-      start: '2022-04-15',
-    },
-  },
+  chains: [CHAIN.COSMOS],
+  fetch,
+  start: '2022-04-15',
 };
 
 export default adapter;

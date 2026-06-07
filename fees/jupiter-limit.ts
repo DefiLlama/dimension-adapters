@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "./jupiter"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: { usd_amount: number; product: string }[] = await queryAllium(`
     -- v1: All transfers to fee wallet excluding transfers from the wallet itself
     SELECT 

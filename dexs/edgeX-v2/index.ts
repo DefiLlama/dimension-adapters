@@ -8,7 +8,7 @@ const META_ENDPOINT = "https://edgex-prod-v2.edgex.exchange/api/v2/public/meta/g
 const klineEndpoint = (contractId: string, startTime: number, endTime: number) =>
   `https://edgex-prod-v2.edgex.exchange/api/v2/public/quote/getKline?contractId=${contractId}&klineType=DAY_1&filterBeginKlineTimeInclusive=${startTime}&filterEndKlineTimeExclusive=${endTime}&priceType=LAST_PRICE`;
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const metadata = await fetchURL(META_ENDPOINT);
   const contracts: { contractId: string }[] = metadata.data.contractList.filter((contract: { enableTrade: boolean; enableDisplay: boolean }) => contract.enableTrade && contract.enableDisplay);
   const startTime = options.startOfDay * 1000;

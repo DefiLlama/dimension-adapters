@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import { Adapter, Chain, Fetch } from "../adapters/types";
+import { Adapter, Chain, Fetch, FetchOptions } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { CHAIN } from "./chains";
 
@@ -61,12 +61,12 @@ const dailyByDayAndAccounts = `
   }
 `;
 
-export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
-  return async (timestamp: number, _c: any, { chain }: { chain: Chain }) => {
-    const endpoint = config[chain];
-    if (!endpoint || !builderAddresses?.length) return { timestamp };
+export const fetchBuilderSymmioPerps = (builderAddresses: string[]) => {
+  return async (options: FetchOptions) => {
+    const endpoint = config[options.chain];
+    if (!endpoint || !builderAddresses?.length) return { };
 
-    const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+    const startOfDay = getTimestampAtStartOfDayUTC(options.toTimestamp);
     const day = String(Math.floor(startOfDay / 86400));
     const accounts = [...new Set(builderAddresses.map((a) => a.toLowerCase()))];
 
@@ -77,7 +77,7 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
 
     const { dailyHistories = [] } = await request(endpoint, dailyByDayAndAccounts, { day, accounts })
       .catch((error) => {
-        console.error(`Symmio builder daily histories graph request failed on ${chain} (${endpoint})`, error);
+        console.error(`Symmio builder daily histories graph request failed on ${options.chain} (${endpoint})`, error);
         return { dailyHistories: [] };
       }) as { dailyHistories: DailyHistory[] };
 
@@ -108,14 +108,14 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
   };
 };
 
-export const fetchBuilderSymmioPerpsByName = (affiliateName: string): Fetch => {
-  return async (timestamp: number, _c: any, { chain }) => {
-    const endpoint = config[chain];
-    if (!endpoint || !affiliateName) return { timestamp };
+export const fetchBuilderSymmioPerpsByName = (affiliateName: string) => {
+  return async (options: FetchOptions) => {
+    const endpoint = config[options.chain];
+    if (!endpoint || !affiliateName) return { };
 
     const res = await request(endpoint, affiliateQuery)
       .catch((error) => {
-        console.error(`Symmio affiliate graph request failed on ${chain} (${endpoint})`, error);
+        console.error(`Symmio affiliate graph request failed on ${options.chain} (${endpoint})`, error);
         return { symmioEntities: [] };
       }) as { symmioEntities: SymmioEntity[] };
     const wanted = affiliateName.trim().toLowerCase();
@@ -125,9 +125,9 @@ export const fetchBuilderSymmioPerpsByName = (affiliateName: string): Fetch => {
       .map(e => e.address)
       .filter(Boolean);
 
-    if (!addresses.length) return { timestamp: getTimestampAtStartOfDayUTC(timestamp) };
+    if (!addresses.length) return { };
 
-    return fetchBuilderSymmioPerps(addresses)(timestamp, _c, { chain } as any);
+    return fetchBuilderSymmioPerps(addresses)(options);
   };
 };
 

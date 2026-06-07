@@ -17,7 +17,7 @@ const FEE_WALLETS = [
 ]
 
 // https://dune.com/queries/5768935/9358569
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // count WETH received by fee wallets
   const dailyRevenue = await addTokensReceived({
     options,

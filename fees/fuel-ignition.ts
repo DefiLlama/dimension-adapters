@@ -14,7 +14,7 @@ interface BlobFeesResponse {
   endTimestamp: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   
@@ -63,12 +63,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   runAtCurrTime: true,
-  adapter: {
-    [CHAIN.FUEL]: {
-      fetch,
-      start: '2024-11-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.FUEL],
+  start: '2024-11-01',
   protocolType: ProtocolType.CHAIN,
 };
 

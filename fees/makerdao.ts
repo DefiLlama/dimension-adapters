@@ -24,7 +24,7 @@ const METRICS = {
 
 const getDay = (ts: number) => new Date(ts * 1000).toISOString().split('T')[0]
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
@@ -82,12 +82,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
 const adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2019-11-13',
-    },
-  },
+  chains: [CHAIN.ETHEREUM],
+  fetch,
+  start: '2019-11-13',
   methodology: {
     Fees: "Stability fees charged on DAI/USDS loans, liquidation income from collateral auctions, and PSM (Peg Stability Module) fees from USDC/DAI conversions",
     Revenue: "Fees collected minus savings rate paid to DSR depositors",

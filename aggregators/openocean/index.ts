@@ -48,7 +48,7 @@ const CHAINS: Record<string, string> = {
   [CHAIN.STARKNET]: "2025-05-17",
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { data } = await fetchURL(`${URL}/${options.chain}/getDailyVolume?timestamp=${options.startOfDay}`);
   const { dailyVolume } = data || { dailyVolume: 0 };
   return { dailyVolume };

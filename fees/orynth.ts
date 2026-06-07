@@ -110,7 +110,7 @@ const getSqlFromString = (sql: string, variables: Record<string, any> = {}): str
   return sql;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // Step 1: Get all configs dynamically
   const configsQuery = `
     SELECT DISTINCT account_config

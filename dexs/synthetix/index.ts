@@ -79,7 +79,7 @@ const contracts: string[] = [
   '0x50a40d947726ac1373DC438e7aaDEde9b237564d'
 ]
 
-const fetch: any = async (_a: any, _b: any, { getLogs }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0
   const logs_modify: any[] = await getLogs({ targets: contracts, eventAbi: event_modified_positions, })
   logs_modify.forEach((log: any) => {

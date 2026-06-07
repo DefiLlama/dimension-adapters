@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -42,35 +42,23 @@ type Responce = {
   };
 };
 
-const fetch =
-  (chain: string) =>
-    async (timestamp: number): Promise<FetchResultFees> => {
-      const resp: Responce = await httpGet(`${url}?timestamp=${timestamp}`);
-      const data = resp.chains[chain];
-      if (!data || !data.daily || !data.total) {
-        return {} as FetchResultFees;
-      }
-      return {
-        dailyFees: data.daily.revenue,
-        dailyRevenue: data.daily.revenue,
-        timestamp
-      };
-    };
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const resp: Responce = await httpGet(`${url}?timestamp=${options.toTimestamp}`);
+  const data = resp.chains[options.chain];
+  if (!data || !data.daily || !data.total) {
+    return {} as FetchResultFees;
+  }
+  return {
+    dailyFees: data.daily.revenue,
+    dailyRevenue: data.daily.revenue,
+  };
+};
 
 const adapter: Adapter = {
-  adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const key = chain[1];
-      return {
-        ...acc,
-        [key]: {
-          fetch: fetch(key),
-          start: '2023-09-04',
-          deadFrom: "2026-01-16",
-        },
-      };
-    }, {}),
-  },
+  fetch,
+  chains,
+  start: '2023-09-04',
+  deadFrom: "2026-01-16",
   methodology: {
     Fees: "Fees paid by users for trading and bridging.",
     Revenue: "All fees are revenue.",

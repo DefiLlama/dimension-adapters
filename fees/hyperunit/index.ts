@@ -2,7 +2,7 @@ import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { queryHyperliquidIndexer } from '../../helpers/hyperliquid';
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const result = await queryHyperliquidIndexer(options)
 
   return {

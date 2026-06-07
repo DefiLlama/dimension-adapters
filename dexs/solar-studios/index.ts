@@ -4,7 +4,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 const statsurl = 'https://api.solarstudios.co/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=1';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<any> => {
+const fetch = async (options: FetchOptions): Promise<any> => {
   const res = await httpGet(statsurl);
   const dailyVolume = options.createBalances();
 

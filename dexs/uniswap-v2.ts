@@ -252,7 +252,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
   };
 }
 
-const fetch = async (_t: any, _tb: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (!config) {
     throw Error(`config not found for chain ${options.chain}`);

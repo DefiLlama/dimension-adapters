@@ -10,7 +10,7 @@ type LighterMetricPoint = {
   data: number;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
   const { results, errors } = await PromisePool.withConcurrency(2)
     .for(["active_account_count", "trade_count"])

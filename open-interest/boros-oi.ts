@@ -5,7 +5,7 @@ import { queryDuneSql } from '../helpers/dune';
 
 const BOROS_API = "https://api.boros.finance/core/v1/markets";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   let openInterestAtEnd = 0;
   const today = Math.floor(new Date().getTime() / 1000)
   if (options.startOfDay <= today - 48 * 3600) {
@@ -151,6 +151,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: "2025-07-28",

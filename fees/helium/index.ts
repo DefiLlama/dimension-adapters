@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `select (
         select sum(coalesce(json_value(args, 'lax $.BurnDelegatedDataCreditsArgsV0.amount' returning bigint), 0)) / 1e5
         from helium_solana.data_credits_call_burnDelegatedDataCreditsV0 where call_block_time >=  from_unixtime(${options.fromTimestamp}) and call_block_time < from_unixtime(${options.toTimestamp}))

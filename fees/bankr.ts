@@ -24,7 +24,7 @@ interface BankrDashboard {
 // dailyProtocolFees.creatorFees -> creator/supply side revenue
 // dailyFees.clanker -> clanker integration fees
 // dailyFees.doppler -> doppler integration fees
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

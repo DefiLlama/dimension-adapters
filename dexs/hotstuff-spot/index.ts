@@ -6,7 +6,7 @@ import { sleep } from "../../utils/utils";
 
 const HOTSTUFF_API_URL = "https://api.hotstuff.trade/info";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
     const marketsInfo = await postURL(HOTSTUFF_API_URL, {

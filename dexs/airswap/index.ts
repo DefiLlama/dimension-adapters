@@ -14,7 +14,7 @@ const address: TAddress = {
   [CHAIN.ARBITRUM]: '0xd82FA167727a4dc6D6F55830A2c47aBbB4b3a0F8'
 }
 
-const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = (async ({ getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = createBalances();
 
   const logs = (await getLogs({
@@ -22,8 +22,8 @@ const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chai
     eventAbi: event_swap,
   }))
   logs.forEach(i => dailyVolume.add(i.signerToken, i.signerAmount))
-  return { dailyVolume, timestamp, };
-}) as Fetch
+  return { dailyVolume, };
+})
 
 const adapter: SimpleAdapter = {
   adapter: {

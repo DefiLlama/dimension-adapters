@@ -23,7 +23,7 @@ const statsQuery = gql`
   }
 `;
 
-const fetch = async (_: any, __: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = Math.floor(options.startOfDay / 86400) * 86400;
   const variables = { id: `${dayTimestamp}:daily` };
 

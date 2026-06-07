@@ -18,7 +18,7 @@ const ETHENA_METRICS = {
 const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCase().includes('ethena');
 const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
   //   start: options.startTimestamp,

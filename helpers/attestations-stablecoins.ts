@@ -16,7 +16,7 @@ export function buildStablecoinAdapter(chain: string, stablecoinId: string, days
         version: 1,
         adapter: {
             [chain]: {
-                fetch: async (_a: any, _b: any, options: FetchOptions) => {
+                fetch: async (options: FetchOptions) => {
                     const dailyFees = options.createBalances()
 
                     const FRED_API_KEY = getEnv("FRED_API_KEY");

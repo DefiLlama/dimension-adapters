@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const url = "https://prod.backend.agdex.io/stats/data?timestamp=";
 
-const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const date = options.startOfDay.toString();
   const res: any = await httpGet(url + date);
   const data = res.data;
