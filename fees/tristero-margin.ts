@@ -35,6 +35,7 @@ const MARGIN_METRICS = {
     BORROW_INTEREST_TO_LENDERS: 'Borrow Interest To Lenders',
     LIQUIDATION_FEES_TO_PROTOCOL: 'Liquidation Fees To Protocol',
 } as const;
+const MULTICALL_FALLBACK_BATCH_SIZE = 5;
 
 type ProtocolFeeLog = {
     token: string;
@@ -131,7 +132,15 @@ async function permitFailureMultiCallWithFallback(
     }
 
     const block = params.block ?? api.block;
-    return Promise.all(params.calls.map(async (call, index) => {
+    const outputs: any[] = [];
+    for (let offset = 0; offset < params.calls.length; offset += MULTICALL_FALLBACK_BATCH_SIZE) {
+        const batch = params.calls.slice(offset, offset + MULTICALL_FALLBACK_BATCH_SIZE);
+        outputs.push(...await Promise.all(batch.map((call, batchIndex) => readFallbackCall(call, offset + batchIndex))));
+    }
+
+    return outputs;
+
+    async function readFallbackCall(call: PermitFailureMultiCallParams["calls"][number], index: number): Promise<any | null> {
         const target = call.target ?? params.target;
         if (!target) {
             sdk.log(`Tristero multicall fallback missing target on ${options.chain} ${context} call ${index}`);
@@ -151,7 +160,7 @@ async function permitFailureMultiCallWithFallback(
             sdk.log(`Tristero multicall fallback failed on ${options.chain} ${context} call ${index} target ${target}: ${formatErrorMessage(error)}`);
             return null;
         }
-    }));
+    }
 }
 
 async function readV3LoanValuesAtBlock(
