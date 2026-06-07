@@ -22,7 +22,7 @@ const prefetch = async (options: FetchOptions) => {
     return duneResult;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const duneResult = options.preFetchedResults;
     const dailyVolume = duneResult.find((item: any) => item.blockchain === chainConfig[options.chain].duneChain)?.usd_volume || 0;
 

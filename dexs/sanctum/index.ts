@@ -3,16 +3,15 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Source: https://dune.com/queries/3276095
 const chainConfig: Record<string, { start: string; reserveAccount: string; feeAccount: string }> = {
   [CHAIN.SOLANA]: {
     start: "2022-07-14",
     reserveAccount: "3rBnnH9TTgd3xwu48rnzGsaQkSr1hR64nY71DrDt6VrQ",
     feeAccount: "5Pcu8WeQa3VbBz2vdBT49Rj4gbS4hsnfzuL1LmuRaKFY",
   },
-};
+}
 
-const fetch = async (_timestamp: number, _chainBlocks: unknown, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { reserveAccount, feeAccount } = chainConfig[options.chain];
   const [row] = await queryDuneSql(options, `
     SELECT COALESCE(SUM(-reserve.balance_change), 0) AS sol_dispensed

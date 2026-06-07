@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
+import { FetchOptions } from "../../adapters/types";
 
 const API = "https://papi.synthetix.io/v1/info";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,7 +14,7 @@ const post = async (params: any) => {
     return res.response;
 };
 
-const fetch = async (_: any, __: any, options: any) => {
+const fetch = async (options: FetchOptions) => {
     const startMs = options.startOfDay * 1000;
     const endMs = startMs + DAY_MS;
     const dailyVolume = options.createBalances();

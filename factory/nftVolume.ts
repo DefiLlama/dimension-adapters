@@ -108,7 +108,7 @@ const chains = [
   { chain: "ronin", fetch: ronin, runAtCurrTime: true },
   { chain: "cardano", fetch: cardano, runAtCurrTime: true },
 ].reduce((acc, { chain, fetch, runAtCurrTime }) => {
-  acc[chain] = { fetch: (_: any, _1: any, options: FetchOptions) => fetch(options), version: 1, runAtCurrTime, chains: [chain], };
+  acc[chain] = { fetch: (options: FetchOptions) => fetch(options), version: 1, runAtCurrTime, chains: [chain], };
   return acc;
 }, {} as Record<string, { fetch: any, version: number, runAtCurrTime?: boolean, chains: string[] }>);
 

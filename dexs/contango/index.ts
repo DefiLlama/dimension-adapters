@@ -9,7 +9,7 @@ const chainMap: Record<string, string> = {
   [CHAIN.BSC]: "bsc",
 };
 
-const fetch = async (_a: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { chain, fromTimestamp, toTimestamp } = options;
   const mappedChain = chainMap[chain] ?? chain
   const query = `

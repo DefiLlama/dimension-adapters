@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
     [CHAIN.BASE]: "https://subgraph.meridianfinance.net/subgraphs/name/perpetuals-stats"
@@ -26,18 +25,16 @@ interface IGraphResponse {
     }>
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
     const chain = CHAIN.BASE
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
     const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
         id: chain === CHAIN.BASE
-            ? String(dayTimestamp)
-            : String(dayTimestamp) + ':daily',
+            ? String(options.startOfDay)
+            : String(options.startOfDay) + ':daily',
         period: 'daily',
     })
 
     return {
-        timestamp: dayTimestamp,
         dailyVolume:
             dailyData.volumeStats.length == 1
                 ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -46,12 +43,9 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch,
-            start: 1691829674,
-        }
-    }
+    fetch,
+    chains: [CHAIN.BASE],
+    start: 1691829674,
 }
 
 export default adapter;

@@ -186,7 +186,7 @@ const fetchHoldingInterestsPaid = async (options: FetchOptions) => {
     return interestDistributed;
 }
 
-async function fetch(_t: any, _a: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

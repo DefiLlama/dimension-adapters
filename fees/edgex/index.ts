@@ -20,7 +20,7 @@ interface IEdgeXFeeResponse {
   traceId: string;
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const apiUrl = `${API_ENDPOINT}?filterBeginKlineTimeInclusive=${(options.fromTimestamp - 800) * 1000}&filterEndKlineTimeExclusive=${options.toTimestamp * 1000}`;
 
   const { data }: IEdgeXFeeResponse = await httpGet(apiUrl)
@@ -51,7 +51,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   };
 };
 
-const fetchBB = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchBB = async (options: FetchOptions) => {
   const buybacks = await addTokensReceived({
     options,
     target: '0x221e7fca09589ab2d7dc552ee72acf1a2ff10048',

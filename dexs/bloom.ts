@@ -96,7 +96,7 @@ const fetchEvm = (options: FetchOptions, config: { start: string; contractAddres
   `) as Promise<DuneVolumeRow[]>;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
 

@@ -10,7 +10,7 @@ const suiteBotFeesURL = 'https://crypton-be-bk6w.onrender.com/by-day';
 let allStats: any
 
 
-const fetchSuiteStats = async (_: any, _1: any, { dateString }: FetchOptions) => {
+const fetch = async ({ dateString }: FetchOptions) => {
   // because the API doesn't support timestamp, we need to fetch all data and filter it
   if (!allStats) {
     const { data } = await httpGet(suiteBotFeesURL)
@@ -33,13 +33,10 @@ const fetchSuiteStats = async (_: any, _1: any, { dateString }: FetchOptions) =>
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetchSuiteStats,
-      start: '2024-09-25',
-      deadFrom: '2025-11-10',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  start: '2024-09-25',
+  deadFrom: '2025-11-10',
   methodology: {
     Fees: 'Total fees paid from bot trades',
     Revenue: 'Total fees paid from bot trades',

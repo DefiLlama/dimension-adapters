@@ -12,7 +12,7 @@ const ABIs: TABI = {
 	"getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
 }
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, createBalances }: FetchOptions) => {
+const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 	const dailyVolume = createBalances();
 	const lpTokens = await api.fetchList({ lengthAbi: ABIs.getNumberOfLBPairs, itemAbi: ABIs.getLBPairAtIndex, target: FACTORY_ADDRESS })
 
@@ -35,14 +35,15 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
 		})
 	})
 
-	return { dailyVolume, timestamp, };
+	return { dailyVolume, };
 }
 
 const adapter: SimpleAdapter = {
+	fetch,
 	adapter: {
-		[CHAIN.FANTOM]: { fetch, start: '2023-04-10', },
-		[CHAIN.ARBITRUM]: { fetch, start: '2023-06-11', },
-		[CHAIN.BASE]: { fetch, start: '2023-08-09', }
+		[CHAIN.FANTOM]: { start: '2023-04-10', },
+		[CHAIN.ARBITRUM]: { start: '2023-06-11', },
+		[CHAIN.BASE]: { start: '2023-08-09', }
 	}
 };
 

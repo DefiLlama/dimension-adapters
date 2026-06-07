@@ -1,5 +1,5 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const getDailyVolume = () => {
@@ -24,11 +24,10 @@ interface IGraphResponse {
   dailyTradeVolumeUSD: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).dailyDexes.nodes;
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp.split('T')[0] === dateString)?.dailyTradeVolumeUSD
+    .find(dayItem => dayItem.timestamp.split('T')[0] === options.dateString)?.dailyTradeVolumeUSD
   if (Number(Number(dailyVolume) / 10 ** 18) > 5_000_000) {
     throw new Error("Daily volume is too high");
   }

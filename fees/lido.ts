@@ -19,8 +19,8 @@ const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDist
 const LIDO_AGENT = '0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c'
 const BUYBACKS_SAFE = '0xf6F0732c1e9971497342C295141566E6F1A31e96'
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+const fetch = async (options: FetchOptions) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400)
 
   const graphQuery = gql
     `{

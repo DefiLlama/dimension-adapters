@@ -364,7 +364,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pull
     const fetch: any = getUniV2LogAdapter(chainConfig)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      fetch: async (options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
   })
@@ -393,7 +393,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
     exportObject[chain] = { fetch, start: chainConfig.start }
     if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      fetch: async (options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
     if (chainConfig.deadFrom) exportObjectV1[chain].deadFrom = chainConfig.deadFrom

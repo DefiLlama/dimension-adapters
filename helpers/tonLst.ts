@@ -133,7 +133,7 @@ export function tonLstExport(exportConfig: TonLstExportConfigs) {
         'Staking Rewards To Stakers': 'Net staking rewards distributed to LST holders after commission/protocol fees.',
       },
     },
-    fetch: (_: any, _1: any, options: FetchOptions) => fetchFees(options, exportConfig),
+    fetch: (options: FetchOptions) => fetchFees(options, exportConfig),
     chains: [CHAIN.TON],
   };
   return adapter;

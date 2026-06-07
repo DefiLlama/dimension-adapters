@@ -24,7 +24,7 @@ export const SanctumMetric = {
   StakingRewardsToStakers: 'Staking Rewards To Stakers',
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `

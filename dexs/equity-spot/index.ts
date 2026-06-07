@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('9USQeMVzzBbxsXhQUmCk5fZursvL9Vj3cv8joYNXeKt9'),
@@ -26,19 +25,13 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const fetch = async (options: FetchOptions) => {
   const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalData, {
-    id: String(dayTimestamp) + ':daily',
+    id: String(options.startOfDay) + ':daily',
     period: 'daily',
-  })
+  });
 
-  return {
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : '0',
-  }
+  return { dailyVolume: dailyData.volumeStats.length == 1 ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30) : '0' };
 }
 
 const startTimestamps: { [chain: string]: number } = {

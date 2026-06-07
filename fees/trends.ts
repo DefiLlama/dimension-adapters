@@ -122,7 +122,7 @@ const config = [
   "7UP2hcAoYvyzumQv3BtvmXDCQk2WoqMEXKym8cCdLAh6",
 ];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromString(dbcSQL, {
     config: config.join("','"),
     start: options.startTimestamp,

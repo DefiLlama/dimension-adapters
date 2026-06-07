@@ -1,12 +1,12 @@
 import PromisePool from "@supercharge/promise-pool";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 import { sleep } from "../utils/utils";
 
 const baseUrl = "https://app.bullbit.ai/api";
 
-const fetch = async (_: any) => {
+const fetch = async (_options: FetchOptions) => {
   const tickers = await fetchURL(`${baseUrl}/perp/v1/ticker/24hr`);
   const symbols: string[] = tickers.map((t: any) => t.symbol);
 

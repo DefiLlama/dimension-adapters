@@ -5,7 +5,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const API_BASE = "https://api.sunperp.com";
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { data } = await fetchURL(`${API_BASE}/sapi/v1/public/contract_info?business_type=swap`);
   const contracts = data.filter(({ contract_status }: any) => contract_status === 1);
   // Avoid Error Handling, Contract list is current; some markets may not have klines for older dates.

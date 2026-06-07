@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import { SimpleAdapter, FetchResultV2 } from "../../adapters/types";
+import { SimpleAdapter, FetchResultV2, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -22,8 +22,8 @@ interface ITradingStat {
   id: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultV2> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
   const period = "daily";
   const graphQuery = gql`
@@ -97,12 +97,9 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FLARE]: {
-      fetch,
-      start: '2024-11-05',
-    },
-  },
+  fetch,
+  chains: [CHAIN.FLARE],
+  start: '2024-11-05',
   methodology,
 };
 

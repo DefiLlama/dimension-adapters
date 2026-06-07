@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   function toDateQuery(timestmap: number): string {
     return new Date(timestmap * 1000).toISOString();
