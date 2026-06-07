@@ -2,52 +2,49 @@ import { Adapter, FetchOptions, } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
-const bucketApiURL = "https://open-api.bucketprotocol.io/api/"
+const bucketApiURL = "https://open-api.bucketprotocol.io/api/fees"
 
-interface DailyStats {
-  date: string
-  total_records: number
-  total_fee_value: string
-  average_fee_value: string
-  min_fee_value: string
-  max_fee_value: string
-  first_record_time: string
-  last_record_time: string
-  first_record_time_ms: number
-  last_record_time_ms: number
-}
+// The protocol retains 1% of collected fees as a reserve balance
+// All other fees (99%) are distributed to BKT stakers via the Well mechanism
+const PROTOCOL_RESERVE_RATE = 0.01
 
 const methodology = {
-  Fees:
-    "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest",
-  Revenue:
-    "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
+  Fees: "All fees paid by users: borrow, PSM, liquidation, redeem, flash loan, and interest",
+  UserFees: "All fees paid by users: borrow, PSM, liquidation, redeem, flash loan, and interest",
+  Revenue: "All fees collected; BSR yield is funded by BUCK minting (not fees) so there is no supply-side cost",
+  HoldersRevenue: "99% of collected fees distributed to BKT stakers via the Well mechanism",
+  ProtocolRevenue: "1% of collected fees retained as Well reserve, withdrawable by protocol admin",
 }
 
 const fetch = async ({ startTimestamp, dateString }: FetchOptions) => {
   const url = `${bucketApiURL}fees?timestamp_ms=${startTimestamp * 1000}`
-  const stats: DailyStats = (await fetchURL(url)).data
+  const stats: any = (await fetchURL(url)).data
 
   if (!stats) {
-    throw new Error(`No data found for ${dateString}`);
+    throw new Error(`No data found for ${dateString}`)
   }
 
-  const dailyFees = stats.total_fee_value
-  const dailyRevenue = stats.total_fee_value
+  if (stats.total_fee_value == null) throw new Error(`Missing fee field in API response for ${dateString}`)
+  const dailyFees = Number(stats.total_fee_value)
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees * (1 - PROTOCOL_RESERVE_RATE),
+    dailyProtocolRevenue: dailyFees * PROTOCOL_RESERVE_RATE,
   }
 }
 
 const adapter: Adapter = {
-  fetch,
-  chains: [CHAIN.SUI],
-  start: "2024-02-29",
   methodology,
+  adapter: {
+    [CHAIN.SUI]: {
+      fetch,
+      start: "2024-02-29",
+      deadFrom: "2025-09-16",
+    },
+  },
 }
 
 export default adapter

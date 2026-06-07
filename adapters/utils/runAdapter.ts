@@ -85,7 +85,8 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 export function isHourlyAdapter(module: SimpleAdapter) {
   const adapterVersion = module.version
-  return adapterVersion === 2 && (module as any).pullHourly === true
+  const disablePullHourly = String(process.env.DISABLE_PULL_HOURLY) // for local testing purpose only
+  return adapterVersion === 2 && (module as any).pullHourly === true && disablePullHourly !== 'true'
 }
 
 export function isPlainDateArg(rawTimeArg?: string) {

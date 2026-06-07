@@ -234,6 +234,7 @@ const protocolBreakdown = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: Object.entries(bridgeConfig).reduce<BaseAdapter>((acc, [chain, { start }]) => ({ ...acc, [chain]: { start } }), {}),
   methodology: {
