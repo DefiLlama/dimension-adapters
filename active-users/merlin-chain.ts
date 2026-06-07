@@ -2,7 +2,7 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startOfDay } = options;
   const endOfDay = startOfDay + 86400;
   const input = encodeURIComponent(JSON.stringify({ json: { timeStart: startOfDay, timeEnd: endOfDay } }));
