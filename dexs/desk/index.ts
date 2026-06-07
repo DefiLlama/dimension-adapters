@@ -1,4 +1,4 @@
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -9,8 +9,8 @@ interface Response {
   dailyVolume: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const response = await httpGet(`${URL}?date=${timestamp}`);
+const fetch = async (options: FetchOptions) => {
+  const response = await httpGet(`${URL}?date=${options.toTimestamp}`);
   const data: Response = response.data;
 
   const dailyVolume = data.dailyVolume;
@@ -21,12 +21,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2025-02-18",
-    },
-  },
+  fetch,
+  chains: [CHAIN.BASE],
+  start: "2025-02-18",
 };
 
 export default adapter;

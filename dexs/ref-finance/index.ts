@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
       //   return dateToTs(data[0].date)
       // },
       runAtCurrTime: true,
-      fetch: async(_ts: any, _t: any, options: FetchOptions)=>{
+      fetch: async(options: FetchOptions)=>{
         const pools = await getPools();
 
         let volume = 0
@@ -32,7 +32,6 @@ const adapter: SimpleAdapter = {
         }
         
         return {
-          timestamp: options.startOfDay,
           dailyVolume: volume,
           dailyFees: fees,
           dailyRevenue: fees * 0.2,

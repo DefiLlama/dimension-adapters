@@ -1,5 +1,5 @@
 import { httpGet } from "../../utils/fetchURL";
-import { Adapter, Fetch, FetchResultIncentives, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchResultIncentives, ProtocolType, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
@@ -7,8 +7,8 @@ const BASE_REWARD = 50
 const HALVING_BLOCKS = 210000
 const getBCHRewardByBlock = (block: number) => BASE_REWARD / Math.pow(2, Math.floor(block / HALVING_BLOCKS))
 
-const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncentives> => {
-	const startOfDay = timestamp - (timestamp % 86400)
+const getIncentives: FetchV2 = async (options: FetchOptions): Promise<FetchResultIncentives> => {
+	const startOfDay = options.startOfDay;
 	const date = new Date(startOfDay * 1000).toISOString().slice(0, 10)
 
 	let allBlocks: any[] = []
@@ -23,15 +23,14 @@ const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncen
 	}
 
 	if (allBlocks.length === 0) {
-		throw new Error(`No BCH blocks found for timestamp ${timestamp}`)
+		throw new Error(`No BCH blocks found for timestamp ${options.toTimestamp}`)
 	}
 
 	const rewardByBlock = getBCHRewardByBlock(allBlocks[0].id)
 	const totalReward = allBlocks.length * rewardByBlock
-	const tokenIncentives = await sdk.Balances.getUSDString({ 'coingecko:bitcoin-cash': totalReward }, timestamp)
+	const tokenIncentives = await sdk.Balances.getUSDString({ 'coingecko:bitcoin-cash': totalReward }, options.toTimestamp)
 
 	return {
-		timestamp,
 		block: allBlocks[0].id,
 		tokenIncentives,
 	}

@@ -7,7 +7,9 @@ import { addOneToken } from "../helpers/prices"
 const METRIC = {
   SWAP_FEES: 'Token Swap Fees',
   PROTOCOL_REVENUE: 'Swap Fees To Protocol',
+  HOLDERS_REVENUE: 'Swap Fees To Holders',
   LP_REVENUE: 'Swap Fees To Liquidity Providers',
+  BUY_BACK_AND_BURN: 'Buy Back And Burn CAKE',
 }
 
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
@@ -16,15 +18,15 @@ const config: any = {
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
-  pullHourly: true,
+  // pullHourly: true,
   version: 2,
   adapter: {},
   methodology: {
     Fees: 'Total swap fees paid by users.',
-    Revenue: 'Share of swap fees to protocol.',
-    ProtocolRevenue: 'Share of swap fees to protocol.',
+    Revenue: 'Share of swap fees to protocol and holders.',
+    ProtocolRevenue: '50% of revenue are collected by protocol.',
     SupplySideRevenue: 'Share of swap fees to LPs.',
-    HoldersRevenue: 'No revenue share to holders.',
+    HoldersRevenue: '50% of revenue are used to buy back and burn CAKE',
   },
   breakdownMethodology: {
     Fees: {
@@ -32,12 +34,16 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [METRIC.PROTOCOL_REVENUE]: 'Share of swap fees to protocol.',
+      [METRIC.HOLDERS_REVENUE]: '50% of revenue are collected by protocol.',
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_REVENUE]: 'Share of swap fees to protocol.',
+      [METRIC.PROTOCOL_REVENUE]: '50% of revenue are collected by protocol.',
     },
     SupplySideRevenue: {
       [METRIC.LP_REVENUE]: 'Share of swap fees to LPs.',
+    },
+    HoldersRevenue: {
+      [METRIC.BUY_BACK_AND_BURN]: '50% of revenue will be used to buy back and burn CAKE',
     },
   }
 }
@@ -47,9 +53,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
   const getFromBlock = Number(fromApi.block)
   const getToBlock = Number(toApi.block)
   const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailyHoldersRevenue = createBalances()
+  const swapFees = createBalances()
+  const revenue = createBalances()
 
   const logs = await getLogs({
     target: clPoolManager,
@@ -100,22 +105,35 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
         const amount1ProtocolFees = (amount1 * BigInt(protocolFee)) / BigIntE6
 
         addOneToken({ chain, balances: dailyVolume, token0: currency0, amount0, token1: currency1, amount1 })
-        addOneToken({ chain, balances: dailyFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
-        addOneToken({ chain, balances: dailyRevenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
+        addOneToken({ chain, balances: swapFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
+        addOneToken({ chain, balances: revenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
       })
     },
   })
 
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
+  const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES);
+  const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+
+  const lpRevenue = swapFees.clone(1);
+  lpRevenue.subtract(revenue);
+  dailySupplySideRevenue.add(lpRevenue, METRIC.LP_REVENUE);
+
+  // https://docs.pancakeswap.finance/trade/pancakeswap-infinity/pool-types/infinity-clamm-and-lbamm
+  // 50% to protocol, 50% to burn CAKE
+  dailyRevenue.add(revenue.clone(0.5), METRIC.PROTOCOL_REVENUE);
+  dailyRevenue.add(revenue.clone(0.5), METRIC.HOLDERS_REVENUE);
+
+  const dailyProtocolRevenue = revenue.clone(0.5, METRIC.PROTOCOL_REVENUE);
+  const dailyHoldersRevenue = revenue.clone(0.5, METRIC.BUY_BACK_AND_BURN);
 
   return {
     dailyVolume,
-    dailyFees: dailyFees.clone(1, METRIC.SWAP_FEES),
-    dailyRevenue: dailyRevenue.clone(1, METRIC.PROTOCOL_REVENUE),
-    dailyProtocolRevenue: dailyRevenue.clone(1, METRIC.PROTOCOL_REVENUE),
-    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, METRIC.LP_REVENUE),
-    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 

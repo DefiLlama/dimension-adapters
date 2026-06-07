@@ -1,9 +1,9 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (timestamp: number) => {
-  const url = `https://api.pearprotocol.io/v1/metric?timestamp=${timestamp}`;
+const fetch = async (options: FetchOptions) => {
+  const url = `https://api.pearprotocol.io/v1/metric?timestamp=${options.toTimestamp}`;
   const response = await fetchURL(url);
   const dailyFees = response.payload.dailyFees;
 

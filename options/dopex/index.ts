@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getChainStats } from "./clamm";
 import { CHAIN } from "../../helpers/chains";
 
@@ -28,8 +28,8 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (timestamp: string) =>
-          await getChainStats({ graphUrl: clammEndpoints[chain], timestamp }),
+        fetch: async (options: FetchOptions) =>
+          await getChainStats({ graphUrl: clammEndpoints[chain], timestamp: options.toTimestamp }),
         start: clammStartTimes[chain],
       },
     };

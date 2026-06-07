@@ -45,10 +45,12 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.OPTIMISM]: "2026-03-08",
   [CHAIN.ARBITRUM]: "2026-03-08",
   [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-03-08",
+  [CHAIN.CELO]: "2026-06-02",
   [CHAIN.WC]: "2026-03-08",
   [CHAIN.ZORA]: "2026-03-08",
   [CHAIN.XLAYER]: "2026-03-08",
+  [CHAIN.BSC]: "2026-06-02",
+  [CHAIN.POLYGON]: "2026-06-02",
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -91,14 +93,15 @@ const fetchFromOku = async (options: FetchOptions) => {
     const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+    const dailyRevenue = dailyFees * getRevenueShare(dailyFees, options);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
+      dailySupplySideRevenue: dailyFees - dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
+      dailyHoldersRevenue: dailyRevenue,
     }
   } catch (e) {
     console.error(options.chain, e)
@@ -121,10 +124,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
 }
 
 const adapter: SimpleAdapter = {
@@ -133,7 +136,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: async (_t: any, _tb: any, options: FetchOptions) => v3Graphs(options),
+      fetch: async (options: FetchOptions) => v3Graphs(options),
       start: startTimeV3[chain],
     }
     return acc
@@ -183,13 +186,13 @@ const okuChains = [
 
 okuChains.forEach(chain => {
   (adapter.adapter as BaseAdapter)[chain] = {
-    fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
+    fetch: async (options: FetchOptions) => fetchFromOku(options),
   }
 });
 
 
 (adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -197,7 +200,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -205,7 +208,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -213,7 +216,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -282,7 +285,7 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
 }
 
 (adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await customUniswapGetLogsAdapter({
       options,
       factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
@@ -293,12 +296,13 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BSC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await customUniswapGetLogsAdapter({
       options,
       factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
       fromBlock: 26324014,
       onlyWhitelisedTokens: true,
+      getRevenueShare
     })
   },
 };
@@ -366,43 +370,43 @@ async function fetchDune(options: FetchOptions) {
 }
 
 (adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.WC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };

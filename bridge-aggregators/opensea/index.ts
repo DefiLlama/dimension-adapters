@@ -54,7 +54,7 @@ const prefetch = async (options: FetchOptions) => {
 	`);
 };
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const results: Array<any> = options.preFetchedResults || [];
   const chainData = results.find(
     (item) => chainConfig[options.chain].dune_chain === item.blockchain

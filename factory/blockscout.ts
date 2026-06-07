@@ -126,6 +126,7 @@ const protocolChainMap: Record<string, string> = {
   "kasplex": CHAIN.KASPLEX,
   "gatelayer": CHAIN.GATE_LAYER,
   "igra": CHAIN.IGRA,
+  "shido": CHAIN.SHIDO,
 }
 
 const deadFromMap: Record<string, string> = {

@@ -116,7 +116,7 @@ async function discoverVaultAddresses(): Promise<string[]> {
  * @param options - Fetch options containing time range and Dune query utilities
  * @returns Object containing dailyFees, dailyRevenue, dailyProtocolRevenue, and dailyVolume
  */
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const vaultAddresses = await discoverVaultAddresses();

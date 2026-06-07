@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/bsc_stats/api",
@@ -28,37 +27,32 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch =
-  (chain: string) =>
-    async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-      );
-      const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-        id:
-          chain === CHAIN.BSC ||
-            chain === CHAIN.MANTLE ||
-            chain === CHAIN.ARBITRUM
-            ? String(dayTimestamp)
-            : String(dayTimestamp) + ":daily",
-        period: "daily",
-      });
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
+    id:
+      chain === CHAIN.BSC ||
+        chain === CHAIN.MANTLE ||
+        chain === CHAIN.ARBITRUM
+        ? String(options.startOfDay)
+        : String(options.startOfDay) + ":daily",
+    period: "daily",
+  });
 
-      return {
-        timestamp: dayTimestamp,
-        dailyVolume:
-          dailyData.volumeStats.length == 1
-            ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-              10 ** -30
+  return {
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(
+          Number(
+            Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
             )
-            : undefined,
-      };
-    };
+          ) *
+          10 ** -30
+        )
+        : undefined,
+  };
+};
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.BSC]: 1682870400,
@@ -71,7 +65,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
         deadFrom: '2026-02-28',
       },

@@ -4,6 +4,27 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
 
+const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
+const STELLAR_BRIDGE_URL = "https://defillama-data.bim.finance/bridge";
+
+const fetchStellarFees = async (options: FetchOptions) => {
+  const { startTimestamp, endTimestamp } = options;
+  const [swapData, bridgeData] = await Promise.all([
+    fetchURL(`${STELLAR_SWAP_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
+    fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
+  ]);
+  const dailyFees = options.createBalances();
+  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Swap Fees"); }
+  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Swap Fees"); }
+  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Bridge Fees"); }
+  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Bridge Fees"); }
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+};
+
 const tokenChainsEndpoint = "https://ugcs4scwc8wwckcc40os4oso.bim.finance/token-chains";
 const bridgeAndSwapTarget = "0x1895108f64033F4c0A1fEd0669Adc93e7E017f3C";
 
@@ -133,6 +154,9 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.PLASMA]: {
     start: "2025-10-25",
   },
+  [CHAIN.STELLAR]: {
+    start: "2026-04-19",
+  },
 };
 
 const fetchVaults = (): Promise<any[]> => {
@@ -190,6 +214,7 @@ const getBridgeAndSwapFees = async (options: FetchOptions): Promise<any> => {
 };
 
 const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.STELLAR) return fetchStellarFees(options);
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
   const dailyFees = await stakingFeesPromise;
@@ -203,9 +228,14 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
-  Revenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
-  ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
+  Fees: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  Revenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+};
+
+const stellarBreakdown = {
+  "Swap Fees": "Fee charged in USDC, XLM on Stellar swaps (0.25%).",
+  "Bridge Fees": "Fee charged in USDC, XLM on Stellar bridges (0.125%).",
 };
 
 const adapter: SimpleAdapter = {
@@ -214,6 +244,11 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: baseAdapter,
   methodology,
+  breakdownMethodology: {
+    Fees: stellarBreakdown,
+    Revenue: stellarBreakdown,
+    ProtocolRevenue: stellarBreakdown,
+  },
 };
 
 export default adapter;

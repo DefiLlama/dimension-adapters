@@ -87,7 +87,7 @@ async function fetchBsc(options: FetchOptions) {
   return { dailyVolume: result[0].total_volume };
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const now = Date.now()
   const tenHoursAgo = now - (10 * 60 * 60 * 1000)
   if ((options.toTimestamp * 1000) > tenHoursAgo) {

@@ -31,7 +31,7 @@ const historicalDataSwap = gql`
 `;
 
 
-const fetch = async (_t: any, _b: any, { startOfDay }: FetchOptions) => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
     for (const api of apiEndPoints) {
@@ -53,15 +53,12 @@ const fetch = async (_t: any, _b: any, { startOfDay }: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+    version: 1,
+    fetch,
+    chains: [CHAIN.ARBITRUM],
+    start: '2024-01-09',
     methodology: {
         Fees: "Trading fees queried from api calls from grpahql",
-    },
-    version: 1,
-    adapter: {
-        [CHAIN.ARBITRUM]: {
-            start: '2024-01-09',
-            fetch,
-        }
     }
 }
 

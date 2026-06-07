@@ -10,7 +10,7 @@ interface IChartItem {
   networkFee: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // const feeEndpoint = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=100`;
   const feeEndpoint = `https://vanaheimex.com/api/reserve?from=${options.startOfDay}&to=${options.endTimestamp}`;
   const historicalFees: IChartItem[] = (await httpGet(feeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;

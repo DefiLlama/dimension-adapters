@@ -2,7 +2,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { CHAIN } from "../../helpers/chains";
-import PromisePool from "@supercharge/promise-pool";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const VOLATILE_FEE = 0.0025; // 25 bps
@@ -131,6 +130,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: START_DATE,
   chains: [CHAIN.PLASMA],

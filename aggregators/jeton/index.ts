@@ -1,4 +1,4 @@
-import { Adapter, FetchResultVolume } from "../../adapters/types";
+import { Adapter, FetchResultVolume, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -43,8 +43,8 @@ type Responce = {
 
 const fetch =
   (chain: string) =>
-  async (timestamp: number): Promise<FetchResultVolume> => {
-    const resp: Responce = await fetchURL(`${url}?timestamp=${timestamp}`);
+  async (options: FetchOptions): Promise<FetchResultVolume> => {
+    const resp: Responce = await fetchURL(`${url}?timestamp=${options.toTimestamp}`);
     const data = resp.chains[chain];
     if (!data || !data.daily || !data.total) {
       return {} as FetchResultVolume;

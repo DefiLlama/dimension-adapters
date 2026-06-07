@@ -105,16 +105,21 @@ export async function fetchFeesAmountFromAnalyticsApi(
   chainCode: string,
   options: FetchOptions,
 ): Promise<Balances> {
-  const { createBalances, startOfDay, toTimestamp } = options;
+  const { createBalances, fromTimestamp, toTimestamp } = options;
   const balances = createBalances();
 
-  const eventData = await getEventsFromAnalyticsApi(chainCode, startOfDay * 1000, toTimestamp * 1000);
-  eventData.map((data) => balances.add(data.token, data.fee, METRIC.SWAP_FEES));
+  const eventData = await getEventsFromAnalyticsApi(chainCode, fromTimestamp * 1000, toTimestamp * 1000);
+  eventData
+    // defensively re-filter: the API can return events slightly outside the requested
+    // window, which matters more now that we pull hourly (24 boundary slices per day)
+    .filter((data) => data.blockTime >= fromTimestamp && data.blockTime < toTimestamp)
+    .map((data) => balances.add(data.token, data.fee, METRIC.SWAP_FEES));
 
   return balances;
 }
 
 interface AnalyticsEvent {
+  blockTime: number;
   token: string;
   fee: string;
 }
@@ -171,6 +176,7 @@ const breakdownMethodology = {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   fetch,

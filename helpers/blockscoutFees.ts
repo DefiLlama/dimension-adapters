@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
+import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
@@ -145,6 +145,7 @@ export const chainConfigMap: any = {
   [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
   [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
   [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
+  [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
 }
 
 function getTimeString(timestamp: number) {
@@ -166,7 +167,7 @@ export function blockscoutFeeAdapter2(chain: string) {
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async ({ chain, createBalances, startOfDay, }: FetchOptions) => {
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined

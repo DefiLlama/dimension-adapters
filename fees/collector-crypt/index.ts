@@ -4,7 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
 

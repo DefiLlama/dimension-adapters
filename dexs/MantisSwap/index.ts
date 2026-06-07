@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type PoolData = {
@@ -7,15 +7,14 @@ type PoolData = {
   daily_volume: number;
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
-  const from = timestamp - 86400; // 60*60*24
-  const to = timestamp;
+const fetch = (chain: string) => async (options: FetchOptions) => {
+  const from = options.toTimestamp - 86400; // 60*60*24
+  const to = options.toTimestamp;
   const stats: PoolData = await fetchURL(
     `https://api.mantissa.finance/api/pool/stats/volume/${chain}/?from_timestamp=${from}&to_timestamp=${to}`
   );
   return {
     dailyVolume: `${stats.daily_volume}`,
-    timestamp,
   };
 };
 

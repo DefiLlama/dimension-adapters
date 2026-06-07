@@ -11,7 +11,6 @@
 
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.paycashswap.com/";
@@ -22,11 +21,10 @@ const requestBody = {
 };
 
 
-const fetch = async (timestamp: number, _, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
   const historicalVolume = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value;
+    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === options.startOfDay)?.value;
 
   const dailyFees = Number(dailyVolume) * 0.0025;
   const dailyLiquidityProviderFee = Number(dailyVolume) * 0.002;
@@ -47,19 +45,16 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.EOS],
+  start: '2021-04-14',
   methodology: {
     Fees: 'Fees are calculated based on a 0.25% commission on each exchange operation, distributed as 0.2% to liquidity providers and 0.05% for token burning.',
     Revenue: 'Fees amount distributed to suppliers and holders.',
     SupplySideRevenue: '0.2% of commission to liquidity providers.',
     HoldersRevenue: '0.05% of commission for token burning.',
     ProtocolRevenue: 'No fees for protocol.',
-  },
-  version: 1,
-  adapter: {
-    [CHAIN.EOS]: {
-      fetch,
-      start: '2021-04-14',
-    },
   },
 };
 
