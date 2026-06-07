@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { SimpleAdapter, Fetch } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('FZz1rRe9kEd3FG6ZiX2tdoryxYiSFH4RnzKjMwny3mFH'),
@@ -28,10 +27,10 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
   const dailyData: IGraphResponse = await request(endpoints[chain], allData, {
-    id: "daily:" + String(dayTimestamp),
+    id: "daily:" + String(options.startOfDay),
     period: 'daily',
   })
 
@@ -48,16 +47,10 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch(chain),
-        start: startTimestamps[chain],
-        deadFrom: "2025-03-15",
-      }
-    }
-  }, {}),
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: startTimestamps[CHAIN.ARBITRUM],
+  deadFrom: "2025-03-15",
 }
 
 export default adapter;

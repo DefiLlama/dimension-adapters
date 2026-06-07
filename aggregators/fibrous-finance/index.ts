@@ -21,7 +21,7 @@ interface IAPIResponse {
   message: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const response: IAPIResponse = await fetchURL(URL + `?chainId=${chainConfig[options.chain].id}`);
   const dailyVolume = response.data.dailyVolume;
   return {

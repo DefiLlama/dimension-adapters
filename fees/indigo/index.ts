@@ -66,7 +66,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyHoldersRevenueUSD.addCGToken('cardano', (totalLovelaceToIndyStakers) / 1_000_000);
 
   return {
-    timestamp: options.startOfDay,
     dailyFees: dailyFeesUSD,
     dailyRevenue: dailyRevenueUSD,
     dailyProtocolRevenue: dailyProtocolRevenueUSD,

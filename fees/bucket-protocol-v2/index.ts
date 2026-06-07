@@ -16,7 +16,7 @@ const methodology = {
   ProtocolRevenue: "1% of collected fees retained as Well reserve, withdrawable by protocol admin",
 };
 
-const fetch = async (_a: any, _b: any, { startOfDay, dateString }: FetchOptions) => {
+const fetch = async ({ startOfDay, dateString }: FetchOptions) => {
   const url = `${apiURL}?timestamp_ms=${startOfDay * 1000}`;
   const stats = (await fetchURL(url)).data;
 

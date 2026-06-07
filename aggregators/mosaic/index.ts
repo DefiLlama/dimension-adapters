@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL"
 
 const STATS_BASE_URL = "https://stats.mosaic.ag"
 
-const fetch = async (_timestamp: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dateVolumeData = await fetchURL(
     `${STATS_BASE_URL}/v1/public/volume?from_date=${options.dateString}&to_date=${options.dateString}`
   )

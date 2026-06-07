@@ -16,7 +16,7 @@ const getHeaders = () => ({
   "api-key": getEnv("ASTROS_PERP_API_KEY"),
 });
 
-const fetch = async (_a: any, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0
   const dailyFees = options.createBalances()
   
@@ -44,6 +44,9 @@ const fetch = async (_a: any, _t: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.SUI],
+  runAtCurrTime: true,
   methodology,
   breakdownMethodology: {
     Fees: {
@@ -52,12 +55,6 @@ const adapter: SimpleAdapter = {
     Revenue: {
       [METRIC.TRADING_FEES]: "Trading fees paid by users are revenue"
     }
-  },
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      runAtCurrTime: true,
-    },
   },
 };
 

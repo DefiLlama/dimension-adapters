@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
+import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -15,12 +15,11 @@ interface IFeeStat {
   id: string;
 }
 
-const fetch = (endpoint) => {
-  return async (timestamp: number) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const period = "daily";
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+  const period = "daily";
 
-    const graphQuery = gql`{
+  const graphQuery = gql`{
         feeStats(where: {timestamp: ${todaysTimestamp}, period: "${period}"}) {
           id
           timestamp
@@ -31,32 +30,28 @@ const fetch = (endpoint) => {
         }
       }`;
 
-    const response = await request(endpoint, graphQuery);
-    const feeStats: IFeeStat[] = response.feeStats;
+  const response = await request(endpoints[options.chain], graphQuery);
+  const feeStats: IFeeStat[] = response.feeStats;
 
-    let dailyFeeUSD = BigInt(0);
+  let dailyFeeUSD = BigInt(0);
 
-    feeStats.forEach((fee) => {
-      dailyFeeUSD += BigInt(fee.feeUsd);
-    });
+  feeStats.forEach((fee) => {
+    dailyFeeUSD += BigInt(fee.feeUsd);
+  });
 
-    const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e30;
+  const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e30;
 
-    return {
-      timestamp: todaysTimestamp,
-      dailyFees: finalDailyFee.toString(),
-    };
+  return {
+    timestamp: todaysTimestamp,
+    dailyFees: finalDailyFee.toString(),
   };
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetch(endpoints[CHAIN.POLYGON_ZKEVM]),
-      start: '2024-03-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON_ZKEVM],
+  start: '2024-03-01',
   methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 

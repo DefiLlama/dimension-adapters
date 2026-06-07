@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 
@@ -7,7 +7,7 @@ const endpoints: Record<string, string> = {
   [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/45963/blast-mainnet-stats/version/latest",
 };
 
-const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
+const fetch = async ({ chain, startOfDay }: FetchOptions) => {
   const floorDayTimestamp = startOfDay;
   const dailyFeeQuery = gql`
     {

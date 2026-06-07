@@ -23,6 +23,7 @@ const chainConfig: Record<string, {
     factory: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
     source: 'CLICKHOUSE',
     start: '2024-02-12',
+    feeSwitchDate: "2026-06-02",
   },
   [CHAIN.BASE]: {
     factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
@@ -46,6 +47,7 @@ const chainConfig: Record<string, {
     factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
     source: 'CLICKHOUSE',
     start: '2024-02-14',
+    feeSwitchDate: "2026-06-02",
   },
   [CHAIN.UNICHAIN]: {
     factory: '0x1f98400000000000000000000000000000000002',
@@ -250,7 +252,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
   };
 }
 
-const fetch = async (_t: any, _tb: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (!config) {
     throw Error(`config not found for chain ${options.chain}`);

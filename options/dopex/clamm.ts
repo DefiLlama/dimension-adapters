@@ -2,7 +2,7 @@ import { request, gql } from "graphql-request";
 
 interface IGetChainStatsParams {
   graphUrl: string;
-  timestamp: string;
+  timestamp: number;
 }
 
 interface IQueryResponse {

@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
 
   return {
     dailyFees: 0,

@@ -6,7 +6,7 @@ import { queryDuneSql } from "../../helpers/dune";
 // SplitSwap fee wallet (inbound transfers represent collected fees)
 const FEE_WALLET = "4ZEwVcgnTPbhD16HS2Ln9KXdt9pfTokECTBbhoRPCMHj";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
   const query = `

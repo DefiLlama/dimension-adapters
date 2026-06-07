@@ -112,7 +112,7 @@ const query = (options: FetchOptions) => {
 const prefetch = (options: FetchOptions) =>
     queryDuneSql(options, query(options), { extraUIDKey: "hyperlane-fees" });
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const event = options.preFetchedResults?.find((row: any) => row.chain === options.chain);
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

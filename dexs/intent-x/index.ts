@@ -9,7 +9,7 @@ const chainConfig: Record<string, Record<string, string>> = {
   [CHAIN.BLAST]: { chainId: '81457' }
 };
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const formatDate = () => {
     const todayInUtc = new Date(options.startOfDay * 1000).toUTCString();
     const parts = todayInUtc.split(' ');

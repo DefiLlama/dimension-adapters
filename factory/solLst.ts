@@ -162,7 +162,7 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
 }
 
 function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     const lstFeeTokenAccount = config.lstFeeTokenAccountSwitcher
       ? config.lstFeeTokenAccountSwitcher(options.startOfDay)
       : config.lstFeeTokenAccount;
@@ -822,7 +822,7 @@ const doublezeroOriginalConfig = configs["doublezero-staked-sol"];
 const doublezeroAdapter = (() => {
   const baseCfg = { ...doublezeroOriginalConfig };
 
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana";
 
     const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
@@ -872,7 +872,7 @@ const doublezeroAdapter = (() => {
 /* const jitoAdapter = (() => {
   const cfg = configs["jito-staked-sol"];
 
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
       start: options.startTimestamp,
       end: options.endTimestamp,

@@ -12,7 +12,7 @@ const input = encodeURIComponent(
 
 const reqUrl = `https://explorer-api.mainnet.seda.xyz/main/trpc/trends.drCount,trends.sedaBurned,trends.averageDrCost?batch=1&input=${input}`;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const data: any[] = await httpGet(reqUrl)

@@ -107,6 +107,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(SocketVaults).reduce((acc, chain) => {
     return {
       ...acc,

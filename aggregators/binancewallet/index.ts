@@ -99,7 +99,7 @@ const prefetch = async (options: FetchOptions) => {
   return result;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain === chainsMap[options.chain]);
 

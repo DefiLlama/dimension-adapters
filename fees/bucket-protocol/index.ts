@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
-const apiURL = "https://open-api.bucketprotocol.io/api/fees"
+const bucketApiURL = "https://open-api.bucketprotocol.io/api/fees"
 
 // The protocol retains 1% of collected fees as a reserve balance
 // All other fees (99%) are distributed to BKT stakers via the Well mechanism
@@ -16,9 +16,9 @@ const methodology = {
   ProtocolRevenue: "1% of collected fees retained as Well reserve, withdrawable by protocol admin",
 }
 
-const fetchBucketStats = async (_: any, _1: any, { startTimestamp, dateString }: FetchOptions) => {
-  const url = `${apiURL}?timestamp_ms=${startTimestamp * 1000}`
-  const stats = (await fetchURL(url)).data
+const fetch = async ({ startTimestamp, dateString }: FetchOptions) => {
+  const url = `${bucketApiURL}fees?timestamp_ms=${startTimestamp * 1000}`
+  const stats: any = (await fetchURL(url)).data
 
   if (!stats) {
     throw new Error(`No data found for ${dateString}`)
@@ -40,7 +40,7 @@ const adapter: Adapter = {
   methodology,
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetchBucketStats,
+      fetch,
       start: "2024-02-29",
       deadFrom: "2025-09-16",
     },

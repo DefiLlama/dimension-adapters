@@ -1,4 +1,4 @@
-import { SimpleAdapter, type FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
 
@@ -13,7 +13,7 @@ interface IDuneRow {
   total_revenue_usd?: string | number | null;
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const queryId = DUNE_QUERY_IDS[options.chain];
   const rows = (await queryDune(queryId, {}, options)) as IDuneRow[];
   const dailyFees = options.createBalances();

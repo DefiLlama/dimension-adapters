@@ -1,4 +1,4 @@
-import { SimpleAdapter, Fetch } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions } from "../../adapters/types";
@@ -17,7 +17,7 @@ const chainConfig = {
     },
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const minDate = options.startOfDay;
     const maxDate = options.startOfDay + DAY_IN_SECONDS;
 
@@ -65,9 +65,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    methodology,
     fetch,
     adapter: chainConfig,
+    methodology,
 };
 
 export default adapter;

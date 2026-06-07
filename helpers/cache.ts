@@ -47,7 +47,7 @@ async function _setCache(project: string, chain: string, json: any) {
     await setCache(project, chain, json)
 }
 
-export async function getConfig(project: string, endpoint: string, { fetcher }: {
+export async function getConfig(project: string, endpoint?: string, { fetcher }: {
   fetcher?: () => Promise<any>
 } = {}) {
   if (!project || (!endpoint && !fetcher)) throw new Error('Missing parameters')

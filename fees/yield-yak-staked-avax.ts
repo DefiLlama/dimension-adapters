@@ -7,7 +7,7 @@ const event_paid = 'event Paid(uint256 indexed epoch,address indexed payee,uint2
 const yield_yak_master = '0x0cf605484a512d3f3435fed77ab5ddc0525daf5f';
 const yak_gov = '0x5925c5c6843a8f67f7ef2b55db1f5491573c85eb';
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({ createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = createBalances()
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
@@ -28,25 +28,20 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
     dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue,
-    dailyProtocolRevenue,
-    timestamp
-  }
+    dailyProtocolRevenue,}
 }
 
 
 const adapter: Adapter = {
+  fetch,
+  chains: [CHAIN.AVAX],
+  start: '2021-11-14',
   methodology: {
     Fees: "Yield and rewards are distributed.",
     Revenue: "Fees distributed to holders and protocol.",
     HoldersRevenue: "All revenue distributed to holders.",
     ProtocolRevenue: "All revenue collected by protocol.",
   },
-  adapter: {
-    [CHAIN.AVAX]: {
-      fetch: fetch,
-      start: '2021-11-14',
-    },
-  }
 }
 
 export default adapter;

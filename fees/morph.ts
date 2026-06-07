@@ -36,6 +36,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.MORPH],
   fetch,
   start: '2024-10-29',

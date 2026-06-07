@@ -4,7 +4,7 @@ import { httpPost } from "../../utils/fetchURL"
 
 const SUBGRAPH = "https://api.haven1.0xgraph.xyz/api/public/bc373e5f-de53-4599-8572-61e112a16f4a/subgraphs/uniswap-v3/main-v0.0.4/";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const res = await httpPost(SUBGRAPH, {
     query: `query($d:Int!){ poolDayDatas(where: { date: $d }, first: 1000){ volumeUSD } }`,

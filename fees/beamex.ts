@@ -9,9 +9,9 @@ const endpointsBeamex: ChainEndpoints = {
     'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { chain, createBalances } = options;
-  const searchTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const searchTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
   const graphQuery = gql`{
     feeStat(id: "${searchTimestamp}") {
@@ -92,12 +92,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      start: '2023-06-22',
-    },
-  },
+  fetch,
+  chains: [CHAIN.MOONBEAM],
+  start: '2023-06-22',
   methodology,
   breakdownMethodology,
   deadFrom: "2025-08-12",

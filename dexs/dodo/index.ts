@@ -1,6 +1,5 @@
-import { Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
 import { addOneToken } from "../../helpers/prices";
@@ -45,7 +44,7 @@ interface IDailyResponse {
   }
 }
 
-const dfioFetch = async (_ts: number, _t: any, options: FetchOptions) => {
+const dfioFetch = async (options: FetchOptions) => {
 
   const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
 
@@ -77,12 +76,11 @@ const dfioFetch = async (_ts: number, _t: any, options: FetchOptions) => {
   };
 }
 
-const getFetch = (chain: string): Fetch => async (_ts: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
-  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
+const fetch = async (options: FetchOptions) => {
+  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(options.chain))) as IDailyResponse
 
   return {
-    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === dayTimestamp)?.volume[chain],
+    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[options.chain],
   }
 }
 
@@ -103,7 +101,7 @@ const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: chain === CHAIN.DFIO_META_MAIN ? dfioFetch : getFetch(chainConversion(chain)),
+      fetch: chain === CHAIN.DFIO_META_MAIN ? dfioFetch : fetch,
     },
   }),
   {}
