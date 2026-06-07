@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const API_URL = "https://api.zofinance.io/analytics/open-interest";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { data } = await fetchURL(`${API_URL}?range=1y`);
   const timestamp = data.reduce((latest: string, row: any) => (
     new Date(row.timestamp).getTime() / 1000 <= options.endTimestamp && row.timestamp > latest ? row.timestamp : latest
