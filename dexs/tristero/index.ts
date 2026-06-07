@@ -8,6 +8,7 @@ import getTxReceipts, { getTransactions } from "../../helpers/getTxReceipts";
 import {
   getActiveTristeroV3MarginEscrows,
   getTristeroV3MarginPositions,
+  TRISTERO_V3_MARGIN_ABI,
   type TristeroV3MarginPosition,
 } from "../../helpers/tristeroMargin";
 
@@ -506,7 +507,7 @@ async function addTristeroV3ChainVolume(options: FetchOptions, dailyVolume: Bala
   const closeLogs: TristeroV3TransferLog[] = activeV3EscrowAddresses.length
     ? await options.getLogs({
       targets: activeV3EscrowAddresses,
-      eventAbi: "event PositionClosed(uint128 indexed positionId, address indexed filler)",
+      eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed,
       entireLog: true,
     })
     : [];

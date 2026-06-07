@@ -238,11 +238,10 @@ async function getV3CloseRepayments(
         const requestedTxHash = normalizeAddress(txHashes[index]);
         const receipt = cachedReceipt ?? await getV3CloseReceipt(options.chain, requestedTxHash);
         if (!receipt) {
-            sdk.log(`Missing Tristero v3 close receipt for ${options.chain} tx ${requestedTxHash}; using zero close repayment fallback`);
-            (positionsByTxHash.get(requestedTxHash) ?? []).forEach((position) => {
-                repaymentByPosition.set(getV3PositionKey(position), 0n);
-            });
-            continue;
+            const affectedPositions = (positionsByTxHash.get(requestedTxHash) ?? [])
+                .map(getV3PositionKey)
+                .join(", ") || "none";
+            throw new Error(`Missing Tristero v3 close receipt for ${options.chain} tx ${requestedTxHash}; affected positions: ${affectedPositions}`);
         }
 
         const txHash = normalizeAddress(receipt.transactionHash ?? receipt.hash);
@@ -739,7 +738,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-    Fees: 'Daily borrow interest accrued on legacy and v3 margin positions, plus any legacy protocol-collected liquidation fees.',
+    Fees: 'Daily borrow interest accrued on legacy and v3 margin positions, including v3 vault loan-value growth, v3 reduction (PositionReduced) repayments, and close repayments, plus any legacy protocol-collected liquidation fees.',
     Revenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
     ProtocolRevenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
     SupplySideRevenue: 'Borrow interest attributable to the filler lenders that funded margin positions.',
@@ -747,7 +746,7 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated legacy positions, plus v3 vault loan-value growth and close repayments.',
+        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated legacy positions, plus v3 vault loan-value growth, v3 reduction (PositionReduced) repayments, and close repayments.',
         [METRIC.LIQUIDATION_FEES]: 'Legacy protocol-collected liquidation fees.',
     },
     Revenue: {
