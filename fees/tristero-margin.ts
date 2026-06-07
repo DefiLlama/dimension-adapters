@@ -309,6 +309,10 @@ async function getV3CloseRepayments(
         }
 
         const position = positions[0];
+        if (!normalizeAddress(position.closeFiller)) {
+            throw new Error(`Missing Tristero v3 close filler for ${options.chain} position ${position.positionId} at ${position.escrow} tx ${txHash}`);
+        }
+
         let repayment = 0n;
         (receipt.logs ?? []).forEach((log: any) => {
             const topics = log.topics ?? [];
