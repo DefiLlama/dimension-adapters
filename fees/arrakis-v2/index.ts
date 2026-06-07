@@ -84,7 +84,7 @@ async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOption
         const managerCut0 = (delta0 * mgrBPS) / 10000n;
         dailyFees.add(token0, delta0, METRIC.LP_FEES);
         dailySupplySideRevenue.add(token0, delta0 - managerCut0, 'LP Fees To Depositors');
-        dailyRevenue.add(token0, managerCut0, 'LP Fees To Manager');
+        dailySupplySideRevenue.add(token0, managerCut0, 'LP Fees To Vaults Managers');
       }
     }
 
@@ -94,18 +94,18 @@ async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOption
         const managerCut1 = (delta1 * mgrBPS) / 10000n;
         dailyFees.add(token1, delta1, METRIC.LP_FEES);
         dailySupplySideRevenue.add(token1, delta1 - managerCut1, 'LP Fees To Depositors');
-        dailyRevenue.add(token1, managerCut1, 'LP Fees To Manager');
+        dailySupplySideRevenue.add(token1, managerCut1, 'LP Fees To Vaults Managers');
       }
     }
   });
 
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue: 0 };
 }
 
 const methodology = {
-  Fees: 'Gross Uniswap V3 LP fees accrued across all ArrakisV2 vault positions before manager cut.',
-  SupplySideRevenue: 'Depositor share of accrued fees: gross fees minus managerFeeBPS per vault.',
-  Revenue: 'Manager fee portion of accrued fees. Manager address is freely set per vault and is not necessarily Arrakis Finance, no Arrakis protocol-level fee exists in V2 core.',
+  Fees: 'Gross Uniswap V3 LP fees accrued across all ArrakisV2 vault positions before management fees cut.',
+  SupplySideRevenue: 'Depositors share of accrued fees: gross fees minus management fees per vault + fees paid to vaults managers.',
+  Revenue: 'No protocol revenue.',
 };
 
 const breakdownMethodology = {
@@ -114,9 +114,7 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     'LP Fees To Depositors': 'Uniswap V3 fees remaining in vault after manager fee is subtracted',
-  },
-  Revenue: {
-    'LP Fees To Manager': 'Uniswap V3 fees allocated to vault manager (managerFeeBPS)',
+    'LP Fees To Vaults Managers': 'Uniswap V3 fees allocated to vaults managers',
   },
 };
 
