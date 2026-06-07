@@ -1,4 +1,4 @@
-import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
@@ -28,7 +28,7 @@ const chains = [
   CHAIN.LINEA,
   CHAIN.SCROLL,
   //  CHAIN.MANTA
-  CHAIN.DFIO_META_MAIN,
+  // CHAIN.DFIO_META_MAIN,
 ]
 
 interface IDailyResponse {
@@ -44,43 +44,44 @@ interface IDailyResponse {
   }
 }
 
-const dfioFetch = async (options: FetchOptions) => {
+// const dfioFetch = async (options: FetchOptions) => {
 
-  const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
+//   const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
 
-  const poolCreatedLogs = await options.getLogs({
-    target: dvmFactory,
-    eventAbi: "event NewDVM (address baseToken, address quoteToken, address creator, address dvm)",
-    fromBlock: 3510162,
-    cacheInCloud: true,
-  });
+//   const poolCreatedLogs = await options.getLogs({
+//     target: dvmFactory,
+//     eventAbi: "event NewDVM (address baseToken, address quoteToken, address creator, address dvm)",
+//     fromBlock: 3510162,
+//     cacheInCloud: true,
+//   });
 
-  const pools = poolCreatedLogs.map((log) => log.dvm);
+//   const pools = poolCreatedLogs.map((log) => log.dvm);
 
-  const SWAP_ABI =
-    "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
+//   const SWAP_ABI =
+//     "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
 
-  const dailyVolume = options.createBalances();
+//   const dailyVolume = options.createBalances();
 
-  const swapLogs = await options.getLogs({
-    targets: pools,
-    eventAbi: SWAP_ABI,
-  });
+//   const swapLogs = await options.getLogs({
+//     targets: pools,
+//     eventAbi: SWAP_ABI,
+//   });
 
-  for (const log of swapLogs) {
-    addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
-  }
+//   for (const log of swapLogs) {
+//     addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+//   }
 
-  return {
-    dailyVolume,
-  };
-}
+//   return {
+//     dailyVolume,
+//   };
+// }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(options.chain))) as IDailyResponse
+  const chain = chainConversion(options.chain)
+  const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
 
   return {
-    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[options.chain],
+    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[chain],
   }
 }
 
@@ -101,7 +102,7 @@ const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: chain === CHAIN.DFIO_META_MAIN ? dfioFetch : fetch,
+      fetch,
     },
   }),
   {}
