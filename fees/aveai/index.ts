@@ -99,9 +99,9 @@ const fetchSolana = async (options: FetchOptions) => {
   return dailyFees;
 };
 
-const fetch = async (_timestamp: number, _chainBlocks: unknown, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.chain === CHAIN.SOLANA ? await fetchSolana(options) : await fetchEVM(options);
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, };
 };
 
 const methodology = {
@@ -123,7 +123,6 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
 };
