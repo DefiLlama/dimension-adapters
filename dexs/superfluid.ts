@@ -218,7 +218,7 @@ const fetch = async (options: FetchOptions) => {
     const priceAddress = token.isNativeAssetSuperToken ? cfg.wnative : token.underlyingAddress;
     if (!priceAddress || priceAddress === ZERO_ADDRESS) return;
 
-    dailyVolume.add(priceAddress, underlyingWei.toString());
+    dailyVolume.add(priceAddress, underlyingWei);
   };
 
   // CFA: apportion each StreamPeriod's flow to the window.
@@ -247,8 +247,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Volume:
-      "Value delivered to Superfluid stream recipients per chain. Sum of the time-integral `flowRate * (effectiveEnd - effectiveStart)` apportioned to the query window across every CFA `StreamPeriod` that overlaps it, plus `actualAmount` summed over GDA `InstantDistributionUpdatedEvent` rows in the window. SuperToken amounts are converted to their underlying-token decimals before pricing; native-asset SuperTokens (ETHx, MATICx, AVAXx, ...) are priced via the chain's wrapped-native address. Streams are backed by buffer deposits with on-chain liquidation, so the time-integral represents value actually delivered. GDA continuous flow distributions (pool-flow time-integrals) are not included; they account for under 1% of total volume across all chains per cumulative aggregates. Data is sourced from Superfluid's public self-hosted subgraphs.",
+    Volume: "Value delivered to Superfluid stream recipients per chain. Data is sourced from Superfluid's public self-hosted subgraphs.",
   },
   adapter: CONFIG,
   fetch,
