@@ -6,9 +6,9 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.MERLIN]: {
-      fetch: async (_timestamp: number, _: any, { createBalances, startOfDay }: FetchOptions) => {
+      fetch: async ({ createBalances, startOfDay }: FetchOptions) => {
         const dailyFees = createBalances();
-        const endOfDay = startOfDay + 86400;
+        const endOfDay = startOfDay + 86400 - 1;
         const url = `https://scan.merlinchain.io/api/trpc/stat.getDailyTxFee?input=${encodeURIComponent(JSON.stringify({ json: { timeStart: startOfDay, timeEnd: endOfDay } }))}`;
         const res = await httpGet(url);
         if (!res?.result?.data?.json) throw new Error("Failed to fetch Merlin chain fees");
