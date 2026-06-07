@@ -10,6 +10,7 @@ import {
     getTristeroMarginChains,
     getTristeroV3MarginPositions,
     getTristeroV3MarginPositionSnapshots,
+    getTristeroV3MarginReductions,
     getV3PositionKey,
     getPositionIds,
     mulDivCeil,
@@ -98,6 +99,17 @@ function isNonZeroBytes32(value?: string): boolean {
     return BigInt(value) > 0n;
 }
 
+function formatErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function formatV3ReadValueContext(positions: TristeroV3MarginPosition[]): string {
+    return positions
+        .slice(0, 3)
+        .map((position) => `${position.vault}/${position.loanAsset}/${position.loanShares.toString()}`)
+        .join(", ");
+}
+
 async function readV3LoanValuesAtBlock(
     options: FetchOptions,
     positions: TristeroV3MarginPosition[],
@@ -115,7 +127,8 @@ async function readV3LoanValuesAtBlock(
                 block,
                 permitFailure: true,
             });
-        } catch {
+        } catch (error) {
+            sdk.log(`Tristero v3 multicall readValue failed on ${options.chain} at block ${block} for ${positions.length} positions (${formatV3ReadValueContext(positions)}): ${formatErrorMessage(error)}`);
             values = [];
         }
     }
@@ -151,7 +164,8 @@ async function readV3LoanValueAtBlock(
         });
 
         return toBigIntOrNull(output);
-    } catch {
+    } catch (error) {
+        sdk.log(`Tristero v3 single readValue failed on ${options.chain} position ${position.positionId} at ${position.escrow} block ${block}: ${formatErrorMessage(error)}`);
         return null;
     }
 }
@@ -179,6 +193,25 @@ async function readV3LoanValuesByPositionBlock(
 
 function getV3HistoricalValueKey(position: { escrow: string; positionId: number }, block: number): string {
     return `${getV3PositionKey(position)}-${block}`;
+}
+
+function getV3ReductionRepayments(
+    reductions: Awaited<ReturnType<typeof getTristeroV3MarginReductions>>,
+    startBlockByPosition: Map<string, number>,
+    toBlock: number,
+): Map<string, bigint> {
+    const repayments = new Map<string, bigint>();
+
+    reductions.forEach((reduction) => {
+        const positionKey = getV3PositionKey(reduction);
+        const startBlock = startBlockByPosition.get(positionKey);
+        if (startBlock === undefined) return;
+        if (reduction.blockNumber < startBlock || reduction.blockNumber > toBlock) return;
+
+        repayments.set(positionKey, (repayments.get(positionKey) ?? 0n) + reduction.repayAmount);
+    });
+
+    return repayments;
 }
 
 async function getV3CloseRepayments(
@@ -625,11 +658,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
             position.closeBlock === undefined || position.closeBlock > toBlock
         );
 
-        const [startLoanValues, endLoanValues, closeRepayments] = await Promise.all([
+        const [startLoanValues, endLoanValues, closeRepayments, reductions] = await Promise.all([
             readV3LoanValuesByPositionBlock(options, startPositionBlocks),
             readV3LoanValuesAtBlock(options, openV3Positions, toBlock),
             getV3CloseRepayments(options, closedV3Positions),
+            getTristeroV3MarginReductions(options, v3Escrows, fromBlock, toBlock),
         ]);
+        const reductionRepayments = getV3ReductionRepayments(reductions, startBlockByPosition, toBlock);
 
         relevantV3Positions.forEach((position) => {
             const startBlock = startBlockByPosition.get(getV3PositionKey(position));
@@ -646,20 +681,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
                 && position.closeBlock >= fromBlock
                 && position.closeBlock <= toBlock;
             const positionKey = getV3PositionKey(position);
-            let endValue: bigint | undefined;
+            let terminalDebt: bigint | undefined;
+            let totalRepaid = reductionRepayments.get(positionKey) ?? 0n;
             if (closedInPeriod) {
-                endValue = closeRepayments.get(positionKey);
-                if (endValue === undefined) {
+                const closeRepayment = closeRepayments.get(positionKey);
+                if (closeRepayment === undefined) {
                     throw new Error(`Missing Tristero v3 close repayment for ${options.chain} position ${position.positionId} at ${position.escrow}`);
                 }
+                totalRepaid += closeRepayment;
+                terminalDebt = 0n;
             } else {
-                endValue = endLoanValues.get(positionKey);
+                terminalDebt = endLoanValues.get(positionKey);
             }
-            if (endValue === undefined) {
+            if (terminalDebt === undefined) {
                 throw new Error(`Missing Tristero v3 end loan value for ${options.chain} position ${position.positionId} at ${position.escrow}`);
             }
 
-            const accruedDuringPeriod = endValue - startValue;
+            const accruedDuringPeriod = terminalDebt + totalRepaid - startValue;
             if (accruedDuringPeriod <= 0n) return;
 
             addToTokenMap(grossBorrowInterestByToken, position.loanAsset, accruedDuringPeriod);

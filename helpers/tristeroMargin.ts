@@ -172,14 +172,25 @@ type TristeroV3PositionStruct = {
 type TristeroV3ReducedPositionLog = {
   positionId: number;
   taker: string;
+  repayAmount: bigint;
   position: TristeroV3PositionStruct;
   blockNumber: number;
   logIndex: number;
+  txHash?: string;
 };
 
 type TristeroV3ClosedPositionLog = {
   positionId: number;
   filler: string;
+  blockNumber: number;
+  logIndex: number;
+  txHash?: string;
+};
+
+export type TristeroV3MarginReduction = {
+  escrow: string;
+  positionId: number;
+  repayAmount: bigint;
   blockNumber: number;
   logIndex: number;
   txHash?: string;
@@ -346,17 +357,20 @@ function normalizeV3PositionOpenedLog(log: any, config: TristeroV3MarginEscrowCo
 function normalizeV3PositionReducedLog(log: any): TristeroV3ReducedPositionLog | null {
   const args = log?.args ?? log;
   const positionId = args?.positionId ?? args?.[0];
+  const repayAmount = toBigIntOrNull(args?.repayAmount ?? args?.[2]);
   const blockNumber = log?.blockNumber;
   const position = normalizeV3PositionStruct(args?.position ?? args?.[4]);
 
-  if (positionId === null || positionId === undefined || !position || blockNumber === null || blockNumber === undefined) return null;
+  if (positionId === null || positionId === undefined || repayAmount === null || !position || blockNumber === null || blockNumber === undefined) return null;
 
   return {
     positionId: toPositionId(positionId),
     taker: normalizeAddress(args?.taker ?? args?.[1]),
+    repayAmount,
     position,
     blockNumber: Number(blockNumber),
     logIndex: getLogIndex(log),
+    txHash: getLogTxHash(log),
   };
 }
 
@@ -378,6 +392,38 @@ function normalizeV3PositionClosedLog(log: any): TristeroV3ClosedPositionLog | n
 
 function cloneV3MarginPosition(position: TristeroV3MarginPosition): TristeroV3MarginPosition {
   return { ...position };
+}
+
+function stringifyV3LogContext(log: any): string {
+  try {
+    return JSON.stringify(log, (_key, value) => typeof value === 'bigint' ? value.toString() : value).slice(0, 1000);
+  } catch {
+    return '[unserializable log]';
+  }
+}
+
+function malformedV3LogError(eventName: string, config: TristeroV3MarginEscrowConfig, log: any): Error {
+  return new Error(
+    `Unable to normalize Tristero v3 ${eventName} log for ${config.address.toLowerCase()} at block ${String(log?.blockNumber)} logIndex ${String(getLogIndex(log))}: ${stringifyV3LogContext(log)}`
+  );
+}
+
+function requireV3PositionOpenedLog(log: any, config: TristeroV3MarginEscrowConfig): TristeroV3MarginPosition {
+  const position = normalizeV3PositionOpenedLog(log, config);
+  if (!position) throw malformedV3LogError('PositionOpened', config, log);
+  return position;
+}
+
+function requireV3PositionReducedLog(log: any, config: TristeroV3MarginEscrowConfig): TristeroV3ReducedPositionLog {
+  const reducedLog = normalizeV3PositionReducedLog(log);
+  if (!reducedLog) throw malformedV3LogError('PositionReduced', config, log);
+  return reducedLog;
+}
+
+function requireV3PositionClosedLog(log: any, config: TristeroV3MarginEscrowConfig): TristeroV3ClosedPositionLog {
+  const closedLog = normalizeV3PositionClosedLog(log);
+  if (!closedLog) throw malformedV3LogError('PositionClosed', config, log);
+  return closedLog;
 }
 
 async function getV3EscrowStartBlock(chain: string, start: string): Promise<number> {
@@ -453,16 +499,16 @@ export async function getTristeroV3MarginPositionSnapshots(
 
     const positionEvents = [
       ...(openedLogs as any[]).flatMap((log) => {
-        const position = normalizeV3PositionOpenedLog(log, config);
-        return position ? [{ type: 'opened' as const, blockNumber: position.openBlock, logIndex: getLogIndex(log), position }] : [];
+        const position = requireV3PositionOpenedLog(log, config);
+        return [{ type: 'opened' as const, blockNumber: position.openBlock, logIndex: getLogIndex(log), position }];
       }),
       ...(reducedLogs as any[]).flatMap((log) => {
-        const reducedLog = normalizeV3PositionReducedLog(log);
-        return reducedLog ? [{ type: 'reduced' as const, ...reducedLog }] : [];
+        const reducedLog = requireV3PositionReducedLog(log, config);
+        return [{ type: 'reduced' as const, ...reducedLog }];
       }),
       ...(closedLogs as any[]).flatMap((log) => {
-        const closedLog = normalizeV3PositionClosedLog(log);
-        return closedLog ? [{ type: 'closed' as const, ...closedLog }] : [];
+        const closedLog = requireV3PositionClosedLog(log, config);
+        return [{ type: 'closed' as const, ...closedLog }];
       }),
     ].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
 
@@ -501,7 +547,7 @@ export async function getTristeroV3MarginPositionSnapshots(
       }
 
       const snapshot = positionsByKey.get(getV3PositionKey(request));
-      if (snapshot) {
+      if (snapshot && (snapshot.closeBlock === undefined || snapshot.closeBlock > request.block)) {
         snapshots.push({
           ...request,
           position: cloneV3MarginPosition(snapshot),
@@ -564,19 +610,18 @@ export async function getTristeroV3MarginPositions(
     ]);
 
     (openedLogs as any[]).forEach((log) => {
-      const position = normalizeV3PositionOpenedLog(log, config);
-      if (!position) return;
+      const position = requireV3PositionOpenedLog(log, config);
       positionsByKey.set(getV3PositionKey(position), position);
     });
 
     const positionStateLogs = [
       ...(reducedLogs as any[]).flatMap((log) => {
-        const reducedLog = normalizeV3PositionReducedLog(log);
-        return reducedLog ? [{ type: 'reduced' as const, ...reducedLog }] : [];
+        const reducedLog = requireV3PositionReducedLog(log, config);
+        return [{ type: 'reduced' as const, ...reducedLog }];
       }),
       ...(closedLogs as any[]).flatMap((log) => {
-        const closedLog = normalizeV3PositionClosedLog(log);
-        return closedLog ? [{ type: 'closed' as const, ...closedLog }] : [];
+        const closedLog = requireV3PositionClosedLog(log, config);
+        return [{ type: 'closed' as const, ...closedLog }];
       }),
     ].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
 
@@ -603,6 +648,56 @@ export async function getTristeroV3MarginPositions(
   }
 
   return Array.from(positionsByKey.values());
+}
+
+/**
+ * Reads v3 PositionReduced events and returns the loan-asset repayment amount
+ * emitted by the escrow for each reduction.
+ *
+ * @param options DefiLlama fetch options for the current chain/window.
+ * @param configs Active v3 escrow/vault configs to scan.
+ * @param fromBlock First block to include.
+ * @param toBlock Last block to include.
+ * @returns Reduction repayment events keyed by escrow/position id.
+ */
+export async function getTristeroV3MarginReductions(
+  options: FetchOptions,
+  configs: TristeroV3MarginEscrowConfig[],
+  fromBlock: number,
+  toBlock: number,
+): Promise<TristeroV3MarginReduction[]> {
+  const reductions: TristeroV3MarginReduction[] = [];
+  if (!configs.length || fromBlock > toBlock) return reductions;
+
+  for (const config of configs) {
+    const startBlock = await getV3EscrowStartBlock(options.chain, config.start);
+    const queryFromBlock = Math.max(startBlock, fromBlock);
+    if (queryFromBlock > toBlock) continue;
+
+    const reducedLogs = await options.getLogs({
+      target: config.address,
+      eventAbi: TRISTERO_V3_MARGIN_ABI.positionReduced,
+      fromBlock: queryFromBlock,
+      toBlock,
+      entireLog: true,
+      parseLog: true,
+      cacheInCloud: true,
+    });
+
+    (reducedLogs as any[]).forEach((log) => {
+      const reducedLog = requireV3PositionReducedLog(log, config);
+      reductions.push({
+        escrow: config.address.toLowerCase(),
+        positionId: reducedLog.positionId,
+        repayAmount: reducedLog.repayAmount,
+        blockNumber: reducedLog.blockNumber,
+        logIndex: reducedLog.logIndex,
+        txHash: reducedLog.txHash,
+      });
+    });
+  }
+
+  return reductions;
 }
 
 /**
