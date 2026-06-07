@@ -76,7 +76,7 @@ const fetchEvm = async (options: FetchOptions) => {
   return Number(row?.volume);
 };
 
-const fetch = async (_timestamp: number, _chainBlocks: unknown, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
