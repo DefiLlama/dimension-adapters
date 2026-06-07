@@ -39,7 +39,7 @@ function isVolumeReport(data: any): data is VolumeReport {
   return data && typeof data.reportByChain === 'object';
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chainCode = CHAINS[options.chain];
   if (!chainCode) {
     return {

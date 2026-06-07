@@ -177,6 +177,7 @@ const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,

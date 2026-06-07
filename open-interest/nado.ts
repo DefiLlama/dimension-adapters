@@ -52,12 +52,8 @@ const sumAllProductOpenInterests = (open_interests: IData): number => {
   return sum / 1e18;
 };
 
-const fetch = async (
-  timestamp: number,
-  _: any,
-  fetchOptions: FetchOptions
-) => {
-  const response = await query(timestamp, fetchOptions);
+const fetch = async (options: FetchOptions) => {
+  const response = await query(options.toTimestamp, options);
 
   if (!response.snapshots || response.snapshots.length === 0) {
     return { openInterestAtEnd: undefined };

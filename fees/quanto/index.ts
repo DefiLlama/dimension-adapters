@@ -15,11 +15,11 @@ interface FeeResponse {
   data: FeeRecord[];
 }
 
-const fetch = async (timestamp: number, _chain: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const res: FeeResponse = await fetchURL(FEES_API);
 
-  const requestedDate = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const previousDate = new Date((timestamp - 86400) * 1000).toISOString().split("T")[0];
+  const requestedDate = new Date(options.toTimestamp * 1000).toISOString().split("T")[0];
+  const previousDate = new Date((options.toTimestamp - 86400) * 1000).toISOString().split("T")[0];
 
   const requestedRecord = res.data.find(r => r.recordDate === requestedDate);
   const previousRecord = res.data.find(r => r.recordDate === previousDate);

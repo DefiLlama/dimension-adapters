@@ -16,7 +16,7 @@ const weiToSSV = (amount: string): Number => {
   return Number(amount || "0") / 1e18;
 };
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, getLogs } = options;
 
   const date = new Date(getTimestampAtStartOfDayUTC(startTimestamp) * 1000);

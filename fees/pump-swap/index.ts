@@ -14,7 +14,7 @@ interface IData {
     quoteMint: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
         WITH pools AS (
             SELECT

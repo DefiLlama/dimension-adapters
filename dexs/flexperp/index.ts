@@ -14,7 +14,7 @@ type MarketStat = {
   totalTradingVolume: string;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const [prevDayBlock, toDayBlock] = await Promise.all([
     options.getStartBlock(),
     options.getEndBlock(),

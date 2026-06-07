@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const fetch = async (_:any, _1:any, { startOfDay }: FetchOptions) => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
   const data = await fetchURL(
     `https://bytzz.xyz/api/stats?timestamp=${startOfDay}`
   );

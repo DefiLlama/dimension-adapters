@@ -9,7 +9,7 @@ interface ChartData {
 
 const feesAPI = 'https://api.nearblocks.io/v1/charts';
 
-const fetch = async (_timestamp: number, __: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT 
         SUM(transaction_fee_raw) AS total_tx_fees

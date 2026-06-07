@@ -28,7 +28,7 @@ const TELEGRAM_WALLETS = [
   '0:99DC29AD86155121C8B0CE9B75542D1714F06B3FA42F5472D97BF61DC78E9048', // Telegram operations deployer/funder (vesting & validator wallets)
 ];
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   // Workaround for dune indexing issue
   const now = Date.now()
   const twoHoursAgo = now - (2 * 60 * 60 * 1000)

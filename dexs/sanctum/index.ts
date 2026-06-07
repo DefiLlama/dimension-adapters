@@ -2,7 +2,7 @@ import { ChainBlocks, Dependencies, FetchOptions, FetchResultVolume, SimpleAdapt
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = options.createBalances()
   const solDispensed = (
     // https://dune.com/queries/3276095
@@ -21,14 +21,14 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
           CONTAINS(account_keys, '5Pcu8WeQa3VbBz2vdBT49Rj4gbS4hsnfzuL1LmuRaKFY') /* = fee account, since that's in all unstake and set_fee ix invokes but nothing else */
           AND CONTAINS(account_keys, '3rBnnH9TTgd3xwu48rnzGsaQkSr1hR64nY71DrDt6VrQ')
           AND success = TRUE
-          AND block_time > from_unixtime(${timestamp}) - INTERVAL '1' day
-          AND block_time < from_unixtime(${timestamp})
+          AND block_time > from_unixtime(${options.toTimestamp}) - INTERVAL '1' day
+          AND block_time < from_unixtime(${options.toTimestamp})
       )
     `)
   )[0].sol_dispensed;
   dailyVolume.addCGToken("solana", solDispensed);
 
-  return { dailyVolume, timestamp, };
+  return { dailyVolume, };
 };
 
 const adapter: SimpleAdapter = {

@@ -32,27 +32,20 @@ const getData = async (chain: string, timestamp: number) => {
 
   const dailyVolume = Number(data.dailyVolume?.volumeUsd ?? "0");
 
-  return {
-    dailyVolume: dailyVolume,
-    timestamp: timestamp,
-  };
+  return { dailyVolume };
 };
 
-export const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
+export const fetch = async (options: FetchOptions) => {
   const data = await getData(options.chain, options.startOfDay);
   return {
     dailyVolume: data.dailyVolume,
-    timestamp: data.timestamp,
   };
 };
 
-const adapters: SimpleAdapter = {
+const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch: fetchVolume,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONIC],
 };
 
-export default adapters;
+export default adapter;

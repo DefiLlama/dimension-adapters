@@ -13,7 +13,7 @@ function toEvmAddress(raw: string): string {
     : s;
 }
 
-async function fetch(_ts: number, _blocks: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -55,12 +55,9 @@ async function fetch(_ts: number, _blocks: any, options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2025-01-31',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2025-01-31',
   methodology: {
     Volume: 'Per-token daily swap volume.',
     Fees: 'Total swap fees paid by traders plus protocol-owned LP position earnings.',

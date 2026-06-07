@@ -15,6 +15,7 @@ const EASYA_PARTNER_CONFIGS = [
     'NHT6MNushFNWpaFgQs5k49HHzsas9jQAVoRvqyXc5Qx',
     '6iEekXhre85eDB1mxRuXbRDHbSG8HeSPYopp9e7fp4BJ',
     '5WP4ZKstxzM6vUxE4xCahuXowaJeEXgLUhCXCKm7yqRy',
+    'CeEB3UDmhoWfcVFXY1RShQnhhiL3rYMm93M61S228bzy',
 ];
 
 interface IData {
@@ -26,7 +27,7 @@ interface IData {
     total_damm_v2_revenue: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const configs = EASYA_PARTNER_CONFIGS.map(c => `'${c}'`).join(',');
 
     const data: IData[] = await queryDuneSql(options, `

@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchStats } from "./pharaoh-v3";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
 
   const dailyFees = stats.legacyFeesUSD;

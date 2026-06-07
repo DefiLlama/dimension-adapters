@@ -6,7 +6,7 @@ import PromisePool from "@supercharge/promise-pool";
 
 const API = "https://mainnet.zklighter.elliot.ai/api/v1";
 
-const fetch = async (_1: any, _2: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0;
   const start = options.startOfDay;
 

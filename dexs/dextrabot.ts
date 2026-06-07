@@ -9,7 +9,7 @@ const EXTENDED_BUILDER_NAMES = ['DextraBot'];
 // https://docs.dextrabot.com/dextrabot/fees#quick-overview
 const EXTENDED_BUILDER_FEE_RATE = 0.0002;
 
-const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({
       options,
@@ -18,7 +18,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchExtended = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,

@@ -136,7 +136,7 @@ async function fetchEvm(options: FetchOptions) {
   return fees
 }
 
-export const fetch = async (_: any, _1: any, options: FetchOptions) => {
+export const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
 
   const fees = await fetchEvm(options)

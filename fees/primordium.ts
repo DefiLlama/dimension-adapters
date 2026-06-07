@@ -43,7 +43,7 @@ const INTERNAL_TREASURY_WALLETS = [
 const formatAddresses = (addresses: string[]) =>
   addresses.map(a => `'${a}'`).join(', ');
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const terminalFeeWalletsSql = formatAddresses(TROJAN_TERMINAL_FEE_WALLETS);
   const internalWalletsSql = formatAddresses(INTERNAL_TREASURY_WALLETS);
   // block_date is the partition key on these tables; filtering on it (alongside

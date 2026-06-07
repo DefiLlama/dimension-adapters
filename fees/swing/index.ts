@@ -40,7 +40,7 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );

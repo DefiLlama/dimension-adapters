@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://info.pheasantswap.com/swap/operate/getSwapStatisticsList"
 
@@ -10,26 +9,21 @@ interface IVolumeall {
   date: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volumeList;
   const dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.date) === dayTimestamp)?.amount
+    .find(dayItem => Number(dayItem.date) === options.startOfDay)?.amount
 
   return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ENULS]: {
-      fetch,
-      start: '2023-04-24',
-    },
-  },
-  deadFrom: '2025-03-01'
+  fetch,
+  chains: [CHAIN.ENULS],
+  start: '2023-04-24',
+  deadFrom: '2025-03-01',
 };
 
 export default adapter;
