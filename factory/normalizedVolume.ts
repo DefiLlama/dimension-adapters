@@ -196,7 +196,7 @@ const protocols = {
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
     start: '2026-01-20',
-    minContracts: 90
+    minContracts: 60
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
@@ -220,7 +220,8 @@ const protocols = {
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
     chains: [CHAIN.TRON],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 100
   }),
   'apex-omni': dailyNormalizedVolumeAdapter({
     protocolName: 'apex-omni',
@@ -282,6 +283,34 @@ const protocols = {
     start: '2026-05-25',
     version: 2,
     minContracts: 8
+  }),
+  'edgex-v2': dailyNormalizedVolumeAdapter({
+    protocolName: 'edgex-v2',
+    chains: [CHAIN.EDGEX],
+    start: '2026-05-28',
+    version: 1,
+    minContracts: 50
+  }),
+  'dango': dailyNormalizedVolumeAdapter({
+    protocolName: 'dango',
+    chains: [CHAIN.DANGO],
+    start: '2026-05-28',
+    version: 2,
+    minContracts: 6
+  }),
+  'sodex': dailyNormalizedVolumeAdapter({
+    protocolName: 'sodex',
+    chains: [CHAIN.VALUECHAIN],
+    start: '2026-05-31',
+    version: 1,
+    minContracts: 70,
+  }),
+  'orderly': dailyNormalizedVolumeAdapter({
+    protocolName: 'orderly',
+    chains: [CHAIN.ORDERLY],
+    start: '2026-05-28',
+    version: 1,
+    minContracts: 90
   }),
 
 } as const;
