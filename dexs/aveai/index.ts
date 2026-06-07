@@ -91,7 +91,7 @@ const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
   return { dailyVolume: Number(rows[0]?.daily_volume) };
 };
 
-const fetch = async (_timestamp: number, _chainBlocks: unknown, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   return fetchEVM(options);
 };
@@ -105,7 +105,6 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology,
 };
 
