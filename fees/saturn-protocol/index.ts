@@ -10,7 +10,7 @@ const BALANCE_DECIMALS = 6;
 
 const BPS = 10000;
 const PERFORMANCE_FEE_BPS = 1000;
-const HOLDERS_REVENUE_BPS = 1000; // Saturn returns 10% of revenue to sUSDat holders
+const STAKERS_REVENUE_BPS = 1000; // Saturn returns 10% of revenue to sUSDat holders
 
 const METRICS = {
     STRC_PRICE_FLUCTUATIONS: "Effect of STRC price fluctuations",
@@ -93,6 +93,7 @@ const fetch = async (options: FetchOptions) => {
     const strcPriceDelta = (strcPriceAfter - strcPriceBefore);
     const strcBalance = strcBalanceBackingSUSDat / (10 ** BALANCE_DECIMALS)
 
+    dailyFees.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
     dailySupplySideRevenue.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
 
     strcRewardLogs.forEach((log: any) => {
@@ -121,8 +122,9 @@ const fetch = async (options: FetchOptions) => {
     })
 
     // sUSDat is a staking token, so this 10% is supply-side revenue (stakers), not holders revenue.
-    dailySupplySideRevenue.addBalances(dailyRevenue.clone(HOLDERS_REVENUE_BPS / BPS), METRICS.REVENUE_SHARE_TO_STAKERS);
-    const protocolRevenue = dailyRevenue.clone((BPS - HOLDERS_REVENUE_BPS) / BPS);
+    dailySupplySideRevenue.addBalances(dailyRevenue.clone(STAKERS_REVENUE_BPS / BPS), METRICS.REVENUE_SHARE_TO_STAKERS);
+    const protocolRevenue = dailyRevenue.clone((BPS - STAKERS_REVENUE_BPS) / BPS);
+
     return {
         dailyFees,
         dailyRevenue: protocolRevenue,
@@ -139,7 +141,8 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-    Fees: {
+  Fees: {
+        [METRICS.STRC_PRICE_FLUCTUATIONS]: "Effect of STRC price fluctuations on sUSDat",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees paid when users deposit USDat into sUSDat.",
         'Asset yields - STRC': "Yields from STRC dividends",
         'Asset yields - Tbill': "Yields from Tbill through M0 yield model",
@@ -172,7 +175,7 @@ const adapter: Adapter = {
     fetch,
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true,
+    allowNegativeValue: true, // Effect of STRC price fluctuations can make loss
     doublecounted: true
 };
 
