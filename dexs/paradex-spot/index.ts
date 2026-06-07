@@ -33,7 +33,7 @@ async function fetchCandles(options: FetchOptions, marketId: string) {
   }
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const markets = await fetchMarkets();
   let dailyVolume = 0;
   for (const market of markets) {

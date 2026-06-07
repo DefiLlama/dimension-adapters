@@ -8,8 +8,8 @@ import { METRIC } from "../helpers/metrics";
 const endpoint = sdk.graph.modifyEndpoint('4TbqVA8p2DoBd5qDbPMwmDZv3CsJjWtxo8nVSqF2tA9a')
 
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+const fetch = async (options: FetchOptions) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400)
 
   const graphQuery = gql
   `{
@@ -47,12 +47,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2019-05-07',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2019-05-07',
   methodology: {
     Fees: 'Total borrow interest paid by borrowers.',
     UserFees: 'Total borrow interest paid by borrowers.',

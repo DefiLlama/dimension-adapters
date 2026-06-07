@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options:FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       SUM(CAST(fee AS DOUBLE)/1e6) AS "daily_fees"

@@ -12,7 +12,7 @@ interface ISale {
   price: number;
 }
 
-const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   const dailyUserFees = createBalances();
   const pastSales: ISale[] = (await fetchURL(recentSalesEndpoint)).sales;
   //helper function to group by days
@@ -31,7 +31,6 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBal
 
   const dailyRevenue = dailyUserFees.clone(0.5)
   return {
-    timestamp: startOfDay,
     dailyUserFees,
     dailyFees: dailyUserFees,
     dailyRevenue,
@@ -45,12 +44,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: `${salesFee}% of each successful NFT sale is charged as a platform fee.`
   },
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2021-09-02',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: '2021-09-02',
 };
 
 export default adapter;

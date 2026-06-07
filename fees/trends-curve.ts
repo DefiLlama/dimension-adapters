@@ -17,7 +17,7 @@ const metrics = {
 
 const quoteMint = "So11111111111111111111111111111111111111112";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const query = `SELECT
     SUM(COALESCE(creator_fee, 0)) AS total_creator_fees,
     SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,

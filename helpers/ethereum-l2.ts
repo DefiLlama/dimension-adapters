@@ -237,7 +237,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 };
 
 function l2FeesDuneAdapter(chain: string, start: string, chainName?: string, methodology?: Record<string, string>): Adapter {
-	const fetch = async (_a: any, _b: any, options: FetchOptions) => fetchL2FeesWithDune(options, chainName);
+	const fetch = async (options: FetchOptions) => fetchL2FeesWithDune(options, chainName);
 	return {
 		version: 1, fetch, chains: [chain], start,
 		protocolType: ProtocolType.CHAIN, dependencies: [Dependencies.DUNE],

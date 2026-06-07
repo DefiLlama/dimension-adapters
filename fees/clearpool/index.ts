@@ -2,6 +2,7 @@ import axios from "axios";
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { FetchOptions } from "../../adapters/types";
 
 const ENDPOINT = "https://squid.subsquid.io/cpool-squid/v/v1/graphql";
 const PORT_ENDPOINT = "https://vaults.clearpool.finance/api/subsquid";
@@ -103,7 +104,7 @@ const portNavQuery = `
   }
 `;
 
-async function fetch(_a: any, _b: any, options: any) {
+async function fetch(options: FetchOptions) {
   const config = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

@@ -62,7 +62,7 @@ interface OriginDailyRecord {
  *                  isn't deployed on).
  */
 export const fetchOriginFees = (products: OriginProduct[]) =>
-  async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+  async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

@@ -97,10 +97,10 @@ const computeVolume = async (
 };
 
 
-const fetch = async (timestamp: number, _: any, fetchOptions: FetchOptions) => {
+const fetch = async (fetchOptions: FetchOptions) => {
   const products = await fetchProducts(fetchOptions);
 
-  return computeVolume(timestamp, products.spot_products, fetchOptions);
+  return computeVolume(fetchOptions.toTimestamp, products.spot_products, fetchOptions);
 };
 
 

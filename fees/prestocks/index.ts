@@ -40,7 +40,7 @@ async function getMeteoraDLMMPositions(owner: string) {
     return accounts.map((acc: any) => extractPubkey(acc.account.data[0], 8));
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();

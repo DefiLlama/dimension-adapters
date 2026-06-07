@@ -36,7 +36,7 @@ function parseEndOfDayReportCSV(csv: string): { openInterest: number; price: num
     return endOfDayReportData;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const openInterestAtEnd = options.createBalances();
 
     const manifestData = await fetchURL(`${BASE_URL}/manifest.json`);

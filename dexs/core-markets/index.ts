@@ -1,6 +1,6 @@
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
@@ -34,10 +34,10 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const response: IGraphResponse = await request(endpoint, query, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp),
+    from: String(options.toTimestamp - ONE_DAY_IN_SECONDS),
+    to: String(options.toTimestamp),
   });
 
   let dailyVolume = new BigNumber(0);

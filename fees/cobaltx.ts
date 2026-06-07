@@ -3,7 +3,7 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
-const fetch = async (_: any, _1: any, { chain }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ chain }: FetchOptions): Promise<FetchResult> => {
   const response = await fetchURL(config[chain] + '/pools/info/list?poolType=concentrated&poolSortField=volume24h&sortType=desc&pageSize=1000&page=1')
   const dailyFees = response.data.reduce((acc: number, pool: any) => acc + Number(pool.day.volumeFee), 0);
   return {
@@ -18,9 +18,9 @@ const config: any = {
 }
 
 const adapter: SimpleAdapter = {
-  runAtCurrTime: true,
-  chains: Object.keys(config),
   fetch,
+  chains: Object.keys(config),
+  runAtCurrTime: true,
   adapter: {},
 };
 

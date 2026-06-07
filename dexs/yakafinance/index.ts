@@ -3,7 +3,7 @@ import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<any> => {
+const fetch = async (options: FetchOptions): Promise<any> => {
     const dayID = Math.floor(options.startOfDay / 86400);
     const query =gql`
     {
@@ -19,17 +19,13 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
     const req = await request(url, query);
     return {
         dailyVolume: req.pancakeDayData.dailyVolumeUSD,
-        timestamp: timestamp,
     }
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SEI]: {
-            fetch,
-            start: '2024-07-01',
-        },
-    }
+    fetch,
+    chains: [CHAIN.SEI],
+    start: '2024-07-01',
 }
 
 export default adapter;

@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 import * as sdk from "@defillama/sdk";
@@ -79,7 +79,8 @@ const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.goldsky.com/api/public/project_clhf7zaco0n9j490ce421agn4/subgraphs/arbitrum-one/production/gn",
 };
 
-const fetch: Fetch = async (timestamp) => {
+const fetch = async (options: FetchOptions) => {
+  const timestamp = options.toTimestamp
   const notinalBal = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp })
   const premiumBal = new sdk.Balances({ chain: CHAIN.ARBITRUM, timestamp })
   const timestampFrom = timestamp - 60 * 60 * 24

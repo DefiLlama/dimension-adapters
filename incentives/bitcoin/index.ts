@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { Adapter, Fetch, FetchResultIncentives, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchResultIncentives, ProtocolType, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
@@ -20,12 +20,11 @@ const getDailyBlocksByTimestampLast24h = async (timestamp: number) => {
     return (await fetchURL(url)) as IResponse
 }
 
-const getIncentives: Fetch = async (timestamp: number): Promise<FetchResultIncentives> => {
-    const dayBlocks = await getDailyBlocksByTimestampLast24h(timestamp)
+const getIncentives: FetchV2 = async (options: FetchOptions): Promise<FetchResultIncentives> => {
+    const dayBlocks = await getDailyBlocksByTimestampLast24h(options.toTimestamp)
     const rewardByBlock = getBTCRewardByBlock(dayBlocks[0].height)
-    const tokens = await sdk.Balances.getUSDString({ 'coingecko:bitcoin': dayBlocks.length * rewardByBlock }, timestamp)
+    const tokens = await sdk.Balances.getUSDString({ 'coingecko:bitcoin': dayBlocks.length * rewardByBlock }, options.toTimestamp)
     return {
-        timestamp,
         block: dayBlocks[0].height,
         tokenIncentives: tokens,
     }

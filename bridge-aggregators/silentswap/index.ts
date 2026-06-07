@@ -28,7 +28,7 @@ function toYYYYMMDD(ts: number): bigint {
   );
 }
 
-const fetch = async (_args: any, _options: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startTimestamp, toTimestamp } = options;
 
   const date = toYYYYMMDD(startTimestamp);
@@ -50,7 +50,7 @@ const fetch = async (_args: any, _options: any, options: FetchOptions) => {
   const dailyInflows = inflowsTillToday - inflowsTillYesterday;
 
   return {
-    dailyVolume: Number(dailyInflows) / 1e6,
+    dailyBridgeVolume: Number(dailyInflows) / 1e6,
   };
 };
 

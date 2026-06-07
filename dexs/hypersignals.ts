@@ -12,7 +12,7 @@ const EXTENDED_BUILDER_NAMES = [
 // https://biconomy.gitbook.io/hypersignals/terminal-trading-manual#fees-manual-trading
 const EXTENDED_BUILDER_FEE_RATE = 0.0001;
 
-const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({
       options,
@@ -21,7 +21,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchExtended = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,

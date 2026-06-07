@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter, ChainEndpoints } from "../adapters/types";
+import { SimpleAdapter, ChainEndpoints, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { ethers } from "ethers";
@@ -81,12 +81,12 @@ function toNumber(value: string): number {
   return Number(ethers.formatEther(value));
 }
 
-async function getV2Data(url: string, timestamp: number) {
-  const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+async function fetch(options: FetchOptions) {
+  const _timestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp);
   const fromTimestamp = _timestamp - 60 * 60 * 24
   const toTimestamp = _timestamp
   const yesterday = await request(
-    url,
+    v2Endpoints[options.chain],
     dailyFeesQuery,
     {
       timestampFrom: fromTimestamp - ONE_DAY,
@@ -95,7 +95,7 @@ async function getV2Data(url: string, timestamp: number) {
   );
 
   const today = await request(
-    url,
+    v2Endpoints[options.chain],
     dailyFeesQuery,
     {
       timestampFrom: toTimestamp - ONE_DAY,
@@ -108,7 +108,6 @@ async function getV2Data(url: string, timestamp: number) {
   const dailyFees = !isYesterdayEmpty && !isTodayEmpty ? toNumber(today.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) - toNumber(yesterday.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) : 0;
 
   return {
-    timestamp: timestamp,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: (dailyFees * 0.8),
@@ -132,7 +131,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (ts: number) => await getV2Data(v2Endpoints[chain], ts),
+        fetch,
         start: v2StartTimes[chain],
       },
     }

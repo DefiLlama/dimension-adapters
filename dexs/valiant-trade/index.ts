@@ -9,7 +9,7 @@ const CONFIG: Record<string, { url: string, start: string }> = {
   },
 }
 
-async function fetch(_a: number, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const baseUrl = CONFIG[options.chain].url;
   const url = `${baseUrl}?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
   const data = await httpGet(url);

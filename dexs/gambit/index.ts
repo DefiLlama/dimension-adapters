@@ -58,6 +58,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ERA]: { fetch, start: '2023-08-01', },
     [CHAIN.ARBITRUM]: { fetch, start: '2023-11-02', },
   },
-  version: 2
+  version: 2,
+  pullHourly: true,
 };
 export default adapter;

@@ -1,9 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import {
-  SimpleAdapter,
-  FetchResultVolume,
-  ChainEndpoints,
-} from "../../adapters/types";
+import { SimpleAdapter, FetchResultVolume, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "../../adapters/types";
@@ -27,11 +23,10 @@ interface IVolumeStat {
   id: string;
 }
 
-const fetch = (endpoint) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    const graphQuery = gql`
+  const graphQuery = gql`
       query MyQuery {
         volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
           cumulativeVolumeUsd
@@ -41,41 +36,26 @@ const fetch = (endpoint) => {
       }
     `;
 
-    const response = await request(endpoint, graphQuery);
-    const volumeStats: IVolumeStat[] = response.volumeStats;
+  const response = await request(endpoints[options.chain], graphQuery);
+  const volumeStats: IVolumeStat[] = response.volumeStats;
 
-    let dailyVolumeUSD = BigInt(0);
+  let dailyVolumeUSD = BigInt(0);
 
-    volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.volumeUsd);
-    });
+  volumeStats.forEach((vol) => {
+    dailyVolumeUSD += BigInt(vol.volumeUsd);
+  });
 
-    const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
+  const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
 
-    return {
-      dailyVolume: finalDailyVolume.toString(),
-      timestamp: todaysTimestamp,
-    };
+  return {
+    dailyVolume: finalDailyVolume.toString(),
+    timestamp: todaysTimestamp,
   };
 };
-
-const methodology = {
-  Volume:
-    "Total cumulativeVolumeUsd for specified chain for the given day",
-}
-
 const adapter: SimpleAdapter = {
-  methodology,
-  adapter: {
-    [CHAIN.LINEA]: {
-      fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: '2024-03-01',
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: '2024-03-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.LINEA, CHAIN.POLYGON],
+  start: '2024-03-01',
   deadFrom: "2025-06-04",
 };
 
