@@ -1,4 +1,5 @@
 import * as sdk from "@defillama/sdk";
+import retry from "async-retry";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import getTxReceipts from "../helpers/getTxReceipts";
 import { METRIC } from "../helpers/metrics";
@@ -155,15 +156,25 @@ async function readV3LoanValueAtBlock(
     block: number,
 ): Promise<bigint | null> {
     try {
-        const { output } = await sdk.api.abi.call({
-            chain: options.chain,
-            block,
-            target: position.vault,
-            abi: TRISTERO_V3_MARGIN_ABI.readValue,
-            params: [position.loanAsset, position.loanShares.toString()],
-        });
+        return await retry(async () => {
+            const { output } = await sdk.api.abi.call({
+                chain: options.chain,
+                block,
+                target: position.vault,
+                abi: TRISTERO_V3_MARGIN_ABI.readValue,
+                params: [position.loanAsset, position.loanShares.toString()],
+            });
 
-        return toBigIntOrNull(output);
+            const value = toBigIntOrNull(output);
+            if (value === null) throw new Error("readValue returned nullish output");
+            return value;
+        }, {
+            retries: 2,
+            minTimeout: 500,
+            onRetry: (error, attempt) => {
+                sdk.log(`Retrying Tristero v3 single readValue on ${options.chain} position ${position.positionId} at ${position.escrow} block ${block} (attempt ${attempt + 1}): ${formatErrorMessage(error)}`);
+            },
+        });
     } catch (error) {
         sdk.log(`Tristero v3 single readValue failed on ${options.chain} position ${position.positionId} at ${position.escrow} block ${block}: ${formatErrorMessage(error)}`);
         return null;
@@ -206,7 +217,7 @@ function getV3ReductionRepayments(
         const positionKey = getV3PositionKey(reduction);
         const startBlock = startBlockByPosition.get(positionKey);
         if (startBlock === undefined) return;
-        if (reduction.blockNumber < startBlock || reduction.blockNumber > toBlock) return;
+        if (reduction.blockNumber <= startBlock || reduction.blockNumber > toBlock) return;
 
         repayments.set(positionKey, (repayments.get(positionKey) ?? 0n) + reduction.repayAmount);
     });
