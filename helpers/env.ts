@@ -85,6 +85,7 @@ export const ENV_KEYS = new Set([
   'MIRACLETRADE_API_KEY',
   'FRED_API_KEY',
   'SUBSCAN_API_KEY',
+  'PEARL_BLOCKBOOK_API',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
