@@ -748,6 +748,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
                     throw new Error(`Missing Tristero v3 close repayment for ${options.chain} position ${position.positionId} at ${position.escrow}`);
                 }
                 totalRepaid += closeRepayment;
+                if (totalRepaid < startValue) {
+                    throw new Error(`Incomplete Tristero v3 repayment attribution for ${options.chain} position ${position.positionId} at ${position.escrow}: repaid ${totalRepaid} < start debt ${startValue}`);
+                }
                 terminalDebt = 0n;
             } else {
                 terminalDebt = endLoanValues.get(positionKey);
