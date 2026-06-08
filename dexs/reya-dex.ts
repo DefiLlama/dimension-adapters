@@ -11,6 +11,8 @@ const eventAbis = {
   // price the contract used so we can back out (executedPrice - oraclePrice) per trade.
   event_pool_slippage:
     "event PoolPSlippageUpdated(uint128 indexed marketId, int256 premiumIndex, uint256 oraclePrice, uint256 blockTimestamp)",
+  event_bridge_fee_paid:
+    "event BridgeFeePaid(address indexed receiver, address indexed token, uint256 tokenFee, uint256 nativeFee, uint256 blockTimestamp)",
 };
 
 const CONFIG = {
@@ -18,6 +20,7 @@ const CONFIG = {
   baseDecimals: 18,
   quoteDecimals: 6,
   perpContract: '0x27e5cb712334e101b3c232eb0be198baaa595f5f',
+  peripheryContract: '0xCd2869d1eb1BC8991Bc55de9E9B779e912faF736',
   poolAccountId: 2,
   coreProxy: '0xA763B6a5E09378434406C003daE6487FbbDc1a80',
   oracleAdapterProxy: '0x32edABC058C1207fE0Ec5F8557643c28E4FF379e',
@@ -54,6 +57,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const key = `${log.transactionHash}:${Number(log.args.marketId)}`;
     const newOraclePrice = Number(log.args.oraclePrice);
     oraclePriceByTxAndMarket.set(key, newOraclePrice);
+  };
+
+  const processBridgeFeeLog = (log: any) => {
+    const token = log.args.token as string;
+    const tokenFee = Number(log.args.tokenFee);
+    dailyFees.addToken(token, tokenFee);
   };
 
   const processLog = (log: any) => {
@@ -94,7 +103,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   }
 
   for (const batch of batches) {
-    const [older_logs, newer_logs, oracle_logs] = await Promise.all([
+    const [older_logs, newer_logs, oracle_logs, bridge_fee_logs] = await Promise.all([
       options.getLogs({
         target: CONFIG.perpContract,
         eventAbi: eventAbis.event_old_order,
@@ -122,11 +131,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         skipCacheRead: true,
         onlyArgs: false,
       }),
+      options.getLogs({
+        target: CONFIG.peripheryContract,
+        eventAbi: eventAbis.event_bridge_fee_paid,
+        fromBlock: batch.fromBlock,
+        toBlock: batch.toBlock,
+        skipCache: true,
+        skipCacheRead: true,
+        onlyArgs: false,
+      }),
     ]);
     // Oracle logs first so the map is populated before match logs look it up.
     oracle_logs.forEach(processOracleLog);
     older_logs.forEach(processLog);
     newer_logs.forEach(processLog);
+    bridge_fee_logs.forEach(processBridgeFeeLog);
   }
 
   // LM token APY accruing to the pool: balance × (price_end - price_start) per token,
