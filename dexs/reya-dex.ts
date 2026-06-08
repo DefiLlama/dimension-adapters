@@ -47,6 +47,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const oraclePriceByTxAndMarket = new Map<string, number>();
   // Signed sum of (orderBase * (executedPrice - oraclePrice)) in RUSD units. 
@@ -62,7 +63,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const processBridgeFeeLog = (log: any) => {
     const token = log.args.token as string;
     const tokenFee = Number(log.args.tokenFee);
-    dailyFees.addToken(token, tokenFee);
+    dailyFees.addToken(token, tokenFee, 'Bridge Fees');
+    dailyRevenue.addToken(token, tokenFee, 'Bridge Fees To Treasury');
   };
 
   const processLog = (log: any) => {
@@ -76,8 +78,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const fee = Number(fees.takerFeeDebit);
 
     dailyVolume.addToken(ADDRESSES.reya.RUSD, volume);
-    dailyFees.addToken(ADDRESSES.reya.RUSD, fee);
-    dailyRevenue.addToken(ADDRESSES.reya.RUSD, revenue);
+    dailyFees.addToken(ADDRESSES.reya.RUSD, fee, 'Trading Fees');
+    dailyRevenue.addToken(ADDRESSES.reya.RUSD, revenue, 'Trading Fees To Treasury');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, fee - revenue, 'Trading Fees To Stakers');
 
     const oraclePrice = oraclePriceByTxAndMarket.get(`${log.transactionHash}:${marketId}`);
     if (oraclePrice !== undefined && oraclePrice > 0) {
@@ -181,33 +184,52 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   }
 
   if (lmRevenueAccumulator > 0) {
-    dailyFees.addToken(ADDRESSES.reya.RUSD, lmRevenueAccumulator);
+    dailyFees.addToken(ADDRESSES.reya.RUSD, lmRevenueAccumulator, 'Liquidity Fees');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, lmRevenueAccumulator, 'Liquidity Fees To Stakers');
   }
   // Net pool capture from spread + price impact. Clamp at the daily level so days where
   // the pool paid more slippage than it earned in spread show 0, not negative fees.
   if (poolPremiumAccumulator > 0) {
-    dailyFees.addToken(ADDRESSES.reya.RUSD, poolPremiumAccumulator);
+    dailyFees.addToken(ADDRESSES.reya.RUSD, poolPremiumAccumulator, 'Liquidity Fees');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, poolPremiumAccumulator, 'Liquidity Fees To Stakers');
   }
 
-  // in theory, dailyFees is always greater than dailyRevenue
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
-
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  };
 };
 
 const adapters: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  chains: [CHAIN.REYA],
+  start: "2024-08-11",
+  fetch,
   methodology: {
     Volume: "Notional volume of trades.",
     Fees: "All fees paid by traders, including the APY earned by stakers.",
     Revenue: "Portion of fees distributed to the DAO Treasury.",
     SupplySideRevenue: "Portion of fees distributed to vaults stakers.",
   },
-  chains: [CHAIN.REYA],
-  start: "2024-08-11",
-  fetch,
+  breakdownMethodology: {
+    Fees: {
+      'Trading Fees': 'Trading fees paid by users',
+      'Bridge Fees': 'Deposit and withdraw fees paid by users while bridge assest to Reya chain.',
+      'Liquidity Fees': 'Total liquidity manager revenue',
+    },
+    Revenue: {
+      'Trading Fees To Treasury': 'A portion of trading fees paid by users collected by protocol treasury',
+      'Bridge Fees To Treasury': 'All bridge fees are collected by protocol treasury',
+    },
+    SupplySideRevenue: {
+      'Trading Fees To Stakers': 'A portion of trading fees paid by users distributed to vault stakers',
+      'Liquidity Fees To Stakers': 'All liquidity fees are distributed to vault stakers',
+    },
+  }
 };
 
 export default adapters;
