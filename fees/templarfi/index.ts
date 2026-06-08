@@ -1,6 +1,7 @@
 import BigNumber from "bignumber.js";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { nearViewCall } from "../../helpers/near";
 
 const REGISTRY = "v1.tmplr.near";
@@ -99,9 +100,9 @@ const fetch = async (options: FetchOptions) => {
 
       const scale = new BigNumber(10).pow(decimals);
       const feesUsd = interestRaw.div(scale);
-      dailyFees.addUSDValue(feesUsd.toNumber());
-      dailySupplySideRevenue.addUSDValue(feesUsd.times(supplyWeight).div(totalWeight).toNumber());
-      dailyProtocolRevenue.addUSDValue(feesUsd.times(staticWeight).div(totalWeight).toNumber());
+      dailyFees.addUSDValue(feesUsd.toNumber(), METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.addUSDValue(feesUsd.times(supplyWeight).div(totalWeight).toNumber(), METRIC.BORROW_INTEREST);
+      dailyProtocolRevenue.addUSDValue(feesUsd.times(staticWeight).div(totalWeight).toNumber(), METRIC.BORROW_INTEREST);
     }),
   );
 
@@ -126,6 +127,17 @@ const adapter: SimpleAdapter = {
     Revenue: "Protocol's share of borrower interest (the static yield weight), sent to the Templar treasury (revenue.tmplr.near).",
     ProtocolRevenue: "Protocol's share of borrower interest (the static yield weight), sent to the Templar treasury (revenue.tmplr.near).",
     SupplySideRevenue: "Borrower interest distributed to suppliers/lenders (the supply yield weight).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: "Gross interest accrued by borrowers across all Templar lending markets.",
+    },
+    Revenue: {
+      [METRIC.BORROW_INTEREST]: "Protocol's share of borrower interest (the static yield weight), sent to the Templar treasury (revenue.tmplr.near).",
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: "Borrower interest distributed to suppliers/lenders (the supply yield weight).",
+    },
   },
 };
 

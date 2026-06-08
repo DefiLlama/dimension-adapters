@@ -11,6 +11,13 @@ const RPCS = getEnv("NEAR_RPC").split(",");
 const limit = plimit(3);
 let rpcCursor = 0;
 
+/**
+ * Perform a NEAR JSON-RPC view (`call_function`) call with retry, endpoint failover, and concurrency limiting.
+ * @param account - The NEAR account ID (contract) to call.
+ * @param method - The view method name.
+ * @param args - Optional JSON-serializable arguments (default: {}).
+ * @returns Parsed JSON result returned by the contract method.
+ */
 export async function nearViewCall(account: string, method: string, args: any = {}): Promise<any> {
   const payload = {
     jsonrpc: "2.0",
@@ -33,6 +40,7 @@ export async function nearViewCall(account: string, method: string, args: any = 
         const body = await postURL(rpc, payload, 0);
         if (body?.error) throw new Error(`${account}.${method}: ${JSON.stringify(body.error)}`);
         if (body?.result?.error) throw new Error(`${account}.${method}: ${body.result.error}`);
+        if (!Array.isArray(body?.result?.result)) throw new Error(`${account}.${method}: unexpected response shape`);
         return JSON.parse(Buffer.from(body.result.result).toString());
       } catch (e: any) {
         lastErr = e;
