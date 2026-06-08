@@ -15,6 +15,9 @@ const LABELS = {
   SWAP_FEES_TO_VEYAKA: "Swap Fees to veYAKA",
 } as const;
 
+const PAGE_SIZE = 1000;
+const PAIR_BATCH_SIZE = 1000;
+
 const chainConfig: Record<string, { start: string; subgraph: string }> = {
   [CHAIN.SEI]: {
     start: "2024-07-01",
@@ -25,21 +28,37 @@ const chainConfig: Record<string, { start: string; subgraph: string }> = {
 
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
+  const pairDayDatas: any[] = [];
 
-  const { pairs, pairDayDatas } = await request(config.subgraph, `
-    query yakaV2 {
-      pairs(first: 1000) {
-        id
-        isStable
+  for (let skip = 0; ; skip += PAGE_SIZE) {
+    const { pairDayDatas: page } = await request(config.subgraph, `
+      query yakaV2PairDayDatas($date: Int!, $skip: Int!) {
+        pairDayDatas(first: ${PAGE_SIZE}, skip: $skip, where: { date: $date }) {
+          pairAddress
+          dailyVolumeUSD
+        }
       }
-      pairDayDatas(first: 1000, where: { date: ${options.startOfDay} }) {
-        pairAddress
-        dailyVolumeUSD
-      }
-    }
-  `);
+    `, { date: options.startOfDay, skip });
 
-  const stablePairs = new Map(pairs.map((pair: any) => [pair.id.toLowerCase(), pair.isStable]));
+    pairDayDatas.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  const pairIds = [...new Set(pairDayDatas.map((pairDayData: any) => pairDayData.pairAddress.toLowerCase()))];
+  const stablePairs = new Map<string, boolean>();
+  for (let i = 0; i < pairIds.length; i += PAIR_BATCH_SIZE) {
+    const { pairs } = await request(config.subgraph, `
+      query yakaV2Pairs($ids: [ID!]!) {
+        pairs(first: ${PAIR_BATCH_SIZE}, where: { id_in: $ids }) {
+          id
+          isStable
+        }
+      }
+    `, { ids: pairIds.slice(i, i + PAIR_BATCH_SIZE) });
+
+    pairs.forEach((pair: any) => stablePairs.set(pair.id.toLowerCase(), pair.isStable));
+  }
+
   const v2 = pairDayDatas.reduce((totals: { volume: number; fees: number }, pairDayData: any) => {
     const pairAddress = pairDayData.pairAddress.toLowerCase();
     if (!stablePairs.has(pairAddress)) {
