@@ -1,6 +1,6 @@
 import type { FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addOneToken } from "../helpers/prices";
+import { addOneToken, isCoreAsset } from "../helpers/prices";
 import { filterPools } from "../helpers/uniswap";
 
 // Not using the Uniswap/Algebra helper: Thirdfy pools are discovered from factory logs here,
@@ -46,9 +46,17 @@ const fetch = async (options: FetchOptions) => {
 
     swapLogs.forEach((logs: any[], index: number) => {
       const [token0, token1] = pairObject[pools[index]];
-      const poolFee = Number(poolFees[index] ?? 0);
-      const addFees = (balances: any, amount0: any, amount1: any, fee: number) =>
-        addOneToken({ chain: options.chain, balances, token0, token1, amount0: amount0.toString() * fee / 1e6, amount1: amount1.toString() * fee / 1e6 });
+      const poolFee = Number(poolFees[index]);
+      if (poolFees[index] == null || !Number.isFinite(poolFee)) {
+        return;
+      }
+      const addFees = (balances: any, amount0: any, amount1: any, fee: number) => {
+        const useToken0 = isCoreAsset(options.chain, token0);
+        const token = useToken0 ? token0 : token1;
+        const amount = BigInt((useToken0 ? amount0 : amount1).toString());
+        const fees = ((amount < 0n ? -amount : amount) * BigInt(fee)) / 1_000_000n;
+        balances.add(token, fees.toString());
+      };
 
       logs.forEach(({ amount0, amount1, overrideFee, pluginFee }) => {
         const lpFee = Number(overrideFee || poolFee);
