@@ -7,6 +7,7 @@ import {
     getTristeroMarginChainStart,
     getTristeroMarginChains,
     normalizePosition,
+    permitFailureMultiCallWithFallback,
     toBigIntOrNull,
     TRISTERO_MARGIN_ABI,
     TRISTERO_V3_MARGIN_ABI,
@@ -50,14 +51,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (v3Escrows.length) {
         const v3Positions = await getOpenTristeroV3MarginPositions(options, v3Escrows);
         const notionals = v3Positions.length
-            ? await options.toApi.multiCall({
+            ? await permitFailureMultiCallWithFallback(options, options.toApi, {
                 abi: TRISTERO_V3_MARGIN_ABI.readValue,
                 calls: v3Positions.map((position) => ({
                     target: position.vault,
                     params: [position.underlyingAsset, position.notionalShares.toString()],
                 })),
-                permitFailure: true,
-            })
+            }, `v3 open interest readValue for ${v3Positions.length} positions`)
             : [];
 
         v3Positions.forEach((position, index) => {

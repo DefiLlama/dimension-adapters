@@ -13,6 +13,7 @@ import {
     getTristeroV3MarginPositionSnapshots,
     getTristeroV3MarginReductions,
     getV3PositionKey,
+    permitFailureMultiCallWithFallback,
     getPositionIds,
     mulDivCeil,
     normalizePosition,
@@ -35,7 +36,6 @@ const MARGIN_METRICS = {
     BORROW_INTEREST_TO_LENDERS: 'Borrow Interest To Lenders',
     LIQUIDATION_FEES_TO_PROTOCOL: 'Liquidation Fees To Protocol',
 } as const;
-const MULTICALL_FALLBACK_BATCH_SIZE = 5;
 
 type ProtocolFeeLog = {
     token: string;
@@ -110,57 +110,6 @@ function formatV3ReadValueContext(positions: TristeroV3MarginPosition[]): string
         .slice(0, 3)
         .map((position) => `${position.vault}/${position.loanAsset}/${position.loanShares.toString()}`)
         .join(", ");
-}
-
-type PermitFailureMultiCallParams = {
-    abi: string;
-    calls: Array<{ target?: string; params?: any }>;
-    target?: string;
-    block?: number;
-};
-
-async function permitFailureMultiCallWithFallback(
-    options: FetchOptions,
-    api: any,
-    params: PermitFailureMultiCallParams,
-    context: string,
-): Promise<any[]> {
-    try {
-        return await api.multiCall({ ...params, permitFailure: true });
-    } catch (error) {
-        sdk.log(`Tristero multicall failed on ${options.chain} ${context}: ${formatErrorMessage(error)}`);
-    }
-
-    const block = params.block ?? api.block;
-    const outputs: any[] = [];
-    for (let offset = 0; offset < params.calls.length; offset += MULTICALL_FALLBACK_BATCH_SIZE) {
-        const batch = params.calls.slice(offset, offset + MULTICALL_FALLBACK_BATCH_SIZE);
-        outputs.push(...await Promise.all(batch.map((call, batchIndex) => readFallbackCall(call, offset + batchIndex))));
-    }
-
-    return outputs;
-
-    async function readFallbackCall(call: PermitFailureMultiCallParams["calls"][number], index: number): Promise<any | null> {
-        const target = call.target ?? params.target;
-        if (!target) {
-            sdk.log(`Tristero multicall fallback missing target on ${options.chain} ${context} call ${index}`);
-            return null;
-        }
-
-        try {
-            const output = await api.call({
-                target,
-                abi: params.abi,
-                params: call.params,
-                block,
-                permitFailure: true,
-            });
-            return output && typeof output === "object" && "output" in output ? output.output : output;
-        } catch (error) {
-            sdk.log(`Tristero multicall fallback failed on ${options.chain} ${context} call ${index} target ${target}: ${formatErrorMessage(error)}`);
-            return null;
-        }
-    }
 }
 
 async function readV3LoanValuesAtBlock(
@@ -801,7 +750,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-    Fees: 'Daily borrow interest accrued on legacy and v3 margin positions, including v3 vault loan-value growth, v3 reduction (PositionReduced) repayments, and close repayments, plus any legacy protocol-collected liquidation fees.',
+    Fees: 'Daily borrow interest accrued on legacy and v3 margin positions. V3 vault loan-value growth, PositionReduced repayments, and close repayments are inputs used to reconstruct borrow-interest accrual, not raw additions to dailyFees. Also includes any legacy protocol-collected liquidation fees.',
     Revenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
     ProtocolRevenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
     SupplySideRevenue: 'Borrow interest attributable to the filler lenders that funded margin positions.',
@@ -809,7 +758,7 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated legacy positions, plus v3 vault loan-value growth, v3 reduction (PositionReduced) repayments, and close repayments.',
+        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated legacy positions. V3 vault loan-value growth, PositionReduced repayments, and close repayments are inputs used to reconstruct borrow-interest accrual, not raw additions to dailyFees.',
         [METRIC.LIQUIDATION_FEES]: 'Legacy protocol-collected liquidation fees.',
     },
     Revenue: {

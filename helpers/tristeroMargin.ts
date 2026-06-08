@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { getBlock } from "./getBlock";
@@ -24,6 +25,85 @@ type TristeroV3MarginChainConfig = {
   start: string;
   escrows: TristeroV3MarginEscrowConfig[];
 };
+
+const MULTICALL_FALLBACK_BATCH_SIZE = 5;
+
+export type PermitFailureMultiCallParams = {
+  abi: string;
+  calls: Array<{ target?: string; params?: any }>;
+  target?: string;
+  block?: number;
+};
+
+function formatTristeroErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export async function permitFailureMultiCallWithFallback(
+  options: FetchOptions,
+  api: any,
+  params: PermitFailureMultiCallParams,
+  context: string,
+): Promise<any[]> {
+  const block = params.block ?? api.block;
+  let outputs: any[] | null = null;
+
+  try {
+    outputs = await api.multiCall({ ...params, permitFailure: true });
+  } catch (error) {
+    sdk.log(`Tristero multicall failed on ${options.chain} ${context}: ${formatTristeroErrorMessage(error)}`);
+  }
+
+  if (!outputs) {
+    return readFallbackCalls(params.calls.map((call, index) => ({ call, index })));
+  }
+
+  const nextOutputs = [...outputs];
+  const missingCalls = params.calls
+    .map((call, index) => ({ call, index }))
+    .filter(({ index }) => nextOutputs[index] === null || nextOutputs[index] === undefined);
+
+  const fallbackOutputs = await readFallbackCalls(missingCalls);
+  missingCalls.forEach(({ index }, fallbackIndex) => {
+    if (fallbackOutputs[fallbackIndex] !== null && fallbackOutputs[fallbackIndex] !== undefined) {
+      nextOutputs[index] = fallbackOutputs[fallbackIndex];
+    }
+  });
+
+  return nextOutputs;
+
+  async function readFallbackCalls(calls: Array<{ call: PermitFailureMultiCallParams["calls"][number]; index: number }>): Promise<any[]> {
+    const fallbackOutputs: any[] = [];
+    for (let offset = 0; offset < calls.length; offset += MULTICALL_FALLBACK_BATCH_SIZE) {
+      const batch = calls.slice(offset, offset + MULTICALL_FALLBACK_BATCH_SIZE);
+      fallbackOutputs.push(...await Promise.all(batch.map(({ call, index }) => readFallbackCall(call, index))));
+    }
+
+    return fallbackOutputs;
+  }
+
+  async function readFallbackCall(call: PermitFailureMultiCallParams["calls"][number], index: number): Promise<any | null> {
+    const target = call.target ?? params.target;
+    if (!target) {
+      sdk.log(`Tristero multicall fallback missing target on ${options.chain} ${context} call ${index}`);
+      return null;
+    }
+
+    try {
+      const output = await api.call({
+        target,
+        abi: params.abi,
+        params: call.params,
+        block,
+        permitFailure: true,
+      });
+      return output && typeof output === "object" && "output" in output ? output.output : output;
+    } catch (error) {
+      sdk.log(`Tristero multicall fallback failed on ${options.chain} ${context} call ${index} target ${target}: ${formatTristeroErrorMessage(error)}`);
+      return null;
+    }
+  }
+}
 
 export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
@@ -377,16 +457,18 @@ function normalizeV3PositionReducedLog(log: any): TristeroV3ReducedPositionLog |
 function normalizeV3PositionClosedLog(log: any): TristeroV3ClosedPositionLog | null {
   const args = log?.args ?? log;
   const positionId = args?.positionId ?? args?.[0];
+  const filler = normalizeAddress(args?.filler ?? args?.[1]);
   const blockNumber = log?.blockNumber;
+  const txHash = getLogTxHash(log);
 
-  if (positionId === null || positionId === undefined || blockNumber === null || blockNumber === undefined) return null;
+  if (positionId === null || positionId === undefined || !filler || !txHash || blockNumber === null || blockNumber === undefined) return null;
 
   return {
     positionId: toPositionId(positionId),
-    filler: normalizeAddress(args?.filler ?? args?.[1]),
+    filler,
     blockNumber: Number(blockNumber),
     logIndex: getLogIndex(log),
-    txHash: getLogTxHash(log),
+    txHash,
   };
 }
 

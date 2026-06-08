@@ -318,27 +318,24 @@ function decodeTristeroV3CloseOrder(data?: string): boolean {
   try {
     const parsed = ESCROW_INTERFACE.parseTransaction({ data });
     return parsed?.name === "close";
-  } catch {
-    return false;
+  } catch (error) {
+    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to decode Tristero v3 escrow.close calldata ${calldataContext}: ${(error as Error).message}`);
+    throw error;
   }
 }
 
-function getMarginLoanQuantity(order: TristeroV3DecodedOrder): bigint {
+function getMarginLoan(order: TristeroV3DecodedOrder): { token: string; quantity: bigint } | null {
   if (order.orderType.toUpperCase() !== "MARGIN" || !order.customData || order.customData === "0x") {
-    return 0n;
+    return null;
   }
 
   try {
     const [loanAsset, loanQuantity] = ABI_CODER.decode(["address", "uint256", "uint256"], order.customData);
-    if (normalize(loanAsset) !== normalize(order.srcToken)) return 0n;
-    return BigInt(loanQuantity);
+    return { token: String(loanAsset), quantity: BigInt(loanQuantity) };
   } catch (error) {
     throw new Error(`Unable to decode Tristero v3 MARGIN customData: ${(error as Error).message}`);
   }
-}
-
-function getOrderVolumeQuantity(order: TristeroV3DecodedOrder): bigint {
-  return order.srcQuantity + getMarginLoanQuantity(order);
 }
 
 function isTristeroV3RouterTransferLog(log: TristeroV3TransferLog, router: string): boolean {
@@ -383,7 +380,14 @@ function addTristeroV3OrdersToBalances(
     if (!tokenAddress) return;
 
     seenTxs.add(normalizedTxHash);
-    dailyVolume.add(tokenAddress, getOrderVolumeQuantity(decodedOrder));
+    dailyVolume.add(tokenAddress, decodedOrder.srcQuantity);
+
+    const marginLoan = getMarginLoan(decodedOrder);
+    if (marginLoan?.quantity) {
+      const loanToken = normalizeVolumeToken(chain, marginLoan.token);
+      if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token for tx ${normalizedTxHash}`);
+      dailyVolume.add(loanToken, marginLoan.quantity);
+    }
   });
 }
 
