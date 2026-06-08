@@ -77,17 +77,24 @@ const fetchEvm = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 const fetchSolana = async (options: FetchOptions) => {
   const { router } = chainConfig[options.chain];
   const [row] = await queryDuneSql(options, `
-    SELECT COALESCE(SUM(trades.amount_usd), 0) AS volume
-    FROM dex_solana.trades AS trades
-    WHERE TIME_RANGE
-      AND EXISTS (
-        SELECT 1
-        FROM solana.account_activity a
-        WHERE TIME_RANGE
-          AND a.tx_id = trades.tx_id
-          AND a.tx_success
-          AND a.address = '${router}'
-      )
+    WITH routed_swaps AS (
+      SELECT
+        trades.tx_id,
+        MAX(trades.amount_usd) AS amount_usd
+      FROM dex_solana.trades AS trades
+      WHERE TIME_RANGE
+        AND EXISTS (
+          SELECT 1
+          FROM solana.account_activity a
+          WHERE TIME_RANGE
+            AND a.tx_id = trades.tx_id
+            AND a.tx_success
+            AND a.address = '${router}'
+        )
+      GROUP BY trades.tx_id
+    )
+    SELECT COALESCE(SUM(amount_usd), 0) AS volume
+    FROM routed_swaps
   `);
 
   return { dailyVolume: row?.volume };
