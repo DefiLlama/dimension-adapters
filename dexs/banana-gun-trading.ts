@@ -101,7 +101,7 @@ const fetchSolana = async (options: FetchOptions) => {
 };
 
 // EVM routers are the Banana Gun trading contracts tracked by fees/banana-gun-trading.ts.
-const fetch = (_timestamp: number, _chainBlocks: unknown, options: FetchOptions) => {
+const fetch = (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) {
     const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
     if ((options.toTimestamp * 1000) > tenHoursAgo) {
