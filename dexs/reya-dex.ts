@@ -63,6 +63,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const token = log.args.token as string;
     const tokenFee = Number(log.args.tokenFee);
     dailyFees.addToken(token, tokenFee);
+    // the fee goes to the protocol and bridge provider
+    dailyRevenue.addToken(token, tokenFee); 
   };
 
   const processLog = (log: any) => {
