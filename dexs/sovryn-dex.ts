@@ -3,41 +3,33 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 
-const BOB_SUBGRAPH = "https://bob-ambient-subgraph.sovryn.app/subgraphs/name/DistributedCollective/bob-ambient-subgraph";
-const RSK_SUBGRAPH = "https://subgraph.sovryn.app/subgraphs/name/DistributedCollective/sovryn-subgraph";
+const SOVRYN_DEX_BOB = "0xe5bc234A484A912A61Aa74501960cFc202e773dA";
+const RSK_SUBGRAPH =
+  "https://subgraph.sovryn.app/subgraphs/name/DistributedCollective/sovryn-subgraph";
 
-async function fetchBob({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
+async function fetchBob({ getLogs, createBalances }: FetchOptions) {
   const dailyVolume = createBalances();
-  let skip = 0;
-  let hasMore = true;
-  while (hasMore) {
-    const query = gql`{
-      swaps(
-        where: { time_gte: ${startTimestamp}, time_lt: ${endTimestamp} }
-        first: 1000
-        skip: ${skip}
-        orderBy: time
-      ) {
-        quoteFlow
-        pool {
-          quote
-        }
-      }
-    }`;
-    const { swaps } = await request(BOB_SUBGRAPH, query);
-    for (const swap of swaps) {
-      const quoteFlow = BigInt(swap.quoteFlow);
-      const absFlow = quoteFlow < 0n ? -quoteFlow : quoteFlow;
-      dailyVolume.add(swap.pool.quote, absFlow);
-    }
-    hasMore = swaps.length === 1000;
-    skip += 1000;
+
+  const logs = await getLogs({
+    target: SOVRYN_DEX_BOB,
+    eventAbi:
+      "event SdexSwap(address indexed base, address indexed quote, uint256 poolIdx, bool isBuy, bool inBaseQty, uint128 qty, uint16 tip, uint128 limitPrice, uint128 minOut, uint8 reserveFlags, int128 baseFlow, int128 quoteFlow)",
+  });
+
+  for (const log of logs) {
+    const quoteFlow = BigInt(log.quoteFlow);
+    const absFlow = quoteFlow < 0n ? -quoteFlow : quoteFlow;
+    dailyVolume.add(log.quote, absFlow);
   }
 
   return { dailyVolume };
 }
 
-async function fetchRsk({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
+async function fetchRsk({
+  startTimestamp,
+  endTimestamp,
+  createBalances,
+}: FetchOptions) {
   const dailyVolume = createBalances();
   let skip = 0;
   let hasMore = true;
