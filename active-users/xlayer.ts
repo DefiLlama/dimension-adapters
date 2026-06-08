@@ -1,0 +1,46 @@
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getEnv } from "../helpers/env";
+import { httpGet } from "../utils/fetchURL";
+
+async function getApiKey(): Promise<string> {
+  const API_KEY = getEnv('OKLINK_API_KEY');
+  if (!API_KEY) throw Error('Missing env OKLINK_API_KEY');
+  const s = 1111111111111;
+  const rotated = `${API_KEY.slice(8)}${API_KEY.slice(0, 8)}`;
+  const now = Date.now();
+  const time = `${(now + s).toString()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+  return Buffer.from(`${rotated}|${time}`).toString('base64');
+}
+
+const fetch = async (options: FetchOptions) => {
+  const timestamp = options.startOfDay * 1e3;
+  const apiKey = await getApiKey();
+  const headers = { 'x-apikey': apiKey };
+  const [activeData, txData, gasData] = await Promise.all([
+    httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/activeAddressCount?chain=X1&t=${timestamp}`, { headers }),
+    httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/transaction?chain=X1&t=${timestamp}`, { headers }),
+    httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/gasUsedDailyTotal?chain=X1&t=${timestamp}`, { headers }),
+  ]);
+  const activeEntry = activeData.data.value.find((item: any) => item.timestamp == timestamp);
+  const txEntry = txData.data.value.find((item: any) => item.timestamp == timestamp);
+  const gasEntry = gasData.data.value.find((item: any) => item.timestamp == timestamp);
+  if (!activeEntry || !txEntry || !gasEntry) {
+    throw new Error(`No X-Layer user data found for ${timestamp}`);
+  }
+  return {
+    dailyActiveUsers: Number(activeEntry.activeAddressCount),
+    dailyTransactionsCount: Number(txEntry.transactionCount),
+    dailyGasUsed: Number(gasEntry.gasUsedDailyTotal),
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.XLAYER],
+  protocolType: ProtocolType.CHAIN,
+  start: '2024-03-30',
+};
+
+export default adapter;
