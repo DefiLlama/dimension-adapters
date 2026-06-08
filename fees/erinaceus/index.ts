@@ -28,50 +28,45 @@ const gasTokenId: IGasTokenId = {
 }
 
 
-const fetch = (chain: Chain) => {
-  return async ({ createBalances, getLogs }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const logs_1: ITx[] = (await getLogs({
-      target: address_v2[chain],
-      topics: [topic0_v2],
-    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const logs_1: ITx[] = (await getLogs({
+    target: address_v2[chain],
+    topics: [topic0_v2],
+  })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash } as ITx });
 
-    const amount_fullfill = logs_1.map((e: ITx) => {
-      const payment = Number('0x' + e.data.slice(64, 128)) / 10 ** 18
-      return payment;
-    }).reduce((a: number, b: number) => a + b, 0);
+  const amount_fullfill = logs_1.map((e: ITx) => {
+    const payment = Number('0x' + e.data.slice(64, 128)) / 10 ** 18
+    return payment;
+  }).reduce((a: number, b: number) => a + b, 0);
 
-    const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
-    const txReceipt: number[] = (await getTxReceipts(chain, tx_hash, { cacheKey: '' }))
-      .map((e: any) => {
-        const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
-        return amount
-      })
-    const gasToken = gasTokenId[chain];
-    const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
-    dailyFees.add(gasToken, amount_fullfill)
-    dailyRevenue.add(gasToken, amount_fullfill - dailyGas);
+  const tx_hash: string[] = [...new Set([...logs_1].map((e: ITx) => e.transactionHash))]
+  const txReceipt: number[] = (await getTxReceipts(chain, tx_hash, { cacheKey: '' }))
+    .map((e: any) => {
+      const amount = (Number(e?.gasUsed || 0) * Number(e.effectiveGasPrice || 0)) / 10 ** 18
+      return amount
+    })
+  const gasToken = gasTokenId[chain];
+  const dailyGas = txReceipt.reduce((a: number, b: number) => a + b, 0);
+  dailyFees.add(gasToken, amount_fullfill)
+  dailyRevenue.add(gasToken, amount_fullfill - dailyGas);
 
-    return {
-      dailyFees,
-      dailyRevenue,
-    }
-
+  return {
+    dailyFees,
+    dailyRevenue,
   }
+
 }
 
 
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.BAHAMUT]: {
-      fetch: fetch(CHAIN.BAHAMUT),
-      start: '2024-05-22',
-    }
-  },
+  fetch,
+  chains: [CHAIN.BAHAMUT],
+  start: '2024-05-22',
   methodology: {
     Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
     Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",

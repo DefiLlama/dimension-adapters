@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adap
 import { queryDuneSql } from "../helpers/dune";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       COALESCE(COUNT(DISTINCT "from"), 0) AS user_count,

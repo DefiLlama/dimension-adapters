@@ -33,7 +33,7 @@ const SWAP_EVENT_BASE64_PREFIX = "UWzj";
 // add it to a Balances object keyed by the input token mint so the
 // DefiLlama price layer converts it to USD.
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();        // protocol-side fees

@@ -75,7 +75,7 @@ async function fetchEvm(options: FetchOptions) {
   return fees
 }
 
-export const fetch = async (_: any, _1: any, options: FetchOptions) => {
+export const fetch = async (options: FetchOptions) => {
   if (options.endTimestamp > dataAvaliableTill)
     throw new Error("Data not available till 10 hours ago. Please try a date before: " + new Date(dataAvaliableTill * 1e3).toISOString());
 

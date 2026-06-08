@@ -365,6 +365,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: info.methodology,
   breakdownMethodology: info.breakdownMethodology,
   fetch: fetch,

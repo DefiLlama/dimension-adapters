@@ -35,7 +35,7 @@ function getHoldersRevenueShare(date: number): number {
 
 const STRATEGY_FEES = 'Strategy Fees';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   if (options.chain === CHAIN.OFF_CHAIN) {
     const duneQuery = `

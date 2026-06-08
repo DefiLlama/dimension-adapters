@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const FeesAndRevenueURL = "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const { data: { alpFeeVOFor24Hour } } = await fetchURL(FeesAndRevenueURL)
   const dailyFees = options.createBalances();

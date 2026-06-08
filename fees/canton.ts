@@ -37,7 +37,7 @@ const FEE_METRICS: Record<string, { name: string, methodology: string }> = {
 const CANTON_PRICE_API = 'https://fossil-outlook-levitate-gloomy.cantonscan.com/api/mining-rounds/timeseries?interval=day';
 const CANTON_ADDED_TO_CG_TOKEN_ON = '2025-11-12';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const start = new Date(options.fromTimestamp * 1000).toISOString()
   const end = new Date(options.toTimestamp * 1000).toISOString()
 

@@ -37,7 +37,7 @@ async function prefetch(_options: FetchOptions) {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const { assets, receipts } = options.preFetchedResults;
     if (!assets?.length) throw new Error("Missing KAIO TVL assets");
 

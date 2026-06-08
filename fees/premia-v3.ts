@@ -37,7 +37,7 @@ function toNumber(value: string): number {
   return Number(ethers.formatEther(value));
 }
 
-async function getV3Data(url: string, timestamp: number, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const toBlock = await options.getToBlock()
   const fromBlock = await options.getFromBlock();
   const query = gql`
@@ -64,7 +64,7 @@ async function getV3Data(url: string, timestamp: number, options: FetchOptions) 
   }
   `
 
-  const response: IGraphResponse = (await request(url, query));
+  const response: IGraphResponse = (await request(v3Endpoints[options.chain], query));
 
   const dailyFees = (toNumber(response.today?.feeRevenueUSD || '0') - toNumber(response.yesterday?.feeRevenueUSD || '0'));
   const dailyProtocolFees = (toNumber(response.today?.protocolFeeRevenueUSD || '0') - toNumber(response.yesterday?.protocolFeeRevenueUSD || '0'));
@@ -74,7 +74,6 @@ async function getV3Data(url: string, timestamp: number, options: FetchOptions) 
   }
 
   return {
-    timestamp: timestamp,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: ((dailyFees) * .5),
@@ -98,7 +97,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (ts: number, _t: any, options: FetchOptions) => await getV3Data(v3Endpoints[chain], ts, options),
+        fetch,
         start: v3StartTimes[chain],
       },
     }

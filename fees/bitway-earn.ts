@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const data = await fetchURL(
     `https://api.bitway.com/bitway-earn-api/defillama/fees-revenue?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`
   );

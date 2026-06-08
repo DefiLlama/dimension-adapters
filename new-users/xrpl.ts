@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const METRICS_URL = "https://api.xrpscan.com/api/v1/metrics/metric";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const metrics = await fetchURL(METRICS_URL);
   if (!metrics?.length) throw new Error("Missing XRPSCAN metrics data");
 

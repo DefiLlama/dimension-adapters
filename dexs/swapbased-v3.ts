@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: async (_a: any, _b: any, options: any) =>
+      fetch: async (options: FetchOptions) =>
         getUniV3LogAdapter({
           factory: "0xb5620F90e803C7F957A9EF351B8DB3C746021BEa",
           swapEvent:

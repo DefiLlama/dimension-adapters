@@ -4,7 +4,7 @@ import { DZAP_SUPPORTED_CHAINS, fetchChainWiseVolumeFromDZapAPI } from "../../he
 const prefetch = async (options: FetchOptions): Promise<FetchResultV2> =>
   fetchChainWiseVolumeFromDZapAPI({ ...options, txType: "bridge" });
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const volume = options.preFetchedResults[options.chain] ?? 0;
 
   return {

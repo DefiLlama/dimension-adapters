@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -9,12 +9,11 @@ const endpoints = {
     "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
 
-const fetch = (endpoint: string) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const dayId = Math.floor(dayTimestamp / 86400);
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+  const dayId = Math.floor(dayTimestamp / 86400);
 
-    const graphQuery = gql`{
+  const graphQuery = gql`{
       uniswapDayData(id: "${dayId}") {
         date
         volumeUSD
@@ -22,26 +21,24 @@ const fetch = (endpoint: string) => {
       }
     }`;
 
-    const response = await request(endpoint, graphQuery);
-    const dayData = response.uniswapDayData;
+  const response = await request(endpoints[options.chain], graphQuery);
+  const dayData = response.uniswapDayData;
 
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: dayData?.volumeUSD || "0",
-      dailyFees: dayData?.feesUSD || "0",
-    };
+  return {
+    timestamp: dayTimestamp,
+    dailyVolume: dayData?.volumeUSD || "0",
+    dailyFees: dayData?.feesUSD || "0",
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   adapter: {
     // [CHAIN.KAVA]: {
-    //   fetch: fetch(endpoints[CHAIN.KAVA]),
     //   start: "2023-08-15",
     // },
     [CHAIN.BASE]: {
-      fetch: fetch(endpoints[CHAIN.BASE]),
       start: "2024-05-19", // When subgraph started indexing
     },
   },

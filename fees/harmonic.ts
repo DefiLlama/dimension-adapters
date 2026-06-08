@@ -46,7 +46,7 @@ const toAccountList = (accounts: Array<string>) => {
   return accounts.map(account => `'${account}'`).toString();
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = await queryDuneSql(
     options,
     `

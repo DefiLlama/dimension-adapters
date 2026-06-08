@@ -24,7 +24,7 @@ const ROBINHOOD_API_URL = "https://bonfire.robinhood.com/instruments";
 const NASDAQ_API_URL = "https://api.nasdaq.com/api/quote";
 const headers = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36" }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const durationWrtYear = (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
 
     const etpsInfo = await Promise.all(GRAYSCALE_ETP_IDS.map(etp => limit(() => httpGet(`${ROBINHOOD_API_URL}/${etp}/etp-details`))));

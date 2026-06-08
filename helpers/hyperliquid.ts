@@ -568,7 +568,7 @@ export const exportHIP3DeployerAdapter = (
     doublecounted: true, // all metrics are double-counted to hyperliquid
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const result = await fetchHIP3DeployerData({
             options,
             hip3DeployerId: dexId,
@@ -642,7 +642,7 @@ export const exportBuilderAdapter = (
     start: startDate,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyVolume = options.createBalances();
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
@@ -718,7 +718,7 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
     skipBreakdownValidation: true,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
           const dailySupplySideRevenue = options.createBalances();

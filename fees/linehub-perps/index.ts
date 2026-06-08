@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import type { ChainEndpoints, FetchV2 } from "../../adapters/types";
+import type { ChainEndpoints, FetchOptions, FetchV2 } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -16,11 +16,10 @@ interface IFeeStat {
   id: string;
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    const graphQuery = gql`
+  const graphQuery = gql`
     query MyQuery {
       feeStats(where: {timestamp: ${todaysTimestamp}, period: daily}) {
         cumulativeFeeUsd
@@ -30,23 +29,21 @@ const graphs = (graphUrls: ChainEndpoints) => {
     }
   `;
 
-    const graphRes = await request(graphUrls[chain], graphQuery);
-    const feeStats: IFeeStat[] = graphRes.feeStats;
+  const graphRes = await request(endpoints[options.chain], graphQuery);
+  const feeStats: IFeeStat[] = graphRes.feeStats;
 
-    let dailyFeeUSD = BigInt(0);
+  let dailyFeeUSD = BigInt(0);
 
-    feeStats.forEach((fee) => {
-      dailyFeeUSD += BigInt(fee.feeUsd);
-    });
+  feeStats.forEach((fee) => {
+    dailyFeeUSD += BigInt(fee.feeUsd);
+  });
 
-    const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
+  const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
 
-    return {
-      timestamp: todaysTimestamp,
-      dailyFees: finalDailyFee.toString(),
-    };
+  return {
+    timestamp: todaysTimestamp,
+    dailyFees: finalDailyFee.toString(),
   };
-  return fetch;
 };
 
 const methodology = {
@@ -55,13 +52,10 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.LINEA]: {
-      fetch: graphs(endpoints),
-      start: '2024-07-02',
-      deadFrom: '2025-10-31',
-    },
-  },
+  chains: [CHAIN.LINEA],
+  fetch,
+  start: '2024-07-02',
+  deadFrom: '2025-10-31',
   methodology,
 };
 

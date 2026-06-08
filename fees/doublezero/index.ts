@@ -8,7 +8,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const doubleZero = 'J6pQQ3FAcJQeWPPGppWRb4nM8jU3wLyYbRrLh7feMfvd'
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const query = `
     WITH txs AS (
