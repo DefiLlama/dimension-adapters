@@ -1,10 +1,12 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
+import { getEnv } from "../helpers/env";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
 
 async function getApiKey(): Promise<string> {
-  const API_KEY = 'a2c903cc-b31e-4547-9299-b6d07b7631ab';
+  const API_KEY = getEnv('OKLINK_API_KEY');
+  if (!API_KEY) throw Error('Missing env OKLINK_API_KEY');
   const s = 1111111111111;
   const rotated = `${API_KEY.slice(8)}${API_KEY.slice(0, 8)}`;
   const now = Date.now();
