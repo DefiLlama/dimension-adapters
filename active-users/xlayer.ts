@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
   const activeEntry = activeData.data.value.find((item: any) => item.timestamp == timestamp);
   const txEntry = txData.data.value.find((item: any) => item.timestamp == timestamp);
   const gasEntry = gasData.data.value.find((item: any) => item.timestamp == timestamp);
-  if (!activeEntry || !txEntry) {
+  if (!activeEntry || !txEntry || !gasEntry) {
     throw new Error(`No X-Layer user data found for ${timestamp}`);
   }
   return {
