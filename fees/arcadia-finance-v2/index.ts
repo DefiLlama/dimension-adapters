@@ -91,6 +91,10 @@ const chainConfig: Record<string, ChainConfig> = {
   },
 };
 
+// https://docs.arcadia.finance/protocol/fees
+const INTEREST_TREASURY_SHARE = 15n; // 15%
+const LIQUIDATION_PENALTY_TREASURY_SHARE = 50n; // 50%
+
 const STAKED_RECOVERY_TOKEN = "0x3889255C5a9A55137DfdF870a0C30A285978176A";
 
 const REDEEM_EVENT = "event Redeemed(address indexed user, uint256 amount)";
@@ -120,8 +124,7 @@ const fetch = async (options: FetchOptions) => {
       const logs = await options.getLogs({ target: pool.address, eventAbi: event });
       if (type === "interest") {
         for (const interestSync of logs) {
-          // 15% treasury share
-          const treasuryShare = interestSync.interest * 15n / 100n;
+          const treasuryShare = interestSync.interest * INTEREST_TREASURY_SHARE / 100n;
           const lpShare = interestSync.interest - treasuryShare;
           dailyFees.add(pool.underlying, interestSync.interest, METRIC.BORROW_INTEREST);
           dailyRevenue.add(pool.underlying, treasuryShare, METRIC.BORROW_INTEREST);
@@ -138,8 +141,7 @@ const fetch = async (options: FetchOptions) => {
       
       if (type === "liquidation") {
         for (const liquidation of logs) {
-          // 50% of penalty goes to treasury
-          const treasuryShare = liquidation.penalty * 50n / 100n;
+          const treasuryShare = liquidation.penalty * LIQUIDATION_PENALTY_TREASURY_SHARE / 100n;
           const lpShare = liquidation.penalty - treasuryShare;
           const keeperReward = liquidation.initiationReward + liquidation.terminationReward;
 
