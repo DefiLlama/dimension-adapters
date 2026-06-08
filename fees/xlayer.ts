@@ -1,23 +1,13 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
-import { getEnv } from "../helpers/env";
+import { getOklinkApiKey } from "../helpers/oklink";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
-
-async function getApiKey(): Promise<string> {
-  const API_KEY = getEnv('OKLINK_API_KEY');
-  if (!API_KEY) throw Error('Missing env OKLINK_API_KEY');
-  const s = 1111111111111;
-  const rotated = `${API_KEY.slice(8)}${API_KEY.slice(0, 8)}`;
-  const now = Date.now();
-  const time = `${(now + s).toString()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-  return Buffer.from(`${rotated}|${time}`).toString('base64');
-}
 
 const fetch = async (options: FetchOptions) => {
   const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay)
   const path = `/api/explorer/v2/common/charts/feeUsdDailyTotal?chain=X1&t=${startOfDay * 1e3}`
-  const apiKey = await getApiKey()
+  const apiKey = await getOklinkApiKey()
   const data = await httpGet(`https://www.oklink.com${path}`, {
     headers: {
       'x-apikey': apiKey,
