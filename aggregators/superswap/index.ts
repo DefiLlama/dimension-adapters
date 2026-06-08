@@ -113,11 +113,11 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   methodology,
   breakdownMethodology,
   adapter: chainConfig,
-  methodology,
 }
 
 export default adapter;

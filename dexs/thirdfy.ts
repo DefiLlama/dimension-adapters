@@ -1,81 +1,115 @@
-import type { FetchOptions, SimpleAdapter } from "../adapters/types";
+import type { FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request } from "graphql-request";
+import { addOneToken, isCoreAsset } from "../helpers/prices";
+import { filterPools } from "../helpers/uniswap";
 
-const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/47039/thirdfy-base/version/latest";
+// Not using the Uniswap/Algebra helper: Thirdfy pools are discovered from factory logs here,
+// and Algebra Integral v4 fees need per-swap overrideFee/pluginFee handling.
+const ABI = {
+  pool: "event Pool(address indexed token0, address indexed token1, address pool)",
+  swap: "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)",
+  fee: "function fee() view returns (uint24)",
+};
 
-interface PoolDayData {
-  id: string;
-  date: number;
-  volumeUSD: string;
-  feesUSD: string;
-  tvlUSD: string;
-  pool: {
-    id: string;
-  };
-}
+const chainConfig: Record<string, { start: string; factory: string; fromBlock: number }> = {
+  [CHAIN.BASE]: {
+    start: "2025-07-14",
+    // Source: official Thirdfy contracts docs list Algebra Integral v4 on Base.
+    factory: "0xEFCB993e113ea8197C17c6f4959495929Be0B68e",
+    fromBlock: 27_278_505,
+  },
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
+  const swapFees = options.createBalances();
+  const lpFees = options.createBalances();
+  const pluginFees = options.createBalances();
+  const { factory, fromBlock } = chainConfig[options.chain];
+  const poolLogs = await options.getLogs({
+    target: factory,
+    fromBlock,
+    eventAbi: ABI.pool,
+    cacheInCloud: true,
+  });
+  const pairObject = Object.fromEntries(poolLogs.map(({ token0, token1, pool }: any) => [pool, [token0, token1]])) as IJSON<[string, string]>;
 
-  const startTimestamp = options.startTimestamp;
-  const endTimestamp = options.endTimestamp;
+  const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances });
+  const pools = Object.keys(filteredPairs);
 
-  const query = `
-    query {
-      poolDayDatas(
-        where: { 
-          date_gte: ${startTimestamp}
-          date_lt: ${endTimestamp}
-        }
-        orderBy: date
-        orderDirection: desc
-        first: 1000
-      ) {
-        id
-        date
-        volumeUSD
-        feesUSD
-        tvlUSD
-        pool {
-          id
-        }
+  if (pools.length) {
+    const [poolFees, swapLogs] = await Promise.all([
+      options.api.multiCall({ abi: ABI.fee, calls: pools, permitFailure: true }),
+      // Kept flatten: false to keep logs grouped by pool so swapLogs[index] maps to pools[index].
+      options.getLogs({ targets: pools, eventAbi: ABI.swap, flatten: false }),
+    ]);
+
+    swapLogs.forEach((logs: any[], index: number) => {
+      const [token0, token1] = pairObject[pools[index]];
+      const poolFee = Number(poolFees[index]);
+      if (poolFees[index] == null || !Number.isFinite(poolFee)) {
+        return;
       }
-    }
-  `;
+      const addFees = (balances: any, amount0: any, amount1: any, fee: number) => {
+        const useToken0 = isCoreAsset(options.chain, token0);
+        const token = useToken0 ? token0 : token1;
+        const amount = BigInt((useToken0 ? amount0 : amount1).toString());
+        const fees = ((amount < 0n ? -amount : amount) * BigInt(fee)) / 1_000_000n;
+        balances.add(token, fees.toString());
+      };
 
-  const data = await request(SUBGRAPH_URL, query);
-  const poolDayDatas: PoolDayData[] = data?.poolDayDatas || [];
+      logs.forEach(({ amount0, amount1, overrideFee, pluginFee }) => {
+        const lpFee = Number(overrideFee || poolFee);
+        const pluginFeeAmount = Number(pluginFee || 0);
 
-  let totalVolumeUSD = 0;
-  let totalFeesUSD = 0;
-
-  for (const dayData of poolDayDatas) {
-    totalVolumeUSD += parseFloat(dayData.volumeUSD || '0');
-    totalFeesUSD += parseFloat(dayData.feesUSD || '0');
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 });
+        addFees(swapFees, amount0, amount1, lpFee + pluginFeeAmount);
+        addFees(lpFees, amount0, amount1, lpFee);
+        addFees(pluginFees, amount0, amount1, pluginFeeAmount);
+      });
+    });
   }
 
-  dailyVolume.addUSDValue(totalVolumeUSD);
-  dailyFees.addUSDValue(totalFeesUSD);
+  const dailySupplySideRevenue = lpFees.clone(1, "Swap Fees To LPs");
+  dailySupplySideRevenue.addBalances(pluginFees, "Plugin Fees");
 
-  return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees };
+  return {
+    dailyVolume,
+    dailyFees: swapFees.clone(1, "Swap Fees"),
+    dailyUserFees: swapFees.clone(1, "Swap Fees"),
+    dailyRevenue: 0,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
-  Volume: 'Volume of all spot token swaps that go through the protocol.',
-  Fees: 'Swap fees paid by users.',
-  UserFees: 'Swap fees paid by users.',
-  Revenue: 'No protocol revenue.',
-  SupplySideRevenue: 'All swap fees distributed to suppliers.',
-}
+  Volume: "Volume of all spot token swaps that go through the protocol.",
+  Fees: "Swap fees paid by users.",
+  UserFees: "Swap fees paid by users.",
+  Revenue: "No protocol revenue.",
+  SupplySideRevenue: "All swap fees distributed to liquidity provider or plugin-side.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap Fees": "Trading fees paid by users on Thirdfy Algebra Integral swaps.",
+  },
+  UserFees: {
+    "Swap Fees": "Trading fees paid directly by users on swaps.",
+  },
+  SupplySideRevenue: {
+    "Swap Fees To LPs": "Trading fees distributed to liquidity providers.",
+    "Plugin Fees": "Plugin fees charged on swaps by Algebra Integral plugins.",
+  },
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
-  chains: [CHAIN.BASE],
-  start: 1752451200,
+  adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

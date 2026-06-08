@@ -8,8 +8,8 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.DOGE]: {
-      fetch: async (timestamp: number, _a: any, options: FetchOptions) => {
-        const baseData = await feeAdapter[CHAIN.DOGE].fetch(timestamp);
+      fetch: async (options: FetchOptions) => {
+        const baseData = await feeAdapter[CHAIN.DOGE].fetch(options);
         const dailyFees = options.createBalances();
         dailyFees.addCGToken("dogecoin", baseData.dailyFees)
         return { dailyFees, dailyRevenue: 0 }

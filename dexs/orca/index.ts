@@ -117,7 +117,7 @@ function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetch(timestamp: number, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const url = CONFIG[options.chain].url;
     let allWhirlpools: Whirlpool[] = [];
     let nextCursor: string | null = null;

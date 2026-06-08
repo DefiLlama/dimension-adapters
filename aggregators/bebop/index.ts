@@ -45,7 +45,7 @@ const jamAddress: any = {
 }
 
 
-const fetch = async (_:any, _1:any, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
   const logs = await getLogs({
@@ -123,7 +123,7 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
-async function fetchDune(_:any, _1:any, options: FetchOptions){
+async function fetchDune(options: FetchOptions){
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain.toLowerCase() === options.chain.toLowerCase());
   // volume can be null

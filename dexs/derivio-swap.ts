@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 
@@ -23,10 +23,10 @@ interface IGraphResponse {
   }
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.ERA;
-  const fromTimestamp = timestamp - 60 * 60 * 24;
-  const toTimestamp = timestamp;
+  const fromTimestamp = options.toTimestamp - 60 * 60 * 24;
+  const toTimestamp = options.toTimestamp;
   const fromBlock = await getBlock(fromTimestamp, chain, {});
   const toBlock = await getBlock(toTimestamp, chain, {});
 
@@ -45,12 +45,9 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ERA]: {
-      fetch,
-      start: 1698710400,
-    }
-  }
+  fetch,
+  chains: [CHAIN.ERA],
+  start: 1698710400,
 }
 
 export default adapter;

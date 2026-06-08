@@ -12,7 +12,7 @@ const FEE_WALLET = 'G9PhF9C9H83mAjjkdJz4MDqkufiTPMJkx7TnKE1kFyCp';
 // Rewards are distributed daily at 00:00 UTC according to docs.
 const REWARD_RELAYER = 'BXhkDUR2MCA6wPrnmUN1q2PHLqf973E5L3aqXzouojQE';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();

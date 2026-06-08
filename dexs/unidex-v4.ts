@@ -98,7 +98,7 @@ const getUnidexV4Logs = async (options: FetchOptions) => {
     [PositionLog[], PositionWithPnlLog[], PositionWithPnlLog[], PositionWithPnlLog[]];
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const [increaseLogs, decreaseLogs, closeLogs, liquidateLogs] = await getUnidexV4Logs(options);
 
   const dailyVolume = options.createBalances();

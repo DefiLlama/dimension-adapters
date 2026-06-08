@@ -16,7 +16,7 @@ const CURRENCY_RATES: Record<string, number> = {
   '0x7288ac74d211735374a23707d1518dcbbc0144fd': 0.14,    // CNY
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const spendLogs = await options.getLogs({
     target: SPEND_CONTRACT,
     eventAbi: SPEND_EVENT,

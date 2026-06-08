@@ -15,7 +15,7 @@ interface ILog {
   address: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -38,7 +38,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   // const query = `
   //   select
   //     account_mint as token_contract

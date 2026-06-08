@@ -118,6 +118,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.POLYGON],
   methodology

@@ -7,7 +7,7 @@ const v3ChainMapping: any = {
   [CHAIN.BSC]: "BSC",
 };
 
-async function fetch(_a: any,_b:any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();

@@ -6,7 +6,7 @@ import fetchURL from "../utils/fetchURL";
 
 const CONCURRENCY = 25;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dateStr = options.dateString;
     const feesData = await fetchURL(`https://api.scan.pulsechain.com/api?module=stats&action=totalfees&date=${dateStr}`);
 

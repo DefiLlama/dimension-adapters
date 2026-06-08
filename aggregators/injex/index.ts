@@ -1,7 +1,8 @@
 import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async (_a: any, _b: any, options: any) => {
+const fetch = async (options: FetchOptions) => {
   const res = await fetchURL(`https://inj-api-78847b1b16a1.herokuapp.com/api/volume-stats/usd?timestamp=${options.startOfDay}`);
   return {
     dailyVolume: res.dailyVolume,

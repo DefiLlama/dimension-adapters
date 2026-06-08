@@ -146,7 +146,7 @@ const fetchFromDune = async (options: FetchOptions) => {
   }
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   try {
     return await fetchFromApi(options);
   } catch (e) {

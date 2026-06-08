@@ -21,7 +21,7 @@ const volumeQuery = gql`
 export default {
   adapter: {
     [CHAIN.ERA]: {
-      fetch: async (_t: any, _c: any, { endTimestamp }: FetchOptions) => {
+      fetch: async ({ endTimestamp }: FetchOptions) => {
         const volumeData = await request(subgraphUrl, volumeQuery, {
           endTimestamp: endTimestamp ?? Math.floor(Date.now() / 1000)
         });

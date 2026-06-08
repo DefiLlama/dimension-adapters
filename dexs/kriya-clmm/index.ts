@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type IUrl = {
     [s: string]: string;
@@ -17,7 +16,7 @@ interface IVolume {
     volume24h: string
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const data: IVolume[] = (await fetchURL(url[options.chain]))?.data;
     let totalVolume = 0;
     data.map((item) => {
@@ -31,13 +30,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch,
-            start: '2023-05-09',
-            runAtCurrTime: true,
-        }
-    },
+    fetch,
+    chains: [CHAIN.SUI],
+    start: '2023-05-09',
+    runAtCurrTime: true,
 };
 
 export default adapter;

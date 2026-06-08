@@ -420,7 +420,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
 
 // --- Main fetch function ---
 
-const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchV2 = async (options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG[options.chain];
 
   let v2Stats: any = {};
@@ -490,7 +490,6 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
-    [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'LPs receive 0.17% of the fees.',

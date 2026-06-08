@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [chain: string]: string } = {
   [CHAIN.ZKSYNC]: "https://api.studio.thegraph.com/query/62681/rfxs-master/version/latest",
@@ -22,18 +21,12 @@ interface IGraphResponse {
   }>;
 }
 
-const fetch = async (_timestamp: number, _block: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.ZKSYNC;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000));
 
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-    id: `1d:${dayTimestamp}`,
+    id: `1d:${options.startOfDay}`,
     period: "1d",
-  });
-
-  const totalData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-    id: "total",
-    period: "total",
   });
 
   let dailyVolume = 0;
@@ -44,30 +37,15 @@ const fetch = async (_timestamp: number, _block: any, options: FetchOptions) => 
     dailyVolume = sumOfFields * 1e-30;
   }
 
-  if (totalData.volumeInfos.length === 1) {
-    const volumeObj = totalData.volumeInfos[0];
-    const sumOfFields = Object.values(volumeObj).reduce((sum, val) => sum + Number(val), 0);
-  }
-
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume: String(dailyVolume),
-  };
+  return { dailyVolume }
 };
 
-const methodology = {
-  Volume: "Sum of daily swap or margin volume for RFX subgraph.",
-};
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ZKSYNC]: {
-      fetch,
-      start: 1733356800,
-      deadFrom: "2025-08-12",
-    },
-  },
-  methodology,
+  fetch,
+  chains: [CHAIN.ZKSYNC],
+  start: 1733356800,
+  deadFrom: "2025-08-12",
 };
 
 export default adapter;

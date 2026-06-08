@@ -10,7 +10,7 @@ const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 const priceFeedAbi = "function latestAnswer() view returns (int256)";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
 
     const priceAfter = await options.toApi.call({ target: PRICE_FEED, abi: priceFeedAbi });

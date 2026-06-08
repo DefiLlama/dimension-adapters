@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter, } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints: any = {
@@ -13,7 +13,7 @@ interface IVolumeStat {
   id: string;
 }
 
-const fetch = async (_: any, _1: any, { chain, startOfDay }: any) => {
+const fetch = async ({ chain, startOfDay }: FetchOptions) => {
 
   const graphQuery = gql`
     query MyQuery {
@@ -41,21 +41,12 @@ const fetch = async (_: any, _1: any, { chain, startOfDay }: any) => {
   };
 };
 
-const methodology = {
-  dailyVolume:
-    "Total cumulativeVolumeUsd for specified chain for the given day",
-};
-
 const adapter: Adapter = {
   version: 1,
-  methodology,
-  adapter: {
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2024-07-02',
-      deadFrom: '2025-10-31',
-    },
-  },
+  fetch,
+  chains: [CHAIN.LINEA],
+  start: '2024-07-02',
+  deadFrom: '2025-10-31',
 };
 
 export default adapter;

@@ -7,7 +7,7 @@ import { sleep } from "../../utils/utils";
 const MARKETS_ENDPOINT = "https://exchange-api.evedex.com/api/market/instrument";
 const OHLCV_ENDPOINT = "https://market-data-api.evedex.com/api/history";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
     const marketsData = await fetchURL(MARKETS_ENDPOINT);
     const markets = marketsData.map(market => market.name);

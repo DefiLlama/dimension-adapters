@@ -25,7 +25,7 @@ import { queryDuneSql } from '../helpers/dune'
 const FEE_WALLET = '4K3a2ucXiGvuMJMPNneRDyzmNp6i4RdzXJmBdWwGwPEh';
 const HAWKFI_MEV = 'HAWK3BVnwptKRFYfVoVGhBc2TYxpyG9jmAbkHeW9tyKE'
 
-const fetch = async (_a:any,_b:any,options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
 
  // Track all transfers to HawkFi fee wallet (8% performance fee from all DEX sources)
@@ -65,12 +65,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2024-02-05',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-02-05',
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,

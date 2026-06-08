@@ -54,6 +54,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   reyachain: { chain: CHAIN.REYA, baseUrl: "https://explorer.reya.network", version: 2 },
   rootstock: { chain: CHAIN.ROOTSTOCK, baseUrl: "https://rootstock.blockscout.com", version: 2 },
   shape: { chain: CHAIN.SHAPE, baseUrl: "https://shapescan.xyz", version: 2 },
+  shido: { chain: CHAIN.SHIDO, baseUrl: "https://www.shidoscan.com", version: 1 },
   shimmerevm: { chain: CHAIN.SHIMMER_EVM, baseUrl: "https://explorer.evm.shimmer.network", version: 2 },
   songbird: { chain: CHAIN.SONGBIRD, baseUrl: "https://songbird-explorer.flare.network", version: 1 },
   soneium: { chain: CHAIN.SONEIUM, baseUrl: "https://soneium.blockscout.com", version: 2 },
