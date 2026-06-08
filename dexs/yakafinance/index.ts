@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const FEES = {
+  // Source: https://yaka.gitbook.io/yaka-finance/protocol/v2-pool
   STABLE: 0.0004,
   VOLATILE: 0.0018,
   PROTOCOL: 0.12,
@@ -17,6 +18,7 @@ const LABELS = {
 const chainConfig: Record<string, { start: string; subgraph: string }> = {
   [CHAIN.SEI]: {
     start: "2024-07-01",
+    // Live Yaka V2 subgraph used by yaka.finance.
     subgraph: "https://gateway.thegraph.com/api/9eb709a02809e8a79e1d5a49eca43da1/subgraphs/id/Az7CUeX9MdHCJwaeyYwKueMntgmH6b26NFTvLp4qa68f",
   },
 };
