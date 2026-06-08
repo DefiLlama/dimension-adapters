@@ -1,32 +1,41 @@
-import * as sdk from "@defillama/sdk";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../helpers/uniswap";
 
-const avaxAdapter = univ2Adapter2({
-  endpoints: {
-    [CHAIN.AVAX]: sdk.graph.modifyEndpoint(
-      "B6Tur5gXGCcswG8rEtmwfjBqeyDXCDUQSwM9wUXHoui5"
-    ),
-  },
-  factoriesName: "dexAmmProtocols",
-  totalVolume: "cumulativeVolumeUSD",
-})
+// Fees are hardcoded in Pair.swap function in pair contract.
+const feeConfig = {
+  fees: 0.0029,
+  userFeesRatio: 1,
+  revenueRatio: 0,
+  protocolRevenueRatio: 0,
+  holdersRevenueRatio: 0,
+}
 
-const apechainAdapter = univ2Adapter2({
-  endpoints: {
-    [CHAIN.APECHAIN]: "https://api.goldsky.com/api/public/project_cloh4i8580dwo2nz7brhf4r6p/subgraphs/vapordex-v1-apechain/1.0.0/gn",
+const chainConfig: Record<string, { start: string; factory: string; allowReadPairs: true }> = {
+  [CHAIN.AVAX]: {
+    start: "2023-09-19",
+    factory: "0xc009a670e2b02e21e7e75ae98e254f467f7ae257",
+    allowReadPairs: true,
   },
-  factoriesName: "uniswapFactories",
-  totalVolume: "totalVolumeUSD",
-})
+  [CHAIN.TELOS]: {
+    start: "2024-01-17",
+    factory: "0xDef9ee39FD82ee57a1b789Bc877E2Cbd88fd5caE",
+    allowReadPairs: true,
+  }, // No Pair created till date, expect 0 values.
+  // [CHAIN.APECHAIN]: no active contract, no pools to track // subgraph inactive
+}
+
+const uniV2Adapter = uniV2Exports(Object.fromEntries(
+  Object.entries(chainConfig).map(([chain, config]) => [chain, { ...config, ...feeConfig }])
+))
+
+const fetch = (options: FetchOptions) =>
+  (uniV2Adapter.adapter![options.chain].fetch as (options: FetchOptions) => any)(options)
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.AVAX]: { fetch: avaxAdapter, start: '2023-09-19' },
-    [CHAIN.APECHAIN]: { fetch: apechainAdapter, start: '2023-09-19' },
-  },
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;
