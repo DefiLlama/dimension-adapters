@@ -25,7 +25,12 @@ const fetch: any = async (options: FetchOptions) => {
   dailyFees.add(ADDRESSES.solana.SOL, res[0].daily_fees_usd_sol * 1e9);
   dailyVolume.add(ADDRESSES.solana.SOL, res[0].daily_solana_volume_usd * 1e6);
 
-  return { dailyFees, dailyVolume };
+  return {
+    dailyFees,
+    dailyVolume,
+    // dailyRevenue: dailyFees,  // skipping these for now as we are not excluding amount for referrals
+    // dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -38,6 +43,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Trading fees paid by users in SOL",
     Volume: "Total USD volume of trades on Solana",
+    // ProtocolRevenue: "Trading fees are collected by Lab Terminal",
+    // Revenue: "Trading fees are collected by Lab Terminal",
   },
 };
 
