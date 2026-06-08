@@ -9,6 +9,13 @@ import { handleBribeToken } from "../aerodrome/utils";
 const CONFIG = {
   factories: [
     {
+      // Deprecated early Slipstream factory (Apr 2024, 22 pools); superseded within a
+      // week by 0x5e7B. Included so its handful of still-traded pools are covered.
+      address: '0x9592cd9b267748cbFbDe90Ac9f7df3c437A6d51b',
+      fromBlock: 13592962,
+      skipIndexer: true,
+    },
+    {
       address: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
       fromBlock: 13843704,
       skipIndexer: true,
@@ -28,6 +35,8 @@ const CONFIG = {
   gaugeFactories: [
     '0xd30677bd8dd15132f251cb54cbda552d2a05fb08',
     '0xB630227a79707D517320b6c0f885806389dFcbB3',
+    '0x385293cae378c813f16f0c1334d774adddf56abb', // Aero Ignition CL gauge factory
+    '0x3e703fd2b6506e2abcce2c8b5633872a7d9b6fbc',
   ].map(f => f.toLowerCase()),
 }
 
