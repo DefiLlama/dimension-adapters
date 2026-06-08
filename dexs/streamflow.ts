@@ -35,26 +35,33 @@ const fetch = async (options: FetchOptions) => {
 
   const programList = STREAMFLOW_PROGRAMS.map((p) => `'${p}'`).join(", ");
 
-  // Sum recipient-bound SPL outflows from Streamflow program PDAs in the
-  // window. The heuristic: for each tx invoking a Streamflow program, take
-  // SPL transfers within that tx where `from_owner != tx_signer`. This
-  // correctly excludes deposits (Create IX: sender signs and is the
-  // from_owner of the token transfer into escrow -> same address, excluded)
-  // while keeping every withdrawal regardless of who signs the tx (recipient
-  // self-claims AND crank-bot-triggered batch claims both have signer !=
-  // escrow PDA = from_owner). Small over-count: in a Cancel IX, the
-  // unstreamed refund leg back to the sender is also from_owner=PDA, so it
-  // gets counted alongside the recipient settlement. Cancels are a minority
-  // of activity.
+  // Two-layer filter for true recipient settlements:
+  //   1. The SPL transfer must have been EMITTED by a Streamflow program IX
+  //      (i.e. its parent in solana.instruction_calls has Streamflow as the
+  //      executing_account). This excludes transfers batched into the same tx
+  //      but unrelated to Streamflow -- the concern CodeRabbit raised on the
+  //      previous tx_id-only filter.
+  //   2. The source token account's owner must NOT be the tx signer. The
+  //      sender signs Create/Deposit IXs AND is the from_owner of the
+  //      deposit transfer (sender wallet -> escrow PDA), so deposits drop
+  //      out. Withdraw/Cancel settlements have from_owner = escrow PDA, which
+  //      is never the signer (whether the signer is the recipient self-
+  //      claiming or a crank bot batching), so settlements pass through.
+  // Caveat: in a Cancel IX, the unstreamed refund leg back to the sender is
+  // also emitted by Streamflow with from_owner = PDA, so it gets counted
+  // alongside the recipient settlement. Cancels are a minority of activity;
+  // separating the legs would require IX-data discriminator decoding.
   const start = options.startTimestamp;
   const end = options.endTimestamp;
+  const SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
   const rows = await queryDuneSql(
     options,
     `
-    WITH streamflow_txs AS (
-      SELECT DISTINCT tx_id
+    WITH streamflow_emitted_transfers AS (
+      SELECT tx_id, outer_instruction_index, inner_instruction_index
       FROM solana.instruction_calls
-      WHERE executing_account IN (${programList})
+      WHERE executing_account = '${SPL_TOKEN_PROGRAM}'
+        AND outer_executing_account IN (${programList})
         AND tx_success = true
         AND block_time >= from_unixtime(${start})
         AND block_time <= from_unixtime(${end})
@@ -65,16 +72,20 @@ const fetch = async (options: FetchOptions) => {
       WHERE block_time >= from_unixtime(${start})
         AND block_time <= from_unixtime(${end})
         AND success = true
-        AND id IN (SELECT tx_id FROM streamflow_txs)
+        AND id IN (SELECT DISTINCT tx_id FROM streamflow_emitted_transfers)
     )
     SELECT
       tr.token_mint_address AS mint,
       SUM(tr.amount) AS amount
     FROM tokens_solana.transfers tr
+    JOIN streamflow_emitted_transfers st
+      ON tr.tx_id = st.tx_id
+      AND tr.outer_instruction_index = st.outer_instruction_index
+      AND tr.inner_instruction_index = st.inner_instruction_index
     JOIN signers s
       ON tr.tx_id = s.tx_id
-      AND tr.from_owner != s.signer
-    WHERE tr.block_time >= from_unixtime(${start})
+    WHERE tr.from_owner != s.signer
+      AND tr.block_time >= from_unixtime(${start})
       AND tr.block_time <= from_unixtime(${end})
     GROUP BY tr.token_mint_address
   `
@@ -97,7 +108,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Volume:
-      "Total value of SPL tokens delivered to recipients of Streamflow streams in the day window, summed across all four Streamflow Solana programs: Stream (vesting/payments), Aligned Unlocks (token-launch vesting), and the two airdrop distributors (Aligned Distributor + MerkleDistributor). For each transaction that invokes a Streamflow program, we sum SPL transfers within the tx whose source token account's owner is not the tx signer. The signer is the sender wallet on Create/Deposit IXs (so sender->escrow transfers are excluded), and is some other address (recipient or crank bot) on Withdraw/Cancel IXs (so escrow->recipient transfers are included). Streams are pre-funded at creation, so the time-integral of streamed value over a window equals the realized recipient settlements within that window. Data is sourced from Dune Analytics (solana.instruction_calls joined with solana.transactions for signer + tokens_solana.transfers for SPL movements). USD-priced tokens only; many launch tokens streamed via Streamflow are not in DefiLlama's price index and therefore contribute zero to the headline figure.",
+      "Total value of SPL tokens delivered to recipients of Streamflow streams in the day window, summed across all four Streamflow Solana programs: Stream (vesting/payments), Aligned Unlocks (token-launch vesting), and the two airdrop distributors (Aligned Distributor + MerkleDistributor). Two-layer filter via Dune: (1) the SPL transfer must have been EMITTED by a Streamflow program IX (outer_executing_account IN streamflow_programs on solana.instruction_calls), which excludes any transfers batched into the same tx but unrelated to Streamflow settlement; (2) the source token account's owner must not be the tx signer, which excludes sender->escrow deposits (sender signs Create IXs and is the from_owner of the deposit transfer) while keeping all withdrawals regardless of who signs (recipient self-claims and crank-bot batch claims both have from_owner = escrow PDA != signer). Streams are pre-funded at creation, so the realized recipient settlements within the window equal the value-delivered. Data sources: solana.instruction_calls + solana.transactions + tokens_solana.transfers. USD-priced tokens only; many launch tokens streamed via Streamflow are not in DefiLlama's price index and therefore contribute zero to the headline figure. Minor over-count: the unstreamed-refund leg of Cancel IXs is also emitted by Streamflow with from_owner = PDA, so it gets counted alongside the recipient-settlement leg.",
   },
 };
 
