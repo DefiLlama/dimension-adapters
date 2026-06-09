@@ -52,12 +52,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const yieldUsd = (supplyUsd * TREASURY_APR * (options.toTimestamp - options.fromTimestamp)) / YEAR;
   dailyFees.addUSDValue(yieldUsd, TREASURY_YIELD);
 
-  // 100% of both interchange and treasury yield is kept by Hyperbeat.
+  // 100% of both interchange and treasury yield is kept by Hyperbeat. beatUSD is a
+  // non-yield-bearing stablecoin (holders don't receive the treasury yield), so there is
+  // no supply-side; we return 0 to make the income-statement balance explicit
+  // (dailyFees = dailyRevenue + dailySupplySideRevenue).
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: createBalances(),
   };
 };
 
