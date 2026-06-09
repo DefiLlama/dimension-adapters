@@ -3,29 +3,19 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 // Helium Mobile ran an HNT buy-and-burn: HNT is bought on the open market via
-// automated Jupiter DCA (a fresh execution wallet per day filling in ~70 chunks),
-// delivered to a buyback wallet, then burned (via Data Credit minting). We measure
-// the USD value of HNT *bought* (HNT received by the buyback wallets, priced at
-// market). Nova Labs discontinued the program on 2026-01-02, so the buyback is 0
+// automated Jupiter DCA, delivered to a buyback wallet, then burned (via Data Credit
+// minting). We measure the USD value of HNT bought (HNT received by the buyback
+// wallets). Nova Labs discontinued the program on 2026-01-02, so the buyback is 0
 // from that date.
 //
-// Funding source: the USDC that funds these buys is supplied by wallets whose swaps
-// are signed by the SpherePay program (AYGdvqsQruZoaJPWsViLqUgtbfXGRnxzgxzW4zmbbckL).
-// SpherePay is Helium Mobile's subscriber payment processor (on-ramps fiat/crypto
-// subscriber payments and settles them in USDC), which corroborates Nova's stated
-// "100% of Helium Mobile subscriber revenue -> buyback". Caveat: SpherePay commingles
-// flows, so we cannot prove exactly 100% is subscriber revenue, but the buy-and-burn
-// itself and the payment-processor linkage are both verifiable on-chain.
+// We measure only the on-chain buy-and-burn amount. The funds behind the buys arrive
+// via payment processors (SpherePay, Helio) and treasury wallets (incl. SOL from
+// Coinbase Prime), so the exact funding mix is not cleanly attributable on-chain.
 //
 // This tracks ONLY the buy-and-burn. It deliberately does NOT track Data Credits
-// burned for network usage (carrier offload), for two reasons:
-//   1. It is valued at the $0.50/GB protocol peg (HIP-149) while carriers actually
-//      pay ~$0.10/GB, so the USD figure is inflated ~5x.
-//   2. On-chain tracing shows the HNT burned for that offload is withdrawn from
-//      Coinbase hot wallets (e.g. Coinbase Hot Wallet 4 -> 9DSMdyRv... -> EHJ16k... ->
-//      the EsNP... burner), so it cannot be tied to real revenue - the source could
-//      be treasury, VC, or HNT already held, not user payments.
-// Both make it an unverifiable, inflated usage metric rather than real cash flow.
+// burned for network usage (carrier offload), which is valued at the $0.50/GB peg
+// (HIP-149, while carriers pay ~$0.10/GB) and whose burned HNT is sourced from
+// Coinbase hot wallets - an inflated usage metric, not a buy-and-burn.
 const HNT_MINT = 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux';
 const BUYBACK_END_TIMESTAMP = 1767312000; // 2026-01-02 00:00:00 UTC
 
@@ -72,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-	Fees: 'Market USD value of HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned, funded by subscriber revenue routed through its payment processor SpherePay. The buyback program was discontinued on 2026-01-02.',
+	Fees: 'USD value of HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned. The buyback program was discontinued on 2026-01-02.',
 	Revenue: 'Same as fees: the value of HNT bought back and burned.',
 	ProtocolRevenue: 'Protocol revenue is 0 (the buyback accrues entirely to HNT holders).',
 	HoldersRevenue: 'HNT bought on the open market and burned, accruing value to HNT holders through supply reduction.',
@@ -80,10 +70,10 @@ const methodology = {
 
 const breakdownMethodology = {
 	Fees: {
-		'HNT Buyback': 'Market USD value of HNT bought on the open market by Helium Mobile and burned. Discontinued 2026-01-02.',
+		'HNT Buyback': 'HNT bought on the open market by Helium Mobile and burned. Discontinued 2026-01-02.',
 	},
 	Revenue: {
-		'HNT Buyback': 'Market USD value of HNT bought and burned. Discontinued 2026-01-02.',
+		'HNT Buyback': 'HNT bought and burned. Discontinued 2026-01-02.',
 	},
 	HoldersRevenue: {
 		'HNT Buyback': 'Open-market HNT buy-and-burn, accruing value to HNT holders through supply reduction. Discontinued 2026-01-02.',
