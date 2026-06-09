@@ -212,7 +212,7 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
   // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
-  if (chains.includes(CHAIN.CHAIN_GLOBAL)) {
+  if (chains.length > 1 && chains.includes(CHAIN.CHAIN_GLOBAL)) {
     Object.keys(aggregated).forEach(metricType => {
       const metricObject = aggregated[metricType]
       if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
