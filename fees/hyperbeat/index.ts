@@ -2,9 +2,15 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getCuratorExport } from "../../helpers/curators";
 
+const totalSupplyAbi = "function totalSupply() external view returns (uint256)";
 const exchangeRateMidasAbi = "function lastAnswer() external view returns (int256)";
 const exchangeRateUpshiftAbi = "function latestAnswer() external view returns (int256)";
 const getRateAbi = "function getRate() external view returns (uint256)";
+
+// Revenue-stream breakdown labels (Earn vaults grouped by how they're priced).
+const MORPHO_LABEL = "Morpho Curated Vaults";
+const LIQUID_LABEL = "Liquid Vaults";
+const RATE_LABEL = "Rate-priced Vaults";
 
 interface IStandaloneVault {
   address: string;
@@ -15,6 +21,7 @@ interface IStandaloneVault {
 }
 
 // Vaults priced from a separate exchange-rate price feed (no getRate() pricer).
+// Vault docs: https://docs.hyperbeat.org/hyperbeat-earn ; performance fees per Hyperbeat team.
 const StandaloneVaults: Array<IStandaloneVault> = [
   // https://docs.hyperbeat.org/hyperbeat-earn/hype-vault (liquidHYPE)
   {
@@ -39,7 +46,7 @@ const StandaloneVaults: Array<IStandaloneVault> = [
     priceFeedAbi: exchangeRateUpshiftAbi,
     performanceFeeRate: 0.15,
   },
-  // wVLP
+  // wVLP (Hyperbeat VLP vault). Source: Hyperbeat; https://docs.hyperbeat.org/hyperbeat-earn
   {
     address: '0xD66d69c288d9a6FD735d7bE8b2e389970fC4fD42',
     assetCoingeckoId: 'usd-coin',
@@ -60,6 +67,8 @@ interface IGetRateVault {
 // Vaults whose share->asset rate is read from their getRate() pricer. getRate()
 // is the rate depositors actually realize (no rebase), so daily yield =
 // totalSupply * (getRate growth). Protocol fee is grossed up from that net yield.
+// Each entry is { vault share token, its getRate pricer, base-asset coingecko id }.
+// Addresses & performance fees per Hyperbeat team; docs https://docs.hyperbeat.org/hyperbeat-earn
 const getRateVaults: Array<IGetRateVault> = [
   { address: '0x81e064d0eB539de7c3170EDF38C1A42CBd752A76', pricer: '0x5eD0eC0b0643dAB621Dc814C8D058e161b9b884b', assetCoingeckoId: 'hyperliquid', shareDecimals: 18, performanceFeeRate: 0.20 }, // lstHYPE
   { address: '0x5e105266db42f78FA814322Bce7f388B4C2e61eb', pricer: '0x3636a26ec1d512c5eCff42F7Adaa5cE7964C6579', assetCoingeckoId: 'usdt0', shareDecimals: 18, performanceFeeRate: 0.20 }, // hbUSDT
@@ -89,22 +98,21 @@ const MORPHO_VAULTS = [
   '0x51F64488d03D8B210294dA2BF70D5db0Bc621B0c',
 ];
 
-const getTotalSupply = async (options: FetchOptions, target: string) => {
-  return await options.api.call({
-    target: target,
-    abi: "function totalSupply() external view returns (uint256)",
-    permitFailure: true,
+// Batch reads of an exchange-rate getter across calls that may use different ABIs,
+// grouping by ABI so each group is a single multiCall.
+const multiCallRatesByAbi = async (apiInstance: any, calls: Array<{ target: string; abi: string }>) => {
+  const out: any[] = new Array(calls.length);
+  const byAbi = new Map<string, number[]>();
+  calls.forEach((c, i) => {
+    if (!byAbi.has(c.abi)) byAbi.set(c.abi, []);
+    byAbi.get(c.abi)!.push(i);
   });
+  for (const [abi, idxs] of byAbi) {
+    const res = await apiInstance.multiCall({ abi, calls: idxs.map((i) => calls[i].target), permitFailure: true });
+    idxs.forEach((idx, j) => { out[idx] = res[j]; });
+  }
+  return out;
 };
-
-const getExchangeRateBeforeAfterVaults = async (options: FetchOptions, target: string, abi: string) => {
-  const [exchangeRateBefore, exchangeRateAfter] = await Promise.all([
-    options.fromApi.call({ target: target, abi: abi, params: [], permitFailure: true }),
-    options.toApi.call({ target: target, abi: abi, params: [], permitFailure: true }),
-  ])
-
-  return [exchangeRateBefore, exchangeRateAfter]
-}
 
 const curatorAdapter = getCuratorExport({
   vaults: {
@@ -115,54 +123,58 @@ const curatorAdapter = getCuratorExport({
 })
 
 const fetch = async (options: FetchOptions) => {
+  const { api, fromApi, toApi } = options;
   const { dailyFees: morphoDailyFees, dailyRevenue: morphoDailyRevenue, dailySupplySideRevenue: morphoDailySupplySideRevenue } = await (curatorAdapter.adapter as any)[options.chain].fetch(options);
 
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  dailyFees.addCGToken('usd-coin', await morphoDailyFees.getUSDValue())
-  dailyRevenue.addCGToken('usd-coin', await morphoDailyRevenue.getUSDValue())
-  dailySupplySideRevenue.addCGToken('usd-coin', await morphoDailySupplySideRevenue.getUSDValue())
+  // Morpho curated vaults (fees computed by the curator helper)
+  dailyFees.addCGToken('usd-coin', await morphoDailyFees.getUSDValue(), MORPHO_LABEL)
+  dailyRevenue.addCGToken('usd-coin', await morphoDailyRevenue.getUSDValue(), MORPHO_LABEL)
+  dailySupplySideRevenue.addCGToken('usd-coin', await morphoDailySupplySideRevenue.getUSDValue(), MORPHO_LABEL)
 
-  // Price-feed based vaults (no getRate pricer)
-  for (const vault of StandaloneVaults) {
-    const totalAssets = await getTotalSupply(options, vault.address);
-    const [exchangeRateBefore, exchangeRateAfter] = await getExchangeRateBeforeAfterVaults(options, vault.priceFeed, vault.priceFeedAbi);
-
-    if (totalAssets && exchangeRateBefore && exchangeRateAfter) {
-      const growthRate = (exchangeRateAfter - exchangeRateBefore) / 1e8
-
+  // Price-feed based vaults (no getRate pricer) — batched reads
+  const [stdSupplies, stdBefore, stdAfter] = await Promise.all([
+    api.multiCall({ abi: totalSupplyAbi, calls: StandaloneVaults.map((v) => v.address), permitFailure: true }),
+    multiCallRatesByAbi(fromApi, StandaloneVaults.map((v) => ({ target: v.priceFeed, abi: v.priceFeedAbi }))),
+    multiCallRatesByAbi(toApi, StandaloneVaults.map((v) => ({ target: v.priceFeed, abi: v.priceFeedAbi }))),
+  ])
+  StandaloneVaults.forEach((vault, i) => {
+    const totalAssets = stdSupplies[i], rateBefore = stdBefore[i], rateAfter = stdAfter[i]
+    if (totalAssets && rateBefore && rateAfter) {
+      const growthRate = (rateAfter - rateBefore) / 1e8
       if (growthRate > 0) {
-        const supplySideRevenue = (totalAssets / 1e18) * growthRate;
-        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
-
-        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
-        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
-        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
+        const supplySideRevenue = (totalAssets / 1e18) * growthRate
+        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue
+        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, LIQUID_LABEL)
+        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, LIQUID_LABEL)
+        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, LIQUID_LABEL)
       }
     }
-  }
+  })
 
-  // getRate() based vaults: yield = totalSupply * (getRate growth), denominated in the base asset.
-  for (const vault of getRateVaults) {
-    const totalSupply = await getTotalSupply(options, vault.address);
-    const [rateBefore, rateAfter] = await getExchangeRateBeforeAfterVaults(options, vault.pricer, getRateAbi);
-
-    if (totalSupply && rateBefore && rateAfter) {
-      const growthRate = (rateAfter - rateBefore) / 1e8 // change in base-asset (human) per share
-
+  // getRate() based vaults — batched reads. yield = totalSupply * (getRate growth), in base asset.
+  const [rateSupplies, rateBefore, rateAfter] = await Promise.all([
+    api.multiCall({ abi: totalSupplyAbi, calls: getRateVaults.map((v) => v.address), permitFailure: true }),
+    fromApi.multiCall({ abi: getRateAbi, calls: getRateVaults.map((v) => v.pricer), permitFailure: true }),
+    toApi.multiCall({ abi: getRateAbi, calls: getRateVaults.map((v) => v.pricer), permitFailure: true }),
+  ])
+  getRateVaults.forEach((vault, i) => {
+    const totalSupply = rateSupplies[i], rb = rateBefore[i], ra = rateAfter[i]
+    if (totalSupply && rb && ra) {
+      const growthRate = (ra - rb) / 1e8 // change in base-asset (human) per share
       if (growthRate > 0) {
-        const shares = totalSupply / 10 ** vault.shareDecimals;
-        const supplySideRevenue = shares * growthRate; // base-asset, human units
-        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
-
-        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
-        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
-        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
+        const shares = totalSupply / 10 ** vault.shareDecimals
+        const supplySideRevenue = shares * growthRate // base-asset, human units
+        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue
+        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, RATE_LABEL)
+        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, RATE_LABEL)
+        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, RATE_LABEL)
       }
     }
-  }
+  })
 
   return {
     dailyFees,
@@ -174,11 +186,29 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Yield generated by Hyperbeat Earn vaults (Liquid/Morpho/getRate vaults, excluding beHYPE).",
     Revenue: "Performance-fee share of vault yield kept by Hyperbeat.",
     ProtocolRevenue: "Performance-fee share of vault yield kept by Hyperbeat.",
     SupplySideRevenue: "Vault yield distributed to depositors.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [MORPHO_LABEL]: "Yield generated by Hyperbeat's Morpho curated vaults.",
+      [LIQUID_LABEL]: "Yield generated by Hyperbeat Liquid vaults (priced via their exchange-rate feed).",
+      [RATE_LABEL]: "Yield generated by Hyperbeat vaults priced via their getRate() oracle.",
+    },
+    Revenue: {
+      [MORPHO_LABEL]: "Performance-fee share of Morpho curated vault yield kept by Hyperbeat.",
+      [LIQUID_LABEL]: "Performance-fee share of Liquid vault yield kept by Hyperbeat.",
+      [RATE_LABEL]: "Performance-fee share of getRate vault yield kept by Hyperbeat.",
+    },
+    SupplySideRevenue: {
+      [MORPHO_LABEL]: "Morpho curated vault yield distributed to depositors.",
+      [LIQUID_LABEL]: "Liquid vault yield distributed to depositors.",
+      [RATE_LABEL]: "getRate vault yield distributed to depositors.",
+    },
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
