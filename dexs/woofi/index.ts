@@ -55,7 +55,7 @@ interface FetchResult {
     totalVolumeUSD: string;
   }>
 }
-const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
+const fetchVolume = async (options: FetchOptions) => {
   const start = getTimestampAtStartOfDayUTC(options.endTimestamp)
   const dateId = Math.floor(start / 86400);
   const query = gql`
@@ -75,16 +75,15 @@ const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
   }
 }
 
-const fetchSolanaVolume = async (timestamp: number) => {
+const fetchSolanaVolume = async (options: FetchOptions) => {
   const apiURL = "https://api.woofi.com/stat?period=all&network=solana";
   const response = await httpGet(apiURL);
 
-  const startOfDayUTC = getTimestampAtStartOfDayUTC(timestamp);
+  const startOfDayUTC = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
   const result = response?.data?.find((item) => item.timestamp === startOfDayUTC.toString());
 
   return {
-    timestamp: timestamp,
     dailyVolume: result ? Number(result.volume_usd) / 1e18 : 0,
   }
 }

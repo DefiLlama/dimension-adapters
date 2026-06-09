@@ -13,7 +13,7 @@ const PAYOUT_CONTRACT_ADDRESS = "0xfdeec7040478f26c48ed0b58b45153f593d8df7f45eea
 const V1_LAST_TXN_DATE = "2026-03-01"
 const V2_DEPLOYED_DATE = "2026-03-15"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     // ── v1: DepositEvent from old payment_vault ────────────────────────────
     // Covers all historical revenue up until v1 contract was superseded.
     const queryV1 = `
@@ -70,11 +70,11 @@ const methodology = {
 
 const adapter: Adapter = {
     version: 1,
-    dependencies: [Dependencies.DUNE],
     fetch,
     chains: [CHAIN.APTOS],
     start: "2026-02-15",
     methodology,
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
 };
 

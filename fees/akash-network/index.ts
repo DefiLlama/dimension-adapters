@@ -1,4 +1,4 @@
-import { FetchOptions, ProtocolType } from "../../adapters/types";
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -6,7 +6,7 @@ const AKASH_FEE_ENDPOINT = "https://console-api.akash.network/v1/graph-data/"
 let usdcFeeData: any = null;
 let aktFeeData: any = null;
 
-async function fetch(_: any, _1: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   if (!usdcFeeData) usdcFeeData = httpGet(AKASH_FEE_ENDPOINT + 'dailyUUsdcSpent');
   if (!aktFeeData) aktFeeData = httpGet(AKASH_FEE_ENDPOINT + 'dailyUAktSpent');
   usdcFeeData = await usdcFeeData;
@@ -37,10 +37,12 @@ const methodology = {
   Fees: "Lease fees paid by users to use Akash Network services.",
 };
 
-export default {
+const adapter: SimpleAdapter = {
   methodology,
   fetch,
   protocolType: ProtocolType.CHAIN,
   chains: [CHAIN.AKASH],
   start: "2021-03-08"
 }
+
+export default adapter;

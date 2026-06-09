@@ -1,10 +1,4 @@
-import { Chain } from "../adapters/types";
-import {
-  Adapter,
-  ChainBlocks,
-  FetchOptions,
-  FetchResultFees,
-} from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
 
@@ -13,11 +7,7 @@ const event0_swap =
 const event0_swap_remote =
   "event SwapRemote( address to,uint256 amountSD,uint256 protocolFee,uint256 dstFee)";
 
-type IAddress = {
-  [s: string | Chain]: string[];
-};
-
-const contract_address: IAddress = {
+const contract_address: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
     "0x101816545f6bd2b1076434b54383a1e633390a2e",
     "0x101816545F6bd2b1076434B54383a1E633390A2E",
@@ -101,100 +91,81 @@ const mapTokenPrice: IMap = {
   ["0xf52b354FFDB323E0667E87a0136040e3e4D9dF33".toLowerCase()]: ADDRESSES.null,
 };
 
-const fetch = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    { createBalances, getLogs }: FetchOptions
-  ): Promise<FetchResultFees> => {
-    const dailyFees = createBalances();
-    const transform = (a: string) => mapTokenPrice[a.toLowerCase()] ?? a;
-    const logs = await getLogs({
-      targets: contract_address[chain],
-      eventAbi: event0_swap,
-      flatten: false,
-    });
-    const logs_swap_remote = await getLogs({
-      targets: contract_address[chain],
-      eventAbi: event0_swap_remote,
-      flatten: false,
-    });
-    logs.forEach((_: any, index: number) =>
-      _.forEach((log: any) =>
-        dailyFees.add(
-          transform(contract_address[chain][index]),
-          log.protocolFee
-        )
+const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const transform = (a: string) => mapTokenPrice[a.toLowerCase()] ?? a;
+  const logs = await getLogs({
+    targets: contract_address[chain],
+    eventAbi: event0_swap,
+    flatten: false,
+  });
+  const logs_swap_remote = await getLogs({
+    targets: contract_address[chain],
+    eventAbi: event0_swap_remote,
+    flatten: false,
+  });
+  logs.forEach((_: any, index: number) =>
+    _.forEach((log: any) =>
+      dailyFees.add(
+        transform(contract_address[chain][index]),
+        log.protocolFee
       )
-    );
-    logs_swap_remote.forEach((_: any, index: number) =>
-      _.forEach((log: any) =>
-        dailyFees.add(
-          transform(contract_address[chain][index]),
-          log.protocolFee
-        )
+    )
+  );
+  logs_swap_remote.forEach((_: any, index: number) =>
+    _.forEach((log: any) =>
+      dailyFees.add(
+        transform(contract_address[chain][index]),
+        log.protocolFee
       )
-    );
-    return { dailyFees, dailyRevenue: dailyFees, timestamp };
-  };
+    )
+  );
+  return { dailyFees, dailyRevenue: dailyFees, };
 };
 
-const info = {
-  methodology: {
-    Fees: 'Total bridge fees paid by users',
-    Revenue: 'Total bridge fees paid by users',
-  }
+const methodology = {
+  Fees: 'Total bridge fees paid by users',
+  Revenue: 'Total bridge fees paid by users',
 }
 
 const adapter: Adapter = {
-  methodology: info.methodology,
+  fetch,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
       start: '2022-09-01',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
       start: '2022-09-01',
     },
     [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
       start: '2022-09-01',
     },
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
       start: '2022-09-01',
     },
     // [CHAIN.FANTOM]: {
-    //   fetch: fetch(CHAIN.FANTOM),
     //   start: '2022-09-01',
     // },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
       start: '2022-09-01',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
       start: '2022-09-01',
     },
     [CHAIN.METIS]: {
-      fetch: fetch(CHAIN.METIS),
       start: '2022-09-01',
     },
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
       start: '2022-09-01',
     },
     [CHAIN.LINEA]: {
-      fetch: fetch(CHAIN.LINEA),
       start: '2022-09-01',
     },
     [CHAIN.MANTLE]: {
-      fetch: fetch(CHAIN.MANTLE),
       start: '2022-09-01',
     },
     [CHAIN.KAVA]: {
-      fetch: fetch(CHAIN.KAVA),
       start: '2022-09-01',
     },
   },

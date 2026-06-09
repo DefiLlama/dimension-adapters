@@ -1,12 +1,10 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const URL = "https://gateway.velar.network/watcherapp/pool";
 
-const fetch = async (): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp();
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
   const { message }: any = await fetchURL(URL);
   let dailyVolume = 0
   let dailyFees = 0
@@ -17,17 +15,13 @@ const fetch = async (): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STACKS]: {
-      fetch,
-      runAtCurrTime: true
-    },
-  },
+  fetch,
+  chains: [CHAIN.STACKS],
+  runAtCurrTime: true,
 };
 
 export default adapter;

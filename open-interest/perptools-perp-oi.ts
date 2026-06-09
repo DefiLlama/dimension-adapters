@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const API_BASE = "https://app.perptools.ai/api";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const url = `${API_BASE}/v1/oi/daily?date=${options.dateString}`;
     const data = await fetchURL(url);
 

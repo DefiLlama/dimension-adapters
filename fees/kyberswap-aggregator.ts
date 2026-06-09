@@ -36,7 +36,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
 const nativeFeeChains = new Set<string>([
   CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.OPTIMISM,
   CHAIN.POLYGON, CHAIN.SCROLL, CHAIN.BASE, CHAIN.PLASMA, CHAIN.BERACHAIN,
-  CHAIN.UNICHAIN, CHAIN.MONAD, CHAIN.ERA, CHAIN.HYPERLIQUID,
+  CHAIN.UNICHAIN, CHAIN.MONAD, CHAIN.ERA
 ])
 
 const blacklistedTokens = [

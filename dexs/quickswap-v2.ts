@@ -20,7 +20,7 @@ const onChainAdapter: any = uniV2Exports({
   },
 }, { runAsV1: true })
 
-async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+async function fetch({ startOfDay }: FetchOptions) {
   const dayId = Math.floor(startOfDay / 86400)
 
   const query = `{    uniswapDayData(id: ${dayId}) {      dailyVolumeUSD    }  }`

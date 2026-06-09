@@ -19,7 +19,7 @@ const prefetch = async (options: FetchOptions) => {
   return await queryDuneSql(options, sql);
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const preFetchedResults = options.preFetchedResults || [];
   const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
   const data = preFetchedResults.find((result: any) => result.chain === dune_chain);

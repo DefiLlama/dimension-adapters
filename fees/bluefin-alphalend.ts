@@ -6,7 +6,7 @@ import {
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_: number,_b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
   const data = await fetchURL(
     `https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   start: "2025-06-17",
   runAtCurrTime: true,
+  deadFrom: "2026-05-17", // Alphalend agreement with Bluefin ended
 };
 
 export default adapter;

@@ -94,6 +94,7 @@ const alliumChainMap: Record<string, string> = {
     katana: CHAIN.KATANA,
     abstract: CHAIN.ABSTRACT,
     linea: CHAIN.LINEA,
+    manta_pacific: CHAIN.MANTA,
     ronin: CHAIN.RONIN,
     sonic: CHAIN.SONIC,
     mantle: CHAIN.MANTLE,
@@ -148,10 +149,22 @@ export default [
         id: "algorand"
     },
     {
+        name: "doge",
+        chain: CHAIN.DOGE,
+        getUsers: coinmetricsData("doge"),
+        id: "doge"
+    },
+    {
         name: "bch",
         chain: CHAIN.BITCOIN_CASH,
         getUsers: coinmetricsData("bch"),
         id: "bch"
+    },
+    {
+        name: "dash",
+        chain: CHAIN.DASH,
+        getUsers: coinmetricsData("dash"),
+        id: "dash"
     },
     // {
     //     name: "bsv",
@@ -159,6 +172,30 @@ export default [
     //     getUsers: coinmetricsData("bsv"),
     //     id: "bsv"
     // },
+    {
+        name: "stellar",
+        chain: CHAIN.STELLAR,
+        getUsers: coinmetricsData("xlm"),
+        id: "stellar"
+    },
+    {
+        name: "xrpl",
+        chain: CHAIN.RIPPLE,
+        getUsers: coinmetricsData("xrp"),
+        id: "xrpl"
+    },
+    {
+        name: "icp",
+        chain: CHAIN.ICP,
+        getUsers: coinmetricsData("icp"),
+        id: "icp"
+    },
+    {
+        name: "zcash",
+        chain: CHAIN.ZEC,
+        getUsers: coinmetricsData("zec"),
+        id: "zcash"
+    },
 ].map(chain => ({
     name: chain.name,
     id: (chain as any).id ?? `chain#${chain.name}`,

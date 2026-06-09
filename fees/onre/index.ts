@@ -25,7 +25,7 @@ const formatUTCDate = (ts: number): string => {
 const ONYC_TOKEN_MINT = '5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5';
 const REDEEM_FEE = 0.25 / 100;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const response = await fetchURL(NAV_API);
     const navData: NAVEntry[] = response.data;
 
@@ -47,6 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
 
     dailyFees.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
 
     const duneQuery = `
         SELECT

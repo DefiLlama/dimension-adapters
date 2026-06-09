@@ -11,7 +11,7 @@ const VERIFIER_CONTRACTS: Record<string, string[]> = {
   [CHAIN.ERA]: ["0xfCC2d308FD4De098D08f056c424C969d728912bF", "0xcC3eab33A77135A09770AcAF7D911E5FEf6622F2"],
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const verifiers = VERIFIER_CONTRACTS[options.chain]
   
   const dailyFees = await getETHReceived({

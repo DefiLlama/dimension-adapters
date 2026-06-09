@@ -14,7 +14,7 @@ const CG_UNIT_DEPLOYED_TOKENS = {
     'UUUSPX': 'spx6900',
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const spotTradeFeesQuery = `
     SELECT 
       sum(usd_amount) as volume_usd

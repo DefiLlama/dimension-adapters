@@ -256,7 +256,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
  * 
  * Note: Different revenue streams have different protocol vs supply side splits
  */
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

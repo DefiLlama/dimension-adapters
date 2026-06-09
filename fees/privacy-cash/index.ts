@@ -86,7 +86,7 @@ const fetchBase = async (options: FetchOptions) => {
   };
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.BASE) return fetchBase(options);
   return fetchSolana(options);
 }

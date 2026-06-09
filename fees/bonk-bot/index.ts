@@ -29,7 +29,7 @@ const LABELS = {
   REFERRAL_REWARDS: "Referral rewards",
 };
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const { feeWallet, rewardWallet } = chainConfig[options.chain];
   const excludedBonkRecipients = [feeWallet, rewardWallet, ...internalWallets].map((wallet) => `'${wallet}'`).join(", ");
   const query = `

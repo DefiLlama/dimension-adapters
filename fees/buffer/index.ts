@@ -25,7 +25,7 @@ export function _getDayId(timestamp: number): string {
   return dayTimestamp.toString();
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dateId = _getDayId(options.startOfDay);
 
   const url = new URL(endpoints[options.chain]);

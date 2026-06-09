@@ -1,5 +1,4 @@
-import type { SimpleAdapter } from '../../adapters/types'
-import { CHAIN } from "../../helpers/chains";
+import type { SimpleAdapter, FetchOptions } from '../../adapters/types';import { CHAIN } from "../../helpers/chains";
 import { httpPost } from '../../utils/fetchURL';
 
 const POOLS_SERVICE_URL = 'https://liquidity-pool.dx25.com/v1/rpc'
@@ -20,9 +19,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       start: '2023-10-16',
-      fetch: async (ts) => {
+      fetch: async (options: FetchOptions) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
-          timestamp: ts,
+          timestamp: options.toTimestamp,
         })
         return {
           dailyVolume: data.daily_volume,

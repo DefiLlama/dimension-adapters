@@ -13,7 +13,7 @@ interface IMintFee {
 }
 
 const marketplace_address_fees = '0x000000000000000000000000d1d1d4e36117ab794ec5d4c78cbd3a8904e691d0';
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -62,7 +62,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   dailyRevenue.addBalances(dailyMintFees);
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
@@ -76,13 +75,9 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-12-01',
-    },
-  },
-  
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2022-12-01',
   methodology,
 }
 

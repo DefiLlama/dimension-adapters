@@ -28,6 +28,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.POLYGON]: { fetch, start: '2024-03-20', },
     [CHAIN.CRONOS]: { fetch, start: '2024-03-24', },

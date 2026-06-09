@@ -6,7 +6,7 @@ import {
   import { CHAIN } from "../../helpers/chains";
   import { oreHelperCountSolBalanceDiff } from "../ore";
   
-  const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch: any = async (options: FetchOptions) => {
     const dailyFees = await oreHelperCountSolBalanceDiff(options, 'Az6VVPggdbxjrt4sL7FzjBunWD7piMZCUKvx316yLLmw')
     const dailyProtocolRevenue = dailyFees.clone(0.01);
     const dailyHoldersRevenue = dailyFees.clone(0.0305);

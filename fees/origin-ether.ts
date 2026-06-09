@@ -18,8 +18,8 @@ const PRODUCTS_BY_CHAIN: Record<string, OriginProduct[]> = {
   ],
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
-  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(_a, _b, options);
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  return fetchOriginFees(PRODUCTS_BY_CHAIN[options.chain] ?? [])(options);
 };
 
 const methodology = {

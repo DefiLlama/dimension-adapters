@@ -7,7 +7,7 @@ interface ICombinedData {
   claim_total: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const mergedQuery = `
       WITH daily_avg_prices AS (
           SELECT

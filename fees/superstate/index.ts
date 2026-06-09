@@ -50,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Total Yields from RWA Yields",
-  Revenue: "0.15% Annual Management fee collected by superstate",
+  Revenue: "0.15% Annual Management fee collected by Invesco",
 };
 
 const adapter: SimpleAdapter = {

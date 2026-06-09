@@ -12,8 +12,8 @@ const endpoints: Record<string, string> = {
     "https://api.goldsky.com/api/public/project_clqpd6naegn6301uu9h0gd8qz/subgraphs/keom-subgraph/1.0.0/gn",
 };
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400);
+const fetch = async (options: FetchOptions) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400);
 
   const graphQuery = gql`{
     financialsDailySnapshot(id: ${dateId}) {

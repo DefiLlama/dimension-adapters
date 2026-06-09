@@ -8,8 +8,8 @@ const endpoints: Record<string, string> = {
     "https://api.studio.thegraph.com/query/55804/bnb-trade/version/latest",
 };
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
   const period = "daily";
 
   const graphQuery = gql`{
@@ -36,16 +36,14 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2024-02-02',
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2024-02-02',
   methodology: {
     Fees: "All treasury, pool and keeper fees are collected",
   },
-  deadFrom: "2024-10-27"
+  deadFrom: "2024-10-27",
 };
 
 export default adapter;

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { SimpleAdapter, ChainEndpoints } from "../adapters/types";
+import { SimpleAdapter, ChainEndpoints, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { ethers } from "ethers";
@@ -77,7 +77,7 @@ function calcLast24hrsVolume(values: [string, string]): number {
   return toNumber(values[0]) - toNumber(values[1]);
 }
 
-async function getV2Data(url: string, timestamp: string) {
+async function getV2Data(url: string, timestamp: number) {
   const { totalPremiumsDailies, totalVolumeDailies }: GqlResult =
     await request(url, chainDataQuery, {
       timestamp: timestamp,
@@ -112,7 +112,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: async (ts: string) => await getV2Data(v2Endpoints[chain], ts),
+        fetch: async (options: FetchOptions) => await getV2Data(v2Endpoints[chain], options.toTimestamp),
         start: v2StartTimes[chain],
       },
     }

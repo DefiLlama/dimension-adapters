@@ -14,6 +14,7 @@ interface VaultConfig {
   address: string;
   managementFee: number;
   performanceFee: number;
+  spikes?: string[];
 }
 
 // Fee rates from https://shiftprotocol.gitbook.io/shift
@@ -24,7 +25,7 @@ const vaultConfigs: Record<string, VaultConfig[]> = {
   ],
   [CHAIN.ARBITRUM]: [
     { address: "0x956bdd9C18B786b082fd50C52722d254f0CB6964", managementFee: 0, performanceFee: 10 },    // ltLLP
-    { address: "0x6d7C897cD8B402690C07e7263C9f59B3777ae3c2", managementFee: 0.5, performanceFee: 10 }, // vGRVT
+    { address: "0x6d7C897cD8B402690C07e7263C9f59B3777ae3c2", managementFee: 0.5, performanceFee: 10, spikes: ["2026-03-04"] }, // vGRVT
     { address: "0x7174f0bD02664BebDB6Aa79a99fAF949570A10bd", managementFee: 2, performanceFee: 20 },   // hibaUSD
   ],
 };
@@ -56,22 +57,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const priceBefore = sharePricesBefore[i];
     const priceAfter = sharePricesAfter[i];
 
-    if (!baseToken || !totalSupply || !priceBefore || !priceAfter) continue;
+    if (!baseToken || !totalSupply || !priceBefore || !priceAfter || vault.spikes?.includes(options.dateString)) continue;
+
+    if (BigInt(priceBefore) === 0n || BigInt(priceAfter) === 0n) continue;
 
     const priceChange = BigInt(priceAfter) - BigInt(priceBefore);
-    const feeYield = BigInt(totalSupply) * priceChange / BigInt(1e18);
+    const netYield = BigInt(totalSupply) * priceChange / BigInt(1e18);
 
-    if (priceChange > 0n) {
+    if (vault.performanceFee > 0) {
       const perfFee = BigInt(vault.performanceFee);
-      const grossYield = feeYield * 100n / (100n - perfFee);
-      const perfFeeAmount = grossYield - feeYield;
+      const grossYield = netYield * 100n / (100n - perfFee);
+      const perfFeeAmount = grossYield - netYield;
 
       dailyFees.add(baseToken, grossYield, METRIC.ASSETS_YIELDS);
       dailyRevenue.add(baseToken, perfFeeAmount, METRIC.PERFORMANCE_FEES);
-      dailySupplySideRevenue.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
     } else {
-      dailyFees.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(baseToken, feeYield, METRIC.ASSETS_YIELDS);
+      dailyFees.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(baseToken, netYield, METRIC.ASSETS_YIELDS);
     }
 
     if (vault.managementFee > 0) {

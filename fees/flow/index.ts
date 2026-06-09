@@ -2,7 +2,7 @@ import { FetchOptions, FetchResult, ProtocolType, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const start = new Date(options.startOfDay * 1000).toISOString();
   const end = new Date(options.endTimestamp * 1000).toISOString();
 

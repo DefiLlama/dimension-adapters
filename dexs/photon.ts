@@ -4,7 +4,7 @@ import { queryDuneSql } from "../helpers/dune";
 
 const PHOTON_FEE_WALLET = 'AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const now = Date.now()
     const tenHoursAgo = now - (10 * 60 * 60 * 1000)
     if ((options.toTimestamp * 1000) > tenHoursAgo) {
@@ -36,12 +36,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: "2024-01-08",
-        },
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: "2024-01-08",
     dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
 };
