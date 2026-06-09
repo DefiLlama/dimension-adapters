@@ -252,6 +252,7 @@ const prefetch = async (options: FetchOptions) => {
 
 // Dune's `bebop.trades` labels some chains differently from our repo chain ids.
 const DUNE_CHAIN: Record<string, string> = {
+  [CHAIN.BSC]: 'bnb',
   [CHAIN.ERA]: 'zksync',
 }
 
