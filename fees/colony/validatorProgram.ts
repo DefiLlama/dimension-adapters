@@ -1,66 +1,60 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
-import BigNumber from "bignumber.js";
 
 export interface ValidatorProgramFees {
   dailyProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
 }
 
-interface IGraphEarlyStageFeesResponse {
-  rewards: {
-    amount: string
-  }[]
-  rewardPerTokenPerCategories: {
-    amountTotal: string
-  }[]
-}
+const STAKING_CONTRACT =
+  "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
 
-const wavaxToken = ADDRESSES.avax.WAVAX
+const WAVAX = ADDRESSES.avax.WAVAX;
+const VALIDATOR_CATEGORY = 1;
 
-const queryValidatorProgramFees = gql
-  `query ValidatorProgramFees($timestampFrom: BigInt!, $timestampTo: BigInt!) {
-    rewards(
-      where: {createdAt_gte: $timestampFrom, createdAt_lt: $timestampTo, token: "${wavaxToken}", categoryId: 1}
-    ) {
-      amount
-    }
-    rewardPerTokenPerCategories(
-      where: {token: "${wavaxToken}", categoryId: 1}
-    ) {
-      amountTotal
-    }
-  }`;
-
+const REWARD_ADDED_EVENT =
+  "event RewardAdded(address indexed token, uint8 category, uint256 amount, uint256 duration)";
 
 export async function validatorProgramFees(
   options: FetchOptions,
-  stakingV3SubgraphEndpoint: string,
 ): Promise<ValidatorProgramFees> {
-  const { createBalances, startTimestamp, endTimestamp } = options;
+  const { getLogs, createBalances } = options;
 
-  let dailyProtocolRevenue = createBalances()
-  let dailyHoldersRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
-  try {
-    const res: IGraphEarlyStageFeesResponse = await request(stakingV3SubgraphEndpoint, queryValidatorProgramFees, {
-      timestampFrom: startTimestamp,
-      timestampTo: endTimestamp
-    });
+  // Fetch RewardAdded events
+  const logs = await getLogs({
+    target: STAKING_CONTRACT,
+    eventAbi: REWARD_ADDED_EVENT,
+    topic: '0x76f4be3e874cc10b0db82373976a4b261a91b466d6a1f4db6563e5bd25ebba9e'
+  });
 
-    if (res.rewards[0] !== undefined) {
-      dailyProtocolRevenue.add(wavaxToken, new BigNumber(res.rewards[0].amount).div(0.7).multipliedBy(0.3).toFixed(0))
-      dailyHoldersRevenue.add(wavaxToken, res.rewards[0].amount)
+  let totalValidatorRewards = 0n;
+
+  for (const log of logs) {
+    if (
+      log.token.toLowerCase() === WAVAX.toLowerCase() &&
+      Number(log.category) === VALIDATOR_CATEGORY
+    ) {
+      totalValidatorRewards += BigInt(log.amount);
     }
+  }
 
-  } catch (e) {
-    console.error(e);
+  if (totalValidatorRewards > 0n) {
+    // 70% to holders
+    const holdersShare = totalValidatorRewards * 70n / 100n;
+
+    // 30% protocol revenue
+    const protocolShare = totalValidatorRewards - holdersShare;
+
+    dailyHoldersRevenue.add(WAVAX, holdersShare);
+    dailyProtocolRevenue.add(WAVAX, protocolShare);
   }
 
   return {
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-  }
+  };
 }
