@@ -4,7 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 
 const STATS_URL = "https://api.archer.exchange/v1/stats/dimensions";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { volumeUsd } = await httpGet(
     `${STATS_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`
   );
@@ -15,7 +15,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
