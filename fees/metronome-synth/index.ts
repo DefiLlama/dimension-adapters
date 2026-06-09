@@ -13,6 +13,7 @@ const SYNTHS = {
     "0x8b4F8aD3801B4015Dea6DA1D36f063Cbf4e231c7",
     "0xab5eB14c09D416F0aC63661E57EDB7AEcDb9BEfA",
     "0x64351fC9810aDAd17A690E4e1717Df5e7e085160",
+    "0x7cebe35b46b8078e7ffbf754eec4a48653c47524"
   ],
   [CHAIN.BASE]: [
     "0x7Ba6F01772924a82D9626c126347A28299E98c98",
@@ -171,6 +172,9 @@ const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; 
 const BLACKLISTED_TXS: Record<string, Set<string>> = {
   [CHAIN.ETHEREUM]: new Set([
     "0x3765921580dfcbb65202e2d00dcc3b20f9d52214fb2cdd2381ee03e6120bbd70".toLowerCase(),
+    // 2025-07-31: c0ffeebabe.eth returned ~900 msETH to the Metronome treasury after
+    // it was recovered from the Curve exploit. This is a recovery transfer, not interest revenue.
+    "0x7c4ba39dad59ad91f9f0102de833fbc5a8f40122d796e73022ec57c6d29e439f".toLowerCase(),
   ]),
 };
 
@@ -379,7 +383,7 @@ const adapter: SimpleAdapter = {
     },
   },
   adapter: {
-    [CHAIN.ETHEREUM]: { start: '2023-05-11' },
+    [CHAIN.ETHEREUM]: { start: '2022-12-27' },
     [CHAIN.BASE]: { start: '2023-05-11'},
     [CHAIN.OPTIMISM]: { start: '2023-05-11'},
     [CHAIN.PLASMA]: { start: '2025-09-29'},

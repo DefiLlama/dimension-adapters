@@ -19,7 +19,7 @@ const convertVolume = (volumeData: any[]): IVolumeall[] => {
   });
 };
 
-const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
   const historicalVolume: IVolumeall[] = convertVolume(
     await fetchURL(historicalVolumeEndpoint + `?chain=${options.chain}`)
@@ -43,14 +43,8 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-    },
-    [CHAIN.ECLIPSE]: {
-      fetch,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA, CHAIN.ECLIPSE],
   deadFrom: '2025-12-01', //sunset
 };
 

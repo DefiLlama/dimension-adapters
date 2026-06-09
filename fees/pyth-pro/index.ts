@@ -11,7 +11,6 @@ const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
 
-// Revenue split: DAO receives 60%, Douro Labs keeps 40%
 const DAO_SHARE_PERCENT = 60n;
 const TOTAL_PERCENT = 100n;
 

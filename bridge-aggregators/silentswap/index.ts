@@ -28,7 +28,7 @@ function toYYYYMMDD(ts: number): bigint {
   );
 }
 
-const fetch = async (_args: any, _options: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startTimestamp, toTimestamp } = options;
 
   const date = toYYYYMMDD(startTimestamp);
@@ -47,10 +47,13 @@ const fetch = async (_args: any, _options: any, options: FetchOptions) => {
   const inflowsTillToday = inflowData[0].inflowUsd;
   const inflowsTillYesterday = inflowData[1].inflowUsd;
 
-  const dailyInflows = inflowsTillToday - inflowsTillYesterday;
+  // Clamp to >=0 (as documented in the methodology): a missing or reset
+  // snapshot on either date must never produce a negative daily volume.
+  const delta = inflowsTillToday - inflowsTillYesterday;
+  const dailyInflows = delta > 0 ? delta : 0;
 
   return {
-    dailyVolume: Number(dailyInflows) / 1e6,
+    dailyBridgeVolume: Number(dailyInflows) / 1e6,
   };
 };
 

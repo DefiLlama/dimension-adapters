@@ -11,7 +11,7 @@ const headers = {
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const NANOSECONDS_IN_SECOND = 1_000_000_000;
 
-export async function fetch(_a: any, _b: any, options: FetchOptions) {
+export async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
 
   const instrumentsList = await postURL(`${GRVT_PERPS_API_URL}/all_instruments`, {

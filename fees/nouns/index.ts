@@ -16,7 +16,7 @@ const ADDRESS = {
     TRANSFER_TOPIC: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
 
     const auctionSettledLogs = await options.getLogs({

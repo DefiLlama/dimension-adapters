@@ -25,7 +25,7 @@ const fromAddresses = [
   "0x5c952063c7fc8610FFDB798152D69F0B9550762b"
 ]
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       COALESCE(SUM(p.price * (CAST(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) AS DOUBLE) / 1e18)), 0) AS daily_fees_usd

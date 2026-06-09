@@ -8,7 +8,7 @@ const chainConfig: { [key: string]: any } = {
   [CHAIN.MONAD]: { chainId: 143, start: '2025-11-25' }
 };
 
-const fetch = async (_t: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const chainInfo = chainConfig[options.chain]

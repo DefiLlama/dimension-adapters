@@ -19,7 +19,7 @@ const breakdownMethodology = {
   SupplySideRevenue: { [METRIC.LP_FEES]: "75% of swap fees distributed to liquidity providers" },
 }
 
-const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise<any> => {
+const fetch = async (options: FetchOptions): Promise<any> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -41,12 +41,9 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SEI]: {
-      fetch,
-      start: '2024-05-28',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SEI],
+  start: '2024-05-28',
   methodology,
   breakdownMethodology,
 }

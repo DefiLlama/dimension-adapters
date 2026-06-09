@@ -147,6 +147,7 @@ async function fetchSolana(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],

@@ -6,7 +6,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const TREASURY_PDA = '6pZERJjcMpNjPZ6ovnXWC6LzwkXLAYgAR1URAEs63cWC';
 
-const fetch = async (_a: any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();

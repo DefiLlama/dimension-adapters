@@ -38,7 +38,7 @@ const chains: Record<string, string> = {
 
 const api = "https://api.brotocol.xyz/v1/xlink/bridge-chain-volume-by-day"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const data: ApiResponse = await fetchURL(`${api}?day=${dateStr}&chain=${chains[options.chain]}`)
   return { dailyBridgeVolume: data.volume }

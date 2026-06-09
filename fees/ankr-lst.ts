@@ -58,7 +58,7 @@ const chainConfig: Record<string, { tokens: string[]; start: string; feeRates: n
   },
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()

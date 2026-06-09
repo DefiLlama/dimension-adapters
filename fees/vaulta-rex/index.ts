@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const STATS_URL = "https://eosauthority.com/api/spa/rex/communityfunds?network=eos";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const unixTodayInMs = options.startOfDay * 1000;
 

@@ -1,7 +1,6 @@
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getHistorical = () => {
   return gql`query InfoTabs {
@@ -28,26 +27,21 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
   const response: IGraphResponse = (await getGQLClient().request(getHistorical())).overview;
 
   const daily = response.plotVolume
-    .find(dayItem => (new Date(dayItem.time).getTime()) === dayTimestamp);
+    .find(dayItem => (new Date(dayItem.time).getTime()) === options.startOfDay);
   const dailyVolume = Number(daily?.value || 0) * Number(daily?.xtzUsdQuoteHistorical || 0);
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume: dailyVolume.toString(),
   }
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.TEZOS]: {
-      fetch: fetch,
-    },
-  },
+  fetch,
+  chains: [CHAIN.TEZOS],
 };
 
 export default adapter;

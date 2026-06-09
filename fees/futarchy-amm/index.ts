@@ -12,7 +12,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { getSqlFromFile, queryDuneResult, queryDuneSql } from '../../helpers/dune'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   if (options.startOfDay <= 1775520000) {
     const targetDate = options.dateString

@@ -122,13 +122,13 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.TAIKO]: { factory: '0xfCA1AEf282A99390B62Ca8416a68F5747716260c' },
   },
   "kim-exchange-v3": {
-    [CHAIN.MODE]: { factory: '0xB5F00c2C5f8821155D8ed27E31932CFD9DB3C5D5', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.MODE]: { factory: '0xB5F00c2C5f8821155D8ed27E31932CFD9DB3C5D5', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "moraswap-v3": {
     [CHAIN.NEON]: { factory: '0x58122246F7e33669cde3486Dd72f95c2e886E375' },
   },
   "scribe-exchange-v4": {
-    [CHAIN.SCROLL]: { factory: '0xDc62aCDF75cc7EA4D93C69B2866d9642E79d5e2e', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.SCROLL]: { factory: '0xDc62aCDF75cc7EA4D93C69B2866d9642E79d5e2e', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "thruster-v3": {
     [CHAIN.BLAST]: { factory: '0x71b08f13B3c3aF35aAdEb3949AFEb1ded1016127' },
@@ -137,7 +137,7 @@ const configs: Record<string, Record<string, any>> = {
     defichain_evm: { factory: '0x9C444DD15Fb0Ac0bA8E9fbB9dA7b9015F43b4Dc1' },
   },
   "xtrade": {
-    [CHAIN.XLAYER]: { factory: '0x612D9EA08be59479B112D8d400C7F0A2E4aD4172', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.XLAYER]: { factory: '0x612D9EA08be59479B112D8d400C7F0A2E4aD4172', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "SwapX-algebra": {
     [CHAIN.SONIC]: { factory: '0x8121a3F8c4176E9765deEa0B95FA2BDfD3016794', start: "2024-12-24", isAlgebraV3: true },
@@ -336,6 +336,7 @@ const configs: Record<string, Record<string, any>> = {
   "virtus-protocol-cl": {
     [CHAIN.BASE]: {
       factory: '0x0e5Ab24beBdA7e5Bb3961f7E9b3532a83aE86B48',
+      isAlgebraV3: true,
       poolCreatedEvent: "event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)",
       start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1
     },
@@ -360,6 +361,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "kublerx-v3": {
     [CHAIN.BITKUB]: { factory: '0xD679d310008A2595B8d3DeB83bb93EB23F9b0942', start: '2026-05-22', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "turbo": {
+    [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   }
 }
 

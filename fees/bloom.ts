@@ -107,7 +107,7 @@ const chainConfig: any = {
 }
 
 
-async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
+async function fetchSolana(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const { feesWallet, rewardRelayers, internalWallets, directRewardRelayerStart } = chainConfig[CHAIN.SOLANA];
@@ -190,7 +190,7 @@ async function fetchSolana(_a: any, _b: any, options: FetchOptions) {
 
 // Note: on EVM (BSC/Base) we don't yet track referral/cashback payouts, so all fees are counted as
 // protocol revenue here. If/when EVM referral tracking is added, deduct it like fetchSolana does.
-async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
+async function fetchEVM(options: FetchOptions) {
   const { contracts } = chainConfig[options.chain];
   const logs = await options.getLogs({
     topics: [topic],
@@ -209,8 +209,8 @@ async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
 }
 
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
-  return options.chain === CHAIN.SOLANA ? fetchSolana(_a, _b, options) : fetchEVM(_a, _b, options);
+async function fetch(options: FetchOptions) {
+  return options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEVM(options);
 }
 
 const methodology = {

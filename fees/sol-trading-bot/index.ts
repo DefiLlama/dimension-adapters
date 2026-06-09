@@ -26,7 +26,7 @@ const LABELS = {
   REFERRAL_CASHBACK_PAYOUTS: 'Referral/Cashback Payouts',
 } as const;
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const feeWallets = FEE_WALLETS.map((wallet) => `'${wallet}'`).join(', ');
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

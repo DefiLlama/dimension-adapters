@@ -15,7 +15,7 @@ const FEES_CHARGED_EVENT = 'event FeesCharged(uint256 indexed orderId, uint256 i
 const FEES_CHARGED_V2_EVENT = 'event FeesChargedV2(uint256 indexed orderId, uint256 indexed tradeId, address indexed trader, int256 rolloverFees, int256 fundingFees)';
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

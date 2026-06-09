@@ -94,6 +94,10 @@ const adapter: Adapter = {
   },
   breakdownMethodology,
   version: 2,
+  // pullHourly must stay false: the management fee is a window-independent snapshot
+  // (totalAssets * MANAGEMENT_FEES/365), so running 24 hourly pulls would charge a
+  // full day's management fee 24 times and overstate fees/revenue.
+  pullHourly: false,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>

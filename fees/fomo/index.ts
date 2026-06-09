@@ -6,7 +6,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const dataAvaliableTill = (Date.now() / 1e3 - 10 * 3600) // 10 hours ago
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (options.endTimestamp > dataAvaliableTill) 
     throw new Error("Data not available till 10 hours ago. Please try a date before: " + new Date(dataAvaliableTill * 1e3).toISOString());
 

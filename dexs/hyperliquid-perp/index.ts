@@ -33,7 +33,7 @@ const breakdownMethodology = {
   },
 }
 
-async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
 
   if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {

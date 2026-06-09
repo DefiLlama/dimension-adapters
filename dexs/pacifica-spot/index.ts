@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = await fetchURL('https://api.pacifica.fi/api/v1/info')
   if (!data.data) {
     throw new Error('Tickers are unavailable, please try again later');
