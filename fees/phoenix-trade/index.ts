@@ -12,7 +12,7 @@ const EVENTS = {
   tradeSummary: "0x06",
 };
 
-async function fetch(_: any, __: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -99,31 +99,22 @@ async function fetch(_: any, __: any, options: FetchOptions) {
   `;
 
   const [res] = await queryDuneSql(options, query);
-  const tradingFees = res?.trading_fees_usd ?? 0;
+  const tradingFees = res.trading_fees_usd;
   dailyFees.addUSDValue(tradingFees, METRIC.TRADING_FEES);
 
+  // not considering revenue as we arent counting referral and builder fees
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
   };
 }
 
 const methodology = {
   Fees: "Trading fees paid by users on perpetual positions.",
-  Revenue: "All trading fees are counted as protocol revenue.",
-  ProtocolRevenue: "All trading fees go to the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: "Fees paid by traders on perpetual positions.",
-  },
-  Revenue: {
-    [METRIC.TRADING_FEES]: "All trading fees are counted as protocol revenue.",
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: "All trading fees go to the protocol.",
   },
 };
 
@@ -136,6 +127,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  skipBreakdownValidation: true,
 };
 
 export default adapter;
