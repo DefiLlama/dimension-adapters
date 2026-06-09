@@ -92,13 +92,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ORAI]: {
-      fetch,
-      start: "2026-01-01",
-      runAtCurrTime: true,
-    },
-  },
+  fetch,
+  chains: [CHAIN.CHAIN_GLOBAL], // has vaults across chains, difficult to track each chain separately
+  runAtCurrTime: true,
   methodology: {
     Fees:
       "Fees are calculated from performance fees collected by Quant Terminal vaults.",
