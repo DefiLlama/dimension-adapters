@@ -221,10 +221,10 @@ Example: For Aave, if depositors get 70% and protocol gets 30% of borrow fees, d
 These are the issues that come up most often in review - check every PR for them:
 
 - Wash trading - be vigilant especially on low-fee chains
-- Incorrect fee/revenue classification, and the identities `Fees = Revenue + SupplySideRevenue` and `Revenue = ProtocolRevenue + HoldersRevenue` not balancing
+- Incorrect fee/revenue classification, and `Fees = Revenue + SupplySideRevenue` not balancing within a period (note: `Revenue = ProtocolRevenue + HoldersRevenue` is an attribution rule, not a per-day equality - holders revenue like buybacks can land on a different day)
 - Counting ALL fees as revenue (forgetting the supply-side cut)
 - Missing `dailyProtocolRevenue`/`dailyHoldersRevenue` split when the protocol keeps some and distributes some
-- Unexpected negative `dailySupplySideRevenue` - almost always a bug, verify before merging
+- Unexpected negative `dailySupplySideRevenue` - worth a look, but can be legitimate on realized vault losses; verify rather than assume a bug
 - Missing breakdown labels or `breakdownMethodology`, or labels that don't match the methodology
 - Hardcoded values that should be dynamic; hardcoded rates/addresses without a source comment
 - Double-counting (both taker and maker volume in perps; both buy and sell legs; routed volume already counted in the underlying protocol; buybacks already counted in a parent listing)

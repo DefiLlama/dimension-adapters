@@ -51,7 +51,7 @@ reviews:
         instructions: "Any adapter that queries Dune (queryDuneSql, queryDune, dune helpers) MUST export version: 1. Dune runs once per day; a v2 adapter runs hourly and would re-run the same expensive query. Also flag duplicate date filters: the TIME_RANGE macro already injects a date filter, so additional WHERE date filters are redundant. Prefer a single prefetch query covering all chains over one query per chain."
       - name: "Income Statement Balance"
         mode: "warning"
-        instructions: "For fees adapters verify the identities hold: dailyFees = dailyRevenue + dailySupplySideRevenue, and dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue. Flag: dumping all fees into dailyRevenue (ignoring the supply-side cut); missing dailyProtocolRevenue/dailyHoldersRevenue split when revenue goes to both treasury and token holders; classifying non-governance stakers (stablecoin/LST stakers) as dailyHoldersRevenue instead of dailySupplySideRevenue; unexpected negative dailySupplySideRevenue."
+        instructions: "For fees adapters: dailyFees = dailyRevenue + dailySupplySideRevenue should hold within a period. dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue is an attribution rule, NOT a per-day equality - holders revenue (e.g. periodic buybacks like AAVE buy back) can be realized on a different day, so do not flag day-level mismatches there. Flag: dumping all fees into dailyRevenue (ignoring the supply-side cut); missing dailyProtocolRevenue/dailyHoldersRevenue split when revenue goes to both treasury and token holders; classifying non-governance stakers (stablecoin/LST stakers) as dailyHoldersRevenue instead of dailySupplySideRevenue. Negative dailySupplySideRevenue is worth a look but can be legitimate when a vault/protocol realizes a loss (both dailyFees and dailySupplySideRevenue may be negative) - ask to verify rather than asserting it is a bug."
       - name: "FetchOptions Usage"
         mode: "warning"
         instructions: "The fetch function must take a single FetchOptions argument for both v1 and v2: (options: FetchOptions). Flag the old 3-argument v1 signature (timestamp, chainBlocks, options) - it no longer exists and will fail. Flag adapters that recompute time/block values from a raw timestamp instead of using options.startOfDay, options.dateString, options.startTimestamp, options.fromTimestamp, options.getFromBlock(). Flag unused fetch arguments. Flag fetch functions (v1 OR v2) that return a timestamp field in their result. Flag v2 adapters that key time windows off startOfDay instead of startTimestamp (v2 runs hourly)."
@@ -80,10 +80,10 @@ reviews:
       instructions: |
         Review fees adapters for:
         - Correct income statement mapping (dailyFees = Gross Protocol Revenue, dailyRevenue = Gross Profit, dailySupplySideRevenue = Cost of Funds)
-        - Identities must balance: dailyFees = dailyRevenue + dailySupplySideRevenue, and dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue
+        - dailyFees = dailyRevenue + dailySupplySideRevenue should hold within a period; dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue is an attribution rule, not a per-day equality (holders revenue like buybacks can land on a different day)
         - Do NOT dump all fees into dailyRevenue; add dailyProtocolRevenue when the protocol keeps a cut, and split into dailyProtocolRevenue/dailyHoldersRevenue when revenue goes to both treasury and governance holders
         - Non-governance stakers (stablecoin/LST stakers) are supply-side, not holders revenue
-        - Negative dailySupplySideRevenue is almost always a bug - flag it
+        - Negative dailySupplySideRevenue is worth verifying but can be legitimate on realized vault losses - ask, don't assume a bug
         - All breakdown labels must have corresponding breakdownMethodology entries
         - Labels should be descriptive (not vague like "Protocol Fees" or "Other")
         - dailySupplySideRevenue required when protocol pays suppliers (LPs, lenders, stakers, integrators, referrers)

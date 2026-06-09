@@ -43,12 +43,12 @@ Think: "If the protocol became super-greedy and rugged all parties, how much cou
 | `dailyProtocolRevenue` | Optional | - | Portion allocated to treasury |
 | `dailyHoldersRevenue` | When applicable | Tokenholder Income | All value to token holders (buybacks, burns, distributions, external airdrops, bribes) |
 
-## Income Statement Identities (must always balance)
+## Income Statement Identities
 
 These are the most common review failures. Verify them on every fees PR:
 
-- `dailyFees = dailyRevenue + dailySupplySideRevenue`
-- `dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue`
+- `dailyFees = dailyRevenue + dailySupplySideRevenue` - this holds within the same period.
+- `dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue` - this is the conceptual split, but it does NOT always balance on a given day. Holders revenue is often realized on a different day than the revenue it came from (e.g. periodic buybacks like AAVE buy back in aave-v3 happen on their own schedule). So treat this as an attribution rule, not a per-day equality check.
 
 Rules that follow from the identities:
 
@@ -56,7 +56,7 @@ Rules that follow from the identities:
 - When the protocol collects revenue for itself, also set `dailyProtocolRevenue`.
 - When revenue is split between the treasury and token holders (governance stakers), split it into `dailyProtocolRevenue` and `dailyHoldersRevenue`.
 - Stakers of a **non-governance** token (e.g. stablecoin or LST stakers) are suppliers - their cut is `dailySupplySideRevenue`, NOT `dailyHoldersRevenue`. Only governance/value-accrual token holders count as holders revenue.
-- A negative `dailySupplySideRevenue` is almost always a bug - investigate the source data before merging.
+- A negative `dailySupplySideRevenue` is usually worth a second look, but it is NOT always a bug - it can be legitimate when a protocol/vault realizes a loss (in that case both `dailyFees` and `dailySupplySideRevenue` can be negative). Verify the source data and add `allowNegativeValue` with a comment when the negative value is intended.
 - Negative yield/fees: when a protocol genuinely has negative yield, count it into fees and supply-side revenue with `allowNegativeValue` and a comment explaining why.
 
 ## Buybacks and the TCG pattern
