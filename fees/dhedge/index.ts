@@ -5,24 +5,24 @@ import * as sdk from "@defillama/sdk";
 import { METRIC } from "../../helpers/metrics";
 
 const queryManagerFeeMinteds = `
-      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+      query managerFeeMinteds($excludedManagers: [Bytes!]!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
-          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          where: { manager_not_in: $excludedManagers, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
         ) { managerFee, daoFee, tokenPriceAtFeeMint }
       }`
 const queryEntryFeeMinteds = `
-      query entryFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+      query entryFeeMinteds($excludedManagers: [Bytes!]!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         entryFeeMinteds(
-          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { managerAddress_not_in: $excludedManagers, time_gte: $startTimestamp, time_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { entryFeeAmount, tokenPrice }
       }`
 
 const queryExitFeeMenteds = `
-      query exitFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+      query exitFeeMinteds($excludedManagers: [Bytes!]!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         exitFeeMinteds(
-          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { managerAddress_not_in: $excludedManagers, time_gte: $startTimestamp, time_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { exitFeeAmount, tokenPrice }
       }`
@@ -40,6 +40,16 @@ const queryExitFeeMenteds = `
 
   return { dailyFees, dailyRevenue: dailyFees };
 } */
+
+// Managers tracked separately in toros/mstable-v2 adapters — excluded here to avoid double-counting fees
+const EXCLUDED_MANAGERS: Partial<Record<CHAIN, string[]>> = {
+  [CHAIN.OPTIMISM]: ["0x813123a13d01d3f07d434673fdc89cbba523f14d"],
+  [CHAIN.POLYGON]:  ["0x090e7fbd87a673ee3d0b6ccacf0e1d94fb90da59"],
+  [CHAIN.ARBITRUM]: ["0xfbd2b4216f422dc1eee1cff4fb64b726f099def5"],
+  [CHAIN.BASE]:     ["0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879"],
+  [CHAIN.ETHEREUM]: ["0xfbd2b4216f422dc1eee1cff4fb64b726f099def5", "0x3dd46846eed8d147841ae162c8425c08bd8e1b41"],
+};
+
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
     endpoint: sdk.graph.modifyEndpoint("A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD"),
@@ -63,6 +73,7 @@ const PROVIDER_CONFIG = {
 
 const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: string, startTimestamp: number, endTimestamp: number) => {
   const { endpoint } = PROVIDER_CONFIG[chainId];
+  const excludedManagers = EXCLUDED_MANAGERS[chainId] ?? [];
 
   let allData = [];
   let skip = 0;
@@ -71,6 +82,7 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
   while (true) {
     try {
       const data = await new GraphQLClient(endpoint).request(query, {
+        excludedManagers,
         startTimestamp: startTimestamp.toString(),
         endTimestamp: endTimestamp.toString(),
         first: batchSize,
