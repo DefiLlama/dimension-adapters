@@ -27,6 +27,15 @@ const queryExitFeeMenteds = `
         ) { exitFeeAmount, tokenPrice }
       }`
 
+// daoFee fetched from all managers (including toros/mstable) - goes to protocol treasury regardless of manager
+const queryAllManagerFeeMinteds = `
+      query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        managerFeeMinteds(
+          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
+        ) { daoFee, tokenPriceAtFeeMint }
+      }`
+
 // if graph goes down, can be pulled via event logs, example:
 // https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
 /* const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
@@ -103,6 +112,35 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
   return allData;
 };
 
+const fetchAllManagerFeeMinteds = async (chainId: CHAIN, startTimestamp: number, endTimestamp: number) => {
+  const { endpoint } = PROVIDER_CONFIG[chainId];
+
+  let allData: any[] = [];
+  let skip = 0;
+  const batchSize = 1000;
+
+  while (true) {
+    try {
+      const data = await new GraphQLClient(endpoint).request(queryAllManagerFeeMinteds, {
+        startTimestamp: startTimestamp.toString(),
+        endTimestamp: endTimestamp.toString(),
+        first: batchSize,
+        skip
+      });
+
+      const entries = data['managerFeeMinteds'];
+      if (entries.length === 0) break;
+      allData = allData.concat(entries);
+      skip += batchSize;
+
+      if (entries.length < batchSize) break;
+    } catch (e) {
+      throw new Error(`Error fetching daoFee data for chain ${chainId}: ${e.message}`);
+    }
+  }
+  return allData;
+};
+
 const calculateManagerFees = (data: any): number =>
   data.reduce((acc: number, item: any) => {
     const managerFee = Number(item.managerFee);
@@ -150,14 +188,18 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
   const dailyManagerFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryManagerFeeMinteds, 'managerFeeMinteds', startTimestamp, endTimestamp);
   const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
   const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
+  const allManagerFeesEvents = await fetchAllManagerFeeMinteds(chain as CHAIN, startTimestamp, endTimestamp);
 
-  const dailyManagerFeesAmount = calculateManagerFees(dailyManagerFeesEvents);
-  const dailyEntryFeesAmount = calculateEntryFees(dailyEntryFeesEvents);
-  const dailyExitFeesAmount = calculateExitFees(dailyExitFeesEvents);
-  const dailyDaoFeesAmount = calculateDaoFees(dailyManagerFeesEvents);
+  const dailyManagerFeesAmount = calculateManagerFees(dailyManagerFeesEvents);  // non-toros/mstable managerFee
+  const dailyEntryFeesAmount = calculateEntryFees(dailyEntryFeesEvents);         // non-toros/mstable entryFee
+  const dailyExitFeesAmount = calculateExitFees(dailyExitFeesEvents);            // non-toros/mstable exitFee
+  const dailyDaoFeesAmount = calculateDaoFees(allManagerFeesEvents);             // daoFee from ALL vaults incl. toros/mstable
 
+  // Fees = non-toros/mstable (managerFee + entry/exit) + all daoFee
+  // Revenue = all daoFee (protocol treasury)
   const dailyFees = createBalances();
   dailyFees.addUSDValue(dailyManagerFeesAmount, METRIC.MANAGEMENT_FEES);
+  dailyFees.addUSDValue(dailyDaoFeesAmount, METRIC.PROTOCOL_FEES);
   dailyFees.addUSDValue(Number(dailyEntryFeesAmount) + Number(dailyExitFeesAmount), METRIC.DEPOSIT_WITHDRAW_FEES);
 
   const dailyRevenue = createBalances();
@@ -178,6 +220,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]: 'Fees paid to vault managers for actively managing investment strategies, split between protocol and managers',
+    [METRIC.PROTOCOL_FEES]: 'DAO fee charged by dHEDGE protocol across all vaults on the platform, including Toros and mStable vaults',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees charged when users deposit into or withdraw from vaults',
   },
   Revenue: {
