@@ -1,12 +1,14 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Hyperbeat Operator contract on HyperEVM. It batches card spend settlements
-// (debit) and Morpho borrows (credit) across user ManagementAccounts.
+// Hyperbeat Operator contract on HyperEVM (Hyperbeat Liquid Bank). It batches card
+// spend settlements (debit) and Morpho borrows (credit) across user ManagementAccounts.
+// Source: Hyperbeat Operator contract; docs https://docs.hyperbeat.org
 const OPERATOR = "0xfc29c43238e0702ab59809d5255ac3970beaf51d";
 
 // beatUSD (Hyperbeat USD): treasury-backed, $1-pegged, 6 decimals. Total supply
 // equals the cash balances held across all Hyperbeat accounts.
+// Source: read from Operator.settlementToken(); https://hyperevmscan.io/address/0x669abe85F96a9e3B34723F7Be9bC6F250aBC0Cc1
 const BEAT_USD = "0x669abe85F96a9e3B34723F7Be9bC6F250aBC0Cc1";
 
 // In both events `amount` is the only non-indexed field, so it lives in log data.
@@ -16,8 +18,9 @@ const BORROW_EVENT =
   "event BorrowSuccess(address indexed account, bytes32 indexed marketId, uint256 amount, uint256 indexed batchIndex)";
 
 const SETTLEMENT_DECIMALS = 1e6; // beatUSD, $1-pegged
-const INTERCHANGE_RATE = 0.0118; // 1.18% interchange on card spend
-const TREASURY_APR = 0.035; // 3.5% annualized treasury yield on beatUSD balances
+// Rates provided by the Hyperbeat team (Liquid Bank card program); see https://docs.hyperbeat.org
+const INTERCHANGE_RATE = 0.0118; // 1.18% interchange on card spend (debit + credit)
+const TREASURY_APR = 0.035; // 3.5% annualized treasury yield earned on beatUSD reserves
 const YEAR = 365 * 24 * 60 * 60;
 
 const INTERCHANGE = "Card Interchange";
@@ -60,6 +63,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "Total card spend settled through the Hyperbeat Operator contract, covering both debit (SettlementSuccess) and credit/borrow (BorrowSuccess) spend.",
