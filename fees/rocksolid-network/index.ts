@@ -130,6 +130,7 @@ const adapter: SimpleAdapter = {
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
+    pullHourly: true,
 }
 
 export default adapter;
