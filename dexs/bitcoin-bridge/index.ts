@@ -19,7 +19,7 @@ const chainConfig = {
   [CHAIN.BERACHAIN]: { start: '2025-05-28', key: 'BERA'},
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
   const url = permuteEndpoint.concat(`/dashboard/vol/chain/day?chain=${chainConfig[options.chain].key}&timestamp=${startOfDay}`)
   const volumeForDay = await fetchURL(url)

@@ -308,6 +308,11 @@ const fetch = async (options: FetchOptions) => {
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 const adapter: Adapter = {
   version: 2,
+  // Must stay daily: Votium bribe revenue (fetchBribesUSDForDay) is only available as
+  // whole-day epochs keyed by `epoch.end === dayStart`. Running hourly makes every one of
+  // the day's 24 slots match the same epoch and add the full daily bribe total, counting
+  // bribe revenue ~24x. Do not set pullHourly: true here.
+  pullHourly: false,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

@@ -1,81 +1,49 @@
 import ADDRESSES from "../helpers/coreAssets.json";
-
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
+  throw Error('made it broken while verying numbers')
+  
   const dailyFees = options.createBalances();
-  const dailyVolume = options.createBalances();
-  const FEE_WALLETS = [
-    "Eno27Pu6ok2nNwLTgNCLnFmY2YxQsAXecmrnnLvJeFYh",
-    "3VZjDxp8grQbocYwEisZxSpvpw4XURL1CBwii5gkoAw6",
-  ];
+  // const dailyVolume = options.createBalances();
 
-  const combinedQuery = `
-    WITH
-      allFeePayments AS (
-        SELECT
-          tx_id,
-          balance_change
-        FROM
-          solana.account_activity
-        WHERE
-          block_time >= from_unixtime(${options.startTimestamp})
-          AND block_time <= from_unixtime(${options.endTimestamp})
-          AND tx_success
-          AND address IN (${FEE_WALLETS.map((wallet) => `'${wallet}'`).join(
-            ", "
-          )})
-          AND balance_change > 0
-      ),
-      botTrades AS (
-        SELECT
-          trades.tx_id,
-          IF(
-            token_sold_mint_address = 'So11111111111111111111111111111111111111112',
-            token_sold_amount,
-            token_bought_amount
-          ) AS amount_usd
-        FROM
-          dex_solana.trades AS trades
-          JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-        WHERE
-          trades.block_time >= from_unixtime(${options.startTimestamp})
-          AND trades.block_time <= from_unixtime(${options.endTimestamp})
-          AND trades.trader_id NOT IN (${FEE_WALLETS.map(
-            (wallet) => `'${wallet}'`
-          ).join(", ")})
-      )
+  const query = `
     SELECT
-      COALESCE(SUM(allFeePayments.balance_change), 0) AS daily_fees,
-      COALESCE(SUM(botTrades.amount_usd), 0) AS volume
+      COALESCE(daily_fees_usd_sol, 0)          AS daily_fees_usd_sol,
+      COALESCE(daily_solana_volume_usd, 0) AS daily_solana_volume_usd
     FROM
-      allFeePayments
-      LEFT JOIN botTrades ON allFeePayments.tx_id = botTrades.tx_id
+      dune.lab_terminal.historical_aggregates_v3
+    WHERE
+      snapshot_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
+      AND snapshot_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
+    LIMIT 1
   `;
 
-  const res = await queryDuneSql(options, combinedQuery);
-  dailyFees.add(ADDRESSES.solana.SOL, res[0].daily_fees);
-  dailyVolume.add(ADDRESSES.solana.SOL, res[0].volume * 1e9);
+  const res = await queryDuneSql(options, query);
+  if (!res?.length) return { dailyFees };
+
+  dailyFees.add(ADDRESSES.solana.SOL, res[0].daily_fees_usd_sol * 1e9);
+  // dailyVolume.add(ADDRESSES.solana.SOL, res[0].daily_solana_volume_usd * 1e6);
 
   return {
     dailyFees,
+    // dailyVolume,
     // dailyRevenue: dailyFees,  // skipping these for now as we are not excluding amount for referrals
     // dailyProtocolRevenue: dailyFees,
-    dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-06-29",
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology: {
-    Fees: "Trading tokens fees paid by users",
+    Fees: "Trading fees paid by users in SOL",
+    Volume: "Total USD volume of trades on Solana",
     // ProtocolRevenue: "Trading fees are collected by Lab Terminal",
     // Revenue: "Trading fees are collected by Lab Terminal",
   },

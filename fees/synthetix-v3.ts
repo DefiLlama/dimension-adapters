@@ -19,7 +19,7 @@ const contract_address: IContract = {
 const usdt = 'tether'
 const event_order_settled = 'event OrderSettled(uint128 indexed marketId,uint128 indexed accountId,uint256 fillPrice,int256 pnl,int256 accruedFunding,int128 sizeDelta,int128 newSize,uint256 totalFees,uint256 referralFees,uint256 collectedFees,uint256 settlementReward,bytes32 indexed trackingCode,address settler)'
 
-const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -42,20 +42,18 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: dailyHoldersRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
-    timestamp
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const adapters: SimpleAdapter = {
+  fetch,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchFees,
       start: '2024-01-13',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
       start: '2024-08-15',
     },
   },

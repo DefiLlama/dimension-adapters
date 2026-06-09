@@ -1,5 +1,4 @@
 import {
-  ChainBlocks,
   FetchOptions,
   FetchResultVolume,
   SimpleAdapter,
@@ -19,13 +18,7 @@ const abi = {
     "event PartialClosePosition(uint256 indexed positionId, address indexed trader, address bucketAddress, address soldAsset, address positionAsset, uint256 decreasePositionAmount, uint256 depositedAmount, uint256 scaledDebtAmount, int256 profit, uint256 positionDebt, uint256 amountOut)",
 };
 
-const fetch =
-  (chain: string) =>
-  async (
-    timestamp: number,
-    _: ChainBlocks,
-    { createBalances, getLogs }: FetchOptions
-  ): Promise<FetchResultVolume> => {
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     const { swapManager, positionManager, batchManager } = config[chain];
     const dailyVolume = createBalances();
 
@@ -72,18 +65,11 @@ const fetch =
       dailyVolume.add(e.soldAsset, e.amountOut)
     );
 
-    return { dailyVolume: dailyVolume, timestamp };
+    return { dailyVolume };
   };
 
 const adapters: SimpleAdapter = {
-  adapter: Object.keys(config).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetch(chain),
-        start: config[chain].start,
-      },
-    };
-  }, {}),
+  fetch,
+  adapter: config
 };
 export default adapters;

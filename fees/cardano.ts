@@ -4,7 +4,7 @@ import { SimpleAdapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
   const data = await httpGet('https://api-mainnet-stage.cexplorer.io/v1/analytics/rate?display=sum_fee', {

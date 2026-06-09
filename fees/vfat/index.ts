@@ -89,7 +89,7 @@ const chainSettings: any = {
   },
 };
 
-const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 

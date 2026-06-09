@@ -81,7 +81,7 @@ const chainConfig: Record<string, { address: string, start: string }> = {
 
 };
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const address = chainConfig[options.chain].address;
   const dailyFees = options.createBalances();
 

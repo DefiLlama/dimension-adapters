@@ -42,7 +42,7 @@ const rfqInterface = new ethers.Interface([
   `function swapAggregate(${AGG_ORDER} order, ${MAKER_SIG}[] makersSignatures, uint256 filledTakerAmount) payable`,
 ])
 
-const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const jamSettlement = JAM_SETTLEMENT[chain] || JAM_SETTLEMENT.default
 
@@ -112,6 +112,8 @@ const fetch = async (_: any, _1: any, { createBalances, getLogs, chain, api }: F
       dailyVolume.add(order.taker_tokens, order.taker_amounts)
     } else if (name.includes('Aggregate')) {
       dailyVolume.add((order.taker_tokens as any[][]).flat(), (order.taker_amounts as any[][]).flat())
+    } else {
+      api.log('rfq unmatched function name', tx.hash, name, chain)
     }
   }
 
@@ -130,7 +132,7 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
-async function fetchDune(_: any, _1: any, options: FetchOptions) {
+async function fetchDune(options: FetchOptions) {
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain.toLowerCase() === options.chain.toLowerCase());
   return { dailyVolume: chainData ? chainData.vol : 0 };
@@ -141,18 +143,18 @@ const adapter: Adapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   adapter: {
-    [CHAIN.ARBITRUM]:    { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.ETHEREUM]:    { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.POLYGON]:     { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.BSC]:         { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.OPTIMISM]:    { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.BASE]:        { fetch: fetchDune, start: '2023-05-31' },
-    [CHAIN.HYPERLIQUID]: { fetch,            start: '2025-04-28' },
-    [CHAIN.BLAST]:       { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
-    [CHAIN.ERA]:         { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
-    [CHAIN.MODE]:        { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
-    [CHAIN.SCROLL]:      { fetch: fetchDune, start: '2023-05-31', deadFrom: '2026-06-04' },
-    [CHAIN.TAIKO]:       { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
+    [CHAIN.ARBITRUM]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.ETHEREUM]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.POLYGON]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.BSC]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.OPTIMISM]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.BASE]: { fetch: fetchDune, start: '2023-05-31' },
+    [CHAIN.HYPERLIQUID]: { fetch, start: '2025-04-28' },
+    [CHAIN.BLAST]: { fetch, start: '2023-05-31', deadFrom: '2026-06-04' },
+    [CHAIN.ERA]: { fetch, start: '2023-05-31', deadFrom: '2026-06-04' },
+    [CHAIN.MODE]: { fetch, start: '2023-05-31', deadFrom: '2026-06-04' },
+    [CHAIN.SCROLL]: { fetch: fetchDune, start: '2023-05-31', deadFrom: '2026-06-04' },
+    [CHAIN.TAIKO]: { fetch, start: '2023-05-31', deadFrom: '2026-06-04' },
   },
   prefetch,
 };

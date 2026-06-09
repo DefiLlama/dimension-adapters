@@ -8,7 +8,7 @@ const prefetch = async (options: FetchOptions) => {
   return await queryDuneSql(options, sql_query);
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const results = options.preFetchedResults || [];

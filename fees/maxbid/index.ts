@@ -14,7 +14,7 @@ const PROTOCOL_LABEL = "Share of fees to protocol";
 const PROTOCOL_FEE_RATE = 0.75;
 const REFERRAL_FEE_RATE = 0.25;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     select
       coalesce(sum(case when to_owner = '${LEVERAGE_FEE_WALLET}' then amount_usd end), 0) as leverage_fee_usd,

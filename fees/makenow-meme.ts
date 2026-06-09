@@ -8,7 +8,7 @@ import { queryDuneSql } from "../helpers/dune"
 // https://solscan.io/account/AEBoqzQU3fDYzhVmaRedcNeVcQQSMEqCAuQ2A7pYNEd7
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targets = [
     // Swap fee receivers
     '8tA49tvPiTCkeVfuTms1F2nwVg6FWpQsQ8eNZ4g9vVQF',

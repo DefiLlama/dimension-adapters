@@ -22,7 +22,7 @@ const stablecoinConfig = {
 
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const FRED_API_KEY = getEnv("FRED_API_KEY");
 
     if (!FRED_API_KEY) {

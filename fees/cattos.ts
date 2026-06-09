@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
 
-const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const query = `
     SELECT
      COALESCE(SUM(CAST(json_extract_scalar(data, '$.total_apt_cost') AS DOUBLE) / 100000000), 0) AS total_rev

@@ -98,7 +98,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.MODE]: { id: 34443, start: commonStartTime },
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const chainId = chainConfig[options.chain].id;
 
     const endpoint = `/api/v1/statistics/${chainId}/${options.dateString}`;

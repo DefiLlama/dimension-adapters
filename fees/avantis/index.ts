@@ -34,7 +34,7 @@ const breakdownMethodology = {
 	},
 };
 
-const fetch =async (_a: number, _b:any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch =async (options: FetchOptions): Promise<FetchResultFees> => {
 
 	const date = new Date(options.startOfDay * 1000);
 	const dateStr = date.toISOString().split("T")[0];

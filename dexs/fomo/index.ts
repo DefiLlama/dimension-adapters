@@ -5,7 +5,7 @@ import { queryDuneSql } from '../../helpers/dune';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const FEE_WALLET = 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX';
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const now = Date.now()
   const tenHoursAgo = now - (10 * 60 * 60 * 1000)

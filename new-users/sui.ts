@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adap
 import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const from = new Date(options.fromTimestamp * 1000).toISOString();
   const to = new Date(options.toTimestamp * 1000).toISOString();

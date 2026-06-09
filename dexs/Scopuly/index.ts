@@ -11,12 +11,11 @@ interface IChartItem {
   fees: number;
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
   const historicalData: IChartItem[] = await fetchURL(historicalDataEndpoint)
 
   const findDay = (items: IChartItem[]) =>
-    items.find(item => getUniqStartOfTodayTimestamp(new Date(Number(item.time))) === dayTimestamp)
+    items.find(item => getUniqStartOfTodayTimestamp(new Date(Number(item.time))) === options.startOfDay)
 
   const item = findDay(historicalData)
 
@@ -30,17 +29,13 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     dailyRevenue: "0",
     dailyProtocolRevenue: "0",
     dailySupplySideRevenue: item.fees,
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STELLAR]: {
-      fetch,
-      start: '2024-01-30',
-    },
-  },
+  fetch,
+  chains: [CHAIN.STELLAR],
+  start: '2024-01-30',
   doublecounted: true, //stellar dex
 };
 

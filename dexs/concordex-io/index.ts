@@ -1,5 +1,4 @@
-import type { SimpleAdapter } from '../../adapters/types'
-import { httpPost } from '../../utils/fetchURL';
+import type { SimpleAdapter, FetchOptions } from '../../adapters/types';import { httpPost } from '../../utils/fetchURL';
 
 const POOLS_SERVICE_URL = 'https://cdex-liquidity-pool.concordex.io/v1/rpc'
 
@@ -18,9 +17,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     concordium: {
       start: '2023-07-01',
-      fetch: async (ts) => {
+      fetch: async (options: FetchOptions) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
-          timestamp: ts,
+          timestamp: options.toTimestamp,
         })
         return {
           dailyVolume: data.daily_volume,

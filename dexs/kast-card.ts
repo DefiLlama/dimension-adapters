@@ -14,7 +14,7 @@ const MOVE_DECIMALS = 1e8;
 // Kast gives 4% cashback in MOVE on qualifying card spend
 const CASHBACK_RATE = 0.04;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
@@ -57,12 +57,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.MOVE]: {
-      fetch,
-      start: "2025-12-18",
-    },
-  },
+  fetch,
+  chains: [CHAIN.MOVE],
+  start: "2025-12-18",
   methodology: {
     Volume:
       "Estimated daily card spend volume, derived from on-chain MOVE cashback rewards distributed by Kast's airdrop contract on Movement Network. Kast offers 4% cashback in MOVE tokens on qualifying card purchases, so total spend is calculated as cashback distributed divided by 0.04.",

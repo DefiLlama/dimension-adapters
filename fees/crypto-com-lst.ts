@@ -12,7 +12,7 @@ const chainConfig = {
   [CHAIN.CRONOS]: { start: '2024-02-01' },
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 

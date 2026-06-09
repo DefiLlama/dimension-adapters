@@ -27,7 +27,7 @@ const getPreviousDay = (dateStr: string) => {
   return d.toISOString().slice(0, 10);
 };
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const [current, previous] = await Promise.all([
     fetchCumulativeData(options.dateString),
     fetchCumulativeData(getPreviousDay(options.dateString)),
