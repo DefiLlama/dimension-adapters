@@ -16,9 +16,14 @@ import { queryDuneSql } from "../../helpers/dune";
 // represents verified open-market buy-and-burn, not provably user-paid revenue.
 //
 // This tracks ONLY the buy-and-burn. It deliberately does NOT track Data Credits
-// burned for network usage (carrier offload), which HIP-149 values at the $0.50/GB
-// protocol peg while carriers actually pay ~$0.10/GB - an inflated usage metric that
-// does not represent real cash flow.
+// burned for network usage (carrier offload), for two reasons:
+//   1. It is valued at the $0.50/GB protocol peg (HIP-149) while carriers actually
+//      pay ~$0.10/GB, so the USD figure is inflated ~5x.
+//   2. On-chain tracing shows the HNT burned for that offload is withdrawn from
+//      Coinbase hot wallets (e.g. Coinbase Hot Wallet 4 -> 9DSMdyRv... -> EHJ16k... ->
+//      the EsNP... burner), so it cannot be tied to real revenue - the source could
+//      be treasury, VC, or HNT already held, not user payments.
+// Both make it an unverifiable, inflated usage metric rather than real cash flow.
 const HNT_MINT = 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux';
 const BUYBACK_END_TIMESTAMP = 1767312000; // 2026-01-02 00:00:00 UTC
 
