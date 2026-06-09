@@ -5,9 +5,15 @@ import { httpGet } from "../../utils/fetchURL";
 
 const API = "https://api.ondoperps.xyz/v1/perps/volume";
 
+type VolumeItem = {
+  market: string;
+  volume: string;
+  quoteVolume: string;
+};
+
 const fetch = async (options: FetchOptions) => {
   const response = await httpGet(API);
-  const dailyVolume = response.result.reduce((acc: number, market: any) => acc + Number(market.quoteVolume), 0)
+  const dailyVolume = response.result.reduce((acc: number, market: VolumeItem) => acc + Number(market.quoteVolume), 0)
   return { dailyVolume }
 }
 
