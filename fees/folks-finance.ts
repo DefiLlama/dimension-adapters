@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { METRIC } from '../helpers/metrics'
 import { httpGet } from '../utils/fetchURL'
 
 // Folks Finance (Algorand) money market fees.
@@ -58,9 +57,17 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const apps = await Promise.all(
-    POOLS.map((p) => httpGet(`${ALGOD}/v2/applications/${p.appId}`).catch(() => undefined)),
+  const results = await Promise.allSettled(
+    POOLS.map((p) => httpGet(`${ALGOD}/v2/applications/${p.appId}`)),
   )
+
+  const apps = results.map((r, idx) => {
+    if (r.status === 'fulfilled') return r.value
+    console.error(`folks-finance: failed to fetch app ${POOLS[idx].appId}`, r.reason)
+    return undefined
+  })
+
+  if (apps.every((a) => a === undefined)) throw new Error('folks-finance: all Algorand pool reads failed')
 
   apps.forEach((app, idx) => {
     const state = app?.params?.['global-state']
@@ -72,7 +79,10 @@ const fetch = async (options: FetchOptions) => {
     const i = get('i')
     const v = get('v')
     const s = get('s')
-    if (!i || !v || !s) return
+    if (!i || i.length < 1 || !v || v.length < 5 || !s || s.length < 10) {
+      console.error(`folks-finance: malformed state for app ${POOLS[idx].appId}`)
+      return
+    }
 
     const retentionRate = i[0]
     const variableDebt = v[3]
@@ -89,13 +99,14 @@ const fetch = async (options: FetchOptions) => {
 
     const { assetId } = POOLS[idx]
     if (assetId === 0) {
-      dailyFees.addCGToken('algorand', Number(dailyInterest) / ALGO_DECIMALS, METRIC.BORROW_INTEREST)
-      dailyProtocolRevenue.addCGToken('algorand', Number(protocolRevenue) / ALGO_DECIMALS, METRIC.BORROW_INTEREST)
-      dailySupplySideRevenue.addCGToken('algorand', Number(supplySideRevenue) / ALGO_DECIMALS, METRIC.BORROW_INTEREST)
+      // native ALGO: microALGO → ALGO, priced via coingecko
+      dailyFees.addCGToken('algorand', Number(dailyInterest) / ALGO_DECIMALS, 'Borrow Interest')
+      dailyProtocolRevenue.addCGToken('algorand', Number(protocolRevenue) / ALGO_DECIMALS, 'Borrow Interest To Treasury')
+      dailySupplySideRevenue.addCGToken('algorand', Number(supplySideRevenue) / ALGO_DECIMALS, 'Borrow Interest To Depositors')
     } else {
-      dailyFees.add(String(assetId), dailyInterest.toString(), METRIC.BORROW_INTEREST)
-      dailyProtocolRevenue.add(String(assetId), protocolRevenue.toString(), METRIC.BORROW_INTEREST)
-      dailySupplySideRevenue.add(String(assetId), supplySideRevenue.toString(), METRIC.BORROW_INTEREST)
+      dailyFees.add(String(assetId), dailyInterest.toString(), 'Borrow Interest')
+      dailyProtocolRevenue.add(String(assetId), protocolRevenue.toString(), 'Borrow Interest To Treasury')
+      dailySupplySideRevenue.add(String(assetId), supplySideRevenue.toString(), 'Borrow Interest To Depositors')
     }
   })
 
@@ -115,9 +126,10 @@ const methodology = {
 }
 
 const breakdownMethodology = {
-  Fees: { [METRIC.BORROW_INTEREST]: 'Variable + stable borrow interest across all pools.' },
-  ProtocolRevenue: { [METRIC.BORROW_INTEREST]: 'retentionRate (10–30% per pool) × accrued interest.' },
-  SupplySideRevenue: { [METRIC.BORROW_INTEREST]: '(1 − retentionRate) × accrued interest to depositors.' },
+  Fees: { 'Borrow Interest': 'Variable + stable borrow interest across all pools.' },
+  Revenue: { 'Borrow Interest To Treasury': 'Protocol-retained portion of accrued borrow interest.' },
+  ProtocolRevenue: { 'Borrow Interest To Treasury': 'Protocol-retained portion of accrued borrow interest.' },
+  SupplySideRevenue: { 'Borrow Interest To Depositors': 'Non-retained borrow interest paid to depositors.' },
 }
 
 const adapter: SimpleAdapter = {

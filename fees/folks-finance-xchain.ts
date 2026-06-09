@@ -1,7 +1,6 @@
 import * as sdk from '@defillama/sdk'
 import { Adapter, FetchOptions, FetchResult } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { METRIC } from '../helpers/metrics'
 
 // Folks Finance xChain — hub-and-spoke money market.
 // All lending state lives in HubPool contracts on Avalanche; spoke chains only forward messages.
@@ -153,7 +152,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const v = variableData[i]
     const s = stableData[i]
     const fee = feeData[i]
-    if (!v || !s || !fee) return
+    if (!v || !s || !fee) {
+      console.error(`folks-finance-xchain: pool read failed for ${f.pool} on ${chain}`)
+      return
+    }
 
     const variableDebt = BigInt(v[3])
     const variableRate = BigInt(v[4])
@@ -169,10 +171,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const supplySideRevenue = grossInterest - protocolRevenue
 
     // skipChain: priceKey already contains chain prefix, prevent double-prepend
-    const opts = { label: METRIC.BORROW_INTEREST, skipChain: true }
-    dailyFees.add(f.priceKey, grossInterest.toString(), opts)
-    dailyProtocolRevenue.add(f.priceKey, protocolRevenue.toString(), opts)
-    dailySupplySideRevenue.add(f.priceKey, supplySideRevenue.toString(), opts)
+    dailyFees.add(f.priceKey, grossInterest.toString(), { label: 'Borrow Interest', skipChain: true })
+    dailyProtocolRevenue.add(f.priceKey, protocolRevenue.toString(), { label: 'Borrow Interest To Treasury', skipChain: true })
+    dailySupplySideRevenue.add(f.priceKey, supplySideRevenue.toString(), { label: 'Borrow Interest To Depositors', skipChain: true })
   })
 
   return {
@@ -191,9 +192,10 @@ const methodology = {
 }
 
 const breakdownMethodology = {
-  Fees: { [METRIC.BORROW_INTEREST]: 'Variable + stable borrow interest across all hub pools.' },
-  ProtocolRevenue: { [METRIC.BORROW_INTEREST]: 'retentionRate (10% per pool) x accrued interest.' },
-  SupplySideRevenue: { [METRIC.BORROW_INTEREST]: '(1 - retentionRate) x accrued interest to depositors.' },
+  Fees: { 'Borrow Interest': 'Variable + stable borrow interest across all hub pools.' },
+  Revenue: { 'Borrow Interest To Treasury': 'Protocol-retained portion of accrued borrow interest.' },
+  ProtocolRevenue: { 'Borrow Interest To Treasury': 'Protocol-retained portion of accrued borrow interest.' },
+  SupplySideRevenue: { 'Borrow Interest To Depositors': 'Non-retained borrow interest paid to depositors.' },
 }
 
 const CHAIN_START: Record<string, string> = {
