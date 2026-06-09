@@ -239,7 +239,7 @@ function getPoolStats(stats: IGraphRes, poolType: PoolType): PoolStats {
 }
 
 function createFetchHandler(poolType: PoolType) {
-  return async (_: any, _1: any, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
     const stats = await fetchStats(options);
     const poolStats = getPoolStats(stats, poolType);
 

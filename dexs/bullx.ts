@@ -14,7 +14,7 @@ const chainConfig = {
   },
 };
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
   if ((options.toTimestamp * 1000) > tenHoursAgo) {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");

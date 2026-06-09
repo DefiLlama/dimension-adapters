@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dateString = options.dateString;
     const feeData = await fetchURL(`https://api.routescan.io/v2/network/mainnet/evm/3637/etherscan/api?module=stats&action=dailytxnfee`);
@@ -19,9 +19,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
 const adapter: Adapter = {
     version: 1,
-    start: "2025-05-22",
     fetch,
     chains: [CHAIN.BOTANIX],
+    start: "2025-05-22",
     protocolType: ProtocolType.CHAIN,
 };
 

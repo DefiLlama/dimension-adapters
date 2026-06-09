@@ -36,7 +36,7 @@ export async function aurHelperTotalSuiDeployed(
 const aurEvent =
   "0xcc3ac0c9cc23c0bcc31ec566ef4baf6f64adcee83175924030829a3f82270f37::gameplay::EndRoundEvent";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await aurHelperTotalSuiDeployed(options, aurEvent);
 
   const dailyProtocolRevenue = dailyFees.clone(0.083, METRIC.PROTOCOL_FEES);

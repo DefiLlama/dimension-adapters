@@ -1,20 +1,12 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints = {
+const endpoints: Record<string, string> = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('B8469Fs5athX6XeADT1LUYLKpcupEpWumfRuMbQw6cXs'),
 }
-
-let dailyFee= 0;
-let finalDailyFee = 0;
-let userFee = 0;
-let finalUserFee = 0;
-
 
 const methodology = {
   Fees: "Fees collected from open/close position, liquidations, and borrow fee",
@@ -25,14 +17,16 @@ const methodology = {
   ProtocolRevenue: "Treasury receives 10% of revenue"
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const searchTimestamp = todaysTimestamp 
-
-      const graphQuery = gql
-      `{
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
+  const searchTimestamp = todaysTimestamp
+  let dailyFee= 0;
+  let finalDailyFee = 0;
+  let userFee = 0;
+  let finalUserFee = 0;
+  
+  const graphQuery = gql
+  `{
         feeStat(id: "${searchTimestamp}") {
          margin
         }
@@ -45,9 +39,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
       }`;
     
-      const graphRes = await request(graphUrls[chain], graphQuery);
+      const graphRes = await request(endpoints[options.chain], graphQuery);
 
-      const graphRes1 = await request(graphUrls[chain], graphQuery1);
+      const graphRes1 = await request(endpoints[options.chain], graphQuery1);
 
         if (graphRes.feeStat != null || graphRes1.tradingStat != null) {
       if (graphRes1.tradingStat==null)
@@ -67,7 +61,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }
 
       return {
-        timestamp,
         dailyFees: finalDailyFee.toString(),
         dailyUserFees: finalUserFee.toString(),
         dailyRevenue: (finalDailyFee * 0.4).toString(),
@@ -76,18 +69,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailySupplySideRevenue: (finalDailyFee * 0.5).toString(),
       };
     };
-  };
-};
 
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: graphs(endpoints)(CHAIN.POLYGON),
-      start: '2023-03-29',
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2023-03-29',
   methodology,
   deadFrom: "2024-02-21",
 }

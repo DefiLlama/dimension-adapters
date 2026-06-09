@@ -89,7 +89,7 @@ const VAULT_ADDRESSES = [
 ];
 
 // Solana fetch function
-const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL
@@ -141,7 +141,7 @@ const curatorExport = getCuratorExport(curatorConfig);
 // need to convert adapter v2 to adapter v1
 for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
   (curatorExport.adapter as any)[chain] = {
-    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+    fetch: async (options: FetchOptions) => {
       return await (adapter as any).fetch(options);
     }
   }

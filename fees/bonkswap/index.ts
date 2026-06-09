@@ -20,7 +20,7 @@ const DISCRIMINATORS = {
   updateFees: "0xe11b0d064554acbf",
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const PROGRAM_ID = chainConfig[CHAIN.SOLANA].programId;
   const query = `
     WITH ixs AS (

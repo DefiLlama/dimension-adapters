@@ -35,7 +35,7 @@ const methodology = {
 
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)';
 
-const fetch = async (_: number, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const allPairsLength = await options.api.call({ target: RingDexConfigs[options.chain].factory, abi: 'uint256:allPairsLength' })
   const calls: Array<any> = [];
   for (let i = 0; i < Number(allPairsLength); i++) {

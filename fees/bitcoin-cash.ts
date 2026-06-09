@@ -8,8 +8,8 @@ const adapter: Adapter = {
 	version: 1,
 	adapter: {
 		[CHAIN.BITCOIN_CASH]: {
-			fetch: async (timestamp: number, _a: any, options: FetchOptions) => {
-				const baseData = await feeAdapter[CHAIN.BITCOIN_CASH].fetch(timestamp);
+			fetch: async (options: FetchOptions) => {
+				const baseData = await feeAdapter[CHAIN.BITCOIN_CASH].fetch(options);
 				const dailyFees = options.createBalances();
 				dailyFees.addCGToken("bitcoin-cash", baseData.dailyFees);
 				return { dailyFees, dailyRevenue: 0 };

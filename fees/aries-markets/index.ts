@@ -20,7 +20,7 @@ const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
   return `${rateURL}${input}`;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const reserves = (await fetchURL(reserveURL)).result.data.stats;
 
   let df = 0;

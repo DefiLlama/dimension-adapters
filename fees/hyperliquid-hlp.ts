@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
 
-async function fetch(_1: number, _: any,  options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
 
   let perpFees = options.createBalances()
@@ -49,12 +49,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2024-12-23',
-    },
-  },
+  chains: [CHAIN.HYPERLIQUID],
+  fetch,
+  start: '2024-12-23',
   doublecounted: true, // we have already counted to supplySideRevenue on perps and spot
 };
 
