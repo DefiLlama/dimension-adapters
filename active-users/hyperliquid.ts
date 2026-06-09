@@ -1,21 +1,26 @@
-import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
-import { queryAllium } from "../helpers/allium";
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const alliumQuery = `
-    SELECT
-      COALESCE(active_users, 0) AS user_count,
-      COALESCE(success_transactions, 0) AS transaction_count
-    FROM hyperliquid.metrics.overview
-    WHERE activity_date = TO_DATE(TO_TIMESTAMP_NTZ(${options.startTimestamp}))
-  `;
+// Source: public stats series loaded by https://hyperscreener.asxn.xyz/home
+const HYPERSCREENER_URL = "https://d2v1fiwobg9w6.cloudfront.net";
 
-  const alliumResult = await queryAllium(alliumQuery);
+const fetch = async (options: FetchOptions) => {
+  const usersData = await fetchURL(`${HYPERSCREENER_URL}/daily_unique_users`);
+  const tradesData = await fetchURL(`${HYPERSCREENER_URL}/cumulative_trades`);
+
+  const users = usersData.chart_data.find((item: any) => item.time.slice(0, 10) === options.dateString);
+  const tradeIndex = tradesData.chart_data.findIndex((item: any) => item.time.slice(0, 10) === options.dateString);
+
+  if (!users) throw new Error(`No Hyperscreener daily_unique_users data found for ${options.dateString}`);
+  if (tradeIndex === -1) throw new Error(`No Hyperscreener cumulative_trades data found for ${options.dateString}`);
+
+  const trades = tradesData.chart_data[tradeIndex];
+  const previousTrades = tradesData.chart_data[tradeIndex - 1];
 
   return {
-    dailyActiveUsers: alliumResult[0]?.user_count,
-    dailyTransactionsCount: alliumResult[0]?.transaction_count,
+    dailyActiveUsers: users.daily_unique_users,
+    dailyTransactionsCount: trades.cumulative - (previousTrades?.cumulative ?? 0),
   };
 };
 
@@ -23,8 +28,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  dependencies: [Dependencies.ALLIUM],
-  start: "2023-11-24",
+  protocolType: ProtocolType.PROTOCOL,
+  start: "2023-06-13",
 };
 
 export default adapter;
