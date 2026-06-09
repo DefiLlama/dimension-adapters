@@ -15,7 +15,7 @@ const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
 const DAO_SHARE_PERCENT = 60n;
 const TOTAL_PERCENT = 100n;
 
-const fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -45,9 +45,9 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
     const grossAmount = (daoAmount * TOTAL_PERCENT) / DAO_SHARE_PERCENT;
     const douroAmount = grossAmount - daoAmount;
 
-    dailyFees.add(row.token_mint_address, grossAmount);
-    dailyRevenue.add(row.token_mint_address, daoAmount);
-    dailySupplySideRevenue.add(row.token_mint_address, douroAmount);
+    dailyFees.add(row.token_mint_address, grossAmount, "Subscription Fees");
+    dailyRevenue.add(row.token_mint_address, daoAmount, "Subscription Fees to Pyth DAO");
+    dailySupplySideRevenue.add(row.token_mint_address, douroAmount, "Subscription Fees to Douro Labs");
   }
 
   return {
@@ -57,6 +57,24 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Total Pyth Pro subscription revenue (100% gross), calculated from on-chain distributions.",
+  Revenue: "Pyth DAO's 60% share of Pyth Pro subscription revenue.",
+  SupplySideRevenue: "Douro Labs' 40% share as the official data distributor.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Subscription Fees": "Total Pyth Pro subscription revenue (100% gross), calculated from on-chain distributions.",
+  },
+  Revenue: {
+    "Subscription Fees to Pyth DAO": "Pyth DAO's 60% share of Pyth Pro subscription revenue.",
+  },
+  SupplySideRevenue: {
+    "Subscription Fees to Douro Labs": "Douro Labs' 40% share as the official data distributor.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -64,11 +82,8 @@ const adapter: SimpleAdapter = {
   start: "2025-01-01",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  methodology: {
-    Fees: "Total Pyth Pro subscription revenue (100% gross), calculated from on-chain distributions.",
-    Revenue: "Pyth DAO's 60% share of Pyth Pro subscription revenue.",
-    SupplySideRevenue: "Douro Labs' 40% share as the official data distributor.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
