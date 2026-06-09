@@ -4,6 +4,7 @@ import { getCuratorExport } from "../../helpers/curators";
 
 const exchangeRateMidasAbi = "function lastAnswer() external view returns (int256)";
 const exchangeRateUpshiftAbi = "function latestAnswer() external view returns (int256)";
+const getRateAbi = "function getRate() external view returns (uint256)";
 
 interface IStandaloneVault {
   address: string;
@@ -13,33 +14,9 @@ interface IStandaloneVault {
   performanceFeeRate: number, // 0.1 -> 10%
 }
 
+// Vaults priced from a separate exchange-rate price feed (no getRate() pricer).
 const StandaloneVaults: Array<IStandaloneVault> = [
-  // https://docs.hyperbeat.org/hyperbeat-earn/usdt-vault
-  {
-    address: '0x5e105266db42f78FA814322Bce7f388B4C2e61eb',
-    assetCoingeckoId: 'usdt0',
-    priceFeed: '0xAc3d811f5ff30Aa3ab4b26760d0560faf379536A',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.2,
-  },
-  
-  // https://docs.hyperbeat.org/hyperbeat-earn/xaut-gold-vault
-  {
-    address: '0x6EB6724D8D3D4FF9E24d872E8c38403169dC05f8',
-    assetCoingeckoId: 'xaut',
-    priceFeed: '0xf3dB9f59f9C90495D1c9556fC5737A679720921d',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.1,
-  },
-  
-  // https://docs.hyperbeat.org/hyperbeat-earn/hype-vault
-  {
-    address: '0x81e064d0eB539de7c3170EDF38C1A42CBd752A76',
-    priceFeed: '0x2b959a9Deb8e62FaaEA1b226F3bbcbcC0Af31560',
-    assetCoingeckoId: 'kinetic-staked-hype',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.15,
-  },
+  // https://docs.hyperbeat.org/hyperbeat-earn/hype-vault (liquidHYPE)
   {
     address: '0x441794D6a8F9A3739F5D4E98a728937b33489D29',
     priceFeed: '0x1CeaB703956e24b18a0AF6b272E0bF3F499aCa0F',
@@ -54,7 +31,6 @@ const StandaloneVaults: Array<IStandaloneVault> = [
     priceFeedAbi: exchangeRateUpshiftAbi,
     performanceFeeRate: 0.15,
   },
-  
   // https://docs.hyperbeat.org/hyperbeat-earn/ubtc-vault
   {
     address: '0xc061d38903b99aC12713B550C2CB44B221674F94',
@@ -63,23 +39,7 @@ const StandaloneVaults: Array<IStandaloneVault> = [
     priceFeedAbi: exchangeRateUpshiftAbi,
     performanceFeeRate: 0.15,
   },
-
-  {
-    address: '0x8858a307a85982c2b3cb2ace1720237f2f09c39b',
-    priceFeed: '0x707e99655f24747ceceb298b3aaf7fa721ec77fc',
-    assetCoingeckoId: 'usd-coin',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.15,
-  },
-  
-  // https://docs.hyperbeat.org/hyperbeat-earn/lst-vault
-  {
-    address: '0x949a7250Bb55Eb79BC6bCC97fCd1C473DB3e6F29',
-    priceFeed: '0xEB3459316211aB3e2bfee836B989f50fe08AA469',
-    assetCoingeckoId: 'usd-coin',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.20,
-  },
+  // wVLP
   {
     address: '0xD66d69c288d9a6FD735d7bE8b2e389970fC4fD42',
     assetCoingeckoId: 'usd-coin',
@@ -87,15 +47,27 @@ const StandaloneVaults: Array<IStandaloneVault> = [
     priceFeedAbi: exchangeRateMidasAbi,
     performanceFeeRate: 0.20,
   },
-  
-  // https://docs.hyperbeat.org/hyperbeat-earn/usdc-vault
-  {
-    address: '0x057ced81348D57Aad579A672d521d7b4396E8a61',
-    assetCoingeckoId: 'usd-coin',
-    priceFeed: '0xc82CAd78983436BddfcAf0F21316207D87b87462',
-    priceFeedAbi: exchangeRateMidasAbi,
-    performanceFeeRate: 0.20,
-  },
+]
+
+interface IGetRateVault {
+  address: string;            // vault share token
+  pricer: string;             // contract exposing getRate() (8 decimals, base-asset per share)
+  assetCoingeckoId: string;   // base asset, yield is denominated in it
+  shareDecimals: number;
+  performanceFeeRate: number; // 0.1 -> 10%
+}
+
+// Vaults whose share->asset rate is read from their getRate() pricer. getRate()
+// is the rate depositors actually realize (no rebase), so daily yield =
+// totalSupply * (getRate growth). Protocol fee is grossed up from that net yield.
+const getRateVaults: Array<IGetRateVault> = [
+  { address: '0x81e064d0eB539de7c3170EDF38C1A42CBd752A76', pricer: '0x5eD0eC0b0643dAB621Dc814C8D058e161b9b884b', assetCoingeckoId: 'hyperliquid', shareDecimals: 18, performanceFeeRate: 0.20 }, // lstHYPE
+  { address: '0x5e105266db42f78FA814322Bce7f388B4C2e61eb', pricer: '0x3636a26ec1d512c5eCff42F7Adaa5cE7964C6579', assetCoingeckoId: 'usdt0', shareDecimals: 18, performanceFeeRate: 0.20 }, // hbUSDT
+  { address: '0x057ced81348D57Aad579A672d521d7b4396E8a61', pricer: '0xe0995A641d454c149E6C808BAA37Cb2B38763316', assetCoingeckoId: 'usd-coin', shareDecimals: 18, performanceFeeRate: 0.20 }, // hbUSDC
+  { address: '0x9065E3153B1393Bb5f76520cdc1e08E49eb04B03', pricer: '0x5362454e5648C6Ac7F03969E8a62CFc61F99b9D6', assetCoingeckoId: 'usd-coin', shareDecimals: 6, performanceFeeRate: 0.10 }, // masterUSD
+  { address: '0x949a7250Bb55Eb79BC6bCC97fCd1C473DB3e6F29', pricer: '0x5100Aee934F0EE05FA78B03114a068Da18aFEd8D', assetCoingeckoId: 'usd-coin', shareDecimals: 18, performanceFeeRate: 0.20 }, // dnHYPE
+  { address: '0x8858a307a85982c2b3cb2ace1720237f2f09c39b', pricer: '0x58F6138DB540D0f5bfB24Fd9b17db54694a92ea6', assetCoingeckoId: 'usd-coin', shareDecimals: 18, performanceFeeRate: 0.15 }, // dnPUMP
+  { address: '0x6EB6724D8D3D4FF9E24d872E8c38403169dC05f8', pricer: '0x988E3E2C26840F2cAe2c5fB55fAeb5e59CE1A597', assetCoingeckoId: 'tether-gold-tokens', shareDecimals: 18, performanceFeeRate: 0.10 }, // hbXAUt
 ]
 
 // Hyperbeat deployed these vaults from begining and supported by these curators like Gauntlet, MEV Capital, ...
@@ -153,17 +125,38 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addCGToken('usd-coin', await morphoDailyRevenue.getUSDValue())
   dailySupplySideRevenue.addCGToken('usd-coin', await morphoDailySupplySideRevenue.getUSDValue())
 
+  // Price-feed based vaults (no getRate pricer)
   for (const vault of StandaloneVaults) {
     const totalAssets = await getTotalSupply(options, vault.address);
     const [exchangeRateBefore, exchangeRateAfter] = await getExchangeRateBeforeAfterVaults(options, vault.priceFeed, vault.priceFeedAbi);
 
     if (totalAssets && exchangeRateBefore && exchangeRateAfter) {
       const growthRate = (exchangeRateAfter - exchangeRateBefore) / 1e8
-  
+
       if (growthRate > 0) {
         const supplySideRevenue = (totalAssets / 1e18) * growthRate;
         const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
-    
+
+        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
+        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
+        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
+      }
+    }
+  }
+
+  // getRate() based vaults: yield = totalSupply * (getRate growth), denominated in the base asset.
+  for (const vault of getRateVaults) {
+    const totalSupply = await getTotalSupply(options, vault.address);
+    const [rateBefore, rateAfter] = await getExchangeRateBeforeAfterVaults(options, vault.pricer, getRateAbi);
+
+    if (totalSupply && rateBefore && rateAfter) {
+      const growthRate = (rateAfter - rateBefore) / 1e8 // change in base-asset (human) per share
+
+      if (growthRate > 0) {
+        const shares = totalSupply / 10 ** vault.shareDecimals;
+        const supplySideRevenue = shares * growthRate; // base-asset, human units
+        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
+
         dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
         dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
         dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
@@ -182,10 +175,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   methodology: {
-    Fees: "Staking/Restaking rewards + fees on Liquid/Morpho Vaults (excluding beHYPE).",
-    Revenue: "Staking/Restaking rewards + fees on Liquid/Morpho Vaults (excluding beHYPE) share for Hyperbeat.",
-    ProtocolRevenue: "Staking/Restaking rewards + fees on Liquid/Morpho Vaults (excluding beHYPE) share for Hyperbeat.",
-    SupplySideRevenue: "Staking/Restaking rewards + fees on Liquid/Morpho Vaults (excluding beHYPE) share for suppliers.",
+    Fees: "Yield generated by Hyperbeat Earn vaults (Liquid/Morpho/getRate vaults, excluding beHYPE).",
+    Revenue: "Performance-fee share of vault yield kept by Hyperbeat.",
+    ProtocolRevenue: "Performance-fee share of vault yield kept by Hyperbeat.",
+    SupplySideRevenue: "Vault yield distributed to depositors.",
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
