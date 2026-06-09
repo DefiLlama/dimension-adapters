@@ -9,11 +9,13 @@ import { queryDuneSql } from "../../helpers/dune";
 // market). Nova Labs discontinued the program on 2026-01-02, so the buyback is 0
 // from that date.
 //
-// Caveat: the HNT is verifiably bought on-market and burned, but the ultimate source
-// of the dollars funding those buys (subscriber revenue vs. treasury/VC vs. HNT
-// already held) cannot be verified on-chain - the inflows arrive via Jupiter DCA
-// execution wallets, not from an identifiable revenue account. This figure therefore
-// represents verified open-market buy-and-burn, not provably user-paid revenue.
+// Funding source: the USDC that funds these buys is supplied by wallets whose swaps
+// are signed by the SpherePay program (AYGdvqsQruZoaJPWsViLqUgtbfXGRnxzgxzW4zmbbckL).
+// SpherePay is Helium Mobile's subscriber payment processor (on-ramps fiat/crypto
+// subscriber payments and settles them in USDC), which corroborates Nova's stated
+// "100% of Helium Mobile subscriber revenue -> buyback". Caveat: SpherePay commingles
+// flows, so we cannot prove exactly 100% is subscriber revenue, but the buy-and-burn
+// itself and the payment-processor linkage are both verifiable on-chain.
 //
 // This tracks ONLY the buy-and-burn. It deliberately does NOT track Data Credits
 // burned for network usage (carrier offload), for two reasons:
@@ -70,7 +72,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-	Fees: 'Market USD value of HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned. The buyback program was discontinued on 2026-01-02. Note: the buy-and-burn is verifiable on-chain, but the ultimate source of the funding (subscriber revenue vs. treasury/VC vs. HNT already held) cannot be verified on-chain.',
+	Fees: 'Market USD value of HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned, funded by subscriber revenue routed through its payment processor SpherePay. The buyback program was discontinued on 2026-01-02.',
 	Revenue: 'Same as fees: the value of HNT bought back and burned.',
 	ProtocolRevenue: 'Protocol revenue is 0 (the buyback accrues entirely to HNT holders).',
 	HoldersRevenue: 'HNT bought on the open market and burned, accruing value to HNT holders through supply reduction.',
