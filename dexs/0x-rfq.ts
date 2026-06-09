@@ -43,7 +43,6 @@ const prefetch = async (options: FetchOptions) => {
         SELECT
           block_time,
           tx_hash,
-          "index" AS rfq_log_index,
           bytearray_to_uint256(bytearray_substring(data, 33, 16)) AS maker_filled_amount,
           ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY "index") AS fill_rn
         FROM ${duneChain}.logs
@@ -95,9 +94,6 @@ const prefetch = async (options: FetchOptions) => {
       ),
       ${cte}_matched AS (
         SELECT
-          r.tx_hash,
-          r.rfq_log_index,
-          DATE_TRUNC('minute', r.block_time) AS fill_minute,
           DATE_TRUNC('day', r.block_time) AS fill_day,
           a.token,
           r.maker_filled_amount AS amount
@@ -107,45 +103,20 @@ const prefetch = async (options: FetchOptions) => {
          AND a.fill_rn = r.fill_rn
          AND r.maker_filled_amount <= a.amount
       ),
-      ${cte}_hour_prices AS (
-        SELECT
-          m.tx_hash,
-          m.rfq_log_index,
-          (CAST(m.amount AS DOUBLE) / POW(10, p.decimals)) * p.price AS volume_usd
-        FROM ${cte}_matched m
-        JOIN prices.hour p
-          ON p.blockchain = '${duneChain}'
-         AND p.contract_address = m.token
-         AND p.timestamp = DATE_TRUNC('hour', m.fill_minute)
-         AND p.timestamp >= DATE_TRUNC('hour', from_unixtime(${options.startTimestamp}))
-         AND p.timestamp <= DATE_TRUNC('hour', from_unixtime(${options.endTimestamp}))
-      ),
-      ${cte}_best_hour_price AS (
-        SELECT tx_hash, rfq_log_index, volume_usd
-        FROM ${cte}_hour_prices
-      ),
-      ${cte}_day_prices AS (
+      ${cte}_priced AS (
         SELECT
           (CAST(m.amount AS DOUBLE) / POW(10, p.decimals)) * p.price AS volume_usd
         FROM ${cte}_matched m
-        LEFT JOIN ${cte}_best_hour_price hp
-          ON hp.tx_hash = m.tx_hash
-         AND hp.rfq_log_index = m.rfq_log_index
         JOIN prices.day p
           ON p.blockchain = '${duneChain}'
          AND p.contract_address = m.token
          AND p.timestamp = m.fill_day
          AND p.timestamp >= DATE_TRUNC('day', from_unixtime(${options.startTimestamp}))
          AND p.timestamp <= DATE_TRUNC('day', from_unixtime(${options.endTimestamp}))
-        WHERE hp.tx_hash IS NULL
       )`,
       select: `
       SELECT '${chain}' AS chain, COALESCE(SUM(volume_usd), 0) AS daily_volume
-      FROM (
-        SELECT volume_usd FROM ${cte}_best_hour_price
-        UNION ALL
-        SELECT volume_usd FROM ${cte}_day_prices
-      )`,
+      FROM ${cte}_priced`,
     };
   });
   const query = `
