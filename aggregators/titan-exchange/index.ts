@@ -9,6 +9,10 @@ const badDataDays = [
   {
     date: "2026-04-26",
     realVolume: 56900000
+  },
+  {
+    date: "2026-06-07",
+    realVolume: 45200000
   }
 ]
 
