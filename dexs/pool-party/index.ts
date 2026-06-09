@@ -3,18 +3,18 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 /*
- * Pool Party — Canton Network AMM (volume)
+ * Pool Party — Canton Network AMM (volume + fees)
  *
  * Source: https://api-mainnet.cantonwallet.com/canton/pool-party/public/v1/volume?period=24h
  * Spec:   https://github.com/0xsend/canton-monorepo/issues/3481
  *
- * Pool Party reports volume per token across all pools. In an AMM each swap
- * touches both sides of a pair, so the sum across instruments is 2× the true
- * single-side trading volume. We halve before pricing.
+ * Reports per-token volume and per-token fees across all pools. Volume is the
+ * raw sum of per-token amounts across all swap legs (i.e. both sides of each
+ * swap counted), matching the headline 24h volume displayed on Pool Party's
+ * primary UI at https://cantonwallet.com/pools/.
  *
  * runAtCurrTime: true — Pool Party API exposes a current rolling-24h snapshot
- * only (no historical backfill / time-travel). Tells the dimension-adapters
- * framework not to request past-window data.
+ * only (no historical backfill / time-travel).
  */
 
 const VOLUME_URL = "https://api-mainnet.cantonwallet.com/canton/pool-party/public/v1/volume?period=24h";
@@ -25,7 +25,7 @@ const VOLUME_URL = "https://api-mainnet.cantonwallet.com/canton/pool-party/publi
 //   CUSD UUID : Send's privacy stablecoin — priced as USDC ($1 stable proxy)
 //
 // Brale issues multiple instruments (CUSD + SBC) from the same issuer party;
-// only the CUSD UUID below is in scope. Unknown instrument IDs are skipped.
+// only the CUSD UUID below is in scope. Unknown instrument IDs throw.
 const CUSD_INSTRUMENT_ID = "481871d4-ca56-42a8-b2d3-4b7d28742946";
 
 
@@ -35,19 +35,22 @@ const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
 
-    const addTokenAmounts = (balances: ReturnType<FetchOptions["createBalances"]>, data: Record<string, string>, divisor = 1) => {
+    const addTokenAmounts = (balances: ReturnType<FetchOptions["createBalances"]>, data: Record<string, string>) => {
         for (const [token, amount] of Object.entries(data)) {
             if (token === "Amulet") {
-                balances.addGasToken(+amount / divisor);
+                // CoinGecko slug — same approach as the merged TVL adapter
+                // (projects/pool-party). addGasToken does not resolve CC
+                // pricing on the canton chain, so we route via the slug.
+                balances.addCGToken("canton-network", +amount);
             } else if (token === "USDCx" || token === CUSD_INSTRUMENT_ID) {
-                balances.addUSDValue(+amount / divisor);
+                balances.addUSDValue(+amount);
             } else {
                 throw new Error(`Unknown token: ${token}`);
             }
         }
     };
 
-    addTokenAmounts(dailyVolume, apiResponse.volume, 2);
+    addTokenAmounts(dailyVolume, apiResponse.volume);
     addTokenAmounts(dailyFees, apiResponse.fees);
 
     return { dailyVolume, dailyFees, dailyUserFees: dailyFees };
@@ -57,10 +60,11 @@ const methodology = {
     Volume:
         "24h spot/swap volume across CC, CUSD, and USDCx pools, fetched from " +
         "Pool Party's public API on Send Foundation's validator " +
-        "(api-mainnet.cantonwallet.com). Per-token volumes are halved to " +
-        "single-count AMM swaps. CC priced via canton-network on CoinGecko; " +
-        "CUSD and USDCx priced as USDC ($1 stable proxy) since neither has a " +
-        "direct CoinGecko listing.",
+        "(api-mainnet.cantonwallet.com). Raw per-token volume across all swap " +
+        "legs — matches the headline 24h volume displayed on Pool Party's " +
+        "primary UI at cantonwallet.com/pools/. CC priced via canton-network " +
+        "on CoinGecko; CUSD and USDCx priced as USDC ($1 stable proxy) since " +
+        "neither has a direct CoinGecko listing.",
     Fees:
         "All swap fees collected by Pool Party (24h), fetched from Pool Party's " +
         "public API on Send Foundation's validator (api-mainnet.cantonwallet.com). " +
