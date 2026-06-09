@@ -116,10 +116,6 @@ const AUCTION_FINISHED_EVENT = "event AuctionFinished(address indexed account, a
 const FEE_PAID_EVENT = "event FeePaid(address indexed account, address indexed receiver, address indexed asset, uint256 amount)";
 const FEES_PAID_EVENT = "event FeesPaid(address indexed account, address indexed asset, address indexed feeRecipient, uint256 amount)";
 
-// A percentage of earned yield taken on both automated asset-manager actions and
-// manual front-end actions.
-const YIELD_FEE = "Yield Fee";
-
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
 
@@ -196,8 +192,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const feePaid of feePaidLogs) {
-    dailyFees.add(feePaid.asset, feePaid.amount, YIELD_FEE);
-    dailyRevenue.add(feePaid.asset, feePaid.amount, YIELD_FEE);
+    dailyFees.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
   };
 
   // Manual (non-automated) front-end action fees collected by the ActionTarget.
@@ -207,8 +203,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const feesPaid of feesPaidLogs) {
-    dailyFees.add(feesPaid.asset, feesPaid.amount, YIELD_FEE);
-    dailyRevenue.add(feesPaid.asset, feesPaid.amount, YIELD_FEE);
+    dailyFees.add(feesPaid.asset, feesPaid.amount, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(feesPaid.asset, feesPaid.amount, METRIC.PERFORMANCE_FEES);
   };
 
   return {
@@ -222,9 +218,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus yield fees (a percentage of earned yield) charged on automated actions and manual front-end actions.",
-  UserFees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus yield fees (a percentage of earned yield) charged on automated actions and manual front-end actions.",
-  Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and yield fees (a percentage of earned yield) from automated and manual front-end actions.",
+  Fees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus performance fees (a percentage of earned yield) charged on automated actions and manual front-end actions.",
+  UserFees: "Total fees paid, including borrow interest, origination fees, liquidation penalties, plus performance fees (a percentage of earned yield) charged on automated actions and manual front-end actions.",
+  Revenue: "Treasury share of borrow interest and liquidations, plus full origination fees and performance fees (a percentage of earned yield) from automated and manual front-end actions.",
   SupplySideRevenue: "Lender share of borrow interest, plus liquidation penalties distributed to lending pool tranches and keeper bonuses paid to auction initiators/terminators.",
   ProtocolRevenue: "Gross protocol-side fees collected before ART (Recovery Token) holder rebates are paid out.",
   HoldersRevenue: "USDC rebates redeemed by ART (Recovery Token) holders. Funded from prior-epoch fee collections.",
@@ -236,20 +232,20 @@ const breakdownMethodology = {
     "Origination Fees": "Fees charged on the principal of new borrows.",
     [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
     "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
-    [YIELD_FEE]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
+    [METRIC.PERFORMANCE_FEES]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
   },
   UserFees: {
     [METRIC.BORROW_INTEREST]: "Interest paid by borrowers in Arcadia lending pools.",
     "Origination Fees": "Fees charged on the principal of new borrows.",
     [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by liquidated account owners.",
     "Keeper Rewards": "Initiator and terminator rewards paid to keepers that trigger and finish liquidation auctions.",
-    [YIELD_FEE]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
+    [METRIC.PERFORMANCE_FEES]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [YIELD_FEE]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
+    [METRIC.PERFORMANCE_FEES]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed across lending pool tranches.",
@@ -260,7 +256,7 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: "Share of borrow interest routed to the treasury.",
     "Origination Fees": "Full origination fee routed to the treasury.",
     [METRIC.LIQUIDATION_FEES]: "Share of liquidation penalties routed to the treasury.",
-    [YIELD_FEE]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
+    [METRIC.PERFORMANCE_FEES]: "Percentage of earned yield taken on both automated actions (compounding, rebalancing, yield claiming, swaps) and manual front-end actions.",
   },
   HoldersRevenue: {
     "Recovery Token Redemptions": "USDC paid out when ART holders redeem accumulated rebates.",
