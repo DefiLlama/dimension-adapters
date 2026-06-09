@@ -1,13 +1,10 @@
-import ADDRESSES from "../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch: any = async (options: FetchOptions) => {
-  throw Error('made it broken while verying numbers')
-  
   const dailyFees = options.createBalances();
-  // const dailyVolume = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   const query = `
     SELECT
@@ -24,12 +21,12 @@ const fetch: any = async (options: FetchOptions) => {
   const res = await queryDuneSql(options, query);
   if (!res?.length) return { dailyFees };
 
-  dailyFees.add(ADDRESSES.solana.SOL, res[0].daily_fees_usd_sol * 1e9);
-  // dailyVolume.add(ADDRESSES.solana.SOL, res[0].daily_solana_volume_usd * 1e6);
+  dailyFees.addUSDValue(res[0].daily_fees_usd_sol);
+  dailyVolume.addUSDValue(res[0].daily_solana_volume_usd);
 
   return {
     dailyFees,
-    // dailyVolume,
+    dailyVolume,
     // dailyRevenue: dailyFees,  // skipping these for now as we are not excluding amount for referrals
     // dailyProtocolRevenue: dailyFees,
   };
