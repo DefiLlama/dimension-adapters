@@ -63,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addUSDValue(-res.breakdown.gachaBuybacksPaidUsd, "Pack Buyback Payouts");
   dailyFees.addUSDValue(-res.breakdown.gachaBuybacksPaidUsd, "Pack Buyback Payouts");
 
-  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts");
+  dailySupplySideRevenue.addUSDValue(res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts to consignors");
   dailyRevenue.addUSDValue(-res.breakdown.gachaRepoolPaidUsd, "Repool Yield + Draw Payouts to consignors");
 
   return {
