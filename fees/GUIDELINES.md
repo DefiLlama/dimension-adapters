@@ -43,6 +43,38 @@ Think: "If the protocol became super-greedy and rugged all parties, how much cou
 | `dailyProtocolRevenue` | Optional | - | Portion allocated to treasury |
 | `dailyHoldersRevenue` | When applicable | Tokenholder Income | All value to token holders (buybacks, burns, distributions, external airdrops, bribes) |
 
+## Income Statement Identities (must always balance)
+
+These are the most common review failures. Verify them on every fees PR:
+
+- `dailyFees = dailyRevenue + dailySupplySideRevenue`
+- `dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue`
+
+Rules that follow from the identities:
+
+- Do NOT dump all fees into `dailyRevenue`. Revenue is only the protocol's portion; the supplier portion is `dailySupplySideRevenue`.
+- When the protocol collects revenue for itself, also set `dailyProtocolRevenue`.
+- When revenue is split between the treasury and token holders (governance stakers), split it into `dailyProtocolRevenue` and `dailyHoldersRevenue`.
+- Stakers of a **non-governance** token (e.g. stablecoin or LST stakers) are suppliers - their cut is `dailySupplySideRevenue`, NOT `dailyHoldersRevenue`. Only governance/value-accrual token holders count as holders revenue.
+- A negative `dailySupplySideRevenue` is almost always a bug - investigate the source data before merging.
+- Negative yield/fees: when a protocol genuinely has negative yield, count it into fees and supply-side revenue with `allowNegativeValue` and a comment explaining why.
+
+## Buybacks and the TCG pattern
+
+- For card/buyback models, subtract the buyback directly from fees rather than adding it to `dailySupplySideRevenue`. See `fees/collector-crypt` for the reference pattern.
+- Do NOT count a buyback again if it is already counted in a parent/main listing (e.g. pump.fun buybacks counted in the main pumpdotfun adapter) - this double-counts holders revenue.
+
+## Daily (not cumulative) data
+
+- We need 24h data so the dashboard can show daily values. Prefer on-chain/per-period data.
+- If only a cumulative total is available, subtract consecutive periods (today's cumulative - yesterday's cumulative) to derive the 24h delta.
+
+## Contract migrations / new deployments
+
+- When a team redeploys a contract, do NOT change the adapter's `start` date or swap the contract address outright - that corrupts historical refills.
+- Switch by date instead: `const contract = options.dateString >= newContractDeployDate ? newContract : oldContract`.
+- Be careful around the deploy date: funds moving from the old contract to the new one can be miscounted as fees/revenue.
+
 ## Income Statement Template
 
 ### Gross Protocol Revenue (dailyFees)
@@ -247,6 +279,14 @@ const breakdownMethodology = {
 6. **Missing external tokenholder income** - include airdrops, bribes from other protocols
 7. **Missing breakdownMethodology** - required when using labels in .add() calls
 8. **Mismatch between labels and breakdownMethodology** - every label must be documented
+9. **Dumping all fees into `dailyRevenue`** - revenue is only the protocol's cut (see Income Statement Identities)
+10. **Missing `dailyProtocolRevenue`/`dailyHoldersRevenue` split** when revenue goes to both treasury and token holders
+11. **Classifying non-governance stakers as holders revenue** - they are supply-side
+12. **Negative `dailySupplySideRevenue`** slipping through - verify the source data
+13. **Returning cumulative instead of 24h data**
+14. **Changing `start`/contract on redeploy** instead of date-based contract switching
+15. **`methodology` keys using code field names** (`dailyFees`) instead of display names (`Fees`)
+16. **Dune adapter not set to `version: 1`**, or duplicate Dune date filters
 
 ## Volume Tracking
 
