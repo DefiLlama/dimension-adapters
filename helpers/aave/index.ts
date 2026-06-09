@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -22,7 +22,7 @@ export interface AaveLendingPoolConfig {
 }
 
 export interface AaveAdapterExportConfig {
-  start?: IStartTimestamp | number | string;
+  start?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 

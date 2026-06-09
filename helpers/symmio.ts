@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import { Adapter, Chain, Fetch, FetchOptions } from "../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { CHAIN } from "./chains";
 

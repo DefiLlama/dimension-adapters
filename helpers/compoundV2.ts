@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { BaseAdapter, Fetch, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { METRIC } from './metrics';
 

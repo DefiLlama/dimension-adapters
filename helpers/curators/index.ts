@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 
@@ -26,7 +26,7 @@ export interface CuratorConfig {
   vaults: {
     // chain => 
     [key: string]: {
-      start?: IStartTimestamp | number | string;
+      start?: string;
       morpho?: Array<string>;
       euler?: Array<string>;
 
