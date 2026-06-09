@@ -9,11 +9,14 @@ const fetch = async (options: FetchOptions) => {
     `${STATS_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`
   );
 
-  return {
-    dailyActiveUsers: Number(activeUsers),
-    dailyNewUsers: Number(newUsers),
-    dailyTransactionsCount: Number(transactions),
-  };
+  const dailyActiveUsers = Number(activeUsers);
+  const dailyNewUsers = Number(newUsers);
+  const dailyTransactionsCount = Number(transactions);
+  if (![dailyActiveUsers, dailyNewUsers, dailyTransactionsCount].every(Number.isFinite)) {
+    throw new Error("archer-exchange: invalid user metrics from stats endpoint");
+  }
+
+  return { dailyActiveUsers, dailyNewUsers, dailyTransactionsCount };
 };
 
 const adapter: SimpleAdapter = {

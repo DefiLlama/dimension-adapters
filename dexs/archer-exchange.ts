@@ -9,8 +9,13 @@ const fetch = async (options: FetchOptions) => {
     `${STATS_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`
   );
 
+  const volume = Number(volumeUsd);
+  if (!Number.isFinite(volume)) {
+    throw new Error(`archer-exchange: invalid volumeUsd from stats endpoint: ${volumeUsd}`);
+  }
+
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(Number(volumeUsd));
+  dailyVolume.addUSDValue(volume);
   return { dailyVolume };
 };
 
