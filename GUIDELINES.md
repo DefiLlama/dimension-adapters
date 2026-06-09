@@ -43,7 +43,7 @@ These guidelines apply to ALL adapters in this repository.
 | **Use when** | On-chain logs, contract calls, subgraphs, Dune queries with timestamp filters | External API that only returns daily aggregates |
 | **Fetch signature** | `(options: FetchOptions)` | `(options: FetchOptions)` (same as v2 - the old 3-arg signature is removed) |
 | **Time range** | Arbitrary start/end timestamps | Fixed day (00:00–23:59 UTC) |
-| **`pullHourly`** | Supported | Not supported |
+| **`pullHourly`** | Required - set explicitly (`true` by default, `false` + reason if not possible) | Not supported |
 | **Preference** | Always prefer this | Use only when v2 is not possible |
 
 ### Version Rules
@@ -51,6 +51,7 @@ These guidelines apply to ALL adapters in this repository.
 - **Dune adapters must always be `version: 1`.** Dune queries run once per day; a v2 adapter runs every hour and would re-run the same expensive query each hour.
 - For v2 adapters, drive time windows off `options.startTimestamp`/`options.fromTimestamp` (and `options.getFromBlock()`), NOT `options.startOfDay`. Because v2 runs hourly, keying off start-of-day sends the same request every hour and breaks granular/hourly data.
 - New adapters must be `version: 2` unless they rely on Dune or on an external API that only returns daily aggregates.
+- **Every `version: 2` adapter must explicitly set the `pullHourly` key.** Default to `pullHourly: true`. Only set `pullHourly: false` when the data genuinely cannot be pulled hourly, and add a comment explaining why.
 
 ### Dune query rules
 
