@@ -224,24 +224,24 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
 }
 
 const methodology = {
-  Fees: 'All fees generated from dHEDGE vaults.',
-  Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
+  Fees: 'All fees generated from dHEDGE vaults: manager fees (performance and management) and deposit/withdraw fees from dHEDGE vaults, excluding Toros and mStable vaults which are tracked in their own adapters, plus the dHEDGE DAO fee collected from all vaults on the platform.',
+  Revenue: 'All revenue collected by the dHEDGE protocol from fees generated: the DAO fee (daoFee) collected from all vaults.',
   ProtocolRevenue: 'Protocol revenue collected by the dHEDGE DAO (daoFee) from all vaults.',
-  SupplySideRevenue: 'Management, entry and exit fees paid to vault managers (users who operate the vaults).',
+  SupplySideRevenue: 'Manager fees (performance and management) and deposit/withdraw fees paid to vault managers (external users who operate non-Toros/mStable vaults).',
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.MANAGEMENT_FEES]: 'Fees paid to vault managers for actively managing investment strategies, split between protocol and managers',
+    [METRIC.MANAGEMENT_FEES]: 'Manager fee remainder (performance and management/streaming fees) after the DAO cut, paid to non-Toros/mStable vault managers',
     [METRIC.PROTOCOL_FEES]: 'DAO fee charged by dHEDGE protocol across all vaults on the platform, including Toros and mStable vaults',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees charged when users deposit into or withdraw from vaults',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees charged when users deposit into or withdraw from non-Toros/mStable vaults',
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol share of management fees retained by the dHEDGE DAO",
+    [METRIC.PROTOCOL_FEES]: "DAO fee (daoFee) retained by the dHEDGE DAO from all vaults",
   },
   SupplySideRevenue: {
-    [METRIC.MANAGEMENT_FEES]: 'Management fees paid to vault managers',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees paid to vault managers',
+    [METRIC.MANAGEMENT_FEES]: 'Manager fees (performance and management/streaming) paid to non-Toros/mStable vault managers',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees paid to non-Toros/mStable vault managers',
   },
 };
 
