@@ -1,25 +1,27 @@
 import { SimpleAdapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet, httpPost } from "../utils/fetchURL";
+import { httpPost } from "../utils/fetchURL";
 
-const INDEXER_URL = "https://indexer-fuel-seq.simplystaking.xyz";
 const EXPLORER_URL = "https://explorer-indexer-mainnet.fuel.network/graphql";
 
-interface BlobFeesResponse {
-  totalFees: string;
-  feeDenom: string;
-  decimals: number;
-  blobCount: number;
-  startTimestamp: number;
-  endTimestamp: number;
-}
+const methodology = {
+  Fees: "Total gas fees paid by users on the Fuel Ignition network.",
+  Revenue:
+    "Gas fees retained by the Fuel sequencer. Fuel migrated data availability from Ethereum blobs to EigenDA in July 2025. EigenDA costs are settled via prepaid PaymentVault deposits and off-chain per-blob metering, so there is no public per-rollup daily DA cost to net out as supply-side revenue. If a public EigenDA cost source becomes available, it can be added as dailySupplySideRevenue.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Gas Fees": "Gas fees paid by users for transactions on Fuel Ignition.",
+  },
+  Revenue: {
+    "Gas Fees To Sequencer": "Gas fees retained by the Fuel sequencer.",
+  },
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  
-  const url = `${INDEXER_URL}/seq/blob-fees?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
-  const res: BlobFeesResponse = await httpGet(url);
 
   const dataResponse = await httpPost(EXPLORER_URL, {
     query: `
@@ -41,18 +43,18 @@ const fetch = async (options: FetchOptions) => {
       'x-api-key': 'Bearer nZ9GZ' + 'ayrd8',
     }
   });
-  
+
   let totalGasSpent = 0;
   for (const item of dataResponse.data.statistics.nodes.totalFee) {
     totalGasSpent += Number(item.value);
   }
-  
-  // total gas spent in ETH, numbers are in 9 decimals
-  dailyFees.addCGToken('ethereum', totalGasSpent / 1e9);
-  
-  // totalFees is in smallest unit (10^9 = 1 FUEL)
-  const fuelBlobFees = Number(res.totalFees) / Math.pow(10, res.decimals);
-  dailyRevenue.addCGToken("fuel-network", fuelBlobFees);
+
+  // Total gas spent in ETH, numbers are in 9 decimals.
+  dailyFees.addCGToken('ethereum', totalGasSpent / 1e9, "Gas Fees");
+  // All gas fees are retained by the sequencer. Fuel moved DA from Ethereum
+  // blobs to EigenDA in July 2025, and EigenDA cost is not publicly sourceable
+  // per rollup/day, so there is no supply-side DA cost to subtract here.
+  dailyRevenue.addCGToken('ethereum', totalGasSpent / 1e9, "Gas Fees To Sequencer");
 
   return {
     dailyFees,
@@ -67,6 +69,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.FUEL],
   start: '2024-11-01',
   protocolType: ProtocolType.CHAIN,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
