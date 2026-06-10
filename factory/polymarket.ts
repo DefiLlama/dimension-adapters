@@ -20,6 +20,9 @@ const dexsConfigs: Record<string, { builder: string; start: string }> = {
   "polyhelper-io": { builder: "PolyHelper.io", start: "2026-01-01" },
   "gate": { builder: "Gate", start: "2026-02-14" },
   "polycop": { builder: "PolyCop", start: "2025-12-01" },
+  "traderline": { builder: "traderline", start: "2025-12-01" },
+  "metamask": { builder: "MetaMask", start: "2025-11-10" },
+  "wager-up-pilot": { builder: "WagerUpPilot", start: "2026-04-07" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string }> = {
