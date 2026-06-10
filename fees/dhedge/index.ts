@@ -50,7 +50,7 @@ const queryAllManagerFeeMinteds = `
   return { dailyFees, dailyRevenue: dailyFees };
 } */
 
-// Managers tracked separately in toros/mstable-v2 adapters — excluded here to avoid double-counting fees
+// Managers tracked separately in toros/mstable-v2 adapters - excluded here to avoid double-counting fees
 // Addresses sourced from fees/toros/index.ts (torosManagerAddress) and fees/mstable-v2/index.ts (mstableManagerAddress)
 const EXCLUDED_MANAGERS: Partial<Record<CHAIN, string[]>> = {
   [CHAIN.OPTIMISM]: ["0x813123a13d01d3f07d434673fdc89cbba523f14d"], // Toros manager
@@ -201,6 +201,8 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
 
   // Fees = non-toros/mstable (managerFee + entry/exit) + all daoFee
   // Revenue = all daoFee (protocol treasury)
+  // SupplySideRevenue = non-toros/mstable (managerFee + entry/exit) - paid to vault managers (external users who run vaults)
+  // Accounting: Fees = SupplySideRevenue + Revenue
   const dailyFees = createBalances();
   dailyFees.addUSDValue(dailyManagerFeesAmount, METRIC.MANAGEMENT_FEES);
   dailyFees.addUSDValue(dailyDaoFeesAmount, METRIC.PROTOCOL_FEES);
@@ -209,16 +211,23 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
   const dailyRevenue = createBalances();
   dailyRevenue.addUSDValue(dailyDaoFeesAmount, METRIC.PROTOCOL_FEES);
 
+  const dailySupplySideRevenue = createBalances();
+  dailySupplySideRevenue.addUSDValue(dailyManagerFeesAmount, METRIC.MANAGEMENT_FEES);
+  dailySupplySideRevenue.addUSDValue(Number(dailyEntryFeesAmount) + Number(dailyExitFeesAmount), METRIC.DEPOSIT_WITHDRAW_FEES);
+
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 }
 
 const methodology = {
   Fees: 'All fees generated from dHEDGE vaults.',
   Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
+  ProtocolRevenue: 'Protocol revenue collected by the dHEDGE DAO (daoFee) from all vaults.',
+  SupplySideRevenue: 'Management, entry and exit fees paid to vault managers (users who operate the vaults).',
 };
 
 const breakdownMethodology = {
@@ -229,6 +238,10 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: "Protocol share of management fees retained by the dHEDGE DAO",
+  },
+  SupplySideRevenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fees paid to vault managers',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees paid to vault managers',
   },
 };
 
