@@ -105,7 +105,11 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   const dailyProtocolRevenue = dailyFees.clone(PROTOCOL_FEE_SHARE);
   const dailySupplySideRevenue = dailyFees.clone(LP_FEE_SHARE);
   const dailyRevenue = dailyProtocolRevenue.clone(1);
-  const dailyHoldersRevenue = dailyBribesRevenue.clone(1);
+  const dailyHoldersRevenue = fetchOptions.createBalances();
+
+  dailyFees.addBalances(dailyBribesRevenue, "Bribes Rewards");
+  dailyRevenue.addBalances(dailyBribesRevenue, "Bribes Revenue");
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, "Bribes Revenue");
 
   return {
     dailyVolume,
@@ -114,7 +118,6 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
     dailyHoldersRevenue,
   };
 };

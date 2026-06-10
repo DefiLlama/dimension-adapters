@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
-  const dailyBribesRevenue = createBalances();
 
   // 1. Get options revenue from Option Exercise events (goes to Strategic Protocol Reserve/treasury)
   const exerciseLogs = await getLogs({
@@ -58,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
   // 3. Get all RewardAdded events from bribe contracts (DEX fees, Omni fees, and external bribes)
   // Fetch logs per contract to know which address emitted each event
   for (const contract of bribeContracts) {
-    const isExternal = isExternalBribe.get(contract);
+    // const isExternal = isExternalBribe.get(contract);
 
     const logs = await getLogs({
       target: contract,
@@ -67,12 +66,7 @@ const fetch = async (options: FetchOptions) => {
 
     logs.forEach((log: any) => {
       dailyFees.add(log.rewardToken, log.reward);
-
-      if (isExternal) {
-        dailyBribesRevenue.add(log.rewardToken, log.reward);
-      } else {
-        dailyHoldersRevenue.add(log.rewardToken, log.reward);
-      }
+      dailyHoldersRevenue.add(log.rewardToken, log.reward);
     });
   }
 
@@ -85,7 +79,6 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    dailyBribesRevenue,
   };
 };
 
