@@ -43,8 +43,8 @@ function getSubscanUsers(config: ChainConfig) {
     const activeData = activeRes.data?.list?.[0];
     const extrinsicData = extrinsicRes.data?.list?.[0];
     return [{
-      usercount: activeData ? Number(activeData.total) : 0,
-      txcount: extrinsicData ? Number(extrinsicData.total) : 0,
+      usercount: Number(activeData.total),
+      txcount: Number(extrinsicData.total),
     }];
   };
 }
@@ -56,7 +56,7 @@ function getSubscanNewUsers(config: ChainConfig) {
     if (res.code !== 0) throw new Error(`Subscan NewAccount API failed for ${config.subscanName}: ${res.message}`);
     const data = res.data?.list?.[0];
     return [{
-      usercount: data ? Number(data.total) : 0,
+      usercount: Number(data.total),
     }];
   };
 }
