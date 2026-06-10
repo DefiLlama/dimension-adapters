@@ -187,6 +187,24 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   // "miracletrade": { addresses: ["0x5eb46BFBF7C6004b59D67E56749e89e83c2CaF82"], start: "2025-09-11" },
   "moontrader-perps": { addresses: ["0x38b176c674cd9a3b97a59b0a7045ba26a13783cb"], start: "2025-09-01" },
+  "nansen-perps": {
+    addresses: ["0x93053f1e7a5efeda532fe69cbbe43cbec3a0f13f"],
+    start: "2026-05-04",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "near-perps": {
+    addresses: ["0xf85a61857c0682b9b59d562310df106b4f785688"],
+    start: "2026-06-08",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
   "onekey-perps": {
     addresses: ["0x9b12e858da780a96876e3018780cf0d83359b0bb"],
     start: "2025-08-20",
@@ -230,6 +248,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "supurr-perps": { addresses: ["0x36be02a397e969e010ccbd7333f4169f66b8989f"], start: "2025-09-19" },
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
   "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
+  "valiant-perps": {
+    addresses: ["0x751d254c07f7a4b454eb5c2a23ebe3adf1a4eaec"],
+    start: "2025-02-08",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
   "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" },
   "grider-perps": {
     addresses: ["0x0176337c97bb884b8ac4be2276a5c779ab1156b9"], start: "2026-03-08",
