@@ -16,6 +16,7 @@ const EASYA_PARTNER_CONFIGS = [
     '6iEekXhre85eDB1mxRuXbRDHbSG8HeSPYopp9e7fp4BJ',
     '5WP4ZKstxzM6vUxE4xCahuXowaJeEXgLUhCXCKm7yqRy',
     'CeEB3UDmhoWfcVFXY1RShQnhhiL3rYMm93M61S228bzy',
+    'DD3y1mi4yeQSLNbNGZTxUwdwbEm4Gh2injjx1N9HPCqQ',
 ];
 
 interface IData {
