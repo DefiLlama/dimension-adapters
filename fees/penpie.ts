@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-const ADDRESSES = require('../helpers/coreAssets.json')
+import ADDRESSES from '../helpers/coreAssets.json';
 
 const PENDLE_FEE_DISTRIBUTOR_V2 = '0x8C237520a8E14D658170A633D96F8e80764433b9'
 const PENDLE_STAKING: Record<string, string> = {
@@ -56,7 +56,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = createBalances();
   const dailyHoldersRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
-  const dailyBribesRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
   if (chain == 'ETHEREUM') {
@@ -92,7 +91,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         return
       }
       dailyFees.add(e.token, e.amount)
-      dailyBribesRevenue.add(e.token, e.amount)
+      dailyHoldersRevenue.add(e.token, e.amount)
       dailyProtocolRevenue.add(e.token, Number(e.amount) * LP_FEE_DISTRIBUTION[chain].totalProtocolRevenue)
     })
 
@@ -104,19 +103,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    dailyBribesRevenue,
     dailySupplySideRevenue
   };
 }
 
 const info = {
   methodology: {
-    Fees: 'Total boosted PENDLE rewards from liquidity farming on Pendle Finance',
-    Revenue: 'Protocol revenue from boosted PENDLE rewards',
+    Fees: 'Total boosted PENDLE rewards from liquidity farming + Bribes from voting incentives on Pendle Finance',
+    Revenue: 'Protocol revenue from boosted PENDLE rewards + Bribes from voting incentives',
     ProtocolRevenue: '5% operational expenses + bribes share of protocol',
-    HoldersRevenue: '5% vlPNP holders + 12% mPENDLE Staking pool + 20% PRT mechanism',
+    HoldersRevenue: '5% vlPNP holders + 12% mPENDLE Staking pool + 20% PRT mechanism + Bribes from voting incentives',
     SupplySideRevenue: '78% to liquidity providers',
-    BribesRevenue: 'Bribes from voting incentives'
   }
 }
 
