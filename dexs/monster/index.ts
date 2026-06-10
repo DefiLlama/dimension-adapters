@@ -3,9 +3,12 @@ import { CHAIN } from "../../helpers/chains";
 
 // MNSTR Gacha — MegaETH PROD
 const GACHA_STARTER = "0xdEa1D72f08D83e36946128603d4cD0A180A938A9";
+const GACHA_GREAT = "0x79dD7dA84a93AbBd304d41cf0addB20f8435F532";
+const GACHA_ADVENTURE = "0x1472A250E3663a33A62142A8c68b6C3C611E47BF";
 const GACHA_PREMIUM = "0x6A786932b1cA83E2343B85483101C5B820860AC4";
+const GACHA_OUTLAW = "0xd7119f7251AFD521847Ae6BcA51a56c3F24971e3";
 const GACHA_ULTRA = "0xebB285B5cd4610D0f6dc538379A7027F02274ca2";
-const GACHA_CONTRACTS = [GACHA_STARTER, GACHA_PREMIUM, GACHA_ULTRA];
+const GACHA_CONTRACTS = [GACHA_STARTER, GACHA_GREAT, GACHA_ADVENTURE, GACHA_PREMIUM, GACHA_OUTLAW, GACHA_ULTRA];
 
 const USDM = "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7";
 const PAYMENT_WALLET = "0x61fccfC0279B09c387608efF56Fd9187e61D2874";
@@ -55,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "USDm paid by users into the three Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.",
+  Volume: "USDm paid by users into the six Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.",
   Fees: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
   Revenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
   ProtocolRevenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
