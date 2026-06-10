@@ -1,7 +1,7 @@
 import chains from "./chains"
 import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
-import { Adapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { parseUserResponse } from "./utils/countUsers";
 import { createFactoryExports } from "../factory/registry";
@@ -103,6 +103,7 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
     version: 1,
     chains: [item.chain],
     fetch: fetch as any,
+    protocolType: ProtocolType.CHAIN,
   }
 }
 
@@ -121,5 +122,6 @@ function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
     version: 1,
     chains: [item.chain],
     fetch: fetch as any,
+    protocolType: ProtocolType.CHAIN,
   }
 }
