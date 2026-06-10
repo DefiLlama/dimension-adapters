@@ -1,3 +1,4 @@
+import PromisePool from '@supercharge/promise-pool'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { httpGet } from '../utils/fetchURL'
@@ -57,19 +58,21 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const results = await Promise.allSettled(
-    POOLS.map((p) => httpGet(`${ALGOD}/v2/applications/${p.appId}`)),
-  )
+  const { results } = await PromisePool.withConcurrency(5)
+    .for(POOLS)
+    .process(async (p) => {
+      try {
+        const app = await httpGet(`${ALGOD}/v2/applications/${p.appId}`)
+        return { p, app }
+      } catch (e) {
+        console.error(`folks-finance: failed to fetch app ${p.appId}`, e)
+        return { p, app: undefined }
+      }
+    })
 
-  const apps = results.map((r, idx) => {
-    if (r.status === 'fulfilled') return r.value
-    console.error(`folks-finance: failed to fetch app ${POOLS[idx].appId}`, r.reason)
-    return undefined
-  })
+  if (results.every((r) => r.app === undefined)) throw new Error('folks-finance: all Algorand pool reads failed')
 
-  if (apps.every((a) => a === undefined)) throw new Error('folks-finance: all Algorand pool reads failed')
-
-  apps.forEach((app, idx) => {
+  results.forEach(({ p: { appId, assetId }, app }) => {
     const state = app?.params?.['global-state']
     if (!state) return
     const get = (name: string) => {
@@ -80,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
     const v = get('v')
     const s = get('s')
     if (!i || i.length < 1 || !v || v.length < 5 || !s || s.length < 10) {
-      console.error(`folks-finance: malformed state for app ${POOLS[idx].appId}`)
+      console.error(`folks-finance: malformed state for app ${appId}`)
       return
     }
 
@@ -97,7 +100,6 @@ const fetch = async (options: FetchOptions) => {
     const protocolRevenue = (dailyInterest * retentionRate) / ONE_16_DP
     const supplySideRevenue = dailyInterest - protocolRevenue
 
-    const { assetId } = POOLS[idx]
     if (assetId === 0) {
       // native ALGO: microALGO → ALGO, priced via coingecko
       dailyFees.addCGToken('algorand', Number(dailyInterest) / ALGO_DECIMALS, 'Borrow Interest')
