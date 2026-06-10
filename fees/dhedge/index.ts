@@ -19,7 +19,7 @@ const queryEntryFeeMinteds = `
         ) { entryFeeAmount, tokenPrice }
       }`
 
-const queryExitFeeMenteds = `
+const queryExitFeeMinteds = `
       query exitFeeMinteds($excludedManagers: [Bytes!]!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         exitFeeMinteds(
           where: { managerAddress_not_in: $excludedManagers, time_gte: $startTimestamp, time_lt: $endTimestamp },
@@ -191,7 +191,7 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
 
   const dailyManagerFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryManagerFeeMinteds, 'managerFeeMinteds', startTimestamp, endTimestamp);
   const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
-  const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
+  const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMinteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
   const allManagerFeesEvents = await fetchAllManagerFeeMinteds(chain as CHAIN, startTimestamp, endTimestamp);
 
   const dailyManagerFeesAmount = calculateManagerFees(dailyManagerFeesEvents);  // non-toros/mstable managerFee
