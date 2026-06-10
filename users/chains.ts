@@ -2,6 +2,7 @@ import { queryAllium } from "../helpers/allium";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
+import { subscanStatsExports } from "./utils/subscanStats";
 
 async function solanaUsers(start: number, end: number) {
     const queryId = await queryAllium(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
@@ -202,4 +203,4 @@ export default [
     type: "chain",
     chain: chain.chain,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, subscanStatsExports)
