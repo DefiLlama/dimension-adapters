@@ -13,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
   );
 
   const users = response.data?.find((item: any) => item.timestamp?.startsWith(options.dateString));
-  if (!users) {
+  if (!users || users.value == null) {
     throw new Error(`No Provenance new accounts data found for ${options.dateString}`);
   }
 
