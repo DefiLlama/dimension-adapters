@@ -1,4 +1,6 @@
 import { ChainApi } from "@defillama/sdk";
+import PromisePool from "@supercharge/promise-pool";
+import pLimit from "p-limit";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -42,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
 
   const [assetsResults, feesLogs] = await Promise.all([
     options.api.multiCall({ abi: Abis.assets, calls: positionManagers, permitFailure: true }),
-    options.getLogs({ targets: positionManagers, eventAbi: Abis.FeesAccrued, entireLog: true }),
+    options.getLogs({ targets: positionManagers, eventAbi: Abis.FeesAccrued, entireLog: true, parseLog: true }),
   ]);
 
   const debtAssetByManager: Record<string, string> = {};
@@ -60,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
     eventsByBlock[block].push({
       manager: log.address.toLowerCase(),
       shares,
-      logIndex: Number(log.logIndex ?? log.index ?? 0),
+      logIndex: log.logIndex,
     });
   }
 
@@ -72,83 +74,87 @@ const fetch = async (options: FetchOptions) => {
   // `performanceFeeAssets = max(0, basis - managementFeeAssets) * performanceFee / BPS`.
   // Inverting `convertToShares` recovers `feeAssets` (denominated in the debt asset),
   // and with the basis known the management/performance split solves algebraically.
-  await Promise.all(Object.entries(eventsByBlock).map(async ([blockStr, events]) => {
-    const api = new ChainApi({ chain: options.chain, block: Number(blockStr) - 1 });
-    const managers = Array.from(new Set(events.map((event) => event.manager)));
-    const managerIndexes: Record<string, number> = {};
-    managers.forEach((manager, i) => { managerIndexes[manager] = i; });
+  const { errors } = await PromisePool.withConcurrency(1)
+    .for(Object.entries(eventsByBlock))
+    .process(async ([blockStr, events]) => {
+      const api = new ChainApi({ chain: options.chain, block: Number(blockStr) - 1 });
+      const managers = Array.from(new Set(events.map((event) => event.manager)));
+      const managerIndexes: Record<string, number> = {};
+      managers.forEach((manager, i) => { managerIndexes[manager] = i; });
 
-    const [feeDatas, totalAssetsResults, totalSupplyResults, offsets, lastDebts, collaterals, debts] = await Promise.all([
-      api.multiCall({ abi: Abis.feeData, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.totalAssets, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.totalSupply, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.virtualShareOffset, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.lastDebt, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.collateralAmountQuoted, calls: managers, permitFailure: true }),
-      api.multiCall({ abi: Abis.debtAmount, calls: managers, permitFailure: true }),
-    ]);
+      const limit = pLimit(4);
+      const [feeDatas, totalAssetsResults, totalSupplyResults, offsets, lastDebts, collaterals, debts] = await Promise.all([
+        limit(() => api.multiCall({ abi: Abis.feeData, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.totalAssets, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.totalSupply, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.virtualShareOffset, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.lastDebt, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.collateralAmountQuoted, calls: managers, permitFailure: true })),
+        limit(() => api.multiCall({ abi: Abis.debtAmount, calls: managers, permitFailure: true })),
+      ]);
 
-    // A manager can accrue more than once in a block. The first accrual resets the
-    // fee snapshot, so later accruals in the same block have a zero performance basis,
-    // and their shares must be valued against the supply inflated by the earlier mints.
-    const mintedSharesByManager: Record<string, bigint> = {};
-    events.sort((a, b) => a.logIndex - b.logIndex);
+      // A manager can accrue more than once in a block. The first accrual resets the
+      // fee snapshot, so later accruals in the same block have a zero performance basis,
+      // and their shares must be valued against the supply inflated by the earlier mints.
+      const mintedSharesByManager: Record<string, bigint> = {};
+      events.sort((a, b) => a.logIndex - b.logIndex);
 
-    for (const event of events) {
-      const i = managerIndexes[event.manager];
-      const debtAsset = debtAssetByManager[event.manager];
-      const feeData = feeDatas[i];
-      if (!debtAsset || !feeData || totalAssetsResults[i] == null || totalSupplyResults[i] == null) continue;
+      for (const event of events) {
+        const i = managerIndexes[event.manager];
+        const debtAsset = debtAssetByManager[event.manager];
+        const feeData = feeDatas[i];
+        if (!debtAsset || !feeData || totalAssetsResults[i] == null || totalSupplyResults[i] == null) continue;
 
-      const alreadyMintedShares = mintedSharesByManager[event.manager] ?? ZERO;
-      mintedSharesByManager[event.manager] = alreadyMintedShares + event.shares;
+        const alreadyMintedShares = mintedSharesByManager[event.manager] ?? ZERO;
+        mintedSharesByManager[event.manager] = alreadyMintedShares + event.shares;
 
-      const totalAssets = BigInt(totalAssetsResults[i]);
-      const totalSupply = BigInt(totalSupplyResults[i]) + alreadyMintedShares;
-      const offset = offsets[i] != null ? BigInt(offsets[i]) : ZERO;
-      const lastTotalAssets = BigInt(feeData.lastTotalAssets);
-      const performanceFee = BigInt(feeData.performanceFee);
+        const totalAssets = BigInt(totalAssetsResults[i]);
+        const totalSupply = BigInt(totalSupplyResults[i]) + alreadyMintedShares;
+        const offset = offsets[i] != null ? BigInt(offsets[i]) : ZERO;
+        const lastTotalAssets = BigInt(feeData.lastTotalAssets);
+        const performanceFee = BigInt(feeData.performanceFee);
 
-      // Invert convertToShares: shares = feeAssets * (supply + offset) / (totalAssets - feeAssets + 1)
-      // => feeAssets = shares * (totalAssets + 1) / (supply + offset + shares)
-      const feeAssets = event.shares * (totalAssets + ONE) / (totalSupply + offset + event.shares);
-      if (feeAssets === ZERO) continue;
+        // Invert convertToShares: shares = feeAssets * (supply + offset) / (totalAssets - feeAssets + 1)
+        // => feeAssets = shares * (totalAssets + 1) / (supply + offset + shares)
+        const feeAssets = event.shares * (totalAssets + ONE) / (totalSupply + offset + event.shares);
+        if (feeAssets === ZERO) continue;
 
-      // Performance fee basis at the accrual snapshot. An earlier accrual in the same
-      // block already reset the snapshot, leaving no basis for this event.
-      let basis = ZERO;
-      if (alreadyMintedShares === ZERO) {
-        if (lastDebts[i] != null && collaterals[i] != null && debts[i] != null) {
-          // Levered-slice basis: LTV_prev * currentCollat - currentDebt
-          // (lastDebt == 0 is the bootstrap sentinel: no performance fee that period).
-          const lastDebt = BigInt(lastDebts[i]);
-          if (lastDebt > ZERO) {
-            const lastCollateral = lastTotalAssets + lastDebt;
-            const scaledLastDebt = (lastDebt * BigInt(collaterals[i]) + lastCollateral - ONE) / lastCollateral;
-            const currentDebt = BigInt(debts[i]);
-            if (scaledLastDebt > currentDebt) basis = scaledLastDebt - currentDebt;
+        // Performance fee basis at the accrual snapshot. An earlier accrual in the same
+        // block already reset the snapshot, leaving no basis for this event.
+        let basis = ZERO;
+        if (alreadyMintedShares === ZERO) {
+          if (lastDebts[i] != null && collaterals[i] != null && debts[i] != null) {
+            // Levered-slice basis: LTV_prev * currentCollat - currentDebt
+            // (lastDebt == 0 is the bootstrap sentinel: no performance fee that period).
+            const lastDebt = BigInt(lastDebts[i]);
+            if (lastDebt > ZERO) {
+              const lastCollateral = lastTotalAssets + lastDebt;
+              const scaledLastDebt = (lastDebt * BigInt(collaterals[i]) + lastCollateral - ONE) / lastCollateral;
+              const currentDebt = BigInt(debts[i]);
+              if (scaledLastDebt > currentDebt) basis = scaledLastDebt - currentDebt;
+            }
+          } else if (totalAssets > lastTotalAssets) {
+            // Pre-upgrade NAV-variation basis: totalAssets - lastTotalAssets.
+            basis = totalAssets - lastTotalAssets;
           }
-        } else if (totalAssets > lastTotalAssets) {
-          // Pre-upgrade NAV-variation basis: totalAssets - lastTotalAssets.
-          basis = totalAssets - lastTotalAssets;
         }
+
+        // feeAssets = mgmt + max(0, basis - mgmt) * performanceFee / BPS
+        // If feeAssets < basis the performance branch was active: solve for mgmt.
+        // Otherwise the whole accrual is management fees.
+        let managementFeeAssets = feeAssets;
+        if (performanceFee > ZERO && feeAssets < basis) {
+          managementFeeAssets = (feeAssets * BPS - basis * performanceFee) / (BPS - performanceFee);
+          if (managementFeeAssets < ZERO) managementFeeAssets = ZERO;
+        }
+        const performanceFeeAssets = feeAssets - managementFeeAssets;
+
+        if (managementFeeAssets > ZERO) dailyFees.add(debtAsset, managementFeeAssets, METRIC.MANAGEMENT_FEES);
+        if (performanceFeeAssets > ZERO) dailyFees.add(debtAsset, performanceFeeAssets, METRIC.PERFORMANCE_FEES);
       }
+    });
 
-      // feeAssets = mgmt + max(0, basis - mgmt) * performanceFee / BPS
-      // If feeAssets < basis the performance branch was active: solve for mgmt.
-      // Otherwise the whole accrual is management fees.
-      let managementFeeAssets = feeAssets;
-      if (performanceFee > ZERO && feeAssets < basis) {
-        managementFeeAssets = (feeAssets * BPS - basis * performanceFee) / (BPS - performanceFee);
-        if (managementFeeAssets < ZERO) managementFeeAssets = ZERO;
-      }
-      const performanceFeeAssets = feeAssets - managementFeeAssets;
-
-      if (managementFeeAssets > ZERO) dailyFees.add(debtAsset, managementFeeAssets, METRIC.MANAGEMENT_FEES);
-      if (performanceFeeAssets > ZERO) dailyFees.add(debtAsset, performanceFeeAssets, METRIC.PERFORMANCE_FEES);
-    }
-  }));
-
+  if (errors.length > 0) throw errors[0];
   // All accrued fees are minted to the protocol fee recipient, so fees == revenue.
   return {
     dailyFees,
