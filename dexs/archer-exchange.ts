@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
+// Program ID: Archer8kgiavM61GyusMzaaS2ft5sALtNsD1HxkUPMhy
 const STATS_URL = "https://api.archer.exchange/v1/stats/dimensions";
 
 const fetch = async (options: FetchOptions) => {
@@ -21,6 +22,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

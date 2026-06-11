@@ -5,17 +5,16 @@ import { httpGet } from "../utils/fetchURL";
 const STATS_URL = "https://api.archer.exchange/v1/stats/dimensions";
 
 const fetch = async (options: FetchOptions) => {
-  const { activeUsers, transactions } = await httpGet(
+  const { newUsers } = await httpGet(
     `${STATS_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`
   );
 
-  const dailyActiveUsers = Number(activeUsers);
-  const dailyTransactionsCount = Number(transactions);
-  if (![dailyActiveUsers, dailyTransactionsCount].every(Number.isFinite)) {
+  const dailyNewUsers = Number(newUsers);
+  if (![dailyNewUsers].every(Number.isFinite)) {
     throw new Error("archer-exchange: invalid user metrics from stats endpoint");
   }
 
-  return { dailyActiveUsers, dailyTransactionsCount };
+  return { dailyNewUsers };
 };
 
 const adapter: SimpleAdapter = {
