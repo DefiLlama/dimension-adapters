@@ -98,7 +98,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Gacha Play Spends On-Chain': 'USDm paid by users into the six Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.',
+    'Gacha Play Spends - On-Chain': 'USDm paid by users into the six Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.',
     'Gacha Play Spends - Credit Card': 'Amount paid by users into the six Gacha contracts when calling play() via credit card.',
     'Card Buyback Spends': 'USDm spent by the protocol to buy back cards.',
   }
