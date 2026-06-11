@@ -103,6 +103,7 @@ const PUMP_FEE_EXCLUDE_TX_ADDRESSES = [
   'FGptqdxjahafaCzpZ1T6EDtCzYMv7Dyn5MgBLyB3VUFW',
   'X5QPJcpph4mBAJDzc4hRziFftSbcygV59kRb2Fu6Je1',
   '7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC',
+  '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg', // Pump.fun migration address, internal wallet.
 ]
 
 // Mayhem fees: SOL + WSOL inflows to the program fee wallet, counted as 100% protocol.
