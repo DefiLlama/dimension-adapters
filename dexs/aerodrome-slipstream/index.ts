@@ -54,7 +54,7 @@ const eventAbis = {
 const abis = {
   fee: 'uint256:fee',
   // Per-token accumulator of fees waiting for the gauge to collect.  Per Aerodrome team's
-  // confirmation, this is the on-chain ground truth for "fee rewards to voters" — capturing
+  // confirmation, this is the on-chain ground truth for "fee rewards to voters", capturing
   // the staked-LP share plus the unstaked-LP rake routed to the gauge.  Resets when
   // collectFees() is called.
   gaugeFees: 'function gaugeFees() view returns (uint128 token0, uint128 token1)',
@@ -105,9 +105,9 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   // Strategy B (slipstream): per-pool exact split.
-  //   holders_per_token = gaugeFees(toBlock) - gaugeFees(fromBlock) + Σ CollectFees in [fromBlock, toBlock]
-  //   total_per_token   = Σ (input-side amount × feeRate) over swaps in this pool
-  //   supplySide_per_token = total_per_token − holders_per_token
+  //   holders_per_token = gaugeFees(toBlock) - gaugeFees(fromBlock) + sum CollectFees in [fromBlock, toBlock]
+  //   total_per_token   = sum (input-side amount * feeRate) over swaps in this pool
+  //   supplySide_per_token = total_per_token - holders_per_token
   // gaugeFees resets when the gauge calls collectFees(); CollectFees event captures the drain.
   const dailyHoldersRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
@@ -137,7 +137,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   })
 
   // Per-pool, per-token input-only fee accumulators (fee taken on the input side
-  // only — matches the on-chain accounting and is what totals must reconcile to
+  // only, matches the on-chain accounting and is what totals must reconcile to
   // when split into holders + supplySide).
   const poolFeeTotals: Record<string, { fee0: number; fee1: number }> = {}
 
@@ -193,7 +193,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
   if (errorFound) throw errorFound
 
-  // Drains of gaugeFees in [fromBlock, toBlock]: needed so gaugeFees(end) − gaugeFees(start)
+  // Drains of gaugeFees in [fromBlock, toBlock]: needed so gaugeFees(end) - gaugeFees(start)
   // doesn't go negative across an epoch boundary where collectFees() was called.
   const collectIface = new ethers.Interface([eventAbis.event_collect_fees])
   const collectLogs = await getLogs({
@@ -241,7 +241,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const supply0 = totals.fee0 - holders0
     const supply1 = totals.fee1 - holders1
 
-    // Sum both sides per pool — fee0 is the input-side fees from token0-input swaps,
+    // Sum both sides per pool: fee0 is the input-side fees from token0-input swaps,
     // fee1 is from token1-input swaps; they're independent contributions and must
     // BOTH be priced and added.  addOneToken would drop one side because it's
     // designed for per-swap calls (where exactly one side carries the fee), not for
@@ -255,25 +255,27 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   })
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
+  const dailyRevenue = fetchOptions.createBalances()
 
   dailyFees.add(dailyBribesRevenue, 'External Bribes Rewards')
+  dailyRevenue.add(dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake')
+  dailyRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
   dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
   
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   }
 }
 
 const methodology = {
   Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
   Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) − gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
-  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees − HoldersRevenue.",
+  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
+  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue.",
 }
 
 const breakdownMethodology = {
