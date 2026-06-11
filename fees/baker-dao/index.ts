@@ -82,7 +82,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  return { dailyFees, dailyProtocolRevenue, dailyHoldersRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue, dailyHoldersRevenue }
 };
 
 const breakdownMethodology = {
