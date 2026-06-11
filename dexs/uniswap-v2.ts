@@ -98,14 +98,12 @@ function getLogAdapterConfig(options: FetchOptions) {
       userFeesRatio: 1,
       revenueRatio: 0.05 / 0.3,
       protocolRevenueRatio: 0,
-      holdersRevenueRatio: 0.05 / 0.3,
     }
   } else {
     return {
       userFeesRatio: 1,
       revenueRatio: 0,
       protocolRevenueRatio: 0,
-      holdersRevenueRatio: 0,
     }
   }
 }
@@ -197,7 +195,6 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
       dailySupplySideRevenue: dailyFees.clone(1 - feeRates.revenueRatio),
       dailyRevenue: dailyFees.clone(feeRates.revenueRatio),
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: dailyFees.clone(feeRates.holdersRevenueRatio),
     };
   };
 
@@ -248,7 +245,6 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
     dailySupplySideRevenue: dailyFees.clone(1 - feeRates.revenueRatio),
     dailyRevenue: dailyFees.clone(feeRates.revenueRatio),
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyFees.clone(feeRates.holdersRevenueRatio),
   };
 }
 
@@ -274,7 +270,7 @@ const methodology = {
   Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs, From 8 Mar 2026, 83% (100% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains are distributed to LPs.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
+  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI (Tracked combined in Uniswap V3 adapter)',
 }
 
 const adapter: Adapter = {
