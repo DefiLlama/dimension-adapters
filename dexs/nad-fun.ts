@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -6,6 +7,7 @@ import { METRIC } from "../helpers/metrics";
 type Balances = ReturnType<FetchOptions["createBalances"]>;
 
 const BPS = 10_000n;
+const MON = 10n ** 18n;
 const V1_FEE_RATE_DENOMINATOR = 1_000_000n;
 
 const v1 = {
@@ -58,6 +60,10 @@ const v2Abi = {
   Swap:
     "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)",
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
+  allPairsLength: "uint256:allPairsLength",
+  allPairs: "function allPairs(uint256) view returns (address)",
+  token0: "address:token0",
+  token1: "address:token1",
   feeReceiver: "address:feeReceiver",
   getQuoteToken: "function getQuoteToken(address token) view returns (address)",
   getFeeConfig:
@@ -105,6 +111,8 @@ const metrics = {
 
 const transferTopic =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const swapTopic =
+  "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822";
 const monEquivalentQuoteTokens = new Set(
   v2.monEquivalentQuoteTokens.map((token) => token.toLowerCase()),
 );
@@ -182,6 +190,35 @@ function toTopicAddress(address: string): string {
   return ethers.zeroPadValue(address, 32);
 }
 
+async function getLogsInBlockChunks(
+  options: FetchOptions,
+  params: Parameters<FetchOptions["getLogs"]>[0],
+  blockStep = 10_000,
+) {
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  const ranges: [number, number][] = [];
+
+  for (let startBlock = fromBlock; startBlock <= toBlock; startBlock += blockStep) {
+    ranges.push([startBlock, Math.min(startBlock + blockStep - 1, toBlock)]);
+  }
+
+  const allLogs: any[] = [];
+  await PromisePool.withConcurrency(5)
+    .for(ranges)
+    .process(async ([fromBlock, toBlock]) => {
+      const logs = await options.getLogs({
+        ...params,
+        fromBlock,
+        toBlock,
+        skipCache: true,
+      });
+      allLogs.push(...logs);
+    });
+
+  return allLogs;
+}
+
 async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
   const { dailyFees, dailyVolume, dailyRevenue, dailySupplySideRevenue } =
     balances;
@@ -237,17 +274,20 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
         left.blockNumber - right.blockNumber,
     );
 
-  dailyFees.addGasToken(10 * creationLogs.length * 1e18, metrics.CreationFees);
   dailyFees.addGasToken(
-    3_000 * graduateLogs.length * 1e18,
+    10n * BigInt(creationLogs.length) * MON,
+    metrics.CreationFees,
+  );
+  dailyFees.addGasToken(
+    3_000n * BigInt(graduateLogs.length) * MON,
     metrics.GraduationFees,
   );
   dailyRevenue.addGasToken(
-    10 * creationLogs.length * 1e18,
+    10n * BigInt(creationLogs.length) * MON,
     metrics.CreationFees,
   );
   dailyRevenue.addGasToken(
-    3_000 * graduateLogs.length * 1e18,
+    3_000n * BigInt(graduateLogs.length) * MON,
     metrics.GraduationFees,
   );
 
@@ -280,8 +320,8 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
       foundationAmount: string | number;
       creatorAmount: string | number;
     }) => {
-      const foundationAmount = Number(log.foundationAmount);
-      const creatorAmount = Number(log.creatorAmount);
+      const foundationAmount = toBigInt(log.foundationAmount);
+      const creatorAmount = toBigInt(log.creatorAmount);
 
       dailyFees.addGasToken(foundationAmount, metrics.FoundationFees);
       dailyFees.addGasToken(creatorAmount, metrics.CreatorsFees);
@@ -293,68 +333,89 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
   );
 
   buyLogs.forEach((log) => {
-    const fee = (Number(log.amountIn) * 1) / 100; // 1% fee on buys
+    const amountIn = toBigInt(log.amountIn);
+    const fee = amountIn / 100n; // 1% fee on buys
     dailyFees.addGasToken(fee, metrics.BuyFees);
     dailyRevenue.addGasToken(fee, metrics.BuyFees);
-    dailyVolume.addGasToken(Number(log.amountIn));
+    dailyVolume.addGasToken(amountIn);
   });
 
   sellLogs.forEach((log) => {
-    const fee = (Number(log.amountOut) * 1) / 100; // 1% fee on sells
+    const amountOut = toBigInt(log.amountOut);
+    const fee = amountOut / 100n; // 1% fee on sells
     dailyFees.addGasToken(fee, metrics.SellFees);
     dailyRevenue.addGasToken(fee, metrics.SellFees);
-    dailyVolume.addGasToken(log.amountOut);
+    dailyVolume.addGasToken(amountOut);
   });
 }
 
 async function getV2PairMetadata(options: FetchOptions) {
-  const pairLogs: any[] = [];
-
-  await options.streamLogs({
+  const pairCountResult = await options.api.call({
     target: v2.nadFunFactory,
-    eventAbi: v2Abi.PairCreated,
-    fromBlock: v2.startBlock,
-    processor: (logs: any[]) => {
-      pairLogs.push(...logs);
-    },
+    abi: v2Abi.allPairsLength,
   });
+  const pairCount = Number(toBigInt(pairCountResult));
 
-  const pairs = pairLogs.map((log: any) => log.pair as string);
+  if (pairCount === 0) return { pairs: [], pairMeta: {} };
+
+  const pairCalls = Array.from({ length: pairCount }, (_, index) => ({
+    target: v2.nadFunFactory,
+    params: [index],
+  }));
+  const pairs = (
+    await options.api.multiCall({
+      abi: v2Abi.allPairs,
+      calls: pairCalls,
+    })
+  ).map((pair: string) => pair.toLowerCase());
   const pairMeta: Record<string, V2PairMeta> = {};
 
-  pairLogs.forEach((log: any) => {
-    const pair = (log.pair as string).toLowerCase();
-    const token0 = log.token0 as string;
-    const token1 = log.token1 as string;
+  const [token0s, token1s, configs] = await Promise.all([
+    options.api.multiCall({
+      abi: v2Abi.token0,
+      calls: pairs,
+      permitFailure: true,
+    }),
+    options.api.multiCall({
+      abi: v2Abi.token1,
+      calls: pairs,
+      permitFailure: true,
+    }),
+    options.api.multiCall({
+      target: v2.feeCollector,
+      abi: v2Abi.getFeeConfig,
+      calls: pairs.map((pair: string) => ({ params: [pair] })),
+      permitFailure: true,
+    }),
+  ]);
+
+  pairs.forEach((pair: string, index: number) => {
+    const token0 = token0s[index] as string | undefined;
+    const token1 = token1s[index] as string | undefined;
+    if (!token0 || !token1) {
+      throw new Error(`Missing token metadata for NadFunPair ${pair}`);
+    }
     const knownQuoteToken = [token0, token1].find((token) =>
       monEquivalentQuoteTokens.has(token.toLowerCase()),
     );
+    const config = configs[index];
 
     pairMeta[pair] = {
       token0,
       token1,
-      quoteToken: knownQuoteToken,
-    };
-  });
-
-  if (pairs.length === 0) return { pairs, pairMeta };
-
-  const configs = await options.api.multiCall({
-    target: v2.feeCollector,
-    abi: v2Abi.getFeeConfig,
-    calls: pairs.map((pair: string) => ({ params: [pair] })),
-    permitFailure: true,
-  });
-
-  configs.forEach((config: any, index: number) => {
-    if (!config) return;
-    const pair = pairs[index].toLowerCase();
-    pairMeta[pair] = {
-      ...pairMeta[pair],
-      quoteToken: config.quoteToken,
-      creatorFeeRate: Number(config.creatorFeeRate),
-      curveProtocolFeeRate: Number(config.curveProtocolFeeRate),
-      dexProtocolFeeRate: Number(config.dexProtocolFeeRate),
+      quoteToken: config?.quoteToken ?? knownQuoteToken,
+      creatorFeeRate:
+        config?.creatorFeeRate === undefined
+          ? undefined
+          : Number(config.creatorFeeRate),
+      curveProtocolFeeRate:
+        config?.curveProtocolFeeRate === undefined
+          ? undefined
+          : Number(config.curveProtocolFeeRate),
+      dexProtocolFeeRate:
+        config?.dexProtocolFeeRate === undefined
+          ? undefined
+          : Number(config.dexProtocolFeeRate),
     };
   });
 
@@ -392,37 +453,37 @@ async function addV2ProtocolTransfers(
 ) {
   if (!quoteTokens.length) return;
 
-  const logsByToken = await options.getLogs({
+  const quoteTokenSet = new Set(quoteTokens.map((token) => token.toLowerCase()));
+  const logs = await getLogsInBlockChunks(options, {
     targets: quoteTokens,
-    flatten: false,
-    noTarget: true,
     eventAbi: v2Abi.Transfer,
     topics: [
       transferTopic,
       toTopicAddress(source),
       toTopicAddress(feeReceiver),
     ],
+    entireLog: true,
+    parseLog: true,
   });
 
-  logsByToken.forEach((logs: any[], index: number) => {
-    const quoteToken = quoteTokens[index];
-    logs.forEach((rawLog) => {
-      const log = logArgs<{ value: string | number | bigint }>(rawLog);
+  logs.forEach((rawLog) => {
+    const quoteToken = (rawLog.address ?? rawLog.source)?.toLowerCase();
+    if (!quoteTokenSet.has(quoteToken)) return;
+    const log = logArgs<{ value: string | number | bigint }>(rawLog);
+    addQuoteBalance(
+      revenueBalances,
+      quoteToken,
+      log.value,
+      metrics.V2ProtocolFees,
+    );
+    if (feeBalances) {
       addQuoteBalance(
-        revenueBalances,
+        feeBalances,
         quoteToken,
         log.value,
         metrics.V2ProtocolFees,
       );
-      if (feeBalances) {
-        addQuoteBalance(
-          feeBalances,
-          quoteToken,
-          log.value,
-          metrics.V2ProtocolFees,
-        );
-      }
-    });
+    }
   });
 }
 
@@ -452,17 +513,17 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
 
   const [curveBuyLogs, curveSellLogs, collectLogs, { pairs, pairMeta }] =
     await Promise.all([
-      options.getLogs({
+      getLogsInBlockChunks(options, {
         target: v2.bondingCurve,
         eventAbi: v2Abi.Buy,
         onlyArgs: false,
       }),
-      options.getLogs({
+      getLogsInBlockChunks(options, {
         target: v2.bondingCurve,
         eventAbi: v2Abi.Sell,
         onlyArgs: false,
       }),
-      options.getLogs({
+      getLogsInBlockChunks(options, {
         target: v2.feeCollector,
         eventAbi: v2Abi.Collect,
         onlyArgs: false,
@@ -556,57 +617,62 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
   });
 
   if (pairs.length > 0) {
-    await options.streamLogs({
-      targets: pairs,
-      eventAbi: v2Abi.Swap,
-      entireLog: true,
-      targetsFilter: pairs,
-      processor: (logs: any[]) => {
-        logs.forEach((rawLog) => {
-          const pair = rawLog.address.toLowerCase();
-          const meta = pairMeta[pair];
-          if (!meta?.quoteToken) {
-            throw new Error(
-              `Missing quoteToken for NadFunPair ${pair}: ${JSON.stringify(meta ?? null)}`,
-            );
-          }
-
-          const quoteIsToken0 =
-            meta.quoteToken.toLowerCase() === meta.token0.toLowerCase();
-          const log = logArgs<{
-            amount0In: string | number | bigint;
-            amount1In: string | number | bigint;
-            amount0Out: string | number | bigint;
-            amount1Out: string | number | bigint;
-          }>(rawLog);
-
-          const quoteIn = quoteIsToken0
-            ? toBigInt(log.amount0In)
-            : toBigInt(log.amount1In);
-          const quoteOut = quoteIsToken0
-            ? toBigInt(log.amount0Out)
-            : toBigInt(log.amount1Out);
-          const quoteVolume = quoteIn + quoteOut;
-          const lpFee = mulBps(quoteVolume, 25n); // NadFunPair LP_FEE_RATE = 0.25%
-          const protocolLpFee = lpFee / 5n; // _mintFee captures 1/5 of LP fees
-          const supplySideLpFee = lpFee - protocolLpFee;
-
-          addQuoteBalance(dailyVolume, meta.quoteToken, quoteVolume);
-          addQuoteBalance(dailyFees, meta.quoteToken, lpFee, metrics.V2LpFees);
-          addQuoteBalance(
-            dailyRevenue,
-            meta.quoteToken,
-            protocolLpFee,
-            metrics.V2ProtocolFees,
-          );
-          addQuoteBalance(
-            dailySupplySideRevenue,
-            meta.quoteToken,
-            supplySideLpFee,
-            metrics.V2LpFees,
-          );
-        });
+    const pairSet = new Set(pairs);
+    const swapLogs = await getLogsInBlockChunks(
+      options,
+      {
+        noTarget: true,
+        eventAbi: v2Abi.Swap,
+        topics: [swapTopic],
+        entireLog: true,
+        parseLog: true,
       },
+    );
+
+    swapLogs.forEach((rawLog) => {
+      const pair = (rawLog.address ?? rawLog.source)?.toLowerCase();
+      if (!pairSet.has(pair)) return;
+      const meta = pairMeta[pair];
+      if (!meta?.quoteToken || !meta.token0 || !meta.token1) {
+        throw new Error(
+          `Missing metadata for NadFunPair ${pair}: ${JSON.stringify(meta ?? null)}`,
+        );
+      }
+
+      const quoteIsToken0 =
+        meta.quoteToken!.toLowerCase() === meta.token0.toLowerCase();
+      const log = logArgs<{
+        amount0In: string | number | bigint;
+        amount1In: string | number | bigint;
+        amount0Out: string | number | bigint;
+        amount1Out: string | number | bigint;
+      }>(rawLog);
+
+      const quoteIn = quoteIsToken0
+        ? toBigInt(log.amount0In)
+        : toBigInt(log.amount1In);
+      const quoteOut = quoteIsToken0
+        ? toBigInt(log.amount0Out)
+        : toBigInt(log.amount1Out);
+      const quoteVolume = quoteIn + quoteOut;
+      const lpFee = mulBps(quoteVolume, 25n); // NadFunPair LP_FEE_RATE = 0.25%
+      const protocolLpFee = lpFee / 5n; // _mintFee captures 1/5 of LP fees
+      const supplySideLpFee = lpFee - protocolLpFee;
+
+      addQuoteBalance(dailyVolume, meta.quoteToken, quoteVolume);
+      addQuoteBalance(dailyFees, meta.quoteToken, lpFee, metrics.V2LpFees);
+      addQuoteBalance(
+        dailyRevenue,
+        meta.quoteToken,
+        protocolLpFee,
+        metrics.V2ProtocolFees,
+      );
+      addQuoteBalance(
+        dailySupplySideRevenue,
+        meta.quoteToken,
+        supplySideLpFee,
+        metrics.V2LpFees,
+      );
     });
   }
 
