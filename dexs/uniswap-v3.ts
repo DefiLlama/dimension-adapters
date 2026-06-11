@@ -53,6 +53,42 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.POLYGON]: "2026-06-02",
 }
 
+const FIREPIT : Record<string, string> = {
+  [CHAIN.ETHEREUM]: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721',
+  [CHAIN.UNICHAIN]: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB',
+  [CHAIN.WC]: '0x455e844D286631566cF98D6cb2996149734618C6',
+  [CHAIN.CELO]: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25',
+  [CHAIN.ZORA]: '0x2f98eD4D04e633169FbC941BFCc54E785853b143',
+  [CHAIN.XLAYER]: '0xe122E231cb52aea99690963Fd73E91e33E97468f',
+  [CHAIN.ARBITRUM]: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427',
+  [CHAIN.OPTIMISM]: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD',
+  [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
+  [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+  [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+}
+
+const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
+const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)'
+
+async function fetchHoldersRevenue(options: FetchOptions) {
+  const dailyHoldersRevenue = options.createBalances()
+  const firepit = FIREPIT[options.chain]
+  if (!firepit || !FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) {
+    return dailyHoldersRevenue
+  }
+
+  const [releaseLogs, threshold] = await Promise.all([
+    options.getLogs({ target: firepit, eventAbi: RELEASED_EVENT_ABI }),
+    options.api.call({ target: firepit, abi: THRESHOLD_FUNCTION_ABI }),
+  ])
+
+  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
+
+  const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
+  dailyHoldersRevenue.addCGToken("uniswap", amount)
+  return dailyHoldersRevenue
+}
+
 const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
@@ -94,6 +130,7 @@ const fetchFromOku = async (options: FetchOptions) => {
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
     const dailyRevenue = dailyFees * getRevenueShare(dailyFees, options);
+    const dailyHoldersRevenue = await fetchHoldersRevenue(options);
     return {
       dailyVolume,
       dailyFees,
@@ -101,7 +138,7 @@ const fetchFromOku = async (options: FetchOptions) => {
       dailySupplySideRevenue: dailyFees - dailyRevenue,
       dailyRevenue,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: dailyRevenue,
+      dailyHoldersRevenue,
     }
   } catch (e) {
     console.error(options.chain, e)
@@ -272,7 +309,8 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
     })
   })
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue }
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options)
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue }
 }
 
 function getRevenueShare(fee: number, options: FetchOptions): number {
@@ -358,6 +396,7 @@ async function fetchDune(options: FetchOptions) {
 
   const dailySupplySideRevenue = dailyFees.clone()
   dailySupplySideRevenue.subtract(dailyRevenue)
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options)
   return {
     dailyVolume,
     dailyFees,
@@ -365,7 +404,7 @@ async function fetchDune(options: FetchOptions) {
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyHoldersRevenue,
   }
 }
 
