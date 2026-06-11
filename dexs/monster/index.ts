@@ -34,7 +34,7 @@ const fetch = async (options: FetchOptions) => {
   for (const log of playLogs) {
     const cost = log.costPaid;
     dailyVolume.add(USDM, cost);
-    dailyFees.add(USDM, cost);
+    dailyFees.add(USDM, cost, 'Gacha Play Spends - On-Chain');
   }
 
   const transferLogs = await options.getLogs({
@@ -48,7 +48,7 @@ const fetch = async (options: FetchOptions) => {
   for (const log of transferLogs) {
     const to = String(log.to).toLowerCase();
     if (to === TREASURY.toLowerCase()) continue;
-    dailyFees.subtractToken(USDM, log.value);
+    dailyFees.subtractToken(USDM, log.value, 'Card Buyback Spends');
   }
 
   return {
@@ -61,7 +61,8 @@ const fetch = async (options: FetchOptions) => {
 
 const fetchOffchain = async (options: FetchOptions) => {
   const baseApi = new ChainApi({ chain: CHAIN.BASE });
-  const dailyFees = baseApi.getBalancesV2();
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   const transferLogs = await baseApi.getLogs({
     fromTimestamp: options.fromTimestamp,
@@ -76,11 +77,12 @@ const fetchOffchain = async (options: FetchOptions) => {
   });
 
   for (const log of transferLogs) {
-    dailyFees.add(USDC, log.args.value);
+    dailyVolume.addUSDValue(Number(log.args.value) / 1e6);
+    dailyFees.addUSDValue(Number(log.args.value) / 1e6, 'Gacha Play Spends - Credit Card');
   }
 
   return {
-    dailyVolume: 0,
+    dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
@@ -93,6 +95,14 @@ const methodology = {
   Revenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
   ProtocolRevenue: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    'Gacha Play Spends On-Chain': 'USDm paid by users into the six Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.',
+    'Gacha Play Spends - Credit Card': 'Amount paid by users into the six Gacha contracts when calling play() via credit card.',
+    'Card Buyback Spends': 'USDm spent by the protocol to buy back cards.',
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -109,6 +119,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
