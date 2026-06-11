@@ -92,6 +92,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "hbank-perps": {
+    addresses: ["0x0ca900e83d99a55206873fbf5b872453b032d970"],
+    start: "2026-04-14",
+    methodology: {
+      Fees: "Trading fees paid by users for perps via HBANK.",
+      Revenue: "Builder code fees collected by HBANK from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder code fees collected by HBANK from Hyperliquid Perps.",
+    },
+    breakdownFees: true,
+  },
   "based-app": {
     addresses: ["0x1924b8561eef20e70ede628a296175d358be80e5"],
     start: "2025-07-08",
