@@ -13,7 +13,7 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder }: { optio
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
   }
 
-  return { dailyVolume: volume.volume };
+  return { dailyNotionalVolume: volume.volume };
 };
 
 
