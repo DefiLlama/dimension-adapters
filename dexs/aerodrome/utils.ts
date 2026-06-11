@@ -27,7 +27,7 @@ import * as sdk from '@defillama/sdk';
 //   4. tradesFrom   - 'YYYY-MM-DD' (UTC) of the first day DefiLlama prices the
 //                     token reliably, i.e. the day after launch. Before this date
 //                     bribes use `conversionRate`; on/after it they use spot.
-export const PRE_LAUNCH_TOKEN_PRICING = {
+export const PRE_LAUNCH_TOKEN_PRICING: any = {
   '0x11dc28d01984079b7efe7763b533e6ed9e3722b9': {
     decimals: 18,
     conversionRate: 1.5887,

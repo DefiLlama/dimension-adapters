@@ -246,16 +246,19 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     // BOTH be priced and added.  addOneToken would drop one side because it's
     // designed for per-swap calls (where exactly one side carries the fee), not for
     // the per-pool rollup we have here after summing input-side fees separately.
-    if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0)
-    if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1)
-    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0)
-    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1)
-    if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0)
-    if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1)
+    if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0, 'Token Swap Fees')
+    if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1, 'Token Swap Fees')
+    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0, 'Staked-LP Fees And Unstaked-LP Rake')
+    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1, 'Staked-LP Fees And Unstaked-LP Rake')
+    if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0, 'Unstaked-LP Fees')
+    if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Unstaked-LP Fees')
   })
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
 
+  dailyFees.add(dailyBribesRevenue, 'External Bribes Rewards')
+  dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
+  
   return {
     dailyVolume,
     dailyFees,
@@ -271,30 +274,29 @@ const methodology = {
   Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
   HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) − gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
   SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees − HoldersRevenue.",
-  BribesRevenue: "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Swap fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
+    'Token Swap Fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
+    'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   Revenue: {
-    'Staked-LP fees + unstaked-LP rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   HoldersRevenue: {
-    'Staked-LP fees + unstaked-LP rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   SupplySideRevenue: {
-    'Unstaked-LP fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
-  },
-  BribesRevenue: {
-    'External bribes': "Token deposits to a pool's BribeVotingReward contract that veAERO voters claim by voting for the pool's gauge.",
+    'Unstaked-LP Fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
   },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {

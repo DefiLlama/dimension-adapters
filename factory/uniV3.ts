@@ -50,9 +50,6 @@ const configs: Record<string, Record<string, any>> = {
   "linehub-v3": {
     [CHAIN.LINEA]: { factory: '0x6c379d538f2f7cb642851e154a8e572d63238df4' },
   },
-  "nile-exchange": {
-    [CHAIN.LINEA]: { factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42' },
-  },
   "nuri-exchange-v2": {
     [CHAIN.SCROLL]: { factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42' },
   },
