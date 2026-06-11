@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { ChainApi } from "@defillama/sdk";
 
 // MNSTR Gacha — MegaETH PROD
 const GACHA_STARTER = "0xdEa1D72f08D83e36946128603d4cD0A180A938A9";
@@ -11,6 +12,7 @@ const GACHA_ULTRA = "0xebB285B5cd4610D0f6dc538379A7027F02274ca2";
 const GACHA_CONTRACTS = [GACHA_STARTER, GACHA_GREAT, GACHA_ADVENTURE, GACHA_PREMIUM, GACHA_OUTLAW, GACHA_ULTRA];
 
 const USDM = "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7";
+const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 const PAYMENT_WALLET = "0x61fccfC0279B09c387608efF56Fd9187e61D2874";
 const TREASURY = "0x7Fc8d4b747dAc14b68bEe79d93C7130257c98a62";
 
@@ -57,6 +59,33 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const fetchOffchain = async (options: FetchOptions) => {
+  const baseApi = new ChainApi({ chain: CHAIN.BASE });
+  const dailyFees = baseApi.getBalancesV2();
+
+  const transferLogs = await baseApi.getLogs({
+    fromTimestamp: options.fromTimestamp,
+    toTimestamp: options.toTimestamp,
+    target: USDC,
+    eventAbi: TransferEvent,
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      null,
+      "0x000000000000000000000000" + PAYMENT_WALLET.slice(2).toLowerCase(),
+    ],
+  });
+
+  for (const log of transferLogs) {
+    dailyFees.add(USDC, log.args.value);
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+};
+
 const methodology = {
   Volume: "USDm paid by users into the six Gacha contracts when calling play(). Sourced from the costPaid field on GachaPlayed events.",
   Fees: "Net USDm retained by the protocol: gross play fees minus sellback payouts.",
@@ -68,9 +97,16 @@ const adapter: SimpleAdapter = {
   version: 2,
   allowNegativeValue: true,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.MEGAETH],
-  start: "2026-04-04",
+  adapter: {
+    [CHAIN.MEGAETH]: {
+      fetch,
+      start: "2026-04-04",
+    },
+    [CHAIN.OFF_CHAIN]: {
+      fetch: fetchOffchain,
+      start: "2026-06-01",
+    },
+  },
   methodology,
 };
 
