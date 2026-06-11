@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -31,6 +31,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.PROVENANCE],
   start: "2025-07-11",
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
