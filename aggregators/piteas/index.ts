@@ -3,7 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import { formatAddress } from "../../utils/utils";
 
 const PITEAS_ROUTER = "0x6BF228eb7F8ad948d37deD07E595EfddfaAF88A6";
-const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27";
+
+// Wrapped PLS — used to price native PLS swaps (srcToken/destToken may be zero address)
+const WPLS = "0xa1077a294dde1b09bb078844df40758a5d0f9a27";
 const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 const SWAP_EVENT =
@@ -15,7 +17,7 @@ const normalizeToken = (token: string): string => {
     address === "0x0000000000000000000000000000000000000000" ||
     address === formatAddress(NATIVE_TOKEN)
   ) {
-    return WPLS;
+    return formatAddress(WPLS);
   }
   return address;
 };
@@ -44,11 +46,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.PULSECHAIN]: {
-      start: "2023-07-07",
-    },
-  },
+  start: "2023-07-07",
+  chains: [CHAIN.PULSECHAIN],
   methodology,
 };
 
