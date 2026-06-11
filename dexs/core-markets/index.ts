@@ -5,6 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
+// Subgraph endpoint is dead, also the projects official website is dead.
 const endpoint = "https://api.studio.thegraph.com/query/62472/core-analytics-082/version/latest";
 
 const query = gql`
@@ -57,7 +58,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
-      start: async () => 236678,
+      start: "2024-03-01", // Dimension adapter is not mapped in defillama-server.
+      deadFrom : "2026-06-01" // No point mapping now, as the data source is not present.
     },
   },
 };
