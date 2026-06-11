@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BLAST]: {
       fetch,
       start: "2024-03-01", // Dimension adapter is not mapped in defillama-server.
-      deadFrom : "2026-06-10" // No point mapping now, as the data source is not present.
+      deadFrom : "2026-06-01" // No point mapping now, as the data source is not present.
     },
   },
 };
