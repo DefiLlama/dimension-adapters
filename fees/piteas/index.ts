@@ -7,21 +7,19 @@ import { addTokensReceived } from "../../helpers/token";
 const FEE_TREASURY = "0x31415995b2ffaDf05FE929fDB6a87FD18A2817dD";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const dailyFees = options.createBalances();
-
-  await addTokensReceived({
+  const fees = await addTokensReceived({
     options,
     target: FEE_TREASURY,
-    balances: dailyFees,
-    skipIndexer: true,
   });
+
+  const dailyFees = fees.clone(1, METRIC.SWAP_FEES)
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: options.createBalances(),
+    dailySupplySideRevenue: 0
   };
 };
 
