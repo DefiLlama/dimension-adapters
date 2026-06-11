@@ -13,6 +13,7 @@ export enum CHAIN {
   GALA = "gala",
   TARA = "tara",
   PROTON = "proton",
+  AFX = "afx",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
