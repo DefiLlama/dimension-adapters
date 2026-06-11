@@ -34,6 +34,7 @@ const DEFAULTS: any = {
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
   DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
+  DEBUG_BREAKDOWN_FEES: true,
 }
 
 export const ENV_KEYS = new Set([
