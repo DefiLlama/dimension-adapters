@@ -24,19 +24,17 @@ const fetch = async (options: FetchOptions) => {
   const targets = CONTRACTS[options.chain];
   if (!targets) return { dailyVolume };
 
-  for (const target of targets) {
-    const logs = await options.getLogs({ target, eventAbi: EVENT_SWAP_EXECUTED });
-    logs.forEach((log) => {
-      addOneToken({
-        balances: dailyVolume,
-        chain: options.chain,
-        token0: log.srcToken,
-        amount0: log.spentAmount,
-        token1: log.dstToken,
-        amount1: log.returnAmount,
-      });
+  const logs = await options.getLogs({ targets, eventAbi: EVENT_SWAP_EXECUTED });
+  logs.forEach((log) => {
+    addOneToken({
+      balances: dailyVolume,
+      chain: options.chain,
+      token0: log.srcToken,
+      amount0: log.spentAmount,
+      token1: log.dstToken,
+      amount1: log.returnAmount,
     });
-  }
+  });
 
   return { dailyVolume };
 };
