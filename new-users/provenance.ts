@@ -1,31 +1,43 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
 
-const ZONESCAN_BASE_URL = "https://zonescan.io/api/v1/stats/provenance/metrics";
-
+// using allium as source as explorer used in active users gives incorrect new users count
 const fetch = async (options: FetchOptions) => {
-  const since = new Date(options.startOfDay * 1000).toISOString();
-  const until = new Date((options.startOfDay + 86400) * 1000).toISOString();
+  const from = new Date(options.fromTimestamp * 1000).toISOString();
+  const to = new Date(options.toTimestamp * 1000).toISOString();
 
-  const response = await fetchURL(
-    `${ZONESCAN_BASE_URL}/new_accounts_24h?granularity=day&limit=1&since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`
-  );
+  const alliumQuery = `
+    WITH first_seen AS (
+        SELECT
+            SPLIT_PART(tx_acc_seq, '/', 1) AS user,
+            MIN(block_timestamp) AS first_seen_timestamp
+        FROM provenance.raw.transactions
+        WHERE block_timestamp < '${to}'
+          AND code = 0
+          AND tx_acc_seq IS NOT NULL
+        GROUP BY 1
+    )
+    SELECT COALESCE(count(*), 0) AS new_users
+    FROM first_seen
+    WHERE first_seen_timestamp >= '${from}'
+      AND first_seen_timestamp < '${to}'
+  `;
 
-  const users = response.data?.find((item: any) => item.timestamp?.startsWith(options.dateString));
-  if (!users || users.value == null) {
-    throw new Error(`No Provenance new accounts data found for ${options.dateString}`);
-  }
+  const alliumResult = await queryAllium(alliumQuery);
 
   return {
-    dailyNewUsers: Number(users.value),
-  };
-};
+    dailyNewUsers: alliumResult[0].new_users,
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.PROVENANCE],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  protocolType: ProtocolType.CHAIN,
   start: "2025-07-11",
 };
 
