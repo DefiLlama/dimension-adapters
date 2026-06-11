@@ -5,6 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const API = "https://pokeliquid.xyz/api/keeper";
 
+// https://www.pokeliquid.xyz/docs#fees
 // Fee distribution rates (from on-chain program):
 // Trading fees (2% open + 2% close): 50% LP, 25% insurance, 25% platform
 // Funding fees (hourly settlement):  70% LP, 20% insurance, 10% platform
