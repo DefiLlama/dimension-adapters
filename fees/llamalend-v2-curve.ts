@@ -5,9 +5,9 @@ const LABELS = {
   BorrowInterest: 'LlamaLend Borrow Interest',
   BorrowAdminFees: 'LlamaLend Borrow Admin Fees',
   AmmSwapFees: 'LlamaLend AMM Swap Fees',
-  LenderAndLpRevenue: 'LlamaLend Lender & LP Revenue',
+  BorrowInterestToLenders: 'LlamaLend Borrow Interest To Lenders',
+  AmmSwapFeesToLPs: 'LlamaLend AMM Swap Fees To LPs',
 };
-
 
 interface LlamaLendV2Factory {
   address: string;
@@ -43,19 +43,21 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const factory = LlamaLendV2Factories[options.chain];
-  const vaultCreatedEvents = await options.getLogs({
+  const fromBlock = await options.getFromBlock();
+  const vaultCreatedEvents = (await options.getLogs({
     eventAbi: EventNewVault,
     target: factory.address,
     fromBlock: factory.fromBlock,
     cacheInCloud: true,
-  });
+  })).filter((event: any) => Number(event.blockNumber) <= fromBlock);
   if (vaultCreatedEvents.length === 0) {
     return {
       dailyVolume,
       dailyFees,
-      dailySupplySideRevenue: dailyFees,
+      dailySupplySideRevenue,
       dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
     };
@@ -64,7 +66,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const ammFees = await options.api.multiCall({
     abi: 'uint256:fee',
     calls: vaultCreatedEvents.map((event: any) => event.amm),
-    permitFailure: true,
   });
 
   const coinCalls = [];
@@ -83,7 +84,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     collateral_token: event.collateral_token,
     borrowed_token: event.borrowed_token,
     amm: event.amm,
-    ammFee: ammFees[index] ? Number(ammFees[index]) / 1e18 : 0,
+    ammFee: Number(ammFees[index]) / 1e18,
     ammTokens: [ammCoins[index * 2], ammCoins[index * 2 + 1]],
   }));
 
@@ -102,63 +103,62 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const vaultPricePerShareBefore = await options.fromApi.multiCall({
     abi: 'uint256:pricePerShare',
     calls: markets.map(market => market.vault),
-    permitFailure: true,
   });
   const vaultPricePerShareAfter = await options.toApi.multiCall({
     abi: 'uint256:pricePerShare',
     calls: markets.map(market => market.vault),
-    permitFailure: true,
   });
   const vaultTotalAssetsBefore = await options.fromApi.multiCall({
     abi: 'uint256:totalAssets',
     calls: markets.map(market => market.vault),
-    permitFailure: true,
   });
   const vaultTotalAssetsAfter = await options.toApi.multiCall({
     abi: 'uint256:totalAssets',
     calls: markets.map(market => market.vault),
-    permitFailure: true,
   });
   const adminFeesBefore = await options.fromApi.multiCall({
     abi: 'uint256:admin_fees',
     calls: markets.map(market => market.controller),
-    permitFailure: true,
   });
   const adminFeesAfter = await options.toApi.multiCall({
     abi: 'uint256:admin_fees',
     calls: markets.map(market => market.controller),
-    permitFailure: true,
   });
 
   for (let i = 0; i < markets.length; i++) {
     const market = markets[i];
 
-    const pricePerShareBefore = vaultPricePerShareBefore[i] ?? 1e18;
-    const pricePerShareAfter = vaultPricePerShareAfter[i] ?? 1e18;
-    const totalAssetsBefore = vaultTotalAssetsBefore[i] ?? 0;
-    const totalAssetsAfter = vaultTotalAssetsAfter[i] ?? totalAssetsBefore;
+    const pricePerShareBefore = vaultPricePerShareBefore[i];
+    const pricePerShareAfter = vaultPricePerShareAfter[i];
+    const totalAssetsBefore = vaultTotalAssetsBefore[i];
+    const totalAssetsAfter = vaultTotalAssetsAfter[i];
+    const adminFeesStartRaw = adminFeesBefore[i];
+    const adminFeesEndRaw = adminFeesAfter[i];
 
-    const assetsForInterest = totalAssetsBefore > 0 ? totalAssetsBefore : totalAssetsAfter;
-    const lenderInterest = assetsForInterest > 0
+    const assetsForInterest = Number(totalAssetsBefore) > 0 ? totalAssetsBefore : totalAssetsAfter;
+    const lenderInterest = Number(assetsForInterest) > 0
       ? (Number(pricePerShareAfter) - Number(pricePerShareBefore)) * Number(assetsForInterest) / 1e18
       : 0;
 
-    const adminFeesStart = adminFeesBefore[i] ? BigInt(adminFeesBefore[i]) : 0n;
-    const adminFeesEnd = adminFeesAfter[i] ? BigInt(adminFeesAfter[i]) : 0n;
-    const adminFeesDelta = adminFeesEnd >= adminFeesStart ? adminFeesEnd - adminFeesStart : 0n;
+    const adminFeesStart = BigInt(adminFeesStartRaw);
+    const adminFeesEnd = BigInt(adminFeesEndRaw);
+    const adminFeesDelta = adminFeesEnd - adminFeesStart;
     const adminFeesCollected = (collectFeesEvents[i] ?? []).reduce(
       (sum: bigint, event: any) => sum + BigInt(event.amount),
       0n,
     );
     const borrowAdminRevenue = adminFeesDelta + adminFeesCollected;
 
-    if (borrowAdminRevenue > 0n) {
+    if (borrowAdminRevenue !== 0n) {
       dailyRevenue.add(market.borrowed_token, borrowAdminRevenue, LABELS.BorrowAdminFees);
     }
 
     const totalBorrowInterest = lenderInterest + Number(borrowAdminRevenue);
-    if (totalBorrowInterest > 0) {
+    if (totalBorrowInterest !== 0) {
       dailyFees.add(market.borrowed_token, totalBorrowInterest, LABELS.BorrowInterest);
+    }
+    if (lenderInterest !== 0) {
+      dailySupplySideRevenue.add(market.borrowed_token, lenderInterest, LABELS.BorrowInterestToLenders);
     }
 
     for (const event of swapEvents[i] ?? []) {
@@ -168,14 +168,10 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       dailyVolume.add(market.ammTokens[Number(event.sold_id)], volume);
       if (ammFee > 0) {
         dailyFees.add(market.ammTokens[Number(event.sold_id)], ammFee, LABELS.AmmSwapFees);
+        dailySupplySideRevenue.add(market.ammTokens[Number(event.sold_id)], ammFee, LABELS.AmmSwapFeesToLPs);
       }
     }
   }
-
-  const dailySupplySideRevenue = options.createBalances();
-  const tempBalance = dailyFees.clone();
-  tempBalance.subtract(dailyRevenue);
-  dailySupplySideRevenue.addBalances(tempBalance, LABELS.LenderAndLpRevenue);
 
   return {
     dailyVolume,
@@ -187,15 +183,20 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const methodology = {
+  Volume: "Token swap volume on LLAMMA liquidation AMMs during soft liquidations.",
   Fees: "Total borrow interest paid by borrowers plus AMM swap fees from LLAMMA liquidation AMMs.",
   Revenue: "Borrow admin fees accrued or collected by Curve DAO via per-market fee receivers.",
-  SupplySideRevenue: "Borrow interest to lenders plus AMM swap fees to LLAMMA LPs.",
+  SupplySideRevenue: "Borrow interest to vault depositors plus AMM swap fees to LLAMMA LPs.",
   ProtocolRevenue: "Borrow admin fees accrued or collected by Curve DAO via per-market fee receivers.",
+  HoldersRevenue: "Not applicable — protocol fees route to Curve DAO fee receivers, not CRV token holders.",
+  NotionalVolume: "Not applicable — lending protocol with no derivatives notional volume.",
+  PremiumVolume: "Not applicable — lending protocol with no options premium volume.",
+  OpenInterest: "Not applicable — lending protocol with no derivatives open interest.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.BorrowInterest]: 'Interest paid by borrowers: lender vault accrual plus admin fees accrued on controllers.',
+    [LABELS.BorrowInterest]: 'Net borrow interest from vault pricePerShare accrual plus admin fee changes; can be negative when share price drops.',
     [LABELS.AmmSwapFees]: 'Swap fees from LLAMMA soft-liquidation AMMs. v2 AMMs have no admin fee split; fees go to LPs.',
   },
   Revenue: {
@@ -205,13 +206,15 @@ const breakdownMethodology = {
     [LABELS.BorrowAdminFees]: 'Admin share of borrow interest routed to the market fee receiver (Curve DAO by default).',
   },
   SupplySideRevenue: {
-    [LABELS.LenderAndLpRevenue]: 'Borrow interest to vault depositors plus AMM swap fees to LLAMMA LPs.',
+    [LABELS.BorrowInterestToLenders]: 'Net borrow interest to vault depositors (lenders); can be negative when share price drops.',
+    [LABELS.AmmSwapFeesToLPs]: 'AMM swap fees distributed to LLAMMA liquidity providers.',
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: false,
+  allowNegativeValue: true, // vault pricePerShare can decrease during market stress, producing negative lender accrual
   fetch,
   adapter: LlamaLendV2Factories,
   methodology,
