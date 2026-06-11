@@ -464,6 +464,20 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
+  "hyperbeat-liquidbank-perps": {
+    // Hyperbeat Liquid Bank builder code on Hyperliquid (lowercased to match HL's
+    // builder_fills files). Source: Hyperbeat; docs https://docs.hyperbeat.org
+    addresses: ["0xcab561b82f58ca7104105f52e5563a83a948252c"],
+    // start = first day with builder fills for this code, verified against HL's
+    // stats-data.hyperliquid.xyz builder_fills endpoint.
+    start: "2026-02-09",
+    methodology: {
+      Fees: "Builder code fees paid by users for trades routed to Hyperliquid through Hyperbeat.",
+      Revenue: "Builder code fees collected by Hyperbeat from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Hyperbeat from Hyperliquid trades.",
+    },
+    breakdownFees: true,
+  },
 };
 
 
