@@ -88,7 +88,9 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
   const dailyFees = options.createBalances();
 
   if (version === "v2") {
-    // amount = price * times (full play price, 100% goes to clawFinanceWallet)
+    // Full play price (price * times) — gross amount users pay per pull.
+    // swapValue is set independently by NFT depositors (60–610% of price), so there is no
+    // fixed fee %. Instead, SWAP refunds are tracked as supply-side revenue in the main fetch.
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV2Abi.played,
@@ -100,10 +102,10 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, log.args.amount, "Claw Machine Fees");
+      dailyFees.add(token, log.args.amount, "Claw Machine Plays");
     }
   } else {
-    // V1: commission field = protocol's take per play
+    // V1: commission field = protocol's take per play (explicit on-chain fee)
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV1Abi.played,
@@ -115,7 +117,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       const token = machineToToken.get(machine);
       if (!token) continue;
 
-      dailyFees.add(token, log.args.commission, "Claw Machine Fees");
+      dailyFees.add(token, log.args.commission, "Claw Machine Plays");
     }
   }
 
@@ -168,40 +170,47 @@ const fetch = async (options: FetchOptions) => {
   const claw = await fetchClawFees(options, clawMachines, chainConfig.version);
   const bids = await fetchBidRouterVolume(options, chainConfig.bidRouter);
 
-  // BidRouter takes 6% on every sale
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(claw.dailyFees, "Claw Machine Fees");
-  dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
-  dailyFees.addBalances(bids.marketplaceVolume.clone(0.06), "Marketplace Fees");
+  const dailySupplySideRevenue = options.createBalances();
+
+  // Claw: full play price users paid
+  dailyFees.addBalances(claw.dailyFees);
+
+  // Marketplace: full buyer payment; 94% flows to sellers (supply side), 6% to Beezie
+  dailyFees.addBalances(bids.marketplaceVolume, "Marketplace Volume");
+  dailySupplySideRevenue.addBalances(bids.marketplaceVolume.clone(0.94), "Seller Proceeds");
+
+  // SWAP-backs: CLAW_MANAGERs fund refunds from play proceeds; 94% flows back to users
+  // BidRouter 6% is implicitly captured in net revenue — no separate line needed
+  dailySupplySideRevenue.addBalances(bids.swapVolume.clone(0.94), "SWAP Refunds");
+
+  // dailyRevenue = dailyFees - dailySupplySideRevenue (can be negative on SWAP-heavy days)
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailySupplySideRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
-  Fees: "What users pay to Beezie: the full price per claw machine pull, plus 6% on every BidRouter swap and marketplace sale.",
-  Revenue: "Beezie keeps 100% of all fees — no share goes to sellers, creators, or LPs.",
-  ProtocolRevenue: "All revenue goes to the Beezie treasury.",
+  Fees: "Full play price per claw pull plus full buyer payment on marketplace sales — the gross USDC Beezie collects.",
+  SupplySideRevenue: "94% of the SWAP buyback value refunded to users who swap a won card back, plus 94% of sale price paid to marketplace sellers.",
+  Revenue: "Beezie's net take: gross plays minus SWAP refunds, plus 6% on marketplace sales. Can be negative on SWAP-heavy days.",
+  ProtocolRevenue: "All net revenue goes to Beezie treasury.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Claw Machine Fees": "Full play price paid per pull — sent entirely to Beezie's clawFinanceWallet (V1: on-chain commission field; V2: full price * times)",
-    "Swap Fees": "6% of the buyback value when a user swaps a won item back through BidRouter",
-    "Marketplace Fees": "6% on every P2P collectible sale through BidRouter",
+    "Claw Machine Plays": "Full price × times per pull (V1: on-chain commission field; V2: Played.amount — gross USDC collected from players)",
+    "Marketplace Volume": "Full buyer payment on P2P collectible sales through BidRouter",
   },
-  Revenue: {
-    "Claw Machine Fees": "Full play price retained by Beezie",
-    "Swap Fees": "6% swap fee retained by Beezie",
-    "Marketplace Fees": "6% marketplace fee retained by Beezie",
-  },
-  ProtocolRevenue: {
-    "Claw Machine Fees": "Full play price to Beezie treasury",
-    "Swap Fees": "6% swap fee to Beezie treasury",
-    "Marketplace Fees": "6% marketplace fee to Beezie treasury",
+  SupplySideRevenue: {
+    "SWAP Refunds": "94% of swapValue refunded to users who swap a won card back within 15 mins (swapValue is the NFT depositor's market-value estimate, independent of play price)",
+    "Seller Proceeds": "94% of sale price paid to NFT sellers through BidRouter marketplace",
   },
 };
 
@@ -212,6 +221,7 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
+  allowNegativeValue: true,
   fetch,
   adapter: config,
 };
