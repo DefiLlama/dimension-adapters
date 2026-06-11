@@ -80,6 +80,7 @@ const fetchOffchain = async (options: FetchOptions) => {
   }
 
   return {
+    dailyVolume: 0,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
