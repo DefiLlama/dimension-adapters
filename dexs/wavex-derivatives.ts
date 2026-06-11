@@ -76,7 +76,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SONEIUM],
-  start: 1735286448,
+  start: '2024-12-27',
 };
 
 export default adapter;

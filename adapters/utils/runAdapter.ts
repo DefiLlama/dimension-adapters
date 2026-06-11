@@ -465,7 +465,7 @@ async function _runAdapter({
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
-    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
     if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;

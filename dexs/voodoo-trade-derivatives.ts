@@ -38,12 +38,10 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
-const startTimestamp = 1693997105;
-
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BASE],
-  start: startTimestamp,
+  start: '2023-09-06',
 }
 
 export default adapter;

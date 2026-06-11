@@ -4,21 +4,16 @@ import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
 export const analyticsEndpoint = "https://api.hegic.co/positions";
-export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
+export const HEGIC_HERGE_START = "2022-10-25"; // taken from the first purchased option
 
 const secondsInADay = 24 * 60 * 60;
-
-/** Returns the earliest timestamp for which the data are available */
-export async function getEarliestAvailableTimestamp() {
-  return HEGIC_HERGE_START + secondsInADay;
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       runAtCurrTime: true,
       fetch: fetchArbitrumAnalyticsData,
-      start: getEarliestAvailableTimestamp,
+      start: HEGIC_HERGE_START,
     },
   },
 };

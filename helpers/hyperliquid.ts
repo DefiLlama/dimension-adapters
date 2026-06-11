@@ -26,7 +26,7 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
  */
 // hl indexer only supports data from this date
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400;
-export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = 1776211200;
+export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = '2026-04-15';
 export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
 export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
 export const fetchBuilderCodeRevenue = async ({
@@ -728,7 +728,7 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
             
             // hl indexer sotre history snapshots
             const endpoint = getEnv("LLAMA_HL_INDEXER");
-            if (options.startOfDay >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
+            if (options.dateString >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
               try {
                 const response = await httpGet(`${endpoint}/v1/data/snapshot/validatorSummaries/${timestamp}`);
                 validators = response.data;

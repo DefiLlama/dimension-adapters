@@ -2,7 +2,6 @@ import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 import {
-  getEarliestAvailableTimestamp,
   analyticsEndpoint
 } from "../options/hegic";
 import fetchURL from "../utils/fetchURL";
@@ -67,7 +66,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: getEarliestAvailableTimestamp,
+      start: "2022-10-25",
     },
   },
 };

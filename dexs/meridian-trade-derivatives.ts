@@ -45,7 +45,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.BASE],
-    start: 1691829674,
+    start: '2023-08-12',
 }
 
 export default adapter;
