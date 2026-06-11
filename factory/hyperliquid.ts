@@ -439,6 +439,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Builder code fees collected by Hyperbeat from Hyperliquid trades.",
       ProtocolRevenue: "Builder code fees collected by Hyperbeat from Hyperliquid trades.",
     },
+    breakdownFees: true,
   },
 };
 
