@@ -170,7 +170,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: '2025-08-10', },
   },
   version: 2,
-  doublecounted: true,
 }
 
 export default adapter;
