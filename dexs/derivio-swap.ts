@@ -47,7 +47,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ERA],
-  start: 1698710400,
+  start: '2023-10-31',
 }
 
 export default adapter;

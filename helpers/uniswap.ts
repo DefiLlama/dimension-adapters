@@ -320,7 +320,7 @@ type UniV2Config = {
   voter?: string,
   maxPairSize?: number,
   customLogic?: any,
-  start?: number | string,
+  start?: string,
   blacklistedAddresses?: string[],
   userFeesRatio?: number,
   revenueRatio?: number,
@@ -346,8 +346,8 @@ type UniV3Config = {
   revenueRatio?: number,
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
-  start?: number | string,
-  deadFrom?: number | string,
+  start?: string,
+  deadFrom?: string,
   blacklistPools?: Array<string>,
   pools?: string[], // alternative to providing factory
 

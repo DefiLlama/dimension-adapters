@@ -36,7 +36,7 @@ enum DataSource {
 }
 
 interface BaseChainConfig {
-  start: number | string;
+  start: string;
   dataSource: DataSource;
 }
 

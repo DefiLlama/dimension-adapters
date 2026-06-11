@@ -39,7 +39,7 @@ export async function getSaddleVolume(options: FetchOptions, pools: string[]) {
 
 type SaddleConfig = {
   pools: string[],
-  start?: string|number,
+  start?: string,
 }
 
 

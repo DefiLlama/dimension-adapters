@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const endpoint = sdk.graph.modifyEndpoint('6eeKiwCJQECCwhE7doeoKCAqSK7VatCsv3piHomYzi6o')
@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BASE],
-  start: 1693997105,
+  start: '2023-09-06',
 }
 
 export default adapter;

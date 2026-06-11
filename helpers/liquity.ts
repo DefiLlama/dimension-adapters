@@ -97,7 +97,7 @@ type LiquityV2Config = {
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
   stabilityPoolRatio?: number;
   revenueRatio?: number;
-  start?: string | number;
+  start?: string;
 }
 
 

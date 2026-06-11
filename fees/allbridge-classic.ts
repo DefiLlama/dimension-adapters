@@ -16,25 +16,25 @@ const getFees = async (chainCode: string, fromDate: string, toDate: string): Pro
   return chainData?.feeCollected ?? 0;
 }
 
-const chainConfig: Record<string, { chainCode: string; start: number }> = {
-  [CHAIN.ETHEREUM]: { chainCode: "ETH", start: 1636761600 },
-  [CHAIN.BSC]: { chainCode: "BSC", start: 1636761600 },
-  [CHAIN.TERRA]: { chainCode: "TRA", start: 1639008000 },
-  [CHAIN.AURORA]: { chainCode: "AURO", start: 1639440000 },
-  [CHAIN.POLYGON]: { chainCode: "POL", start: 1636502400 },
-  [CHAIN.HECO]: { chainCode: "HECO", start: 1636761600 },
-  [CHAIN.CELO]: { chainCode: "CELO", start: 1636761600 },
-  [CHAIN.AVAX]: { chainCode: "AVA", start: 1636761600 },
-  [CHAIN.FANTOM]: { chainCode: "FTM", start: 1637452800 },
-  [CHAIN.FUSE]: { chainCode: "FUSE", start: 1640995200 },
-  [CHAIN.SOLANA]: { chainCode: "SOL", start: 1636502400 },
-  [CHAIN.NEAR]: { chainCode: "NEAR", start: 1643673600 },
-  [CHAIN.HARMONY]: { chainCode: "HRM", start: 1640995200 },
-  [CHAIN.TEZOS]: { chainCode: "TEZ", start: 1654387200 },
-  [CHAIN.KLAYTN]: { chainCode: "KLAY", start: 1660521600 },
-  [CHAIN.WAVES]: { chainCode: "WAVE", start: 1663200000 },
-  [CHAIN.STELLAR]: { chainCode: "XLM", start: 1672358400 },
-  [CHAIN.STACKS]: { chainCode: "STKS", start: 1690416000 },
+const chainConfig: Record<string, { chainCode: string; start: string; }> = {
+  [CHAIN.ETHEREUM]: { chainCode: "ETH", start: '2021-11-13' },
+  [CHAIN.BSC]: { chainCode: "BSC", start: '2021-11-13' },
+  [CHAIN.TERRA]: { chainCode: "TRA", start: '2021-12-09' },
+  [CHAIN.AURORA]: { chainCode: "AURO", start: '2021-12-14' },
+  [CHAIN.POLYGON]: { chainCode: "POL", start: '2021-11-10' },
+  [CHAIN.HECO]: { chainCode: "HECO", start: '2021-11-13' },
+  [CHAIN.CELO]: { chainCode: "CELO", start: '2021-11-13' },
+  [CHAIN.AVAX]: { chainCode: "AVA", start: '2021-11-13' },
+  [CHAIN.FANTOM]: { chainCode: "FTM", start: '2021-11-21' },
+  [CHAIN.FUSE]: { chainCode: "FUSE", start: '2022-01-01' },
+  [CHAIN.SOLANA]: { chainCode: "SOL", start: '2021-11-10' },
+  [CHAIN.NEAR]: { chainCode: "NEAR", start: '2022-02-01' },
+  [CHAIN.HARMONY]: { chainCode: "HRM", start: '2022-01-01' },
+  [CHAIN.TEZOS]: { chainCode: "TEZ", start: '2022-06-05' },
+  [CHAIN.KLAYTN]: { chainCode: "KLAY", start: '2022-08-15' },
+  [CHAIN.WAVES]: { chainCode: "WAVE", start: '2022-09-15' },
+  [CHAIN.STELLAR]: { chainCode: "XLM", start: '2022-12-30' },
+  [CHAIN.STACKS]: { chainCode: "STKS", start: '2023-07-27' },
 }
 
 const fetch = async (options: FetchOptions) => {
