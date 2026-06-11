@@ -8,9 +8,9 @@ const exchangeRateUpshiftAbi = "function latestAnswer() external view returns (i
 const getRateAbi = "function getRate() external view returns (uint256)";
 
 // Revenue-stream breakdown labels (Earn vaults grouped by how they're priced).
-const MORPHO_LABEL = "Morpho Curated Vaults";
-const LIQUID_LABEL = "Liquid Vaults";
-const RATE_LABEL = "Rate-priced Vaults";
+const MORPHO_LABEL = "Morpho Curated Vault Yields";
+const LIQUID_LABEL = "Liquid Vault Yields";
+const RATE_LABEL = "Rate-priced Vault Yields";
 
 interface IStandaloneVault {
   address: string;
@@ -145,13 +145,11 @@ const fetch = async (options: FetchOptions) => {
     const totalAssets = stdSupplies[i], rateBefore = stdBefore[i], rateAfter = stdAfter[i]
     if (totalAssets && rateBefore && rateAfter) {
       const growthRate = (rateAfter - rateBefore) / 1e8
-      if (growthRate > 0) {
-        const supplySideRevenue = (totalAssets / 1e18) * growthRate
-        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue
-        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, LIQUID_LABEL)
-        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, LIQUID_LABEL)
-        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, LIQUID_LABEL)
-      }
+      const supplySideRevenue = (totalAssets / 1e18) * growthRate
+      const protocolRevenue = Math.max(0, (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue)
+      dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, LIQUID_LABEL)
+      dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, LIQUID_LABEL)
+      dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, LIQUID_LABEL)
     }
   })
 
@@ -165,14 +163,12 @@ const fetch = async (options: FetchOptions) => {
     const totalSupply = rateSupplies[i], rb = rateBefore[i], ra = rateAfter[i]
     if (totalSupply && rb && ra) {
       const growthRate = (ra - rb) / 1e8 // change in base-asset (human) per share
-      if (growthRate > 0) {
-        const shares = totalSupply / 10 ** vault.shareDecimals
-        const supplySideRevenue = shares * growthRate // base-asset, human units
-        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue
-        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, RATE_LABEL)
-        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, RATE_LABEL)
-        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, RATE_LABEL)
-      }
+      const shares = totalSupply / 10 ** vault.shareDecimals
+      const supplySideRevenue = shares * growthRate // base-asset, human units
+      const protocolRevenue = Math.max(0, (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue)
+      dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue, RATE_LABEL)
+      dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue, RATE_LABEL)
+      dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue, RATE_LABEL)
     }
   })
 
@@ -213,6 +209,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-06-01',
+  allowNegativeValue: true,
 };
 
 export default adapter;
