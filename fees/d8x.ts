@@ -131,7 +131,7 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions): Pro
   // Remainder goes to LPs, brokers/partners and liquidators.
   Object.entries(feesByPoolId).forEach(([poolId, fees]) => {
     const supplySideFees = fees - (protocolRevenueByPoolId[Number(poolId)] ?? 0);
-    addPoolAmount(dailySupplySideRevenue, Number(poolId), Math.max(supplySideFees, 0), SUPPLY_SIDE_FEES);
+    addPoolAmount(dailySupplySideRevenue, Number(poolId), supplySideFees, SUPPLY_SIDE_FEES);
   });
 
   return {
