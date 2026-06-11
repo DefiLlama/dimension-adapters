@@ -1,11 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 const STATS_URL = "https://api.archer.exchange/v1/stats/dimensions";
 
 const fetch = async (options: FetchOptions) => {
-  const { newUsers } = await httpGet(
+  const { newUsers } = await fetchURL(
     `${STATS_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`
   );
 
