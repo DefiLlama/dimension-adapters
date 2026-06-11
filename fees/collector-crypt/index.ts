@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000];
+const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000, 2500];
 
 //https://dune.com/queries/7450765
 const TEAM_ADDRESSES = [
@@ -45,11 +45,12 @@ const fetch = async (options: FetchOptions) => {
         SUM(CASE WHEN amount / POWER(10, 6) = 80 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_80,
         SUM(CASE WHEN amount / POWER(10, 6) = 100 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_100,
         SUM(CASE WHEN amount / POWER(10, 6) = 250 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_250,
-        SUM(CASE WHEN amount / POWER(10, 6) = 1000 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_1000
+        SUM(CASE WHEN amount / POWER(10, 6) = 1000 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_1000,
+        SUM(CASE WHEN amount / POWER(10, 6) = 2500 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_2500
       FROM tokens_solana.transfers
       WHERE to_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3','96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s')
         AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND amount / power(10, 6) IN (25, 50, 75, 80, 100, 250, 1000)
+        AND amount / power(10, 6) IN (${GACHA_TIERS.map(tier => tier).join(', ')})
         AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
         AND TIME_RANGE
     ),
@@ -78,6 +79,7 @@ const fetch = async (options: FetchOptions) => {
       COALESCE(g.gacha_spend_100, 0) AS gacha_spend_100,
       COALESCE(g.gacha_spend_250, 0) AS gacha_spend_250,
       COALESCE(g.gacha_spend_1000, 0) AS gacha_spend_1000,
+      COALESCE(g.gacha_spend_2500, 0) AS gacha_spend_2500,
       COALESCE(f.inflow, 0) AS fees_royalty,
       COALESCE(b.buyback, 0) AS buyback
     FROM gacha_in g
@@ -126,6 +128,7 @@ const breakdownMethodology = {
     "Gacha $100 Pack Sales": "Gacha pack sales at $100.",
     "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
     "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
+    "Gacha $2500 Pack Sales": "Gacha pack sales at $2500.",
     "Royalty Fees": "Royalty fees from marketplace transactions.",
     "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
   },
@@ -137,6 +140,7 @@ const breakdownMethodology = {
     "Gacha $100 Pack Sales": "Gacha pack sales at $100.",
     "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
     "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
+    "Gacha $2500 Pack Sales": "Gacha pack sales at $2500.",
     "Royalty Fees": "Royalty fees from marketplace transactions.",
     "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
   },
