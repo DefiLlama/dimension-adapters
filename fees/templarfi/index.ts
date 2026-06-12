@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { nearViewCall } from "../../helpers/near";
+import { nearView } from "../../helpers/near";
 
 const REGISTRY = "v1.tmplr.near";
 const MS_PER_YEAR = 365 * 24 * 3600 * 1000;
@@ -12,7 +12,7 @@ async function listMarkets(): Promise<string[]> {
   let offset = 0;
   const count = 100;
   while (true) {
-    const batch: string[] = await nearViewCall(REGISTRY, "list_deployments", { offset, count });
+    const batch: string[] = await nearView(REGISTRY, "list_deployments", { offset, count });
     if (!Array.isArray(batch) || batch.length === 0) break;
     deployments.push(...batch);
     if (batch.length < count) break;
@@ -24,10 +24,10 @@ async function listMarkets(): Promise<string[]> {
 }
 
 async function marketInterest(market: string, fromMs: number, toMs: number): Promise<number> {
-  const len: number = await nearViewCall(market, "get_finalized_snapshots_len");
+  const len: number = await nearView(market, "get_finalized_snapshots_len");
   if (!len) return 0;
 
-  const snaps: any[] = await nearViewCall(market, "list_finalized_snapshots", {
+  const snaps: any[] = await nearView(market, "list_finalized_snapshots", {
     offset: Math.max(0, len - SNAPSHOT_PAGE),
     count: Math.min(SNAPSHOT_PAGE, len),
   });
@@ -60,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
 
   await Promise.all(
     markets.map(async (market) => {
-      const config = await nearViewCall(market, "get_configuration");
+      const config = await nearView(market, "get_configuration");
       const yieldWeights = config?.yield_weights;
       const decimals = config?.price_oracle_configuration?.borrow_asset_decimals;
       if (!yieldWeights || decimals === undefined) return;

@@ -18,7 +18,7 @@ let rpcCursor = 0;
  * @param args - Optional JSON-serializable arguments (default: {}).
  * @returns Parsed JSON result returned by the contract method.
  */
-export async function nearViewCall(account: string, method: string, args: any = {}): Promise<any> {
+export async function nearView(account: string, method: string, args: any = {}): Promise<any> {
   const payload = {
     jsonrpc: "2.0",
     id: "dimension-adapters",
