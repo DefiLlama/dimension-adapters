@@ -30,7 +30,9 @@ const fetch = async (options: FetchOptions) => {
   const tokenTaxes = createBalances()
   const supplySideRevenue = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools"}).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
+  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools" })
+    .then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
+    .catch(() => [])
   const poolsWithGaugesSet = new Set(poolsWithGauges)
   const InstantExitLogs = await getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
