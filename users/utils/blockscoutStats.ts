@@ -42,6 +42,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   kub: { chain: CHAIN.KUB, baseUrl: "https://www.kubscan.com", version: 1 },
   lightlink: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io", version: 2 },
   lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com", version: 2 },
+  lumia: { chain: CHAIN.LUMIA, baseUrl: "https://explorer.lumia.org", version: 2 },
   matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 },
   mode: { chain: CHAIN.MODE, baseUrl: "https://explorer.mode.network", version: 2 },
   neon: { chain: CHAIN.NEON, baseUrl: "https://neon.blockscout.com", version: 2 },
