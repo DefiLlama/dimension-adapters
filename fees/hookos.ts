@@ -1,13 +1,12 @@
 import { parseEther } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 const CONTRACTS = {
   BondingCurve: "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40",
   Arena: "0x9B3d636C27AD4CDEBFbE1F182B2b63F66Be7adE5",
   TokenFactory: "0x96c5E38362f86E52389E15a86247fB7326503c8d",
-  HookRegistry: "0xC062c550b4abcbE8fa50DF05Ea353864d0E01262",
+  HookRegistry: "0x64E3167b2B4eA1b8e3DdCaFe66a5b435BE7cD75f",
 };
 
 const swapAbi = "event Swap(address indexed token, address indexed trader, bool isBuy, uint256 ethAmount, uint256 tokenAmount, uint256 fee)";
@@ -28,9 +27,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: swapAbi,
   });
   for (const log of swapLogs) {
-    dailyFees.addGasToken(log.fee);
-    dailyProtocolRevenue.addGasToken(log.fee * 70n / 100n);
-    dailySupplySideRevenue.addGasToken(log.fee * 30n / 100n);
+    dailyFees.addGasToken(log.fee, 'Swap Fees');
+    dailyProtocolRevenue.addGasToken(log.fee * 70n / 100n, 'Swap Fees To Protocol');
+    dailySupplySideRevenue.addGasToken(log.fee * 30n / 100n, 'Swap Fees To Creators');
   }
 
   // Arena battle fees (5% of pot, all protocol)
@@ -39,8 +38,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: battleSettledAbi,
   });
   for (const log of battleLogs) {
-    dailyFees.addGasToken(log.protocolFee);
-    dailyProtocolRevenue.addGasToken(log.protocolFee);
+    dailyFees.addGasToken(log.protocolFee, 'Arena Battle Fees');
+    dailyProtocolRevenue.addGasToken(log.protocolFee, 'Arena Battle Fees To Protocol');
   }
 
   // Token launch fees (0.001 ETH each, all protocol)
@@ -49,8 +48,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: tokenCreatedAbi,
   });
   const launchFee = parseEther("0.001") * BigInt(launchLogs.length);
-  dailyFees.addGasToken(launchFee);
-  dailyProtocolRevenue.addGasToken(launchFee);
+  dailyFees.addGasToken(launchFee, 'Token Launch Fees');
+  dailyProtocolRevenue.addGasToken(launchFee, 'Token Launch Fees To Protocol');
 
   // Hook registration fees (0.01 ETH each, all protocol)
   const registryLogs = await getLogs({
@@ -58,8 +57,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: hookRegisteredAbi,
   });
   const regFee = parseEther("0.01") * BigInt(registryLogs.length);
-  dailyFees.addGasToken(regFee);
-  dailyProtocolRevenue.addGasToken(regFee);
+  dailyFees.addGasToken(regFee, 'Hook Registration Fees');
+  dailyProtocolRevenue.addGasToken(regFee, 'Hook Registration Fees To Protocol');
 
   return { dailyFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
@@ -70,12 +69,31 @@ const methodology = {
   SupplySideRevenue: "Creator earnings: 30% of bonding curve swap fees.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'Swap Fees': 'Bonding curve swap fees (1% of ETH volume).',
+    'Arena Battle Fees': '5% protocol fee on arena battle pots.',
+    'Token Launch Fees': '0.001 ETH flat fee per token launch.',
+    'Hook Registration Fees': '0.01 ETH flat fee per hook registration.',
+  },
+  Revenue: {
+    'Swap Fees To Protocol': '70% of bonding curve swap fees.',
+    'Arena Battle Fees To Protocol': '100% of arena battle fees.',
+    'Token Launch Fees To Protocol': '100% of token launch fees.',
+    'Hook Registration Fees To Protocol': '100% of hook registration fees.',
+  },
+  SupplySideRevenue: {
+    'Swap Fees To Creators': '30% of bonding curve swap fees to token creators.',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   start: "2024-06-01",
   chains: [CHAIN.BASE],
   methodology,
+  breakdownMethodology,
   pullHourly: true,
 };
 
