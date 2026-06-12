@@ -1,7 +1,14 @@
 import * as sdk from "@defillama/sdk";
+import { Balances } from "@defillama/sdk";
+import { AbiCoder, Interface } from "ethers";
+import { Row } from "@clickhouse/client";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
+import ADDRESSES from "./coreAssets.json";
+import getTxReceipts, { getTransactions } from "./getTxReceipts";
 import { getBlock } from "./getBlock";
+import { queryClickhouse } from "./indexer";
+import { httpPost } from "../utils/fetchURL";
 
 type TristeroMarginEscrowConfig = {
   address: string;
@@ -151,6 +158,76 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
     ],
   },
 } as const;
+
+export const ORDER_FILLED_EVENT = 'event OrderFilled(bytes32 indexed orderUUID,string orderType,address target,address filler,address srcAsset,address dstAsset,uint256 srcQuantity,uint256 dstQuantity)';
+export const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+export const TRISTERO_ROUTER_SCHEDULE = [
+  { address: '0x98888e2e040944cee3d7c8da22368aef18f5a3f4', start: '2025-12-01', end: '2026-01-14' },
+  { address: '0x90000069af5a354cf1dC438dEFbF8e0469d87F02', start: '2026-01-15', end: '2026-01-31' },
+  { address: '0x900000D231B9C5c2374415f0974C1F8a377757E9', start: '2026-02-01', end: '2026-02-28' },
+  { address: '0x4b000001c0be947f4238620f57cbd07421007f43', start: '2026-03-01', end: '2026-04-01' },
+  { address: '0x4d00000075eFB197178E05aeFF759c5c20d3F32d', start: '2026-04-02', end: '2026-04-14' },
+  { address: '0x4e00000193B7Ba7F9e6EB8019373d27e9F0Af80c', start: '2026-04-15' },
+] as const;
+
+export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
+  [CHAIN.ABSTRACT]: { start: "2025-08-18" },
+  [CHAIN.APECHAIN]: { start: "2025-08-18" },
+  [CHAIN.BERACHAIN]: { start: "2025-08-18" },
+  [CHAIN.BOB]: { start: "2025-08-18" },
+  [CHAIN.ETHEREUM]: { start: "2025-08-30" },
+  [CHAIN.ARBITRUM]: { start: "2025-08-18" },
+  [CHAIN.XDAI]: { start: "2025-08-18" },
+  [CHAIN.INK]: { start: "2025-11-27" },
+  [CHAIN.MANTLE]: { start: "2025-08-18" },
+  [CHAIN.MODE]: { start: "2025-08-18" },
+  [CHAIN.MONAD]: { start: "2025-11-24" },
+  [CHAIN.OPTIMISM]: { start: "2025-08-18" },
+  [CHAIN.BASE]: { start: "2025-08-18" },
+  [CHAIN.POLYGON]: { start: "2025-08-30" },
+  [CHAIN.RONIN]: { start: "2025-08-18" },
+  [CHAIN.SCROLL]: { start: "2025-08-18" },
+  [CHAIN.SONIC]: { start: "2025-08-18" },
+  [CHAIN.AVAX]: { start: "2025-08-18" },
+  [CHAIN.LINEA]: { start: "2025-09-20" },
+  [CHAIN.UNICHAIN]: { start: "2025-11-27" },
+};
+
+const TRISTERO_V3_ROUTER_CONFIGS: Record<string, { start: string; router: string }> = {
+  [CHAIN.ARBITRUM]: { start: "2026-05-21", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
+  [CHAIN.BASE]: { start: "2026-05-21", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
+};
+
+const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
+  base: ["https://mainnet.base.org"],
+};
+
+const WRAPPED_NATIVE_TOKENS: Record<string, string | undefined> = {
+  [CHAIN.APECHAIN]: ADDRESSES[CHAIN.APECHAIN]?.WAPE,
+  [CHAIN.AVAX]: ADDRESSES[CHAIN.AVAX]?.WAVAX,
+  [CHAIN.BERACHAIN]: ADDRESSES[CHAIN.BERACHAIN]?.WBERA,
+  [CHAIN.MANTLE]: ADDRESSES[CHAIN.MANTLE]?.WMNT,
+  [CHAIN.MONAD]: ADDRESSES[CHAIN.MONAD]?.WMON,
+  [CHAIN.RONIN]: ADDRESSES[CHAIN.RONIN]?.WRON,
+  [CHAIN.SONIC]: ADDRESSES[CHAIN.SONIC]?.wS,
+  [CHAIN.XDAI]: ADDRESSES[CHAIN.XDAI]?.WXDAI,
+};
+
+const ORDER_ROUTER_INTERFACE = new Interface([
+  "function send((address sender, (address srcAsset, address dstAsset, uint256 srcQuantity, uint256 dstQuantity, uint256 minQuantity, uint128 darkSalt) parameters, uint256 deadline, address target, address filler, string orderType, bytes customData) order, (uint256 nonce, bytes signature) payload, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb, uint256 minOut, (address vault, ((address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature) v)"
+]);
+const ESCROW_INTERFACE = new Interface([
+  "function close((uint128 positionId, uint256 sharesToClose, uint256 minOut, uint256 deadline, uint256 permit2Nonce) order, bytes signature, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb)"
+]);
+const ABI_CODER = AbiCoder.defaultAbiCoder();
+const ORDER_ROUTER_SEND_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction("send")?.selector.toLowerCase();
+
+export function getActiveRouters(date: string): string[] {
+  return TRISTERO_ROUTER_SCHEDULE
+    .filter((router) => date >= router.start && (!("end" in router) || !router.end || date <= router.end))
+    .map(({ address }) => address);
+}
 
 export function getTristeroMarginChains(): string[] {
   return Array.from(new Set([
@@ -726,4 +803,307 @@ export async function getOpenTristeroV3MarginPositions(
   });
 
   return candidates;
+}
+
+function topicAddress(address: string): string {
+  return `0x${address.toLowerCase().replace(/^0x/, "").padStart(64, "0")}`;
+}
+
+function topicToAddress(topic?: string): string {
+  return topic ? `0x${topic.slice(-40)}`.toLowerCase() : "";
+}
+
+function isNonZeroBytes32(value?: string): boolean {
+  if (!value || !/^0x[0-9a-fA-F]{64}$/.test(value)) return false;
+  return BigInt(value) > 0n;
+}
+
+function getReceiptTxHash(receipt: { hash?: string; transactionHash?: string; logs?: any[] }): string | undefined {
+  return receipt.transactionHash ?? receipt.hash ?? getLogTxHash(receipt.logs?.[0]);
+}
+
+function sumEscrowToFillerTransfers(
+  logs: readonly { address?: string; topics?: readonly string[]; data?: string }[],
+  loanAsset: string,
+  escrow: string,
+  filler: string,
+): bigint {
+  const escrowTopic = topicAddress(escrow);
+  let total = 0n;
+
+  logs.forEach((log) => {
+    const topics = log.topics ?? [];
+    if (
+      normalizeAddress(log.address) !== normalizeAddress(loanAsset)
+      || topics.length !== 3
+      || normalizeAddress(topics[0]) !== ERC20_TRANSFER_TOPIC
+      || normalizeAddress(topics[1]) !== escrowTopic
+      || topicToAddress(topics[2]) !== normalizeAddress(filler)
+      || !log.data
+      || !isNonZeroBytes32(log.data)
+    ) {
+      return;
+    }
+
+    total += BigInt(log.data);
+  });
+
+  return total;
+}
+
+async function getV3CloseReceipt(chain: string, txHash: string): Promise<any | null> {
+  for (const rpcUrl of V3_RECEIPT_RPC_FALLBACKS[chain] ?? []) {
+    try {
+      const payload = await httpPost(rpcUrl, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_getTransactionReceipt",
+        params: [txHash],
+      });
+      if (payload?.result) return payload.result;
+    } catch (error) {
+      sdk.log(`Tristero v3 fallback RPC ${rpcUrl} failed for ${txHash}: ${(error as Error).message}`);
+    }
+  }
+
+  return null;
+}
+
+export async function getV3CloseSettlements(
+  options: FetchOptions,
+  closedPositions: TristeroV3MarginPosition[],
+  cacheKey: string,
+): Promise<Map<string, bigint>> {
+  const settlementByPosition = new Map<string, bigint>();
+  const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
+  if (!txHashes.length) return settlementByPosition;
+
+  const receipts = await getTxReceipts(options.chain, txHashes, { cacheKey });
+  const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
+
+  closedPositions.forEach((position) => {
+    if (!position.closeTxHash) return;
+    const txHash = normalizeAddress(position.closeTxHash);
+    const positions = positionsByTxHash.get(txHash) ?? [];
+    positions.push(position);
+    positionsByTxHash.set(txHash, positions);
+  });
+
+  for (const [index, cachedReceipt] of receipts.entries()) {
+    const requestedTxHash = normalizeAddress(txHashes[index]);
+    const receipt = cachedReceipt ?? await getV3CloseReceipt(options.chain, requestedTxHash);
+    if (!receipt) {
+      const affectedPositions = (positionsByTxHash.get(requestedTxHash) ?? [])
+        .map(getV3PositionKey)
+        .join(", ") || "none";
+      throw new Error(`Missing Tristero v3 close receipt for ${options.chain} tx ${requestedTxHash}; affected positions: ${affectedPositions}`);
+    }
+
+    const txHash = normalizeAddress(getReceiptTxHash(receipt) ?? requestedTxHash);
+    const positions = positionsByTxHash.get(txHash);
+    if (!positions?.length) continue;
+    if (positions.length !== 1) {
+      throw new Error(`Ambiguous Tristero v3 close settlement for ${options.chain} tx ${txHash}: ${positions.length} positions share one receipt`);
+    }
+
+    const position = positions[0];
+    const closeFiller = normalizeAddress(position.closeFiller);
+    if (!closeFiller) {
+      throw new Error(`Missing Tristero v3 close filler for ${options.chain} position ${position.positionId} at ${position.escrow} tx ${txHash}`);
+    }
+
+    settlementByPosition.set(
+      getV3PositionKey(position),
+      sumEscrowToFillerTransfers(receipt.logs ?? [], position.loanAsset, position.escrow, closeFiller),
+    );
+  }
+
+  return settlementByPosition;
+}
+
+function normalizeVolumeToken(chain: string, tokenAddress?: string | null): string | null {
+  const normalized = tokenAddress?.toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized === '0x0000000000000000000000000000000000000000' || normalized === 'native') {
+    const wrappedToken = WRAPPED_NATIVE_TOKENS[chain] ?? (ADDRESSES as Record<string, { WETH?: string } | undefined>)[chain]?.WETH;
+    return wrappedToken?.toLowerCase() ?? null;
+  }
+
+  return normalized;
+}
+
+function decodeV3SendOrder(data?: string) {
+  if (!data || !ORDER_ROUTER_SEND_SELECTOR || !data.toLowerCase().startsWith(ORDER_ROUTER_SEND_SELECTOR)) return null;
+
+  try {
+    const parsed = ORDER_ROUTER_INTERFACE.parseTransaction({ data });
+    if (!parsed || parsed.name !== "send") return null;
+
+    const order = parsed.args.order;
+    return {
+      orderType: order.orderType,
+      srcToken: order.parameters.srcAsset,
+      srcQuantity: BigInt(order.parameters.srcQuantity),
+      customData: order.customData,
+    };
+  } catch (error) {
+    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to decode Tristero v3 router.send calldata ${calldataContext}: ${(error as Error).message}`);
+    throw error;
+  }
+}
+
+function decodeV3CloseOrder(data?: string): boolean {
+  if (!data) return false;
+
+  try {
+    const parsed = ESCROW_INTERFACE.parseTransaction({ data });
+    return parsed?.name === "close";
+  } catch (error) {
+    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to decode Tristero v3 escrow.close calldata ${calldataContext}: ${(error as Error).message}`);
+    throw error;
+  }
+}
+
+function decodeMarginLoan(order: { orderType: string; customData: string }) {
+  if (order.orderType.toUpperCase() !== "MARGIN" || !order.customData || order.customData === "0x") return null;
+
+  try {
+    const [loanAsset, loanQuantity] = ABI_CODER.decode(["address", "uint256", "uint256"], order.customData);
+    return { token: String(loanAsset), quantity: BigInt(loanQuantity) };
+  } catch (error) {
+    throw new Error(`Unable to decode Tristero v3 MARGIN customData: ${(error as Error).message}`);
+  }
+}
+
+function groupClosePositionsByTxHash(positions: TristeroV3MarginPosition[], closeTxHashes: Set<string>) {
+  const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
+
+  positions.forEach((position) => {
+    const txHash = normalizeAddress(position.closeTxHash);
+    if (!txHash || !closeTxHashes.has(txHash)) return;
+
+    const positionsForTx = positionsByTxHash.get(txHash) ?? [];
+    positionsForTx.push(position);
+    positionsByTxHash.set(txHash, positionsForTx);
+  });
+
+  return positionsByTxHash;
+}
+
+async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balances) {
+  const config = TRISTERO_V3_ROUTER_CONFIGS[options.chain];
+  if (!config || options.dateString < config.start) return;
+
+  const activeV3Escrows = getActiveTristeroV3MarginEscrows(options.chain, options.dateString);
+  const escrowAddresses = activeV3Escrows.map(({ address }) => address);
+  const closeLogs = escrowAddresses.length
+    ? await options.getLogs({ targets: escrowAddresses, eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed, entireLog: true })
+    : [];
+
+  const closeTxHashes = [...new Set(closeLogs.map(getLogTxHash).filter((txHash): txHash is string => !!txHash))];
+  if (!closeTxHashes.length) return;
+
+  const closePositionsByTxHash = groupClosePositionsByTxHash(
+    await getTristeroV3MarginPositions(options, activeV3Escrows, await options.getToBlock()),
+    new Set(closeTxHashes.map(normalizeAddress)),
+  );
+
+  const [closeTransactions, closeReceipts] = await Promise.all([
+    getTransactions(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
+    getTxReceipts(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
+  ]);
+
+  const txByHash = new Map(closeTransactions.filter((tx) => tx?.hash).map((tx) => [normalizeAddress(tx!.hash!), tx]));
+
+  closeTxHashes.forEach((txHash, index) => {
+    const receipt = closeReceipts[index];
+    if (!receipt) throw new Error(`Missing Tristero v3 close receipt for tx ${normalizeAddress(txHash)}`);
+
+    const receiptTxHash = normalizeAddress(getReceiptTxHash(receipt as any) ?? txHash);
+    const closePositions = closePositionsByTxHash.get(receiptTxHash);
+    if (!closePositions?.length) throw new Error(`Missing Tristero v3 close position state for tx ${receiptTxHash}`);
+    if (closePositions.length !== 1) {
+      throw new Error(`Ambiguous Tristero v3 close volume for tx ${receiptTxHash}: ${closePositions.length} positions share one receipt`);
+    }
+
+    const closePosition = closePositions[0];
+    const escrow = normalizeAddress(closePosition.escrow);
+    const tx = txByHash.get(receiptTxHash) as any;
+    if (!tx || normalizeAddress(tx.to) !== escrow || !decodeV3CloseOrder(tx.data ?? tx.input)) {
+      throw new Error(`Missing Tristero v3 close transaction data for ${escrow} tx ${receiptTxHash}`);
+    }
+
+    const closeFiller = normalizeAddress(closePosition.closeFiller);
+    if (!closeFiller) throw new Error(`Missing Tristero v3 close filler for ${escrow} tx ${receiptTxHash}`);
+
+    const amount = sumEscrowToFillerTransfers((receipt.logs ?? []) as any, closePosition.loanAsset, escrow, closeFiller);
+    if (amount > 0n) dailyVolume.add(normalizeAddress(closePosition.loanAsset), amount);
+  });
+}
+
+async function addV3RouterOpenVolume(options: FetchOptions, dailyVolume: Balances) {
+  const config = TRISTERO_V3_ROUTER_CONFIGS[options.chain];
+  if (!config || options.dateString < config.start || !ORDER_ROUTER_SEND_SELECTOR) return;
+
+  const txRows = await queryClickhouse<Row & { hash: string; input: string }>(`
+    SELECT hash, input
+    FROM evm_indexer.transactions
+    WHERE chain = {chain:UInt64}
+      AND to_address = {router:String}
+      AND startsWith(input, {selector:String})
+      AND status = 'success'
+      AND timestamp >= toDateTime({fromTs:UInt32})
+      AND timestamp < toDateTime({toTs:UInt32})
+  `, {
+    chain: Number(options.api.chainId),
+    router: config.router.toLowerCase(),
+    selector: ORDER_ROUTER_SEND_SELECTOR,
+    fromTs: options.fromTimestamp,
+    toTs: options.toTimestamp,
+  });
+
+  for (const row of txRows) {
+    const decodedOrder = decodeV3SendOrder(String(row.input));
+    if (!decodedOrder) continue;
+
+    const tokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
+    if (!tokenAddress) continue;
+
+    dailyVolume.add(tokenAddress, decodedOrder.srcQuantity);
+
+    const marginLoan = decodeMarginLoan(decodedOrder);
+    if (marginLoan?.quantity) {
+      const loanToken = normalizeVolumeToken(options.chain, marginLoan.token);
+      if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token in tx ${row.hash}`);
+      dailyVolume.add(loanToken, marginLoan.quantity);
+    }
+  }
+}
+
+export async function fetchDailyVolume(options: FetchOptions): Promise<Balances> {
+  const dailyVolume = options.createBalances();
+  const activeRouters = getActiveRouters(options.dateString);
+
+  if (activeRouters.length) {
+    const logsPerRouter = await Promise.all(
+      activeRouters.map((router) => options.getLogs({ target: router, eventAbi: ORDER_FILLED_EVENT, onlyArgs: true })),
+    );
+
+    logsPerRouter.flat().forEach((log: any) => {
+      if (!log.srcAsset || !log.srcQuantity) return;
+      const tokenAddress = normalizeVolumeToken(options.chain, log.srcAsset);
+      if (!tokenAddress) return;
+      dailyVolume.add(tokenAddress, log.srcQuantity);
+    });
+  }
+
+  await Promise.all([
+    addV3RouterOpenVolume(options, dailyVolume),
+    addV3MarginCloseVolume(options, dailyVolume),
+  ]);
+
+  return dailyVolume;
 }

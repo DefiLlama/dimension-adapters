@@ -1,9 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import retry from "async-retry";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
-import getTxReceipts from "../helpers/getTxReceipts";
 import { METRIC } from "../helpers/metrics";
-import { httpPost } from "../utils/fetchURL";
 import {
     getActiveTristeroMarginEscrows,
     getActiveTristeroV3MarginEscrows,
@@ -12,6 +10,7 @@ import {
     getTristeroV3MarginPositions,
     getTristeroV3MarginPositionSnapshots,
     getTristeroV3MarginReductions,
+    getV3CloseSettlements,
     getV3PositionKey as getPositionKey,
     permitFailureMultiCallWithFallback,
     getPositionIds,
@@ -24,12 +23,7 @@ import {
     TRISTERO_V3_MARGIN_ABI,
     type TristeroMarginPosition,
     type TristeroV3MarginPosition,
-} from "../helpers/tristeroMargin";
-
-const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
-    base: ["https://mainnet.base.org"],
-};
+} from "../helpers/tristero";
 
 const MARGIN_METRICS = {
     BORROW_INTEREST_TO_PROTOCOL: 'Borrow Interest To Protocol',
@@ -78,23 +72,6 @@ function addToPositionMap(map: Map<string, bigint>, positionRef: PositionRef, am
 function addToTokenMap(map: Map<string, bigint>, token: string, amount: bigint) {
     const key = token.toLowerCase();
     map.set(key, (map.get(key) ?? 0n) + amount);
-}
-
-function normalizeAddress(value?: string | null): string {
-    return value?.toLowerCase() ?? "";
-}
-
-function topicAddress(address: string): string {
-    return `0x${address.toLowerCase().replace(/^0x/, "").padStart(64, "0")}`;
-}
-
-function topicToAddress(topic?: string): string {
-    return topic ? `0x${topic.slice(-40)}`.toLowerCase() : "";
-}
-
-function isNonZeroBytes32(value?: string): boolean {
-    if (!value || !/^0x[0-9a-fA-F]{64}$/.test(value)) return false;
-    return BigInt(value) > 0n;
 }
 
 function formatErrorMessage(error: unknown): string {
@@ -219,93 +196,6 @@ function getV3ReductionRepayments(
     });
 
     return repayments;
-}
-
-async function getV3CloseRepayments(
-    options: FetchOptions,
-    closedPositions: TristeroV3MarginPosition[],
-): Promise<Map<string, bigint>> {
-    const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
-    const repaymentByPosition = new Map<string, bigint>();
-    if (!txHashes.length) return repaymentByPosition;
-
-    const receipts = await getTxReceipts(options.chain, txHashes, {
-        cacheKey: "tristero-v3-margin-close-fees",
-    });
-    const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
-    closedPositions.forEach((position) => {
-        if (!position.closeTxHash) return;
-        const txHash = position.closeTxHash.toLowerCase();
-        const positions = positionsByTxHash.get(txHash) ?? [];
-        positions.push(position);
-        positionsByTxHash.set(txHash, positions);
-    });
-
-    for (const [index, cachedReceipt] of receipts.entries()) {
-        const requestedTxHash = normalizeAddress(txHashes[index]);
-        const receipt = cachedReceipt ?? await getV3CloseReceipt(options.chain, requestedTxHash);
-        if (!receipt) {
-            const affectedPositions = (positionsByTxHash.get(requestedTxHash) ?? [])
-                .map(getPositionKey)
-                .join(", ") || "none";
-            throw new Error(`Missing Tristero v3 close receipt for ${options.chain} tx ${requestedTxHash}; affected positions: ${affectedPositions}`);
-        }
-
-        const txHash = normalizeAddress(receipt.transactionHash ?? receipt.hash);
-        if (!txHash) {
-            throw new Error(`Missing Tristero v3 close receipt transaction hash for ${options.chain} tx ${requestedTxHash}`);
-        }
-
-        const positions = positionsByTxHash.get(txHash);
-        if (!positions?.length) continue;
-        if (positions.length !== 1) {
-            throw new Error(`Ambiguous Tristero v3 close repayment attribution for ${options.chain} tx ${txHash}: ${positions.length} positions share one receipt`);
-        }
-
-        const position = positions[0];
-        if (!normalizeAddress(position.closeFiller)) {
-            throw new Error(`Missing Tristero v3 close filler for ${options.chain} position ${position.positionId} at ${position.escrow} tx ${txHash}`);
-        }
-
-        let repayment = 0n;
-        (receipt.logs ?? []).forEach((log: any) => {
-            const topics = log.topics ?? [];
-            if (
-                normalizeAddress(log.address) !== position.loanAsset
-                || topics.length !== 3
-                || normalizeAddress(topics[0]) !== ERC20_TRANSFER_TOPIC
-                || normalizeAddress(topics[1]) !== topicAddress(position.escrow)
-                || topicToAddress(topics[2]) !== normalizeAddress(position.closeFiller)
-                || !isNonZeroBytes32(log.data)
-            ) {
-                return;
-            }
-
-            repayment += BigInt(log.data);
-        });
-
-        repaymentByPosition.set(getPositionKey(position), repayment);
-    }
-
-    return repaymentByPosition;
-}
-
-async function getV3CloseReceipt(chain: string, txHash: string): Promise<any | null> {
-    for (const rpcUrl of V3_RECEIPT_RPC_FALLBACKS[chain] ?? []) {
-        try {
-            const payload = await httpPost(rpcUrl, {
-                jsonrpc: "2.0",
-                id: 1,
-                method: "eth_getTransactionReceipt",
-                params: [txHash],
-            });
-            if (payload?.result) return payload.result;
-        } catch (error) {
-            sdk.log(`Tristero v3 fallback RPC ${rpcUrl} failed for ${txHash}: ${(error as Error).message}`);
-        }
-    }
-
-    return null;
 }
 
 function flattenGroupedLogs(logGroups: any[][], escrows: string[]): any[] {
@@ -665,7 +555,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const [startLoanValues, endLoanValues, closeRepayments, reductions] = await Promise.all([
             readV3LoanValuesByPositionBlock(options, startPositionBlocks),
             readV3LoanValuesAtBlock(options, openV3Positions, toBlock),
-            getV3CloseRepayments(options, closedV3Positions),
+            getV3CloseSettlements(options, closedV3Positions, "tristero-v3-margin-close-fees"),
             getTristeroV3MarginReductions(options, v3Escrows, fromBlock, toBlock),
         ]);
         const reductionRepayments = getV3ReductionRepayments(reductions, startBlockByPosition, toBlock);

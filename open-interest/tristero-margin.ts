@@ -11,7 +11,7 @@ import {
     toBigIntOrNull,
     TRISTERO_MARGIN_ABI,
     TRISTERO_V3_MARGIN_ABI,
-} from "../helpers/tristeroMargin";
+} from "../helpers/tristero";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const openInterestAtEnd = options.createBalances();
