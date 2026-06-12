@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type TokenMinted = {
-  sender: string;
+  from: string;
   recipient: string;
   value: string; // Token
 };
@@ -39,7 +39,7 @@ async function fetch(options: FetchOptions) {
   });
 
   wagerLogsV2.map((log: TokenMinted) => {
-    if (log.sender !== USER_CONTRACT) {
+    if (log.from !== USER_CONTRACT) {
         const nativeAmount = BigInt(log.value);
         const feeAmount = (nativeAmount * BASE_FEE) / FEE_DENOM;
         const protocolRev = (feeAmount * BASE_REV_RATE) / FEE_DENOM;
