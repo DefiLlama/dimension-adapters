@@ -11,6 +11,7 @@ const fetch = async (options: FetchOptions) => {
     if (!Array.isArray(data?.result))
         throw new Error(`Conflux: API error for ${dateString}`);
     const entry = data.result.find((e: any) => e.UTCDate === dateString);
+    if (!entry) throw new Error(`Conflux: no new-address entry for ${dateString}`);
     return {
         dailyNewUsers: entry.newAddressCount,
     };
