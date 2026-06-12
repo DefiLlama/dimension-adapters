@@ -4,8 +4,12 @@ import { METRIC } from '../helpers/metrics';
 
 // Performance fee on borrower interest only (per-vault rate, read from AccrueInterest on stopEpoch) -> treasury; rest -> depositors. No buyback => no holders revenue. Owns every credit vault.
 // the legacy tranches/best-yield stay in fees/idle (same parent: parent#pareto).
+// Vaults are IdleCDOEpochVariant proxies, listed in the Pareto API (https://docs.pareto.credit/developers/api)
+// and labeled "Pareto: Credit Vault ..." on the explorers.
 const config: any = {
   [CHAIN.ETHEREUM]: {
+    // IdleCreditVaultFactory, verified on etherscan, deployed at block 22938055.
+    // Emits CreditVaultDeployed for every vault created after the four pre-factory vaults below.
     factory: { address: '0x59aabdad8fdabd227cc71543b128765f93906626', fromBlock: 22938055 },
     credits: [
       '0xf6223C567F21E33e859ED7A045773526E9E3c2D5', // Fasanara Yield
@@ -56,16 +60,15 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  // per-vault underlying (AccrueInterest amounts use its decimals)
-  const tokens = await api.multiCall({ abi: abis.token, calls: vaults, permitFailure: true });
+  // per-vault underlying (AccrueInterest amounts use its decimals); no permitFailure,
+  // a vault that cannot resolve token() should fail the run, not silently drop its fees
+  const tokens = await api.multiCall({ abi: abis.token, calls: vaults });
 
-  const logsPerVault = await Promise.all(
-    vaults.map((vault) => getLogs({ target: vault, eventAbi: abis.accrueInterest }))
-  );
+  // flatten: false keeps one log array per vault, aligned with tokens[i]
+  const logsPerVault = await getLogs({ targets: vaults, eventAbi: abis.accrueInterest, flatten: false });
 
   logsPerVault.forEach((logs: any[], i) => {
     const token = tokens[i];
-    if (!token) return;
     logs.forEach((log) => {
       const interest = BigInt(log.interest.toString());
       const fees = BigInt(log.fees.toString());
