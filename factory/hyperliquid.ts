@@ -132,6 +132,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder Code Fees collected by Phantom from Hyperliquid Perps.",
     },
   },
+  "perpflow": {
+    addresses: ["0x113f059d7a863fbca1ff60df5b1954dbec9f91dd"],
+    start: "2025-07-26",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Perpflow's delta-neutral position creator.",
+      Revenue: "Builder code revenue collected by Perpflow from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue collected by Perpflow from Hyperliquid Perps Trades.",
+    },
+  },
   "perpmate": {
     addresses: ["0xE4FEa748ECa48F44b1e042775F0C2363be1A2d80"],
     start: "2025-09-04",
