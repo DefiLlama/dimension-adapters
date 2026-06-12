@@ -26,7 +26,7 @@ async function fetch(options: FetchOptions) {
     const gasUsedToday = gasUsedData.result.find((e: any) => e.UTCDate === dateString);
     const gasPriceToday = gasPriceData.result.find((e: any) => e.UTCDate === dateString);
 
-    if (!feeToday || !gasUsedToday || !gasPriceToday) return { dailyFees, dailyRevenue };
+    if (!feeToday || !gasUsedToday || !gasPriceToday) throw new Error(`Conflux: no data for ${dateString}`);
 
     const totalFeesCFX = Number(feeToday.transactionFee_CFX);
     // Base fee equals the minimum observed gas price (Drip). Burned = gasUsed × baseFee / 1e18.
