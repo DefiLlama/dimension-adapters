@@ -20,6 +20,7 @@ const protocolChainMap: Record<string, string> = {
   "etherlink": CHAIN.ETHERLINK,
   "fantom": CHAIN.FANTOM,
   "flare": CHAIN.FLARE,
+  "flow": CHAIN.FLOW,
   "fuse": CHAIN.FUSE,
   "harmony": CHAIN.HARMONY,
   "hashkey": CHAIN.HASHKEY,
