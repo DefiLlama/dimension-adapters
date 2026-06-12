@@ -90,9 +90,6 @@ type TristeroV3TransferLog = {
   transactionHash?: string;
   transaction_hash?: string;
   txHash?: string;
-  logIndex?: string | number;
-  log_index?: string | number;
-  index?: string | number;
 };
 
 type TristeroV3DecodedOrder = {

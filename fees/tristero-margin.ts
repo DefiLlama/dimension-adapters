@@ -12,7 +12,7 @@ import {
     getTristeroV3MarginPositions,
     getTristeroV3MarginPositionSnapshots,
     getTristeroV3MarginReductions,
-    getV3PositionKey,
+    getV3PositionKey as getPositionKey,
     permitFailureMultiCallWithFallback,
     getPositionIds,
     mulDivCeil,
@@ -56,10 +56,6 @@ type PositionEvent = {
     positionRef: PositionRef;
     block: number;
 };
-
-function getPositionKey({ escrow, positionId }: PositionRef): string {
-    return `${escrow.toLowerCase()}-${positionId}`;
-}
 
 function getHistoricalPositionKey({ escrow, positionId, block }: HistoricalPositionRef): string {
     return `${getPositionKey({ escrow, positionId })}-${block}`;
@@ -144,7 +140,7 @@ async function readV3LoanValuesAtBlock(
             throw new Error(`Unable to read Tristero v3 loan value for ${options.chain} position ${position.positionId} at ${position.escrow} block ${block}`);
         }
 
-        valuesByPosition.set(getV3PositionKey(position), value);
+        valuesByPosition.set(getPositionKey(position), value);
     }
 
     return valuesByPosition;
@@ -203,7 +199,7 @@ async function readV3LoanValuesByPositionBlock(
 }
 
 function getV3HistoricalValueKey(position: { escrow: string; positionId: number }, block: number): string {
-    return `${getV3PositionKey(position)}-${block}`;
+    return `${getPositionKey(position)}-${block}`;
 }
 
 function getV3ReductionRepayments(
@@ -214,7 +210,7 @@ function getV3ReductionRepayments(
     const repayments = new Map<string, bigint>();
 
     reductions.forEach((reduction) => {
-        const positionKey = getV3PositionKey(reduction);
+        const positionKey = getPositionKey(reduction);
         const startBlock = startBlockByPosition.get(positionKey);
         if (startBlock === undefined) return;
         if (reduction.blockNumber <= startBlock || reduction.blockNumber > toBlock) return;
@@ -250,7 +246,7 @@ async function getV3CloseRepayments(
         const receipt = cachedReceipt ?? await getV3CloseReceipt(options.chain, requestedTxHash);
         if (!receipt) {
             const affectedPositions = (positionsByTxHash.get(requestedTxHash) ?? [])
-                .map(getV3PositionKey)
+                .map(getPositionKey)
                 .join(", ") || "none";
             throw new Error(`Missing Tristero v3 close receipt for ${options.chain} tx ${requestedTxHash}; affected positions: ${affectedPositions}`);
         }
@@ -288,7 +284,7 @@ async function getV3CloseRepayments(
             repayment += BigInt(log.data);
         });
 
-        repaymentByPosition.set(getV3PositionKey(position), repayment);
+        repaymentByPosition.set(getPositionKey(position), repayment);
     }
 
     return repaymentByPosition;
@@ -628,13 +624,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const startBlockByPosition = new Map<string, number>();
         relevantV3Positions.forEach((position) => {
             startBlockByPosition.set(
-                getV3PositionKey(position),
+                getPositionKey(position),
                 position.openBlock > fromBlock ? position.openBlock : fromBlock,
             );
         });
         const startBlocks = relevantV3Positions.map((position) => ({
             position,
-            block: startBlockByPosition.get(getV3PositionKey(position))!,
+            block: startBlockByPosition.get(getPositionKey(position))!,
         }));
         const startSnapshots = await getTristeroV3MarginPositionSnapshots(
             options,
@@ -675,7 +671,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const reductionRepayments = getV3ReductionRepayments(reductions, startBlockByPosition, toBlock);
 
         relevantV3Positions.forEach((position) => {
-            const startBlock = startBlockByPosition.get(getV3PositionKey(position));
+            const startBlock = startBlockByPosition.get(getPositionKey(position));
             if (startBlock === undefined) {
                 throw new Error(`Missing Tristero v3 start block for ${options.chain} position ${position.positionId} at ${position.escrow}`);
             }
@@ -688,7 +684,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
             const closedInPeriod = position.closeBlock !== undefined
                 && position.closeBlock >= fromBlock
                 && position.closeBlock <= toBlock;
-            const positionKey = getV3PositionKey(position);
+            const positionKey = getPositionKey(position);
             let terminalDebt: bigint | undefined;
             let totalRepaid = reductionRepayments.get(positionKey) ?? 0n;
             if (closedInPeriod) {

@@ -14,7 +14,7 @@ type TristeroMarginChainConfig = {
   escrows: TristeroMarginEscrowConfig[];
 };
 
-export type TristeroV3MarginEscrowConfig = {
+type TristeroV3MarginEscrowConfig = {
   address: string;
   vault: string;
   start: string;
@@ -28,7 +28,7 @@ type TristeroV3MarginChainConfig = {
 
 const MULTICALL_FALLBACK_BATCH_SIZE = 5;
 
-export type PermitFailureMultiCallParams = {
+type PermitFailureMultiCallParams = {
   abi: string;
   calls: Array<{ target?: string; params?: any }>;
   target?: string;
@@ -105,7 +105,7 @@ export async function permitFailureMultiCallWithFallback(
   }
 }
 
-export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
+const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: '2026-03-19',
     escrows: [
@@ -129,7 +129,7 @@ export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> 
   },
 } as const;
 
-export const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
+const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: '2026-05-21',
     escrows: [
@@ -170,13 +170,6 @@ export function getActiveTristeroMarginEscrows(chain: string, date: string): str
     .map(({ address }) => address);
 }
 
-/**
- * Returns v3 margin escrows that should be included for a chain/date window.
- *
- * @param chain DefiLlama chain slug used by the adapter runner.
- * @param date Adapter date string in YYYY-MM-DD format.
- * @returns V3 margin escrow/vault configs whose start/end range includes date.
- */
 export function getActiveTristeroV3MarginEscrows(chain: string, date: string): TristeroV3MarginEscrowConfig[] {
   return (TRISTERO_V3_MARGIN_CONFIGS[chain]?.escrows ?? [])
     .filter(({ start, end }) => date >= start && (!end || date <= end));
@@ -230,13 +223,13 @@ export interface TristeroV3MarginPosition {
   closeFiller?: string;
 }
 
-export type TristeroV3MarginPositionSnapshotRequest = {
+type TristeroV3MarginPositionSnapshotRequest = {
   escrow: string;
   positionId: number;
   block: number;
 };
 
-export type TristeroV3MarginPositionSnapshot = TristeroV3MarginPositionSnapshotRequest & {
+type TristeroV3MarginPositionSnapshot = TristeroV3MarginPositionSnapshotRequest & {
   position: TristeroV3MarginPosition;
 };
 
@@ -267,7 +260,7 @@ type TristeroV3ClosedPositionLog = {
   txHash?: string;
 };
 
-export type TristeroV3MarginReduction = {
+type TristeroV3MarginReduction = {
   escrow: string;
   positionId: number;
   repayAmount: bigint;
@@ -302,12 +295,6 @@ export function getPositionIds(totalPositions: any): number[] {
   return Array.from({ length: total }, (_, index) => index + 1);
 }
 
-/**
- * Builds the stable map key used to join v3 position event state across helpers.
- *
- * @param positionRef Escrow address and numeric v3 position id.
- * @returns Lowercase escrow and position id joined into a unique key.
- */
 export function getV3PositionKey({ escrow, positionId }: { escrow: string; positionId: number }): string {
   return `${escrow.toLowerCase()}-${positionId}`;
 }
@@ -338,46 +325,6 @@ export function normalizePosition(position: any): TristeroMarginPosition | null 
     loanAmount,
     liqPrice,
   };
-}
-
-/**
- * Safely executes a margin contract read via `options.api.call`.
- *
- * `permitFailure: true` should prevent normal RPC reverts from throwing, but the
- * surrounding `try/catch` keeps the helper resilient to SDK behavior changes.
- *
- * @param options Fetch context that provides the underlying API client.
- * @param params Call parameters forwarded to `options.api.call`.
- * @returns The decoded call result, or `null` if the read still fails.
- */
-export async function safeCall(options: FetchOptions, params: Record<string, any>): Promise<any | null> {
-  try {
-    return await (options.api.call as any)({ ...params, permitFailure: true });
-  } catch {
-    return null;
-  }
-}
-
-export async function getPositionAtBlock(options: FetchOptions, escrow: string, positionId: number, block: number): Promise<TristeroMarginPosition | null> {
-  const position = await safeCall(options, {
-    target: escrow,
-    abi: TRISTERO_MARGIN_ABI.positions,
-    params: [positionId],
-    block,
-  });
-
-  return normalizePosition(position);
-}
-
-export async function getAccumulatedInterestAtBlock(options: FetchOptions, escrow: string, positionId: number, block: number): Promise<bigint> {
-  const interest = await safeCall(options, {
-    target: escrow,
-    abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
-    params: [positionId],
-    block,
-  });
-
-  return toBigIntOrNull(interest) ?? 0n;
 }
 
 function normalizeAddress(value?: string | null): string {
@@ -518,18 +465,6 @@ async function getV3EscrowStartBlock(chain: string, start: string): Promise<numb
   return Number(block);
 }
 
-/**
- * Reconstructs v3 margin position snapshots at specific historical blocks.
- *
- * The returned positions preserve the loan/notional share state as of the
- * requested block, so fee adapters can value historical boundaries without
- * reusing the end-of-window mutated position state.
- *
- * @param options DefiLlama fetch options for the current chain/window.
- * @param configs Active v3 escrow/vault configs to scan.
- * @param requests Escrow, position id, and block tuples to snapshot.
- * @returns Position snapshots for requests that existed by the requested block.
- */
 export async function getTristeroV3MarginPositionSnapshots(
   options: FetchOptions,
   configs: TristeroV3MarginEscrowConfig[],
@@ -641,15 +576,6 @@ export async function getTristeroV3MarginPositionSnapshots(
   return snapshots;
 }
 
-/**
- * Reconstructs v3 margin positions from PositionOpened and PositionClosed logs.
- * PositionReduced logs mutate the remaining share state; PositionClosed is terminal.
- *
- * @param options DefiLlama fetch options for the current chain/window.
- * @param configs Active v3 escrow/vault configs to scan.
- * @param toBlock Last block to include when reconstructing position state.
- * @returns V3 positions opened up to toBlock, annotated with close data when closed.
- */
 export async function getTristeroV3MarginPositions(
   options: FetchOptions,
   configs: TristeroV3MarginEscrowConfig[],
@@ -732,16 +658,6 @@ export async function getTristeroV3MarginPositions(
   return Array.from(positionsByKey.values());
 }
 
-/**
- * Reads v3 PositionReduced events and returns the loan-asset repayment amount
- * emitted by the escrow for each reduction.
- *
- * @param options DefiLlama fetch options for the current chain/window.
- * @param configs Active v3 escrow/vault configs to scan.
- * @param fromBlock First block to include.
- * @param toBlock Last block to include.
- * @returns Reduction repayment events keyed by escrow/position id.
- */
 export async function getTristeroV3MarginReductions(
   options: FetchOptions,
   configs: TristeroV3MarginEscrowConfig[],
@@ -782,13 +698,6 @@ export async function getTristeroV3MarginReductions(
   return reductions;
 }
 
-/**
- * Reconstructs currently open v3 margin positions and verifies each NFT owner.
- *
- * @param options DefiLlama fetch options for the current chain/window.
- * @param configs Active v3 escrow/vault configs to scan.
- * @returns V3 positions that have not emitted PositionClosed by the end block.
- */
 export async function getOpenTristeroV3MarginPositions(
   options: FetchOptions,
   configs: TristeroV3MarginEscrowConfig[],
