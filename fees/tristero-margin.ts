@@ -636,28 +636,27 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-    Fees: 'Daily borrow interest accrued on legacy and v3 margin positions. V3 vault loan-value growth, PositionReduced repayments, and close repayments are inputs used to reconstruct borrow-interest accrual, not raw additions to dailyFees. Also includes any legacy protocol-collected liquidation fees.',
-    Revenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
-    ProtocolRevenue: 'Protocol share of legacy margin borrow interest and liquidation fees. V3 borrow interest is attributed to lenders unless a protocol fee event is introduced.',
-    SupplySideRevenue: 'Borrow interest attributable to the filler lenders that funded margin positions.',
+    Fees: "Borrow interest accrued on legacy and v3 margin positions, plus legacy liquidation fees.",
+    Revenue: "Legacy protocol share of borrow interest and liquidation fees. V3 borrow interest is attributed to lenders.",
+    ProtocolRevenue: "Legacy protocol share of borrow interest and liquidation fees. V3 borrow interest is attributed to lenders.",
+    SupplySideRevenue: "Borrow interest paid to filler lenders.",
 };
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated legacy positions. V3 vault loan-value growth, PositionReduced repayments, and close repayments are inputs used to reconstruct borrow-interest accrual, not raw additions to dailyFees.',
-        [METRIC.LIQUIDATION_FEES]: 'Legacy protocol-collected liquidation fees.',
+        [METRIC.BORROW_INTEREST]: "Borrow interest accrued on active, closed, and liquidated margin positions.",
+        [METRIC.LIQUIDATION_FEES]: "Legacy protocol-collected liquidation fees.",
     },
     Revenue: {
-        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
-        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
+        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: "Protocol share of borrow interest.",
+        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: "Protocol-collected liquidation fees.",
     },
-
     ProtocolRevenue: {
-        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
-        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
+        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: "Protocol share of borrow interest.",
+        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: "Protocol-collected liquidation fees.",
     },
     SupplySideRevenue: {
-        [MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS]: 'Borrow interest attributable to the filler lenders that funded margin positions.',
+        [MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS]: "Borrow interest paid to filler lenders.",
     },
 };
 const adapter: SimpleAdapter = {

@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   fetch: async (options) => ({ dailyVolume: await fetchDailyVolume(options) }),
   adapter: TRISTERO_DEX_CHAINS,
   methodology: {
-    Volume: "Legacy Tristero volume is counted from OrderFilled source token amounts. V3 volume is counted from on-chain router.send transactions for TAKER, CROSS, and MARGIN orders plus escrow.close settlement transfers; margin opens include collateral plus decoded loan quantity.",
+    Volume: "Source-side token amounts from legacy OrderFilled events and v3 router.send orders. Margin opens include collateral and loan; margin closes include loan settlement transfers.",
   },
 };
 
