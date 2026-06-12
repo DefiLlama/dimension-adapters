@@ -5,6 +5,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import getTxReceipts, { getTransactions } from "../../helpers/getTxReceipts";
+import { queryClickhouse } from "../../helpers/indexer";
 import {
   getActiveTristeroV3MarginEscrows,
   getTristeroV3MarginPositions,
@@ -80,7 +81,6 @@ function normalizeVolumeToken(chain: string, tokenAddress?: string | null): stri
 type TristeroV3ChainConfig = {
   start: string;
   router: string;
-  includedOrderTypes: string[];
 };
 
 type TristeroV3TransferLog = {
@@ -120,144 +120,19 @@ const TRISTERO_V3_VOLUME_CONFIGS: Record<string, TristeroV3ChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: "2026-05-21",
     router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480",
-    includedOrderTypes: ["TAKER", "CROSS", "MARGIN"],
   },
   [CHAIN.BASE]: {
     start: "2026-05-21",
     router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480",
-    includedOrderTypes: ["TAKER", "CROSS", "MARGIN"],
   },
 } as const;
 
-const ORDER_ROUTER_ABI = [
-  {
-    type: "function",
-    name: "send",
-    stateMutability: "nonpayable",
-    inputs: [
-      {
-        name: "order",
-        type: "tuple",
-        components: [
-          { name: "sender", type: "address" },
-          {
-            name: "parameters",
-            type: "tuple",
-            components: [
-              { name: "srcAsset", type: "address" },
-              { name: "dstAsset", type: "address" },
-              { name: "srcQuantity", type: "uint256" },
-              { name: "dstQuantity", type: "uint256" },
-              { name: "minQuantity", type: "uint256" },
-              { name: "darkSalt", type: "uint128" },
-            ],
-          },
-          { name: "deadline", type: "uint256" },
-          { name: "target", type: "address" },
-          { name: "filler", type: "address" },
-          { name: "orderType", type: "string" },
-          { name: "customData", type: "bytes" },
-        ],
-      },
-      {
-        name: "payload",
-        type: "tuple",
-        components: [
-          { name: "nonce", type: "uint256" },
-          { name: "signature", type: "bytes" },
-        ],
-      },
-      {
-        name: "arb",
-        type: "tuple",
-        components: [
-          { name: "multicallTarget", type: "address" },
-          {
-            name: "calls",
-            type: "tuple[]",
-            components: [
-              { name: "target", type: "address" },
-              { name: "allowFailure", type: "bool" },
-              { name: "value", type: "uint256" },
-              { name: "callData", type: "bytes" },
-            ],
-          },
-          { name: "refundTo", type: "address" },
-          { name: "nftRecipient", type: "address" },
-        ],
-      },
-      { name: "minOut", type: "uint256" },
-      {
-        name: "v",
-        type: "tuple",
-        components: [
-          { name: "vault", type: "address" },
-          {
-            name: "permit",
-            type: "tuple",
-            components: [
-              {
-                name: "permitted",
-                type: "tuple",
-                components: [
-                  { name: "token", type: "address" },
-                  { name: "amount", type: "uint256" },
-                ],
-              },
-              { name: "nonce", type: "uint256" },
-              { name: "deadline", type: "uint256" },
-            ],
-          },
-          { name: "signature", type: "bytes" },
-        ],
-      },
-    ],
-  },
-] as const;
-
-const ESCROW_ABI = [
-  {
-    type: "function",
-    name: "close",
-    stateMutability: "nonpayable",
-    inputs: [
-      {
-        name: "order",
-        type: "tuple",
-        components: [
-          { name: "positionId", type: "uint128" },
-          { name: "sharesToClose", type: "uint256" },
-          { name: "minOut", type: "uint256" },
-          { name: "deadline", type: "uint256" },
-          { name: "permit2Nonce", type: "uint256" },
-        ],
-      },
-      { name: "signature", type: "bytes" },
-      {
-        name: "arb",
-        type: "tuple",
-        components: [
-          { name: "multicallTarget", type: "address" },
-          {
-            name: "calls",
-            type: "tuple[]",
-            components: [
-              { name: "target", type: "address" },
-              { name: "allowFailure", type: "bool" },
-              { name: "value", type: "uint256" },
-              { name: "callData", type: "bytes" },
-            ],
-          },
-          { name: "refundTo", type: "address" },
-          { name: "nftRecipient", type: "address" },
-        ],
-      },
-    ],
-  },
-] as const;
-
-const ORDER_ROUTER_INTERFACE = new Interface(ORDER_ROUTER_ABI);
-const ESCROW_INTERFACE = new Interface(ESCROW_ABI);
+const ORDER_ROUTER_INTERFACE = new Interface([
+  "function send((address sender, (address srcAsset, address dstAsset, uint256 srcQuantity, uint256 dstQuantity, uint256 minQuantity, uint128 darkSalt) parameters, uint256 deadline, address target, address filler, string orderType, bytes customData) order, (uint256 nonce, bytes signature) payload, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb, uint256 minOut, (address vault, ((address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature) v)"
+]);
+const ESCROW_INTERFACE = new Interface([
+  "function close((uint128 positionId, uint256 sharesToClose, uint256 minOut, uint256 deadline, uint256 permit2Nonce) order, bytes signature, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb)"
+]);
 const ABI_CODER = AbiCoder.defaultAbiCoder();
 const ORDER_ROUTER_SEND_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction("send")?.selector.toLowerCase();
 
@@ -280,10 +155,6 @@ function getReceiptTxHash(receipt: TristeroV3Receipt): string | undefined {
 function isNonZeroBytes32(value: string): boolean {
   if (!/^0x[0-9a-fA-F]{64}$/.test(value)) return false;
   return BigInt(value) > 0n;
-}
-
-function isIncludedOrderType(orderType: string, includedOrderTypes: string[]): boolean {
-  return includedOrderTypes.includes(orderType.toUpperCase());
 }
 
 function isRouterTransaction(tx: TristeroV3Transaction | null, router: string): boolean {
@@ -336,59 +207,6 @@ function getMarginLoan(order: TristeroV3DecodedOrder): { token: string; quantity
   } catch (error) {
     throw new Error(`Unable to decode Tristero v3 MARGIN customData: ${(error as Error).message}`);
   }
-}
-
-function isTristeroV3RouterTransferLog(log: TristeroV3TransferLog, router: string): boolean {
-  const topics = log.topics ?? [];
-
-  return topics.length === 3
-    && normalize(topics[0]) === ERC20_TRANSFER_TOPIC
-    && normalize(topics[2]) === topicAddress(router)
-    && isNonZeroBytes32(log.data);
-}
-
-function addTristeroV3OrdersToBalances(
-  logs: TristeroV3TransferLog[],
-  transactions: (TristeroV3Transaction | null)[],
-  dailyVolume: Balances,
-  config: TristeroV3ChainConfig,
-  chain: string,
-) {
-  const seenTxs = new Set<string>();
-  const transactionByHash = new Map<string, TristeroV3Transaction>();
-
-  transactions.forEach((tx) => {
-    if (!tx?.hash) return;
-    transactionByHash.set(normalize(tx.hash), tx);
-  });
-
-  logs.forEach((log) => {
-    if (!isTristeroV3RouterTransferLog(log, config.router)) return;
-    const txHash = getTxHash(log);
-    if (!txHash) return;
-
-    const normalizedTxHash = normalize(txHash);
-    if (seenTxs.has(normalizedTxHash)) return;
-
-    const tx = transactionByHash.get(normalizedTxHash);
-    if (!isRouterTransaction(tx ?? null, config.router)) return;
-
-    const decodedOrder = decodeTristeroV3SendOrder(tx?.data ?? tx?.input);
-    if (!decodedOrder || !isIncludedOrderType(decodedOrder.orderType, config.includedOrderTypes)) return;
-
-    const tokenAddress = normalizeVolumeToken(chain, decodedOrder.srcToken);
-    if (!tokenAddress) return;
-
-    seenTxs.add(normalizedTxHash);
-    dailyVolume.add(tokenAddress, decodedOrder.srcQuantity);
-
-    const marginLoan = getMarginLoan(decodedOrder);
-    if (marginLoan?.quantity) {
-      const loanToken = normalizeVolumeToken(chain, marginLoan.token);
-      if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token for tx ${normalizedTxHash}`);
-      dailyVolume.add(loanToken, marginLoan.quantity);
-    }
-  });
 }
 
 function topicToAddress(topic?: string): string {
@@ -480,32 +298,46 @@ function groupClosePositionsByTxHash(positions: TristeroV3MarginPosition[], clos
   return positionsByTxHash;
 }
 
+
 async function addTristeroV3ChainVolume(options: FetchOptions, dailyVolume: Balances) {
   const config = TRISTERO_V3_VOLUME_CONFIGS[options.chain];
   if (!config || options.dateString < config.start) return;
   const activeV3Escrows = getActiveTristeroV3MarginEscrows(options.chain, options.dateString);
   const activeV3EscrowAddresses = activeV3Escrows.map(({ address }) => address);
 
-  // Current v3 router.send is nonpayable and backend submits it with value=0,
-  // so router funding is discoverable through ERC20 Transfer logs. If a future
-  // router.send becomes payable, also decode tx.value-backed native funding.
-  const logs: TristeroV3TransferLog[] = await options.getLogs({
-    topics: [
-      ERC20_TRANSFER_TOPIC,
-      null as any,
-      topicAddress(config.router),
-    ],
-    noTarget: true,
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    entireLog: true,
+  // evm_indexer stores input with 0x prefix; selector must not be stripped
+  const txRows: any[] = await queryClickhouse(`
+    SELECT hash, input
+    FROM evm_indexer.transactions
+    WHERE chain = {chain:UInt64}
+      AND to_address = {router:String}
+      AND startsWith(input, {selector:String})
+      AND status = 'success'
+      AND timestamp >= toDateTime({fromTs:UInt32})
+      AND timestamp < toDateTime({toTs:UInt32})
+  `, {
+    chain: Number(options.api.chainId),
+    router: config.router.toLowerCase(),
+    selector: ORDER_ROUTER_SEND_SELECTOR!,
+    fromTs: options.fromTimestamp,
+    toTs: options.toTimestamp,
   });
 
-  const txHashes = [...new Set(logs.map(getTxHash).filter((txHash): txHash is string => !!txHash))];
-  if (txHashes.length) {
-    const transactions = await getTransactions(options.chain, txHashes, {
-      cacheKey: "tristero-v3-router-send",
-    });
-    addTristeroV3OrdersToBalances(logs, transactions, dailyVolume, config, options.chain);
+  for (const row of txRows) {
+    const decodedOrder = decodeTristeroV3SendOrder(String(row.input));
+    if (!decodedOrder) continue;
+
+    const tokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
+    if (!tokenAddress) continue;
+
+    dailyVolume.add(tokenAddress, decodedOrder.srcQuantity);
+
+    const marginLoan = getMarginLoan(decodedOrder);
+    if (marginLoan?.quantity) {
+      const loanToken = normalizeVolumeToken(options.chain, marginLoan.token);
+      if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token in tx ${row.hash}`);
+      dailyVolume.add(loanToken, marginLoan.quantity);
+    }
   }
 
   const closeLogs: TristeroV3TransferLog[] = activeV3EscrowAddresses.length
@@ -572,13 +404,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
-  adapter: Object.fromEntries(
-    Object.entries(chainConfig).map(([chain, config]) => [
-      chain,
-      { fetch, start: config.start }
-    ])
-  ),
+  fetch,
+  adapter: chainConfig,
   methodology: {
     Volume: "Legacy Tristero volume is counted from OrderFilled source token amounts. V3 volume is counted from on-chain router.send transactions for TAKER, CROSS, and MARGIN orders plus escrow.close settlement transfers; margin opens include collateral plus decoded loan quantity.",
   },
