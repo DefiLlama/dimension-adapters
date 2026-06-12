@@ -10,6 +10,7 @@ type ChainConfig = {
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
   ancient8: { chain: CHAIN.ANCIENT8, baseUrl: "https://explorer-ancient8-mainnet-0.t.conduit.xyz", version: 1 },
+  apechain: { chain: CHAIN.APECHAIN, baseUrl: "https://apechain.calderaexplorer.xyz", statsUrl: "https://apechain.calderaexplorer.xyz/stats", version: 1 },
   astar: { chain: CHAIN.ASTAR, baseUrl: "https://astar.blockscout.com", version: 2 },
   aurora: { chain: CHAIN.AURORA, baseUrl: "https://aurorascan.dev", version: 2 },
   bob: { chain: CHAIN.BOB, baseUrl: "https://explorer-bob-mainnet-0.t.conduit.xyz", version: 1 },
