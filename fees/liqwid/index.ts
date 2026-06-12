@@ -5,9 +5,6 @@ import { METRIC } from "../../helpers/metrics";
 
 const endpoint = "https://v2.api.liqwid.finance/graphql";
 
-const ORIGINATION_FEES = "Origination Fees";
-const LQ_STAKING_REWARDS = "LQ Staking Rewards";
-
 const query = gql`
   query Fees($startDate: String!, $endDate: String!) {
     analytics {
@@ -29,11 +26,14 @@ const query = gql`
   }
 `;
 
+const ORIGINATION_FEES = "Origination Fees";
+const LQ_STAKING_REWARDS = "LQ Staking Rewards";
+
 const fetch = async (options: FetchOptions) => {
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
-  const data = await request(endpoint, query, { startDate, endDate });
+  const data = await request(endpoint, query, { startDate, endDate }, { "X-App-Source": "DefiLlama" });
   const breakdown = data.analytics.fees.breakdown;
 
   const dailyFees = options.createBalances();
