@@ -24,13 +24,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const startTime = options.startOfDay;
   const endTime = startTime + DAILY_INTERVAL;
 
-  const { results } = await PromisePool
+  const { results, errors } = await PromisePool
     .withConcurrency(5)
     .for(symbols)
     .process(async (symbol) => {
       const res: { data: KlineCandle[] } = await httpGet(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
       return res.data;
     });
+
+  // a failed symbol fetch (e.g. rate limit) must fail the run, not silently undercount volume
+  if (errors.length) throw errors[0];
 
   let totalTurnover = 0;
   for (const candles of results) {
@@ -46,13 +49,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.AFX]: {
-      fetch,
-      start: "2026-05-12",
-    },
-  },
+  // version 1: the kline API only serves daily aggregates (interval=86400, keyed off startOfDay)
+  version: 1,
+  fetch,
+  chains: [CHAIN.AFX],
+  start: "2026-05-12",
   methodology: {
     Volume: "Sum of daily turnover (notional volume in USD) across all perpetual trading pairs, sourced from AFX kline data.",
   },
