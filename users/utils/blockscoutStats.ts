@@ -76,6 +76,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   zilliqa: { chain: CHAIN.ZILLIQA, baseUrl: "https://zilliqa.blockscout.com", version: 2 },
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1 },
   "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
+  fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1 },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
