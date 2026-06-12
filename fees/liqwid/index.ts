@@ -33,9 +33,15 @@ const fetch = async (options: FetchOptions) => {
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
+  // Liqwid analytics are ingested with ~1 day delay. The API rejects windows past
+  // its ingested-data boundary with a GraphQL error, which makes this request throw,
+  // so the run fails and is retried later instead of storing incomplete (zero) values.
   const data = await request(endpoint, query, { startDate, endDate }, { "X-App-Source": "DefiLlama" });
   const breakdown = data.analytics.fees.breakdown;
 
+  // Note: lqStakingRewards are distributed for 1-week epochs with a ~1 week delay. 
+  // Once they are reported the whole epoch rewards are added to the day they are distributed, 
+  // so they will reflect in daily fees at the time of distribution, not proportional to when they are earned.
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(breakdown.borrowInterestAccrued, METRIC.BORROW_INTEREST);
   dailyFees.addUSDValue(breakdown.loanOriginationFees, ORIGINATION_FEES);
