@@ -33,6 +33,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1 },
   flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flowscan.io", statsUrl: "https://evm.flowscan.io:8080", version: 1 },
   fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io", version: 2 },
+  harmony: { chain: CHAIN.HARMONY, baseUrl: "https://explorer.harmony.one", statsUrl: "https://stats.explorer.harmony.one", version: 1 },
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1 },
   "hashkey": { chain: CHAIN.HASHKEY, baseUrl: "https://hashkey.blockscout.com", version: 2 },
   hpp: { chain: CHAIN.HPP, baseUrl: "https://explorer.hpp.io", version: 1 },
