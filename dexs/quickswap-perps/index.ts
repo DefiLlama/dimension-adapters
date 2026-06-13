@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter, Fetch } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderSymmioPerpsByName } from "../../helpers/symmio";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -13,7 +13,7 @@ const methodology = {
     OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
   },
   quickswap: {
-    dailyVolume: "Total cumulativeVolumeUsd for specified chain for the given day",
+    Volume: "Total cumulativeVolumeUsd for specified chain for the given day",
   },
 };
 
@@ -27,24 +27,21 @@ interface IVolumeStat {
   id: string;
 }
 
-const graphs = (graphUrls: Record<string, string>) => {
-  const fetch: Fetch = async (timestamp: number, _cb, { chain }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const graphQuery = gql`
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+  const graphQuery = gql`
       query ($ts: Int!) {
         volumeStats(where: { timestamp: $ts, period: "daily" }) {
           volumeUsd
         }
       }
     `;
-    const graphRes = await request(graphUrls[chain], graphQuery, { ts: todaysTimestamp });
-    const volumeStats: IVolumeStat[] = graphRes.volumeStats ?? [];
-    let dailyVolumeUSD = 0n;
-    for (const v of volumeStats) dailyVolumeUSD += BigInt(v.volumeUsd || "0");
-    const finalDailyVolume = Number(dailyVolumeUSD) / 1e30;
-    return { dailyVolume: String(finalDailyVolume), timestamp: todaysTimestamp };
-  };
-  return fetch;
+  const graphRes = await request(endpoints[options.chain], graphQuery, { ts: todaysTimestamp });
+  const volumeStats: IVolumeStat[] = graphRes.volumeStats ?? [];
+  let dailyVolumeUSD = 0n;
+  for (const v of volumeStats) dailyVolumeUSD += BigInt(v.volumeUsd || "0");
+  const finalDailyVolume = Number(dailyVolumeUSD) / 1e30;
+  return { dailyVolume: String(finalDailyVolume), timestamp: todaysTimestamp };
 };
 
 const adapter: Adapter = {
@@ -54,8 +51,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       start: '2024-01-01',
-      fetch: graphs(endpoints)
-      },
+      fetch
+    },
     [CHAIN.BASE]: {
       fetch: fetchBuilderSymmioPerpsByName("Quickswap"),
     },

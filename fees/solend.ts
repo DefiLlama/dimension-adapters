@@ -1,10 +1,7 @@
-import {
-  Adapter,
-  FetchOptions,
-  FetchResultFees,
-} from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
+import { METRIC } from "../helpers/metrics";
 
 const solendFeesURL = 'https://api.solend.fi/stats/daily-fees';
 
@@ -24,48 +21,85 @@ interface DailyStats {
   next: string,
 }
 
-const methodology = {
-  Fees: 'Interest and fees paid by borrowers and the liquidated',
-  ProtocolReveneue: 'The portion of the total fees going to the Solend DAO treasury'
-}
-
-const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
+const fetch = async ({ createBalances, endTimestamp }: FetchOptions) => {
   const url = `${solendFeesURL}?ts=${endTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
-  const userFees =
-    parseInt(stats.liquidityProviderInterest) +
-    parseFloat(stats.hostOriginationFees) +
-    parseFloat(stats.hostFlashLoanFees) +
-    parseFloat(stats.protocolOriginationFees) +
-    parseFloat(stats.protocolFlashLoanFees) +
-    parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.protocolLiquidationTakeRate) +
-    parseFloat(stats.closeFees) 
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
-  const dailyRevenue = parseFloat(stats.protocolOriginationFees) +
-    parseFloat(stats.protocolFlashLoanFees) +
-    parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.protocolLiquidationTakeRate);
+  // Total borrow interest paid by borrowers (combines lender + protocol portions)
+  const totalBorrowInterest = parseFloat(stats.liquidityProviderInterest) + parseFloat(stats.protocolSpreadFees);
+  
+  // Total origination fees (host + protocol)
+  const totalOriginationFees = parseFloat(stats.hostOriginationFees) + parseFloat(stats.protocolOriginationFees);
+  
+  // Total flash loan fees (host + protocol)
+  const totalFlashLoanFees = parseFloat(stats.hostFlashLoanFees) + parseFloat(stats.protocolFlashLoanFees);
+
+  // User pays all these fees
+  dailyFees.addUSDValue(totalBorrowInterest, METRIC.BORROW_INTEREST);
+  dailyFees.addUSDValue(totalOriginationFees, 'Origination Fees');
+  dailyFees.addUSDValue(totalFlashLoanFees, 'Flash Loan Fees');
+  dailyFees.addUSDValue(parseFloat(stats.protocolLiquidationTakeRate), METRIC.LIQUIDATION_FEES);
+  dailyFees.addUSDValue(parseFloat(stats.closeFees), 'Account Close Fees');
+
+  // Protocol revenue (goes to DAO treasury)
+  dailyRevenue.addUSDValue(parseFloat(stats.protocolOriginationFees), 'Origination Fees');
+  dailyRevenue.addUSDValue(parseFloat(stats.protocolFlashLoanFees), 'Flash Loan Fees');
+  dailyRevenue.addUSDValue(parseFloat(stats.protocolSpreadFees), METRIC.BORROW_INTEREST);
+  dailyRevenue.addUSDValue(parseFloat(stats.protocolLiquidationTakeRate), METRIC.LIQUIDATION_FEES);
+
+  // Supply side revenue (goes to lenders and hosts)
+  dailySupplySideRevenue.addUSDValue(parseFloat(stats.liquidityProviderInterest), METRIC.BORROW_INTEREST);
+  dailySupplySideRevenue.addUSDValue(parseFloat(stats.hostOriginationFees), 'Origination Fees');
+  dailySupplySideRevenue.addUSDValue(parseFloat(stats.hostFlashLoanFees), 'Flash Loan Fees');
+
   return {
-    dailyFees: userFees,
-    dailyUserFees: userFees,
+    dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
+    dailySupplySideRevenue,
   };
 };
 
 
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolendStats,
-      start: '2023-01-31',
-    },
+const methodology = {
+  Fees: 'Borrow interest, origination fees, flash loan fees, liquidation penalties, account close fees',
+  Revenue: '20% interest spread, 80% of origination/flash loan fees, 30% of liquidation penalties',
+  SupplySideRevenue: 'Lenders receive 80% of interest. Hosts/referrers receive 20% of origination/flash loan fees',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'Total interest paid by borrowers on loans',
+    'Origination Fees': 'Upfront fees on new loans',
+    'Flash Loan Fees': 'Fees from flash loan usage',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation penalties paid by borrowers',
+    'Account Close Fees': 'Fees for closing Solana accounts',
   },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Protocol retains 20% interest spread',
+    'Origination Fees': 'Protocol receives 80% of origination fees',
+    'Flash Loan Fees': 'Protocol receives 80% of flash loan fees',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol receives 30% of liquidation penalties',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Lenders receive 80% of borrow interest',
+    'Origination Fees': 'Hosts/referrers receive 20% of origination fees',
+    'Flash Loan Fees': 'Hosts/referrers receive 20% of flash loan fees',
+  },
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2023-01-31',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

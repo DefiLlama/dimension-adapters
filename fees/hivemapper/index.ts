@@ -4,7 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const HONEY_TOKEN = "4vMsoUT2BWatFweudnQM1xedRLfJgJ7hswhcpz4xgBTy";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const query = `SELECT
       SUM(amount / 1e9) AS honey_burns
   FROM spl_token_solana.spl_token_call_burn

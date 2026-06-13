@@ -4,7 +4,6 @@ const {
   DEFAULT_TOTAL_VOLUME_FIELD,
 } = require("../helpers/getUniSubgraphVolume");
 const { CANDLE } = require("../helpers/chains");
-const { getStartTimestamp } = require("../helpers/getStartTimestamp");
 
 const v3Endpoints = {
   [CANDLE]:
@@ -28,11 +27,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CANDLE]: {
       fetch: v3Graphs(CANDLE),
-      start: getStartTimestamp({
-        endpoints: v3Endpoints,
-        chain: CANDLE,
-        volumeField: VOLUME_USD,
-      }),
     },
   },
 };

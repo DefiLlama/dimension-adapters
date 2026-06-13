@@ -15,7 +15,7 @@ interface IVolume {
   dailyVolume: number,
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const volume: IVolume = (await fetchURL(`${url[options.chain]}&timestamp=${options.startOfDay}`));
   return {
     dailyVolume: `${volume?.dailyVolume}`,
@@ -24,9 +24,10 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  chains: [CHAIN.SUI],
   fetch,
+  chains: [CHAIN.SUI],
   start: '2024-01-05',
+  //deadFrom: '2026-01-01', //migrated to zo -> just liquidity has been migrated, both zo and sudo lp co-exist
 };
 
 export default adapter;

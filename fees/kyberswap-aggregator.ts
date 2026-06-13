@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains"
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { addTokensReceived } from "../helpers/token";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { addTokensReceived, getETHReceived } from "../helpers/token";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.ETHEREUM]: { id: 1, start: '2021-06-01' },
@@ -29,6 +30,15 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   // [CHAIN.BITTORRENT]: {id: 199, start: '2021-06-01'},
 };
 
+// Chains where the helper's Allium native-trace fallback is wired (ALLIUM_CHAIN_MAP).
+// Outside this set getETHReceived would resolve to a non-existent schema and throw, so
+// the existing addTokensReceived (ERC20-only) path stays in effect on those chains.
+const nativeFeeChains = new Set<string>([
+  CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.OPTIMISM,
+  CHAIN.POLYGON, CHAIN.SCROLL, CHAIN.BASE, CHAIN.PLASMA, CHAIN.BERACHAIN,
+  CHAIN.UNICHAIN, CHAIN.MONAD, CHAIN.ERA
+])
+
 const blacklistedTokens = [
   // UXLINK is hacked
   '0x1a6b3a62391eccaaa992ade44cd4afe6bec8cff1',
@@ -42,35 +52,53 @@ const blacklistedTokens = [
 
   // MAGA
   '0xda2e903b0b67f30bf26bd3464f9ee1a383bbbe5f',
-  
+
   // TARA
   '0x2F42b7d686ca3EffC69778B6ED8493A7787b4d6E',
+
+  // MGR
+  '0x3e4802f35A7B388EC78C2d3F6286Ddac2576F9fC',
 ]
 
 const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
 
 async function fetch(options: FetchOptions) {
-  // MISSING INTERNAL ETH TRANSFERS!
+  // ERC20 fees: KyberSwap's MetaAggregationRouterV2 sends the protocol cut to the
+  // feeCollector as an ERC20 Transfer for non-native trades.
   const dailyFees = await addTokensReceived({ target: feeCollector, options })
-  blacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
-  /*     const { usdTokenBalances, usdTvl, rawTokenBalances, } = await dailyFees.getUSDJSONs()
-    console.log({ chain: options.chain, usdTvl })
-    const tokens = Object.keys(rawTokenBalances).map(t => t.split(':')[1])
-    const symbols = await options.api.multiCall({  abi: 'string:symbol', calls: tokens, permitFailure: true })
-    console.table(symbols.map((s, i) => ({ token: tokens[i], symbol: s })))
 
-    let debugTable: any = []
-    Object.entries(usdTokenBalances).filter(([, v]) => v > 1000).forEach(([t, v]) => {
-        debugTable.push({ token: t, value: v })
-    })
-    console.table(debugTable) */
+  // Native gas-token fees: the same router forwards native ETH / BNB / etc. via an
+  // internal call when the trade pays in the chain's native token. These do not emit
+  // Transfer events and are invisible to addTokensReceived. Pull them from Allium's
+  // native_token_transfers / traces table. Sender on every chain is the router
+  // 0x8f10b468b06c6fd214b65f87778827f7d113f996 (CREATE2-deployed at the same address
+  // on every supported chain) — verified across Ethereum / Base / BSC / Arbitrum.
+  if (nativeFeeChains.has(options.chain)) {
+    await getETHReceived({ target: feeCollector, options, balances: dailyFees })
+  }
+
+  const defaultBlacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+  blacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
+  defaultBlacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
+
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
+}
+
+const methodology = {
+  Fees: 'Aggregator fees retained by KyberSwap on routed swaps. Pulled from both ERC20 Transfer events into the fee collector and from native gas-token internal transfers on chains where the indexer covers them.',
+  UserFees: 'Aggregator fees paid by users on KyberSwap-routed swaps.',
+  Revenue: 'All collected aggregator fees retained by KyberSwap.',
+  ProtocolRevenue: 'All collected aggregator fees retained by KyberSwap.',
+  HoldersRevenue: 'No revenue share to KNC token holders from aggregator fees.',
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   fetch,
   adapter: chainConfig,
+  methodology,
 }
 
 export default adapter;

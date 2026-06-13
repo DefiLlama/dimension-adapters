@@ -18,7 +18,7 @@ import { FetchOptions } from "../adapters/types";
 //   },
 // };
 
-const fetch = async (_t: any, _b: any, _options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_: any): Promise<FetchResultV2> => {
   // const data = {
   //   timeRange: {
   //     start: startOfDay.toString(),
@@ -69,13 +69,10 @@ const fetch = async (_t: any, _b: any, _options: FetchOptions): Promise<FetchRes
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      // start: '2025-03-08',
-      runAtCurrTime: true,
-    }
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  // start: '2025-03-08',
+  runAtCurrTime: true,
   methodology: {
     Fees: 'All swap fees paid by users from 6 fee tiers pools.',
     Revenue: 'Amount of 20% swap fees is redirected to the Momentum treasury.',

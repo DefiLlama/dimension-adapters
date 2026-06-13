@@ -1,14 +1,10 @@
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { fetch, configs } from "../aggregators/metamask";
-import { getSolanaReceivedDune } from "../helpers/token";
+import { getSolanaReceived } from "../helpers/token";
 import { CHAIN } from "../helpers/chains";
 
-async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
-  return await fetch(options);
-}
-
-async function fetchSol(_a: any, _b: any, options: FetchOptions) {
-  const dailyFees = await getSolanaReceivedDune({
+async function fetchSol(options: FetchOptions) {
+  const dailyFees = await getSolanaReceived({
     options,
     targets: [
       '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
@@ -31,9 +27,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 1,
-  fetch: fetchEVM,
-  dependencies: [Dependencies.DUNE],
+  version: 2,
+  fetch: fetch,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     ...configs,
     [CHAIN.SOLANA]: {

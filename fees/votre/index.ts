@@ -1,10 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 
 const BASE_MAINNET_SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cm3exke617zqh01074tulgtx0/subgraphs/collar-base-mainnet/0.1.3/gn'
 
 // Helper to fetch all paginated results from a subgraph
-async function fetchAllSubgraphResults({ url, query, field, variables = {} }) {
+async function fetchAllSubgraphResults({ url, query, field, variables = {} }: any) {
   let skip = 0;
   let allResults: any[] = [];
   let hasMore = true;
@@ -136,7 +137,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   adapter: {
-    base: {
+    [CHAIN.BASE]: {
       fetch,
       start: '2025-04-16',
     }

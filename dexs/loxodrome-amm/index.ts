@@ -24,8 +24,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const factory of FACTORY_ADDRESSES) {
     const uniFetch = getUniV2LogAdapter({
       factory: factory,
-      fees: 0.005, // 0.05%
-      stableFees: 0.002, // 0.02%
+      fees: 0.0005, // 0.05%
+      stableFees: 0.0002, // 0.02%
     })
 
     const uniFetchResult = await uniFetch(options)

@@ -7,6 +7,7 @@ const MAOBS = [
     { address: '0xaD7e5CBfB535ceC8d2E58Dca17b11d9bA76f555E', base: '0xB0F70C0bD6FD87dbEb7C10dC692a2a6106817072', quote: USDM },  // BTC.b / USDm
     { address: '0x23469683e25b780DFDC11410a8e83c923caDF125', base: '0x4200000000000000000000000000000000000006', quote: USDM },  // WETH  / USDm
     { address: '0xDf1576c3C82C9f8B759C69f4cF256061C6Fe1f9e', base: '0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb', quote: USDM },  // USDT0 / USDm
+    { address: '0x20C7B6B34bB8B8efb46828cF9383BFf8b7856E46', base: '0x28B7E77f82B25B95953825F1E3eA0E36c1c29861', quote: USDM },  // MEGA  / USDm
 ]
 
 const EVENT_ABI = 'event RungFilled(address indexed taker, bool indexed isBuy, uint16 indexed rung, uint256 baseAmount, uint256 quoteAmount, uint256 priceE18)'

@@ -5,11 +5,11 @@ import { request, } from "graphql-request";
 export default {
   chains: [CHAIN.SOMNIA],
   fetch,
-  styart: '2025-09-02',
+  start: '2025-09-02',
 }
 
 
-async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+async function fetch({ startOfDay }: FetchOptions) {
   const yesterday = startOfDay - 86400
   const endpoint = 'https://api.subgraph.somnia.network/api/public/962dcbf6-75ff-4e54-b778-6b5816c05e7d/subgraphs/somnia-perp/v1.0.0/gn'
   const query = `{

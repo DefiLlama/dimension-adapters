@@ -1,15 +1,16 @@
 import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async (timestamp: any) => {
-  const res = await fetchURL(`https://inj-api-78847b1b16a1.herokuapp.com/api/volume-stats/usd?timestamp=${timestamp.startOfDay}`);
+const fetch = async (options: FetchOptions) => {
+  const res = await fetchURL(`https://inj-api-78847b1b16a1.herokuapp.com/api/volume-stats/usd?timestamp=${options.startOfDay}`);
   return {
     dailyVolume: res.dailyVolume,
   };
 };
 
 const adapter: any = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.INJECTIVE]: {
       fetch,

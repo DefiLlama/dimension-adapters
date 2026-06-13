@@ -4,7 +4,23 @@ import { FetchOptions } from "../../adapters/types";
 
 const API_URL = "https://titan.exchange/public/hourly-volume";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+//https://dune.com/queries/5450215/8891846
+const badDataDays = [
+  {
+    date: "2026-04-26",
+    realVolume: 56900000
+  },
+  {
+    date: "2026-06-07",
+    realVolume: 45200000
+  }
+]
+
+const fetch = async (options: FetchOptions) => {
+  const realVolume = badDataDays.find(day => day.date === options.dateString)?.realVolume;
+  if (realVolume) {
+    return { dailyVolume: realVolume };
+  }
   const url = `${API_URL}?start_timestamp=${options.startTimestamp}&end_timestamp=${options.endTimestamp}`;
   const result = await fetchURL(url);
   

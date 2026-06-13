@@ -7,15 +7,11 @@ const fetch = async (_options: FetchOptions) => {
   const response = await fetchURL(endpoint);
 
   let openInterestAtEnd = 0
-  let dailyVolume = 0
   for (const i of response) {
     openInterestAtEnd += i.open_interest_usd
-    if (i.quote_currency === 'USD' && i.product_type === 'Perpetual') {
-      dailyVolume += i.quote_volume
-    }
   }
 
-  return { openInterestAtEnd, dailyVolume };
+  return { openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {

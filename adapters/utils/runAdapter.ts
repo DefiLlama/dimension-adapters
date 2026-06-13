@@ -4,7 +4,8 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -22,6 +23,14 @@ function genUID(length: number = 10): string {
     result += characters.charAt(Math.floor(Math.random() * characters.length))
   }
   return result
+}
+
+function roundValue(value: any): number {
+  const num = Number(value)
+  const abs = Math.abs(num)
+  if (abs < 1) return +num.toFixed(4)
+  if (abs < 10) return +num.toFixed(2)
+  return +num.toFixed(0)
 }
 
 // const adapterRunResponseCache = {} as any
@@ -76,7 +85,8 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 export function isHourlyAdapter(module: SimpleAdapter) {
   const adapterVersion = module.version
-  return adapterVersion === 2 && (module as any).pullHourly === true
+  const disablePullHourly = String(process.env.DISABLE_PULL_HOURLY) // for local testing purpose only
+  return adapterVersion === 2 && (module as any).pullHourly === true && disablePullHourly !== 'true'
 }
 
 export function isPlainDateArg(rawTimeArg?: string) {
@@ -90,40 +100,27 @@ type AdapterRunOptions = {
   name?: string,
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
-  cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  cacheResults?: boolean, // deprecated, if true, caches the results in adapterRunResponseCache
   runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
+  metadata?: {
+    [key: string]: any
+    adapterType?: string
+    protocolName?: string
+    name?: string
+    id?: string
+    runType?: string
+    isHourlyAdapter?: boolean
+  }
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module, cacheResults = false } = options
+  const { module,} = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
   return _runAdapter(options)
-
-/*  Disable caching run results
-
-  if (!cacheResults) return _runAdapter(options)
-
-  const runKey = getRunKey(options)
-
-  if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
-  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
-
-  function clone(obj: any) {
-    return JSON.parse(JSON.stringify(obj))
-  }
-
-
-   */
 }
-/* 
-function getRunKey(options: AdapterRunOptions) {
-  const randomUID = options.module._randomUID ?? genUID(10)
-  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
-} */
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
@@ -141,6 +138,7 @@ async function _runAdapter({
   withMetadata = false,
   deadChains = new Set(),
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
+  metadata = {},
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -213,6 +211,16 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
+  // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
+  if (chains.length > 1 && chains.includes(CHAIN.CHAIN_GLOBAL)) {
+    Object.keys(aggregated).forEach(metricType => {
+      const metricObject = aggregated[metricType]
+      if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
+        metricObject.value = metricObject.chains[CHAIN.CHAIN_GLOBAL]
+        delete metricObject.chains[CHAIN.CHAIN_GLOBAL]
+      }
+    })
+  }
 
   const adaptorRecordV2JSON: any = {
     aggregated,
@@ -244,7 +252,12 @@ async function _runAdapter({
 
       let result: any
       if (adapterVersion === 1) {
-        result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
+        // v1 fetch functions now take a single `options` arg (same shape as v2). Any adapter
+        // still on the legacy (timestamp, chainBlocks, options) signature will break here,
+        // which is intentional so the remaining un-migrated adapters surface.
+        result = await (fetchFunction as FetchV2)(options);
+        // v1 adapters may return their own `timestamp` (e.g. when reporting a previous day);
+        // when absent we leave it unset and let the caller default it.
       } else if (adapterVersion === 2) {
         result = await (fetchFunction as FetchV2)(options);
         result.timestamp = options.toTimestamp
@@ -255,7 +268,7 @@ async function _runAdapter({
       const improbableValue = 2e11 // 200 billion
 
       // validate and inject missing record if any
-      validateAdapterResult(result)
+      validateAdapterResult(result, module)
 
       // add missing metrics if need
       addMissingMetrics(chain, result)
@@ -282,7 +295,7 @@ async function _runAdapter({
             const breakData = breakdownByLabelByChain[recordType]
 
             for (let [label, labelValue] of Object.entries(labelBreakdown)) {
-              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              labelValue = roundValue(labelValue)
               aggData[label] = (aggData[label] || 0) + labelValue
               if (!breakData[label]) breakData[label] = {}
               breakData[label][chain] = labelValue
@@ -290,7 +303,7 @@ async function _runAdapter({
           }
         }
 
-        result[recordType] = +Number(result[recordType]).toFixed(0)
+        result[recordType] = roundValue(result[recordType])
         if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
         aggregated[recordType].value += result[recordType]
         aggregated[recordType].chains[chain] = result[recordType]
@@ -438,6 +451,7 @@ async function _runAdapter({
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
       streamLogs,
+      metadata,
     }
   }
 
@@ -451,7 +465,7 @@ async function _runAdapter({
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
-    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
     if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
@@ -522,12 +536,12 @@ function subtractBalance(options: { balance: Balances, amount: FetchResponseValu
   }
 }
 
-function validateAdapterResult(result: any) {
+function validateAdapterResult(result: any, module: any) {
   // validate metrics
   //  this is to ensure that we do this validation only for the new adapters
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
-    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
     }
   }

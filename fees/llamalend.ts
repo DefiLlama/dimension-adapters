@@ -1,62 +1,77 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, } from "graphql-request";
-import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from  "../adapters/types";
+import type { FetchOptions } from "../adapters/types"
 
-const endpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7cG6NVPRm4CQmfVsh4d1bYGqaWNazRyVTn3xuvdDRNPi'),
+const POOL_ADDRESS = '0x55F9F26b3d7a4459205c70994c11775629530eA5'
+const DEPLOY_BLOCK = 15819910
+
+const ABIs = {
+  poolCreated: 'event PoolCreated(address indexed,address indexed ,address)',
+  loanCreated: 'event LoanCreated(uint256 indexed loanId, uint256 nft, uint256 interest, uint256 startTime, uint216 borrowed)',
+  ownerOf: 'function ownerOf(uint256 tokenId) view returns (address)',
 }
-const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-interface IGraph {
-  interest: string;
-  borrowed: string;
-}
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number , _: ChainBlocks, { createBalances, getToBlock }: FetchOptions) => {
-      const dailyFees = createBalances();
-      const block = await getToBlock()
-      const graphQuery = `
-      {
-        loans(where:{owner_not: null}, block:{ number: ${block}}) {
-          interest
-          borrowed
-        }
-      }
-      `;
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
 
-      const graphRes: IGraph[] = (await request(graphUrls[chain], graphQuery)).loans;
-      graphRes.map((b: IGraph) => dailyFees.addGasToken((Number(b.interest) * Number(b.borrowed) * ONE_DAY_IN_SECONDS / 1e18)))
+  const poolCreatedLogs = await options.getLogs({
+    target: POOL_ADDRESS,
+    eventAbi: ABIs.poolCreated,
+    fromBlock: DEPLOY_BLOCK,
+    cacheInCloud: true,
+  })
 
-      return {
-        timestamp: timestamp,
-        dailyFees,
-        dailyUserFees: dailyFees,
-        dailySupplySideRevenue: dailyFees,
-      };
-    };
+  const pools = poolCreatedLogs.map(log => log[2]);
+
+  const loans = await options.getLogs({
+    targets: pools,
+    eventAbi: ABIs.loanCreated,
+    fromBlock: DEPLOY_BLOCK,
+    cacheInCloud: true,
+    flatten: false,
+  });
+
+  const owners = await options.api.multiCall({
+    abi: ABIs.ownerOf,
+    calls: pools.flatMap((pool, poolIndex) =>
+      loans[poolIndex].map((loan: any) => ({ target: pool, params: [loan.loanId] }))
+    ),
+    permitFailure: true,
+  });
+
+  loans.flat().forEach((loan, index) => {
+    const isLoanActive = owners[index]
+    if (isLoanActive) {
+      const dailyInterest = BigInt(loan.interest) * BigInt(loan.borrowed) * BigInt(options.endTimestamp - options.startTimestamp) / 10n ** 18n;
+      dailyFees.addGasToken(dailyInterest);
+    }
+  });
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: 0,
   };
 };
 
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-      start: '2022-11-01',
-    },
-  },
-        methodology: {
-          Fees: "Interest paid by borrowers",
-          UserFees: "Interest paid to borrow ETH",
-          SupplySideRevenue: "Interest paid to NFTs lenders",
-          Revenue: "Governance have no revenue",
-          HoldersRevenue: "Token holders have no revenue",
-          ProtocolRevenue: "Protocol have no revenue"
-        }
+  version: 2,
+  pullHourly: true,
+  fetch,
+  start: '2022-11-01',
+  chains: [CHAIN.ETHEREUM],
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    UserFees: "Interest paid to borrow ETH",
+    SupplySideRevenue: "Interest paid to NFTs lenders",
+    Revenue: "Governance have no revenue",
+    HoldersRevenue: "Token holders have no revenue",
+    ProtocolRevenue: "Protocol have no revenue"
+  }
 }
 
 export default adapter;

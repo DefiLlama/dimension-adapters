@@ -10,6 +10,13 @@ interface MorphoBlueConfig {
   fromBlock?: number;
 }
 
+const blacklistedMarketIds: Record<string, Array<any>> = {
+  [CHAIN.WC]: [{
+    from: "2025-11-07",
+    id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
+  }]
+}
+
 const MorphoBlues: Record<string, MorphoBlueConfig> = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
@@ -106,6 +113,31 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xD5D960E8C380B724a48AC59E2DfF1b2CB4a1eAee",
     start: "2025-11-23",
   },
+  [CHAIN.PLUME]: {
+    fromBlock: 765994,
+    blue: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+    start: "2025-04-22",
+  },
+  [CHAIN.CELO]: {
+    fromBlock: 40249329,
+    blue: "0xd24ECdD8C1e0E57a4E26B1a7bbeAa3e95466A569",
+    start: "2025-07-10",
+  },
+  [CHAIN.ABSTRACT]: {
+    fromBlock: 13947713,
+    blue: "0xc85CE8ffdA27b646D269516B8d0Fa6ec2E958B55",
+    start: "2025-07-10",
+  },
+  [CHAIN.FLARE]: {
+    fromBlock: 52378788,
+    blue: "0xF4346F5132e810f80a28487a79c7559d9797E8B0",
+    start: "2025-12-16",
+  },
+  [CHAIN.CITREA]: {
+    fromBlock: 2528230,
+    blue: "0x99D31FEcc885204b4136ea5D2ef2a37F36E3AeB8",
+    start: "2026-01-23",
+  },
   // [CHAIN.STABLE]: {
   //   fromBlock: 4342501,
   //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
@@ -166,9 +198,9 @@ const BLUE_API_ENDPOINT = "https://blue-api.morpho.org/graphql";
 
 const query = `
   query GetMarketsData($chainId: Int!, $first: Int!, $skip: Int!) {
-    markets(where: { chainId_in: [$chainId], whitelisted: true }, first: $first, skip: $skip) {
+    markets(where: { chainId_in: [$chainId], listed: true }, first: $first, skip: $skip) {
       items {
-        uniqueKey
+        marketId
         lltv
         loanAsset {
           address
@@ -205,7 +237,7 @@ const _fetchMarkets = async (chainId: number, url: string): Promise<Array<Morpho
     marketsBatch = res.markets.items
     .map((item: any) => {
       return {
-        marketId: item.uniqueKey,
+        marketId: item.marketId,
         loanAsset: item.loanAsset.address,
         collateralAsset: item.collateralAsset ? item.collateralAsset.address : undefined,
         lltv: BigInt(item.lltv),
@@ -270,15 +302,19 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
+  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id) ?? [];
+
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
       eventAbi: MorphoBlueAbis.AccrueInterest,
       target: MorphoBlues[options.chain].blue,
     })
   ).map((log: any) => {
+    let interest = log.interest;
+    if(blacklistedIds.includes(log.id)) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
-      interest: BigInt(log.interest),
+      interest: BigInt(interest),
     };
   });
   const liquidations: Array<MorphoBlueLiquidateEvent> = (
@@ -329,6 +365,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: info.methodology,
   breakdownMethodology: info.breakdownMethodology,
   fetch: fetch,

@@ -19,9 +19,9 @@ const feesConfigs: Record<string, any> = {
     [CHAIN.KAVA]: { vault: "0xa721f9f61CECf902B2BCBDDbd83E71c191dEcd8b", start: "2023-12-12" },
   },
   "ktx": {
-    [CHAIN.ARBITRUM]: { vault: "0xc657A1440d266dD21ec3c299A8B9098065f663Bb", start: "2024-01-14", ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30, methodology: ktxMethodology },
-    [CHAIN.BSC]: { vault: "0xd98b46C6c4D3DBc6a9Cc965F385BDDDf7a660856", start: "2023-04-30", methodology: ktxMethodology, ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30 },
-    [CHAIN.MANTLE]: { vault: "0x2e488D7ED78171793FA91fAd5352Be423A50Dae1", start: "2023-09-04", methodology: ktxMethodology, ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30 },
+    [CHAIN.ARBITRUM]: { vault: "0xc657A1440d266dD21ec3c299A8B9098065f663Bb", start: "2024-01-14", ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30, methodology: ktxMethodology, deadFrom: '2026-02-28' },
+    [CHAIN.BSC]: { vault: "0xd98b46C6c4D3DBc6a9Cc965F385BDDDf7a660856", start: "2023-04-30", methodology: ktxMethodology, ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30, deadFrom: '2026-02-28' },
+    [CHAIN.MANTLE]: { vault: "0x2e488D7ED78171793FA91fAd5352Be423A50Dae1", start: "2023-09-04", methodology: ktxMethodology, ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30, deadFrom: '2026-02-28' },
   },
   "phame-protocol": {
     [CHAIN.PULSECHAIN]: { vault: "0x3dC4033fF5c04FdE3369937434961ca47AC7cA26", start: "2023-09-16" },
@@ -34,6 +34,9 @@ const feesConfigs: Record<string, any> = {
   },
   "loxodrome-perp": {
     [CHAIN.IOTEX]: { vault: "0x13904291B7d3e87d23070d22Bc34FA514F99Db18", start: "2024-11-02" },
+  },
+  "fxdx": {
+    [CHAIN.BASE]: { vault: "0x1ce0EBd2b95221b924765456fdE017B076E79dbe", start: '2023-08-22', deadFrom: '2025-11-01' },
   },
 };
 

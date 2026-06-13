@@ -92,6 +92,36 @@ const BoringVaults: {[key: string]: Array<IBoringVault>} = {
       accountantAbiVersion: 2,
     }
   ],
+  [CHAIN.INK]: [
+    // Sentora Advanced Yields USD — accountant 0x8C9C454C... events ~12-24h ago
+    { vault: '0x63D124cF1afC22F0CCEa376168200508d2A0868E', accountantAbiVersion: 2 },
+    // Advanced Strategies USDC — accountant 0x427a3c0... events within last day
+    { vault: '0x9761DDF8e79930b334f1Be1BD93aBE3695061CcA', accountantAbiVersion: 2 },
+    // Balanced Yield + Boosted Yield USDC excluded — accountants 0x0C4dF79... and
+    // 0x9c2477D... have no events in 240k blocks (~3 days).
+  ],
+  [CHAIN.SCROLL]: [
+    // Liquid ETH — accountant 0x0d05D... event ~3h ago
+    { vault: '0xf0bb20865277aBd641a307eCe5Ee04E79073416C', accountantAbiVersion: 2 },
+    // Liquid USD — accountant 0xc315D... event ~3h ago
+    { vault: '0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C', accountantAbiVersion: 2 },
+    // Liquid BTC — accountant 0xEa23a... event ~3h ago
+    { vault: '0x5f46d540b6eD704C3c8789105F30E075AA900726', accountantAbiVersion: 2 },
+    // eUSD — accountant 0xEB440B... event ~3h ago
+    { vault: '0x939778D83b46B456224A33Fb59630B11DEC56663', accountantAbiVersion: 2 },
+    // eBTC excluded — accountant 0x1b293D... has no events in the same window.
+  ],
+  [CHAIN.PLASMA]: [
+    // Plasma USD — accountant 0x737f2... event ~3-4 days ago
+    { vault: '0xd1074E0AE85610dDBA0147e29eBe0D8E5873a000', accountantAbiVersion: 2 },
+  ],
+  [CHAIN.ARBITRUM]: [
+    // Staked ETHFI — accountant 0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b
+    // emitted 22 events in last ~46 days (last ~2.6 days ago).
+    { vault: '0x86B5780b606940Eb59A062aA85a07959518c0161', accountantAbiVersion: 2 },
+    // EBTC mirror (0x657e8C...) intentionally excluded — its accountant
+    // 0x1b293D... has no events in 3M blocks.
+  ],
 }
 
 const BoringVaultAbis = {
@@ -183,11 +213,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           // it's safe for performance because ExchangeRateUpdated events
           // occur daily once
           const totalSupplyAtUpdated = await sdk.api2.abi.call({
+            chain: options.chain,
             abi: BoringVaultAbis.totalSupply,
             target: vault.vault,
             block: event.blockNumber,
           })
           const getAccountantState = await sdk.api2.abi.call({
+            chain: options.chain,
             abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
             target: accountant,
             block: event.blockNumber,
@@ -234,7 +266,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
       // platform fees changred by Veda per year of total assets in vault
       const yearInSecs = 365 * 24 * 60 * 60
-      const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+      const timespan = options.fromTimestamp && options.toTimestamp ? Number(options.toTimestamp) - Number(options.fromTimestamp) : 3600
       const platformFee = totalDeposited * (paltformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
       dailyFees.add(token, platformFee)
@@ -252,20 +284,30 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
   methodology,
+  pullHourly: true,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
       start: '2024-4-16',
     },
     [CHAIN.SONIC]: {
-      fetch: fetch,
       start: '2025-02-07',
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
       start: '2024-09-06',
+    },
+    [CHAIN.INK]: {
+      start: '2025-09-15'
+    },
+    [CHAIN.SCROLL]: {
+      start: '2024-12-01'
+    },
+    [CHAIN.PLASMA]: {
+      start: '2025-09-25'
+    },
+    [CHAIN.ARBITRUM]: {
+      start: '2024-09-19'
     },
   }
 }

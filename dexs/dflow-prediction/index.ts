@@ -23,7 +23,7 @@ const CASH_SETTLEMENT_VAULT = 'AgfNbTUmTK75HcpDCsuTDarj2iapJCbNSr2pzcCXRBS'
 const USDC_SETTLEMENT_VAULT = '6k797rx8d5xUBsfCgp7LDrsvvnnxjKf2MjQkx6kvdPDw'
 const DFLOW_PREDICTION_PROGRAM = 'pReDicTmksnPfkfiz33ndSdbe2dY43KYPg4U2dbvHvb'
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   // Volume = transfers TO settlement vault owners (consumed_input_amount in FillUserOrder)
   // Fees = transfers TO fee account (platform_fee_amount)
   const query = `

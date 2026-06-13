@@ -1,5 +1,5 @@
 const {GraphQLClient, gql} = require('graphql-request');
-import {dexterSubgraphEndpoint, dexterVaultAddr} from "./constants";
+import {dexterSubgraphEndpoint, } from "./constants";
 
 const operation = gql`
     query defillama_dex_dimensions {

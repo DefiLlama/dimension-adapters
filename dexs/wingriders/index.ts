@@ -1,39 +1,32 @@
-import { Adapter, ChainBlocks, FetchOptions } from "../../adapters/types"
+import { Adapter, ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
-import request, { gql } from "graphql-request";
+import fetchURL from "../../utils/fetchURL";
 
-const url = 'https://api.mainnet.wingriders.com/graphql';
+const url: string = "https://api.mainnet.wingriders.com/v1/defillama";
 
-const query = gql`
-query Volume($input: VolumeInput!) {
-  volume(input: $input)
-}
-`
+async function fetch(options: FetchOptions) {
+    const data = await fetchURL(url);
 
-interface IResponse {
-    volume: number
-}
+    const getBalances = (valueInAda: any) => {
+        const balances = options.createBalances();
+        balances.addCGToken('cardano', Number(valueInAda));
+        return balances;
+    }
 
-async function fetchVolume(timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions) {
-    const dailyVolume = createBalances()
-    const response: IResponse = await request(url, query, {
-        input: {
-            lastNHours: 24,
-            baseCurrency: "ADA"
-        }
-    });
-    dailyVolume.addGasToken(response.volume * 1e6);
+    const dailyVolume = getBalances(data.dailyVolume);
+    const dailyFees = getBalances(data.dailyFees);
+
     return {
         dailyVolume,
-        timestamp
+        dailyFees,
+        dailyUserFees: dailyFees,
     }
 }
 
-export default {
-    adapter: {
-        [CHAIN.CARDANO]: {
-            fetch: fetchVolume,
-            runAtCurrTime: true,
-                    }
-    }
-} as Adapter
+const adapter: SimpleAdapter = {
+    fetch,
+    chains: [CHAIN.CARDANO],
+    runAtCurrTime: true,
+}
+
+export default adapter;

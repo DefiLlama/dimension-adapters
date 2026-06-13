@@ -5,6 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const endpoint = "https://api.ston.fi/v1/stats/operations?";
+const swapExitCodes = new Set(["swap_ok", "swap_ok_ref"]);
 
 const fetchFees = async (options: FetchOptions) => {
   const pool_list = (await fetchURL("https://api.ston.fi/v1/pools")).pool_list;
@@ -48,7 +49,7 @@ const fetchFees = async (options: FetchOptions) => {
   // go through all operations and calculate fees based on the current prices
   for (const item of res["operations"]) {
     const operation = item.operation;
-    if (operation.success && operation.operation_type == "swap" && operation.exit_code == "swap_ok") {
+    if (operation.success && operation.operation_type == "swap" && swapExitCodes.has(operation.exit_code)) {
       if (operation.fee_asset_address in asset_prices) {
         const price = asset_prices[operation.fee_asset_address];
         total_lp_fees += operation.lp_fee_amount * price;

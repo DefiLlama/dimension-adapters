@@ -1,8 +1,7 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { FetchOptions, FetchResult, SimpleAdapter } from '../adapters/types';
 import fetchURL from '../utils/fetchURL';
+import { sleep } from '../utils/utils';
 import { CHAIN } from './chains';
-import * as sdk from "@defillama/sdk";
-
 
 export const fetchPolymarketBuilderVolume = async ({ options, builder }: { options: FetchOptions, builder: string }) => {
 
@@ -14,13 +13,13 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder }: { optio
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
   }
 
-  return { dailyVolume: volume.volume };
+  return { dailyNotionalVolume: volume.volume };
 };
 
 
 export function polymarketBuilderExports({ builder, start }: { builder: string, start: string }) {
 
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     return await fetchPolymarketBuilderVolume({ options, builder });
   }
 
@@ -35,16 +34,67 @@ export function polymarketBuilderExports({ builder, start }: { builder: string, 
   return adapter as SimpleAdapter
 }
 
+export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { options: FetchOptions, builderCode: string }) {
+  const dailyFees = options.createBalances();
+
+  let cursor: string | undefined;
+  do {
+    const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
+    const tradesData = await fetchURL(url);
+    for (const trade of tradesData.data) {
+      dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
+    }
+    cursor = tradesData.next_cursor;
+    await sleep(500);
+  } while (cursor && cursor !== 'LTE=');
+
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+}
+
+export function polymarketV2BuilderFeesExports({ builderCode, builderName, start }: { builderCode: string, builderName: string, start: string }) {
+  const fetch = async (options: FetchOptions) => {
+    return await fetchPolymarketV2BuilderFees({ options, builderCode });
+  }
+
+  const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
+    chains: [CHAIN.POLYGON],
+    fetch,
+    start,
+    doublecounted: true,
+    methodology: {
+      Fees: `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      Revenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      },
+      Revenue: {
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      },
+      ProtocolRevenue: {
+        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      },
+    }
+  }
+
+  return adapter;
+}
+
 interface GetPolymarketVolumeProps {
   options: FetchOptions;
   exchanges: Array<string>;
   currency: string;
 }
 
-export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<{ dailyVolume: sdk.Balances }> {
+export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<FetchResult> {
   const { options, exchanges, currency } = props;
   
   const dailyVolume = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
   
   const OrderFilledLogs = await options.getLogs({
     targets: exchanges,
@@ -54,16 +104,16 @@ export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Prom
 
   for (const log of OrderFilledLogs) {
     if (log.makerAssetId.toString() === '0') {
-      const volumeInWei = BigInt(log.makerAmountFilled) / 2n;
-      dailyVolume.add(currency, volumeInWei);
+      dailyVolume.add(currency, BigInt(log.makerAmountFilled) / 2n);
+      dailyNotionalVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
     }
     else if (log.takerAssetId.toString() === '0') {
-      const volumeInWei = BigInt(log.takerAmountFilled) / 2n;
-      dailyVolume.add(currency, volumeInWei);
+      dailyVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
+      dailyNotionalVolume.add(currency, BigInt(log.makerAmountFilled) / 2n)
     }
   }
 
-  return { dailyVolume };
+  return { dailyVolume, dailyNotionalVolume };
 }
 
 

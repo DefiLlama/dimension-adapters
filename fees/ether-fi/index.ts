@@ -74,7 +74,8 @@ const getStethFees = async (options: FetchOptions, totalSteth: number) => {
     target: STETH,
     eventAbi: "event TokenRebased(uint256 indexed reportTimestamp,uint256 timeElapsed,uint256 preTotalShares,uint256 preTotalEther,uint256 postTotalShares,uint256 postTotalEther,uint256 sharesMintedAsFees)",
   });
-  const lastRebaseLog = stethRebaseLogs[0]
+  if (stethRebaseLogs.length === 0) return 0;
+  const lastRebaseLog = stethRebaseLogs[stethRebaseLogs.length - 1];
   const exchangeRateBefore = Number(lastRebaseLog.preTotalEther) / Number(lastRebaseLog.preTotalShares);
   const exchangeRateAfter = Number(lastRebaseLog.postTotalEther) / Number(lastRebaseLog.postTotalShares);
   const stethShares = totalSteth / exchangeRateBefore
@@ -156,16 +157,13 @@ const getSsvRevenue = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
   })
-  let ssv_revenue = 0;
-  for (const log of logs) {
-    if (log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase()) {
-      ssv_revenue += +Number(log.value);
-    }
-    else {
-      ssv_revenue += +Number(log.value) * 0.8;
-    }
-  }
-  return BigInt(ssv_revenue);
+  // Transfers from the dedicated fee recipient are 100% protocol;
+  // everything else has an 80% protocol cut (4/5 in integer math).
+  return logs.reduce((acc: bigint, log: any) => {
+    const value = BigInt(log.value);
+    const fromFeeRecipient = log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase();
+    return acc + (fromFeeRecipient ? value : (value * 4n) / 5n);
+  }, 0n);
 }
 
 const getObolRevenue = async (options: FetchOptions) => {
@@ -174,8 +172,7 @@ const getObolRevenue = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   })
-  const obol_revenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  return BigInt(obol_revenue);
+  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
 
 const getWithdrawalFees = async (options: FetchOptions) => {
@@ -184,8 +181,7 @@ const getWithdrawalFees = async (options: FetchOptions) => {
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", ethers.zeroPadValue("0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c", 32), ethers.zeroPadValue("0x2f5301a3D59388c509C65f8698f521377D41Fd0F", 32)],
   })
-  const withdrawal_fees = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  return BigInt(withdrawal_fees);
+  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
 
 const getMiscStakingRevenue = async (options: FetchOptions) => {
@@ -200,91 +196,47 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
 
-  const wethRevenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
-  const eigenRevenue = logs2.reduce((acc, log) => acc + Number(log.value), 0);
-  return {
-    wethRevenue: BigInt(wethRevenue),
-    eigenRevenue: BigInt(eigenRevenue),
-  };
+  const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
+  const eigenRevenue = logs2.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
+  return { wethRevenue, eigenRevenue };
 }
 
 const getAdditionalRevenueStreams = async (options: FetchOptions) => {
   const query = `
-    with 
-    
-    -- Restaking rewards from Eigenlayer via restaker contract
-    restaking_rewards as (
-        select 
-            'restaking_rewards' as revenue_source,
-            sum(((0.035 * token_balance_usd) * 0.038)/365) as revenue_usd
-        from 
-        dune.ether_fi.result_aum
-        where address in (0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf, 0x917cee801a67f933f2e6b33fc0cd1ed2d5909d88)
-        and lower(token_symbol) like '%steth%'
-        and day = date(from_unixtime(${options.startOfDay})) 
-        and token_balance_usd > 0
-    ),
+     select
+         sum(amount_usd) as revenue_usd
+     from (
+         select
+             amount_usd
+         from
+         dex_aggregator.trades
+         where blockchain = 'ethereum'
+         and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F
+         and TIME_RANGE
 
-     -- ether.fi buybacks (counted as holders revenue)
-     buybacks as (
-         select 
-             'buybacks' as revenue_source,
-             sum(amount_usd) as revenue_usd
+         union all
+
+         select
+             amount_usd
          from (
-             select 
-                 amount_usd
-             from 
-             dex_aggregator.trades 
-             where blockchain = 'ethereum'
-             and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F 
-             and TIME_RANGE
-
-             union all 
-
-             select 
-                 amount_usd
-             from (
-                 values 
-                     ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
-                     ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
-                     ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
-                     ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
-                     ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
-                     ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
-                     ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
-                     ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
-                     ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
-                     ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
-             ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
-             where block_time >= from_unixtime(${options.startTimestamp})
-             and block_time < from_unixtime(${options.endTimestamp})
-         )
-     )
-     
-     -- Combine all revenue sources
-     select revenue_source, revenue_usd from restaking_rewards
-     union all
-     select revenue_source, revenue_usd from buybacks`;
+             values
+                 ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
+                 ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
+                 ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
+                 ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
+                 ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
+                 ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
+                 ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
+                 ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
+                 ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
+                 ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
+         ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
+         where block_time >= from_unixtime(${options.startTimestamp})
+         and block_time < from_unixtime(${options.endTimestamp})
+     )`;
 
   const result = await queryDuneSql(options, query);
-  const revenues = {
-    restakingRewards: 0,
-    buybacks: 0
-  };
-
-  if (result && result.length > 0) {
-    result.forEach((row: any) => {
-      switch (row.revenue_source) {
-        case 'restaking_rewards':
-          revenues.restakingRewards = Number(row.revenue_usd || 0);
-          break;
-        case 'buybacks':
-          revenues.buybacks = Number(row.revenue_usd || 0);
-          break;
-      }
-    });
-  }
-  return revenues;
+  return { buybacks: Number(result?.[0]?.revenue_usd || 0) };
 }
 
 /**
@@ -304,7 +256,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
  * 
  * Note: Different revenue streams have different protocol vs supply side splits
  */
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -325,7 +277,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const stethRevenue = totalSteth * 3.5 / 100 * 0.025 / 365
 
   // Eigenlayer restaking rewards claimed weekly on Optimism L2
-  const optimismApi = new sdk.ChainApi({ chain: 'optimism' });
+  const optimismApi = new sdk.ChainApi({ chain: 'optimism', timestamp: options.toTimestamp });
   const restakingRewardsEigen = BigInt(await optimismApi.call({
     target: '0xAB7590CeE3Ef1A863E9A5877fBB82D9bE11504da',
     abi: 'function categoryTVL(string _category) view returns (uint256)',
@@ -360,13 +312,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const additionalRevenues = await getAdditionalRevenueStreams(options);
 
-  // Restaking rewards calculated from stETH holdings in restaker contracts 
-  // (separate from L2 Eigen claims above - this is based on actual stETH restaked)
-  if (additionalRevenues.restakingRewards > 0) {
-    dailyRevenue.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
-    dailyFees.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
-  }
-
   // ether.fi buybacks (counted as holders revenue)
   const dailyHoldersRevenue = options.createBalances();
   if (additionalRevenues.buybacks > 0) {
@@ -388,13 +333,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     });
 
     if (vaultState) {
-      const vaultFees = vaultState.managementFee / (100 * 100); // as fees are in basis points
-
+      // v1 accountants expose the bps as `platformFee`; v2 as `managementFee`.
+      const feeBps = vault.version === 'v1' ? vaultState.platformFee : vaultState.managementFee;
       const totalSupply_vault = await getTotalSupply(options, vault.target);
       const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
+      const vaultDecimals = await options.api.call({
+        target: vault.target,
+        abi: 'function decimals() view returns (uint8)',
+      });
+      // Keep math in bigint: 18-dec vault TVLs (~1e22) overflow Number precision.
+      const tvlBaseRaw = (BigInt(totalSupply_vault) * BigInt(rate_vault)) / (10n ** BigInt(vaultDecimals));
+      const dailyFeeRaw = (tvlBaseRaw * BigInt(feeBps)) / 10000n / BigInt(YEAR);
 
-      dailyFees.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
-      dailyRevenue.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
+      dailyFees.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
+      dailyRevenue.add(asset_vault, dailyFeeRaw, MetricLabels.MANAGEMENT_FEES);
     }
   }
 

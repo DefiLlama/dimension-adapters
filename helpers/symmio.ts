@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import { Adapter, Chain, Fetch } from "../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { CHAIN } from "./chains";
 
@@ -27,14 +27,15 @@ export const BUILDER_METHODOLOGY = {
   OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
 };
 
-const config: Partial<Record<Chain, string>> = {
+export const config: Partial<Record<Chain, string>> = {
   [CHAIN.ARBITRUM]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/arbitrum_analytics/latest/gn',
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn',
   [CHAIN.BSC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bnb_analytics/latest/gn',
   [CHAIN.MANTLE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mantle_analytics/latest/gn',
-  [CHAIN.BERACHAIN]:'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bera_analytics/latest/gn',
-  [CHAIN.MODE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mode_analytics/latest/gn',
+  // [CHAIN.BERACHAIN]:'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bera_analytics/latest/gn',  // goldsky is dropping support for Berachain subgraph
+  // [CHAIN.MODE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mode_analytics/latest/gn',
   [CHAIN.SONIC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/sonic_analytics/latest/gn',
+  [CHAIN.COTI]: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics',
 };
 
 const affiliateQuery = `
@@ -60,12 +61,12 @@ const dailyByDayAndAccounts = `
   }
 `;
 
-export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
-  return async (timestamp: number, _c: any, { chain }: { chain: Chain }) => {
-    const endpoint = config[chain];
-    if (!endpoint || !builderAddresses?.length) return { timestamp };
+export const fetchBuilderSymmioPerps = (builderAddresses: string[]) => {
+  return async (options: FetchOptions) => {
+    const endpoint = config[options.chain];
+    if (!endpoint || !builderAddresses?.length) return { };
 
-    const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+    const startOfDay = getTimestampAtStartOfDayUTC(options.toTimestamp);
     const day = String(Math.floor(startOfDay / 86400));
     const accounts = [...new Set(builderAddresses.map((a) => a.toLowerCase()))];
 
@@ -74,8 +75,11 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
     let dailyRevenue = 0;
     let openInterestAtEnd = 0;
 
-    const { dailyHistories }: { dailyHistories: DailyHistory[] } =
-      await request(endpoint, dailyByDayAndAccounts, { day, accounts });
+    const { dailyHistories = [] } = await request(endpoint, dailyByDayAndAccounts, { day, accounts })
+      .catch((error) => {
+        console.error(`Symmio builder daily histories graph request failed on ${options.chain} (${endpoint})`, error);
+        return { dailyHistories: [] };
+      }) as { dailyHistories: DailyHistory[] };
 
     dailyHistories.forEach(({ platformFee, symmioShare, tradeVolume, openInterest }) => {
       const fee = Number(platformFee) / 1e18;
@@ -89,9 +93,14 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
       openInterestAtEnd += oi;
     })
 
+    // volume is double counted in the subgraphs:
+    //  https://github.com/SYMM-IO/subgraphs/blob/bc015992de840bf0426638da62765ca5298235c2/analytics/handlers/symmio/OpenPositionHandler.ts#L55
+    //  https://github.com/SYMM-IO/subgraphs/blob/bc015992de840bf0426638da62765ca5298235c2/analytics/handlers/commonHandlers/close.ts#L51
+
+
     return {
       timestamp: startOfDay,
-      dailyVolume: dailyVolume.toString(),
+      dailyVolume: Number(dailyVolume) / 2,
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
       openInterestAtEnd: openInterestAtEnd.toString(),
@@ -99,22 +108,26 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
   };
 };
 
-export const fetchBuilderSymmioPerpsByName = (affiliateName: string): Fetch => {
-  return async (timestamp: number, _c: any, { chain }) => {
-    const endpoint = config[chain];
-    if (!endpoint || !affiliateName) return { timestamp };
+export const fetchBuilderSymmioPerpsByName = (affiliateName: string) => {
+  return async (options: FetchOptions) => {
+    const endpoint = config[options.chain];
+    if (!endpoint || !affiliateName) return { };
 
-    const res = await request(endpoint, affiliateQuery) as { symmioEntities: SymmioEntity[] };
+    const res = await request(endpoint, affiliateQuery)
+      .catch((error) => {
+        console.error(`Symmio affiliate graph request failed on ${options.chain} (${endpoint})`, error);
+        return { symmioEntities: [] };
+      }) as { symmioEntities: SymmioEntity[] };
     const wanted = affiliateName.trim().toLowerCase();
 
-    const addresses = res.symmioEntities
+    const addresses = (res.symmioEntities ?? [])
       .filter(e => e.type === "Affiliate" && e.name?.trim().toLowerCase() === wanted)
       .map(e => e.address)
       .filter(Boolean);
 
-    if (!addresses.length) return { timestamp: getTimestampAtStartOfDayUTC(timestamp) };
+    if (!addresses.length) return { };
 
-    return fetchBuilderSymmioPerps(addresses)(timestamp, _c, { chain } as any);
+    return fetchBuilderSymmioPerps(addresses)(options);
   };
 };
 

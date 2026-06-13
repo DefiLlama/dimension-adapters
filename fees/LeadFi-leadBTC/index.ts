@@ -41,8 +41,8 @@ export default {
   chains: [CHAIN.BSC],
   start: '2025-09-28',
   methodology: {
-    Fees: "Minting and buring fees paid by users.",
-    UserFees: "Minting and buring fees paid by users.",
+    Fees: "Minting and burning fees paid by users.",
+    UserFees: "Minting and burning fees paid by users.",
     Revenue: "All fees are revenue.",
     ProtocolRevenue: "All revenue collected by protocol.",
   },

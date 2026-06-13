@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { BaseAdapter, Fetch, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { METRIC } from './metrics';
 
@@ -99,7 +99,7 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
 }
 
 export function getFeesExport(market: string) {
-  return (async (timestamp: number, _: any, options: FetchOptions) => {
+  return (async (options: FetchOptions) => {
     const { dailyFees, dailyRevenue } = await getFees(market, options, {})
     const dailyHoldersRevenue = dailyRevenue
     const dailySupplySideRevenue = options.createBalances()
@@ -107,11 +107,12 @@ export function getFeesExport(market: string) {
     Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
       dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
     })
-    return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
-  }) as Fetch
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+  })
 }
 
 interface CompoundV2ExportOptions {
+  start?: string | IJSON<string>;
   blacklists?: Array<string>;
   useExchangeRate?: boolean;
   protocolRevenueRatio?: number;
@@ -122,8 +123,12 @@ interface CompoundV2ExportOptions {
 
 export function compoundV2Export(config: IJSON<string>, exportOptions?: CompoundV2ExportOptions) {
   const exportObject: BaseAdapter = {}
+  let starts: IJSON<string> = {}
+  if (typeof exportOptions?.start === 'object')  starts = exportOptions.start
+
   Object.entries(config).map(([chain, market]) => {
     exportObject[chain] = {
+      start: starts[chain],
       fetch: (async (options: FetchOptions) => {
         const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
           ? await getFeesUseExchangeRates(market, options, {
@@ -142,6 +147,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     }
   })
   return {
+    start: typeof exportOptions?.start === 'string' ? exportOptions.start :  undefined,
     adapter: exportObject,
     version: 2,
     methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {

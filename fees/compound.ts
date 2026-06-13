@@ -8,8 +8,8 @@ import { METRIC } from "../helpers/metrics";
 const endpoint = sdk.graph.modifyEndpoint('4TbqVA8p2DoBd5qDbPMwmDZv3CsJjWtxo8nVSqF2tA9a')
 
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+const fetch = async (options: FetchOptions) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400)
 
   const graphQuery = gql
   `{
@@ -47,35 +47,32 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2019-05-07',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2019-05-07',
   methodology: {
     Fees: 'Total borrow interest paid by borrowers.',
     UserFees: 'Total borrow interest paid by borrowers.',
     Revenue: 'Share of borrow interest to Compound treasury.',
     ProtocolRevenue: 'Share of borrow interest to Compound treasury.',
     SupplySideRevenue: 'Total borrow interest paid to lenders.',
-    HoldersRevenueRatio: 'No revenue share for COMP token holders.',
+    HoldersRevenue: 'No revenue share for COMP token holders.',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers across all lending markets.',
     },
     UserFees: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers across all lending markets.',
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: 'Share of borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Share of borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid to lenders.',
+      [METRIC.BORROW_INTEREST]: 'Lender portion of borrow interest distributed to cToken holders who supply liquidity.',
     },
   }
 }

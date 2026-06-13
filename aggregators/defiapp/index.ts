@@ -20,6 +20,10 @@ const defiAppChainIdMap: Record<string, any> = {
     id: "1151111081099710",
     start: "2025-02-13",
   },
+  [CHAIN.BASE]: {
+    id: "8453",
+    start: "2025-02-13",
+  },
 };
 
 const tsToISO = (ts: number) => new Date(ts * 1e3).toISOString()

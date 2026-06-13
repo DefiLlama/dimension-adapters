@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addTokensReceived } from "../helpers/token";
+import { addTokensReceived, getETHReceived } from "../helpers/token";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -178,6 +178,20 @@ const fetchFees = async (options: FetchOptions) => {
   }
   fees_percet.resizeBy(0.01)
   dailyFees.addBalances(fees_percet)
+
+  // Native gas-token fees. When a user swap is paid in the chain's native token
+  // (ETH / BNB / POL / AVAX / etc.), 0x Settler (Trust Wallet's documented swap router
+  // partner — verified Sourcify source at 0x7f54f05635d15cde17a49502fedb9d1803a3be8a /
+  // contract MainnetSettler @custom:security-contact security@0x.org) forwards the
+  // Trust Wallet integrator fee to the same fee collectors as plain internal value
+  // calls. Those calls do not emit ERC20 Transfer events and so are invisible to the
+  // addTokensReceived path above. Pulled via Allium native_token_transfers / traces.
+  await getETHReceived({
+    options,
+    targets: targets[options.chain],
+    balances: dailyFees,
+  });
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -186,6 +200,8 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
@@ -196,7 +212,7 @@ const adapter: SimpleAdapter = {
     };
   }, {}),
   methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
+    Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured both from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT) and from native gas-token internal transfers forwarded by the 0x Settler integrator.',
     Revenue: 'Fees collected by Trust Wallet.',
     ProtocolRevenue: 'Fees collected by Trust Wallet.',
   }

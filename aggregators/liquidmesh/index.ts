@@ -44,7 +44,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 	return data;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
 
 	const tokensAndAmounts: Array<IData> = options.preFetchedResults || []
@@ -68,10 +68,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	};
 };
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
 
-  const blacklistTokens = ['2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F']
+  const blacklistTokens = ['2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F', 'Dsx5h4jk8vyQjd8B9JF9cydNTz87KgPqUG2QCGH9PjCh']
 	
 	const tokensAndAmounts: Array<IData> = await queryDuneSql(options, `
 		SELECT
@@ -113,7 +113,7 @@ const adapter: SimpleAdapter = {
 			},
 		};
 	}, {
-		solana: {
+		[CHAIN.SOLANA]: {
 			fetch: fetchSolana,
 		}
 	}),

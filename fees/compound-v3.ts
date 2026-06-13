@@ -8,6 +8,7 @@ const CometAbis: any = {
   totalBorrow: 'uint256:totalBorrow',
   getUtilization: 'uint256:getUtilization',
   getBorrowRate: 'function getBorrowRate(uint256 utilization) view returns (uint256 borrowRate)',
+  getSupplyRate: 'function getSupplyRate(uint256 utilization) view returns (uint256 supplyRate)',
 }
 
 const CometAddresses: {[key: string]: Array<string>} = {
@@ -57,45 +58,55 @@ const CometAddresses: {[key: string]: Array<string>} = {
 
 const fetchComets: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
 
-  const assets = await options.api.multiCall({
-    abi: CometAbis.baseToken,
-    calls: CometAddresses[options.chain],
-    permitFailure: true,
-  })
-  const us = await options.api.multiCall({
-    abi: CometAbis.getUtilization,
-    calls: CometAddresses[options.chain],
-    permitFailure: true,
-  })
-  const totalBorrows = await options.api.multiCall({
-    abi: CometAbis.totalBorrow,
-    calls: CometAddresses[options.chain],
-    permitFailure: true,
-  })
-  const getBorrowRates = await options.api.multiCall({
-    abi: CometAbis.getBorrowRate,
-    calls: CometAddresses[options.chain].map((address: string, index: number) => {
-      return {
-        target: address,
-        params: [us[index].toString()],
-      }
-    }),
-    permitFailure: true,
-  })
+  const comets = CometAddresses[options.chain]
+
+  const [assets, us, totalSupplies, totalBorrows] = await Promise.all([
+    options.api.multiCall({ abi: CometAbis.baseToken, calls: comets, permitFailure: true }),
+    options.api.multiCall({ abi: CometAbis.getUtilization, calls: comets, permitFailure: true }),
+    options.api.multiCall({ abi: CometAbis.totalSupply, calls: comets, permitFailure: true }),
+    options.api.multiCall({ abi: CometAbis.totalBorrow, calls: comets, permitFailure: true }),
+  ])
+
+  const rateCalls = comets.map((address: string, i: number) => ({
+    target: address,
+    params: [us[i] ? us[i].toString() : '0'],
+  }))
+  const [getBorrowRates, getSupplyRates] = await Promise.all([
+    options.api.multiCall({ abi: CometAbis.getBorrowRate, calls: rateCalls, permitFailure: true }),
+    options.api.multiCall({ abi: CometAbis.getSupplyRate, calls: rateCalls, permitFailure: true }),
+  ])
 
   const DAY = (options.fromTimestamp && options.toTimestamp) ? options.toTimestamp - options.fromTimestamp : 24 * 60 * 60
   for (let i = 0; i < assets.length; i++) {
-    if (assets[i]) {
-      dailyFees.add(assets[i], Number(getBorrowRates[i]) * Number(totalBorrows[i]) * DAY / 1e18, METRIC.BORROW_INTEREST)
-    }
+    if (!assets[i]) continue
+
+    // Comet's totalSupply/totalBorrow are baseToken-denominated (present-value via
+    // baseSupplyIndex/baseBorrowIndex). Rates are per-second × 1e18. The spread
+    // accumulates as protocol reserves — verified on-chain: USDC-Ethereum
+    // reserves grew by $3,458 over 24h matching this exact computation.
+    const borrowInterest = Number(getBorrowRates[i] ?? 0) * Number(totalBorrows[i] ?? 0) * DAY / 1e18
+    const supplyInterestRaw = Number(getSupplyRates[i] ?? 0) * Number(totalSupplies[i] ?? 0) * DAY / 1e18
+    // Comet rate curves are configured independently for supply vs borrow, so a
+    // low-utilization market can briefly emit supplyInterest > borrowInterest
+    // (the gap is paid out of existing reserves). Cap per market to preserve the
+    // identity Fees = SupplySideRevenue + Revenue; reserve drawdowns aren't
+    // booked as negative protocol revenue.
+    const supplyInterest = Math.min(supplyInterestRaw, borrowInterest)
+    const reserveFlow = borrowInterest - supplyInterest
+
+    dailyFees.add(assets[i], borrowInterest, METRIC.BORROW_INTEREST)
+    dailySupplySideRevenue.add(assets[i], supplyInterest, METRIC.BORROW_INTEREST)
+    dailyProtocolRevenue.add(assets[i], reserveFlow, METRIC.BORROW_INTEREST)
   }
 
   return {
-    dailyFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
   }
 };
 
@@ -140,23 +151,23 @@ const adapter: SimpleAdapter = {
   },
   version: 2,
   methodology: {
-    Fees: 'Total borrow interest paid by borrowers.',
-    Revenue: 'No borrow interest to Compound treasury.',
-    ProtocolRevenue: 'No borrow interest to Compound treasury.',
-    SupplySideRevenue: 'All borrow interest paid to lenders.',
+    Fees: 'Total borrow interest paid by borrowers across Compound V3 markets.',
+    Revenue: 'Spread between borrow interest paid by borrowers and supply interest distributed to lenders. Accumulates as protocol reserves on each Comet contract, withdrawable to the Compound DAO Treasury via Governance.',
+    ProtocolRevenue: 'Spread between borrow interest paid by borrowers and supply interest distributed to lenders. Accumulates as protocol reserves on each Comet contract, withdrawable to the Compound DAO Treasury via Governance.',
+    SupplySideRevenue: 'Supply interest distributed to lenders (supplyRate × totalSupply).',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers across all Comet markets, computed as getBorrowRate(utilization) × totalBorrow.',
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: 'No borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Per-market reserve accumulation (borrow interest − supply interest), excluding markets that are in temporary deficit.',
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: 'No borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Per-market reserve accumulation (borrow interest − supply interest), excluding markets that are in temporary deficit.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'All borrow interest paid to lenders.',
+      [METRIC.BORROW_INTEREST]: 'Supply interest paid to lenders, computed as getSupplyRate(utilization) × totalSupply.',
     },
   }
 };

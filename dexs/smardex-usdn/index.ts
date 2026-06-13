@@ -31,7 +31,7 @@ const eventConfigs = [
   {
     abi: usdnAbi.longOpenPositionEvent,
     token: CONFIG.TOKENS.WSTETH,
-    valueIndex: 4,
+    valueIndex: 3,
     contract: CONFIG.CONTRACTS.USDN,
   },
   {

@@ -31,7 +31,7 @@ export class USDNVolumeService {
       {
         abi: usdnAbi.longOpenPositionEvent,
         token: WSTETH,
-        valueIndex: 4,
+        valueIndex: 3,
         contract: USDN,
       },
       {

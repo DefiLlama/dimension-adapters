@@ -1,20 +1,15 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { SUILEND_API_ENDPOINT, SuiLendMetrics } from "../suilend";
 
-const methodology = {
-  Fees: "Total fees paid from swaps",
-  ProtocolReveneue:
-    "The portion of the total fees going to the STEAMM treasury",
-};
-
-const suilendPoolsURL = () => `https://api.suilend.fi/steamm/pools/all`;
+const suilendPoolsURL = () => SUILEND_API_ENDPOINT + '/steamm/pools/all';
 const suilendPoolHistoricalURL = (
   poolId: string,
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
+  `${SUILEND_API_ENDPOINT}/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
 
 interface PoolInfo {
   id: string;
@@ -34,7 +29,7 @@ async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
         dayTimestamp + 24 * 60 * 60 - 1
       )
     );
-    const dayItem = historicalItems.find(item => Number(item.start) === dayTimestamp)
+    const dayItem = historicalItems.find((item: any) => Number(item.start) === dayTimestamp)
     if (dayItem) {
       poolInfos.push({
         id: poolConfig.pool.id,
@@ -49,22 +44,28 @@ async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
   return poolInfos;
 }
 
-const fetchSteammStats = async ({ fromTimestamp }: FetchOptions) => {
+const fetchSteammStats = async ({ fromTimestamp, createBalances }: FetchOptions) => {
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  
   const pools = await fetchPoolsStats(fromTimestamp);
 
-  let dailyFees = 0;
-  let dailyProtocolRevenue = 0;
   for (const pool of pools) {
-    dailyFees += pool.feesUsdValue;
-    dailyProtocolRevenue += pool.feesUsdValue * pool.protocolFeeRate;
+    const protocolRevenue = Number(pool.feesUsdValue) * Number(pool.protocolFeeRate);
+    const supplySideRevenue = Number(pool.feesUsdValue) - protocolRevenue;
+    
+    dailyFees.addUSDValue(Number(pool.feesUsdValue), SuiLendMetrics.SteammSwapFees);
+    dailySupplySideRevenue.addUSDValue(supplySideRevenue, SuiLendMetrics.SteammSwapFeesToLPs);
+    dailyRevenue.addUSDValue(protocolRevenue, SuiLendMetrics.SteammSwapFeesToProtocol);
   }
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees - dailyProtocolRevenue,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -76,7 +77,23 @@ const adapter: Adapter = {
       start: "2025-02-16",
     },
   },
-  methodology,
+  methodology: {
+    Fees: "Total fees paid from swaps",
+    Revenue: "The portion of the total fees going to the STEAMM treasury",
+    ProtocolRevenue: "The portion of the total fees going to the STEAMM treasury",
+    SupplySideRevenue: "The portion of the total fees going to LPs",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [SuiLendMetrics.SteammSwapFees]: 'Total swap fees paid by users',
+    },
+    Revenue: {
+      [SuiLendMetrics.SteammSwapFeesToProtocol]: 'The portion of the total fees going to the STEAMM treasury',
+    },
+    SupplySideRevenue: {
+      [SuiLendMetrics.SteammSwapFeesToLPs]: 'The portion of the total fees going to LPs',
+    },
+  }
 };
 
 export default adapter;

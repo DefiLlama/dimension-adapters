@@ -28,19 +28,32 @@ const metrics = {
   ProtocolFees: "Protocol Fees",
 };
 
+// Shared CTE for platform configs — embedded in both queries to avoid a
+// separate Dune API call.  A start-date filter limits the scan to pools
+// created since the adapter went live.
+const CONFIGS_CTE = `
+    platform_configs AS (
+        SELECT DISTINCT account_config
+        FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
+        WHERE account_creator = '{{platformWallet}}'
+    )`;
+
 // DBC query, excluding migrated configs
 const dbcSQL = `
-    WITH migrated_configs AS (
+    WITH
+    ${CONFIGS_CTE},
+    migrated_configs AS (
         SELECT DISTINCT account_config
         FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
     ),
     dbc_tokens AS (
         SELECT DISTINCT
-            account_config,
-            account_quote_mint
-        FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
-        WHERE account_creator = '{{platformWallet}}'
-          AND account_config NOT IN (SELECT account_config FROM migrated_configs)
+            p.account_config,
+            p.account_quote_mint
+        FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token p
+        JOIN platform_configs pc ON p.account_config = pc.account_config
+        WHERE p.account_creator = '{{platformWallet}}'
+          AND p.account_config NOT IN (SELECT account_config FROM migrated_configs)
     ),
     swap_events AS (
         SELECT
@@ -70,15 +83,16 @@ const dbcSQL = `
     GROUP BY account_quote_mint
 `;
 
-// DAMM v2 query (migrated pools)
+// DAMM v2 query (migrated pools) — configs CTE embedded to avoid a separate API call
 const dammV2SQL = `
   WITH
+    ${CONFIGS_CTE},
     migration_configs AS (
       SELECT DISTINCT
-        account_config,
-        account_pool
-      FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
-      WHERE account_config IN ({{configs}})
+        m.account_config,
+        m.account_pool
+      FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
+      JOIN platform_configs pc ON m.account_config = pc.account_config
     ),
     swap_events AS (
       SELECT
@@ -110,23 +124,8 @@ const getSqlFromString = (sql: string, variables: Record<string, any> = {}): str
   return sql;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  // Step 1: Get all configs dynamically
-  const configsQuery = `
-    SELECT DISTINCT account_config
-    FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
-    WHERE account_creator = '{{platformWallet}}'
-  `;
-  const resolvedConfigsQuery = getSqlFromString(configsQuery, { platformWallet: PLATFORM_WALLET });
-  const configsResult: { account_config: string }[] = await queryDuneSql(options, resolvedConfigsQuery);
-
-  if (!configsResult.length) {
-    throw Error('Orynth adapter: failed get configs from Dune query')
-  }
-
-  const configs = configsResult.map(c => `'${c.account_config}'`).join(",");
-
-  // Step 2: Fetch DBC fees (non-migrated only)
+const fetch = async (options: FetchOptions) => {
+  // Step 1: Fetch DBC fees (non-migrated only)
   const dbcQuery = getSqlFromString(dbcSQL, {
     platformWallet: PLATFORM_WALLET,
     start: options.startTimestamp,
@@ -134,15 +133,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   });
   const dbcData: IData[] = await queryDuneSql(options, dbcQuery);
 
-  // Step 3: Fetch DAMM v2 fees (migrated pools)
+  // Step 2: Fetch DAMM v2 fees (migrated pools)
   const dammv2Query = getSqlFromString(dammV2SQL, {
-    configs,
+    platformWallet: PLATFORM_WALLET,
     start: options.startTimestamp,
     end: options.endTimestamp,
   });
   const dammv2Data: IDammv2Data[] = await queryDuneSql(options, dammv2Query);
 
-  // Step 4: Aggregate fees and volume
+  // Step 3: Aggregate fees and volume
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 

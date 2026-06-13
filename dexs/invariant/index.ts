@@ -1,11 +1,11 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 import { FetchResult } from "../../adapters/types";
 const solanaStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/mainnet";
+  "https://stats.invariant.app/solana/intervals/solana-mainnet?interval=daily";
 const eclipseStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/eclipse-mainnet";
+  "https://stats.invariant.app/eclipse/intervals/eclipse-mainnet?interval=daily";
 
 type StatsApiResponse = {
   data: {
@@ -28,12 +28,12 @@ const fetch = async (
   };
 };
 
-const fetchSolana = async (timestamp: number) => {
-  return fetch(timestamp, solanaStatsApiEndpoint);
+const fetchSolana = async (options: FetchOptions) => {
+  return fetch(options.toTimestamp, solanaStatsApiEndpoint);
 };
 
-const fetchEclipse = async (timestamp: number) => {
-  return fetch(timestamp, eclipseStatsApiEndpoint);
+const fetchEclipse = async (options: FetchOptions) => {
+  return fetch(options.toTimestamp, eclipseStatsApiEndpoint);
 };
 
 const adapter: SimpleAdapter = {

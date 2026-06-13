@@ -126,7 +126,7 @@ function moonwellExport(config: IJSON<string>) {
     return {
         adapter: exportObject,
         version: 2,
-        pullHourly: true,
+        // pullHourly: true,
         allowNegativeValue: true,
         methodology,
         breakdownMethodology: {

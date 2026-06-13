@@ -1,31 +1,26 @@
-// import { Chain } from "../../adapters/types";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
 export const analyticsEndpoint = "https://api.hegic.co/positions";
-export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
+export const HEGIC_HERGE_START = "2022-10-25"; // taken from the first purchased option
 
 const secondsInADay = 24 * 60 * 60;
 
-/** Returns the earliest timestamp for which the data are available */
-export async function getEarliestAvailableTimestamp() {
-  return HEGIC_HERGE_START + secondsInADay;
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
-    arbitrum: {
+    [CHAIN.ARBITRUM]: {
       runAtCurrTime: true,
       fetch: fetchArbitrumAnalyticsData,
-      start: getEarliestAvailableTimestamp,
+      start: HEGIC_HERGE_START,
     },
   },
 };
 
 export async function fetchArbitrumAnalyticsData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
@@ -33,13 +28,12 @@ export async function fetchArbitrumAnalyticsData(
     ...analyticsData.positions,
   ];
 
-  const dailyPositions = getPositionsForDaily(allPositions, timestamp);
+  const dailyPositions = getPositionsForDaily(allPositions, options.toTimestamp);
 
   const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions).toFixed(2);
   const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions).toFixed(2);
 
   return {
-    timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
   };

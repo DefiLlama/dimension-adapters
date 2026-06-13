@@ -102,6 +102,7 @@ function getInnerTxnAmountForAppCall(txn: any, targetArgBase64: string): number 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch: fetch,

@@ -1,83 +1,13 @@
-import { queryFlipside } from "../helpers/flipsidecrypto";
-import { queryAllium, startAlliumQuery } from "../helpers/allium";
-import { httpGet } from "../utils/fetchURL";
-import axios from "axios";
-import { getEnv } from "../helpers/env";
-
-
-function getUsersChain(chain: string) {
-    return async (start: number, end: number) => {
-        const query = await queryFlipside(`select count(DISTINCT FROM_ADDRESS), count(tx_hash) from ${chain}.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-        return {
-            all: {
-                users: query[0][0],
-                txs: query[0][1]
-            }
-        }
-    }
-}
+import { queryAllium } from "../helpers/allium";
+import fetchURL, { httpGet } from "../utils/fetchURL";
+import { CHAIN } from "../helpers/chains";
+import { blockscoutStatsExports } from "./utils/blockscoutStats";
 
 async function solanaUsers(start: number, end: number) {
-    const queryId = await startAlliumQuery(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
-    return {
-        queryId
-    }
+    const queryId = await queryAllium(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
+    return queryId
 }
 
-/*
-async function solanaUsers(start: number, _end: number) {
-    const usersQuery = await request("https://api-solalpha.solscan.io/api/graphql", gql`
-    query allAccountOverviewDailys($date_lt: String) {
-        allAccountOverviewDailys(date_lt: $date_lt, LIMIT: -1, SORT: {date: 1}) {
-            AccountOverviewDailys {
-                date
-                num_signer_account
-            }
-        },
-        allTransactionOverviewDailys(date_lt: $date_lt, LIMIT: -1) {
-            TransactionOverviewDailys {
-                date
-                non_vote_num_trans
-            }
-        }
-    }
-    `, {
-        Headers: {
-            origin: "https://analytics.solscan.io",
-            referer: "https://analytics.solscan.io/",
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
-        }
-    })
-    const startDate = new Date(start*1e3).toISOString().slice(0, "2023-08-31".length)
-    const findDay = (dailys:any[]) => dailys.find(d=>d.date === startDate)
-    return {
-        all: {
-            users: findDay(usersQuery.allAccountOverviewDailys).num_signer_account,
-            txs: findDay(usersQuery.allTransactionOverviewDailys).non_vote_num_trans
-        }
-    }
-}
-*/
-
-async function osmosis(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_FROM), count(tx_id) from osmosis.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return {
-        all: {
-            users: query[0][0],
-            txs: query[0][1]
-        }
-    }
-}
-
-async function near(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_SIGNER), count(tx_hash) from near.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return {
-        all: {
-            users: query[0][0],
-            txs: query[0][1]
-        }
-    }
-}
 
 const timeDif = (d: string, t: number) => Math.abs(new Date(d).getTime() - new Date(t * 1e3).getTime())
 function findClosestItem(results: any[], timestamp: number, getTimestamp: (x: any) => string) {
@@ -94,124 +24,182 @@ function findClosestItem(results: any[], timestamp: number, getTimestamp: (x: an
 const toIso = (d: number) => new Date(d * 1e3).toISOString()
 function coinmetricsData(assetID: string) {
     return async (start: number, end: number) => {
-        const result = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24 * 3600)}&end_time=${toIso(end + 24 * 3600)}`)).data;
-        const closestDatapoint = findClosestItem(result, start, t => t.time)
-        if (!closestDatapoint) {
+        const activeUsersResult = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24 * 3600)}&end_time=${toIso(end + 24 * 3600)}`)).data;
+        const txcountResult = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=TxCnt&assets=${assetID}&start_time=${toIso(start - 24 * 3600)}&end_time=${toIso(end + 24 * 3600)}`)).data;
+
+        const activeUsersClosestDatapoint = findClosestItem(activeUsersResult, start, t => t.time)
+        const txcountClosestDatapoint = findClosestItem(txcountResult, start, t => t.time)
+
+        if (!activeUsersClosestDatapoint || !txcountClosestDatapoint) {
             throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${end}, no data`);
         }
 
-        return parseFloat(closestDatapoint['AdrActCnt']);
+        const activeUsers = parseFloat(activeUsersClosestDatapoint['AdrActCnt']);
+        const txcount = parseFloat(txcountClosestDatapoint['TxCnt']);
+        
+        return [{
+            usercount: activeUsers,
+            txcount: txcount,
+        }];
     }
 }
 
-/*
-// https://tronscan.org/#/data/stats2/accounts/activeAccounts
-async function tronscan(start: number, _end: number) {
-    const results = (await httpGet(`https://apilist.tronscanapi.com/api/account/active_statistic?type=day&start_timestamp=${(start - 2*24*3600)*1e3}`)).data;
-    return findClosestItem(results, start, t=>t.day_time).active_count
-}
-*/
-
-// not used because coinmetrics does some deduplication between users
-async function bitcoinUsers(start: number, end: number) {
-    const query = await queryAllium(`select count(DISTINCT SPENT_UTXO_ID) as usercount from bitcoin.raw.inputs where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return query[0].usercount
-}
-
-async function elrondUsers(start: number) {
-    const startDate = new Date(start * 1e3).toISOString().slice(0, 10)
-    const endDate = new Date((start + 86400) * 1e3).toISOString().slice(0, 10)
-    const { data } = await axios.get(`https://tools.multiversx.com/data-api-v2/accounts/count?startDate=${startDate}&endDate=${endDate}&resolution=day`, {
-        headers: {
-            "x-api-key": getEnv('MULTIVERSX_USERS_API_KEY')
-        }
-    })
-    const { value } = data.find((d: any) => d.date.slice(0, 10) === startDate) 
-    return value
+async function elrondUsers(start: number, end: number) {
+    const usersResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/active-users?range=all`)
+    const usersDataToday = usersResult.data.find((d: any) => d.timestamp >= start && d.timestamp < end)
+    const txcountResult = await fetchURL(`https://tools.multiversx.com/growth-api/explorer/analytics/token-transfers?range=all`)
+    const txcountDataToday = txcountResult.data.find((d: any) => d.timestamp >= start && d.timestamp < end)
+    return [{
+        usercount: usersDataToday.value,
+        txcount: txcountDataToday.value,
+    }];
 }
 
 function getAlliumUsersChain(chain: string) {
     return async (start: number, end: number) => {
         let fromField = chain === "starknet" ? "sender_address" : "from_address"
-        const queryId = await startAlliumQuery(`select count(DISTINCT ${fromField}) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-        return {
-            queryId
-        }
+        const queryId = await queryAllium(`select count(DISTINCT ${fromField}) as usercount, count(hash) as txcount from ${chain}.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return queryId
     }
 }
 
 function getAlliumNewUsersChain(chain: string) {
     return async (start: number, end: number) => {
         let fromField = chain === "starknet" ? "sender_address" : "from_address"
-        const queryId = await startAlliumQuery(`select count(DISTINCT ${fromField}) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-        return {
-            queryId
-        }
+        const queryId = await queryAllium(`select count(DISTINCT ${fromField}) as usercount from ${chain}.raw.transactions where nonce = 0 and BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
+        return queryId
     }
 }
 
 type ChainUserConfig = {
     name: string,
     id: string,
+    chain: string,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }
 
-const alliumChains = ["arbitrum", "avalanche", "ethereum", "optimism", "polygon", "tron", "base", "scroll", "polygon_zkevm", "bsc"]
+const alliumChainMap: Record<string, string> = {
+    arbitrum: CHAIN.ARBITRUM,
+    avalanche: CHAIN.AVAX,
+    ethereum: CHAIN.ETHEREUM,
+    optimism: CHAIN.OPTIMISM,
+    polygon: CHAIN.POLYGON,
+    tron: CHAIN.TRON,
+    base: CHAIN.BASE,
+    scroll: CHAIN.SCROLL,
+    polygon_zkevm: CHAIN.POLYGON_ZKEVM,
+    bsc: CHAIN.BSC,
+    megaeth: CHAIN.MEGAETH,
+    katana: CHAIN.KATANA,
+    abstract: CHAIN.ABSTRACT,
+    linea: CHAIN.LINEA,
+    manta_pacific: CHAIN.MANTA,
+    ronin: CHAIN.RONIN,
+    sonic: CHAIN.SONIC,
+    mantle: CHAIN.MANTLE,
+    berachain: CHAIN.BERACHAIN,
+    blast: CHAIN.BLAST,
+    monad: CHAIN.MONAD,
+    plasma: CHAIN.PLASMA,
+    sei: CHAIN.SEI,
+    core: CHAIN.CORE,
+    tempo: CHAIN.TEMPO,
+    stable: CHAIN.STABLE,
+}
 
-const alliumExports = alliumChains.map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) }))
+const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
 
 export default [
-    // disable flipside chains
-    /*
-    ...([
-        "gnosis"
-        // "terra2", "flow"
-    ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
-    {
-        name: "osmosis",
-        getUsers: osmosis
-    },
-    {
-        name: "near",
-        getUsers: near
-    },
-    */
     {
         name: "solana",
-        getUsers: solanaUsers
+        chain: CHAIN.SOLANA,
+        getUsers: solanaUsers,
+        id: "solana"
     },
     {
         name: "elrond",
-        getUsers: elrondUsers
+        chain: CHAIN.ELROND,
+        getUsers: elrondUsers,
+        id: "elrond"
     },
     // https://coverage.coinmetrics.io/asset-metrics/AdrActCnt
     {
         name: "bitcoin",
-        getUsers: coinmetricsData("btc")
+        chain: CHAIN.BITCOIN,
+        getUsers: coinmetricsData("btc"),
+        id: "bitcoin"
     },
     {
         name: "litecoin",
-        getUsers: coinmetricsData("ltc")
+        chain: CHAIN.LITECOIN,
+        getUsers: coinmetricsData("ltc"),
+        id: "litecoin"
     },
     {
         name: "cardano",
-        getUsers: coinmetricsData("ada")
+        chain: CHAIN.CARDANO,
+        getUsers: coinmetricsData("ada"),
+        id: "cardano"
     },
     {
         name: "algorand",
-        getUsers: coinmetricsData("algo")
+        chain: CHAIN.ALGORAND,
+        getUsers: coinmetricsData("algo"),
+        id: "algorand"
+    },
+    {
+        name: "doge",
+        chain: CHAIN.DOGE,
+        getUsers: coinmetricsData("doge"),
+        id: "doge"
     },
     {
         name: "bch",
-        getUsers: coinmetricsData("bch")
+        chain: CHAIN.BITCOIN_CASH,
+        getUsers: coinmetricsData("bch"),
+        id: "bch"
     },
     {
-        name: "bsv",
-        getUsers: coinmetricsData("bsv")
+        name: "dash",
+        chain: CHAIN.DASH,
+        getUsers: coinmetricsData("dash"),
+        id: "dash"
+    },
+    // {
+    //     name: "bsv",
+    //     chain: CHAIN.BITCOIN_SV,
+    //     getUsers: coinmetricsData("bsv"),
+    //     id: "bsv"
+    // },
+    {
+        name: "stellar",
+        chain: CHAIN.STELLAR,
+        getUsers: coinmetricsData("xlm"),
+        id: "stellar"
+    },
+    {
+        name: "xrpl",
+        chain: CHAIN.RIPPLE,
+        getUsers: coinmetricsData("xrp"),
+        id: "xrpl"
+    },
+    {
+        name: "icp",
+        chain: CHAIN.ICP,
+        getUsers: coinmetricsData("icp"),
+        id: "icp"
+    },
+    {
+        name: "zcash",
+        chain: CHAIN.ZEC,
+        getUsers: coinmetricsData("zec"),
+        id: "zcash"
     },
 ].map(chain => ({
     name: chain.name,
     id: (chain as any).id ?? `chain#${chain.name}`,
+    type: "chain",
+    chain: chain.chain,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports)

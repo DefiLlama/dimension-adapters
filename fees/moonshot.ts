@@ -9,10 +9,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
   methodology: {
     Fees: 'All fees paid by users for buy/sell and launch tokens.',
     Revenue: 'All fees paid by users.',

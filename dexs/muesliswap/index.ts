@@ -10,7 +10,7 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (_,_1,options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const totalVolume = options.createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
@@ -20,7 +20,6 @@ const fetch = async (_,_1,options: FetchOptions) => {
   dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === options.startOfDay)?.volume)
 
   return {
-    timestamp: options.startOfDay,
     dailyVolume,
   }
 }
@@ -28,7 +27,7 @@ const fetch = async (_,_1,options: FetchOptions) => {
 export default {
   adapter: {
     // [CHAIN.MILKOMEDA]: {  // milkomeda chain is dead
-    //   fetch: async (_: any, _1: any, options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
+    //   fetch: async (options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
     // },
     [CHAIN.CARDANO]: {
       fetch,

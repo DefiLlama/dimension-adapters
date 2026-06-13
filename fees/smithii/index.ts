@@ -143,6 +143,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   methodology,
   adapter: {
@@ -163,7 +164,6 @@ const adapter: SimpleAdapter = {
       start: "2025-03-19",
     },
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;

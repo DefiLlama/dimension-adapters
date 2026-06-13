@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
 const dimensionsEndpoint =
@@ -21,6 +22,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   dailyFees.addUSDValue(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
   dailyFees.addUSDValue(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
@@ -32,6 +34,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
   
   dailyRevenue.addUSDValue(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
+  dailyHoldersRevenue.addUSDValue(dimensionsData.dailyProtocolRevenue, METRIC.TOKEN_BUY_BACK);
   
   return {
     dailyFees,
@@ -45,17 +48,15 @@ const fetch = async (options: FetchOptions) => {
 
     // Fees collected by the LP. This is a fixed percentage of swap value.
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.CHAINFLIP]: {
-      fetch,
-      start: "2023-11-23", // Protocol start date
-    },
-  },
+  chains: [CHAIN.CHAINFLIP],
+  fetch,
+  start: "2023-11-23", // Protocol start date
   methodology: {
     Fees: "Includes Swap, Broker, Ingress, Egress and Network Fees for Buy/Burn Mechanism",
     Revenue:
@@ -64,6 +65,7 @@ const adapter: SimpleAdapter = {
       "Ingress, Egress, and Broker fees paid by the user per swap",
     SupplySideRevenue:
       "Fees collected by the LPs + Broker, Ingress and Egress fees",
+    HoldersRevenue: 'Fees collected from burning $FLIP.',
   },
   breakdownMethodology: {
     Fees: {
@@ -77,6 +79,9 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: {
       [METRICS.IngressEgressBrokerFees]: 'Broker, Ingress, Egress fees paid by users.',
       [METRICS.SwapFees]: 'Swap fees paid to LP.',
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: 'Network Fees are used for Buy/Burn $FLIP.',
     },
   }
 };

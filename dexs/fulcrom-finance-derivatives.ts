@@ -1,91 +1,67 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-  // [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
-  [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
+const chainConfig: Record<string, { endpoint: string; start: string }> = {
+  [CHAIN.CRONOS]: {
+    endpoint: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
+    start: '2023-02-27',
+  },
+  [CHAIN.CRONOS_ZKEVM]: {
+    endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
+    start: '2024-08-15',
+  },
 };
+const toUSD = (value: string | bigint) => Number(BigInt(value) / 10n ** 24n) / 1e6;
 
-const historicalDataDerivatives = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeStats(where: { period: $period, id: $id }) {
+const query = gql`
+  query get_volume($id: String!, $timestamp: Int!) {
+    volumeStats(where: { period: "daily", id: $id }) {
       liquidation
       margin
+    }
+    tradingStats(first: 1, where: { period: daily, timestamp_lte: $timestamp }, orderBy: timestamp, orderDirection: desc) {
+      longOpenInterest
+      shortOpenInterest
     }
   }
 `;
 
 interface IGraphResponse {
   volumeStats: Array<{
-    burn: string;
     liquidation: string;
     margin: string;
-    mint: string;
-    swap: string;
+  }>;
+  tradingStats: Array<{
+    longOpenInterest: string;
+    shortOpenInterest: string;
   }>;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-    async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-      );
-      const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-        id: "daily:" + String(dayTimestamp),
-        period: "daily",
-      });
-      const totalData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-        id: "total",
-        period: "total",
-      });
+const fetch = async (options: FetchOptions) => {
+  const dailyData: IGraphResponse = await request(chainConfig[options.chain].endpoint, query, {
+    id: "daily:" + String(options.startOfDay),
+    timestamp: options.startOfDay,
+  });
+  const volume = dailyData.volumeStats[0];
+  const oi = dailyData.tradingStats[0];
 
-      return {
-        timestamp: dayTimestamp,
-        dailyVolume:
-          dailyData.volumeStats.length == 1
-            ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-              10 ** -30
-            )
-            : undefined,
-        totalVolume:
-          totalData.volumeStats.length == 1
-            ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-              10 ** -30
-            )
-            : undefined,
-      };
-    };
+  const dailyVolume = toUSD(BigInt(volume.margin) + BigInt(volume.liquidation));
+  const longOpenInterestAtEnd = toUSD(oi.longOpenInterest);
+  const shortOpenInterestAtEnd = toUSD(oi.shortOpenInterest);
+  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.CRONOS]: 1677470400,
-  [CHAIN.ERA]: 1696496400,
-  [CHAIN.CRONOS_ZKEVM]: 1723698700,
+  return {
+    dailyVolume,
+    openInterestAtEnd,
+    longOpenInterestAtEnd,
+    shortOpenInterestAtEnd,
+  };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: getFetch(chain),
-        start: startTimestamps[chain],
-      },
-    };
-  }, {}),
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;

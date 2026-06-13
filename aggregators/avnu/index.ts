@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = 'https://starknet.api.avnu.fi';
@@ -10,8 +10,8 @@ interface IAPIResponse {
     dailyVolume: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-    const { dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${endpoint}${timestamp * 1000}`));
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+    const { dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${endpoint}${options.toTimestamp * 1000}`));
     if (Number(dailyVolume) >= 100000000) {
         throw new Error('Daily volume is greater than 100M unusually high');
     }

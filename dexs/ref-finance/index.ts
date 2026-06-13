@@ -1,4 +1,5 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 // const dateToTs = (date: string) => new Date(date).getTime() / 1000
@@ -12,23 +13,29 @@ const getPools = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "near":{
+    [CHAIN.NEAR]:{
       // start: async()=>{
       //   const data = await httpGet(api)
       //   return dateToTs(data[0].date)
       // },
       runAtCurrTime: true,
-      fetch: async(_ts: any, _t: any, options: FetchOptions)=>{
+      fetch: async(options: FetchOptions)=>{
         const pools = await getPools();
 
         let volume = 0
+        let fees = 0
         for (const pool of pools) {
+          const isWashTrading = pool.volume_24h > 15 * pool.tvl
+          if (isWashTrading) continue;
           volume += Number(pool.volume_24h);
+          fees += Number(pool.fee_volume_24h);
         }
         
         return {
-          timestamp: options.startOfDay,
           dailyVolume: volume,
+          dailyFees: fees,
+          dailyRevenue: fees * 0.2,
+          dailyProtocolRevenue: fees * 0.2,
         }
       }
     }

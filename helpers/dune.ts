@@ -4,23 +4,36 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { elastic, log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
+import { CHAIN } from "./chains";
 
-const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0] ?? "L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"
+let _axiosDune: any = null;
 
-const axiosDune = axios.create({
-  headers: {
-    "x-dune-api-key": API_KEY,
-  },
-  baseURL: 'https://api.dune.com/api/v1',
-})
+// this wrapper is to ensure that secret is set before we try to use it
+function getAxiosDune() {
+  if (_axiosDune) return _axiosDune;
 
+  const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0]
+  if (!API_KEY) {
+    throw new Error("DUNE_API_KEYS environment variable is not set");
+  }
+
+  const axiosDune = axios.create({
+    headers: {
+      "x-dune-api-key": API_KEY,
+    },
+    baseURL: 'https://api.dune.com/api/v1',
+  })
+
+  _axiosDune = axiosDune;
+  return _axiosDune;
+}
 
 const NOW_TIMESTAMP = Math.trunc((Date.now()) / 1000)
 
 const getLatestData = async (queryId: string) => {
 
   try {
-    const { data: latest_result } = await axiosDune.get(`/query/${queryId}/results`)
+    const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results`)
     const submitted_at = latest_result.submitted_at
     const submitted_at_timestamp = Math.trunc(new Date(submitted_at).getTime() / 1000)
     const diff = NOW_TIMESTAMP - submitted_at_timestamp
@@ -39,13 +52,19 @@ async function randomDelay() {
   return new Promise((resolve) => setTimeout(resolve, delay * 1000))
 }
 
+const executionCostMap: Record<string, number> = {
+}
+
 const inquiryStatus = async (execution_id: string, queryId: string) => {
 
   let _status = undefined;
   do {
     try {
-      const { data } = await axiosDune.get(`/execution/${execution_id}/status`)
+      const { data } = await getAxiosDune().get(`/execution/${execution_id}/status`)
+      
       _status = data.state
+      executionCostMap[queryId] = data.execution_cost_credits
+
       if (['QUERY_STATE_PENDING', 'QUERY_STATE_EXECUTING'].includes(_status)) {
         console.info(`waiting for query id ${queryId} to complete...`)
         await randomDelay() // 1 - 4s
@@ -53,13 +72,13 @@ const inquiryStatus = async (execution_id: string, queryId: string) => {
     } catch (e: any) {
       throw e;
     }
-  } while (_status !== 'QUERY_STATE_COMPLETED' && _status !== 'QUERY_STATE_FAILED');
+  } while (_status !== 'QUERY_STATE_COMPLETED' && _status !== 'QUERY_STATE_FAILED')
   return _status
 }
 
 const submitQuery = async (queryId: string, query_parameters = {}) => {
 
-  const { data: query } = await axiosDune.post(`/query/${queryId}/execute`, { query_parameters })
+  const { data: query } = await getAxiosDune().post(`/query/${queryId}/execute`, { query_parameters })
   if (query?.execution_id) {
     return query?.execution_id
   } else {
@@ -84,7 +103,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
   if (!isBulkMode)
-    return _queryDune(queryId, query_parameters);
+    return _queryDune(queryId, query_parameters, options);
 
   return batchDuneQueries(queryId, query_parameters, options);
 
@@ -92,7 +111,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
     const moduleUID = options.moduleUID;
 
     if (!moduleUID) {
-      return _queryDune(queryId, query_parameters);
+      return _queryDune(queryId, query_parameters, options);
     }
 
     const batchKey = `${options.moduleUID}-${queryId}.${options.chain}-${extraUIDKey}`
@@ -105,7 +124,7 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 
           try {
             if (batch.requests.length === 1) {
-              const result = await _queryDune(queryId, batch.requests[0].parameters);
+              const result = await _queryDune(queryId, batch.requests[0].parameters, options);
               batch.requests[0].resolve(result);
               return;
             }
@@ -166,13 +185,14 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
 }
 
 
-const _queryDune = async (queryId: string, query_parameters: any = {}) => {
+const _queryDune = async (queryId: string, query_parameters: any = {}, options?: FetchOptions) => {
   const metadata: any = {
     application: "dune",
     query_parameters,
   }
   let success = false
   let startTime = +Date.now() / 1e3
+  const dimensionProtocolMetadata = options?.metadata ?? {}
 
   try {
     if (Object.keys(query_parameters).length === 0) {
@@ -182,16 +202,21 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
     const execution_id = await submitQuery(queryId, query_parameters)
     const _status = await inquiryStatus(execution_id, queryId)
     if (_status === 'QUERY_STATE_COMPLETED') {
-      const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await axiosDune.get(`/execution/${execution_id}/results?limit=100000`)
+      const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
       success = true
       let endTime = +Date.now() / 1e3
 
+      const executionCostCredits = executionCostMap[queryId]
+      log(`[Dune] queryId=${queryId} credits=${executionCostCredits ?? 'n/a'} rows=${rows?.length ?? 0} took=${(endTime - startTime).toFixed(1)}s`)
+
       await elastic.addRuntimeLog({
         runtime: endTime - startTime, success, metadata: {
+          ...dimensionProtocolMetadata,
           ...restMetadata,
           ...duneMetadata,
           ...metadata,
           rows: rows?.length,
+          executionCostCredits,
         },
       })
       return rows
@@ -225,10 +250,10 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
 }
 
 const tableName = {
-  bsc: "bnb",
-  ethereum: "ethereum",
-  base: "base",
-  avax: "avalanche_c"
+  [CHAIN.BSC]: "bnb",
+  [CHAIN.ETHEREUM]: "ethereum",
+  [CHAIN.BASE]: "base",
+  [CHAIN.AVAX]: "avalanche_c"
 } as any
 
 export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { extraUIDKey?: string } = {}) => {
@@ -237,6 +262,14 @@ export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { ext
     fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).split("TIME_RANGE").join(`block_time >= from_unixtime(${options.startTimestamp})
   AND block_time <= from_unixtime(${options.endTimestamp})`)
   }, options, { extraUIDKey })
+}
+
+export const queryDuneResult = async (_: any, queryId: string, filters?: string) => {
+  const params: Record<string, string> = { limit: '100000' }
+  if (filters) params.filters = filters
+  const urlParams = new URLSearchParams(params).toString()
+  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results?${urlParams}`)
+  return latest_result.result.rows
 }
 
 export const getSqlFromFile = (sqlFilePath: string, variables: Record<string, any> = {}): string => {

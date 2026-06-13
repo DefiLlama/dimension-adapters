@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targets = [
     'F34kcgMgCF7mYWkwLN3WN7KrFprr2NbwxuLvXx4fbztj',
     '96aFQc9qyqpjMfqdUeurZVYRrrwPJG2uPV6pceu4B1yb',
@@ -20,10 +20,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All trading fees paid by users for using Sol Trading Bot.',

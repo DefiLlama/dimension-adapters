@@ -101,6 +101,7 @@ const adapter: Adapter = {
   },
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
 };
 
 export default adapter;

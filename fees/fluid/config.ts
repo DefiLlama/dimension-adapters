@@ -21,6 +21,7 @@ export const FLUID_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
   BorrowInterestToTreasury: 'Borrow Interest To Treasury',
   BorrowInterestToLenders: 'Borrow Interest To Lenders',
+  RevenueShareFromJupLend: 'Revenue Share From Jupiter Lend',
 }
 
 export const CONFIG_FLUID: IConfig = {

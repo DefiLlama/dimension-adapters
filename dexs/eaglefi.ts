@@ -23,8 +23,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   methodology: {
-    Volume: 'Trading volume get from EagleFi API.',
-    Fees: 'Trading fees get from EagleFi API.',
+    Volume: 'Trading volume from EagleFi API.',
+    Fees: 'Trading fees from EagleFi API.',
   },
   fetch,
   chains: ['massa'],

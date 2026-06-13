@@ -5,6 +5,8 @@ WITH daily_prices AS (
       FROM prices.day
       WHERE blockchain = 'ethereum'
       AND contract_address = 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+      AND timestamp >= from_unixtime({{start}})
+      AND timestamp <= from_unixtime({{end}})
   ), realised_revenues AS (
       SELECT
           date_trunc('day', t.block_time) day,
@@ -12,6 +14,8 @@ WITH daily_prices AS (
       FROM ethereum.traces t
       WHERE t.to = 0xC91482A96e9c2A104d9298D1980eCCf8C4dc764E
       AND t.value <> 0
+      AND t.block_time >= from_unixtime({{start}})
+      AND t.block_time <= from_unixtime({{end}})
       GROUP BY date_trunc('day', t.block_time)
   ), fee_vaults_balances_diff AS (
       SELECT
@@ -77,5 +81,7 @@ WITH daily_prices AS (
   FROM daily_prices p
   LEFT JOIN realised_revenues rr ON rr.day = p.day
   LEFT JOIN revenues r ON r.day = p.day
-  WHERE p.day >= DATE('2024-04-11')
+  WHERE p.day >= from_unixtime({{start}})
+  AND p.day <= from_unixtime({{end}})
+
   GROUP BY p.day

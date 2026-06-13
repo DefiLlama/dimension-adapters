@@ -1,4 +1,5 @@
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
+import { CHAIN } from "./chains";
 import { httpPost } from '../utils/fetchURL';
 
 
@@ -33,7 +34,7 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                     else
                         dailyFees.addGasToken(amount)
 
-                    if (options.chain === 'fantom') {
+                    if (options.chain === CHAIN.FANTOM) {
                         const dailyRevenue = dailyFees.clone(0.3)
                         return { timestamp: options.startOfDay, dailyFees, dailyRevenue }
                     }

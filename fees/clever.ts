@@ -21,8 +21,8 @@ const fetch = async ({ createBalances, startOfDay, chain }: FetchOptions) => {
   );
   if (!snapshot) throw new Error("No data found");
 
-  const cvxAmount = snapshot.cvxRevenue * 1e18;
-  const fraxAmount = snapshot.fraxRevenue * 1e18;
+  const cvxAmount = Number(snapshot.cvxRevenue);
+  const fraxAmount = Number(snapshot.fraxRevenue);
 
   dailyFees.addCGToken("convex-finance", cvxAmount * 2, "CVX harvest fees");
   dailyFees.addCGToken("frax", fraxAmount * 2, "FRAX harvest fees");

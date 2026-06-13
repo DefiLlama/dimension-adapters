@@ -6,7 +6,8 @@ const MetricLabels = {
     CASHBACKS: 'Cashbacks'
 };
 
-const config = {
+const config: any = {
+  [CHAIN.SCROLL]: {
     "cashSpends": [
         {
             eventAbi: "event Spend (address indexed userSafe, address indexed token, uint256 amount, uint256 amountInUsd, uint8 mode)",
@@ -39,6 +40,21 @@ const config = {
             targets: ["0x380B2e96799405be6e3D965f4044099891881acB"]
         },
     ]
+  },
+  [CHAIN.OPTIMISM]: {
+    "cashSpends": [
+        {
+            eventAbi: "event Spend (address indexed safe, bytes32 indexed txId,uint8 indexed binSponsor, address[] tokens, uint256[] amounts, uint256[] amountInUsd, uint256 totalUsdAmt, uint8 mode)",
+            targets: ["0x380B2e96799405be6e3D965f4044099891881acB"]
+        },
+    ],
+    "cashBacks": [
+        {
+            eventAbi: "event Cashback (address indexed safe, uint256 spendingInUsd, address indexed recipient, address cashbackToken, uint256 cashbackAmountInToken, uint256 cashbackInUsd, uint256 cashbackType, bool indexed paid)",
+            targets: ["0x380B2e96799405be6e3D965f4044099891881acB"]
+        },
+    ]
+  }
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -47,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    for (const { eventAbi, targets } of config.cashSpends) {
+    for (const { eventAbi, targets } of config[options.chain].cashSpends) {
         const logs = await options.getLogs({
             eventAbi,
             targets
@@ -64,7 +80,7 @@ const fetch = async (options: FetchOptions) => {
             }
         })
     }
-    for (const { eventAbi, targets } of config.cashBacks) {
+    for (const { eventAbi, targets } of config[options.chain].cashBacks) {
         const logs = await options.getLogs({
             eventAbi,
             targets
@@ -83,6 +99,7 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
+        dailyHoldersRevenue: 0,
     };
 };
 
@@ -90,14 +107,21 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
-    chains: [CHAIN.SCROLL],
-    start: '2024-11-01',
+    adapter: {
+      [CHAIN.SCROLL]: {
+        start: '2024-11-01',
+      },
+      [CHAIN.OPTIMISM]: {
+        start: '2026-04-08',
+      },
+    },
     methodology: {
         Volume: "Total spending volumes using EtherFi Cash services.",
         Fees: "Total fees generated from EtherFi Cash services on Scroll including transaction fees and cashbacks.",
         Revenue: "Protocol's share of fees from EtherFi Cash operations including transaction fees",
         ProtocolRevenue: "Same as Revenue - all protocol earnings from EtherFi Cash on Scroll.",
         SupplySideRevenue: "Cashback rewards paid to users by external providers.",
+        HoldersRevenue: "No revenue share to ETHFI holders",
     },
     breakdownMethodology: {
         Fees: {

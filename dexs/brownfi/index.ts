@@ -42,7 +42,7 @@ const abis = {
   protocolFee: "function protocolFee() external view returns (uint64)"
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const factory = chainConfig[options.chain].factory;
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
@@ -59,13 +59,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   let _fees = await api.multiCall({ abi: abis.fees, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[pairs[i]] = fee / 1e8)
+  _fees.forEach((fee: any, i: number) => { if (fee !== null) fees[pairs[i]] = fee / 1e8 })
   let _protocolFees = await api.multiCall({ abi: abis.protocolFee, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _protocolFees.filter(fee => fee !== null).forEach((fee: any, i: number) => protocolFees[pairs[i]] = fee / 1e8)
+  _protocolFees.forEach((fee: any, i: number) => { if (fee !== null) protocolFees[pairs[i]] = fee / 1e8 })
 
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, minUSDValue: 100 })
   const pairIds = Object.keys(filteredPairs)
 
@@ -81,23 +82,25 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const fee = fees[pair]
     const protocolFee = protocolFees[pair]
     const [token0, token1] = pairObject[pair]
+    const feeRate = fee / (1 + fee)
     logs.forEach((log: any) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * fee, amount1: Number(log.amount1In) * fee })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * fee, amount1: Number(log.amount1Out) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0In) * fee) * protocolFee, amount1: Number(log.amount1In) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0Out) * fee) * protocolFee, amount1: Number(log.amount1Out) * fee })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * feeRate, amount1: Number(log.amount1Out) * feeRate })
+      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
+      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0Out) * feeRate * protocolFee, amount1: Number(log.amount1Out) * feeRate * protocolFee })
+      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
+      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0Out) * feeRate * (1 - protocolFee), amount1: Number(log.amount1Out) * feeRate * (1 - protocolFee) })
     })
   })
-  return { 
-    dailyVolume, 
+  return {
+    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue: dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: "0",
   };
 };
 

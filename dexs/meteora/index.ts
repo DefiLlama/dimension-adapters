@@ -1,8 +1,9 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 import { FetchOptions } from '../../adapters/types';
+import { sleep } from '../../utils/utils';
 
-const meteoraStatsEndpoint = 'https://amm-v2.meteora.ag/pools/v2';
+const meteoraStatsEndpoint = 'https://damm-api.meteora.ag/pools/search';
 
 interface Pool {
   total_count: number
@@ -17,15 +18,24 @@ async function fetch(_options: FetchOptions) {
   let dailyFees = 0;
 
   let page = 0;
-  const url = `${meteoraStatsEndpoint}?page=${page}&size=100000`;
-  const response: Pool = (await httpGet(url));
-
-  response.data.forEach(pool => {
-    dailyVolume += pool.trading_volume
-    dailyFees += pool.fee_volume
-  })
-  if (isNaN(dailyVolume) || isNaN(dailyFees)) throw new Error('Invalid daily volume')
-
+  const limit = 300;
+  while (true) {
+    const response: Pool = (await httpGet(`${meteoraStatsEndpoint}?page=${page}&size=${limit}&hide_low_tvl=10000`));
+    
+    const pools = response.data;
+    if (pools.length === 0) break;
+    for (const pool of pools) {
+      dailyVolume += pool.trading_volume
+      dailyFees += pool.fee_volume
+    }
+    
+    if (isNaN(dailyVolume) || isNaN(dailyFees)) throw new Error('Invalid daily volume')
+    
+    await sleep(100)
+    
+    page += 1;
+  }
+  
   return {
     dailyVolume,
     dailyFees,

@@ -2,9 +2,11 @@ import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
 
 const ADA_ID = "ada.lovelace";
 const endpoint = "https://api.sundae.fi/graphql";
+const HOLDERS_REVENUE_START_TIMESTAMP = 1715212800; //2024-05-09
 
 const formatDate = (ts: number) => {
   return new Date(ts * 1000).toISOString().replace('T', ' ').substring(0, 19);
@@ -33,16 +35,20 @@ const addFee = (
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const start = formatDate(options.startTimestamp);
   const end = formatDate(options.endTimestamp);
 
+  const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
+
   const query = `
     query fetchPools($start: String!, $end: String!) {
       pools {
         popular {
-          ticks(start: $start, end: $end, interval: All) {
+          ticks(start: $start, end: $end, interval: Daily) {
             rich {
               protocolFees { quantity asset { id } }
               lpFees(unit: Natural) { quantity asset { id } }
@@ -68,6 +74,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
       if (protocolFees?.asset?.id) {
         addFee(dailyRevenue, protocolFees.asset.id, protocolFees.quantity);
+        addFee(dailyHoldersRevenue, protocolFees.asset.id, String(protocolFees.quantity * (1 - protocolRevenueShare)));
+        addFee(dailyProtocolRevenue, protocolFees.asset.id, String(protocolFees.quantity * protocolRevenueShare));
       }
     }
   }
@@ -75,11 +83,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyFees.addBalances(dailySupplySideRevenue, METRIC.LP_FEES);
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
 
+
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -87,7 +97,8 @@ const methodology = {
   Fees: "The total trading fees paid by users, excluding L1 transaction fees",
   Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
   SupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
-  ProtocolRevenue: "A fixed ADA cost per transaction that is collected by the protocol",
+  ProtocolRevenue: "A percentage cut of the fixed ADA cost per transaction that is collected by the protocol",
+  HoldersRevenue: "A percentage cut of the fixed ADA cost per transaction that is going to holders"
 };
 
 const breakdownMethodology = {
@@ -98,7 +109,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2022-01-20",

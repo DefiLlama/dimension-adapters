@@ -2,18 +2,18 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const VEXY_MARKETPLACE_CONTRACT = "0x6b478209974BD27e6cf661FEf86C68072b0d6738";
-const VEXY_OFFERS_CONTRACT = {
-    'base': '0x2903ee1a9dc4C8230651004D11f733787A0f69c4',
-    'optimism': '0xb0AC1514499E71e20fA6d9Eba6ef8c73a5f73E87'
+const VEXY_OFFERS_CONTRACT: Record<string, string> = {
+    [CHAIN.BASE]: '0x2903ee1a9dc4C8230651004D11f733787A0f69c4',
+    [CHAIN.OPTIMISM]: '0xb0AC1514499E71e20fA6d9Eba6ef8c73a5f73E87'
 };
 
 const BUY_LISTING_ABI = "event BuyListing (uint256 indexed listingId,address indexed nftCollection, uint256 indexed nftId, address buyer, address currency, uint256 price, uint256 fee)";
 
 const OFFER_SALE_ABI = "event OfferSale (uint256 indexed offerId, address seller, uint256 nftId, uint256 locked, uint256 duration, uint256 price, uint256 fee)";
 
-const TOKEN = {
-    'base': '0x940181a94a35a4569e4529a3cdfb74e38fd98631', //aero
-    'optimism': '0x9560e827af36c94d2ac33a39bce1fe78631088db' //velo
+const TOKEN: Record<string, string> = {
+    [CHAIN.BASE]: '0x940181a94a35a4569e4529a3cdfb74e38fd98631', //aero
+    [CHAIN.OPTIMISM]: '0x9560e827af36c94d2ac33a39bce1fe78631088db' //velo
 };
 
 async function fetch(options: FetchOptions) {

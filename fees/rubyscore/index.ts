@@ -34,7 +34,7 @@ const FeeWallets: Record<string, string[]> = {
   [CHAIN.ERA]: ["0x8A1142620CbdE2f2d63E88F35D0D76eAAce0AC9e"],
 };
 
-const fetch = async (_a: any, _b:any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = await getETHReceived({ options, targets: FeeWallets[options.chain] })
   
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, };
@@ -48,7 +48,8 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   dependencies: [Dependencies.ALLIUM],  
   adapter: {

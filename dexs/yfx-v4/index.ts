@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const chains = [CHAIN.ARBITRUM, CHAIN.BASE]
@@ -25,43 +25,36 @@ interface IGraphResponse {
 }
 
 
-const getFetch = (chain: string) => async (_t: any, _b: any, { startOfDay }: any) => {
-  const dailyData: IGraphResponse = await request(endpoints[chain], historicalDailyData, {
-    dayTime: String(startOfDay),
+const fetch = async (options: FetchOptions) => {
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDailyData, {
+    dayTime: String(options.startOfDay),
   })
 
   let dailyVolume = 0;
-  for(let i in dailyData.marketInfoDailies) {
+  for (let i in dailyData.marketInfoDailies) {
     dailyVolume += parseFloat(dailyData.marketInfoDailies[i].totalVolUSD)
   }
 
   return {
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume,
   }
 }
 
-const getStartTimestamp = (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1713916800,
-    [CHAIN.BASE]: 1721001600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1713916800,
+  [CHAIN.BASE]: 1721001600,
 }
 
-
-const volume = chains.reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: getFetch(chain),
-      start: getStartTimestamp(chain)
-    },
-  }),
-  {}
-);
+const chainsConfig: { [chain: string]: { start: number } } = chains.reduce((acc, chain) => ({
+  ...acc,
+  [chain]: {
+    start: startTimestamps[chain],
+  },
+}), {})
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: volume
+  fetch,
+  adapter: chainsConfig,
 };
 export default adapter;

@@ -19,6 +19,16 @@ const feesConfigs: Record<string, Config> = {
     },
   },
   "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
+  "veax-perp": {
+    broker_id: "veaxdex",
+    start: "2025-10-16",
+    methodology: {
+      Volume: "Maker/taker volume routed through VEAX's Orderly broker.",
+      Fees: "Builder fees collected by VEAX on Orderly Network.",
+      Revenue: "All builder fees collected by VEAX.",
+      ProtocolRevenue: "All revenue goes to the protocol.",
+    },
+  },
   "what-exchange": { broker_id: "what_exchange", start: "2024-06-13" },
   "woofi-pro-perp": { broker_id: "woofi_pro", start: "2023-10-26" },
   "oklong": {
@@ -27,7 +37,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Trading fees collected from Orderly Network",
       Revenue: "Revenue represents the portion of trading fees accrued to the Oklong broker.",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "orderly-broker-coin360": {
@@ -64,7 +74,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Trading fees collected from Orderly Network",
       Revenue: "Revenue represents the portion of trading fees accrued to the Velto broker.",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "baumz": {
@@ -74,7 +84,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Builder Fees collected from Orderly Network(0.3 bps on taker volume)",
       Revenue: "All the fees collected",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "bd-perps": {
@@ -107,7 +117,35 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
-};
+  "perptools": {
+    broker_id: "dextools",
+    start: "2025-11-25",
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "nexus-trading-labs": {
+    broker_id: "nexus_trading",
+    start: "2026-03-23",
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "mememax": {
+    broker_id: "mememax",
+    start: "2026-04-09",
+    methodology: {
+      Volume: "Taker volume routed through MemeMax's Orderly broker",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+}
 
 const feesProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(feesConfigs)) {

@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { getETHReceived, nullAddress } from "../helpers/token";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
     const dailyRevenue = options.createBalances()
     const dailySupplySideRevenue = options.createBalances()
@@ -35,7 +35,8 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.BASE],
     dependencies: [Dependencies.ALLIUM],

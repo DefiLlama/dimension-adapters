@@ -1,11 +1,16 @@
 import { METRIC } from "../../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { InfraConfigs } from "./config";
+import { CHAIN } from "../../helpers/chains";
 
 // docs: https://docs.lagoon.finance/vault/fees
 // Lagoon allows curators to deploy vaults - where users can deposit and earn yields
 // curators can config and share of yield from performance and management fees
 // on top of that, Lagoon can earn up to 30% of those fees as protocol revenue 
+
+const BLACKLISTED_VAULTS = {
+  [CHAIN.BASE]: ["0xce6b93E4408033975E8824370ea6FDBA90C4739f"],
+}
 
 const Abis = {
   ProxyDeployedEvent: 'event ProxyDeployed(address proxy, address deployer)',
@@ -58,6 +63,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const cumulativeIndexAfter = await options.toApi.multiCall({ abi: Abis.convertToAssets, calls: convertCalls, permitFailure: true, })
 
   for (let i = 0; i < vaults.length; i++) {
+    if (
+      BLACKLISTED_VAULTS[options.chain]?.some(
+        (address: string) => address.toLowerCase() === vaults[i].toLowerCase()
+      )
+    ) continue;
     if (assets[i] && balances[i] && cumulativeIndexBefore[i] && cumulativeIndexAfter[i]) {
       const cumulativeYield = (BigInt(cumulativeIndexAfter[i]) - BigInt(cumulativeIndexBefore[i])) * BigInt(balances[i]) / BigInt(1e18)
       

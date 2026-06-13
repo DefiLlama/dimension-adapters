@@ -1,11 +1,12 @@
-import { Adapter, FetchResultV2, FetchV2 } from '../../adapters/types';
+import { Adapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { METRIC } from '../../helpers/metrics';
 import fetchURL from '../../utils/fetchURL';
 
 const cetusApiURL = 'https://api-sui.cetus.zone/v3/sui/daily-fees';
 
 interface CetusStats {
-  data:{
+  data: {
     fee: string;
     protocolFee: string;
   }
@@ -18,15 +19,33 @@ const methodology = {
   ProtocolRevenue: 'Protocol fees charged from the swap fees.',
 };
 
-const fetchCetusStats: FetchV2 = async ({
-  startTimestamp,
-  endTimestamp,
-}): Promise<FetchResultV2> => {
-  const url = `${cetusApiURL}?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`;
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'All swap fees paid by users when trading on Cetus DEX',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Portion of swap fees retained by the Cetus protocol treasury',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'Portion of swap fees distributed to liquidity providers',
+  },
+};
+
+const fetch = async (options: FetchOptions) => {
+  const url = `${cetusApiURL}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp}`;
   const { data }: CetusStats = await fetchURL(url);
-  const dailyFees = data.fee;
-  const dailyRevenue = data.protocolFee;
-  const dailySupplySideRevenue = Number(dailyFees) - Number(dailyRevenue);
+  const swap_fees = data.fee;
+  const rev_usd = data.protocolFee;
+  const supply_side_rev_usd = Number(swap_fees) - Number(rev_usd);
+
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(Number(swap_fees), METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(Number(rev_usd), METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(Number(supply_side_rev_usd), METRIC.LP_FEES);
+
   return {
     dailyFees,
     dailyRevenue,
@@ -37,13 +56,11 @@ const fetchCetusStats: FetchV2 = async ({
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetchCetusStats,
-      start: '2024-01-01',
-    },
-  },
+  chains: [CHAIN.SUI],
+  fetch,
+  start: '2024-01-01',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

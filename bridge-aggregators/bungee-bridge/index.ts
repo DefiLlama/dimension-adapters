@@ -10,6 +10,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: fetchBungeeChains().reduce((acc, chain) => {
     return {
       ...acc,

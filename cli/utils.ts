@@ -6,7 +6,8 @@ const getLatestBlock = sdk.blocks.getLatestBlock;
 export const ERROR_STRING = "------ ERROR ------";
 
 export function checkArguments(argv: string[]) {
-  if (argv.length < 4) {
+  const adapterArg = argv[2]
+  if (argv.length < 4 && (!adapterArg || !adapterArg.includes('/'))) {
     console.error(`Missing arguments, you need to provide the folder name of the adapter to test.
     Eg: yarn test volume uniswap`);
     process.exit(1);
@@ -14,13 +15,17 @@ export function checkArguments(argv: string[]) {
 }
 
 export async function getLatestBlockRetry(chain: string) {
-  for (let i = 0; i < 5; i++) {
+  let lastError: any;
+  const maxRetries = 5;
+  for (let i = 0; i < maxRetries; i++) {
     try {
       return await getLatestBlock(chain);
     } catch (e) {
-      throw new Error(`Couln't get block heights for chain "${chain}"\n${e}`);
+      lastError = e;
+      if (i < maxRetries - 1) await new Promise((r) => setTimeout(r, 200 * 2 ** i));
     }
   }
+  throw new Error(`Couldn't get block heights for chain "${chain}"\n${lastError?.message ?? String(lastError)}`);
 }
 
 export function printVolumes(volumes: any[], _?: SimpleAdapter) {

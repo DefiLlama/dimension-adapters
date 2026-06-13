@@ -1,5 +1,6 @@
 import fetchURL from '../../utils/fetchURL'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 
 const fetch = async () => {
   const dailyVolumeResult = await fetchURL(
@@ -13,7 +14,7 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    ton: {
+    [CHAIN.TON]: {
       fetch,
       runAtCurrTime: true,
       start: '2024-09-02',

@@ -39,7 +39,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   fetch,
   start: '2025-05-01',
-  runAtCurrTime: true,
   methodology: {
     Fees: "Bridge fees include protocol fees charged by Luna Finance plus underlying bridge protocol fees paid by users.",
     Revenue: "Revenue represents fees collected by Luna Finance protocol from bridge transactions, typically 0.1-0.5% of transaction value.",

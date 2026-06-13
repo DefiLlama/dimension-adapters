@@ -10,7 +10,7 @@ const config_rule = {
 };
 
 
-const fetch = async (_a:any, _b:any, options:FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = "https://api.earnium.io/api/v1/tool/defillama/dimension-adapter?timestamp=" + options.startOfDay;
   const earniumData = (await httpGet(url, config_rule)).data;
   const dailyFees = Number(earniumData.fees24h)
@@ -24,7 +24,6 @@ const fetch = async (_a:any, _b:any, options:FetchOptions) => {
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
   };
 };
 

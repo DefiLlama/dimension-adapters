@@ -19,7 +19,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       name: strategy.collectionName,
       hook: strategy.hook,
       poolId: strategy.poolId,
-      tokenAddress: strategy.tokenAddress,
+      tokenAddress: strategy.tokenContract,
       collection: strategy.collection
     });
   }
@@ -74,6 +74,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   dependencies: [Dependencies.ALLIUM],

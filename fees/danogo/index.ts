@@ -1,34 +1,26 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { DanogoDimensions } from "./types";
 
 const DANOGO_GATEWAY_ENDPOINT = 'https://danogo-gateway.tekoapis.com/api/v1/defillama-dimensions';
-const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
+// const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
 
-const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => {
-    const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
-
-    return response.data;
-}
-
-const fetchData = async ({ endTimestamp, createBalances }: FetchOptions) => {
-    const dailyFees = createBalances()
-    const { dailyFeesAdaValue } = await fetchDanogoGatewayData(endTimestamp) as any
+const fetch = async (options: FetchOptions) => {
+    const dailyFees = options.createBalances()
+    const { dailyFeesAdaValue } = (await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${options.toTimestamp}`)).data;
     dailyFees.addCGToken('cardano', dailyFeesAdaValue / 1e6)
 
-    return { dailyFees, };
+    return { dailyFees, dailyRevenue: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        cardano: {
-            fetch: fetchData,
-            start: DANOGO_START_TIMESTAMP,
-        }
-    },
     version: 2,
+    fetch,
+    chains: [CHAIN.CARDANO],
+    start: '2023-05-30',
     methodology: {
         Fees: 'Trading and listing fees paid by users.',
+        Revenue: 'All the fees are revenue'
     }
 };
 

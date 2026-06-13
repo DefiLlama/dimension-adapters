@@ -56,7 +56,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   return await fetchStatistics(options.startOfDay);
 }
 
-const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults;
 
   const items = getItems[options.chain](results)

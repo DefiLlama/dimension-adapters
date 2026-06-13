@@ -52,13 +52,17 @@ const fetch = async (options: FetchOptions) => {
   const volumeStart = BigInt(viewStart.cumulative_quote_volume.value);
 
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  dailyFees.addCGToken('aptos', octasToApt(feesEnd - feesStart), METRIC.TRADING_FEES);
+  const dailyIntegratorFees = octasToApt(feesEnd - feesStart);
+  dailyFees.addCGToken('aptos', dailyIntegratorFees, METRIC.TRADING_FEES);
+  dailyRevenue.addCGToken('aptos', dailyIntegratorFees, METRIC.TRADING_FEES);
   dailyVolume.addCGToken('aptos', octasToApt(volumeEnd - volumeStart));
 
   return {
     dailyFees,
+    dailyRevenue,
     dailyVolume,
   };
 };
@@ -70,10 +74,14 @@ const adapter: SimpleAdapter = {
   start: '2024-11-20',
   methodology: {
     Fees: "Tokens trading and launching fees paid by users.",
+    Revenue: "Integrator fees collected from swaps and launches.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: 'Cumulative integrator fees denominated in APT, computed as the difference between the end and start of the period from the on-chain registry view.',
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: 'Integrator fees denominated in APT, computed from the same on-chain cumulative integrator fee counter.',
     },
   }
 };

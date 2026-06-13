@@ -5,6 +5,7 @@ import { ZeroAddress } from "ethers";
 const methodology = {
   Fees: 'Total yield were generated from backing collateral assets.',
   SupplySideRevenue: 'Total yield are distributed to lvlUSD stakers.',
+  Revenue: 'The amount of yield are collected by Level protocol.',
   ProtocolRevenue: 'The amount of yield are collected by Level protocol.',
 }
 
@@ -41,6 +42,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     // level get 0% fees for now
     // https://level-money.gitbook.io/docs/how-it-works/lvlusd#yield-and-reward-distribution
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   }
 }

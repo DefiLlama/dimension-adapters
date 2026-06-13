@@ -1,18 +1,17 @@
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 
 const adapter: SimpleAdapter = {
     methodology: {
-        Fees: 'Traders pay opening and closing fees',
-        DataSource: 'Data prepared by the project team by indexing blockchain data'
+        Fees: 'Traders pay opening and closing fees'
     },
     version: 1,
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
             start: '2023-11-14',
-            fetch: async (timestamp: number,) => {
+            fetch: async (_options: FetchOptions,) => {
                 const response = await fetchURL('https://api5.storm.tg/api/markets/stats')
 
                 if (!response) {
@@ -26,7 +25,6 @@ const adapter: SimpleAdapter = {
                     dailyFees,
                     dailyRevenue: `${dailyFees * 0.3}`,
                     dailyHoldersRevenue: `${dailyFees * 0.3}`,
-                    timestamp: timestamp,
                 }
             },
         },

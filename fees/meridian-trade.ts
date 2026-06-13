@@ -1,11 +1,9 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints = {
+const endpoints: Record<string, string> = {
     [CHAIN.BASE]: "https://subgraph.meridianfinance.net/subgraphs/name/perpetuals-stats"
 }
 
@@ -18,14 +16,12 @@ const methodology = {
     ProtocolRevenue: "Treasury receives 10% of all collected fees"
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-    return (chain: Chain) => {
-        return async (timestamp: number) => {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-            const searchTimestamp = chain == "base" ? todaysTimestamp : todaysTimestamp + ":daily"
+const fetch = async (options: FetchOptions) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
+    const searchTimestamp = options.chain == CHAIN.BASE ? todaysTimestamp : todaysTimestamp + ":daily"
 
-            const graphQuery = gql
-                `{
+    const graphQuery = gql
+        `{
         feeStat(id: "${searchTimestamp}") {
           mint
           burn
@@ -34,34 +30,28 @@ const graphs = (graphUrls: ChainEndpoints) => {
         }
       }`;
 
-            const graphRes = await request(graphUrls[chain], graphQuery);
+    const graphRes = await request(endpoints[options.chain], graphQuery);
 
-            const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-            const finalDailyFee = (dailyFee / 1e30);
-            const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-            const finalUserFee = (userFee / 1e30);
+    const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+    const finalDailyFee = (dailyFee / 1e30);
+    const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+    const finalUserFee = (userFee / 1e30);
 
-            return {
-                timestamp,
-                dailyFees: finalDailyFee.toString(),
-                dailyUserFees: finalUserFee.toString(),
-                dailyRevenue: (finalDailyFee * 0.4).toString(),
-                dailyProtocolRevenue: (finalDailyFee * 0.1).toString(),
-                dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-                dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
-            };
-        };
+    return {
+        dailyFees: finalDailyFee.toString(),
+        dailyUserFees: finalUserFee.toString(),
+        dailyRevenue: (finalDailyFee * 0.4).toString(),
+        dailyProtocolRevenue: (finalDailyFee * 0.1).toString(),
+        dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
+        dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
     };
 };
 
 
 const adapter: Adapter = {
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch: graphs(endpoints)(CHAIN.BASE),
-            start: '2023-08-12',
-        },
-    },
+    fetch,
+    chains: [CHAIN.BASE],
+    start: '2023-08-12',
     methodology
 }
 

@@ -1,4 +1,3 @@
-import { time } from "console";
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
@@ -13,21 +12,27 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.TRON]: {
-      fetch: (async (_t: any, _a: any ,options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const start = options.startOfDay * 1000;
         const end = start + 86400;
         const startStr = new Date(start).toISOString().split("T")[0];
         const endStr = new Date(end).toISOString().split("T")[0];
         const url = `${api}?fromDate=${startStr}&toDate=${endStr}&version=v3`;
         const res: IResponse[] = (await httpGet(url)).data;
+        if (!res || !res.length) throw new Error(`No fee data returned for date range ${startStr} - ${endStr}`);
         const dayItem = res.find((item) => item.date === start);
-        const dailyFees = dayItem?.fee || 0;
-        return { dailyFees, timestamp: options.startOfDay };
+        if (!dayItem) throw new Error(`No fee data for date ${startStr}`);
+        const dailyFees = dayItem.fee;
+        return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 };
       }) as any,
       start: '2024-01-06'
     },
   },
-
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'The protocol keeps no revenue.',
+    SupplySideRevenue: 'All the swap fees are distributed to liquidity providers.',
+  },
 }
 
 export default adapter;

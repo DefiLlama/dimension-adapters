@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://midgard.ninerealms.com/v2/history/swaps?interval=day&count=400"
+const historicalVolumeEndpoint = "https://gateway.liquify.com/chain/thorchain_midgard/v2/history/swaps?interval=day&count=400"
 
 interface IVolumeall {
   totalFees: string;
@@ -22,7 +22,7 @@ const calVolume = (total: IVolumeall): number => {
   return volume;
 };
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;
   const dailyVolumeCall = historicalVolume.find((dayItem: IVolumeall) => Number(dayItem.startTime) === options.startOfDay);
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);

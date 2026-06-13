@@ -8,14 +8,14 @@ interface Fee {
   time: string
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const res: Fee[] = await httpGet(url(options.fromTimestamp, options.toTimestamp))
 
   res.forEach(fee => {
     dailyFees.addCGToken('celestia', Number(fee.value) / 1e6)
   })
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: 0 }
 }
 
 const adapter: SimpleAdapter = {

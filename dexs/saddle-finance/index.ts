@@ -62,8 +62,8 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'User pay fees per swap.',
-    UserFees: 'User pay fees per swap.',
+    Fees: 'Users pay fees per swap.',
+    UserFees: 'Users pay fees per swap.',
     Revenue: 'Amount of swap fees shared to admin.',
     ProtocolRevenue: 'Protocol gets 100% revenue share from swap fees.',
     SupplySideRevenue: 'Swap fees distributed to LPs.',

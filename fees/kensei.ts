@@ -6,7 +6,7 @@ const FEE_WALLETS = [
   '0x79e298e86ddcca138fccc4687d0a4168a6f2dce6',
 ];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = await getETHReceived({ options, targets: FEE_WALLETS });
   
   return {
@@ -17,6 +17,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.KATANA],
   dependencies: [Dependencies.ALLIUM],

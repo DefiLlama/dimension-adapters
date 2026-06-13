@@ -1,6 +1,6 @@
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 
@@ -10,23 +10,36 @@ interface IData {
   daily_protocol_revenue: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile('helpers/queries/bags.sql', {
     tx_signer: 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv',
     start: options.startTimestamp,
     end: options.endTimestamp
   })
 
-  const data: IData[] = await queryDuneSql(options, query)
+  let data: IData[] = [];
+  if (options.startOfDay > 1776880000) {
+    data = await queryDuneSql(options, query);
+  } else {
+    const alldata = await queryDuneResult(options, '6926715')
+    const targetDate = options.dateString
+    data = alldata.filter(
+      (row: any) => typeof row.block_date === 'string' && row.block_date.slice(0, 10) === targetDate,
+    )
+    if(!data || !data.length) {
+      throw new Error(`No data found for date ${options.dateString}, fix cache result query`)
+    }
+  }
+
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   data.forEach(row => {
     const creatorFees = Number(row.daily_fees) - Number(row.daily_protocol_revenue);
-    dailyFees.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
-    dailyProtocolRevenue.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
+    dailyFees.add(row.quote_mint, Number(row.daily_protocol_revenue), METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.add(row.quote_mint, Number(row.daily_protocol_revenue), METRIC.PROTOCOL_FEES);
     dailyFees.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
-    dailySupplySideRevenue.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
+    dailySupplySideRevenue.add(row.quote_mint, Number(creatorFees), METRIC.CREATOR_FEES);
   });
 
   return {
@@ -43,7 +56,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
-  start: '2025-05-11',
+  start: '2025-05-10',
   isExpensiveAdapter: true,
   doublecounted: true,
   methodology: {

@@ -39,6 +39,7 @@ const fetch: FetchV2 = async (options) => {
 
 const adapter: SimpleAdapter = {
   adapter: {}, version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Counts the 0.2% fee taken on swaps.",
     Revenue: "All fees are revenue.",

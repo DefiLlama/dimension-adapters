@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: 'Total token swap volumes retrieved from Byreal API.',
     Fees: 'All fees from token swaps.',
-    UserFees: 'User pay fees on very token swaps.',
+    UserFees: 'Users pay fees on every token swap.',
     Revenue: 'Amount of 12% swap fees to Byreal treasury.',
     ProtocolRevenue: 'Amount of 12% swap fees to Byreal treasury.',
     SupplySideRevenue: 'Amount of 88% swap fees distributed to LPs.',
