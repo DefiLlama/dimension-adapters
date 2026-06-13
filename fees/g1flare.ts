@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FLARE]: {
       fetch,
-      start: 1735689600,
+      start: 1781267849,
       meta: {
         methodology: {
           Volume: "Total USDT0 deposited through G1Flare Module 1.",
