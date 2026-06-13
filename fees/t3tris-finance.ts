@@ -27,11 +27,11 @@ import { CHAIN } from "../helpers/chains";
  *   Vault fees (perf/mgmt/entry/exit) are in dailyFees but NOT in dailyRevenue.
  *   They go to each vault's feeRecipient, not to the protocol.
  *
- * Factory address is deterministic (CREATE3) — same on all chains.
+ * Protocol address is deterministic (CREATE3) — same on all chains.
  */
 
-// T3tris protocol factory — deterministic CREATE3 address
-const T3TRIS_FACTORY = "0x7DD63c4eE5CD277B7870155371a6d62A2f7b1652";
+// T3tris protocol v1 proxy — deterministic CREATE3 address, same on all chains
+const T3TRIS_FACTORY = "0x0000000000CC53b5Fd649b80f08b05405779cC71";
 
 const ABI = {
   getDeployedVaultsCount:
@@ -43,9 +43,10 @@ const ABI = {
   totalAssets: "uint256:totalAssets",
   totalSupply: "uint256:totalSupply",
   convertToAssets: "function convertToAssets(uint256) view returns (uint256)",
-  getPerfFee: "function getPerfFee() external view returns (uint16)",
+  getPerformanceFee:
+    "function getPerformanceFee() external view returns (uint64)",
   getManagementFee:
-    "function getManagementFee() external view returns (uint16 managementFeeBps, uint32 managementFeeDays)",
+    "function getManagementFee() external view returns (uint64 managementFeeWad, uint32 managementFeeDays)",
 };
 
 const EVENT_ABI = {
@@ -153,7 +154,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // 5. Get fee configuration for each vault
   const [perfFees, mgmtFees] = await Promise.all([
     options.api.multiCall({
-      abi: ABI.getPerfFee,
+      abi: ABI.getPerformanceFee,
       calls: vaults,
       permitFailure: true,
     }),
@@ -188,20 +189,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     if (netYield <= 0) continue;
 
-    // Performance fee: perfFeeAmount = netYield × perfBps / (10000 - perfBps)
-    const perfFeeBps = perfFees[i] ? Number(perfFees[i]) : 0;
+    // Performance fee (WAD, 1e18 = 100%): perfFeeAmount = netYield × f / (1 - f)
+    const perfFeeFrac = perfFees[i] ? Number(perfFees[i]) / 1e18 : 0;
     const performanceFees =
-      perfFeeBps > 0 ? (netYield * perfFeeBps) / (10000 - perfFeeBps) : 0;
+      perfFeeFrac > 0 ? (netYield * perfFeeFrac) / (1 - perfFeeFrac) : 0;
 
-    // Management fee: totalAssets × mgmtBps / 10000 × (timespan / (mgmtDays × 86400))
+    // Management fee (WAD, 1e18 = 100%): totalAssets × f × (timespan / (mgmtDays × 86400))
     let managementFees = 0;
     if (mgmtFees[i] && tvl) {
-      const mgmtFeeBps = Number(mgmtFees[i].managementFeeBps || 0);
+      const mgmtFeeFrac = Number(mgmtFees[i].managementFeeWad || 0) / 1e18;
       const mgmtFeeDays = Number(mgmtFees[i].managementFeeDays || 365);
-      if (mgmtFeeBps > 0 && mgmtFeeDays > 0) {
+      if (mgmtFeeFrac > 0 && mgmtFeeDays > 0) {
         managementFees =
-          (Number(tvl) * mgmtFeeBps * timespan) /
-          (10000 * mgmtFeeDays * SECONDS_PER_DAY);
+          (Number(tvl) * mgmtFeeFrac * timespan) /
+          (mgmtFeeDays * SECONDS_PER_DAY);
       }
     }
 
