@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 
-const API_BASE = "https://api.afx.xyz";
+const API_BASE = "https://api10.afx.xyz";
 const DAILY_INTERVAL = 86400;
 
 interface KlineCandle {
