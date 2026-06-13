@@ -1,7 +1,6 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
-import { sleep } from "../utils/utils";
+import { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 
 const API_BASE = "https://api.afx.xyz";
 const DAILY_INTERVAL = 86400;
@@ -18,7 +17,7 @@ interface ProductMeta {
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
 
-  const { data: productMeta }: { data: ProductMeta } = await fetchURL(`${API_BASE}/info/public/product-meta`);
+  const { data: productMeta }: { data: ProductMeta } = await fetchURLAutoHandleRateLimit(`${API_BASE}/info/public/product-meta`);
   if (!productMeta?.perpProducts) throw new Error("AFX: failed to fetch product meta");
   const symbols = productMeta.perpProducts.map((p) => p.symbol);
 
@@ -27,9 +26,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   let totalTurnover = 0;
   for (let i = 0; i < symbols.length; i++) {
-    if (i > 0) await sleep(1000);
     const symbol = symbols[i];
-    const res: { data: KlineCandle[] } = await fetchURL(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
+    const res: { data: KlineCandle[] } = await fetchURLAutoHandleRateLimit(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
     if (!Array.isArray(res?.data)) throw new Error(`AFX: invalid kline response for ${symbol}`);
     const match = res.data.find((c) => c.timestamp === startTime);
     if (match) {
