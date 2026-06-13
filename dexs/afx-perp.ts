@@ -1,6 +1,6 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 import { PromisePool } from "@supercharge/promise-pool";
 
 const API_BASE = "https://api.afx.xyz";
@@ -18,7 +18,7 @@ interface ProductMeta {
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
 
-  const { data: productMeta }: { data: ProductMeta } = await httpGet(`${API_BASE}/info/public/product-meta`);
+  const { data: productMeta }: { data: ProductMeta } = await fetchURLAutoHandleRateLimit(`${API_BASE}/info/public/product-meta`);
   const symbols = productMeta.perpProducts.map((p) => p.symbol);
 
   const startTime = options.startOfDay;
@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     .withConcurrency(5)
     .for(symbols)
     .process(async (symbol) => {
-      const res: { data: KlineCandle[] } = await httpGet(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
+      const res: { data: KlineCandle[] } = await fetchURLAutoHandleRateLimit(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
       return res.data;
     });
 
