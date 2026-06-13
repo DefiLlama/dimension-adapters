@@ -19,14 +19,24 @@ import fetchURL from "../../utils/fetchURL";
 
 const VOLUME_URL = "https://api-mainnet.cantonwallet.com/canton/pool-party/public/v1/volume?period=24h";
 
-// Pool Party SDK instrument IDs (stable per Send Foundation):
-//   "Amulet"  : Canton Coin (CC) — priced via coingecko:canton-network
-//   "USDCx"   : bridged USDC on Canton — priced as USDC ($1 stable proxy)
-//   CUSD UUID : Send's privacy stablecoin — priced as USDC ($1 stable proxy)
-//
-// Brale issues multiple instruments (CUSD + SBC) from the same issuer party;
-// only the CUSD UUID below is in scope. Unknown instrument IDs throw.
+// Brale issues multiple instruments from the same issuer party; CUSD is
+// reported with this UUID instrument ID on the volume API.
 const CUSD_INSTRUMENT_ID = "481871d4-ca56-42a8-b2d3-4b7d28742946";
+
+// Token IDs that have a direct CoinGecko listing — priced via slug.
+const TOKEN_TO_CG: Record<string, string> = {
+    "Amulet": "canton-network",         // Canton Coin (CC)
+    "CBTC": "coinbase-wrapped-btc",     // cbBTC (Pool Party API uses "CBTC"; on-ledger instrumentId is CBBTC.B)
+};
+
+// Token IDs that are USD stablecoins without their own CoinGecko listing —
+// priced as USDC ($1 stable proxy).
+const STABLE_TOKENS = new Set([
+    "USDCx",            // bridged USDC on Canton (original)
+    "USDC.B",           // bridged USDC (new variant)
+    "FRXUSD.B",         // Frax USD stablecoin (bridged)
+    CUSD_INSTRUMENT_ID, // Send's privacy stablecoin (CUSD)
+]);
 
 
 const fetch = async (options: FetchOptions) => {
@@ -37,16 +47,15 @@ const fetch = async (options: FetchOptions) => {
 
     const addTokenAmounts = (balances: ReturnType<FetchOptions["createBalances"]>, data: Record<string, string>) => {
         for (const [token, amount] of Object.entries(data)) {
-            if (token === "Amulet") {
-                // CoinGecko slug — same approach as the merged TVL adapter
-                // (projects/pool-party). addGasToken does not resolve CC
-                // pricing on the canton chain, so we route via the slug.
-                balances.addCGToken("canton-network", +amount);
-            } else if (token === "USDCx" || token === CUSD_INSTRUMENT_ID) {
+            const cgId = TOKEN_TO_CG[token];
+            if (cgId) {
+                balances.addCGToken(cgId, +amount);
+            } else if (STABLE_TOKENS.has(token)) {
                 balances.addUSDValue(+amount);
-            } else {
-                throw new Error(`Unknown token: ${token}`);
             }
+            // Unknown tokens are silently skipped rather than thrown — Pool
+            // Party's pool composition can change without an adapter update,
+            // and we prefer an undercount to a crashed adapter.
         }
     };
 
@@ -58,18 +67,19 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
     Volume:
-        "24h spot/swap volume across CC, CUSD, and USDCx pools, fetched from " +
+        "24h spot/swap volume across all live Pool Party pools, fetched from " +
         "Pool Party's public API on Send Foundation's validator " +
         "(api-mainnet.cantonwallet.com). Raw per-token volume across all swap " +
         "legs — matches the headline 24h volume displayed on Pool Party's " +
-        "primary UI at cantonwallet.com/pools/. CC priced via canton-network " +
-        "on CoinGecko; CUSD and USDCx priced as USDC ($1 stable proxy) since " +
-        "neither has a direct CoinGecko listing.",
+        "primary UI at cantonwallet.com/pools/. CC (Amulet) priced via " +
+        "canton-network on CoinGecko; cbBTC (CBTC) priced via " +
+        "coinbase-wrapped-btc on CoinGecko; USDCx, USDC.B, FRXUSD.B, and CUSD " +
+        "priced as USDC ($1 stable proxy) since none have a direct CoinGecko " +
+        "listing.",
     Fees:
         "All swap fees collected by Pool Party (24h), fetched from Pool Party's " +
         "public API on Send Foundation's validator (api-mainnet.cantonwallet.com). " +
-        "CC fees priced via canton-network on CoinGecko; CUSD and USDCx fees " +
-        "priced as USDC ($1 stable proxy). Phase 2 will populate " +
+        "Tokens priced the same way as Volume. Phase 2 will populate " +
         "supplySideRevenue, protocolRevenue, and holdersRevenue once Send's " +
         "per-swap fee attribution views are available.",
     UserFees: "All fees paid by users on swaps.",
