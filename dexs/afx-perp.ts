@@ -1,6 +1,7 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
+import { sleep } from "../utils/utils";
 
 const API_BASE = "https://api.afx.xyz";
 const DAILY_INTERVAL = 86400;
@@ -25,7 +26,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const endTime = startTime + DAILY_INTERVAL;
 
   let totalTurnover = 0;
-  for (const symbol of symbols) {
+  for (let i = 0; i < symbols.length; i++) {
+    if (i > 0) await sleep(1000);
+    const symbol = symbols[i];
     const res: { data: KlineCandle[] } = await fetchURL(`${API_BASE}/info/kline/list?symbol_name=${symbol}&interval=${DAILY_INTERVAL}&startTime=${startTime}&endTime=${endTime}`);
     if (!Array.isArray(res?.data)) throw new Error(`AFX: invalid kline response for ${symbol}`);
     const match = res.data.find((c) => c.timestamp === startTime);
