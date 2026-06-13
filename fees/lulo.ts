@@ -14,22 +14,19 @@ const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       sum(CASE WHEN lm LIKE '%accrued_interest=%' AND lm LIKE '%protected_accumulated=%'
-               THEN cast(regexp_extract(lm, 'accrued_interest=([0-9]+)', 1) AS double) ELSE 0 END) AS gross_yield,
-      sum(CASE WHEN lm LIKE '%protected_referral_fee=%' OR lm LIKE '%regular_referral_fee=%'
-               THEN cast(regexp_extract(lm, 'referral_fee=([0-9]+)', 1) AS double) ELSE 0 END) AS performance_fee
+               THEN cast(regexp_extract(lm, 'accrued_interest=([0-9]+)', 1) AS double) ELSE 0 END) AS gross_yield
     FROM solana.transactions
     CROSS JOIN UNNEST(log_messages) AS u(lm)
     WHERE TIME_RANGE
       AND contains(account_keys, '${LULO_PROGRAM}')
-      AND (lm LIKE '%accrued_interest=%' OR lm LIKE '%referral_fee=%')`;
+      AND lm LIKE '%accrued_interest=%'`;
 
   const [row] = await queryDuneSql(options, query);
 
   const grossYield = Number(row?.gross_yield ?? 0);
-  const performanceFee = Number(row?.performance_fee ?? 0);
 
   dailyFees.add(USDC, grossYield, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.add(USDC, grossYield - performanceFee, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.add(USDC, grossYield, METRIC.ASSETS_YIELDS);
 
   return {
     dailyFees,
@@ -38,8 +35,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Gross yield accrued on stablecoin deposits across Lulo's underlying lending integrations.",
-  SupplySideRevenue: "Gross yield minus Lulo's  performance fee (charged at withdrawal, routed through the referral system).",
+  Fees: "Gross yield accrued on stablecoin deposits via Lulo's underlying lending integrations.",
+  SupplySideRevenue: "Gross yield paid to depositors and referrers.",
 };
 
 const breakdownMethodology = {
@@ -47,7 +44,7 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: "Gross yield on deposited assets.",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Depositor retained yield after performance fee.",
+    [METRIC.ASSETS_YIELDS]: "Yield to depositors and referrers.",
   },
 };
 
