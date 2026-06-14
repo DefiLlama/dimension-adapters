@@ -71,6 +71,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: "Gate Swap aggregator volume is calculated from SwapDetail amountOut events and Alpha Order amountOut events across supported chains.",
   },
