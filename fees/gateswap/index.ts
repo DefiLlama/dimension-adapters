@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
+// Gate fee collector contracts confirmed from SwapWithFee logs on supported chains.
 const FEE_COLLECTORS = [
   "0x00000000ae2193c4ac6521146b1adafe9b43361d",
   "0x00000000d204b71c77e1fa21cf0892c6590ca78b",
