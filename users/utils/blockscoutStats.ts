@@ -1,4 +1,5 @@
 import fetchURL, { httpGet } from "../../utils/fetchURL";
+import { ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
@@ -112,7 +113,7 @@ export const blockscoutStatsExports = Object.entries(blockscoutStatsChains).map(
   name: id,
   id,
   chain: config.chain,
-  type: "chain",
+  protocolType: ProtocolType.CHAIN,
   getUsers: getBlockscoutUsers(config),
   getNewUsers: getBlockscoutNewUsers(config),
 }));

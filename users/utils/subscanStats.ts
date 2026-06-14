@@ -1,4 +1,5 @@
 import { httpPost } from "../../utils/fetchURL";
+import { ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
 
@@ -65,7 +66,7 @@ export const subscanStatsExports = Object.entries(subscanStatsChains).map(([id, 
   name: id,
   id,
   chain: config.chain,
-  type: "chain",
+  protocolType: ProtocolType.CHAIN,
   getUsers: getSubscanUsers(config),
   getNewUsers: getSubscanNewUsers(config),
 }));
