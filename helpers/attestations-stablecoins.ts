@@ -5,12 +5,52 @@ import fetchURL, { httpGet } from "../utils/fetchURL";
 import { getEnv } from "./env";
 
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
+const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
+const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+
+type YahooPricePoint = { timestamp: number, adjclose: number }
+
+async function fetchYahooAdjClose(symbol: string, period1: number, period2: number): Promise<YahooPricePoint[]> {
+    const data = await fetchURL(`${YAHOO_CHART_URL}/${symbol}?period1=${period1}&period2=${period2}&interval=1d`)
+    const result = data.chart?.result?.[0]
+    if (!result?.timestamp?.length) {
+        throw new Error(`No Yahoo chart data for ${symbol}`)
+    }
+
+    const adjcloses: (number | null)[] = result.indicators.adjclose[0].adjclose
+    return result.timestamp
+        .map((timestamp: number, i: number) => ({ timestamp, adjclose: adjcloses[i] }))
+        .filter((point: { adjclose: number | null }) => point.adjclose != null) as YahooPricePoint[]
+}
+
+function getAdjCloseAtTimestamp(prices: YahooPricePoint[], targetTimestamp: number): number {
+    const closest = prices.reduce((closest, point) =>
+        Math.abs(point.timestamp - targetTimestamp) < Math.abs(closest.timestamp - targetTimestamp) ? point : closest
+    )
+    return closest.adjclose
+}
+
+function getAssetPnl(
+    usdAllocation: number,
+    attestationTimestamp: number,
+    fromTimestamp: number,
+    toTimestamp: number,
+    prices: YahooPricePoint[],
+): number {
+    const attestationPrice = getAdjCloseAtTimestamp(prices, attestationTimestamp)
+    const units = usdAllocation / attestationPrice
+    const startPrice = getAdjCloseAtTimestamp(prices, fromTimestamp)
+    const endPrice = getAdjCloseAtTimestamp(prices, toTimestamp)
+    return units * (endPrice - startPrice)
+}
 
 export function buildStablecoinAdapter(chain: string, stablecoinId: string, daysBetweenAttestations: number, attestations: {
     time: string, // time of report
     circulation: number, // billions of USDC in circulation
     allocated: number, // billions in tbills + repos + money market funds (DON'T INCLUDE CASH!)
     tbillRate?: number // % interest earned in treasury bills
+    allocatedToGold?: number // billion dollars allocated to gold
+    allocatedToBitcoin?: number // billion dollars allocated to bitcoin
 }[]) {
     const adapter: Adapter = {
         version: 1,
@@ -48,6 +88,32 @@ export function buildStablecoinAdapter(chain: string, stablecoinId: string, days
 
                     const yieldForPeriod = tbills * tbillYield * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR_IN_SECONDS * 100)
                     dailyFees.addUSDValue(yieldForPeriod, METRIC.ASSETS_YIELDS)
+
+                    const attestationTimestamp = new Date(closestAttestation.time).getTime() / 1e3
+                    const hasGoldAllocation = closestAttestation.allocatedToGold != null && closestAttestation.allocatedToGold > 0
+                    const hasBtcAllocation = closestAttestation.allocatedToBitcoin != null && closestAttestation.allocatedToBitcoin > 0
+
+                    if (hasGoldAllocation || hasBtcAllocation) {
+                        const period1 = attestationTimestamp
+                        const period2 = options.toTimestamp + ONE_DAY_IN_SECONDS
+
+                        const [goldPrices, btcPrices] = await Promise.all([
+                            hasGoldAllocation ? fetchYahooAdjClose("GC=F", period1, period2) : Promise.resolve([]),
+                            hasBtcAllocation ? fetchYahooAdjClose("BTC=F", period1, period2) : Promise.resolve([]),
+                        ])
+
+                        if (hasGoldAllocation) {
+                            const goldUsd = supply * closestAttestation.allocatedToGold! / closestAttestation.circulation
+                            const goldPnl = getAssetPnl(goldUsd, attestationTimestamp, options.fromTimestamp, options.toTimestamp, goldPrices)
+                            dailyFees.addUSDValue(goldPnl, 'Gold Price PnL')
+                        }
+
+                        if (hasBtcAllocation) {
+                            const btcUsd = supply * closestAttestation.allocatedToBitcoin! / closestAttestation.circulation
+                            const btcPnl = getAssetPnl(btcUsd, attestationTimestamp, options.fromTimestamp, options.toTimestamp, btcPrices)
+                            dailyFees.addUSDValue(btcPnl, 'Bitcoin Price PnL')
+                        }
+                    }
 
                     return {
                         dailyFees,
