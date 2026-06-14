@@ -18,7 +18,7 @@ const breakdownMethodology = {
 };
 
 const correctedTotalRevenues: Record<string, number> = {
-  '2026-06-04': 114.49
+  '2026-06-04': 114.49, //api wrongly returns 0 vs 114.49 (previous day) and 113 (next day)
 }
 
 const fetchCumulativeData = async (dateStr: string) => {
