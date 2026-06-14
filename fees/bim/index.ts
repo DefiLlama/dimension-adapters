@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -14,10 +15,10 @@ const fetchStellarFees = async (options: FetchOptions) => {
     fetchURL(`${STELLAR_BRIDGE_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`),
   ]);
   const dailyFees = options.createBalances();
-  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Swap Fees"); }
-  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Swap Fees"); }
-  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Bridge Fees"); }
-  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Bridge Fees"); }
+  if (swapData.fees?.USDC) { const v = Number(swapData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Swap Fees (Stellar)"); }
+  if (swapData.fees?.XLM) { const v = Number(swapData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Swap Fees (Stellar)"); }
+  if (bridgeData.fees?.USDC) { const v = Number(bridgeData.fees.USDC); if (Number.isFinite(v)) dailyFees.addCGToken("usd-coin", v, "Bridge Fees (Stellar)"); }
+  if (bridgeData.fees?.XLM) { const v = Number(bridgeData.fees.XLM); if (Number.isFinite(v)) dailyFees.addCGToken("stellar", v, "Bridge Fees (Stellar)"); }
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -187,7 +188,7 @@ const getStakingFromAddresses = async (chain: CHAIN): Promise<string[]> => {
   return fromAddresses;
 };
 
-const getStakingFees = async (options: FetchOptions): Promise<any> => {
+const getStakingFees = async (options: FetchOptions): Promise<Balances> => {
   const { chain } = options;
   const config = chainConfig[chain as CHAIN];
   if (!config) {
@@ -218,7 +219,7 @@ const fetch = async (options: FetchOptions) => {
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
   const dailyFees = await stakingFeesPromise;
-  dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise);
+  dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise, "Swap & Bridge Fees (EVM)");
 
   return {
     dailyFees: dailyFees,
@@ -233,9 +234,10 @@ const methodology = {
   ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
 };
 
-const stellarBreakdown = {
-  "Swap Fees": "Fee charged in USDC, XLM on Stellar swaps (0.25%).",
-  "Bridge Fees": "Fee charged in USDC, XLM on Stellar bridges (0.125%).",
+const feesBreakdown = {
+  "Swap & Bridge Fees (EVM)": "Fee charged on swaps and bridges on EVM chains (0.25% for swaps, 0.125% for bridges).",
+  "Swap Fees (Stellar)": "Fee charged in USDC, XLM on Stellar swaps (0.25%).",
+  "Bridge Fees (Stellar)": "Fee charged in USDC, XLM on Stellar bridges (0.125%).",
 };
 
 const adapter: SimpleAdapter = {
@@ -245,9 +247,9 @@ const adapter: SimpleAdapter = {
   adapter: baseAdapter,
   methodology,
   breakdownMethodology: {
-    Fees: stellarBreakdown,
-    Revenue: stellarBreakdown,
-    ProtocolRevenue: stellarBreakdown,
+    Fees: feesBreakdown,
+    Revenue: feesBreakdown,
+    ProtocolRevenue: feesBreakdown,
   },
 };
 
