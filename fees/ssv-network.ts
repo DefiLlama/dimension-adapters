@@ -125,11 +125,10 @@ const fetchOnchain = async (options: FetchOptions) => {
   }
   const operatorFeesWei = operatorFeePerBlock * periodBlocks;
 
-  dailyFees.addGasToken(networkFeesWei, "Network Fees");
-  dailyFees.addGasToken(operatorFeesWei, "Operator Fees");
+  dailyFees.addGasToken(networkFeesWei + operatorFeesWei, "Validator Operation Fees");
   dailyRevenue.addGasToken(networkFeesWei, "Network Fees To cSSV Stakers");
   dailyHoldersRevenue.addGasToken(networkFeesWei, "Network Fees To cSSV Stakers");
-  dailySupplySideRevenue.addGasToken(operatorFeesWei, "Operator Fees To Operators");
+  dailySupplySideRevenue.addGasToken(operatorFeesWei, METRIC.OPERATORS_FEES);
 
   return {
     dailyFees,
@@ -157,8 +156,6 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     "Validator Operation Fees": "Pre-migration: total SSV fees paid by validators (operator + network fees).",
-    "Network Fees": "Post-migration: ETH network fee charged per validator/block, set by the SSV DAO.",
-    "Operator Fees": "Post-migration: ETH operator fees charged per validator/block, set by each operator.",
   },
   UserFees: {
     "Validator Operation Fees": "Pre-migration: total SSV fees paid by validators (operator + network fees).",
@@ -172,7 +169,6 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRIC.OPERATORS_FEES]: "Pre-migration: SSV fees earned by node operators (market-determined per validator).",
-    "Operator Fees To Operators": "Post-migration: operator fees paid in ETH to node operators.",
   },
   HoldersRevenue: {
     "Token Burns": "Pre-migration: SSV tokens burned to the zero address.",
@@ -187,6 +183,7 @@ const adapter: SimpleAdapter = {
   start: "2023-06-18",
   methodology,
   breakdownMethodology,
+  pullHourly: false, //legacy subgraph does not support hourly data
 };
 
 export default adapter;
