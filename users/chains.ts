@@ -1,5 +1,6 @@
 import { queryAllium } from "../helpers/allium";
 import fetchURL, { httpGet } from "../utils/fetchURL";
+import { ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
 import { subscanStatsExports } from "./utils/subscanStats";
@@ -76,6 +77,7 @@ type ChainUserConfig = {
     name: string,
     id: string,
     chain: string,
+    protocolType?: ProtocolType,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }
