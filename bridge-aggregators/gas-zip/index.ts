@@ -104,7 +104,7 @@ const prefetch = async (options: FetchOptions) => {
       AND value > 0
       AND TIME_RANGE
     GROUP BY 1
-  `, { extraUIDKey: "gas-zip-direct-all" })
+  `)
 
   return Object.fromEntries(rows.map((row: any) => [row.blockchain, row.amount]))
 }
@@ -132,11 +132,12 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   prefetch,
   fetch,
   adapter: chainConfig,
+  isExpensiveAdapter: true,
 }
 
 export default adapter
