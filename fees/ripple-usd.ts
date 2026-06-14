@@ -12,45 +12,90 @@ import { buildStablecoinAdapter } from "../helpers/attestations-stablecoins";
 // https://ripple.com/solutions/stablecoin/transparency/
 const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '250', 30, [
   {
-    time: '2026-04-30',
+    time: '2026-04',
     circulation: 1.44,
-    allocated: 1.30, // 1,033.3m tbills + 263.4m money-market funds
+    allocated: 1.03 + 0.263,
   },
   {
-    time: '2026-04-24',
-    circulation: 1.54,
-    allocated: 1.37, // 999.6m tbills + 367.5m money-market funds
-  },
-  {
-    time: '2026-03-31',
+    time: '2026-03',
     circulation: 1.24,
-    allocated: 1.08, // 931.5m tbills + 146.6m money-market funds
+    allocated: 0.93 + 0.146,
   },
   {
-    time: '2026-03-13',
-    circulation: 1.55,
-    allocated: 1.38, // 914.8m tbills + 464.8m money-market funds
+    time: '2026-02',
+    circulation: 1.5,
+    allocated: 0.89 + 0.423,
   },
   {
-    time: '2026-02-27',
-    circulation: 1.50,
-    allocated: 1.31, // 890.8m tbills + 423.3m money-market funds
+    time: '2026-01',
+    circulation: 1.358,
+    allocated: 0.839 + 0.403
   },
   {
-    time: '2026-02-19',
-    circulation: 1.54,
-    allocated: 1.33, // 863.4m tbills + 464.9m money-market funds
+    time: '2025-12',
+    circulation: 1.28,
+    allocated: 0.338 + 0.867,
   },
   {
-    time: '2026-01-30',
-    circulation: 1.36,
-    allocated: 1.24, // 838.8m tbills + 403.1m money-market funds
+    time: '2025-11',
+    circulation: 1.26,
+    allocated: 0.712 + 0.382,
   },
   {
-    time: '2026-01-14',
-    circulation: 1.39,
-    allocated: 1.23, // 696.4m tbills + 533.8m money-market funds
+    time: '2025-10',
+    circulation: 0.963,
+    allocated: 0.526 + 0.282,
   },
+  {
+    time: '2025-09',
+    circulation: 0.789,
+    allocated: 0.451 + 0.249,
+  },
+  {
+    time: '2025-08',
+    circulation: 0.701,
+    allocated: 0.394 + 0.225,
+  },
+  {
+    time: '2025-07',
+    circulation: 0.602,
+    allocated: 0.33 + 0.177
+  },
+  {
+    time: '2025-06',
+    circulation: 0.456,
+    allocated: 0.401
+  },
+  {
+    time: '2025-05',
+    circulation: 0.301,
+    allocated: 0.181 + 0.098,
+  },
+  {
+    time: '2025-04',
+    circulation: 0.317,
+    allocated: 0.14 + 0.141,
+  },
+  {
+    time: '2025-03',
+    circulation: 0.193,
+    allocated: 0.07 + 0.082,
+  },
+  {
+    time: '2025-02',
+    circulation: 0.13,
+    allocated: 0.052 + 0.046,
+  },
+  {
+    time: '2025-01',
+    circulation: 0.1067,
+    allocated: 0.042 + 0.042,
+  },
+  {
+    time: '2024-12',
+    circulation: 0.077,
+    allocated: 0.030 + 0.020,
+  }
 ]);
 
 adapter.methodology = {
@@ -71,6 +116,6 @@ adapter.breakdownMethodology = {
   },
 }
 
-adapter.start = '2026-01-14'; // first attestation report date — no earlier sourced data
+adapter.start = '2024-11-01';
 
 export default adapter;
