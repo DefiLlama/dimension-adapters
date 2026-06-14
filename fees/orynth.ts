@@ -126,6 +126,7 @@ const fetch = async (options: FetchOptions) => {
   // Step 2: Aggregate fees and volume
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   // DBC — fee_1 = trading_fee, fee_2 = protocol_fee
   dbcData.forEach((row) => {
@@ -145,6 +146,8 @@ const fetch = async (options: FetchOptions) => {
 
     dailyProtocolRevenue.add(quoteMint, Number(row.fee_1), metrics.TradingFees);
     dailyProtocolRevenue.add(quoteMint, Number(row.fee_2), metrics.ProtocolFees);
+
+    dailySupplySideRevenue.add(quoteMint, Number(row.fee_3), metrics.PartnersFees);
   });
 
   return {
@@ -152,6 +155,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -165,6 +169,7 @@ const adapter: SimpleAdapter = {
     UserFees: "Total trading fees paid by users.",
     Revenue: "Fees collected by Orynth.",
     ProtocolRevenue: "All fees collected by Orynth.",
+    SupplySideRevenue: "Partner fees from DAMM v2 migrated pools.",
   },
   breakdownMethodology: {
     Fees: {
@@ -179,6 +184,9 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
       [metrics.ProtocolFees]: "Total fees paid to Orynth protocol.",
+    },
+    SupplySideRevenue: {
+      [metrics.PartnersFees]: "Partner fees from DAMM v2 migrated pools.",
     },
   },
 };
