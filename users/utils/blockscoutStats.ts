@@ -78,6 +78,8 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1 },
   "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
   fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1 },
+  b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1 },
+  degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2 },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
