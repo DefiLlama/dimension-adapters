@@ -179,9 +179,9 @@ const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '1', 30 * 3,
   ]);
 
 adapter.methodology = {
-  Fees: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets, gold, and bitcoin). Excluding public equities and other investments due to lack of further transparency.',
-  Revenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets, gold, and bitcoin) collected by Tether.',
-  ProtocolRevenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets, gold, and bitcoin) collected by Tether.',
+  Fees: 'All yields from USDT backing asset investments (US Treasury Bills, other fixed-income assets), price fluctuations in gold, and bitcoin held in the Tether reserves. Public equities and other investments are excluded due to a lack of transparency. Bitcoin and gold PnL is included only since 2023, as they were not transparent before then.',
+  Revenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets) price fluctuations in gold, and bitcoin held in the Tether reserves.',
+  ProtocolRevenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets) price fluctuations in gold, and bitcoin held in the Tether reserves.',
 }
 
 adapter.breakdownMethodology = {
