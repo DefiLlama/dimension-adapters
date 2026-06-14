@@ -12,7 +12,7 @@ const WEEKEND_FOREX_FEE_RATE = 0.025 / 100;
 const OVERNIGHT_STOCK_FEE_RATE = 0.05 / 100;
 const CRYPTO_FEE_RATE = 0.01 / 100;
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const today = new Date(options.startOfDay * 1000).getDay();
     const isWeekend = today === 6 || today === 0;
     const { symbols } = await fetchURL(`${VEST_MARKETS_API}/exchangeInfo`);

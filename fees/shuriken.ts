@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const transfer_txs = await queryIndexer(`
       SELECT
@@ -34,10 +34,10 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
     dailyFees.addGasToken(amount);
   })
 
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
+  return { dailyFees, dailyRevenue: dailyFees,}
 }
 
-const fetchSolana = async (_: any, _1: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `

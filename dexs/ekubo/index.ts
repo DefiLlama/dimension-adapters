@@ -13,7 +13,7 @@ function toAddress(numberString: string): string {
   return numberString === '0' ? ADDRESSES.null : `0x${new BigNumber(numberString).toString(16)}`;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()

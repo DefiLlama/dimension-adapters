@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 
@@ -26,7 +26,7 @@ export interface CuratorConfig {
   vaults: {
     // chain => 
     [key: string]: {
-      start?: IStartTimestamp | number | string;
+      start?: string;
       morpho?: Array<string>;
       euler?: Array<string>;
 
@@ -59,6 +59,20 @@ const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> 
   [CHAIN.ETHEREUM]: [{
     token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
     from: "2025-12-08",
+  }],
+}
+
+// vaults excluded entirely from a given date onwards. used when a vault's share price is corrupted
+// (e.g. an allocated market frozen at 100% utilization accrues phantom interest, or a pending bad-debt
+// write-off would otherwise show up as a fake large negative day). the adapter only reads vault-level
+// share price, so a single bad market cannot be isolated - the whole vault has to be dropped.
+const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> = {
+  [CHAIN.ETHEREUM]: [{
+    // Clearstar Yield USDC (CSYUSDC) - allocated RLP/USDC market frozen at 100% utilization, accruing phantom
+    // interest that inflated reported yield from ~$281/day to ~$197k/day. vault now deprecated with unrealized
+    // bad debt; excluding from the freeze onset also keeps the eventual write-off out of the series.
+    vault: '0x9B5E92fd227876b4C07a8c02367E2CB23c639DfA',
+    from: '2026-03-21',
   }],
 }
 
@@ -366,13 +380,19 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailyRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
+        const blacklistedVaultsForChain = new Set(
+          blacklistedVaults[options.chain]?.filter(item => options.dateString >= item.from).map(item => item.vault.toLowerCase())
+        )
+        const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
+
         // morpho meta vaults
-        const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        const morphoVaults = (await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         // morpho v2 vaults
-        const morphoVaultsV2 = await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners);
+        const morphoVaultsV2 = (await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners)).filter(vault => !isBlacklistedVault(vault));
 
-        const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+        const eulerVaults = (await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         if (morphoVaults.length > 0) {
           await getMorphoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaults, curatorConfig.breakdownFees)

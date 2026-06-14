@@ -178,7 +178,7 @@ const COUNTERS: Record<string, string[]> = {
 };
 
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // if (!COUNTERS[options.chain]) {
   //   return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
   // }

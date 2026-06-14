@@ -22,7 +22,7 @@ const calVolume = (total: IVolumeall): number => {
   return volume;
 };
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;
   const dailyVolumeCall = historicalVolume.find((dayItem: IVolumeall) => Number(dayItem.startTime) === options.startOfDay);
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);

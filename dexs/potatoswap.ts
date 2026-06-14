@@ -5,7 +5,7 @@ import { getUniV2LogAdapter } from "../helpers/uniswap";
 
 const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const response = await fetchURL(API_URL);
   const pools = response.data.pools;
 

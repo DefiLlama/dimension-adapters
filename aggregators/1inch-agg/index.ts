@@ -38,11 +38,7 @@ const prefetch = async (options: FetchOptions) => {
   return result;
 };
 
-const fetch = async (
-  _a: any,
-  _b: any,
-  options: FetchOptions
-): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain === chainsMap[options.chain]);
 
@@ -53,11 +49,11 @@ const fetch = async (
 
 const adapter: SimpleAdapter = {
   version: 1,
-  dependencies: [Dependencies.DUNE],
   fetch,
   chains: Object.keys(chainsMap),
   start: "2023-12-05",
   prefetch,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };
 

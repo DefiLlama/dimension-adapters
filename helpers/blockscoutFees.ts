@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
+import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
@@ -12,6 +12,7 @@ export const chainConfigMap: any = {
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
   [CHAIN.ENERGYWEB]: { explorer: 'https://explorer.energyweb.org', CGToken: 'energy-web-token', burnRatio: 0 },
+  [CHAIN.FLOW]: { explorer: 'https://evm.flowscan.io', CGToken: 'flow', allStatsApi: 'https://evm.flowscan.io:8080' },
   [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://stats-immutable-mainnet.k8s.blockscout.com' },
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
   [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://stats-etherlink-mainnet.k8s-prod-1.blockscout.com' },
@@ -144,6 +145,8 @@ export const chainConfigMap: any = {
   [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
   [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
   [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
+  [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
+  [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
 }
 
 function getTimeString(timestamp: number) {
@@ -165,7 +168,7 @@ export function blockscoutFeeAdapter2(chain: string) {
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async ({ chain, createBalances, startOfDay, }: FetchOptions) => {
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined

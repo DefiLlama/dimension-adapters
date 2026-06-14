@@ -65,7 +65,7 @@ interface OrdersResponse {
   total: number;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyBridgeVolume = options.createBalances();
 
   const startDate = new Date(options.startTimestamp * 1000).toISOString();

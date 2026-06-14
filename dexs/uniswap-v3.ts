@@ -25,19 +25,19 @@ const v3Endpoints = {
 };
 
 type TStartTime = {
-  [key: string]: number;
+  [key: string]: string;
 }
 const startTimeV3: TStartTime = {
-  [CHAIN.ETHEREUM]: 1620172800,
-  [CHAIN.OPTIMISM]: 1636675200,
-  [CHAIN.ARBITRUM]: 1630368000,
-  [CHAIN.POLYGON]: 1640044800,
-  [CHAIN.CELO]: 1657324800,
-  [CHAIN.BSC]: 1678665600,
-  [CHAIN.AVAX]: 1689033600,
-  [CHAIN.BASE]: 1691280000,
-  [CHAIN.ERA]: 1693440000,
-  [CHAIN.XLAYER]: 1767571200,
+  [CHAIN.ETHEREUM]: '2021-05-05',
+  [CHAIN.OPTIMISM]: '2021-11-12',
+  [CHAIN.ARBITRUM]: '2021-08-31',
+  [CHAIN.POLYGON]: '2021-12-21',
+  [CHAIN.CELO]: '2022-07-09',
+  [CHAIN.BSC]: '2023-03-13',
+  [CHAIN.AVAX]: '2023-07-11',
+  [CHAIN.BASE]: '2023-08-06',
+  [CHAIN.ERA]: '2023-08-31',
+  [CHAIN.XLAYER]: '2026-01-05',
 }
 
 const FEE_SWITCH_DATE: Record<string, string> = {
@@ -45,10 +45,48 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.OPTIMISM]: "2026-03-08",
   [CHAIN.ARBITRUM]: "2026-03-08",
   [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-03-08",
+  [CHAIN.CELO]: "2026-06-02",
   [CHAIN.WC]: "2026-03-08",
   [CHAIN.ZORA]: "2026-03-08",
   [CHAIN.XLAYER]: "2026-03-08",
+  [CHAIN.BSC]: "2026-06-02",
+  [CHAIN.POLYGON]: "2026-06-02",
+}
+
+const FIREPIT : Record<string, string> = {
+  [CHAIN.ETHEREUM]: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721',
+  [CHAIN.UNICHAIN]: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB',
+  [CHAIN.WC]: '0x455e844D286631566cF98D6cb2996149734618C6',
+  [CHAIN.CELO]: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25',
+  [CHAIN.ZORA]: '0x2f98eD4D04e633169FbC941BFCc54E785853b143',
+  [CHAIN.XLAYER]: '0xe122E231cb52aea99690963Fd73E91e33E97468f',
+  [CHAIN.ARBITRUM]: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427',
+  [CHAIN.OPTIMISM]: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD',
+  [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
+  [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+  [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+}
+
+const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
+const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)'
+
+async function fetchHoldersRevenue(options: FetchOptions) {
+  const dailyHoldersRevenue = options.createBalances()
+  const firepit = FIREPIT[options.chain]
+  if (!firepit || !FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) {
+    return dailyHoldersRevenue
+  }
+
+  const [releaseLogs, threshold] = await Promise.all([
+    options.getLogs({ target: firepit, eventAbi: RELEASED_EVENT_ABI }),
+    options.api.call({ target: firepit, abi: THRESHOLD_FUNCTION_ABI }),
+  ])
+
+  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
+
+  const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
+  dailyHoldersRevenue.addCGToken("uniswap", amount)
+  return dailyHoldersRevenue
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -91,14 +129,16 @@ const fetchFromOku = async (options: FetchOptions) => {
     const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+    const dailyRevenue = dailyFees * getRevenueShare(dailyFees, options);
+    const dailyHoldersRevenue = await fetchHoldersRevenue(options);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
+      dailySupplySideRevenue: dailyFees - dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
+      dailyHoldersRevenue,
     }
   } catch (e) {
     console.error(options.chain, e)
@@ -121,10 +161,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
 }
 
 const adapter: SimpleAdapter = {
@@ -133,7 +173,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: async (_t: any, _tb: any, options: FetchOptions) => v3Graphs(options),
+      fetch: async (options: FetchOptions) => v3Graphs(options),
       start: startTimeV3[chain],
     }
     return acc
@@ -183,13 +223,13 @@ const okuChains = [
 
 okuChains.forEach(chain => {
   (adapter.adapter as BaseAdapter)[chain] = {
-    fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
+    fetch: async (options: FetchOptions) => fetchFromOku(options),
   }
 });
 
 
 (adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -197,7 +237,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -205,7 +245,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -213,7 +253,7 @@ okuChains.forEach(chain => {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
@@ -269,7 +309,8 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
     })
   })
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue }
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options)
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue }
 }
 
 function getRevenueShare(fee: number, options: FetchOptions): number {
@@ -282,7 +323,7 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
 }
 
 (adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await customUniswapGetLogsAdapter({
       options,
       factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
@@ -293,12 +334,13 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BSC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await customUniswapGetLogsAdapter({
       options,
       factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
       fromBlock: 26324014,
       onlyWhitelisedTokens: true,
+      getRevenueShare
     })
   },
 };
@@ -354,6 +396,7 @@ async function fetchDune(options: FetchOptions) {
 
   const dailySupplySideRevenue = dailyFees.clone()
   dailySupplySideRevenue.subtract(dailyRevenue)
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options)
   return {
     dailyVolume,
     dailyFees,
@@ -361,48 +404,48 @@ async function fetchDune(options: FetchOptions) {
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyHoldersRevenue,
   }
 }
 
 (adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.WC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };
 
 (adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+  fetch: async (options: FetchOptions) => {
     return await fetchDune(options);
   },
 };

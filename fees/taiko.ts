@@ -27,7 +27,7 @@ const TAIKO_ROLLUP_SELECTORS = [
 
 const asVarbinaryList = (values: string[]) => values.join(", ");
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const contracts = asVarbinaryList(TAIKO_ROLLUP_CONTRACTS);
   const selectors = asVarbinaryList(TAIKO_ROLLUP_SELECTORS);
 

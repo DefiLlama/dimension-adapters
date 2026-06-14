@@ -18,6 +18,7 @@ const MIGRATION_TIMESTAMP = Date.UTC(2026, 3, 22) / 1000; // 2026-04-22 00:00 UT
 const SUBGRAPH = "https://api.studio.thegraph.com/query/88140/ssv-fee-tracker/version/latest";
 const SSV_COINGECKO_ID = "ssv-network";
 const SSV_TOKEN = "0x9D65fF81a3c488d585bBfb0Bfe3c7707c7917f54";
+
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 // Burn (zero) address, padded to a 32-byte topic for the `to` filter.
 const PADDED_BURN_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000";

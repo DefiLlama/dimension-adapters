@@ -7,7 +7,7 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "9LcmMfufi8YUcx83RALwF9Y9BPWZ7SqGy4D9VLe2n
 const LST_FEE_TOKEN_ACCOUNT = "2azKdTLTd7xBF3mKjVBrrpj5jgJHoCRXLNpFjhfgzXwv";
 const LST_MINT = 'BonK1YhkXEGLZzwtcvRTip3gAL9nCeQD7ppZBLXhtTs';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,

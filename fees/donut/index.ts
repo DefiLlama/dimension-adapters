@@ -6,7 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

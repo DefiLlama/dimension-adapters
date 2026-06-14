@@ -37,6 +37,17 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   return Object.fromEntries(sortedPairs)
 }
 
+function filterBlacklistedPools(pairObject: IJSON<string[]>, blacklistPools?: string[]): IJSON<string[]> {
+  if (!blacklistPools?.length) return pairObject
+
+  const blacklistPoolsSet = new Set(blacklistPools.map(i => i.toLowerCase()))
+  const pairsToFilter: typeof pairObject = { ...pairObject }
+  Object.keys(pairsToFilter).forEach(pair => {
+    if (blacklistPoolsSet.has(pair.toLowerCase())) delete pairsToFilter[pair]
+  })
+  return pairsToFilter
+}
+
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
@@ -79,7 +90,9 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
-    const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, maxPairSize })
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
+    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
@@ -94,7 +107,6 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
@@ -211,7 +223,9 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       throw new Error('Either factory or pools must be provided in the config')
     }
 
-    const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
+    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const revenue = createBalances()
@@ -233,7 +247,6 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairs = Object.keys(filteredPairs)
     const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
 
@@ -307,7 +320,7 @@ type UniV2Config = {
   voter?: string,
   maxPairSize?: number,
   customLogic?: any,
-  start?: number | string,
+  start?: string,
   blacklistedAddresses?: string[],
   userFeesRatio?: number,
   revenueRatio?: number,
@@ -333,8 +346,8 @@ type UniV3Config = {
   revenueRatio?: number,
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
-  start?: number | string,
-  deadFrom?: number | string,
+  start?: string,
+  deadFrom?: string,
   blacklistPools?: Array<string>,
   pools?: string[], // alternative to providing factory
 
@@ -351,7 +364,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pull
     const fetch: any = getUniV2LogAdapter(chainConfig)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      fetch: async (options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
   })
@@ -380,7 +393,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
     exportObject[chain] = { fetch, start: chainConfig.start }
     if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      fetch: async (options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
     if (chainConfig.deadFrom) exportObjectV1[chain].deadFrom = chainConfig.deadFrom

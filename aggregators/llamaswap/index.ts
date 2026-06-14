@@ -38,12 +38,12 @@ const chains = [
   CHAIN.BASE,
 ];
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const chain = options.chain
   if (chain === CHAIN.HECO) { return {} } // skip HECO for now
 
   const dailyVolume = await fetchURL(
-    `${URL}getSwapDailyVolume/?timestamp=${timestamp}&chain=${chain}`
+    `${URL}getSwapDailyVolume/?timestamp=${options.toTimestamp}&chain=${chain}`
   );
 
   return {

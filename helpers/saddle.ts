@@ -39,7 +39,7 @@ export async function getSaddleVolume(options: FetchOptions, pools: string[]) {
 
 type SaddleConfig = {
   pools: string[],
-  start?: string|number,
+  start?: string,
 }
 
 
@@ -52,7 +52,7 @@ export function getSaddleExports(config: IJSON<SaddleConfig>, { runAsV1 = false 
     const fetch: any = (options: FetchOptions) => getSaddleVolume(options, chainConfig.pools)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
-      fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
+      fetch: async (options: FetchOptions) => fetch(options),
       start: chainConfig.start,
     }
   })

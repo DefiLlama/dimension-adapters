@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -22,11 +22,10 @@ const endpoints: IURL = {
   [CHAIN.CELO]: sdk.graph.modifyEndpoint('DGN3dMffNnXZRAHFyCAq3csJbe2o7g9Jdg2XHe2mzVdG'),
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const todayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    const graphQuery = gql`
+  const graphQuery = gql`
       {
         protocolByDay(id: "${todayTimestamp}") {
           totalTradingVolume
@@ -37,23 +36,18 @@ const fetch = (chain: Chain) => {
       }
     `;
 
-    const res: IProtocolData = await request(endpoints[chain], graphQuery);
-    const dailyVolume = Number(res.protocolByDay.totalTradingVolume) / 10 ** 18;
+  const res: IProtocolData = await request(endpoints[options.chain], graphQuery);
+  const dailyVolume = Number(res.protocolByDay.totalTradingVolume) / 10 ** 18;
 
-    return {
-      timestamp,
-      dailyVolume: dailyVolume.toString(),
-    };
+  return {
+    dailyVolume: dailyVolume.toString(),
   };
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.CELO]: {
-      fetch: fetch(CHAIN.CELO),
-      start: '2023-08-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.CELO],
+  start: '2023-08-01',
 };
 
 export default adapter;

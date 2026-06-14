@@ -10,7 +10,7 @@ interface IVolumeall {
   date: number;
 }
 
-const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances();
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(startOfDay))).marketPlaceDayDatas;
 
@@ -19,19 +19,15 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { startOfDay, createBal
 
 
   return {
-    timestamp: startOfDay,
     dailyVolume,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2021-09-02',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: '2021-09-02',
 };
 
 export default adapter;

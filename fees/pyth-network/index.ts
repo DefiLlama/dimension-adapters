@@ -300,8 +300,6 @@ const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uin
 
 // ============ EVM Fetch Function ============
 async function fetchEvm(
-  _t: number,
-  _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();
@@ -337,8 +335,6 @@ async function fetchEvm(
 
 // ============ Solana Fetch Function ============
 async function fetchSolana(
-  _t: number,
-  _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
   const dailyFees = await getSolanaReceivedDune({
@@ -356,8 +352,6 @@ async function fetchSolana(
 const SUI_COIN_TYPE = "0x2::sui::SUI";
 
 async function fetchSui(
-  _t: number,
-  _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();
@@ -386,8 +380,6 @@ async function fetchSui(
 const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
 
 async function fetchAptos(
-  _t: number,
-  _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();
@@ -415,8 +407,6 @@ async function fetchAptos(
 
 // ============ Near Fetch Function ============
 async function fetchNear(
-  _t: number,
-  _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
   const dailyFees = options.createBalances();

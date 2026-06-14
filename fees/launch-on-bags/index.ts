@@ -10,7 +10,7 @@ interface IData {
   daily_protocol_revenue: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile('helpers/queries/bags.sql', {
     tx_signer: 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv',
     start: options.startTimestamp,

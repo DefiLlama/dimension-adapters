@@ -5,6 +5,8 @@ import { METRIC } from "../helpers/metrics";
 import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { addTokensReceived } from "../helpers/token";
+import coreAssets from "../helpers/coreAssets.json"
 
 const endpoints: Record<string, string> = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'),
@@ -14,9 +16,11 @@ const PROTOCOL_FEE_RATIO = 0.1 // 10%
 const LIDO_MEV_REWARDS_VAULT = '0x388c818ca8b9251b393131c08a736a67ccb19297';
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
 const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
+const LIDO_AGENT = '0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c'
+const BUYBACKS_SAFE = '0xf6F0732c1e9971497342C295141566E6F1A31e96'
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+const fetch = async (options: FetchOptions) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400)
 
   const graphQuery = gql
     `{
@@ -78,6 +82,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   dailyFees.addUSDValue(dailyTotalRevenueUSD - totalMevFees, METRIC.STAKING_REWARDS)
   dailyFees.addUSDValue(totalMevFees, METRIC.MEV_REWARDS)
@@ -94,13 +99,22 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(stakingProtocolFees * operatorShare, 'Staking rewards to node operators')
   dailySupplySideRevenue.addUSDValue(protocolMevFees * operatorShare, 'MEV rewards to node operators')
 
+  const buybacks = await addTokensReceived({
+    options,
+    target: LIDO_AGENT,
+    fromAdddesses: [BUYBACKS_SAFE],
+    tokens: [coreAssets.ethereum.LIDO] 
+  })
+  dailyHoldersRevenue.addBalances(buybacks, "LDO Accumulation Program")
+
+
   return {
     dailyFees,
     dailyUserFees: 0,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue
   };
 };
 
@@ -112,7 +126,7 @@ const adapter: Adapter = {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
     Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
-    HoldersRevenue: "No revenue distributed to LDO holders",
+    HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
     ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
     SupplySideRevenue: "Staking rewards earned by stETH holders and node operators"
   },
@@ -135,6 +149,9 @@ const adapter: Adapter = {
       'Staking rewards to node operators': 'Share of ETH rewards from running Beacon chain validators to node operators.',
       'MEV rewards to node operators': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to node operators.',
     },
+    HoldersRevenue: {
+      'LDO Accumulation Program': 'Tracks LIDO bought back by the DAO.'
+    }
   }
 }
 

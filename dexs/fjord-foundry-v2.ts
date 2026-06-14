@@ -15,7 +15,9 @@ const v2ChainIDs: any = {
     [CHAIN.BSC]: 56,
 };
 
-const getV2Data = async (endTimestamp: number, chainId: number) => {
+const fetch = async (options: FetchOptions) => {
+  const endTimestamp = options.toTimestamp;
+  const chainId = v2ChainIDs[options.chain];
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalVolume = (await fetchURL(feeEndpointV2))
 
@@ -27,7 +29,7 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
     if (!dailyVolume) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
 
     return {
-        dailyVolume: dailyVolume,
+        dailyVolume,
     };
 };
 
@@ -36,7 +38,7 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
+                fetch,
                 start: '2023-12-18',
             },
         }

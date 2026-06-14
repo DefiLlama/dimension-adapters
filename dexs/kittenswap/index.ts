@@ -25,7 +25,7 @@ const abis = {
 };
 
 
-const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const [toBlock, fromBlock] = await Promise.all([
     options.getToBlock(),
     options.getFromBlock(),
@@ -139,12 +139,9 @@ const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResu
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: "2025-02-18",
-    },
-  },
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: "2025-02-18",
 };
 
 export default adapters;

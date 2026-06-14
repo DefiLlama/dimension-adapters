@@ -9,7 +9,7 @@ const contractAddresses = [
     '0xe2222d279d744050d28e00520010520000310F59', // NegRiskCtfV2
 ]
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const contractAddressList = contractAddresses.map(a => `'${a.toLowerCase()}'`).join(', ')
     const alliumQuery = `
     WITH trades_data AS (

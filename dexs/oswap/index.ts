@@ -1,4 +1,4 @@
-import type { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import type { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -68,24 +68,20 @@ const getDailyVolume = async () => {
 }
 
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_options: FetchOptions) => {
     const dailyVolume = await getDailyVolume();
 
     return {
-        timestamp,
         dailyVolume: dailyVolume.toString(),
     } as FetchResultVolume
 }
 
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.OBYTE]: {
-            start: '2023-02-28',
-            runAtCurrTime: true,
-            fetch: fetch
-        }
-    }
+    fetch,
+    chains: [CHAIN.OBYTE],
+    start: '2023-02-28',
+    runAtCurrTime: true,
 };
 
 export default adapter;

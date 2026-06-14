@@ -20,6 +20,7 @@ const protocolChainMap: Record<string, string> = {
   "etherlink": CHAIN.ETHERLINK,
   "fantom": CHAIN.FANTOM,
   "flare": CHAIN.FLARE,
+  "flow": CHAIN.FLOW,
   "fuse": CHAIN.FUSE,
   "harmony": CHAIN.HARMONY,
   "hashkey": CHAIN.HASHKEY,
@@ -125,6 +126,8 @@ const protocolChainMap: Record<string, string> = {
   "lukso": CHAIN.LUKSO,
   "kasplex": CHAIN.KASPLEX,
   "gatelayer": CHAIN.GATE_LAYER,
+  "igra": CHAIN.IGRA,
+  "shido": CHAIN.SHIDO,
 }
 
 const deadFromMap: Record<string, string> = {
