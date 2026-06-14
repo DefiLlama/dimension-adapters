@@ -218,7 +218,8 @@ const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.STELLAR) return fetchStellarFees(options);
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
-  const dailyFees = await stakingFeesPromise;
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(await stakingFeesPromise, "Staking Fees");
   dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise, "Swap & Bridge Fees (EVM)");
 
   return {
@@ -238,6 +239,7 @@ const feesBreakdown = {
   "Swap & Bridge Fees (EVM)": "Fee charged on swaps and bridges on EVM chains (0.25% for swaps, 0.125% for bridges).",
   "Swap Fees (Stellar)": "Fee charged in USDC, XLM on Stellar swaps (0.25%).",
   "Bridge Fees (Stellar)": "Fee charged in USDC, XLM on Stellar bridges (0.125%).",
+  "Staking Fees": "Fee charged on staking (9% of each harvest).",
 };
 
 const adapter: SimpleAdapter = {
