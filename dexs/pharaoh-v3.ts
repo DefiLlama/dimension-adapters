@@ -3,13 +3,14 @@ import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 
 const PHAR_TOKEN_CONTRACT = "0x13A466998Ce03Db73aBc2d4DF3bBD845Ed1f28E7";
-const XPHAR_TOKEN_CONTRACT = "0xE8164Ea89665DAb7a553e667F81F30CfDA736B9A";
 
 export const subgraphEndpoints: any = {
   [CHAIN.AVAX]: "https://avalanchev2.kingdomsubgraph.com/subgraphs/name/pharaoh-v3-pruned/",
 };
 
 const subgraphQueryLimit = 1000;
+
+const historicalRollupAgeSeconds = 25 * 60 * 60;
 
 interface IGraphRes {
   clVolumeUSD: number;
@@ -24,8 +25,22 @@ interface IGraphRes {
   legacyUserFeesRevenueUSD: number;
 }
 
+interface IProtocolDayData {
+  startOfDay: number;
+  volumeUsd: string;
+  feesUsd: string;
+  voterFeesUsd: string;
+  treasuryFeesUsd: string;
+}
+
+interface IPoolHourStats {
+  volumeUSD: number;
+  feesUSD: number;
+  voterFeesUSD: number;
+  treasuryFeesUSD: number;
+}
+
 interface IVoteBribe {
-  id: string;
   token: { id: string };
   legacyPool?: { id: string };
   clPool?: { id: string };
@@ -83,8 +98,8 @@ async function getBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startOfDay,
-      to: options.startOfDay + 24 * 60 * 60,
+      from: options.startTimestamp,
+      to: options.endTimestamp,
       first,
       skip,
     }).then((data) => data.voteBribes);
@@ -94,19 +109,16 @@ async function getBribes(options: FetchOptions) {
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  
-  // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
     query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
       tokenDayDatas(
         first: $first
         skip: $skip
-        where: { 
+        where: {
           startOfDay: $startOfDay
           token_in: [${tokenIds}]
         }
       ) {
-        id
         token {
           id
         }
@@ -120,8 +132,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       first,
       skip,
       startOfDay: options.startOfDay,
-    }).then((data) => 
-      // Transform tokenDayDatas to match expected token format
+    }).then((data) =>
       data.tokenDayDatas.map((td: any) => ({
         id: td.token.id,
         priceUSD: td.priceUSD,
@@ -131,17 +142,105 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
   return paginate<IToken>(getData, subgraphQueryLimit);
 }
 
+function shouldUseDayRollups(options: FetchOptions) {
+  return Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+}
+
+function getStartOfDay(timestamp: number) {
+  return Math.floor(timestamp / (24 * 60 * 60)) * 24 * 60 * 60;
+}
+
+function getWindowStartOfDays(options: FetchOptions) {
+  const days = new Set<number>();
+  const firstDay = getStartOfDay(options.startTimestamp);
+  const lastDay = getStartOfDay(options.endTimestamp - 1);
+
+  for (let day = firstDay; day <= lastDay; day += 24 * 60 * 60) {
+    days.add(day);
+  }
+  days.add(options.startOfDay);
+
+  return Array.from(days);
+}
+
+async function fetchPoolHourStats(
+  options: FetchOptions,
+  root: "clPoolHourDatas" | "legacyPoolHourDatas",
+  dayStats: IProtocolDayData[],
+): Promise<IPoolHourStats> {
+  const query = gql`
+    query poolHourStats($from: Int!, $to: Int!, $first: Int!, $skip: Int!) {
+      items: ${root}(
+        first: $first
+        skip: $skip
+        where: { startOfHour_gte: $from, startOfHour_lt: $to }
+      ) {
+        startOfHour
+        volumeUSD
+        feesUSD
+        treasuryFeesUSD
+      }
+    }
+  `;
+
+  const items = await paginate<{
+    startOfHour?: string;
+    volumeUSD?: string;
+    feesUSD?: string;
+    treasuryFeesUSD?: string;
+  }>(
+    (first, skip) => request<any>(subgraphEndpoints[options.chain], query, {
+      from: options.startTimestamp,
+      to: options.endTimestamp,
+      first,
+      skip,
+    }).then((data) => data.items),
+    subgraphQueryLimit,
+  );
+
+  const dayStatsByStart = new Map(dayStats.map((day) => [Number(day.startOfDay), day]));
+  const dayTotals = new Map<number, { feesUSD: number; treasuryFeesUSD: number }>();
+
+  for (const item of items) {
+    const day = getStartOfDay(Number(item.startOfHour ?? 0));
+    const totals = dayTotals.get(day) ?? { feesUSD: 0, treasuryFeesUSD: 0 };
+    totals.feesUSD += Number(item.feesUSD ?? 0);
+    totals.treasuryFeesUSD += Number(item.treasuryFeesUSD ?? 0);
+    dayTotals.set(day, totals);
+  }
+
+  const voterFeesUSD = Array.from(dayTotals).reduce((sum, [day, totals]) => {
+    const dayData = dayStatsByStart.get(day);
+    const dayFeesUSD = Number(dayData?.feesUsd ?? 0);
+    const dayVoterFeesUSD = Number(dayData?.voterFeesUsd ?? 0);
+    const dayTreasuryFeesUSD = Number(dayData?.treasuryFeesUsd ?? 0);
+    const dayNonTreasuryFeesUSD = dayFeesUSD - dayTreasuryFeesUSD;
+    const windowNonTreasuryFeesUSD = totals.feesUSD - totals.treasuryFeesUSD;
+
+    if (dayNonTreasuryFeesUSD <= 0 || windowNonTreasuryFeesUSD <= 0) return sum;
+
+    return sum + windowNonTreasuryFeesUSD * dayVoterFeesUSD / dayNonTreasuryFeesUSD;
+  }, 0);
+
+  return {
+    volumeUSD: items.reduce((sum, item) => sum + Number(item.volumeUSD ?? 0), 0),
+    feesUSD: items.reduce((sum, item) => sum + Number(item.feesUSD ?? 0), 0),
+    voterFeesUSD,
+    treasuryFeesUSD: items.reduce((sum, item) => sum + Number(item.treasuryFeesUSD ?? 0), 0),
+  };
+}
+
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const statsQuery = gql`
-    query getProtocolDayData($startOfDay: Int!) {
-      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+    query getProtocolDayData($startOfDays: [Int!]!) {
+      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay_in: $startOfDays }) {
         startOfDay
         volumeUsd: volumeUSD
         feesUsd: feesUSD
         voterFeesUsd: voterFeesUSD
         treasuryFeesUsd: treasuryFeesUSD
       }
-      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay_in: $startOfDays }) {
         startOfDay
         volumeUsd: volumeUSD
         feesUsd: feesUSD
@@ -151,45 +250,67 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     }
   `;
 
-  const voteBribes = await getBribes(options);
-  const tokenIds = new Set(voteBribes.map((e) => e.token.id));
-  tokenIds.add(PHAR_TOKEN_CONTRACT.toLowerCase());
-
-  const tokens = await getTokens(options, Array.from(tokenIds));
   const {
     ClProtocolDayData: clProtocolDayData,
     LegacyProtocolDayData: legacyProtocolDayData,
   } = await request(subgraphEndpoints[options.chain], statsQuery, {
-    startOfDay: options.startOfDay,
+    startOfDays: getWindowStartOfDays(options),
   });
-
+  const clDayData = clProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
+  const legacyDayData = legacyProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
+  const voteBribes = await getBribes(options);
+  const tokenIds = new Set(voteBribes.map((e) => e.token.id));
+  tokenIds.add(PHAR_TOKEN_CONTRACT.toLowerCase());
+  const tokens = await getTokens(options, Array.from(tokenIds));
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
 
-  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
   const legacyUserBribeRevenueUSD = legacyVoteBribes.reduce((acc, bribe) => {
     const token = tokens.find((t) => t.id === bribe.token.id);
     return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
   }, 0);
+  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
+    const token = tokens.find((t) => t.id === bribe.token.id);
+    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
+  }, 0);
+
+  const clDayFeesUSD = Number(clDayData?.feesUsd ?? 0);
+  const clDayVoterFeesUSD = Number(clDayData?.voterFeesUsd ?? 0);
+  const clDayTreasuryFeesUSD = Number(clDayData?.treasuryFeesUsd ?? 0);
+  const legacyDayFeesUSD = Number(legacyDayData?.feesUsd ?? 0);
+  const legacyDayVoterFeesUSD = Number(legacyDayData?.voterFeesUsd ?? 0);
+  const legacyDayTreasuryFeesUSD = Number(legacyDayData?.treasuryFeesUsd ?? 0);
+  const useDayRollups = shouldUseDayRollups(options);
+  const [clStats, legacyStats] = await Promise.all([
+    useDayRollups
+      ? Promise.resolve({
+        volumeUSD: Number(clDayData?.volumeUsd ?? 0),
+        feesUSD: clDayFeesUSD,
+        voterFeesUSD: clDayVoterFeesUSD,
+        treasuryFeesUSD: clDayTreasuryFeesUSD,
+      })
+      : fetchPoolHourStats(options, "clPoolHourDatas", clProtocolDayData),
+    useDayRollups
+      ? Promise.resolve({
+        volumeUSD: Number(legacyDayData?.volumeUsd ?? 0),
+        feesUSD: legacyDayFeesUSD,
+        voterFeesUSD: legacyDayVoterFeesUSD,
+        treasuryFeesUSD: legacyDayTreasuryFeesUSD,
+      })
+      : fetchPoolHourStats(options, "legacyPoolHourDatas", legacyProtocolDayData),
+  ]);
 
   return {
-    clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
-    clFeesUSD: Number(clProtocolDayData?.[0]?.feesUsd ?? 0),
-    legacyVolumeUSD: Number(legacyProtocolDayData?.[0]?.volumeUsd ?? 0),
-    legacyFeesUSD: Number(legacyProtocolDayData?.[0]?.feesUsd ?? 0),
+    clVolumeUSD: clStats.volumeUSD,
+    clFeesUSD: clStats.feesUSD,
+    legacyVolumeUSD: legacyStats.volumeUSD,
+    legacyFeesUSD: legacyStats.feesUSD,
     clBribeRevenueUSD: clUserBribeRevenueUSD,
     legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
-    clUserFeesRevenueUSD: Number(clProtocolDayData?.[0]?.voterFeesUsd ?? 0),
-    legacyUserFeesRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.voterFeesUsd ?? 0,
-    ),
-    clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
-    legacyProtocolRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
-    ),
+    clUserFeesRevenueUSD: clStats.voterFeesUSD,
+    legacyUserFeesRevenueUSD: legacyStats.voterFeesUSD,
+    clProtocolRevenueUSD: clStats.treasuryFeesUSD,
+    legacyProtocolRevenueUSD: legacyStats.treasuryFeesUSD,
   };
 };
 
@@ -237,6 +358,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2025-10-08',
