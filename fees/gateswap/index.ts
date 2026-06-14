@@ -3,12 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Gate fee collector contracts confirmed from SwapWithFee logs on supported chains.
-const FEE_COLLECTORS = [
-  "0x00000000ae2193c4ac6521146b1adafe9b43361d",
-  "0x00000000d204b71c77e1fa21cf0892c6590ca78b",
-  "0x0000000071647c6c1ae028daf9f80c000beac2cc",
-  "0x000000003fb974cfdd8f715353b005628b97bfa3",
-];
+const FEE_COLLECTOR_A = "0x00000000ae2193c4ac6521146b1adafe9b43361d";
+const FEE_COLLECTOR_B = "0x00000000d204b71c77e1fa21cf0892c6590ca78b";
+const FEE_COLLECTOR_C = "0x0000000071647c6c1ae028daf9f80c000beac2cc";
+const FEE_COLLECTOR_D = "0x000000003fb974cfdd8f715353b005628b97bfa3";
 const EVENT_SWAP_WITH_FEE = "event SwapWithFee(address indexed token,address indexed feeAddr,uint256 indexed amount)";
 const EEE_NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const SWAP_FEES = "Swap Fees";
@@ -20,21 +18,21 @@ type ChainConfig = {
 };
 
 const config: Record<string, ChainConfig> = {
-  [CHAIN.ETHEREUM]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.BSC]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.BASE]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.ARBITRUM]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.AVAX]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.BLAST]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.LINEA]: { start: "2025-09-10", feeTargets: FEE_COLLECTORS },
-  [CHAIN.OPTIMISM]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.GATE_LAYER]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.BERACHAIN]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.ENI]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.SONIC]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.POLYGON]: { start: "2026-03-04", feeTargets: FEE_COLLECTORS },
-  [CHAIN.WC]: { start: "2026-02-28", feeTargets: FEE_COLLECTORS },
-  [CHAIN.ERA]: { start: "2025-09-01", feeTargets: FEE_COLLECTORS },
+  [CHAIN.ETHEREUM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
+  [CHAIN.BSC]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
+  [CHAIN.BASE]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
+  [CHAIN.ARBITRUM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
+  [CHAIN.AVAX]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.BLAST]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.LINEA]: { start: "2025-09-10", feeTargets: [] },
+  [CHAIN.OPTIMISM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
+  [CHAIN.GATE_LAYER]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
+  [CHAIN.BERACHAIN]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.ENI]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.SONIC]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.POLYGON]: { start: "2026-03-04", feeTargets: [FEE_COLLECTOR_C] },
+  [CHAIN.WC]: { start: "2026-02-28", feeTargets: [] },
+  [CHAIN.ERA]: { start: "2025-09-01", feeTargets: [] },
 };
 
 function getAddressFromTopic(topic: string) {
@@ -73,11 +71,14 @@ async function fetch(options: FetchOptions) {
   const dailyProtocolRevenue = createBalances();
   const chainConfig = config[chain];
 
+  if (!chainConfig.feeTargets.length) return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
+
   const logs = await options.getLogs({
     targets: chainConfig.feeTargets,
     eventAbi: EVENT_SWAP_WITH_FEE,
     onlyArgs: false,
     flatten: true,
+    cacheInCloud: true,
   });
 
   logs.forEach((log: any) => {
