@@ -382,4 +382,6 @@ export enum CHAIN {
   WCHAIN = "wchain",
   PHAROS = "pharos",
   BFC = "bfc",
+  B3 = "b3",
+  DEGEN = "degen",
 }
