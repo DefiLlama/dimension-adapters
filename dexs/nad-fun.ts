@@ -211,7 +211,6 @@ async function getLogsInBlockChunks(
         ...params,
         fromBlock,
         toBlock,
-        skipCache: true,
       });
       allLogs.push(...logs);
     });
@@ -621,7 +620,7 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
     const swapLogs = await getLogsInBlockChunks(
       options,
       {
-        noTarget: true,
+        targets: [...pairSet],
         eventAbi: v2Abi.Swap,
         topics: [swapTopic],
         entireLog: true,
