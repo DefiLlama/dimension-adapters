@@ -9,7 +9,7 @@ import { httpGet } from "../../utils/fetchURL";
  * Data Source: InsightX Backend API
  * 
  * Displays daily trading volume and protocol fees aggregated by the InsightX backend.
- * Data is fetched from: https://mainnet-api.insightx.finance/prediction/v2/llama/stats
+ * Data is fetched from: https://mainnet-api.insightx.finance/predict/v2/llama/stats
  */
 
 interface InsightXDailyStats {
@@ -26,7 +26,7 @@ const INSIGHTX_API_BASE = "https://mainnet-api.insightx.finance/predict/v2/llama
  * Returns aggregated trading volume and protocol fees calculated off-chain
  */
 const fetchOffChain = async (options: FetchOptions) => {
-    const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
+    const dateString = options.dateString;
 
     try {
         const url = `${INSIGHTX_API_BASE}?date=${dateString}`;
@@ -39,6 +39,8 @@ const fetchOffChain = async (options: FetchOptions) => {
 
         const dailyVolume = options.createBalances();
         const dailyFees = options.createBalances();
+        const dailyRevenue = options.createBalances();
+        const dailySupplySideRevenue = options.createBalances();
 
         // Add aggregated backend statistics
         if (data.volume) {
@@ -47,18 +49,18 @@ const fetchOffChain = async (options: FetchOptions) => {
 
         if (data.fees) {
             dailyFees.addUSDValue(data.fees);
+            // For prediction markets, distribute fees based on platform economics
+            // Assuming 100% to supply side (protocol)
+            dailySupplySideRevenue.addUSDValue(data.fees);
+            dailyRevenue.addUSDValue(data.fees);
         }
 
         options.api.log(`InsightX Off-Chain [${dateString}] - Volume: $${data.volume}, Fees: $${data.fees}`);
 
-        return { dailyVolume, dailyFees };
+        return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
     } catch (error) {
-        console.log(`[DEBUG] Error:`, error);
         options.api.log(`Error fetching InsightX Off-Chain data for ${dateString}: ${error}`);
-        return {
-            dailyVolume: options.createBalances(),
-            dailyFees: options.createBalances(),
-        };
+        throw error;
     }
 };
 
@@ -66,6 +68,7 @@ const fetchOffChain = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.OFF_CHAIN]: {
             fetch: fetchOffChain,
