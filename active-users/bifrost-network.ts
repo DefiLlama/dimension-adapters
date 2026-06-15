@@ -4,16 +4,18 @@ import fetchURL from "../utils/fetchURL";
 
 const STATS_API = "https://explorer-stats.mainnet.thebifrost.io";
 
-async function fetchLine(line: string, date: string) {
-  const { chart } = await fetchURL(`${STATS_API}/api/v1/lines/${line}?from=${date}&to=${date}&resolution=DAY`);
-  return Number(chart?.find((item: any) => item.date === date)?.value ?? 0);
+async function fetchMetric(metric: string, date: string) {
+  const { chart } = await fetchURL(`${STATS_API}/api/v1/lines/${metric}?from=${date}&to=${date}&resolution=DAY`);
+  const entry = chart?.find((item: any) => item.date === date);
+  if (!entry) throw new Error(`Bifrost Network: no ${metric} data for ${date}`);
+  return Number(entry.value);
 }
 
 const fetch = async (options: FetchOptions) => {
   const date = options.dateString;
   const [dailyActiveUsers, dailyTransactionsCount] = await Promise.all([
-    fetchLine("activeAccounts", date),
-    fetchLine("newTxns", date),
+    fetchMetric("activeAccounts", date),
+    fetchMetric("newTxns", date),
   ]);
   return { dailyActiveUsers, dailyTransactionsCount };
 };
