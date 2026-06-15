@@ -29,11 +29,17 @@ const query = gql`
 const ORIGINATION_FEES = "Origination Fees";
 const LQ_STAKING_REWARDS = "LQ Staking Rewards";
 
-// The analytics API rejects windows past its ingested-data boundary with this
-// GraphQL message; treated as a recoverable lag rather than a hard failure.
+// The analytics API rejects windows past its ingested-data boundary with an
+// error like "... is past the ingested data boundary of ...". Match the
+// distinctive "ingested data boundary" phrase rather than the full message, so
+// this stays robust to wording changes while still being specific enough that
+// unrelated upstream failures propagate as real errors instead of zeroing out.
 const isDataNotReadyError = (e: any): boolean => {
-  const message = e?.response?.errors?.[0]?.message ?? e?.message ?? "";
-  return /not yet available|ingested data boundary/i.test(message);
+  const errors = e?.response?.errors;
+  const messages = Array.isArray(errors) && errors.length
+    ? errors.map((err: any) => err?.message ?? "")
+    : [e?.message ?? ""];
+  return messages.some((m: string) => /ingested data boundary/i.test(m));
 };
 
 const fetch = async (options: FetchOptions) => {
