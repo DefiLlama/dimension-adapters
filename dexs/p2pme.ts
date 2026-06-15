@@ -57,6 +57,9 @@ const prefetch = async (options: FetchOptions) => {
       WHERE TRY_CAST(JSON_EXTRACT_SCALAR(od, '$.orderType') AS INTEGER) = 0
     ),
     packed_buys AS (
+      -- The re-encoded OrderCompleted event packs the order as flat 32-byte words.
+      -- Verified offsets (1-indexed for bytearray_substring): amount at byte 65
+      -- (word 2, USDC 6-decimals); orderType at byte 449 (word 14; 0=buy,1=sell,2=pay).
       SELECT 'base' AS chain, CAST(bytearray_to_uint256(bytearray_substring(data, 65, 32)) AS DOUBLE) / 1e6 AS amount
       FROM base.logs
       WHERE contract_address = ${ORDERFLOW}
