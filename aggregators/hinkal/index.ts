@@ -2,7 +2,7 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const VOLUME_URL = "https://wallet-staging-v2.hinkal.io/server";
+const VOLUME_URL = "https://wallet-staging-v2.hinkal.io/relayer";
 
 const fetchVolume = (chainId: number) => async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
@@ -22,7 +22,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: false, // backend only stores daily-aggregated volume
   methodology,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch: fetchVolume(1), start: "2025-12-13" },
