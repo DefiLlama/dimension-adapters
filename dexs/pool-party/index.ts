@@ -19,23 +19,45 @@ import fetchURL from "../../utils/fetchURL";
 
 const VOLUME_URL = "https://api-mainnet.cantonwallet.com/canton/pool-party/public/v1/volume?period=24h";
 
-// Brale issues multiple instruments from the same issuer party; CUSD is
-// reported with this UUID instrument ID on the volume API.
+// CUSD UUID — Send's privacy stablecoin (Brale-issued). Authoritative source:
+// apps/api-gateway/spec/350-pool-party-public-v1.spec.md in
+// 0xsend/canton-monorepo, and live config in
+// infrastructure/apps/pool-party/values-mainnet.yaml.
 const CUSD_INSTRUMENT_ID = "481871d4-ca56-42a8-b2d3-4b7d28742946";
 
-// Token IDs that have a direct CoinGecko listing — priced via slug.
+// Token IDs with a direct CoinGecko listing — priced via slug.
 const TOKEN_TO_CG: Record<string, string> = {
-    "Amulet": "canton-network",         // Canton Coin (CC)
-    "CBTC": "coinbase-wrapped-btc",     // cbBTC (Pool Party API uses "CBTC"; on-ledger instrumentId is CBBTC.B)
+    // Canton Coin (CC). Canonical Canton instrument key per the Pool Party SDK
+    // spec referenced above.
+    "Amulet": "canton-network",
+
+    // cbBTC — Pool Party's volume API exposes Coinbase Wrapped BTC as "CBTC"
+    // (no .B suffix); the on-ledger instrumentId.id is "CBBTC.B" per
+    // packages/app/src/config/tokens.ts in 0xsend/canton-monorepo. Treated
+    // here as the same Coinbase Wrapped BTC token, priced via the
+    // `coinbase-wrapped-btc` CoinGecko slug.
+    "CBTC": "coinbase-wrapped-btc",
 };
 
 // Token IDs that are USD stablecoins without their own CoinGecko listing —
 // priced as USDC ($1 stable proxy).
 const STABLE_TOKENS = new Set([
-    "USDCx",            // bridged USDC on Canton (original)
-    "USDC.B",           // bridged USDC (new variant)
-    "FRXUSD.B",         // Frax USD stablecoin (bridged)
-    CUSD_INSTRUMENT_ID, // Send's privacy stablecoin (CUSD)
+    // Bridged USDC on Canton (original; pre-dates the `.B` family). Source:
+    // 0xsend/canton-monorepo apps/web/src/config/bridge-assets.ts.
+    "USDCx",
+
+    // Bridged USDC (new `.B` variant launched alongside the new pools).
+    // Source: 0xsend/canton-monorepo packages/app/src/config/tokens.ts —
+    // BASE_USDC_CONTRACTS and the SupportedToken enum.
+    "USDC.B",
+
+    // Bridged Frax USD stablecoin. Source: 0xsend/canton-monorepo
+    // apps/web/src/config/bridge-assets.ts — FRXUSD_TOKEN_CONTRACTS.
+    "FRXUSD.B",
+
+    // CUSD (Send privacy stable). Same authoritative sources as
+    // CUSD_INSTRUMENT_ID above.
+    CUSD_INSTRUMENT_ID,
 ]);
 
 
@@ -52,10 +74,16 @@ const fetch = async (options: FetchOptions) => {
                 balances.addCGToken(cgId, +amount);
             } else if (STABLE_TOKENS.has(token)) {
                 balances.addUSDValue(+amount);
+            } else {
+                // Pool Party's pool composition can change without an adapter
+                // update. We log instead of throw so a brand-new token doesn't
+                // take the daily run offline — the chart keeps publishing
+                // (slightly under-counted) until the mapping is extended in a
+                // follow-up PR. Long-term plan is to have Pool Party's API
+                // return cgId per token, removing the hardcoded mapping
+                // entirely (see PR discussion).
+                console.warn(`[pool-party] unknown token in volume/fees response: ${token} (skipping)`);
             }
-            // Unknown tokens are silently skipped rather than thrown — Pool
-            // Party's pool composition can change without an adapter update,
-            // and we prefer an undercount to a crashed adapter.
         }
     };
 
