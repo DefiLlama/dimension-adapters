@@ -138,7 +138,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   combinedDepositLogs.forEach(log => {
     const metadata = vaultMetadata.get(log.address.toLowerCase())
     if (!metadata) return;
-    const yieldValue = log.args.yieldValue;
+    const yieldValue = log.args.yieldValue ?? metadata.yieldValue;
     const premiumAmount = BigInt(log.args.depositAmount) * yieldValue / WAD;
     dailyNotionalVolume.add(metadata.investmentToken, log.args.depositAmount);
     dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString());
