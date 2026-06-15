@@ -391,9 +391,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  // DLMM event data supports hourly volume/fees, but historical feeTreasury changes are only preserved in daily split rollups.
-  pullHourly: false,
+  version: 1,
   fetch,
   chains: [CHAIN.AVAX],
   start: "2025-10-08",
