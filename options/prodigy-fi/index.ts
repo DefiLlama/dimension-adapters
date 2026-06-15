@@ -2,36 +2,58 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types
 import { CHAIN } from "../../helpers/chains";
 
 const WAD = 10n ** 18n;
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const vaultParams = "tuple(address owner,address vaultBatchManager,address linkedToken,address investmentToken,address aggregator,bytes32 priceFeed,uint256 expiry,uint256 linkedPrice,int256 linkedOraclePrice,uint256 yieldValue,bool isBuyLow,uint256 quantity,uint256 depositDeadline,uint64 minConfidenceRatio,address collateralPool,uint256 tradingFeeRate,address feeReceiver,int256 oraclePriceAtCreation,address signer)";
+const legacyVaultParams = "tuple(address owner,address vaultBatchManager,address linkedToken,address investmentToken,address aggregator,bytes32 priceFeed,uint256 expiry,uint256 linkedPrice,int256 linkedOraclePrice,uint256 yieldValue,bool isBuyLow,uint256 quantity,uint256 depositDeadline,uint64 minConfidenceRatio,address collateralPool,uint256 tradingFeeRate,address feeReceiver,int256 oraclePriceAtCreation)";
 
 const eventAbis = {
+  vaultCreated: `event VaultCreated(address indexed owner,address indexed baseToken,address indexed quoteToken,address vaultAddress,${vaultParams} vaultParams,uint8 vaultSeriesVersion)`,
+  legacyVaultCreatedWithParams: `event VaultCreated(address indexed owner,address indexed baseToken,address indexed quoteToken,address vaultAddress,${legacyVaultParams} vaultParams)`,
+  legacyVaultCreated: "event VaultCreated(address indexed owner,address indexed baseToken,address indexed quoteToken,address vaultAddress,uint256 expiry,uint256 linkedPrice,int256 linkedOraclePrice,uint256 yieldValue,bool isBuyLow,uint256 quantity,uint256 depositDeadline,uint256 tradingFeeRate,uint256 cancellationFeeRate,int256 oraclePriceAtCreation)",
   deposit: "event Deposit(address indexed user,uint256 depositAmount,int256 oraclePriceAtDeposit,uint256 yieldValue)",
   legacyDeposit: "event Deposit(address indexed user,uint256 depositAmount,int256 oraclePriceAtDeposit)",
 };
 
 type ChainConfig = {
+  factory: string;
   startBlock: number;
-  // Factory upgrade boundary (topic0 0x1fdc1341...ceed42) where Deposit gained the
-  // yieldValue field:
-  //   [startBlock, currentDepositStartBlock] -> legacyDeposit (3-arg)
-  //   (currentDepositStartBlock, +inf)       -> deposit (4-arg w/ yieldValue)
+  // Factory upgrade boundaries (topic0 0x1fdc1341...ceed42):
+  //   [startBlock, legacyVaultCreatedWithParamsStartBlock) -> legacyVaultCreated
+  //   [legacyVaultCreatedWithParamsStartBlock, currentVaultCreatedStartBlock) -> legacyVaultCreatedWithParams
+  //   [currentVaultCreatedStartBlock, +inf) -> vaultCreated
+  legacyVaultCreatedWithParamsStartBlock: number;
+  currentVaultCreatedStartBlock: number;
+  // Deposit gained the yieldValue field at currentDepositStartBlock:
+  //   [startBlock, currentDepositStartBlock) -> legacyDeposit (3-arg)
+  //   [currentDepositStartBlock, +inf)       -> deposit (4-arg w/ yieldValue)
   currentDepositStartBlock: number;
 };
 
 const config: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
+    factory: "0xAC2a612C49f29e26858Df1a53f7623180bcc3753",
     startBlock: 23831175,
+    legacyVaultCreatedWithParamsStartBlock: 23831175, // No flat legacy VaultCreated events on Ethereum
+    currentVaultCreatedStartBlock: 24036992, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 23831175, // No legacy deposits on Ethereum; the initial Deposit implementation already emitted yieldValue field
   },
   [CHAIN.BASE]: {
+    factory: "0xFE198B51cfb1F96b56c63fe323a934BEAAA3b281",
     startBlock: 22133150,
+    legacyVaultCreatedWithParamsStartBlock: 30509116, // Upgrade to v4 with vaultParams tuple in VaultCreated event
+    currentVaultCreatedStartBlock: 39795788, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 30509116, // Upgrade to v4 which added yieldValue field in Deposit event
   },
   [CHAIN.BERACHAIN]: {
+    factory: "0x29ca87b2f744127606ada4564da8219be6498ca1",
     startBlock: 804138,
+    legacyVaultCreatedWithParamsStartBlock: 5297670, // Upgrade to v4 with vaultParams tuple in VaultCreated event
+    currentVaultCreatedStartBlock: 14682550, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 5297670, // Upgrade to v4 which added yieldValue field in Deposit event
   },
 };
+
+const vaultMetadataCache = new Map<string, { toBlock: number; metadata: Map<string, VaultMetadata> }>();
 
 type BlockRange = { fromBlock: number; toBlock: number };
 
@@ -43,7 +65,7 @@ type VaultMetadata = {
 type CollectedDeposit = {
   vault: string;
   depositAmount: bigint;
-  // null => legacy 3-arg Deposit, yieldValue must be resolved from the vault contract.
+  // null => legacy 3-arg Deposit, yieldValue comes from the factory VaultCreated metadata.
   yieldValueFromLog: bigint | null;
 };
 
@@ -65,6 +87,20 @@ function toBigInt(value: any): bigint {
   return BigInt(value.toString());
 }
 
+function addVaultMetadata(
+  vaults: Map<string, VaultMetadata>,
+  vaultAddress: string,
+  investmentToken: string,
+  yieldValue: any,
+) {
+  if (!vaultAddress || !investmentToken || yieldValue === null || yieldValue === undefined) return;
+
+  vaults.set(vaultAddress.toLowerCase(), {
+    investmentToken,
+    yieldValue: toBigInt(yieldValue),
+  });
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const chainConfig = config[options.chain];
   const dailyNotionalVolume = options.createBalances();
@@ -74,16 +110,22 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const fetchToBlock = await options.getToBlock();
   const legacyDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.startBlock, chainConfig.currentDepositStartBlock - 1);
   const currentDepositRange = intersectRange(fetchFromBlock, fetchToBlock, chainConfig.currentDepositStartBlock, fetchToBlock);
+  const vaultMetadata = await getVaultMetadataFromEvents(options, chainConfig, fetchToBlock);
+  const vaultAddresses = [...vaultMetadata.keys()];
 
-  // Pull the day's Deposit logs first. The Deposit event's `address` field is
-  // the vault contract itself, so we don't need to know the vault list in
-  // advance and can skip the expensive factory-wide VaultCreated history.
+  if (vaultAddresses.length === 0) {
+    return { dailyNotionalVolume, dailyPremiumVolume };
+  }
+
+  // Pull Deposit logs only from vaults created by the Prodigy.Fi factory contract.
+  // This avoids full-chain event scans while keeping the vault set automatic.
   const deposits: CollectedDeposit[] = [];
   const depositTasks: Promise<void>[] = [];
 
   if (currentDepositRange) {
-    depositTasks.push(streamAllDeposits(options, eventAbis.deposit, currentDepositRange, (log) => {
+    depositTasks.push(collectDeposits(options, vaultAddresses, eventAbis.deposit, currentDepositRange, (log) => {
       const args = log.args ?? log;
+      if (!log.address) return;
       deposits.push({
         vault: log.address.toLowerCase(),
         depositAmount: toBigInt(args.depositAmount),
@@ -92,8 +134,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }));
   }
   if (legacyDepositRange) {
-    depositTasks.push(streamAllDeposits(options, eventAbis.legacyDeposit, legacyDepositRange, (log) => {
+    depositTasks.push(collectDeposits(options, vaultAddresses, eventAbis.legacyDeposit, legacyDepositRange, (log) => {
       const args = log.args ?? log;
+      if (!log.address) return;
       deposits.push({
         vault: log.address.toLowerCase(),
         depositAmount: toBigInt(args.depositAmount),
@@ -107,13 +150,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     return { dailyNotionalVolume, dailyPremiumVolume };
   }
 
-  const uniqueVaults = [...new Set(deposits.map((d) => d.vault))];
-  const needsYieldValueLookup = deposits.some((d) => d.yieldValueFromLog === null);
-  const vaultMetadata = await resolveVaultMetadata(options, uniqueVaults, needsYieldValueLookup);
-
-  // Vaults whose metadata could not be resolved are foreign contracts that
-  // happened to share the Deposit event signature; skip them rather than
-  // poison the totals.
   for (const d of deposits) {
     const metadata = vaultMetadata.get(d.vault);
     if (!metadata) continue;
@@ -129,79 +165,142 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   };
 }
 
-async function streamAllDeposits(
+async function collectDeposits(
   options: FetchOptions,
+  vaultAddresses: string[],
   eventAbi: string,
   range: BlockRange,
   processor: (log: any) => void,
 ) {
-  try {
-    await options.streamLogs({
-      noTarget: true,
-      eventAbi,
-      entireLog: true,
-      fromBlock: range.fromBlock,
-      toBlock: range.toBlock,
-      processor: (logs: any[]) => logs.forEach(processor),
-    });
-  } catch (e: any) {
-    const message = String(e?.message);
-    if (!message.includes("streamLogs is not supported") && !message.includes("Llama Indexer URL/api key is not set")) throw e;
-
-    console.log(`streamLogs unavailable on ${options.chain}; falling back to RPC getLogs`);
-    const logs = await options.getLogs({
-      noTarget: true,
-      eventAbi,
-      fromBlock: range.fromBlock,
-      toBlock: range.toBlock,
-      onlyArgs: false,
-      skipIndexer: true,
-    });
-    logs.forEach(processor);
-  }
-}
-
-async function resolveVaultMetadata(
-  options: FetchOptions,
-  vaultAddresses: string[],
-  needsYieldValue: boolean,
-): Promise<Map<string, VaultMetadata>> {
-  const resolved = new Map<string, VaultMetadata>();
-
-  // Read directly from the vault contract via auto-generated public getters.
-  // For legacy 3-arg Deposit vaults `yieldValue` is immutable (no AdjustYieldValue),
-  // so reading current state is equivalent to creation-time value.
-  //
-  // The pair (investmentToken, linkedToken) acts as a Prodigy-vault fingerprint
-  // to defend against foreign contracts that coincidentally share the Deposit
-  // event signature. Both must be non-zero token addresses and must differ from
-  // each other (Prodigy DCI always uses two distinct assets).
-  const calls = [
-    options.api.multiCall({ abi: "address:investmentToken", calls: vaultAddresses, permitFailure: true }),
-    options.api.multiCall({ abi: "address:linkedToken", calls: vaultAddresses, permitFailure: true }),
-  ];
-  if (needsYieldValue) {
-    calls.push(options.api.multiCall({ abi: "uint256:yieldValue", calls: vaultAddresses, permitFailure: true }));
-  }
-  const [investmentTokens, linkedTokens, yieldValues] = (await Promise.all(calls)) as [any[], any[], any[] | undefined];
-
-  vaultAddresses.forEach((vault, idx) => {
-    const investmentToken = investmentTokens[idx];
-    const linkedToken = linkedTokens[idx];
-    if (!investmentToken || !linkedToken) return;
-    if (investmentToken === ZERO_ADDRESS || linkedToken === ZERO_ADDRESS) return;
-    if (investmentToken.toLowerCase() === linkedToken.toLowerCase()) return;
-
-    const yieldValue = yieldValues ? yieldValues[idx] : 0;
-    if (needsYieldValue && (yieldValue === null || yieldValue === undefined)) return;
-
-    resolved.set(vault.toLowerCase(), {
-      investmentToken,
-      yieldValue: toBigInt(needsYieldValue ? yieldValue : 0),
-    });
+  const logs = await options.getLogs({
+    targets: vaultAddresses,
+    eventAbi,
+    fromBlock: range.fromBlock,
+    toBlock: range.toBlock,
+    onlyArgs: false,
   });
 
-  return resolved;
+  logs.forEach(processor);
+}
+
+async function getVaultMetadataFromEvents(
+  options: FetchOptions,
+  chainConfig: ChainConfig,
+  toBlock: number,
+): Promise<Map<string, VaultMetadata>> {
+  const cached = vaultMetadataCache.get(options.chain);
+  if (cached && cached.toBlock >= toBlock) return cached.metadata;
+
+  const fromBlock = cached ? cached.toBlock + 1 : chainConfig.startBlock;
+  const metadata = cached ? new Map(cached.metadata) : new Map<string, VaultMetadata>();
+  if (fromBlock > toBlock) return metadata;
+
+  const freshMetadata = await fetchVaultMetadataRange(options, chainConfig, fromBlock, toBlock);
+  freshMetadata.forEach((value, vault) => {
+    metadata.set(vault, value);
+  });
+
+  const latestCached = vaultMetadataCache.get(options.chain);
+  if (!latestCached || latestCached.toBlock < toBlock) {
+    vaultMetadataCache.set(options.chain, { toBlock, metadata });
+    return metadata;
+  }
+
+  return latestCached.metadata;
+}
+
+async function fetchVaultMetadataRange(
+  options: FetchOptions,
+  chainConfig: ChainConfig,
+  fromBlock: number,
+  toBlock: number,
+): Promise<Map<string, VaultMetadata>> {
+  const vaults = new Map<string, VaultMetadata>();
+
+  const legacyRange = intersectRange(
+    fromBlock,
+    toBlock,
+    chainConfig.startBlock,
+    chainConfig.legacyVaultCreatedWithParamsStartBlock - 1,
+  );
+  const legacyWithParamsRange = intersectRange(
+    fromBlock,
+    toBlock,
+    chainConfig.legacyVaultCreatedWithParamsStartBlock,
+    chainConfig.currentVaultCreatedStartBlock - 1,
+  );
+  const currentRange = intersectRange(
+    fromBlock,
+    toBlock,
+    chainConfig.currentVaultCreatedStartBlock,
+    toBlock,
+  );
+
+  type VaultQuery =
+    | { kind: "current"; logs: Promise<any[]> }
+    | { kind: "legacyWithParams"; logs: Promise<any[]> }
+    | { kind: "legacy"; logs: Promise<any[]> };
+
+  const queries: VaultQuery[] = [];
+
+  if (currentRange) {
+    queries.push({
+      kind: "current",
+      logs: options.getLogs({
+        target: chainConfig.factory,
+        eventAbi: eventAbis.vaultCreated,
+        fromBlock: currentRange.fromBlock,
+        toBlock: currentRange.toBlock,
+        cacheInCloud: true,
+      }),
+    });
+  }
+
+  if (legacyWithParamsRange) {
+    queries.push({
+      kind: "legacyWithParams",
+      logs: options.getLogs({
+        target: chainConfig.factory,
+        eventAbi: eventAbis.legacyVaultCreatedWithParams,
+        fromBlock: legacyWithParamsRange.fromBlock,
+        toBlock: legacyWithParamsRange.toBlock,
+        cacheInCloud: true,
+      }),
+    });
+  }
+
+  if (legacyRange) {
+    queries.push({
+      kind: "legacy",
+      logs: options.getLogs({
+        target: chainConfig.factory,
+        eventAbi: eventAbis.legacyVaultCreated,
+        fromBlock: legacyRange.fromBlock,
+        toBlock: legacyRange.toBlock,
+        cacheInCloud: true,
+      }),
+    });
+  }
+
+  const resolved = await Promise.all(queries.map((q) => q.logs));
+
+  resolved.forEach((logs, idx) => {
+    const kind = queries[idx].kind;
+    if (kind === "current" || kind === "legacyWithParams") {
+      logs.forEach((log: any) => {
+        const args = log.args ?? log;
+        addVaultMetadata(vaults, args.vaultAddress, args.vaultParams.investmentToken, args.vaultParams.yieldValue);
+      });
+    } else {
+      logs.forEach((log: any) => {
+        const args = log.args ?? log;
+        const investmentToken = args.isBuyLow ? args.quoteToken : args.baseToken;
+        addVaultMetadata(vaults, args.vaultAddress, investmentToken, args.yieldValue);
+      });
+    }
+  });
+
+  return vaults;
 }
 
 const adapter: SimpleAdapter = {
