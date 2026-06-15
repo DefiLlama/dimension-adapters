@@ -141,7 +141,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const yieldValue = log.args.yieldValue ?? metadata.yieldValue;
     const premiumAmount = BigInt(log.args.depositAmount) * yieldValue / WAD;
     dailyNotionalVolume.add(metadata.investmentToken, log.args.depositAmount);
-    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString());
+    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount);
   })
 
   return {
