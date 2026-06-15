@@ -30,17 +30,6 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
-  "test-please-ignore": {
-    addresses: ["0x5af1b5f44207784dcb850bbb4143c5dcd1885f71"],
-    start: "2026-04-08",
-    methodology: {
-      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
-      HoldersRevenue: "No fees distributed to TWT token holders",
-    },
-    extraReturnFields: { dailyHoldersRevenue: "0" },
-  },
   "trust-wallet-perps": {
     addresses: ["0x5af1b5f44207784dcb850bbb4143c5dcd1885f71"],
     start: "2026-04-08",
