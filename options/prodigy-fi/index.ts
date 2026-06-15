@@ -27,6 +27,7 @@ type ChainConfig = {
   //   [startBlock, currentDepositStartBlock) -> legacyDeposit (3-arg)
   //   [currentDepositStartBlock, +inf)       -> deposit (4-arg w/ yieldValue)
   currentDepositStartBlock: number;
+  start: string;
 };
 
 const config: Record<string, ChainConfig> = {
@@ -36,6 +37,7 @@ const config: Record<string, ChainConfig> = {
     legacyVaultCreatedWithParamsStartBlock: 23831175, // No flat legacy VaultCreated events on Ethereum
     currentVaultCreatedStartBlock: 24036992, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 23831175, // No legacy deposits on Ethereum; the initial Deposit implementation already emitted yieldValue field
+    start: "2025-11-19"
   },
   [CHAIN.BASE]: {
     factory: "0xFE198B51cfb1F96b56c63fe323a934BEAAA3b281",
@@ -43,6 +45,7 @@ const config: Record<string, ChainConfig> = {
     legacyVaultCreatedWithParamsStartBlock: 30509116, // Upgrade to v4 with vaultParams tuple in VaultCreated event
     currentVaultCreatedStartBlock: 39795788, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 30509116, // Upgrade to v4 which added yieldValue field in Deposit event
+    start: "2024-11-08"
   },
   [CHAIN.BERACHAIN]: {
     factory: "0x29ca87b2f744127606ada4564da8219be6498ca1",
@@ -50,6 +53,7 @@ const config: Record<string, ChainConfig> = {
     legacyVaultCreatedWithParamsStartBlock: 5297670, // Upgrade to v4 with vaultParams tuple in VaultCreated event
     currentVaultCreatedStartBlock: 14682550, // Upgrade to v8 which added vaultSeriesVersion field in VaultCreated event
     currentDepositStartBlock: 5297670, // Upgrade to v4 which added yieldValue field in Deposit event
+    start: "2025-02-07"
   },
 };
 
@@ -60,13 +64,6 @@ type BlockRange = { fromBlock: number; toBlock: number };
 type VaultMetadata = {
   investmentToken: string;
   yieldValue: bigint;
-};
-
-type CollectedDeposit = {
-  vault: string;
-  depositAmount: bigint;
-  // null => legacy 3-arg Deposit, yieldValue comes from the factory VaultCreated metadata.
-  yieldValueFromLog: bigint | null;
 };
 
 function intersectRange(
@@ -117,70 +114,40 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     return { dailyNotionalVolume, dailyPremiumVolume };
   }
 
-  // Pull Deposit logs only from vaults created by the Prodigy.Fi factory contract.
-  // This avoids full-chain event scans while keeping the vault set automatic.
-  const deposits: CollectedDeposit[] = [];
-  const depositTasks: Promise<void>[] = [];
+  let combinedDepositLogs: any[] = [];
 
   if (currentDepositRange) {
-    depositTasks.push(collectDeposits(options, vaultAddresses, eventAbis.deposit, currentDepositRange, (log) => {
-      const args = log.args ?? log;
-      if (!log.address) return;
-      deposits.push({
-        vault: log.address.toLowerCase(),
-        depositAmount: toBigInt(args.depositAmount),
-        yieldValueFromLog: toBigInt(args.yieldValue),
-      });
-    }));
+    const currentDepositLogs = await options.getLogs({
+      noTarget: true, // there are 40K+ vaults, so no target and filter later is more optimal
+      eventAbi: eventAbis.deposit,
+      entireLog: true,
+      parseLog: true,
+    })
+    combinedDepositLogs.push(...currentDepositLogs)
   }
   if (legacyDepositRange) {
-    depositTasks.push(collectDeposits(options, vaultAddresses, eventAbis.legacyDeposit, legacyDepositRange, (log) => {
-      const args = log.args ?? log;
-      if (!log.address) return;
-      deposits.push({
-        vault: log.address.toLowerCase(),
-        depositAmount: toBigInt(args.depositAmount),
-        yieldValueFromLog: null,
-      });
-    }));
-  }
-  await Promise.all(depositTasks);
-
-  if (deposits.length === 0) {
-    return { dailyNotionalVolume, dailyPremiumVolume };
+    const legacyDepositLogs = await options.getLogs({
+      noTarget: true, // there are 40K+ vaults, so no target and filter later is more optimal
+      eventAbi: eventAbis.legacyDeposit,
+      entireLog: true,
+      parseLog: true,
+    })
+    combinedDepositLogs.push(...legacyDepositLogs)
   }
 
-  for (const d of deposits) {
-    const metadata = vaultMetadata.get(d.vault);
-    if (!metadata) continue;
-    const yieldValue = d.yieldValueFromLog ?? metadata.yieldValue;
-    const premiumAmount = d.depositAmount * yieldValue / WAD;
-    dailyNotionalVolume.add(metadata.investmentToken, d.depositAmount.toString(), "Deposit Notional");
-    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString(), "Deposit Premium");
-  }
+  combinedDepositLogs.forEach(log => {
+    const metadata = vaultMetadata.get(log.address.toLowerCase())
+    if (!metadata) return;
+    const yieldValue = log.args.yieldValue;
+    const premiumAmount = BigInt(log.args.depositAmount) * yieldValue / WAD;
+    dailyNotionalVolume.add(metadata.investmentToken, log.args.depositAmount);
+    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount.toString());
+  })
 
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
   };
-}
-
-async function collectDeposits(
-  options: FetchOptions,
-  vaultAddresses: string[],
-  eventAbi: string,
-  range: BlockRange,
-  processor: (log: any) => void,
-) {
-  const logs = await options.getLogs({
-    targets: vaultAddresses,
-    eventAbi,
-    fromBlock: range.fromBlock,
-    toBlock: range.toBlock,
-    onlyArgs: false,
-  });
-
-  logs.forEach(processor);
 }
 
 async function getVaultMetadataFromEvents(
@@ -250,7 +217,6 @@ async function fetchVaultMetadataRange(
         target: chainConfig.factory,
         eventAbi: eventAbis.vaultCreated,
         fromBlock: currentRange.fromBlock,
-        toBlock: currentRange.toBlock,
         cacheInCloud: true,
       }),
     });
@@ -288,14 +254,12 @@ async function fetchVaultMetadataRange(
     const kind = queries[idx].kind;
     if (kind === "current" || kind === "legacyWithParams") {
       logs.forEach((log: any) => {
-        const args = log.args ?? log;
-        addVaultMetadata(vaults, args.vaultAddress, args.vaultParams.investmentToken, args.vaultParams.yieldValue);
+        addVaultMetadata(vaults, log.vaultAddress, log.vaultParams.investmentToken, log.vaultParams.yieldValue);
       });
     } else {
       logs.forEach((log: any) => {
-        const args = log.args ?? log;
-        const investmentToken = args.isBuyLow ? args.quoteToken : args.baseToken;
-        addVaultMetadata(vaults, args.vaultAddress, investmentToken, args.yieldValue);
+        const investmentToken = log.isBuyLow ? log.quoteToken : log.baseToken;
+        addVaultMetadata(vaults, log.vaultAddress, investmentToken, log.yieldValue);
       });
     }
   });
@@ -307,18 +271,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [
-    [CHAIN.ETHEREUM, { start: "2025-11-19" }],
-    [CHAIN.BASE, { start: "2024-11-08" }],
-    [CHAIN.BERACHAIN, { start: "2025-02-07" }],
-  ],
+  adapter: config,
   methodology: {
-    dailyNotionalVolume: "Notional volume is the principal deposited into Prodigy.Fi DCI vaults, counted in each vault's investment token when the on-chain Deposit event is emitted.",
-    dailyPremiumVolume: "Premium volume is computed from each on-chain Deposit event as deposited principal multiplied by the vault yieldValue, denominated in the same investment token.",
-  },
-  breakdownMethodology: {
-    dailyNotionalVolume: "Deposit Notional: On-chain Deposit principal by investment token.",
-    dailyPremiumVolume: "Deposit Premium: On-chain Deposit principal times yieldValue by investment token.",
+    NotionalVolume: "Notional volume is the principal deposited into Prodigy.Fi DCI vaults, counted in each vault's investment token when the on-chain Deposit event is emitted.",
+    PremiumVolume: "Premium volume is computed from each on-chain Deposit event as deposited principal multiplied by the vault yieldValue, denominated in the same investment token.",
   },
 };
 
