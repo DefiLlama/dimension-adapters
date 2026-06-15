@@ -70,6 +70,10 @@ const CONFIG = {
     endpoint: sdk.graph.modifyEndpoint("HSPZATdnDvYRNPBJm7eSrzkTeRZqhqYvy7c3Ngm9GCTL"),
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
+  [CHAIN.HYPERLIQUID]: {
+    endpoint: 'https://api.subgraph.ormilabs.com/api/public/a5914000-d7d2-47be-b0cb-6719f6678ff0/subgraphs/dhedge/v0.0.3/gn',
+    torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
+  },
 };
 
 const fetchHistoricalFees = async (chainId: CHAIN, query: string, dataField: string, startTimestamp: number, endTimestamp: number) => {

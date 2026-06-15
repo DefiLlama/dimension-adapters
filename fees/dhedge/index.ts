@@ -61,6 +61,7 @@ const EXCLUDED_MANAGERS: Partial<Record<CHAIN, string[]>> = {
     "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5", // Toros manager
     "0x3dd46846eed8d147841ae162c8425c08bd8e1b41", // mStable manager
   ],
+  [CHAIN.HYPERLIQUID]: ["0xfbd2b4216f422dc1eee1cff4fb64b726f099def5"], // Toros manager
 };
 
 const PROVIDER_CONFIG = {
