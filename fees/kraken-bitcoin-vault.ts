@@ -1,8 +1,6 @@
-import { Interface } from "ethers"
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { METRIC } from "../helpers/metrics"
-import * as sdk from '@defillama/sdk'
 
 interface IBoringVault {
   vault: string;
@@ -31,68 +29,52 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
 
-  for (const vault of vaults) {
-    const [decimals, token] = await Promise.all([
-      options.api.call({ abi: abis.decimals, target: vault.vault }),
-      options.api.call({ abi: abis.base, target: vault.accountant }),
-    ])
+  const [decimals, tokens, accountantStates, totalSupplies] = await Promise.all([
+    options.api.multiCall({ abi: abis.decimals, calls: vaults.map(vault => vault.vault) }),
+    options.api.multiCall({ abi: abis.base, calls: vaults.map(vault => vault.accountant) }),
+    options.api.multiCall({ abi: abis.accountantState, calls: vaults.map(vault => vault.accountant) }),
+    options.api.multiCall({ abi: abis.totalSupply, calls: vaults.map(vault => vault.vault) }),
+  ])
 
-    const rateBase = Number(10 ** Number(decimals))
+  for (const [index, vault] of vaults.entries()) {
+    const decimal = decimals[index]
+    const token = tokens[index]
+    const accountantState = accountantStates[index]
+    const totalSupply = totalSupplies[index]
 
-    const iface = new Interface([abis.exchangeRateUpdated])
+    const rateBase = Number(10 ** Number(decimal))
     const logs = await options.getLogs({
       eventAbi: abis.exchangeRateUpdated,
       entireLog: true,
       target: vault.accountant,
+      parseLog: true,
     })
 
     const events = logs.map((log: any) => {
-      const decoded: any = iface.parseLog(log)
+      const decoded: any = log.parsedLog.args
       return {
         blockNumber: Number(log.blockNumber),
-        oldRate: decoded.args[0] as bigint,
-        newRate: decoded.args[1] as bigint,
+        oldRate: decoded.oldRate,
+        newRate: decoded.newRate,
       }
     })
 
     for (const event of events) {
-      const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
-      if (growthRate > 0) {
-        const [totalSupplyAtBlock, accountantState] = await Promise.all([
-          sdk.api2.abi.call({
-            chain: options.chain,
-            abi: abis.totalSupply,
-            target: vault.vault,
-            block: event.blockNumber,
-          }),
-          sdk.api2.abi.call({
-            chain: options.chain,
-            abi: abis.accountantState,
-            target: vault.accountant,
-            block: event.blockNumber,
-          }),
-        ])
+      const growthRate = Number(event.newRate - event.oldRate)
+      const exchangeRate = Number(accountantState[4])
+      const performanceFeeRate = Number(accountantState[11]) / FeeRateBase
 
-        const exchangeRate = Number(accountantState[4])
-        const performanceFeeRate = Number(accountantState[11]) / FeeRateBase
+      const totalDeposited = Number(totalSupply) * exchangeRate / rateBase
+      const supplySideYield = totalDeposited * growthRate / rateBase
+      const totalYield = supplySideYield / (1 - performanceFeeRate)
+      const protocolFee = totalYield - supplySideYield
 
-        const totalDeposited = Number(totalSupplyAtBlock) * exchangeRate / rateBase
-        const supplySideYield = totalDeposited * growthRate / rateBase
-        const totalYield = supplySideYield / (1 - performanceFeeRate)
-        const protocolFee = totalYield - supplySideYield
-
-        dailyFees.add(token, totalYield, METRIC.ASSETS_YIELDS)
-        dailySupplySideRevenue.add(token, supplySideYield, METRIC.ASSETS_YIELDS)
-        dailyProtocolRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES)
-      }
+      dailyFees.add(token, totalYield, METRIC.ASSETS_YIELDS)
+      dailySupplySideRevenue.add(token, supplySideYield, METRIC.ASSETS_YIELDS)
+      dailyProtocolRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES)
     }
 
     // Platform fees (annual fee on total assets)
-    const [totalSupply, accountantState] = await Promise.all([
-      options.api.call({ abi: abis.totalSupply, target: vault.vault }),
-      options.api.call({ abi: abis.accountantState, target: vault.accountant }),
-    ])
-
     const exchangeRate = Number(accountantState[4])
     const platformFeeRate = Number(accountantState[10])
     const totalDeposited = Number(totalSupply) * exchangeRate / rateBase
@@ -146,11 +128,9 @@ const adapter: Adapter = {
   breakdownMethodology,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.INK]: {
-      start: '2026-02-26',
-    },
-  },
+  chains: [CHAIN.INK],
+  start: '2026-02-26',
+  allowNegativeValue: true,
 }
 
 export default adapter
