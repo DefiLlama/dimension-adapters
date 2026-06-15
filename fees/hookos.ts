@@ -2,11 +2,12 @@ import { parseEther } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
+// HookOS core contracts on Base (verified on https://basescan.org)
 const CONTRACTS = {
-  BondingCurve: "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40",
-  Arena: "0x9B3d636C27AD4CDEBFbE1F182B2b63F66Be7adE5",
-  TokenFactory: "0x96c5E38362f86E52389E15a86247fB7326503c8d",
-  HookRegistry: "0x64E3167b2B4eA1b8e3DdCaFe66a5b435BE7cD75f",
+  BondingCurve: "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40", // emits Swap (1% fee: 0.70% protocol / 0.30% creator)
+  Arena: "0x9B3d636C27AD4CDEBFbE1F182B2b63F66Be7adE5",        // emits BattleSettled (5% protocol fee on pot)
+  TokenFactory: "0x96c5E38362f86E52389E15a86247fB7326503c8d", // emits TokenCreated (0.001 ETH launch fee)
+  HookRegistry: "0x64E3167b2B4eA1b8e3DdCaFe66a5b435BE7cD75f", // emits HookRegistered (0.01 ETH registration fee)
 };
 
 const swapAbi = "event Swap(address indexed token, address indexed trader, bool isBuy, uint256 ethAmount, uint256 tokenAmount, uint256 fee)";
@@ -27,9 +28,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: swapAbi,
   });
   for (const log of swapLogs) {
+    // split 70/30 via remainder so dailyFees === protocol + supplySide exactly (no dropped wei)
+    const protocolShare = log.fee * 70n / 100n;
+    const creatorShare = log.fee - protocolShare;
     dailyFees.addGasToken(log.fee, 'Swap Fees');
-    dailyProtocolRevenue.addGasToken(log.fee * 70n / 100n, 'Swap Fees To Protocol');
-    dailySupplySideRevenue.addGasToken(log.fee * 30n / 100n, 'Swap Fees To Creators');
+    dailyProtocolRevenue.addGasToken(protocolShare, 'Swap Fees To Protocol');
+    dailySupplySideRevenue.addGasToken(creatorShare, 'Swap Fees To Creators');
   }
 
   // Arena battle fees (5% of pot, all protocol)
@@ -42,7 +46,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyProtocolRevenue.addGasToken(log.protocolFee, 'Arena Battle Fees To Protocol');
   }
 
-  // Token launch fees (0.001 ETH each, all protocol)
+  // Token launch fees (0.001 ETH flat fee per launch, charged by TokenFactory, all protocol)
   const launchLogs = await getLogs({
     target: CONTRACTS.TokenFactory,
     eventAbi: tokenCreatedAbi,
@@ -51,7 +55,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyFees.addGasToken(launchFee, 'Token Launch Fees');
   dailyProtocolRevenue.addGasToken(launchFee, 'Token Launch Fees To Protocol');
 
-  // Hook registration fees (0.01 ETH each, all protocol)
+  // Hook registration fees (0.01 ETH flat fee per registration, charged by HookRegistry, all protocol)
   const registryLogs = await getLogs({
     target: CONTRACTS.HookRegistry,
     eventAbi: hookRegisteredAbi,
