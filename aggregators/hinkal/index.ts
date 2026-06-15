@@ -24,7 +24,6 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: false,
   methodology,
-  // fetchVolume's argument is the Hinkal backend chainId for each network.
   adapter: {
     [CHAIN.ETHEREUM]: { fetch: fetchVolume(1), start: "2025-12-13" },
     [CHAIN.BASE]: { fetch: fetchVolume(8453), start: "2025-12-13" },
