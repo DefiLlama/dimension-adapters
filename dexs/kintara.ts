@@ -20,6 +20,10 @@ const LABELS = {
   MARKETPLACE_TOKEN_SALES: "Marketplace Token Sales",
 } as const;
 
+// Marketplace quote code documents 95% to seller and 5% to treasury, so seller amount should be ~19x treasury.
+const MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO = 18;
+const MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO = 20;
+
 const fetch = async (options: FetchOptions) => {
   const { mint, treasuryAta } = chainConfig[options.chain];
   /*
@@ -69,8 +73,8 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       CAST(COALESCE(SUM(CASE WHEN burn_amount > 0 THEN treasury_amount + burn_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_volume,
       CAST(COALESCE(SUM(CASE WHEN burn_amount > 0 THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_fees,
-      CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * 18 AND treasury_amount * 20 THEN treasury_amount + seller_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_volume,
-      CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * 18 AND treasury_amount * 20 THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_fees
+      CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO} THEN treasury_amount + seller_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_volume,
+      CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO} THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_fees
     FROM classified
   `);
 
