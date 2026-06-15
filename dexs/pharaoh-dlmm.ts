@@ -14,6 +14,7 @@ const dlmmSubgraphEndpoints: any = {
 
 const subgraphQueryLimit = 1000;
 const historicalRollupAgeSeconds = 25 * 60 * 60;
+const dayInSeconds = 24 * 60 * 60;
 const avaxChainId = 43114;
 
 interface IDlmmGraphRes {
@@ -37,6 +38,11 @@ interface IVoteBribe {
   token: { id: string };
   dlmmPool?: { id: string };
   amount: string;
+}
+
+interface IDlmmPool {
+  id: string;
+  isAlive?: boolean;
 }
 
 interface IToken {
@@ -71,7 +77,7 @@ async function getDlmmBribes(options: FetchOptions) {
       voteBribes(
         first: $first
         skip: $skip
-        where: { timestamp_gte: $from, timestamp_lte: $to }
+        where: { timestamp_gt: $from, timestamp_lt: $to }
       ) {
         token {
           id
@@ -131,48 +137,71 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
 }
 
 function shouldUseDayRollups(options: FetchOptions) {
-  return Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+  const startsAtDayBoundary = options.startTimestamp === options.startOfDay
+    || options.startTimestamp === options.startOfDay - 1;
+  const isFullDayWindow = startsAtDayBoundary
+    && options.endTimestamp === options.startOfDay + dayInSeconds;
+
+  return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
 }
 
 function getStartOfDay(timestamp: number) {
   return Math.floor(timestamp / (24 * 60 * 60)) * 24 * 60 * 60;
 }
 
-function getWindowStartOfDays(options: FetchOptions) {
-  const days = new Set<number>();
-  const firstDay = getStartOfDay(options.startTimestamp);
-  const lastDay = getStartOfDay(options.endTimestamp - 1);
+function splitDlmmProtocolFees(protocolFeesUSD: number, feeTreasury: number, isAlive: boolean) {
+  if (protocolFeesUSD <= 0) return { voterFeesUSD: 0, treasuryFeesUSD: 0 };
+  if (!isAlive) return { voterFeesUSD: 0, treasuryFeesUSD: protocolFeesUSD };
 
-  for (let day = firstDay; day <= lastDay; day += 24 * 60 * 60) {
-    days.add(day);
-  }
-  days.add(options.startOfDay);
-
-  return Array.from(days);
+  const treasuryFeesUSD = protocolFeesUSD * feeTreasury;
+  return {
+    voterFeesUSD: protocolFeesUSD - treasuryFeesUSD,
+    treasuryFeesUSD,
+  };
 }
 
-function splitProtocolRevenue(protocolFeesUSD: number, dayStats: { holdersRevenueUSD: number; protocolRevenueUSD: number }) {
-  const dayProtocolFeesUSD = dayStats.holdersRevenueUSD + dayStats.protocolRevenueUSD;
-  if (dayProtocolFeesUSD <= 0 || protocolFeesUSD <= 0) {
-    return { voterFeesUSD: 0, treasuryFeesUSD: 0 };
+async function fetchDlmmFactoryFeeTreasury(options: FetchOptions) {
+  const query = gql`
+    query getDLMMFactoryFeeTreasury {
+      DLMMFactory(where: { chainId: { _eq: ${avaxChainId} } }) {
+        feeTreasury
+      }
+    }
+  `;
+  const data = await request<any>(dlmmSubgraphEndpoints[options.chain], query);
+  const feeTreasury = Number(data.DLMMFactory?.[0]?.feeTreasury ?? 0);
+
+  if (!Number.isFinite(feeTreasury) || feeTreasury < 0 || feeTreasury > 1) {
+    throw new Error("Invalid DLMM factory feeTreasury");
   }
 
-  const ratio = protocolFeesUSD / dayProtocolFeesUSD;
-  return {
-    voterFeesUSD: dayStats.holdersRevenueUSD * ratio,
-    treasuryFeesUSD: dayStats.protocolRevenueUSD * ratio,
-  };
+  return feeTreasury;
+}
+
+async function fetchDlmmPoolIsAliveById(options: FetchOptions, poolIds: string[]) {
+  if (!poolIds.length) return new Map<string, boolean>();
+
+  const query = gql`
+    query getDLMMPools($poolIds: [String!]!) {
+      DLMMPool(where: { chainId: { _eq: ${avaxChainId} }, id: { _in: $poolIds } }) {
+        id
+        isAlive
+      }
+    }
+  `;
+  const data = await request<any>(dlmmSubgraphEndpoints[options.chain], query, { poolIds });
+
+  return new Map((data.DLMMPool ?? []).map((pool: IDlmmPool) => [pool.id, pool.isAlive === true]));
 }
 
 async function fetchDlmmWindowStats(options: FetchOptions) {
   const endpoint = dlmmSubgraphEndpoints[options.chain];
-  const dayStatsByStart = await fetchDlmmDayStatsByStart(options, getWindowStartOfDays(options));
   const swapsQuery = gql`
     query dlmmSwaps($from: String!, $to: String!, $limit: Int!, $offset: Int!) {
       DLMMSwap(
         limit: $limit
         offset: $offset
-        where: { chainId: { _eq: ${avaxChainId} }, timestamp: { _gte: $from, _lte: $to } }
+        where: { chainId: { _eq: ${avaxChainId} }, timestamp: { _gt: $from, _lt: $to } }
       ) {
         amountUSD
       }
@@ -183,12 +212,12 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
       DLMMFeeEvent(
         limit: $limit
         offset: $offset
-        where: { chainId: { _eq: ${avaxChainId} }, timestamp: { _gte: $from, _lte: $to } }
+        where: { chainId: { _eq: ${avaxChainId} }, timestamp: { _gt: $from, _lt: $to } }
       ) {
         totalFeesUSD
         protocolFeesUSD
         lpFeesUSD
-        timestamp
+        pool
       }
     }
   `;
@@ -205,19 +234,23 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
     totalFeesUSD?: string;
     protocolFeesUSD?: string;
     lpFeesUSD?: string;
-    timestamp?: string;
+    pool?: string;
   }>(
     (limit, offset) => request<any>(endpoint, feesQuery, { ...variables, limit, offset }).then((data) => data.DLMMFeeEvent),
     subgraphQueryLimit,
   );
+  const poolIds = Array.from(new Set(feeEvents.map((event) => event.pool ?? "").filter(Boolean)));
+  const [feeTreasury, poolIsAliveById] = await Promise.all([
+    fetchDlmmFactoryFeeTreasury(options),
+    fetchDlmmPoolIsAliveById(options, poolIds),
+  ]);
 
   const protocolSplit = feeEvents.reduce((sum, event) => {
-    const day = getStartOfDay(Number(event.timestamp ?? 0));
-    const dayStats = dayStatsByStart.get(day) ?? {
-      holdersRevenueUSD: 0,
-      protocolRevenueUSD: 0,
-    };
-    const split = splitProtocolRevenue(Number(event.protocolFeesUSD ?? 0), dayStats);
+    const split = splitDlmmProtocolFees(
+      Number(event.protocolFeesUSD ?? 0),
+      feeTreasury,
+      poolIsAliveById.get(event.pool ?? "") === true,
+    );
 
     return {
       voterFeesUSD: sum.voterFeesUSD + split.voterFeesUSD,
@@ -268,39 +301,6 @@ async function fetchDlmmDayStatsForDay(options: FetchOptions, startOfDay: number
   };
 }
 
-async function fetchDlmmDayStatsByStart(options: FetchOptions, startOfDays: number[]) {
-  const query = gql`
-    query getDLMMProtocolDayData($startOfDays: [Int!]!) {
-      DLMMProtocolDayData(
-        where: { chainId: { _eq: ${avaxChainId} }, startOfDay: { _in: $startOfDays } }
-      ) {
-        startOfDay
-        volumeUSD
-        feesUSD
-        voterFeesUSD
-        treasuryFeesUSD
-      }
-    }
-  `;
-  const data = await request<any>(dlmmSubgraphEndpoints[options.chain], query, {
-    startOfDays,
-  });
-
-  return new Map<number, IDlmmStats>((data.DLMMProtocolDayData ?? []).map((dayData: any) => {
-    const feesUSD = Number(dayData?.feesUSD ?? 0);
-    const voterFeesUSD = Number(dayData?.voterFeesUSD ?? 0);
-    const treasuryFeesUSD = Number(dayData?.treasuryFeesUSD ?? 0);
-
-    return [Number(dayData.startOfDay), {
-      volumeUSD: Number(dayData?.volumeUSD ?? 0),
-      feesUSD,
-      holdersRevenueUSD: voterFeesUSD,
-      protocolRevenueUSD: treasuryFeesUSD,
-      supplySideRevenueUSD: Math.max(feesUSD - voterFeesUSD - treasuryFeesUSD, 0),
-    }];
-  }));
-}
-
 async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
   const voteBribes = await getDlmmBribes(options);
   const dlmmVoteBribes = voteBribes.filter((e) => e.dlmmPool);
@@ -327,41 +327,78 @@ async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
 
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchDlmmStats(options);
-  const dailyFees = stats.dlmmFeesUSD;
   const dailyVolume = stats.dlmmVolumeUSD;
-  const dailyProtocolRevenue = stats.dlmmProtocolRevenueUSD;
-  const dailyHoldersRevenue = stats.dlmmHoldersRevenueUSD;
-  const dailySupplySideRevenue = stats.dlmmSupplySideRevenueUSD;
-  const dailyBribesRevenue = stats.dlmmBribeRevenueUSD;
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(stats.dlmmFeesUSD, "Swap fees");
+  dailyFees.addUSDValue(stats.dlmmBribeRevenueUSD, "Vote incentives");
+  dailyUserFees.addUSDValue(stats.dlmmFeesUSD, "Swap fees");
+  dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, "Swap fees to xPHAR voters");
+  dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, "Vote incentives to xPHAR voters");
+  dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, "Swap fees to treasury");
+  dailySupplySideRevenue.addUSDValue(stats.dlmmSupplySideRevenueUSD, "Swap fees to LPs");
+  dailyRevenue.add(dailyProtocolRevenue);
+  dailyRevenue.add(dailyHoldersRevenue);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
-    dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
+    dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Swap fees generated by Pharaoh DLMM pools.",
-  Revenue: "Swap fee revenue directed to the protocol treasury and xPHAR voters.",
-  UserFees: "Total swap fees paid by traders.",
+  Fees: "Swap fees and vote incentives generated by Pharaoh DLMM pools.",
+  Revenue: "Swap fee revenue and vote incentives directed to the protocol treasury and xPHAR voters.",
+  UserFees: "Swap fees paid by traders.",
   ProtocolRevenue: "Treasury share of swap fees.",
-  HoldersRevenue: "Swap fees distributed to xPHAR voters.",
+  HoldersRevenue: "Swap fees and vote incentives distributed to xPHAR voters.",
   SupplySideRevenue: "Swap fees retained by liquidity providers.",
-  BribesRevenue: "Vote incentives distributed to xPHAR voters.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap fees": "Swap fees paid by traders.",
+    "Vote incentives": "Vote incentives paid to direct emissions to Pharaoh pools.",
+  },
+  Revenue: {
+    "Swap fees to treasury": "Treasury share of swap fees.",
+    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+    "Vote incentives to xPHAR voters": "Vote incentives distributed to xPHAR voters.",
+  },
+  UserFees: {
+    "Swap fees": "Swap fees paid by traders.",
+  },
+  ProtocolRevenue: {
+    "Swap fees to treasury": "Treasury share of swap fees.",
+  },
+  HoldersRevenue: {
+    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+    "Vote incentives to xPHAR voters": "Vote incentives distributed to xPHAR voters.",
+  },
+  SupplySideRevenue: {
+    "Swap fees to LPs": "Swap fees retained by liquidity providers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // DLMM event data supports hourly volume/fees, but historical feeTreasury changes are only preserved in daily split rollups.
+  pullHourly: false,
   fetch,
   chains: [CHAIN.AVAX],
   start: "2025-10-08",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

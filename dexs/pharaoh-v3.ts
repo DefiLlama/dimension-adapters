@@ -8,9 +8,15 @@ export const subgraphEndpoints: any = {
   [CHAIN.AVAX]: "https://avalanchev2.kingdomsubgraph.com/subgraphs/name/pharaoh-v3-pruned/",
 };
 
+const rawSubgraphEndpoints: any = {
+  [CHAIN.AVAX]: "https://gateway.kingdom.dev/avalanche/subgraph/v1/graphql",
+};
+
 const subgraphQueryLimit = 1000;
 
 const historicalRollupAgeSeconds = 25 * 60 * 60;
+const dayInSeconds = 24 * 60 * 60;
+const avaxChainId = 43114;
 
 interface IGraphRes {
   clVolumeUSD: number;
@@ -38,6 +44,16 @@ interface IPoolHourStats {
   feesUSD: number;
   voterFeesUSD: number;
   treasuryFeesUSD: number;
+}
+
+interface IPoolMetadata {
+  id: string;
+  feeProtocol?: string;
+}
+
+interface IGaugeMetadata {
+  pool: string;
+  isAlive?: boolean;
 }
 
 interface IVoteBribe {
@@ -80,7 +96,7 @@ async function getBribes(options: FetchOptions) {
       voteBribes(
         first: $first
         skip: $skip
-        where: { timestamp_gte: $from, timestamp_lte: $to }
+        where: { timestamp_gt: $from, timestamp_lt: $to }
       ) {
         token {
           id
@@ -143,7 +159,12 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
 }
 
 function shouldUseDayRollups(options: FetchOptions) {
-  return Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+  const startsAtDayBoundary = options.startTimestamp === options.startOfDay
+    || options.startTimestamp === options.startOfDay - 1;
+  const isFullDayWindow = startsAtDayBoundary
+    && options.endTimestamp === options.startOfDay + dayInSeconds;
+
+  return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
 }
 
 function getStartOfDay(timestamp: number) {
@@ -165,17 +186,17 @@ function getWindowStartOfDays(options: FetchOptions) {
 
 async function fetchPoolHourStats(
   options: FetchOptions,
-  root: "clPoolHourDatas" | "legacyPoolHourDatas",
-  dayStats: IProtocolDayData[],
+  root: "ClPoolHourData" | "LegacyPoolHourData",
+  poolRoot: "ClPool" | "LegacyPool",
 ): Promise<IPoolHourStats> {
   const query = gql`
     query poolHourStats($from: Int!, $to: Int!, $first: Int!, $skip: Int!) {
       items: ${root}(
-        first: $first
-        skip: $skip
-        where: { startOfHour_gte: $from, startOfHour_lt: $to }
+        limit: $first
+        offset: $skip
+        where: { chainId: { _eq: ${avaxChainId} }, startOfHour: { _gt: $from, _lt: $to } }
       ) {
-        startOfHour
+        pool
         volumeUSD
         feesUSD
         treasuryFeesUSD
@@ -184,12 +205,12 @@ async function fetchPoolHourStats(
   `;
 
   const items = await paginate<{
-    startOfHour?: string;
+    pool?: string;
     volumeUSD?: string;
     feesUSD?: string;
     treasuryFeesUSD?: string;
   }>(
-    (first, skip) => request<any>(subgraphEndpoints[options.chain], query, {
+    (first, skip) => request<any>(rawSubgraphEndpoints[options.chain], query, {
       from: options.startTimestamp,
       to: options.endTimestamp,
       first,
@@ -197,36 +218,44 @@ async function fetchPoolHourStats(
     }).then((data) => data.items),
     subgraphQueryLimit,
   );
+  const poolIds = Array.from(new Set(items.map((item) => item.pool ?? "").filter(Boolean)));
+  const metadataQuery = gql`
+    query poolMetadata($poolIds: [String!]!) {
+      pools: ${poolRoot}(where: { chainId: { _eq: ${avaxChainId} }, id: { _in: $poolIds } }) {
+        id
+        feeProtocol
+      }
+      gauges: Gauge(where: { chainId: { _eq: ${avaxChainId} }, pool: { _in: $poolIds } }) {
+        pool
+        isAlive
+      }
+    }
+  `;
+  const metadata = poolIds.length
+    ? await request<any>(rawSubgraphEndpoints[options.chain], metadataQuery, { poolIds })
+    : { pools: [], gauges: [] };
+  const poolById = new Map<string, IPoolMetadata>((metadata.pools ?? []).map((pool: IPoolMetadata) => [pool.id, pool]));
+  const gaugeIsAliveByPool = new Map<string, boolean>((metadata.gauges ?? []).map((gauge: IGaugeMetadata) => [gauge.pool, gauge.isAlive === true]));
+  const protocolSplit = items.reduce((sum, item) => {
+    const feesUSD = Number(item.feesUSD ?? 0);
+    const treasuryFeesUSD = Number(item.treasuryFeesUSD ?? 0);
+    const feeProtocol = Number(poolById.get(item.pool ?? "")?.feeProtocol ?? 0);
+    const protocolFeesUSD = feesUSD * feeProtocol;
+    const voterFeesUSD = gaugeIsAliveByPool.get(item.pool ?? "") === true
+      ? Math.max(protocolFeesUSD - treasuryFeesUSD, 0)
+      : 0;
 
-  const dayStatsByStart = new Map(dayStats.map((day) => [Number(day.startOfDay), day]));
-  const dayTotals = new Map<number, { feesUSD: number; treasuryFeesUSD: number }>();
-
-  for (const item of items) {
-    const day = getStartOfDay(Number(item.startOfHour ?? 0));
-    const totals = dayTotals.get(day) ?? { feesUSD: 0, treasuryFeesUSD: 0 };
-    totals.feesUSD += Number(item.feesUSD ?? 0);
-    totals.treasuryFeesUSD += Number(item.treasuryFeesUSD ?? 0);
-    dayTotals.set(day, totals);
-  }
-
-  const voterFeesUSD = Array.from(dayTotals).reduce((sum, [day, totals]) => {
-    const dayData = dayStatsByStart.get(day);
-    const dayFeesUSD = Number(dayData?.feesUsd ?? 0);
-    const dayVoterFeesUSD = Number(dayData?.voterFeesUsd ?? 0);
-    const dayTreasuryFeesUSD = Number(dayData?.treasuryFeesUsd ?? 0);
-    const dayNonTreasuryFeesUSD = dayFeesUSD - dayTreasuryFeesUSD;
-    const windowNonTreasuryFeesUSD = totals.feesUSD - totals.treasuryFeesUSD;
-
-    if (dayNonTreasuryFeesUSD <= 0 || windowNonTreasuryFeesUSD <= 0) return sum;
-
-    return sum + windowNonTreasuryFeesUSD * dayVoterFeesUSD / dayNonTreasuryFeesUSD;
-  }, 0);
+    return {
+      voterFeesUSD: sum.voterFeesUSD + voterFeesUSD,
+      treasuryFeesUSD: sum.treasuryFeesUSD + treasuryFeesUSD,
+    };
+  }, { voterFeesUSD: 0, treasuryFeesUSD: 0 });
 
   return {
     volumeUSD: items.reduce((sum, item) => sum + Number(item.volumeUSD ?? 0), 0),
     feesUSD: items.reduce((sum, item) => sum + Number(item.feesUSD ?? 0), 0),
-    voterFeesUSD,
-    treasuryFeesUSD: items.reduce((sum, item) => sum + Number(item.treasuryFeesUSD ?? 0), 0),
+    voterFeesUSD: protocolSplit.voterFeesUSD,
+    treasuryFeesUSD: protocolSplit.treasuryFeesUSD,
   };
 }
 
@@ -289,7 +318,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
         voterFeesUSD: clDayVoterFeesUSD,
         treasuryFeesUSD: clDayTreasuryFeesUSD,
       })
-      : fetchPoolHourStats(options, "clPoolHourDatas", clProtocolDayData),
+      : fetchPoolHourStats(options, "ClPoolHourData", "ClPool"),
     useDayRollups
       ? Promise.resolve({
         volumeUSD: Number(legacyDayData?.volumeUsd ?? 0),
@@ -297,7 +326,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
         voterFeesUSD: legacyDayVoterFeesUSD,
         treasuryFeesUSD: legacyDayTreasuryFeesUSD,
       })
-      : fetchPoolHourStats(options, "legacyPoolHourDatas", legacyProtocolDayData),
+      : fetchPoolHourStats(options, "LegacyPoolHourData", "LegacyPool"),
   ]);
 
   return {
@@ -316,31 +345,30 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
 
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
+  const dailyVolume = stats.clVolumeUSD;
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
+  const clSupplySideRevenue =
+    stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD;
 
-  dailyFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
-  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Rewards')
-
-  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
-  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
-  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
-
-  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
-  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
-
-  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
-
-  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Token Swap Fees To LPs')
+  dailyFees.addUSDValue(stats.clFeesUSD, "Swap fees");
+  dailyUserFees.addUSDValue(stats.clFeesUSD, "Swap fees");
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, "Swap fees to xPHAR voters");
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, "Vote incentives to xPHAR voters");
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, "Swap fees to treasury");
+  dailySupplySideRevenue.addUSDValue(clSupplySideRevenue, "Swap fees to LPs");
+  dailyRevenue.add(dailyProtocolRevenue);
+  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, "Swap fees to xPHAR voters");
 
   return {
-    dailyVolume: stats.clVolumeUSD,
+    dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailyRevenue,
@@ -349,45 +377,45 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees are collected from users on each swap + bribes revenue.",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
-  UserFees: "User pays fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
+  Fees: "Swap fees generated by Pharaoh concentrated liquidity pools.",
+  Revenue: "Swap fee revenue directed to the protocol treasury and xPHAR voters.",
+  UserFees: "Swap fees paid by traders.",
+  ProtocolRevenue: "Treasury share of swap fees.",
+  HoldersRevenue: "Swap fees and vote incentives distributed to xPHAR voters.",
+  SupplySideRevenue: "Swap fees retained by liquidity providers.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap fees": "Swap fees paid by traders.",
+  },
+  Revenue: {
+    "Swap fees to treasury": "Treasury share of swap fees.",
+    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+  },
+  UserFees: {
+    "Swap fees": "Swap fees paid by traders.",
+  },
+  ProtocolRevenue: {
+    "Swap fees to treasury": "Treasury share of swap fees.",
+  },
+  HoldersRevenue: {
+    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+    "Vote incentives to xPHAR voters": "Vote incentives distributed to xPHAR voters.",
+  },
+  SupplySideRevenue: {
+    "Swap fees to LPs": "Swap fees retained by liquidity providers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2025-10-08',
   methodology,
-  breakdownMethodology: {
-    Fees: {
-      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
-      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
-    },
-    UserFees: {
-      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
-      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
-    },
-    Revenue: {
-      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
-      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
-      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
-    },
-    ProtocolRevenue: {
-      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
-    },
-    HoldersRevenue: {
-      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
-      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
-    },
-    SupplySideRevenue: {
-      'Token Swap Fees To LPs': 'Concentrated liquidity swap fees retained by LPs after holder and treasury fee shares.',
-    },
-  }
+  breakdownMethodology,
 };
 
 export default adapter;
