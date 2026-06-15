@@ -11,6 +11,7 @@ const fetchDailyStats = async (
   return { feesETH: response.feesETH };
 };
 
+//https://docs.yologames.io/games/game-fees
 const FEE_SHARES = {
   RAKE_BACK: 0.45,
   LOTTERY: 0.05,
