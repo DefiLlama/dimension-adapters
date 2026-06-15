@@ -39,8 +39,6 @@ const fetchOffChain = async (options: FetchOptions) => {
 
         const dailyVolume = options.createBalances();
         const dailyFees = options.createBalances();
-        const dailyRevenue = options.createBalances();
-        const dailySupplySideRevenue = options.createBalances();
 
         // Add aggregated backend statistics
         if (data.volume) {
@@ -49,15 +47,11 @@ const fetchOffChain = async (options: FetchOptions) => {
 
         if (data.fees) {
             dailyFees.addUSDValue(data.fees);
-            // For prediction markets, distribute fees based on platform economics
-            // Assuming 100% to supply side (protocol)
-            dailySupplySideRevenue.addUSDValue(data.fees);
-            dailyRevenue.addUSDValue(data.fees);
         }
 
         options.api.log(`InsightX Off-Chain [${dateString}] - Volume: $${data.volume}, Fees: $${data.fees}`);
 
-        return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+        return { dailyVolume, dailyFees };
     } catch (error) {
         options.api.log(`Error fetching InsightX Off-Chain data for ${dateString}: ${error}`);
         throw error;
@@ -68,12 +62,12 @@ const fetchOffChain = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
+    pullHourly: false,
     adapter: {
         [CHAIN.OFF_CHAIN]: {
             fetch: fetchOffChain,
             start: "2026-06-03",
-            runAtCurrTime: true,
+            runAtCurrTime: false,
         },
     },
 };
