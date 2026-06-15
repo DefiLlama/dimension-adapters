@@ -23,7 +23,7 @@ const adapter: Adapter = {
   start: "2023-01-17",
   protocolType: ProtocolType.CHAIN,
   methodology: {
-    Fees: "Total transaction fees paid by users on Bifrost Network, sourced from the official Blockscout stats API.",
+    Fees: "Total transaction fees paid by users on Bifrost Network.",
   },
 };
 
