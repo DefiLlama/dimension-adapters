@@ -29,58 +29,77 @@ const query = gql`
 const ORIGINATION_FEES = "Origination Fees";
 const LQ_STAKING_REWARDS = "LQ Staking Rewards";
 
+// The analytics API rejects windows past its ingested-data boundary with this
+// GraphQL message; treated as a recoverable lag rather than a hard failure.
+const isDataNotReadyError = (e: any): boolean => {
+  const message = e?.response?.errors?.[0]?.message ?? e?.message ?? "";
+  return /not yet available|ingested data boundary/i.test(message);
+};
+
 const fetch = async (options: FetchOptions) => {
   const startDate = new Date(options.startTimestamp * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
-  // Liqwid analytics are ingested with ~1 day delay. The API rejects windows past
-  // its ingested-data boundary with a GraphQL error, which makes this request throw,
-  // so the run fails and is retried later instead of storing incomplete (zero) values.
-  const data = await request(endpoint, query, { startDate, endDate }, { "X-App-Source": "DefiLlama" });
-  const breakdown = data.analytics.fees.breakdown;
+  try {
+    const data = await request(endpoint, query, { startDate, endDate }, { "X-App-Source": "DefiLlama" });
+    const breakdown = data.analytics.fees.breakdown;
 
-  // Note: lqStakingRewards are distributed for 1-week epochs with a ~1 week delay. 
-  // Once they are reported the whole epoch rewards are added to the day they are distributed, 
-  // so they will reflect in daily fees at the time of distribution, not proportional to when they are earned.
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(breakdown.borrowInterestAccrued, METRIC.BORROW_INTEREST);
-  dailyFees.addUSDValue(breakdown.loanOriginationFees, ORIGINATION_FEES);
-  dailyFees.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
-  dailyFees.addUSDValue(breakdown.adaStakingRewards, METRIC.STAKING_REWARDS);
-  dailyFees.addUSDValue(breakdown.lqStakingRewards, LQ_STAKING_REWARDS);
+    // Note: lqStakingRewards are distributed for 1-week epochs with a ~1 week delay.
+    // Once they are reported the whole epoch rewards are added to the day they are distributed,
+    // so they will reflect in daily fees at the time of distribution, not proportional to when they are earned.
+    const dailyFees = options.createBalances();
+    dailyFees.addUSDValue(breakdown.borrowInterestAccrued, METRIC.BORROW_INTEREST);
+    dailyFees.addUSDValue(breakdown.loanOriginationFees, ORIGINATION_FEES);
+    dailyFees.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
+    dailyFees.addUSDValue(breakdown.adaStakingRewards, METRIC.STAKING_REWARDS);
+    dailyFees.addUSDValue(breakdown.lqStakingRewards, LQ_STAKING_REWARDS);
 
-  // ADA and LQ staking rewards are not paid by borrowers, so they are excluded from user fees
-  const dailyUserFees = options.createBalances();
-  dailyUserFees.addUSDValue(breakdown.borrowInterestAccrued, METRIC.BORROW_INTEREST);
-  dailyUserFees.addUSDValue(breakdown.loanOriginationFees, ORIGINATION_FEES);
-  dailyUserFees.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
+    // ADA and LQ staking rewards are not paid by borrowers, so they are excluded from user fees
+    const dailyUserFees = options.createBalances();
+    dailyUserFees.addUSDValue(breakdown.borrowInterestAccrued, METRIC.BORROW_INTEREST);
+    dailyUserFees.addUSDValue(breakdown.loanOriginationFees, ORIGINATION_FEES);
+    dailyUserFees.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
 
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(breakdown.borrowInterestAccruedForSupplySide, METRIC.BORROW_INTEREST);
-  dailySupplySideRevenue.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
-  dailySupplySideRevenue.addUSDValue(breakdown.adaStakingRewards, METRIC.STAKING_REWARDS);
+    const dailySupplySideRevenue = options.createBalances();
+    dailySupplySideRevenue.addUSDValue(breakdown.borrowInterestAccruedForSupplySide, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addUSDValue(breakdown.liquidationBonus, METRIC.LIQUIDATION_FEES);
+    dailySupplySideRevenue.addUSDValue(breakdown.adaStakingRewards, METRIC.STAKING_REWARDS);
 
-  const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addUSDValue(breakdown.borrowInterestAccruedForProtocol, METRIC.BORROW_INTEREST);
-  dailyProtocolRevenue.addUSDValue(breakdown.loanOriginationFeesForProtocol, ORIGINATION_FEES);
+    const dailyProtocolRevenue = options.createBalances();
+    dailyProtocolRevenue.addUSDValue(breakdown.borrowInterestAccruedForProtocol, METRIC.BORROW_INTEREST);
+    dailyProtocolRevenue.addUSDValue(breakdown.loanOriginationFeesForProtocol, ORIGINATION_FEES);
 
-  const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addUSDValue(breakdown.borrowInterestAccruedForHolders, METRIC.BORROW_INTEREST);
-  dailyHoldersRevenue.addUSDValue(breakdown.loanOriginationFeesForHolders, ORIGINATION_FEES);
-  dailyHoldersRevenue.addUSDValue(breakdown.lqStakingRewards, LQ_STAKING_REWARDS);
+    const dailyHoldersRevenue = options.createBalances();
+    dailyHoldersRevenue.addUSDValue(breakdown.borrowInterestAccruedForHolders, METRIC.BORROW_INTEREST);
+    dailyHoldersRevenue.addUSDValue(breakdown.loanOriginationFeesForHolders, ORIGINATION_FEES);
+    dailyHoldersRevenue.addUSDValue(breakdown.lqStakingRewards, LQ_STAKING_REWARDS);
 
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(dailyProtocolRevenue);
-  dailyRevenue.addBalances(dailyHoldersRevenue);
+    const dailyRevenue = options.createBalances();
+    dailyRevenue.addBalances(dailyProtocolRevenue);
+    dailyRevenue.addBalances(dailyHoldersRevenue);
 
-  return {
-    dailyFees,
-    dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
-  };
+    return {
+      dailyFees,
+      dailyUserFees,
+      dailyRevenue,
+      dailyProtocolRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+    };
+  } catch (e) {
+    if (isDataNotReadyError(e)) {
+      console.error(`[liqwid] analytics data not yet ingested for ${startDate}..${endDate}, returning 0`);
+      return {
+        dailyFees: options.createBalances(),
+        dailyUserFees: options.createBalances(),
+        dailyRevenue: options.createBalances(),
+        dailyProtocolRevenue: options.createBalances(),
+        dailyHoldersRevenue: options.createBalances(),
+        dailySupplySideRevenue: options.createBalances(),
+      };
+    }
+    throw e;
+  }
 };
 
 const adapter: SimpleAdapter = {
