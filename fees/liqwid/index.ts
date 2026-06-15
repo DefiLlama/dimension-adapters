@@ -74,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2026-01-01",
