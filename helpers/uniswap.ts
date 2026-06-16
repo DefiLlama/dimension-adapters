@@ -171,7 +171,7 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
@@ -248,6 +248,27 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     }
 
     const pairs = Object.keys(filteredPairs)
+    const protocolFeeRatios: IJSON<{ token0: number, token1: number }> = {}
+
+    if (dynamicProtocolFees) {
+      const slot0Results = await api.multiCall({
+        abi: "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+        calls: pairs,
+        permitFailure: true,
+      })
+
+      slot0Results.forEach((slot0: any, i: number) => {
+        const feeProtocol = Number(slot0?.feeProtocol ?? 0)
+        const token0Denominator = feeProtocol & 0x0f
+        const token1Denominator = (feeProtocol >> 4) & 0x0f
+
+        protocolFeeRatios[pairs[i]] = {
+          token0: token0Denominator > 0 ? 1 / token0Denominator : 0,
+          token1: token1Denominator > 0 ? 1 / token1Denominator : 0,
+        }
+      })
+    }
+
     const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
 
     allLogs.map((logs: any, index) => {
@@ -263,7 +284,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
       // only use custom revenue ratio when revenueRatio is not set
       if (revenueRatio === undefined && getRevenueRatio) {
-        const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({ poolFeeTier: feeTier, options: fetchOptions })
+        const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({
+          options: fetchOptions,
+          poolFeeTier: feeTier,
+          protocolFeeRatioToken0: dynamicProtocolFees ? protocolFeeRatios[pair]?.token0 : undefined,
+          protocolFeeRatioToken1: dynamicProtocolFees ? protocolFeeRatios[pair]?.token1 : undefined,
+        })
         
         if (!pairRevenueRatio) pairRevenueRatio = _revenueRatio;
         if (!pairProtocolRevenueRatio && _protocolRevenueRatio) pairProtocolRevenueRatio = _protocolRevenueRatio;
@@ -272,20 +298,20 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       
       logs.forEach((log: any) => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-        const { token: _token, amount: _amount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * feeTier, amount1: log.amount1.toString() * feeTier })
+        const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * feeTier, amount1: log.amount1.toString() * feeTier })
 
         if (pairRevenueRatio || pairRevenueRatio === 0) {
           revenueEnabled = true;
-          revenue.add(_token, _amount * pairRevenueRatio);
-          supplySideRevenue.add(_token, _amount * (1 - pairRevenueRatio));
+          revenue.add(_token, _feeAmount * pairRevenueRatio);
+          supplySideRevenue.add(_token, _feeAmount * (1 - pairRevenueRatio));
         }
         if (pairProtocolRevenueRatio || pairProtocolRevenueRatio === 0) {
           protocolRevenueEnabled = true;
-          protocolRevenue.add(_token, _amount * pairProtocolRevenueRatio);
+          protocolRevenue.add(_token, _feeAmount * pairProtocolRevenueRatio);
         }
         if (pairHoldersRevenueRatio || pairHoldersRevenueRatio === 0) {
           holdersRevenueEnabled = true;
-          holdersRevenue.add(_token, _amount * pairHoldersRevenueRatio);
+          holdersRevenue.add(_token, _feeAmount * pairHoldersRevenueRatio);
         }
       })
     })
@@ -333,6 +359,8 @@ type UniV2Config = {
 export interface UniGetRevenueRatioProps {
   options: FetchOptions;
   poolFeeTier: number;
+  protocolFeeRatioToken0?: number;
+  protocolFeeRatioToken1?: number;
 }
 
 type UniV3Config = {
@@ -350,6 +378,7 @@ type UniV3Config = {
   deadFrom?: string,
   blacklistPools?: Array<string>,
   pools?: string[], // alternative to providing factory
+  dynamicProtocolFees?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };
