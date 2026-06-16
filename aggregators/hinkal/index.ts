@@ -1,3 +1,4 @@
+import { start } from "repl";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -15,9 +16,9 @@ const chainConfig = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp } = options;
+  const { startOfDay, endTimestamp } = options;
   const chainId = chainConfig[options.chain].id;
-  const url = `${VOLUME_URL}/totalVolume/${startTimestamp}/${endTimestamp}/${chainId}`;
+  const url = `${VOLUME_URL}/totalVolume/${startOfDay}/${endTimestamp}/${chainId}`;
   const data = await fetchURL(url);
   if (data?.dailyVolume === undefined) {
     console.error(`hinkal: no volume returned for chain ${chainId} (${url})`);
@@ -27,9 +28,8 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   fetch,
   adapter: chainConfig,
 };
