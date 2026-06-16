@@ -2,6 +2,10 @@ import type { FetchOptions } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 
 const API = "https://api10.afx.xyz/info/integrations/defillama";
+const HEADERS = {
+  "Accept": "application/json",
+  "User-Agent": "defillama-dimension-adapters/1.0",
+};
 export const AFX_START = "2026-05-29";
 
 type DataResponse<T> = {
@@ -44,7 +48,7 @@ export function usd(value?: string | number | null) {
 }
 
 async function get<T>(url: string): Promise<T> {
-  const response = await httpGet(url) as DataResponse<unknown>;
+  const response = await httpGet(url, { headers: HEADERS }) as DataResponse<unknown>;
   if (response.code !== 0) {
     throw new Error(`afx: ${response.message ?? "unexpected API response"}`);
   }
