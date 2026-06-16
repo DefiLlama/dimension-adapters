@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL = "https://www.polymarketexchange.com/files/time-and-sales";
+const VOLUME_THRESHOLD = 500_000_000;
 
 interface Trade {
     transactionTime: Date;
@@ -68,6 +69,11 @@ async function fetch(options: FetchOptions) {
             dailySupplySideRevenue.addUSDValue(fee * 0.5, 'Taker Rebates');
             dailyRevenue.addUSDValue(fee * 0.25, 'Protocol Revenue');
         }
+    }
+
+    const volumeInUsd = await dailyVolume.getUSDValue();
+    if(volumeInUsd > VOLUME_THRESHOLD) {
+      throw new Error('Inflated Volumes, cant be verified')
     }
 
     return {
