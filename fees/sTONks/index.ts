@@ -136,8 +136,10 @@ const methodology = {
   Fees:
     "All TON inflows to the main fee wallet: 1% fees from @stonks_sniper_bot and the sTONks Terminal, " +
     "plus variable fees from sTONks.pump Launchpad — all accessible at stonkslabs.com. Launchpad fees are routed via a dedicated fee router.",
-  Revenue: "All fee inflows to the protocol wallet are considered revenue.",
-  ProtocolRevenue: "All fee inflows to the protocol wallet are considered protocol revenue.",
+  Revenue: "All TON inflows to the main fee wallet: 1% fees from @stonks_sniper_bot and the sTONks Terminal, " +
+    "plus variable fees from sTONks.pump Launchpad — all accessible at stonkslabs.com. Launchpad fees are routed via a dedicated fee router.",
+  ProtocolRevenue: "All TON inflows to the main fee wallet: 1% fees from @stonks_sniper_bot and the sTONks Terminal, " +
+    "plus variable fees from sTONks.pump Launchpad — all accessible at stonkslabs.com. Launchpad fees are routed via a dedicated fee router.",
 };
 
 const breakdown = {
