@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
+import { METRIC } from "../../helpers/metrics";
 
 /**
  * sTONks — Launchpad, Trading Bot & Terminal on TON
@@ -55,7 +56,7 @@ const fetchFeeInflows = async (
 
   while (true) {
     const url =
-      `https://tonapi.io/v2/blockchain/accounts/${FEE_WALLET}/transactions?limit=1000&sort_order=desc` +
+      `https://toncenter.com/api/v3/transactions?account=${FEE_WALLET}&start_utime=${start}&end_utime=${end}&limit=1000&offset=0&sort=desc` +
       (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
 
     let data: any;
@@ -75,34 +76,25 @@ const fetchFeeInflows = async (
       if (seen.has(key)) continue;
       seen.add(key);
 
-      // Transactions are sorted desc by time; stop when we go before the window
-      if (tx.utime < start) {
-        reachedBeforeStart = true;
-        break;
-      }
-
-      // Skip txs beyond the window (exclusive upper bound)
-      if (tx.utime >= end) continue;
-
       // Only count successful incoming transfers
-      if (!tx.success) continue;
+      if (!tx?.description?.action?.success) continue;
 
       const inMsg = tx.in_msg;
-      if (!inMsg || inMsg.destination?.address !== FEE_WALLET) continue;
+      if (!inMsg || inMsg.destination?.toLowerCase() !== FEE_WALLET.toLowerCase()) continue;
 
       const value = toBigInt(inMsg.value);
       if (value === 0n) continue;
 
-      const senderAddress: string | undefined = inMsg.source?.address;
+      const senderAddress: string | undefined = inMsg.source;
 
-      if (senderAddress === LAUNCHPAD_ROUTER) {
+      if (senderAddress?.toLowerCase() === LAUNCHPAD_ROUTER.toLowerCase()) {
         launchpadFees += value;
       } else {
         tradingFees += value;
       }
     }
 
-    if (reachedBeforeStart) break;
+    if (reachedBeforeStart || txs.length < 1000) break;
 
     const lastTx = txs[txs.length - 1];
     if (lastTx?.lt == null || lastTx?.hash == null) break;
@@ -110,7 +102,7 @@ const fetchFeeInflows = async (
     before_lt = String(lastTx.lt);
     before_hash = String(lastTx.hash);
 
-    await sleep(120);
+    await sleep(1000);
   }
 
   return { tradingFees, launchpadFees };
@@ -121,14 +113,13 @@ const fetch = async (options: FetchOptions) => {
 
   const { tradingFees, launchpadFees } = await fetchFeeInflows(start, end);
 
-  const totalFees = tradingFees + launchpadFees;
-
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(totalFees.toString());
+  dailyFees.addGasToken(tradingFees, METRIC.TRADING_FEES);
+  dailyFees.addGasToken(launchpadFees, 'Launchpad Fees');
 
   // Volume only from Bot + Terminal (1% fee); launchpad excluded (variable fee)
   const dailyVolume = options.createBalances();
-  dailyVolume.addGasToken((tradingFees * 100n).toString());
+  dailyVolume.addGasToken((tradingFees * 100n));
 
   return {
     dailyVolume,
@@ -149,12 +140,25 @@ const methodology = {
   ProtocolRevenue: "All fee inflows to the protocol wallet are considered protocol revenue.",
 };
 
+const breakdown = {
+  [METRIC.TRADING_FEES]: '1% fee from @stonks_sniper_bot and the sTONks Terminal',
+  'Launchpad Fees': 'Variable fees from sTONks.pump Launchpad',
+}
+
+const breakdownMethodology = {
+  Fees: breakdown,
+  Revenue: breakdown,
+  ProtocolRevenue: breakdown,
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // gets rate limited during refill, should be enabled post refill
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
