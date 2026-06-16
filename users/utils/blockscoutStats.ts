@@ -80,6 +80,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1 },
   citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1 },
   gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1 },
+  lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1 },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
