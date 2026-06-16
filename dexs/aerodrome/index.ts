@@ -199,13 +199,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     getVolumeFeesAndRevenue(fromBlock, toBlock, options, poolToGauge),
     getBribes(options, bribeSet),
   ])
+
+  const totalFees = options.createBalances()
+  const totalHoldersRevenue = options.createBalances()
+  const totalSupplySideRevenue = options.createBalances()
+  
+  totalFees.add(dailyFees, 'Token Swap Fees');
+  totalFees.add(dailyBribesRevenue, 'External Bribes Rewards');
+  totalHoldersRevenue.add(dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake');
+  totalHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue');
+  totalSupplySideRevenue.add(dailySupplySideRevenue, 'Unstaked-LP Fees');
+  
   return {
-    dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    dailyFees: totalFees,
+    dailyRevenue: totalHoldersRevenue,
+    dailyHoldersRevenue: totalHoldersRevenue,
+    dailySupplySideRevenue: totalSupplySideRevenue,
     dailyVolume,
-    dailyBribesRevenue,
   }
 }
 
@@ -214,30 +224,29 @@ const methodology = {
   Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
   HoldersRevenue: "Fees earned by LPs staked in the gauge — forwarded to FeeVotingReward for distribution to veAERO voters. Computed per pool as fees × pool.balanceOf(gauge) / pool.totalSupply.",
   SupplySideRevenue: "Unstaked LPs' pro-rata share of swap fees, claimable directly from the pool. Computed per pool as fees × (1 − stakedShare). Aerodrome v2 has no unstaked-LP rake module, so unstaked LPs keep 100% of their share.",
-  BribesRevenue: "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Swap fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
+    'Token Swap fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
+    'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   Revenue: {
-    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'Staked-LP Fees And Unstaked-LP Rake': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'External Bribes Revneue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   HoldersRevenue: {
-    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'Staked-LP Fees And Unstaked-LP Rake': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'External Bribes Revneue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   SupplySideRevenue: {
-    'LP fees': 'Unstaked-LP pro-rata share of swap fees, claimable directly from the pool.',
-  },
-  BribesRevenue: {
-    'External bribes': "Token deposits to a pool's BribeVotingReward contract that veAERO voters claim by voting for the pool's gauge.",
+    'Unstaked-LP Fees': 'Unstaked-LP pro-rata share of swap fees, claimable directly from the pool.',
   },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   start: '2023-08-28',
