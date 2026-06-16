@@ -90,6 +90,10 @@ const breakdownMethodology = {
     [METRIC.MINT_REDEEM_FEES]: 'Gross fees from bake, burn, loop, borrow, flashBurn, and extendLoan — reconstructed as treasury / 0.35 (PROTOCOL_FEE_SHARE_BPS = 3500)',
     [METRIC.SERVICE_FEES]: 'Full bounty paid in claimBribeBounty (polFeeBps% to treasury, rest to backing); ERC-20 tokenLockerFee retained as backing on lockTokens',
   },
+  Revenue: {
+    [METRIC.MINT_REDEEM_FEES]: 'Gross fees from bake, burn, loop, borrow, flashBurn, and extendLoan — reconstructed as treasury / 0.35 (PROTOCOL_FEE_SHARE_BPS = 3500)',
+    [METRIC.SERVICE_FEES]: 'Full bounty paid in claimBribeBounty (polFeeBps% to treasury, rest to backing); ERC-20 tokenLockerFee retained as backing on lockTokens',
+  },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_FEES]: '35% of main operation fees sent to breadTreasury; polFeeBps% of bounty claims sent to breadTreasury',
   },
@@ -102,10 +106,11 @@ const adapter: Adapter = {
   version: 2,
   chains: [CHAIN.BERACHAIN],
   fetch,
-  start: '2025-03-17',
+  start: '2025-03-20',
   pullHourly: true,
   methodology: {
     Fees: "Gross fees from bake/burn/loop/borrow/flashBurn/extendLoan (BERA), full bounty paid in claimBribeBounty (BERA), and ERC-20 tokenLockerFee on lockTokens",
+    Revenue: "Gross fees from bake/burn/loop/borrow/flashBurn/extendLoan (BERA), full bounty paid in claimBribeBounty (BERA), and ERC-20 tokenLockerFee on lockTokens",
     ProtocolRevenue: "35% of main operation fees sent to breadTreasury; polFeeBps% of bounty claims sent to breadTreasury",
     HoldersRevenue: "65% of main operation fees + 90% of bounty claims + 100% of tokenLockerFee retained as BREAD bonding curve backing",
   },
