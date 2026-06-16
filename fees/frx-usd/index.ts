@@ -4,6 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
 import { METRIC } from "../../helpers/metrics";
 
+//https://facts.frax.finance/frxusd/balance-sheet
 const config = {
   WTGXX: {
     holders: [
