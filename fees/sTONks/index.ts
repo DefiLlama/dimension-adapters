@@ -152,6 +152,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.TON],
   start: "2024-01-12",
   methodology,
