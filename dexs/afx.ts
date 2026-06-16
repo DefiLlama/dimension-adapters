@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Single-sided AFX perpetual trading volume in USD, including taker, maker, and liquidation-related fills as reported by the public AFX DefiLlama endpoint.",
+  Volume: "Single-sided AFX perpetual trading volume in USD, including taker-side and liquidation-related fills as reported by the public AFX DefiLlama endpoint.",
 };
 
 const adapter: SimpleAdapter = {
