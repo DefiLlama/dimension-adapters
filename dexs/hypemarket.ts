@@ -36,17 +36,23 @@ const fetch = async (options: FetchOptions) => {
   const [vol, fee] = await Promise.all([getVolume(), getFees()]);
   const day = options.dateString;
 
-  // Fail (rather than emit 0) when the day is not yet covered by the backend. The volume
-  // series is ordered ascending and refreshed to "today"; a day beyond its latest entry —
-  // or an empty series — means data is unavailable, not zero. A day within range with no
-  // row is a genuine no-activity day and correctly contributes 0.
+  // Both feeds return a contiguous, zero-filled daily series up to the latest computed day
+  // (a no-activity day like a quiet weekend is present with all-zero values). A day beyond
+  // either series' latest entry means data is not computed yet — fail rather than report 0.
   const volLatest = lastDay(vol.days);
-  if (!volLatest || day > volLatest) {
+  const feeLatest = lastDay(fee.days);
+  if (!volLatest || !feeLatest || day > volLatest || day > feeLatest) {
     throw new Error(`hypemarket: no data available for ${day}`);
   }
 
   const vRow = vol.days.find((d) => d.day === day);
   const fRow = fee.days.find((d) => d.day === day);
+  // Within the covered range the two feeds are aligned day-for-day. A day present in one
+  // but not the other means the volume/fee snapshots are momentarily out of sync — fail
+  // rather than write an inconsistent day (e.g. volume with no fees).
+  if (Boolean(vRow) !== Boolean(fRow)) {
+    throw new Error(`hypemarket: inconsistent day rows for ${day} (snapshots may be lagging)`);
+  }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -54,7 +60,8 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   // Each balance is priced by the framework at the day's historical SUPRA price. Every
-  // label below matches a key in breakdownMethodology for the same dimension.
+  // label matches a key in breakdownMethodology for the same dimension. A zero-activity
+  // day adds nothing and correctly reports 0 for every metric.
   const cgVol = vol.token.coingeckoId || "supra";
   const cgFee = fee.token.coingeckoId || "supra";
 
