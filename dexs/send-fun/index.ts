@@ -42,7 +42,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  // Dune-backed adapter: queries refresh once per day, so use version 1
+  // (a version 2 adapter would re-run the same expensive query hourly).
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-06-11",
