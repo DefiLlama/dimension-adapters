@@ -6,7 +6,7 @@ const fetch = async (options: FetchOptions) => {
   const stats = await fetchAfxDailyStats(options);
   const dailyFees = usd(stats?.dailyFeesUsd);
   const dailyRevenue = usd(stats?.dailyRevenueUsd);
-  const dailySupplySideRevenue = Math.max(Number(dailyFees) - Number(dailyRevenue), 0).toString();
+  const dailySupplySideRevenue = (Number(dailyFees) - Number(dailyRevenue)).toString();
 
   return {
     dailyFees,
@@ -19,9 +19,28 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Trading fees paid by AFX perpetual traders, excluding funding.",
+  UserFees: "Trading fees paid by AFX perpetual traders, excluding funding.",
   Revenue: "Protocol revenue reported by the AFX daily revenue distribution data.",
   SupplySideRevenue: "Trading fees not retained as protocol revenue.",
   ProtocolRevenue: "Protocol revenue reported by the AFX daily revenue distribution data.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    TradingFees: "Trading fees paid by AFX perpetual traders, excluding funding.",
+  },
+  UserFees: {
+    TradingFees: "Trading fees paid by AFX perpetual traders, excluding funding.",
+  },
+  Revenue: {
+    ProtocolRevenue: "Protocol revenue reported by the AFX daily revenue distribution data.",
+  },
+  SupplySideRevenue: {
+    SupplySideRevenue: "Trading fees not retained as protocol revenue.",
+  },
+  ProtocolRevenue: {
+    ProtocolRevenue: "Protocol revenue reported by the AFX daily revenue distribution data.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -30,6 +49,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ARBITRUM],
   start: AFX_START,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
