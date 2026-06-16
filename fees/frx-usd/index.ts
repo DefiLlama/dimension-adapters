@@ -49,7 +49,6 @@ async function fetch(options: FetchOptions) {
   const balances = await options.api.multiCall({
     abi: 'function balanceOf(address) view returns (uint256)',
     calls,
-    permitFailure: true,
   })
 
   balances.forEach((balance, i) => {
