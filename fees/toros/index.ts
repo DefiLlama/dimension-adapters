@@ -172,6 +172,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: '2023-03-27', },
     [CHAIN.BASE]: { start: '2023-12-20', },
     [CHAIN.ETHEREUM]: { start: '2025-08-10', },
+    [CHAIN.HYPERLIQUID]: { start: '2026-04-20', },
   },
   version: 2,
 }
