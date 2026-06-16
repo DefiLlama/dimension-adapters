@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -33,12 +34,15 @@ async function fetchMetric(config: ChainConfig, metric: string, date: string) {
 function getRoutescanUsers(config: ChainConfig) {
   return async (_start: number, end: number) => {
     const date = new Date((end - 1) * 1e3).toISOString().slice(0, 10);
-    const [txcount, usercount] = await Promise.all([
-      fetchMetric(config, "txs", date),
-      fetchMetric(config, "addresses", date),
-    ]);
+    const { results, errors } = await PromisePool.withConcurrency(2)
+      .for(["txs", "addresses"])
+      .process(async (metric) => ({ metric, value: await fetchMetric(config, metric, date) }));
 
-    return [{ usercount, txcount }];
+    if (errors.length) throw errors[0];
+
+    const metrics = Object.fromEntries(results.map(({ metric, value }) => [metric, value]));
+
+    return [{ usercount: metrics.addresses, txcount: metrics.txs }];
   };
 }
 
@@ -48,10 +52,19 @@ function getRoutescanNewUsers(config: ChainConfig) {
     const previousDate = new Date((end - 86401) * 1e3).toISOString().slice(0, 10);
     const data = await fetchURL(`${BASE_URL}/unique-addresses?includedChainIds=${config.chainId}&unit=day`);
     if (!Array.isArray(data)) throw new Error(`Invalid Routescan unique-addresses response for ${config.chain}`);
-    const totalAt = (targetDate: string) =>
-      Number((data as RouteScanRow[]).find(([timestamp]) => timestamp.slice(0, 10) <= targetDate)?.[1] ?? 0);
-    const current = totalAt(date);
-    const previous = totalAt(previousDate);
+    const currentEntry = (data as RouteScanRow[]).find(([timestamp]) => timestamp.startsWith(date));
+    const previousEntry = (data as RouteScanRow[]).reduce<RouteScanRow | undefined>((closest, row) => {
+      const date = row[0].slice(0, 10);
+      if (date > previousDate) return closest;
+      if (!closest || date > closest[0].slice(0, 10)) return row;
+      return closest;
+    }, undefined);
+
+    if (!currentEntry) throw new Error(`No Routescan unique-addresses data found for ${config.chain} on ${date}`);
+    if (!previousEntry) throw new Error(`No Routescan unique-addresses data found for ${config.chain} on ${previousDate}`);
+
+    const current = Number(currentEntry[1]);
+    const previous = Number(previousEntry[1]);
     const usercount = current - previous;
     if (usercount < 0) throw new Error(`Routescan cumulative unique-addresses decreased for ${config.chain} on ${date}`);
 
