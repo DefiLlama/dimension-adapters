@@ -1,11 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import PromisePool from "@supercharge/promise-pool";
 
 // dreamDEX — on-chain spot central limit order book (CLOB) on Somnia.
-// Volume is sourced from the dreamDEX indexer API (one summation request per market per day),
+// Volume is sourced from the dreamDEX indexer API (one summation request per market per window),
 // not on-chain logs: the public Somnia RPC caps eth_getLogs at 1000 blocks and the chain's block
-// rate makes a per-day log scan impractical. The API returns per-market base-token volume, which
+// rate makes a per-window log scan impractical. The API returns per-market base-token volume, which
 // DefiLlama prices itself (we do not trust the API's own USD figures).
 const API = "https://api.dreamdex.io";
 
@@ -14,27 +15,32 @@ const NATIVE_BASE_SENTINEL = "0x28f34defd2b4cb48d9ee6d89f2be4bc601694c00";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  // API window is unix-ms, half-open [since, until) — matches DefiLlama's day bounds (seconds).
-  const since = options.fromTimestamp * 1000;
-  const until = options.toTimestamp * 1000;
+  // API window is unix-ms, half-open [since, until) — keyed off the v2 window bounds (seconds),
+  // not startOfDay, so hourly pulls query their own window.
+  const since = options.startTimestamp * 1000;
+  const until = options.endTimestamp * 1000;
 
   const { markets } = await httpGet(`${API}/v0/markets`);
 
-  for (const market of markets) {
-    const { baseVolumeRaw } = await httpGet(
-      `${API}/v0/markets/${market.symbol}/volume?since=${since}&until=${until}`
-    );
-    if (market.base.toLowerCase() === NATIVE_BASE_SENTINEL) {
-      dailyVolume.addGasToken(baseVolumeRaw); // native SOMI base
-    } else {
-      dailyVolume.add(market.base, baseVolumeRaw); // ERC20 base (USDC.e / WBTC / WETH)
-    }
-  }
+  await PromisePool.withConcurrency(5)
+    .for(markets)
+    .process(async (market: any) => {
+      const { baseVolumeRaw } = await httpGet(
+        `${API}/v0/markets/${market.symbol}/volume?since=${since}&until=${until}`
+      );
+      if (market.base.toLowerCase() === NATIVE_BASE_SENTINEL) {
+        dailyVolume.addGasToken(baseVolumeRaw); // native SOMI base
+      } else {
+        dailyVolume.add(market.base, baseVolumeRaw); // ERC20 base (USDC.e / WBTC / WETH)
+      }
+    });
 
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOMNIA],
   start: "2026-05-11", // SpotPool mainnet deploy (Foundry broadcast); no volume before this
