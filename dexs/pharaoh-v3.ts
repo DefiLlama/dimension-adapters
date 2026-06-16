@@ -189,43 +189,51 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
     legacyProtocolRevenueUSD: Number(
       legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
-    )  };
+    ),
+  };
 };
 
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD;
-  const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
-  const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  dailyFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
+  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Rewards')
+
+  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
+  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
+  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
+
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
+
+  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Token Swap Fees To LPs')
 
   return {
-    dailyVolume,
+    dailyVolume: stats.clVolumeUSD,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Fees are collected from users on each swap.",
+  Fees: "Fees are collected from users on each swap + bribes revenue.",
   Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xREX stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {
@@ -233,6 +241,31 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.AVAX],
   start: '2025-10-08',
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
+      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
+      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
+      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
+      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
+    },
+    ProtocolRevenue: {
+      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
+      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
+    },
+    SupplySideRevenue: {
+      'Token Swap Fees To LPs': 'Concentrated liquidity swap fees retained by LPs after holder and treasury fee shares.',
+    },
+  }
 };
 
 export default adapter;

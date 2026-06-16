@@ -1,4 +1,4 @@
-import fetchURL, { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
@@ -77,6 +77,10 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   zilliqa: { chain: CHAIN.ZILLIQA, baseUrl: "https://zilliqa.blockscout.com", version: 2, start: "2023-12-27" },
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1, start: "2023-06-13" },
   "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2, start: "2023-02-14" },
+  fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1, start: "2026-03-17" },
+  citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
+  gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
+  lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {

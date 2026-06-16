@@ -132,6 +132,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder Code Fees collected by Phantom from Hyperliquid Perps.",
     },
   },
+  "perpflow": {
+    addresses: ["0x113f059d7a863fbca1ff60df5b1954dbec9f91dd"],
+    start: "2025-07-26",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Perpflow's delta-neutral position creator.",
+      Revenue: "Builder code revenue collected by Perpflow from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue collected by Perpflow from Hyperliquid Perps Trades.",
+    },
+  },
   "perpmate": {
     addresses: ["0xE4FEa748ECa48F44b1e042775F0C2363be1A2d80"],
     start: "2025-09-04",
@@ -222,6 +231,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Trading fees paid by users for perps in OneKey Wallet.",
       Revenue: "Fees collected by OneKey from Hyperliquid Perps as Builder Revenue.",
       ProtocolRevenue: "Fees collected by OneKey from Hyperliquid Perps as Builder Revenue.",
+    },
+  },
+  "omni-terminal": {
+    addresses: ["0x733f40a4fa0cd13d59abade04b9ed2e9acac6457"],
+    start: "2026-02-26",
+    methodology: {
+      Volume: "Total volume from users trading Hyperliquid perps through Omni Terminal.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Omni Terminal.",
+      Revenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
     },
   },
   "pear-interface": {
