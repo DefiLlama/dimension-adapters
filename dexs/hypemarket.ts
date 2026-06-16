@@ -20,47 +20,84 @@ const unwrap = (res: any) => res?.data ?? res;
 const getVolume = (): Promise<VolumePayload> => (cache.volume ??= httpGet(VOLUME_URL).then(unwrap));
 const getFees = (): Promise<FeesPayload> => (cache.fees ??= httpGet(FEES_URL).then(unwrap));
 
-// Raw base units -> whole SUPRA, added to a balances bag and priced by the framework
-// at the day's historical SUPRA price via the CoinGecko id.
-const addSupra = (bag: any, token: Token, raw: string | undefined) => {
-  const amount = Number(raw) / 10 ** token.decimals;
-  if (Number.isFinite(amount) && amount > 0) bag.addCGToken(token.coingeckoId || "supra", amount);
+const toSupra = (token: Token, raw: string | undefined): number => {
+  const amount = Number(raw) / 10 ** token.decimals; // raw base units -> whole SUPRA
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
 };
+// Priced by the framework at the day's historical SUPRA price via the CoinGecko id.
+const add = (bag: any, token: Token, amount: number) => {
+  if (amount > 0) bag.addCGToken(token.coingeckoId || "supra", amount);
+};
+
+const lastDay = (days: { day: string }[]): string | null => (days.length ? days[days.length - 1].day : null);
 
 const fetch = async (options: FetchOptions) => {
   const [vol, fee] = await Promise.all([getVolume(), getFees()]);
   const day = options.dateString;
-  const vRow = (vol.days || []).find((d) => d.day === day);
-  const fRow = (fee.days || []).find((d) => d.day === day);
+
+  // Fail (rather than emit 0) when the day is not yet covered by the backend. The volume
+  // series is the superset of active days, ordered ascending, refreshed to "today"; a day
+  // beyond its latest entry — or an empty series — means data is unavailable, not zero.
+  // A day *within* the covered range that is simply missing is a genuine no-activity day
+  // and correctly contributes 0 (volume and fees series can legitimately differ, e.g. a
+  // market-creation-only day has volume rows but no fee row).
+  const volLatest = lastDay(vol.days);
+  if (!volLatest || day > volLatest) {
+    throw new Error(`hypemarket: no data available for ${day}`);
+  }
+
+  const vRow = vol.days.find((d) => d.day === day);
+  const fRow = fee.days.find((d) => d.day === day);
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  if (vRow) addSupra(dailyVolume, vol.token, vRow.volumeRaw);
+  // Volume = buys + sells + market-creation seed. The seed mints equal shares of every
+  // outcome (economically: buying one of each outcome), so it is counted as volume.
+  if (vRow) add(dailyVolume, vol.token, toSupra(vol.token, vRow.volumeRaw));
   if (fRow) {
-    addSupra(dailyFees, fee.token, fRow.feesRaw);
-    addSupra(dailyRevenue, fee.token, fRow.protocolRevenueRaw); // protocol's cut
-    addSupra(dailySupplySideRevenue, fee.token, fRow.supplySideRevenueRaw); // creator + user fees
+    add(dailyFees, fee.token, toSupra(fee.token, fRow.feesRaw)); // total fees paid by users
+    add(dailyRevenue, fee.token, toSupra(fee.token, fRow.protocolRevenueRaw)); // protocol's cut
+    add(dailySupplySideRevenue, fee.token, toSupra(fee.token, fRow.supplySideRevenueRaw)); // creator + user fees
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.SUPRA],
-  // HypeMarket's first activity day (per /defillama/volume). Empty days harmlessly
-  // return 0, so an earlier start is safe.
-  start: "2026-06-04",
+  // Days within range with no trades correctly return 0; days beyond the computed range
+  // throw (unavailable).
+  start: "2026-06-08",
   methodology: {
     Volume:
-      "Daily notional collateral traded — buys + sells + market-creation liquidity mints — across HypeMarket LS-LMSR prediction markets on Supra, in native SUPRA priced at each day's SUPRA price. Matches the platform's reported total volume.",
+      "Daily trading volume across HypeMarket LS-LMSR prediction markets on Supra — buys + sells of outcome tokens plus market-creation seed liquidity — in native SUPRA priced at each day's SUPRA price. A market's creation seed is allocated evenly across all outcome tokens, which is economically equivalent to simultaneously buying one of every outcome, so it is counted as volume (matching the platform's reported total).",
     Fees:
       "Total trading fees paid by users (creator + protocol + user fees), derived from the on-chain fee schedule: fee = (creatorFeeBps + protocolFeeBps + userFeeBps)/1e4 of each trade's base notional.",
     Revenue: "Protocol's share of trading fees (protocol fee).",
     SupplySideRevenue: "Fees accruing to market creators and users (creator + user fees).",
+  },
+  breakdownMethodology: {
+    Volume: {
+      "Outcome trades": "Buys and sells of outcome tokens against the LS-LMSR AMM.",
+      "Creation seed": "Market-creation seed liquidity — equal shares minted across all outcomes (equivalent to buying one of each outcome).",
+    },
+    Fees: {
+      "Creator fees": "Per-market creator fee (creatorFeeBps) charged on each trade's base notional.",
+      "Protocol fee": "Protocol fee (protocolFeeBps) charged on each trade's base notional.",
+      "User fees": "User fee (userFeeBps) charged on each trade's base notional.",
+    },
+    Revenue: {
+      "Protocol fee": "Protocol's share of trading fees (protocolFeeBps).",
+    },
+    SupplySideRevenue: {
+      "Creator fees": "Fees paid to market creators (creatorFeeBps).",
+      "User fees": "Fees accruing to users (userFeeBps).",
+    },
   },
 };
 
