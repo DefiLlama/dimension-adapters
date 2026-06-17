@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
         COALESCE(count(distinct from_address), 0) as new_users
     FROM fraxtal.raw.transactions
     where nonce = 0
-      and block_timestamp BETWEEN '${start}' AND '${end}'
+      and block_timestamp >= '${start}' AND block_timestamp < '${end}'
   `;
 
     const alliumResult = await queryAllium(alliumQuery);
