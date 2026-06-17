@@ -29,7 +29,6 @@ const ZK_EXECUTORS = [
 const EVENT_SWAP_WITH_FEE = "event SwapWithFee(address indexed token,address indexed feeAddr,uint256 indexed amount)";
 const EEE_NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const SWAP_FEES = "Swap Fees";
-const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
 
 type ChainConfig = {
   start: string;
@@ -86,11 +85,9 @@ async function fetch(options: FetchOptions) {
   const { createBalances, chain } = options;
   const dailyFees = createBalances();
   const dailyUserFees = createBalances();
-  const dailyRevenue = createBalances();
-  const dailyProtocolRevenue = createBalances();
   const chainConfig = config[chain];
 
-  if (!chainConfig.feeTargets.length) return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
+  if (!chainConfig.feeTargets.length) return { dailyFees, dailyUserFees };
 
   const logs = await options.getLogs({
     targets: chainConfig.feeTargets,
@@ -105,21 +102,19 @@ async function fetch(options: FetchOptions) {
     if (!fee) return;
     addFeeAmount(dailyFees, fee.token, fee.amount, SWAP_FEES);
     addFeeAmount(dailyUserFees, fee.token, fee.amount, SWAP_FEES);
-    addFeeAmount(dailyRevenue, fee.token, fee.amount, SWAP_FEES_TO_PROTOCOL);
-    addFeeAmount(dailyProtocolRevenue, fee.token, fee.amount, SWAP_FEES_TO_PROTOCOL);
   });
 
-  return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
+  return { dailyFees, dailyUserFees };
 }
 
 async function fetchSolana(options: FetchOptions) {
   try {
     const dailyFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
-    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+    return { dailyFees, dailyUserFees: dailyFees };
   } catch (e: any) {
     if (e?.message?.includes('Allium API Key is required')) {
       const dailyFees = options.createBalances();
-      return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+      return { dailyFees, dailyUserFees: dailyFees };
     }
     throw e;
   }
@@ -132,12 +127,6 @@ const breakdownMethodology = {
   UserFees: {
     [SWAP_FEES]: "User-paid fees on Gate Swap routes.",
   },
-  Revenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Swap fees retained by Gate/protocol.",
-  },
-  ProtocolRevenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Protocol-retained swap fees sent to the Gate/protocol fee address.",
-  },
 };
 
 const adapter: SimpleAdapter = {
@@ -148,8 +137,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Fees paid by users to Gate Swap, tracked from SwapWithFee events on EVM and SOL transfers to fee address on Solana.",
     UserFees: "Fees paid by users to Gate Swap.",
-    Revenue: "SwapWithFee feeAddr is a Gate/protocol revenue address, so fees are counted as protocol revenue.",
-    ProtocolRevenue: "Protocol-retained swap fees.",
   },
   breakdownMethodology,
   adapter: {
