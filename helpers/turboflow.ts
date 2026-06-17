@@ -16,19 +16,6 @@ type MetricsResponse = {
       predictionMarketVolumeUsd: string;
       totalVolumeUsd: string;
     };
-    fees: {
-      flatFeesUsd: string;
-      profitShareFeesUsd: string;
-      eventContractsFeesUsd: string;
-      footballContractsFeesUsd?: string;
-      totalFeesUsd: string;
-    };
-    revenue: {
-      protocolRevenueUsd: string;
-      rebatesUsd: string;
-      lpVaultShareUsd: string;
-      tokenHolderRevenueUsd: string;
-    };
   };
 };
 
@@ -37,9 +24,6 @@ export type TurboFlowMetrics = {
   eventContractsVolumeUsd: number;
   footballVolumeUsd: number;
   predictionMarketVolumeUsd: number;
-  flatFeesUsd: number;
-  profitShareFeesUsd: number;
-  eventContractsFeesUsd: number;
 };
 
 export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<TurboFlowMetrics> {
@@ -49,7 +33,6 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
   }
 
   const volume = response.data.volume;
-  const fees = response.data.fees;
   const eventContractsVolumeUsd = parseRequiredNumber(
     volume.eventContractsVolumeUsd,
     "volume.eventContractsVolumeUsd",
@@ -64,9 +47,6 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
       volume.predictionMarketVolumeUsd,
       "volume.predictionMarketVolumeUsd",
     ),
-    flatFeesUsd: parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd"),
-    profitShareFeesUsd: parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd"),
-    eventContractsFeesUsd: parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd"),
   };
 }
 
