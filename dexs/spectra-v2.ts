@@ -250,42 +250,70 @@ const fetchDailyHoldersRevenue = async ({
 const fetch: FetchV2 = async (options) => {
   const { dailyFees, dailyVolume } = await fetchDailyFeesAndVolume(options);
 
-  const dailyRevenue = dailyFees.clone(0.8);
-  const dailySupplySideRevenue = dailyFees.clone(0.2);
   const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] =
     await fetchDailyHoldersRevenue(options);
 
+  const totalFees = options.createBalances()
+  const totalRevenue = options.createBalances()
+  const totalSupplySideRevenue = options.createBalances()
+  
+  totalFees.add(dailyFees, 'Yield Trading Fees')
+  totalFees.add(dailyVotingFeesRevenue, 'Voting Fees')
+  totalFees.add(dailyVotingIncentivesRevenue, 'Voting Incentives')
+
+  totalRevenue.add(dailyFees.clone(0.8), 'Yield Trading Fees To Holders')
+  totalRevenue.add(dailyVotingFeesRevenue, 'Voting Fees')
+  totalRevenue.add(dailyVotingIncentivesRevenue, 'Voting Incentives')
+
+  totalSupplySideRevenue.add(dailyFees.clone(0.2), 'Yield Trading Fees To LPs')
+  totalSupplySideRevenue.add(dailyFees.clone(0.2), 'Yield Trading Fees To Curve DAO')
+  
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
+    dailyFees: totalFees,
+    dailyRevenue: totalRevenue,
+    dailySupplySideRevenue: totalSupplySideRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyVotingFeesRevenue,
-    dailyBribesRevenue: dailyVotingIncentivesRevenue,
+    dailyHoldersRevenue: totalRevenue,
   };
 };
 
 const methodology = {
-  Fees: "All fees paid by yield traders.",
-  Revenue: "80% Trading fees collected as revenue.",
+  Fees: "Yield trading fees paid by users plus voting fees and voting incentives distributed through Spectra governance.",
+  Revenue: "Yield trading fees, voting fees, and voting incentives distributed to veSPECTRA holders.",
   ProtocolRevenue: "No protocol revenue.",
-  SupplySideRevenue: "20% trading fees distributed to LPs.",
-  BribesRevenue: "Voting incentives distributed to veSPECTRA.",
-  HoldersRevenue: "60% Trading fees distributed to veSPECTRA.",
+  HoldersRevenue: "Yield trading fees, voting fees, and voting incentives distributed to veSPECTRA holders.",
+  SupplySideRevenue: "Yield trading fees distributed to LPs and Curve DAO.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Yield Trading Fees': 'Fees paid by users on Spectra yield trading transactions.',
+    'Voting Fees': 'Voting fee rewards distributed through Spectra governance.',
+    'Voting Incentives': 'Voting incentives distributed through Spectra governance.',
+  },
+  Revenue: {
+    'Yield Trading Fees To Holders': 'Yield trading fees distributed to veSPECTRA holders.',
+    'Voting Fees': 'Voting fee rewards distributed to veSPECTRA holders.',
+    'Voting Incentives': 'Voting incentives distributed to veSPECTRA holders.',
+  },
+  HoldersRevenue: {
+    'Yield Trading Fees To Holders': 'Yield trading fees distributed to veSPECTRA holders.',
+    'Voting Fees': 'Voting fee rewards distributed to veSPECTRA holders.',
+    'Voting Incentives': 'Voting incentives distributed to veSPECTRA holders.',
+  },
+  SupplySideRevenue: {
+    'Yield Trading Fees To LPs': 'Yield trading fees distributed to LPs.',
+    'Yield Trading Fees To Curve DAO': 'Yield trading fees distributed to Curve DAO.',
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
-  adapter: {},
+  breakdownMethodology,
+  fetch,
+  adapter: chains,
 };
-
-for (const [chain, config] of Object.entries(chains)) {
-  (adapter.adapter as any)[chain] = {
-    fetch,
-    start: config.start,
-  };
-}
 
 export default adapter;

@@ -3,6 +3,7 @@ import fetchURL, { httpGet } from "../utils/fetchURL";
 import { ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
+import { routescanStatsExports } from "./utils/routescanStats";
 import { subscanStatsExports } from "./utils/subscanStats";
 
 async function solanaUsers(start: number, end: number) {
@@ -78,6 +79,7 @@ type ChainUserConfig = {
     id: string,
     chain: string,
     protocolType?: ProtocolType,
+    start?: string,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }
@@ -205,4 +207,4 @@ export default [
     type: "chain",
     chain: chain.chain,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, subscanStatsExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, routescanStatsExports, subscanStatsExports)

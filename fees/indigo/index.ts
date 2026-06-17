@@ -11,17 +11,17 @@ const IETH_TOKEN = 'f66d78b4a3cb3d37afa0ec36461e51ecbde00f26c8f0a68f94b698806945
 const ISOL_TOKEN = 'f66d78b4a3cb3d37afa0ec36461e51ecbde00f26c8f0a68f94b6988069534f4c';
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  // Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.
-  // Revenue is Fees minus Liquidations.
+  // Fees are CDP fees paid by users: mint fees, interest payments, and redemption fees,
+  // collected by the Treasury and by INDY stakers.
+  //
+  // Liquidations are intentionally NOT counted as fees: when a CDP is liquidated, its ADA
+  // collateral is distributed to Stability Pool depositors (who burn their iAssets to cover
+  // the debt). That collateral is the protocol's own TVL passing to other users, not a fee
+  // paid to the protocol, so including it overstates fees. This matches how other
+  // CDP/stability-pool adapters count liquidations (only the liquidation fee/penalty, never
+  // the seized collateral).
 
-  // Liquidations: the total amount of ADA sent to Stability Pool providers for a liquidation.
-  const liquidationsResponse = await axios.get(
-    ANALYTICS_API_ENDPOINT + `/api/revenue/liquidations?totals&from=${options.startTimestamp}&to=${options.endTimestamp}`,
-  );
-
-  const totalLovelaceLiquidations = Number(liquidationsResponse.data.totals['lovelace'] ?? 0);
-
-  // Collector Flows are all fees that are sent to INDY stakers: 
+  // Collector Flows are all fees that are sent to INDY stakers:
   // CDP Mint Fees, (partially) CDP Interest Payments, and Redemption Fees.
   const collectorFlowResponse = await axios.get(
     ANALYTICS_API_ENDPOINT + `/api/revenue/collector-flows?totals&inflows_only&from=${options.startTimestamp}&to=${options.endTimestamp}`,
@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 
   const dailyFeesUSD = options.createBalances();
-  dailyFeesUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows + totalLovelaceToIndyStakers + totalLovelaceLiquidations) / 1_000_000);
+  dailyFeesUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows + totalLovelaceToIndyStakers) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol', Number(flowsResponse.data.totals[INDY_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-iusd', Number(flowsResponse.data.totals[IUSD_TOKEN] ?? 0) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol-ibtc', Number(flowsResponse.data.totals[IBTC_TOKEN] ?? 0) / 1_000_000);
@@ -83,8 +83,8 @@ const adapter: Adapter = {
     },
   },
   methodology: {
-    Fees: "Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.",
-    Revenue: "Revenue is: Payments to Treasury, and CDP Payments to INDY Stakers.",
+    Fees: "CDP fees paid by users (mint fees, interest payments, and redemption fees), collected by the Treasury and INDY stakers. Excludes liquidated collateral, which is distributed to Stability Pool depositors rather than paid to the protocol.",
+    Revenue: "CDP fees collected by the Treasury and distributed to INDY stakers.",
   }
 };
 

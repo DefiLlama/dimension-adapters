@@ -6,7 +6,6 @@ import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
-import { METRIC } from "../helpers/metrics";
 
 const LYNX = '0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af';
 const bveLYNX = '0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b';
@@ -72,31 +71,51 @@ const fetch: any = async (options: FetchOptions) => {
     const dailyBribesRevenue = await fees_bribes(options)
     if (dailyFee === undefined) throw new Error("Failed to fetch daily fees for Lynex")
 
+    const dailyFees = options.createBalances()
+    const dailyUserFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyFeeUSDValue = Number(dailyFee.toString())
+
+    dailyFees.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees');
+    dailyUserFees.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees');
+    dailyFees.add(dailyBribesRevenue, 'Bribes Rewards');
+    dailyRevenue.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees To Holders');
+    dailyRevenue.add(dailyBribesRevenue, 'Bribes Revenue');
+  
     return {
-        dailyFees: dailyFee.toString(),
-        dailyUserFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
-        dailyHoldersRevenue: dailyFee.toString(),
-        dailyBribesRevenue
+        dailyFees,
+        dailyUserFees,
+        dailyRevenue,
+        dailyHoldersRevenue: dailyRevenue,
+        dailyProtocolRevenue: 0,
+        dailySupplySideRevenue: 0,
     };
 }
 
 const methodology = {
-    Fees: "Swap fees paid by traders on the Lynex DEX",
-    Revenue: "All swap fees are distributed to governance token holders",
-    HoldersRevenue: "Swap fees distributed to LYNX token holders plus bribes paid by external protocols to voters"
+    Fees: "Swap fees paid by users plus bribes rewards deposited for Lynex voters.",
+    UserFees: "Swap fees paid by users.",
+    Revenue: "Swap fees and bribes revenue distributed to LYNX governance token holders.",
+    ProtocolRevenue: "No protocol revenue.",
+    HoldersRevenue: "Swap fees and bribes revenue distributed to LYNX governance token holders.",
+    SupplySideRevenue: "No supply-side revenue.",
 }
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.SWAP_FEES]: "Fees paid by users on token swaps through the Lynex DEX"
+        'Token Swap Fees': "Swap fees paid by users on Lynex swaps.",
+        'Bribes Rewards': "Bribes rewards deposited by external protocols for Lynex voters.",
+    },
+    UserFees: {
+        'Token Swap Fees': "Swap fees paid by users on Lynex swaps.",
     },
     Revenue: {
-        [METRIC.SWAP_FEES]: "All swap fees are distributed to LYNX governance token holders"
+        'Token Swap Fees To Holders': "Swap fees distributed to LYNX governance token holders.",
+        'Bribes Revenue': "Bribes revenue distributed to LYNX governance token holders.",
     },
     HoldersRevenue: {
-        [METRIC.SWAP_FEES]: "Swap fees distributed to LYNX token holders",
-        'Bribes from external protocols': "Incentive tokens paid by external protocols to LYNX voters to direct liquidity gauge emissions"
+        'Token Swap Fees To Holders': "Swap fees distributed to LYNX governance token holders.",
+        'Bribes Revenue': "Bribes revenue distributed to LYNX governance token holders.",
     }
 }
 
