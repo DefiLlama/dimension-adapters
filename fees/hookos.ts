@@ -2,14 +2,17 @@ import { parseEther } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-// HookOS core fee contracts per chain, synced from the canonical deployment
-// registry (contracts/deployments/addresses.json) and verified on each chain's
-// explorer. All four core sources are deployed on every supported chain.
+// Per-chain HookOS core fee contracts. Addresses come from the canonical
+// deployment registry (contracts/deployments/addresses.json), the official docs
+// (https://docs.hookos.fun/contracts) and are verified on each chain's explorer.
+// NB: the same address can host different roles across chains because contracts
+// are deployed deterministically (same deployer + nonce ⇒ identical CREATE
+// address), e.g. 0x9B3d…adE5 is TokenFactory on Base but Arena on HyperEVM.
 type FeeContracts = {
-  BondingCurve: string; // emits Swap (1% fee: 0.70% protocol / 0.30% creator)
-  Arena: string;        // emits BattleSettled (5% protocol fee on pot)
-  TokenFactory: string; // emits TokenCreated (0.001 ETH launch fee)
-  HookRegistry: string; // emits HookRegistered (0.01 ETH registration fee)
+  BondingCurve: string;
+  Arena: string;
+  TokenFactory: string;
+  HookRegistry: string;
 };
 
 const CONTRACTS: Record<string, FeeContracts> = {
@@ -33,93 +36,127 @@ const CONTRACTS: Record<string, FeeContracts> = {
   },
 };
 
-const swapAbi = "event Swap(address indexed token, address indexed trader, bool isBuy, uint256 ethAmount, uint256 tokenAmount, uint256 fee)";
-const battleSettledAbi = "event BattleSettled(uint256 indexed battleId, address winner, uint256 pot, uint256 protocolFee)";
+// Fee rates are admin-settable on-chain values (not present in the emitted
+// events) and DO change over time, so they are read live from the contracts at
+// the queried block — on an archive node this yields the exact rate in effect on
+// that day. The constants below are only fallbacks for when a read is
+// unavailable; they are the deploy-time / documented defaults
+// (https://docs.hookos.fun/contracts): swap fee 1% (protocolFeeBps=100),
+// arena 2.5% (250), launch 0.005 ETH, registration 0.01 ETH.
+const DEFAULT_CURVE_FEE_BPS = 100n;
+const DEFAULT_CREATOR_FEE_BPS = 0n;
+const DEFAULT_ARENA_FEE_BPS = 250n;
+const DEFAULT_LAUNCH_FEE = parseEther("0.005");
+const DEFAULT_REGISTRATION_FEE = parseEther("0.01");
+
+// Event ABIs — verified against the deployed contract source
+// (HookOS protocol repo: BondingCurve.sol, Arena.sol, TokenFactory.sol, HookRegistry.sol).
+const tokenBoughtAbi = "event TokenBought(address indexed token, address indexed buyer, uint256 ethIn, uint256 tokensOut, uint256 newPrice)";
+const tokenSoldAbi = "event TokenSold(address indexed token, address indexed seller, uint256 tokensIn, uint256 ethOut, uint256 newPrice)";
+const battleSettledAbi = "event BattleSettled(uint256 indexed battleId, uint8 winner, uint256 totalPot)";
 const tokenCreatedAbi = "event TokenCreated(address indexed token, address indexed creator, string name, string symbol, uint256 initialSupply)";
-const hookRegisteredAbi = "event HookRegistered(bytes32 indexed hookId, address indexed author, string name, string category)";
+const hookRegisteredAbi = "event HookRegistered(bytes32 indexed hookId, address indexed author, string name, address implementation)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { getLogs, createBalances, chain } = options;
-  const contracts = CONTRACTS[chain];
+  const { getLogs, createBalances, api, chain } = options;
+  const c = CONTRACTS[chain];
 
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  // BondingCurve swap fees (1% total: 0.70% protocol, 0.30% creator)
-  const swapLogs = await getLogs({
-    target: contracts.BondingCurve,
-    eventAbi: swapAbi,
-  });
-  for (const log of swapLogs) {
-    // split 70/30 via remainder so dailyFees === protocol + supplySide exactly (no dropped wei)
-    const protocolShare = log.fee * 70n / 100n;
-    const creatorShare = log.fee - protocolShare;
-    dailyFees.addGasToken(log.fee, 'Swap Fees');
-    dailyProtocolRevenue.addGasToken(protocolShare, 'Swap Fees To Protocol');
-    dailySupplySideRevenue.addGasToken(creatorShare, 'Swap Fees To Creators');
+  // Read the live fee rates at the queried block (admin-settable; on an archive
+  // node this is the exact rate in effect that day). Reads that fail fall back to
+  // documented defaults.
+  const readUint = (target: string, fn: string, fallback: bigint) =>
+    api.call({ target, abi: `function ${fn}() view returns (uint256)` }).then(BigInt).catch(() => fallback);
+
+  let [curveFeeBps, creatorFeeBps, arenaFeeBps, launchFee, registrationFee] = await Promise.all([
+    readUint(c.BondingCurve, "protocolFeeBps", DEFAULT_CURVE_FEE_BPS),
+    readUint(c.BondingCurve, "creatorFeeBps", DEFAULT_CREATOR_FEE_BPS),
+    readUint(c.Arena, "protocolFeeBps", DEFAULT_ARENA_FEE_BPS),
+    readUint(c.TokenFactory, "launchFee", DEFAULT_LAUNCH_FEE),
+    readUint(c.HookRegistry, "registrationFee", DEFAULT_REGISTRATION_FEE),
+  ]);
+  // Guard against a garbage/zero read (e.g. from a non-archive RPC) that would
+  // break the sell-fee reconstruction or misattribute the creator split.
+  if (curveFeeBps <= 0n || curveFeeBps >= 10000n) curveFeeBps = DEFAULT_CURVE_FEE_BPS;
+  if (creatorFeeBps > curveFeeBps) creatorFeeBps = curveFeeBps;
+
+  // BondingCurve swap fees: curveFeeBps of the gross trade ETH on every buy/sell.
+  // Buys emit gross ethIn (msg.value); sells emit net ethOut (proceeds after fee).
+  // The creator slice mirrors the contract (creatorFee = totalFee * creatorFeeBps /
+  // protocolFeeBps), which is always ≤ totalFee, so the protocol share stays positive.
+  const [buyLogs, sellLogs] = await Promise.all([
+    getLogs({ target: c.BondingCurve, eventAbi: tokenBoughtAbi }),
+    getLogs({ target: c.BondingCurve, eventAbi: tokenSoldAbi }),
+  ]);
+  const addSwapFee = (totalFee: bigint) => {
+    dailyFees.addGasToken(totalFee, 'Swap Fees');
+    if (creatorFeeBps > 0n) {
+      dailySupplySideRevenue.addGasToken((totalFee * creatorFeeBps) / curveFeeBps, 'Creator Fees');
+    }
+  };
+  for (const log of buyLogs) {
+    addSwapFee((log.ethIn * curveFeeBps) / 10000n);
+  }
+  for (const log of sellLogs) {
+    // reconstruct fee from net proceeds: gross = ethOut / (1 - curveFeeBps/10000)
+    addSwapFee((log.ethOut * curveFeeBps) / (10000n - curveFeeBps));
   }
 
-  // Arena battle fees (5% of pot, all protocol)
-  const battleLogs = await getLogs({
-    target: contracts.Arena,
-    eventAbi: battleSettledAbi,
-  });
+  // Arena battle fees: arenaFeeBps of the settled pot, all protocol.
+  const battleLogs = await getLogs({ target: c.Arena, eventAbi: battleSettledAbi });
   for (const log of battleLogs) {
-    dailyFees.addGasToken(log.protocolFee, 'Arena Battle Fees');
-    dailyProtocolRevenue.addGasToken(log.protocolFee, 'Arena Battle Fees To Protocol');
+    dailyFees.addGasToken((log.totalPot * arenaFeeBps) / 10000n, 'Arena Battle Fees');
   }
 
-  // Token launch fees (0.001 ETH flat fee per launch, charged by TokenFactory, all protocol)
-  const launchLogs = await getLogs({
-    target: contracts.TokenFactory,
-    eventAbi: tokenCreatedAbi,
-  });
-  const launchFee = parseEther("0.001") * BigInt(launchLogs.length);
-  dailyFees.addGasToken(launchFee, 'Token Launch Fees');
-  dailyProtocolRevenue.addGasToken(launchFee, 'Token Launch Fees To Protocol');
+  // Token launch fees: flat launchFee per TokenCreated, all protocol.
+  if (launchFee > 0n) {
+    const launchLogs = await getLogs({ target: c.TokenFactory, eventAbi: tokenCreatedAbi });
+    dailyFees.addGasToken(launchFee * BigInt(launchLogs.length), 'Token Launch Fees');
+  }
 
-  // Hook registration fees (0.01 ETH flat fee per registration, charged by HookRegistry, all protocol)
-  const registryLogs = await getLogs({
-    target: contracts.HookRegistry,
-    eventAbi: hookRegisteredAbi,
-  });
-  const regFee = parseEther("0.01") * BigInt(registryLogs.length);
-  dailyFees.addGasToken(regFee, 'Hook Registration Fees');
-  dailyProtocolRevenue.addGasToken(regFee, 'Hook Registration Fees To Protocol');
+  // Hook registration fees: flat registrationFee per HookRegistered, all protocol.
+  if (registrationFee > 0n) {
+    const registryLogs = await getLogs({ target: c.HookRegistry, eventAbi: hookRegisteredAbi });
+    dailyFees.addGasToken(registrationFee * BigInt(registryLogs.length), 'Hook Registration Fees');
+  }
+
+  // Protocol revenue = all fees minus the creator (supply-side) share.
+  dailyProtocolRevenue.addBalances(dailyFees);
+  dailyProtocolRevenue.subtract(dailySupplySideRevenue);
 
   return { dailyFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "Sum of all protocol fees: bonding curve swap fees (1%), arena battle fees (5% of pots), token launch fees (0.001 ETH), and hook registration fees (0.01 ETH).",
-  Revenue: "Protocol's share: 70% of bonding curve fees, 100% of arena/launch/registration fees.",
-  SupplySideRevenue: "Creator earnings: 30% of bonding curve swap fees.",
+  Fees: "All protocol fees: bonding-curve swap fees (curveFeeBps of trade ETH), arena battle fees (arenaFeeBps of the pot), token launch fees (flat launchFee per launch) and hook registration fees (flat registrationFee per registration). Rates are the verified on-chain values.",
+  Revenue: "Fees retained by the protocol: total fees minus the creator share of bonding-curve swap fees.",
+  ProtocolRevenue: "Same as Revenue — fees retained by the protocol.",
+  SupplySideRevenue: "Creator earnings: the share of bonding-curve swap fees routed to token creators.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    'Swap Fees': 'Bonding curve swap fees (1% of ETH volume).',
-    'Arena Battle Fees': '5% protocol fee on arena battle pots.',
-    'Token Launch Fees': '0.001 ETH flat fee per token launch.',
-    'Hook Registration Fees': '0.01 ETH flat fee per hook registration.',
-  },
-  Revenue: {
-    'Swap Fees To Protocol': '70% of bonding curve swap fees.',
-    'Arena Battle Fees To Protocol': '100% of arena battle fees.',
-    'Token Launch Fees To Protocol': '100% of token launch fees.',
-    'Hook Registration Fees To Protocol': '100% of hook registration fees.',
+    'Swap Fees': 'Bonding curve swap fees (curveFeeBps of gross trade ETH).',
+    'Arena Battle Fees': 'arenaFeeBps of arena battle pots.',
+    'Token Launch Fees': 'Flat launchFee charged per token launch.',
+    'Hook Registration Fees': 'Flat registrationFee charged per hook registration.',
   },
   SupplySideRevenue: {
-    'Swap Fees To Creators': '30% of bonding curve swap fees to token creators.',
+    'Creator Fees': 'Share of bonding-curve swap fees routed to token creators.',
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  start: "2024-06-01",
-  chains: [CHAIN.BASE, CHAIN.MEGAETH, CHAIN.HYPERLIQUID],
+  chains: [
+    [CHAIN.BASE, { start: '2026-06-05' }],
+    [CHAIN.MEGAETH, { start: '2026-06-14' }],
+    [CHAIN.HYPERLIQUID, { start: '2026-06-07' }],
+  ],
   methodology,
   breakdownMethodology,
   pullHourly: true,
