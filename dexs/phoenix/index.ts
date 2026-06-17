@@ -5,7 +5,7 @@ import { queryAllium } from "../../helpers/allium";
 const fetch = async (options: FetchOptions) => {
   const data = await queryAllium(`
     SELECT
-      SUM(usd_amount) AS daily_volume
+      COALESCE(SUM(usd_amount), 0) AS daily_volume
     FROM solana.dex.trades
     WHERE project = 'phoenix'
       AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
@@ -13,12 +13,13 @@ const fetch = async (options: FetchOptions) => {
   `);
 
   return {
-    dailyVolume: data[0]?.daily_volume ?? 0,
+    dailyVolume: data[0].daily_volume,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2023-02-27',
