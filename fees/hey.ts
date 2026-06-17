@@ -261,7 +261,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.LENS],
-  start: "2026-05-16",
+  start: "2026-05-15",
   methodology,
   breakdownMethodology,
 };
