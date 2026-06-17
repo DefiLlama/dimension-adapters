@@ -1,12 +1,31 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { getSolanaReceived } from "../../helpers/token";
 
-// Gate fee collector contracts confirmed from SwapWithFee logs on supported chains.
-const FEE_COLLECTOR_A = "0x00000000ae2193c4ac6521146b1adafe9b43361d";
-const FEE_COLLECTOR_B = "0x00000000d204b71c77e1fa21cf0892c6590ca78b";
-const FEE_COLLECTOR_C = "0x0000000071647c6c1ae028daf9f80c000beac2cc";
-const FEE_COLLECTOR_D = "0x000000003fb974cfdd8f715353b005628b97bfa3";
+// Solana fee collector confirmed from test files in gateio-service-web3-build and gateio_service_web3_swap_job
+const SOL_FEE_COLLECTOR = "BmDFarMxxp6ZBMZc768iWXbSEiGBVb4UvnE7hEUG7at7";
+
+// Standard EVM executor contracts (all chains except zkSync ERA)
+const EVM_EXECUTORS = [
+  "0x00000000AE2193C4ac6521146B1ADaFe9b43361D",
+  "0x00000000D204b71c77e1fA21cF0892C6590cA78b",
+  "0x000000003645ebC3cf33167962D5477F54f4c459",
+  "0x0000000071647c6C1AE028daf9f80c000bEac2cC",
+  "0x000000003FB974cfdd8f715353B005628b97bFA3",
+  "0x00000000f9FF568cF0362FDfd1d2567C1E10fe0d",
+];
+
+// zkSync ERA executor contracts (separate deployment)
+const ZK_EXECUTORS = [
+  "0x00000000d775b5a65b1e51a0105eab5010B6AA85",
+  "0x000000009f4317D004E69653FE4b36D39539B1C6",
+  "0x0000000006b30ec04411E405803f7B249a76E0A0",
+  "0x000000003bFfDA9D8E05dCEeBe2Ece70c9bDa854",
+  "0x0000000036749ccbf6c63f9d957C8DfF6213cb74",
+  "0x00000000D2650fc4c90a32Dfcc70b0B7c842D94C",
+];
+
 const EVENT_SWAP_WITH_FEE = "event SwapWithFee(address indexed token,address indexed feeAddr,uint256 indexed amount)";
 const EEE_NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const SWAP_FEES = "Swap Fees";
@@ -18,21 +37,21 @@ type ChainConfig = {
 };
 
 const config: Record<string, ChainConfig> = {
-  [CHAIN.ETHEREUM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
-  [CHAIN.BSC]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
-  [CHAIN.BASE]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
-  [CHAIN.ARBITRUM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
-  [CHAIN.AVAX]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.BLAST]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.LINEA]: { start: "2025-09-10", feeTargets: [] },
-  [CHAIN.OPTIMISM]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_C] },
-  [CHAIN.GATE_LAYER]: { start: "2026-02-28", feeTargets: [FEE_COLLECTOR_A] },
-  [CHAIN.BERACHAIN]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.ENI]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.SONIC]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.POLYGON]: { start: "2026-03-04", feeTargets: [FEE_COLLECTOR_C] },
-  [CHAIN.WC]: { start: "2026-02-28", feeTargets: [] },
-  [CHAIN.ERA]: { start: "2025-09-01", feeTargets: [] },
+  [CHAIN.ETHEREUM]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.BSC]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.BASE]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.ARBITRUM]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.AVAX]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.BLAST]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.LINEA]: { start: "2025-09-10", feeTargets: EVM_EXECUTORS },
+  [CHAIN.OPTIMISM]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.GATE_LAYER]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.BERACHAIN]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.ENI]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.SONIC]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.POLYGON]: { start: "2026-03-04", feeTargets: EVM_EXECUTORS },
+  [CHAIN.WC]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
+  [CHAIN.ERA]: { start: "2025-09-01", feeTargets: ZK_EXECUTORS },
 };
 
 function getAddressFromTopic(topic: string) {
@@ -93,6 +112,11 @@ async function fetch(options: FetchOptions) {
   return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
 }
 
+async function fetchSolana(options: FetchOptions) {
+  const dailyFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+}
+
 const breakdownMethodology = {
   Fees: {
     [SWAP_FEES]: "Fees paid by users on Gate Swap routes.",
@@ -111,14 +135,19 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology: {
-    Fees: "Fees paid by users to Gate Swap, tracked from SwapWithFee events.",
-    UserFees: "Fees paid by users to Gate Swap, tracked from SwapWithFee events.",
+    Fees: "Fees paid by users to Gate Swap, tracked from SwapWithFee events on EVM and SOL transfers to fee address on Solana.",
+    UserFees: "Fees paid by users to Gate Swap.",
     Revenue: "SwapWithFee feeAddr is a Gate/protocol revenue address, so fees are counted as protocol revenue.",
-    ProtocolRevenue: "SwapWithFee feeAddr is a Gate/protocol revenue address, so fees are counted as protocol revenue.",
+    ProtocolRevenue: "Protocol-retained swap fees.",
   },
   breakdownMethodology,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])),
+  adapter: {
+    ...Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])),
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-02-28" },
+  },
 };
 
 export default adapter;

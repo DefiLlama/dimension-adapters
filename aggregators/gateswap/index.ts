@@ -1,10 +1,18 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { queryDuneSql } from "../../helpers/dune";
+
+// Solana Gate Swap programs
+const SOL_ALPHA_PROGRAM = "4w3DZU3zBu7149sTmEZ2XFTNxuvuX3F9f9heQFi6YtS6";
+const SOL_NATIVE_PROGRAM = "2rwUXt3JeyPtUBjH5pscZLRDBoh9WADfXq7gyoDnLcC4";
+// Jupiter route txs have no Gate program ID, identified by fee transfer to this address
+const SOL_FEE_COLLECTOR = "BmDFarMxxp6ZBMZc768iWXbSEiGBVb4UvnE7hEUG7at7";
 
 const GATE_SWAP_ROUTER = "0x0000000025e904C59aFDB33d50F982d46A7FF880";
-const GATE_SWAP_ROUTER_ZKSYNC = "0x196a35f7d5fcc9838a4b72a82602e737943d6c07";
-const ALPHA_ROUTER = "0x000000003d55f1535A0116376858e6008De1435a";
+const GATE_SWAP_ROUTER_ZKSYNC = "0x00000000599e65803D946115C7f817E2e8C7656a";
+// Alpha routers by chain
+const ALPHA_ROUTER = "0x000000003d55f1535A0116376858e6008De1435a"; // ETH,BSC,Base,ARB,OP,AVAX,Polygon,Bera,GateLayer,ENI,WC
 const ALPHA_ROUTER_LINEA = "0xefE7a50f92b089B06d0e6cbCC85D7584424921B2";
 const ALPHA_ROUTER_ZKSYNC = "0xc438733Eb259D18bCA253495b209C3cd82B73902";
 
@@ -26,11 +34,11 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.AVAX]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.BLAST]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER] },
   [CHAIN.LINEA]: { start: "2025-09-10", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER_LINEA] },
-  [CHAIN.OPTIMISM]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER] },
+  [CHAIN.OPTIMISM]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.GATE_LAYER]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.BERACHAIN]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.ENI]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
-  [CHAIN.SONIC]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER] },
+  [CHAIN.SONIC]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.POLYGON]: { start: "2026-03-04", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.WC]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.ERA]: { start: "2025-09-01", routers: [GATE_SWAP_ROUTER_ZKSYNC], alphaRouters: [ALPHA_ROUTER_ZKSYNC] },
@@ -69,13 +77,56 @@ async function fetch(options: FetchOptions) {
   return { dailyVolume };
 }
 
+async function fetchSolana(options: FetchOptions) {
+  const data = await queryDuneSql(
+    options,
+    `
+    WITH gateswap_txs AS (
+      -- 自研 + Alpha: identified by Gate program ID in account_keys
+      SELECT DISTINCT id AS tx_id
+      FROM solana.transactions
+      WHERE TIME_RANGE
+        AND success = true
+        AND (
+          CONTAINS(account_keys, '${SOL_ALPHA_PROGRAM}')
+          OR CONTAINS(account_keys, '${SOL_NATIVE_PROGRAM}')
+        )
+
+      UNION
+
+      -- Jupiter route: no Gate program ID, identified by fee transfer to fee collector
+      SELECT DISTINCT tx_id
+      FROM solana.account_activity
+      WHERE TIME_RANGE
+        AND address = '${SOL_FEE_COLLECTOR}'
+        AND amount > 0
+    )
+    SELECT COALESCE(SUM(t.amount_usd), 0) AS daily_volume
+    FROM dex_solana.trades t
+    JOIN gateswap_txs g ON t.tx_id = g.tx_id
+    WHERE TIME_RANGE
+    `,
+  );
+
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(data[0]?.daily_volume ?? 0);
+  return { dailyVolume };
+}
+
+const evmAdapter = Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }]));
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
-    Volume: "Gate Swap aggregator volume is calculated from SwapDetail amountOut events and Alpha Order amountOut events across supported chains.",
+    Volume: "Gate Swap aggregator volume: EVM chains use SwapDetail/Alpha Order events; Solana uses dex_solana.trades for txs identified by Gate program IDs (自研/Alpha) or fee transfers to the Gate fee collector (Jupiter route).",
   },
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])),
+  adapter: {
+    ...evmAdapter,
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-02-28" },
+  },
 };
 
 export default adapter;
