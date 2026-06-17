@@ -5,6 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 const API_URL = "https://vol.mainnet.deriverse.io/volumes";
 const MARKET = "spot";
 const HOUR_SECONDS = 60 * 60;
+const DAY_SECONDS = 24 * HOUR_SECONDS;
 const HOURLY_START_TIMESTAMP = 1779321600; // 2026-05-21T00:00:00.000Z
 
 interface VolumeResponse {
@@ -63,12 +64,16 @@ const fetchRangeVolume = async (options: FetchOptions, bucketStartTimestamp: num
 
 const fetchDailyBackfillVolume = async (options: FetchOptions) => {
   const response: VolumeResponse = await httpGet(`${API_URL}?period=day&date=${options.dateString}&market=${MARKET}`);
+  const expectedWindowEnd = new Date((Date.parse(`${options.dateString}T00:00:00.000Z`) / 1000 + DAY_SECONDS) * 1000)
+    .toISOString()
+    .slice(0, 10);
 
   if (
     response.period !== "day" ||
     response.market !== MARKET ||
     response.date !== options.dateString ||
-    response.windowStart !== options.dateString
+    response.windowStart !== options.dateString ||
+    response.windowEnd !== expectedWindowEnd
   ) {
     throw new Error(`Unexpected Deriverse daily volume API response for ${options.dateString}`);
   }
@@ -83,7 +88,9 @@ const fetch = async (options: FetchOptions) => {
     return fetchRangeVolume(options, bucketStartTimestamp);
   }
 
-  if (bucketStartTimestamp !== options.startOfDay) return { dailyVolume: 0 };
+  if (bucketStartTimestamp !== options.startTimestamp + 1 || bucketStartTimestamp % DAY_SECONDS !== 0) {
+    return { dailyVolume: 0 };
+  }
 
   return fetchDailyBackfillVolume(options);
 };
