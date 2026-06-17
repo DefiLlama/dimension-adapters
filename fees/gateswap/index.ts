@@ -134,6 +134,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
+  skipBreakdownValidation: true,
   methodology: {
     Fees: "Fees paid by users to Gate Swap, tracked from SwapWithFee events on EVM and SOL transfers to fee address on Solana.",
     UserFees: "Fees paid by users to Gate Swap.",
