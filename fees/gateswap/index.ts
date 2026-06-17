@@ -101,11 +101,11 @@ async function fetch(options: FetchOptions) {
 async function fetchSolana(options: FetchOptions) {
   try {
     const dailyFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
-    return { dailyFees, dailyUserFees: dailyFees };
+    const dailyUserFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
+    return { dailyFees, dailyUserFees };
   } catch (e: any) {
     if (e?.message?.includes('Allium API Key is required')) {
-      const dailyFees = options.createBalances();
-      return { dailyFees, dailyUserFees: dailyFees };
+      return { dailyFees: options.createBalances(), dailyUserFees: options.createBalances() };
     }
     throw e;
   }

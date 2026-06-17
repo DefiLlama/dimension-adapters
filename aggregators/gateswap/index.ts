@@ -85,7 +85,7 @@ async function fetchSolana(options: FetchOptions) {
       options,
       `
     WITH gateswap_txs AS (
-      -- 自研 + Alpha: identified by Gate program ID in account_keys
+      -- Native + Alpha: identified by Gate program ID in account_keys
       SELECT DISTINCT id AS tx_id
       FROM solana.transactions
       WHERE TIME_RANGE
