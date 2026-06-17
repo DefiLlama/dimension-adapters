@@ -30,11 +30,16 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+const methodology = {
+  Volume: "Total USD value of swaps executed through THORChain's liquidity pools, sourced from THORChain Midgard. Every swap routes through native RUNE and settles on the THORChain L1, so volume is reported on the THORChain chain. Daily RUNE-denominated swap volume is converted to USD using that day's RUNE price.",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.THORCHAIN],
   start: '2022-09-07',
+  methodology,
 };
 
 export default adapter;
