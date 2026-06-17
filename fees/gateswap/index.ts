@@ -58,19 +58,10 @@ function getAddressFromTopic(topic: string) {
 }
 
 function parseSwapWithFeeLog(log: any) {
-  if (log.topics?.length === 4) {
-    return {
-      token: getAddressFromTopic(log.topics[1]),
-      amount: BigInt(log.topics[3]).toString(),
-    };
-  }
-
-  const data = log.data?.replace(/^0x/, "") ?? "";
-  if (data.length < 64 * 3) return undefined;
-
+  if (log.topics?.length !== 4) return undefined;
   return {
-    token: `0x${data.slice(24, 64)}`,
-    amount: BigInt(`0x${data.slice(128, 192)}`).toString(),
+    token: getAddressFromTopic(log.topics[1]),
+    amount: BigInt(log.topics[3]).toString(),
   };
 }
 
