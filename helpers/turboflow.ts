@@ -21,8 +21,6 @@ type MetricsResponse = {
 
 export type TurboFlowMetrics = {
   perpVolumeUsd: number;
-  eventContractsVolumeUsd: number;
-  footballVolumeUsd: number;
   predictionMarketVolumeUsd: number;
 };
 
@@ -33,16 +31,9 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
   }
 
   const volume = response.data.volume;
-  const eventContractsVolumeUsd = parseRequiredNumber(
-    volume.eventContractsVolumeUsd,
-    "volume.eventContractsVolumeUsd",
-  );
-  const footballVolumeUsd = parseRequiredNumber(volume.footballVolumeUsd, "volume.footballVolumeUsd");
 
   return {
     perpVolumeUsd: parseRequiredNumber(volume.perpVolumeUsd, "volume.perpVolumeUsd"),
-    eventContractsVolumeUsd,
-    footballVolumeUsd,
     predictionMarketVolumeUsd: parseRequiredNumber(
       volume.predictionMarketVolumeUsd,
       "volume.predictionMarketVolumeUsd",
