@@ -52,11 +52,12 @@ const fetchFeeInflows = async (
 
   let before_lt: string | undefined;
   let before_hash: string | undefined;
+  let offset = 0;
   const seen = new Set<string>();
 
   while (true) {
     const url =
-      `https://toncenter.com/api/v3/transactions?account=${FEE_WALLET}&start_utime=${start}&end_utime=${end}&limit=1000&offset=0&sort=desc` +
+      `https://toncenter.com/api/v3/transactions?account=${FEE_WALLET}&start_utime=${start}&end_utime=${end}&limit=1000&offset=${offset}&sort=desc` +
       (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
 
     let data: any;
@@ -101,6 +102,7 @@ const fetchFeeInflows = async (
 
     before_lt = String(lastTx.lt);
     before_hash = String(lastTx.hash);
+    offset += 1000;
 
     await sleep(1000);
   }
