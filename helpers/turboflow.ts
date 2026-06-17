@@ -12,8 +12,8 @@ type MetricsResponse = {
     volume: {
       perpVolumeUsd: string;
       eventContractsVolumeUsd: string;
-      footballVolumeUsd?: string;
-      predictionMarketVolumeUsd?: string;
+      footballVolumeUsd: string;
+      predictionMarketVolumeUsd: string;
       totalVolumeUsd: string;
     };
     fees: {
