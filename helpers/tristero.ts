@@ -33,6 +33,12 @@ type TristeroV3MarginChainConfig = {
   escrows: TristeroV3MarginEscrowConfig[];
 };
 
+type TristeroV3RouterConfig = {
+  start: string;
+  end?: string;
+  router: string;
+};
+
 const MULTICALL_FALLBACK_BATCH_SIZE = 5;
 
 type PermitFailureMultiCallParams = {
@@ -136,6 +142,9 @@ const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
   },
 } as const;
 
+// V3 margin contracts follow Tristero backend addresses.yml rollouts
+// (d10f35b9 / 161a80b0). Older escrows stay active so still-open positions
+// continue to be counted; day overlaps reflect public explorer cutover activity.
 const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: '2026-05-21',
@@ -144,6 +153,16 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
         vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
         start: '2026-05-21',
+      },
+      {
+        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-09',
+      },
+      {
+        address: '0x25E1c35721F8826B29401ed628D120037891312c',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-14',
       },
     ],
   },
@@ -154,6 +173,31 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
         vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
         start: '2026-05-21',
+      },
+      {
+        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-09',
+      },
+      {
+        address: '0x25E1c35721F8826B29401ed628D120037891312c',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-15',
+      },
+    ],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2026-06-09',
+    escrows: [
+      {
+        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-09',
+      },
+      {
+        address: '0x25E1c35721F8826B29401ed628D120037891312c',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-15',
       },
     ],
   },
@@ -194,9 +238,24 @@ export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
   [CHAIN.UNICHAIN]: { start: "2025-11-27" },
 };
 
-const TRISTERO_V3_ROUTER_CONFIGS: Record<string, { start: string; router: string }> = {
-  [CHAIN.ARBITRUM]: { start: "2026-05-21", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
-  [CHAIN.BASE]: { start: "2026-05-21", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
+// V3 source-side volume is indexed from router.send() calls. The schedule mirrors
+// Tristero backend addresses.yml generations (d10f35b9 / 161a80b0); day overlaps
+// reflect public explorer cutover activity and are safe because each tx has one router.
+const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
+  [CHAIN.ARBITRUM]: [
+    { start: "2026-05-21", end: "2026-06-09", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
+    { start: "2026-06-09", end: "2026-06-15", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
+    { start: "2026-06-14", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+  ],
+  [CHAIN.BASE]: [
+    { start: "2026-05-21", end: "2026-06-08", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
+    { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
+    { start: "2026-06-15", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+  ],
+  [CHAIN.ETHEREUM]: [
+    { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
+    { start: "2026-06-15", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+  ],
 };
 
 const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
@@ -249,6 +308,11 @@ export function getActiveTristeroMarginEscrows(chain: string, date: string): str
 
 export function getActiveTristeroV3MarginEscrows(chain: string, date: string): TristeroV3MarginEscrowConfig[] {
   return (TRISTERO_V3_MARGIN_CONFIGS[chain]?.escrows ?? [])
+    .filter(({ start, end }) => date >= start && (!end || date <= end));
+}
+
+export function getActiveTristeroV3Routers(chain: string, date: string): TristeroV3RouterConfig[] {
+  return (TRISTERO_V3_ROUTER_CONFIGS[chain] ?? [])
     .filter(({ start, end }) => date >= start && (!end || date <= end));
 }
 
@@ -994,14 +1058,11 @@ function groupClosePositionsByTxHash(positions: TristeroV3MarginPosition[], clos
 }
 
 async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balances) {
-  const config = TRISTERO_V3_ROUTER_CONFIGS[options.chain];
-  if (!config || options.dateString < config.start) return;
-
   const activeV3Escrows = getActiveTristeroV3MarginEscrows(options.chain, options.dateString);
+  if (!activeV3Escrows.length) return;
+
   const escrowAddresses = activeV3Escrows.map(({ address }) => address);
-  const closeLogs = escrowAddresses.length
-    ? await options.getLogs({ targets: escrowAddresses, eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed, entireLog: true })
-    : [];
+  const closeLogs = await options.getLogs({ targets: escrowAddresses, eventAbi: TRISTERO_V3_MARGIN_ABI.positionClosed, entireLog: true });
 
   const closeTxHashes = [...new Set(closeLogs.map(getLogTxHash).filter((txHash): txHash is string => !!txHash))];
   if (!closeTxHashes.length) return;
@@ -1045,25 +1106,27 @@ async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balanc
 }
 
 async function addV3RouterOpenVolume(options: FetchOptions, dailyVolume: Balances) {
-  const config = TRISTERO_V3_ROUTER_CONFIGS[options.chain];
-  if (!config || options.dateString < config.start || !ORDER_ROUTER_SEND_SELECTOR) return;
+  const activeV3Routers = getActiveTristeroV3Routers(options.chain, options.dateString);
+  if (!activeV3Routers.length || !ORDER_ROUTER_SEND_SELECTOR) return;
 
-  const txRows = await queryClickhouse<Row & { hash: string; input: string }>(`
-    SELECT hash, input
-    FROM evm_indexer.transactions
-    WHERE chain = {chain:UInt64}
-      AND to_address = {router:String}
-      AND startsWith(input, {selector:String})
-      AND status = 'success'
-      AND timestamp >= toDateTime({fromTs:UInt32})
-      AND timestamp < toDateTime({toTs:UInt32})
-  `, {
-    chain: Number(options.api.chainId),
-    router: config.router.toLowerCase(),
-    selector: ORDER_ROUTER_SEND_SELECTOR,
-    fromTs: options.fromTimestamp,
-    toTs: options.toTimestamp,
-  });
+  const txRows = (
+    await Promise.all(activeV3Routers.map(({ router }) => queryClickhouse<Row & { hash: string; input: string }>(`
+      SELECT hash, input
+      FROM evm_indexer.transactions
+      WHERE chain = {chain:UInt64}
+        AND to_address = {router:String}
+        AND startsWith(input, {selector:String})
+        AND status = 'success'
+        AND timestamp >= toDateTime({fromTs:UInt32})
+        AND timestamp < toDateTime({toTs:UInt32})
+    `, {
+      chain: Number(options.api.chainId),
+      router: router.toLowerCase(),
+      selector: ORDER_ROUTER_SEND_SELECTOR,
+      fromTs: options.fromTimestamp,
+      toTs: options.toTimestamp,
+    })))
+  ).flat();
 
   for (const row of txRows) {
     const decodedOrder = decodeV3SendOrder(String(row.input));
