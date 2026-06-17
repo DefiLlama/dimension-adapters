@@ -13,6 +13,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   if (!shouldReturnProtocolMetrics(options)) {
     return {
@@ -20,6 +21,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       dailyUserFees,
       dailyRevenue,
       dailyProtocolRevenue,
+      dailySupplySideRevenue,
     };
   }
 
@@ -42,12 +44,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: false,
   chains: [CHAIN.BSC, CHAIN.SOLANA],
   start: "2025-10-19",
   methodology: {
@@ -59,6 +63,8 @@ const adapter: SimpleAdapter = {
       "All reported fees are retained as protocol revenue. TurboFlow currently has no LP, market-maker, referral, rebate, or token-holder revenue split.",
     ProtocolRevenue:
       "All reported revenue is protocol revenue. TurboFlow has no token-holder revenue.",
+    SupplySideRevenue:
+      "TurboFlow currently has no LP, market-maker, referral, rebate, or holder revenue split.",
   },
   breakdownMethodology: {
     Fees: {

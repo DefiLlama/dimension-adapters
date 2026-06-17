@@ -50,18 +50,23 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
 
   const volume = response.data.volume;
   const fees = response.data.fees;
-  const eventContractsVolumeUsd = toNumber(volume.eventContractsVolumeUsd);
-  const footballVolumeUsd = toNumber(volume.footballVolumeUsd);
+  const eventContractsVolumeUsd = parseRequiredNumber(
+    volume.eventContractsVolumeUsd,
+    "volume.eventContractsVolumeUsd",
+  );
+  const footballVolumeUsd = parseRequiredNumber(volume.footballVolumeUsd, "volume.footballVolumeUsd");
 
   return {
-    perpVolumeUsd: toNumber(volume.perpVolumeUsd),
+    perpVolumeUsd: parseRequiredNumber(volume.perpVolumeUsd, "volume.perpVolumeUsd"),
     eventContractsVolumeUsd,
     footballVolumeUsd,
-    predictionMarketVolumeUsd:
-      toNumber(volume.predictionMarketVolumeUsd) || eventContractsVolumeUsd + footballVolumeUsd,
-    flatFeesUsd: toNumber(fees.flatFeesUsd),
-    profitShareFeesUsd: toNumber(fees.profitShareFeesUsd),
-    eventContractsFeesUsd: toNumber(fees.eventContractsFeesUsd),
+    predictionMarketVolumeUsd: parseRequiredNumber(
+      volume.predictionMarketVolumeUsd,
+      "volume.predictionMarketVolumeUsd",
+    ),
+    flatFeesUsd: parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd"),
+    profitShareFeesUsd: parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd"),
+    eventContractsFeesUsd: parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd"),
   };
 }
 
@@ -71,8 +76,10 @@ export function shouldReturnProtocolMetrics(options: FetchOptions) {
   return !options.chain || options.chain === CHAIN.BSC;
 }
 
-function toNumber(value: string | number | undefined | null) {
-  if (value == null) return 0;
+function parseRequiredNumber(value: string | number | undefined | null, field: string) {
   const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  if (!Number.isFinite(n)) {
+    throw new Error(`TurboFlow metrics API returned invalid ${field}`);
+  }
+  return n;
 }

@@ -15,6 +15,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: false,
   chains: [CHAIN.BSC, CHAIN.SOLANA],
   start: "2025-10-19",
   methodology: {
