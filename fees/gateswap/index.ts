@@ -113,8 +113,16 @@ async function fetch(options: FetchOptions) {
 }
 
 async function fetchSolana(options: FetchOptions) {
-  const dailyFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  try {
+    const dailyFees = await getSolanaReceived({ options, target: SOL_FEE_COLLECTOR });
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  } catch (e: any) {
+    if (e?.message?.includes('Allium API Key is required')) {
+      const dailyFees = options.createBalances();
+      return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+    }
+    throw e;
+  }
 }
 
 const breakdownMethodology = {
