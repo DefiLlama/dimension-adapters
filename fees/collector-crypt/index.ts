@@ -19,12 +19,16 @@ const GACHA_FIAT_ADDRESS = '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s';
 
 const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
 
-// Buyback hubs: DCA bots are funded with USDC from here, market-buy CARDS across the
-// pools and send the bought CARDS back here. CARDS received here from non-team wallets
-// is the open-market buyback (value accrual to CARDS holders), live since 2026-06-11.
-// Extend this list if the team rotates to a new hub.
-const BUYBACK_ADDRESSES = [
-  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu',
+// Open-market CARDS buyback hubs: DCA bots funded with USDC from here market-buy CARDS
+// across the pools and send the bought CARDS back here. CARDS received here from non-team
+// wallets would be the open-market buyback (value accrual to CARDS holders).
+//
+// DISABLED: the hub below was identified heuristically and is NOT an officially confirmed
+// CC wallet, so we do not attribute its CARDS inflows to holders revenue. With this list
+// empty, dailyHoldersRevenue is 0 and dailyProtocolRevenue equals dailyRevenue. Re-add the
+// confirmed address(es) here to re-enable the holders-vs-protocol split.
+const BUYBACK_ADDRESSES: string[] = [
+  // 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial buyback hub (seen since 2026-06-11)
 ];
 
 //https://dune.com/queries/7450765
@@ -53,13 +57,24 @@ const TEAM_ADDRESSES = [
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3',
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z',
   '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s',
-  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // buyback hub (since 2026-06-11)
+  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // unofficial CC bot wallet; kept as an exclusion (it sends USDC into the gacha sink) even though its buyback role is no longer tracked
 ]
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+
+  // No confirmed buyback hub -> return a constant 0 so the CARDS-buyback CTE stays valid
+  // SQL (an empty IN-list would not) and holders revenue resolves to 0.
+  const cardsBuybackCte = BUYBACK_ADDRESSES.length > 0
+    ? `SELECT SUM(amount) AS cards_bought
+      FROM tokens_solana.transfers
+      WHERE to_owner IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND token_mint_address = '${CARDS_MINT}'
+        AND TIME_RANGE`
+    : `SELECT CAST(0 AS DOUBLE) AS cards_bought`;
 
   const query = `
     WITH gacha_in AS (
@@ -106,13 +121,7 @@ const fetch = async (options: FetchOptions) => {
         AND TIME_RANGE
     ),
     cards_buyback AS (
-      SELECT
-        SUM(amount) AS cards_bought
-      FROM tokens_solana.transfers
-      WHERE to_owner IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND token_mint_address = '${CARDS_MINT}'
-        AND TIME_RANGE
+      ${cardsBuybackCte}
     )
     SELECT
       COALESCE(g.gacha_spend_25, 0) AS gacha_spend_25,
@@ -182,8 +191,8 @@ const methodology = {
   Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
   Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-  HoldersRevenue: "USD value of CARDS bought back on the open market by the team and accumulated, returned to CARDS holders (since June 2026).",
-  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks and CARDS token buybacks."
+  HoldersRevenue: "USD value of CARDS bought back on the open market by the team and accumulated, returned to CARDS holders. Currently 0: tracking is disabled until the buyback hub wallet is officially confirmed.",
+  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks. Equals Revenue while open-market CARDS buyback tracking is disabled."
 }
 
 const gachaBreakdown = {
