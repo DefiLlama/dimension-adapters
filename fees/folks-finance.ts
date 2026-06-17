@@ -95,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
 
     const dailyInterest =
       (variableDebt * variableRate + stableDebt * stableRate) / (ONE_16_DP * DAYS_PER_YEAR)
-    if (dailyInterest <= 0n) return
+    if (dailyInterest === 0n) return
 
     const protocolRevenue = (dailyInterest * retentionRate) / ONE_16_DP
     const supplySideRevenue = dailyInterest - protocolRevenue

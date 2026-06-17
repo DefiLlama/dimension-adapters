@@ -28,7 +28,7 @@ const WRAPPED_NATIVE: { [chain: string]: string } = {
   arbitrum: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
   polygon: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
   sei: '0xE30feDd158A2e3b13e9badaeABaFc5516e95e8C7',
-  monad: '0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242',
+  monad: '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A',
 }
 
 // source: https://github.com/Folks-Finance/xchain-js-sdk
@@ -165,7 +165,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
     const grossInterest =
       ((variableDebt * variableRate + stableDebt * stableRate) * dt) / (RATE_DP * SECONDS_PER_YEAR)
-    if (grossInterest <= 0n) return
+    if (grossInterest === 0n) return
 
     const protocolRevenue = (grossInterest * retentionRate) / RETENTION_DP
     const supplySideRevenue = grossInterest - protocolRevenue
