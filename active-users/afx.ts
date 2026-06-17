@@ -7,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     // activeOrderUsers is the daily distinct users with new_order_count > 0.
-    dailyActiveUsers: stats?.activeOrderUsers ?? 0,
+    dailyActiveUsers: stats?.activeOrderUsers,
   };
 };
 
