@@ -157,7 +157,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false, // gets rate limited during refill, should be enabled post refill
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
