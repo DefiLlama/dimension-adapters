@@ -1,4 +1,4 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -11,11 +11,15 @@ type TempleTicker = {
   target_volume: string;
 };
 
-const fetch = async (): Promise<FetchResultVolume> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResultVolume> => {
   const tickers: TempleTicker[] = await fetchURL(TICKERS_URL);
 
   const dailyVolume = tickers.reduce((sum, ticker) => {
-    return sum + Number(ticker.target_volume || 0);
+    const volume = Number(ticker.target_volume);
+    if (!Number.isFinite(volume))
+      throw new Error(`Invalid target_volume for ticker ${ticker.ticker_id}: ${ticker.target_volume}`);
+
+    return sum + volume;
   }, 0);
 
   return { dailyVolume };
