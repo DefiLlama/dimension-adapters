@@ -24,10 +24,10 @@ export default {
   },
   methodology: {
     Fees: 'Token swap fees paid by users.',
-    Revenue: 'Swap fees dfistributed to VELO token holders.',
+    Revenue: 'Swap fees distributed to VELO token holders.',
     HoldersRevenue: 'Swap fees dfistributed to VELO token holders.',
   },
-  breadownMethodology: {
+  breakdownMethodology: {
     Fees: {
       'Token Swap Fees': 'Token swap fees paid by users.',
     },

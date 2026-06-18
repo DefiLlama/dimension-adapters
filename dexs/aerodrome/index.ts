@@ -228,7 +228,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Token Swap fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
+    'Token Swap Fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
     'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   Revenue: {
