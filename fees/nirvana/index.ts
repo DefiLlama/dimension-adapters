@@ -37,6 +37,7 @@ const markets = [
   },
 ];
 
+// https://docs.nirvana.finance/s5-revenue-sharing/p3-revenue-flow
 const DEV_SHARE = 0.5;
 
 const fetch = async (options: FetchOptions) => {
