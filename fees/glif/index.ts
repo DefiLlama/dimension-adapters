@@ -93,7 +93,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(config.underlying, totalFees, METRIC.ASSETS_YIELDS);
     dailySupplySideRevenue.add(config.underlying, lpYield, 'Assets Yields To LP');
     if (protocolFee > 0n) {
-        dailyRevenue.add(config.underlying, protocolFee 'Assets Yields To Protocol');
+        dailyRevenue.add(config.underlying, protocolFee, 'Assets Yields To Protocol');
     }
 
     return {
@@ -129,7 +129,6 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
     version: 2,
-    pullHourly: true,
     fetch,
     adapter: chainConfig,
     methodology,
