@@ -32,6 +32,9 @@ const configs: Record<string, Record<string, any>> = {
   "kura-v3": {
     [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
+  "kayen-v3": {
+    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
   },
