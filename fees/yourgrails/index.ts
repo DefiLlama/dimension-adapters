@@ -68,7 +68,7 @@ const fetch = async (options: FetchOptions) => {
       const price = priceByPackId.get(key(packId));
       if (!price || price === 0n) continue;
       const packPriceUsd = toUsd(price);
-      dailyVolume.addUSDValue(packPriceUsd, "Gacha Pack Sales");
+      dailyVolume.addUSDValue(packPriceUsd);
       dailyFees.addUSDValue(packPriceUsd, "Gacha Pack Sales");
     }
   }
@@ -80,7 +80,7 @@ const fetch = async (options: FetchOptions) => {
   for (const { price, fee } of marketplaceSales as any[]) {
     const salePriceUsd = toUsd(toBigInt(price));
     const feeUsd = toUsd(toBigInt(fee));
-    if (salePriceUsd > 0) dailyVolume.addUSDValue(salePriceUsd, "Marketplace Sales");
+    if (salePriceUsd > 0) dailyVolume.addUSDValue(salePriceUsd);
     if (feeUsd > 0) {
       dailyFees.addUSDValue(feeUsd, "Marketplace Fees");
     }
