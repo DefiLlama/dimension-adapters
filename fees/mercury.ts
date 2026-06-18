@@ -38,6 +38,8 @@ const TREASURY = "0x3a648289259b9F12B3678E79E6Fa85e7Ab982002"; // TreasuryV3 (em
 // Fee rate, from GridMining._deploy: adminFee = value * ADMIN_FEE_BPS / 10000.
 const ADMIN_FEE_BPS = 100n; // 1% of gross HYPE deployed -> dev/ops treasury (team)
 const BPS = 10_000n;
+const VAULT_FEE_TO_BURN = 0.9;
+const VAULT_FEE_TO_STAKERS = 0.1;
 
 const DEPLOYED =
   "event Deployed(uint64 indexed roundId, address indexed user, uint256 amountPerBlock, uint32 blockMask, uint256 totalAmount)";
@@ -46,7 +48,6 @@ const DEPLOYED_FOR =
 const RECEIVED_VAULT = "event ReceivedVault(uint256 amount, uint256 newVaulted)";
 
 // Breakdown labels (must each appear in breakdownMethodology below).
-const HYPE_DEPLOYED = "HYPE Deployed";
 const ADMIN_FEE = "Admin Fee";
 const VAULT_FEE = "Vault Fee";
 
@@ -61,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
   const deployedFor = await options.getLogs({ target: GRID_MINING, eventAbi: DEPLOYED_FOR });
   for (const log of [...deployed, ...deployedFor]) {
     const value = log.totalAmount; // gross HYPE sent (incl. the 1% admin fee)
-    dailyVolume.addGasToken(value, HYPE_DEPLOYED);
+    dailyVolume.addGasToken(value);
     const adminFee = (value * ADMIN_FEE_BPS) / BPS;
     dailyFees.addGasToken(adminFee, ADMIN_FEE);
     dailyProtocolRevenue.addGasToken(adminFee, ADMIN_FEE); // -> team treasury
@@ -71,7 +72,8 @@ const fetch = async (options: FetchOptions) => {
   const vaultLogs = await options.getLogs({ target: TREASURY, eventAbi: RECEIVED_VAULT });
   for (const log of vaultLogs) {
     dailyFees.addGasToken(log.amount, VAULT_FEE);
-    dailyHoldersRevenue.addGasToken(log.amount, VAULT_FEE); // buyback: 90% burn + 10% stakers
+    dailyHoldersRevenue.addGasToken(Number(log.amount) * VAULT_FEE_TO_STAKERS, 'Vault Fees to $MRCY Stakers');
+    dailyHoldersRevenue.addGasToken(Number(log.amount) * VAULT_FEE_TO_BURN, 'Vault Fees to $MRCY Burn');
   }
 
   return {
@@ -89,14 +91,10 @@ const methodology = {
   Fees: "The 1% admin fee on every HYPE deploy plus the vault fee (10% of the losers' pool, routed to the buyback). The winners' pot (player-to-player) and the $MRCY refining fee (a holder-to-holder redistribution with no protocol cut) are not counted.",
   Revenue: "All extracted fees: the admin fee accrues to the team treasury and the vault fee accrues to MRCY holders via the buyback. There is no LP/supply-side cut, so Revenue equals Fees.",
   ProtocolRevenue: "The 1% admin fee on HYPE deployed, sent to the dev/ops treasury (team multisig).",
-  HoldersRevenue:
-    "The vault fee (10% of the losers' pool) funds the on-chain buyback — 90% of the bought MRCY is burned and 10% is distributed to stakers.",
+  HoldersRevenue: "The vault fee (10% of the losers' pool) funds the on-chain buyback — 90% of the bought MRCY is burned and 10% is distributed to stakers.",
 };
 
 const breakdownMethodology = {
-  Volume: {
-    [HYPE_DEPLOYED]: "Gross HYPE deployed onto the grid each round (Deployed + DeployedFor events).",
-  },
   Fees: {
     [ADMIN_FEE]: "1% admin fee skimmed from every HYPE deploy.",
     [VAULT_FEE]: "10% vault fee on the losers' pool, routed to the buyback at round settle.",
@@ -109,15 +107,14 @@ const breakdownMethodology = {
     [ADMIN_FEE]: "1% admin fee sent to the dev/ops treasury (team multisig).",
   },
   HoldersRevenue: {
-    [VAULT_FEE]: "Vault fee funds the buyback: 90% of bought MRCY burned, 10% to stakers.",
+    'Vault Fees to $MRCY Stakers': "10% of the 10% vault fee on the losers' pool, routed to the buyback and distribution to stakers at round settle.",
+    'Vault Fees to $MRCY Burn': "90% of the 10% vault fee on the losers' pool, routed to the buyback and burn at round settle.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  // HyperEVM (chain 999). `hyperliquid` is @defillama/sdk's only key for the
-  // HyperEVM chain — there is no separate `hyperevm` constant.
   chains: [CHAIN.HYPERLIQUID],
   start: "2026-06-16", // GridMining mainnet deploy (block 37979317, 2026-06-16T12:15Z)
   pullHourly: true, // ~1700 rounds/day: chunk log queries hourly
