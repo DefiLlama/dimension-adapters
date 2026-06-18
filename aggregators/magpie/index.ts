@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const inflatedVolumes = {
   [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19", "2026-04-28", "2026-06-02"],
-  [CHAIN.BSC]: ["2026-06-03", "2026-06-04"],
+  [CHAIN.BSC]: ["2026-06-03", "2026-06-04", "2026-06-17"],
 }
 
 const fetch = async ({ chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
