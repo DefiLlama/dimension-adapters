@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
 
 // HypeMarket DefiLlama feeds, per UTC day, in raw SUPRA base units. SUPRA-only.
@@ -41,6 +42,7 @@ const fetch = async (options: FetchOptions) => {
   // either series' latest entry means data is not computed yet — fail rather than report 0.
   const volLatest = lastDay(vol.days);
   const feeLatest = lastDay(fee.days);
+
   if (!volLatest || !feeLatest || day > volLatest || day > feeLatest) {
     throw new Error(`hypemarket: no data available for ${day}`);
   }
@@ -68,20 +70,20 @@ const fetch = async (options: FetchOptions) => {
   if (vRow) {
     const trades = toSupra(vol.token, vRow.boughtRaw) + toSupra(vol.token, vRow.soldRaw);
     const seed = toSupra(vol.token, vRow.mintedRaw);
-    if (trades > 0) dailyVolume.addCGToken(cgVol, trades, "Outcome trades");
-    if (seed > 0) dailyVolume.addCGToken(cgVol, seed, "Creation seed");
+    if (trades > 0) dailyVolume.addCGToken(cgVol, trades);
+    if (seed > 0) dailyVolume.addCGToken(cgVol, seed);
   }
   if (fRow) {
     const protocol = toSupra(fee.token, fRow.protocolRevenueRaw);
     const supplySide = toSupra(fee.token, fRow.supplySideRevenueRaw);
     // dailyFees = protocol + supply-side (= total fees); dailyRevenue / SupplySide split it.
     if (protocol > 0) {
-      dailyFees.addCGToken(cgFee, protocol, "Protocol fee");
-      dailyRevenue.addCGToken(cgFee, protocol, "Protocol fee");
+      dailyFees.addCGToken(cgFee, protocol, METRIC.TRADING_FEES);
+      dailyRevenue.addCGToken(cgFee, protocol, "Trading Fees to Protocol");
     }
     if (supplySide > 0) {
-      dailyFees.addCGToken(cgFee, supplySide, "Creator & user fees");
-      dailySupplySideRevenue.addCGToken(cgFee, supplySide, "Creator & user fees");
+      dailyFees.addCGToken(cgFee, supplySide, METRIC.TRADING_FEES);
+      dailySupplySideRevenue.addCGToken(cgFee, supplySide, "Trading Fees to Creators and Users");
     }
   }
 
@@ -96,7 +98,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUPRA],
   // Days within range with no trades correctly return 0; days beyond the computed range
   // throw (unavailable).
-  start: "2026-06-08",
+  start: "2026-06-04",
   methodology: {
     Volume:
       "Daily trading volume across HypeMarket LS-LMSR prediction markets on Supra — buys + sells of outcome tokens plus market-creation seed liquidity — in native SUPRA priced at each day's SUPRA price. A market's creation seed mints equal shares of every outcome (economically equivalent to buying one of each), so it is counted as volume.",
@@ -106,21 +108,14 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "Fees accruing to market creators and users (creator + user fees).",
   },
   breakdownMethodology: {
-    Volume: {
-      "Outcome trades": "Buys and sells of outcome tokens against the LS-LMSR AMM.",
-      "Creation seed":
-        "Market-creation seed liquidity — equal shares minted across all outcomes (equivalent to buying one of each outcome).",
-    },
     Fees: {
-      "Protocol fee": "Protocol fee (protocolFeeBps) charged on each trade's base notional.",
-      "Creator & user fees":
-        "Per-market creator fee (creatorFeeBps) plus user fee (userFeeBps) charged on each trade's base notional.",
+      [METRIC.TRADING_FEES]: "Trading fees charged on each trade's base notional.",
     },
     Revenue: {
-      "Protocol fee": "Protocol's share of trading fees (protocolFeeBps).",
+      'Trading Fees to Protocol': "Protocol's share of trading fees (protocolFeeBps).",
     },
     SupplySideRevenue: {
-      "Creator & user fees": "Fees accruing to market creators and users (creatorFeeBps + userFeeBps).",
+      'Trading Fees to Creators and Users': "Fees accruing to market creators and users (creatorFeeBps + userFeeBps).",
     },
   },
 };
