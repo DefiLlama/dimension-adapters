@@ -384,4 +384,5 @@ export enum CHAIN {
   BFC = "bfc",
   B3 = "b3",
   DEGEN = "degen",
+  AELF = "aelf",
 }
