@@ -116,6 +116,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  // HyperEVM (chain 999). `hyperliquid` is @defillama/sdk's only key for the
+  // HyperEVM chain — there is no separate `hyperevm` constant.
   chains: [CHAIN.HYPERLIQUID],
   start: "2026-06-16", // GridMining mainnet deploy (block 37979317, 2026-06-16T12:15Z)
   pullHourly: true, // ~1700 rounds/day: chunk log queries hourly
