@@ -37,9 +37,12 @@ const markets = [
   },
 ];
 
+const DEV_SHARE = 0.5;
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   const escrowAddresses = markets.flatMap(m => [m.revEscrowGroup, m.revEscrowTenant]);
   const cashEscrowAddresses = markets.map(m => m.cashEscrow);
@@ -82,24 +85,55 @@ const fetch = async (options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.type === 'fee') {
-      dailyFees.add(row.token_mint_address, row.fees);
+      dailyFees.add(row.token_mint_address, row.fees, "Trading & Borrow Fees");
+      dailyProtocolRevenue.add(row.token_mint_address, row.fees * DEV_SHARE, "Platform Operations");
     } else {
-      dailySupplySideRevenue.add(row.token_mint_address, row.fees);
+      dailyHoldersRevenue.add(row.token_mint_address, row.fees, "Floor Price Support");
     };
   });
 
+  const stakingRewards = options.createBalances();
+  stakingRewards.addBalances(dailyFees);
+  stakingRewards.subtract(dailyProtocolRevenue);
+  stakingRewards.subtract(dailyHoldersRevenue);
+
+  dailyHoldersRevenue.addBalances(stakingRewards, "prANA Staking Rewards");
+
   return {
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
-    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
   };
 };
 
 const methodology = {
   Fees: "Buy, sell, and borrow fees paid by users across all Samsara markets.",
+  UserFees: "Same as fees.",
   Revenue: "All fees collected by the protocol before redistribution.",
-  SupplySideRevenue: "Portion of collected fees donated to the liquidity vault to raise the navToken floor price.",
+  ProtocolRevenue: "50% of fees go towards buying ANA and borrowing against it to fund platform operations.",
+  HoldersRevenue: "50% of fees go to the liquidity vault to raise the navToken floor price and prANA stakers.",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    "Trading & Borrow Fees": "Buy, sell, and borrow fees paid by users on Samsara markets.",
+  },
+  UserFees: {
+    "Trading & Borrow Fees": "Buy, sell, and borrow fees paid by users on Samsara markets.",
+  },
+  Revenue: {
+    "Trading & Borrow Fees": "Buy, sell, and borrow fees paid by users on Samsara markets.",
+  },
+  ProtocolRevenue: {
+    "Platform Operations": "50% of collected fees are used to buy ANA and fund platform operations.",
+  },
+  HoldersRevenue: {
+    "Floor Price Support": "Portion of fees donated to the liquidity vault to raise the navToken floor price.",
+    "prANA Staking Rewards": "Portion of fees distributed to prANA stakers.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -112,6 +146,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
