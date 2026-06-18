@@ -1,7 +1,7 @@
 import { Dependencies, SimpleAdapter, ProtocolType, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 // Daily Sui network revenue published by the data team. Keyed by "YYYY-MM-DD",
 // already filtered to non-anomalous rows, starts 2026-01-01 and lags ~3 days.
@@ -32,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Yield earned on the reserves backing the USDsui and suiUSDe stablecoins (USD).
   // Available from 2026-01-01 with a ~3-day lag; absent days simply report gas only.
-  const revenueByDate = await httpGet(REVENUE_URL);
+  const revenueByDate = await fetchURL(REVENUE_URL);
   const day = revenueByDate[options.dateString];
   if (day) {
     dailyFees.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD);
@@ -55,6 +55,9 @@ const methodology = {
   ProtocolRevenue: "Yield earned on the USDsui and suiUSDe reserves, retained by the Sui Foundation",
 }
 
+// Daily (no pullHourly): the stablecoin yield from the revenue JSON is a daily
+// figure and would be overcounted ~24x if fetch ran hourly. Gas totals are a
+// SUM over the full-day window, so daily is exactly as accurate as hourly.
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
