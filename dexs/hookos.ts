@@ -11,6 +11,8 @@ const BONDING_CURVE: Record<string, string> = {
   [CHAIN.BASE]:        "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40",
   [CHAIN.MEGAETH]:     "0x6A2fAa5Da2B9F1515661f18160C0A0d584c0AC15",
   [CHAIN.HYPERLIQUID]: "0x93f35a190E6B7ed05E7bBAb78199720C0c849dDE",
+  [CHAIN.ETHEREUM]:    "0xc841eF17b424B00A46C5acebDEEbE2976F168AC7",
+  [CHAIN.BSC]:         "0xbb141A22B4cAef996052b2ecC9F9ef2Cde259bcA",
 };
 
 // Verified against the deployed BondingCurve.sol source.
@@ -22,7 +24,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const target = BONDING_CURVE[chain];
   const dailyVolume = createBalances();
 
-  // ETH in/out of every bonding-curve buy and sell.
+  // Native gas token in/out of every bonding-curve buy and sell.
   const [buyLogs, sellLogs] = await Promise.all([
     getLogs({ target, eventAbi: tokenBoughtAbi }),
     getLogs({ target, eventAbi: tokenSoldAbi }),
@@ -40,9 +42,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE, { start: '2026-06-05' }],
     [CHAIN.MEGAETH, { start: '2026-06-14' }],
     [CHAIN.HYPERLIQUID, { start: '2026-06-07' }],
+    [CHAIN.ETHEREUM, { start: '2026-06-18' }],
+    [CHAIN.BSC, { start: '2026-06-17' }],
   ],
   methodology: {
-    Volume: "Bonding-curve swap volume: ETH paid into buys (TokenBought) and ETH received from sells (TokenSold) on the HookOS BondingCurve. Post-graduation Uniswap v4 trading is excluded (counted by Uniswap), as are arena wagers, copy-trade records and launch fees.",
+    Volume: "Bonding-curve swap volume: native gas token paid into buys (TokenBought) and received from sells (TokenSold) on the HookOS BondingCurve. Post-graduation Uniswap v4 trading is excluded (counted by Uniswap), as are arena wagers, copy-trade records and launch fees.",
   },
   pullHourly: true,
 };

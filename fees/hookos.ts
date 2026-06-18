@@ -34,6 +34,18 @@ const CONTRACTS: Record<string, FeeContracts> = {
     TokenFactory: "0x96c5E38362f86E52389E15a86247fB7326503c8d",
     HookRegistry: "0x64E3167b2B4eA1b8e3DdCaFe66a5b435BE7cD75f",
   },
+  [CHAIN.ETHEREUM]: {
+    BondingCurve: "0xc841eF17b424B00A46C5acebDEEbE2976F168AC7",
+    Arena:        "0x1a4BBd3cB922Ffd6167f0a75fd037A3760d63B63",
+    TokenFactory: "0xa7d00760693CEc4F8c622EeD44C786a190FbA342",
+    HookRegistry: "0x93f35a190E6B7ed05E7bBAb78199720C0c849dDE",
+  },
+  [CHAIN.BSC]: {
+    BondingCurve: "0xbb141A22B4cAef996052b2ecC9F9ef2Cde259bcA",
+    Arena:        "0x2eF43362A9aA71DD23Ba336275E976ac300F4864",
+    TokenFactory: "0x60DfFA6940696e8f2dF997b570D9FEACC5eb1Ef7",
+    HookRegistry: "0x0dDE71F9711693cABB46FAd461e9F0cB27B96f53",
+  },
 };
 
 // Fee rates are admin-settable on-chain values (not present in the emitted
@@ -156,6 +168,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE, { start: '2026-06-05' }],
     [CHAIN.MEGAETH, { start: '2026-06-14' }],
     [CHAIN.HYPERLIQUID, { start: '2026-06-07' }],
+    [CHAIN.ETHEREUM, { start: '2026-06-18' }],
+    [CHAIN.BSC, { start: '2026-06-17' }],
   ],
   methodology,
   breakdownMethodology,
