@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 // HypeMarket DefiLlama feeds, per UTC day, in raw SUPRA base units. SUPRA-only.
 const VOLUME_URL = "https://api.hypemarket.trade/api/defillama/volume";
@@ -10,16 +10,9 @@ const FEES_URL = "https://api.hypemarket.trade/api/defillama/fees";
 type Token = { decimals: number; coingeckoId: string | null };
 type VolumeDay = { day: string; boughtRaw: string; soldRaw: string; mintedRaw: string };
 type FeesDay = { day: string; protocolRevenueRaw: string; supplySideRevenueRaw: string };
-type VolumePayload = { token: Token; days: VolumeDay[] };
-type FeesPayload = { token: Token; days: FeesDay[] };
 
-// Fetch each full series once per run; per-day fetch() calls read from cache, so the
-// backend is hit at most once per series no matter how many days are backfilled.
-const cache: { volume?: Promise<VolumePayload>; fees?: Promise<FeesPayload> } = {};
 // The API wraps payloads in { data, success }; tolerate both that and a bare body.
 const unwrap = (res: any) => res?.data ?? res;
-const getVolume = (): Promise<VolumePayload> => (cache.volume ??= httpGet(VOLUME_URL).then(unwrap));
-const getFees = (): Promise<FeesPayload> => (cache.fees ??= httpGet(FEES_URL).then(unwrap));
 
 // Raw base units -> whole SUPRA. Surface malformed data as an error rather than
 // coercing it to 0 (which would silently write incorrect history).
@@ -34,7 +27,7 @@ const toSupra = (token: Token, raw: string | undefined): number => {
 const lastDay = (days: { day: string }[]): string | null => (days.length ? days[days.length - 1].day : null);
 
 const fetch = async (options: FetchOptions) => {
-  const [vol, fee] = await Promise.all([getVolume(), getFees()]);
+  const [vol, fee] = await Promise.all([fetchURL(VOLUME_URL).then(unwrap), fetchURL(FEES_URL).then(unwrap)]);
   const day = options.dateString;
 
   // Both feeds return a contiguous, zero-filled daily series up to the latest computed day
@@ -47,8 +40,8 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`hypemarket: no data available for ${day}`);
   }
 
-  const vRow = vol.days.find((d) => d.day === day);
-  const fRow = fee.days.find((d) => d.day === day);
+  const vRow: VolumeDay | undefined = vol.days.find((d: any) => d.day === day);
+  const fRow: FeesDay | undefined = fee.days.find((d: any) => d.day === day);
   // Within the covered range the two feeds are aligned day-for-day. A day present in one
   // but not the other means the volume/fee snapshots are momentarily out of sync — fail
   // rather than write an inconsistent day (e.g. volume with no fees).
