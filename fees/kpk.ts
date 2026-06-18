@@ -37,7 +37,6 @@ const curatorConfig: CuratorConfig = {
       euler: [
         "0x2Ff596321782FE034102f55af5ad707A4Ce0d6a7", // USDC Prime RWA: VBILL
         "0x8b2d7534Ffcf6c2a9226f439CDaC26c6666E97a9", // USDC Prime RWA: STAC
-        "0x75e2DAbcfb2edb0e63445ac9F027e3048508eA2b", // USDC Prime RWA: ACRED
         "0xf55B46C10138782aDE3275D81e44B8464100eAfF", // ETH Yield Term: wstETH
         "0xB5fa20eb3c1A146E1090F24CF3c7D60263Dafa71", // ETH Yield Term: tETH
       ],
@@ -145,10 +144,14 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
           const underlying = dieselWithFlow[i].underlying;
           dailyFees.add(underlying, assets);
 
-          const half = (assets * KPK_SHARE_BPS) / 10_000n;
-          if (half > 0n) {
-            dailyRevenue.add(underlying, half);
+          // KPK keeps 50% (revenue); the other 50% goes to the second splitter
+          // recipient and is treated as supply-side so that
+          // dailyFees = dailyRevenue + dailySupplySideRevenue holds.
+          const kpkShare = (assets * KPK_SHARE_BPS) / 10_000n;
+          if (kpkShare > 0n) {
+            dailyRevenue.add(underlying, kpkShare);
           }
+          dailySupplySideRevenue.add(underlying, assets - kpkShare);
         }
       }
     }
@@ -167,7 +170,7 @@ baseAdapter.methodology = {
   Fees: "Gross interest/yield from KPK-curated Morpho and Euler vaults, plus realized Gearbox TreasurySplitter inflows.",
   Revenue: "Curator's cut: Euler 5% interestFee on KPK's underlying markets + 50% of Gearbox TreasurySplitter inflows. Morpho is excluded (KPK charges a 0% curator fee on Morpho).",
   ProtocolRevenue: "Same as Revenue.",
-  SupplySideRevenue: "Interest/yield distributed to vault depositors (Morpho and Euler). Gearbox does not contribute supply-side revenue.",
+  SupplySideRevenue: "Interest/yield distributed to vault depositors (Morpho and Euler), plus the half of Gearbox TreasurySplitter inflows that goes to the second recipient.",
 };
 
 baseAdapter.pullHourly = true;
