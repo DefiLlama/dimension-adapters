@@ -173,6 +173,7 @@ baseAdapter.methodology = {
   SupplySideRevenue: "Interest/yield distributed to vault depositors (Morpho and Euler), plus the half of Gearbox TreasurySplitter inflows that goes to the second recipient.",
 };
 
-baseAdapter.pullHourly = true;
+// daily granularity is sufficient for share-price-growth accrual; avoids 24x multicall load
+// baseAdapter.pullHourly = true;
 
 export default baseAdapter;
