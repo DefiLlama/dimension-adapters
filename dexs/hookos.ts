@@ -11,7 +11,9 @@ const BONDING_CURVE: Record<string, string> = {
   [CHAIN.BASE]:        "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40",
   [CHAIN.MEGAETH]:     "0x6A2fAa5Da2B9F1515661f18160C0A0d584c0AC15",
   [CHAIN.HYPERLIQUID]: "0x93f35a190E6B7ed05E7bBAb78199720C0c849dDE",
+  // Ethereum (1): https://etherscan.io/address/0xc841eF17b424B00A46C5acebDEEbE2976F168AC7
   [CHAIN.ETHEREUM]:    "0xc841eF17b424B00A46C5acebDEEbE2976F168AC7",
+  // BNB Chain (56): https://bscscan.com/address/0xbb141A22B4cAef996052b2ecC9F9ef2Cde259bcA
   [CHAIN.BSC]:         "0xbb141A22B4cAef996052b2ecC9F9ef2Cde259bcA",
 };
 
