@@ -450,4 +450,7 @@ async function fetchDune(options: FetchOptions) {
   },
 };
 
+adapter.allowNegativeValue = true; // revenue calculated here is combination of v2 & v3, supply side revenue can be negative when v2+v3 revenue > v3 ssr 
+                                   // which is already compensated by v2 ssr, so cumulative holds correct
+
 export default adapter;
