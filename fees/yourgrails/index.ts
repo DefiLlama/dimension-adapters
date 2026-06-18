@@ -7,6 +7,8 @@ const BUYBACK = "0x8D8669ADE9D390A6dD03D384983A5bb334369dAa";
 const PACK_BATTLE = "0x7cC8173A9eD2dF8BAb306bbF28eDa301032D3936";
 
 const PAYMENT_TYPE_PAID = 0;
+const USDC_DECIMALS = 1e6; // YourGrails accounting events are denominated in 6-decimal USDC.
+const BATTLE_PLAYER_COUNT = 2n; // platformFee is per player; BattleJoined means both players paid.
 
 const abis = {
   packPurchased:
@@ -22,11 +24,14 @@ const abis = {
 
 const toBigInt = (value: any) => BigInt(value?.toString?.() ?? value ?? 0);
 const key = (value: any) => value?.toString?.() ?? String(value);
+const toUsd = (value: bigint) => Number(value) / USDC_DECIMALS;
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const packPurchaseLogs = await options.getLogs({
     target: GACHA_PACKS,
@@ -64,9 +69,11 @@ const fetch = async (options: FetchOptions) => {
     for (const packId of paidPackIds) {
       const price = priceByPackId.get(key(packId));
       if (!price || price === 0n) continue;
-      dailyVolume.addUSDValue(Number(price) / 1e6, "Gacha Pack Sales");
-      dailyFees.addUSDValue(Number(price) / 1e6, "Gacha Pack Sales");
-      dailyRevenue.addUSDValue(Number(price) / 1e6, "Gacha Pack Sales");
+      const packPriceUsd = toUsd(price);
+      dailyVolume.addUSDValue(packPriceUsd, "Gacha Pack Sales");
+      dailyFees.addUSDValue(packPriceUsd, "Gacha Pack Sales");
+      dailyRevenue.addUSDValue(packPriceUsd, "Gacha Pack Sales");
+      dailyUserFees.addUSDValue(packPriceUsd, "Gacha Pack Sales");
     }
   }
 
@@ -74,13 +81,14 @@ const fetch = async (options: FetchOptions) => {
     target: MARKETPLACE_ESCROW,
     eventAbi: abis.sale,
   });
-  for (const { price, fee }: any of marketplaceSales) {
-    const salePriceUsd = Number(toBigInt(price)) / 1e6;
-    const feeUsd = Number(toBigInt(fee)) / 1e6;
+  for (const { price, fee } of marketplaceSales as any[]) {
+    const salePriceUsd = toUsd(toBigInt(price));
+    const feeUsd = toUsd(toBigInt(fee));
     if (salePriceUsd > 0) dailyVolume.addUSDValue(salePriceUsd, "Marketplace Sales");
     if (feeUsd > 0) {
       dailyFees.addUSDValue(feeUsd, "Marketplace Fees");
       dailyRevenue.addUSDValue(feeUsd, "Marketplace Fees");
+      dailyUserFees.addUSDValue(feeUsd, "Marketplace Fees");
     }
   }
 
@@ -98,11 +106,12 @@ const fetch = async (options: FetchOptions) => {
     for (const battle of battles) {
       if (!battle) continue;
       const platformFee = toBigInt(battle.platformFee ?? battle[5]);
-      const battleFeesUsd = Number(platformFee * 2n) / 1e6;
+      const battleFeesUsd = toUsd(platformFee * BATTLE_PLAYER_COUNT);
       if (battleFeesUsd <= 0) continue;
       dailyVolume.addUSDValue(battleFeesUsd, "Battle Platform Fees");
       dailyFees.addUSDValue(battleFeesUsd, "Battle Platform Fees");
       dailyRevenue.addUSDValue(battleFeesUsd, "Battle Platform Fees");
+      dailyUserFees.addUSDValue(battleFeesUsd, "Battle Platform Fees");
     }
   }
 
@@ -110,8 +119,8 @@ const fetch = async (options: FetchOptions) => {
     target: BUYBACK,
     eventAbi: abis.buybackExecuted,
   });
-  for (const { price }: any of buybackLogs) {
-    const payoutUsd = Number(toBigInt(price)) / 1e6;
+  for (const { price } of buybackLogs as any[]) {
+    const payoutUsd = toUsd(toBigInt(price));
     if (payoutUsd <= 0) continue;
     dailyFees.addUSDValue(-payoutUsd, "Pack Buyback Payouts");
     dailyRevenue.addUSDValue(-payoutUsd, "Pack Buyback Payouts");
@@ -121,8 +130,9 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -134,17 +144,41 @@ const methodology = {
   Revenue:
     "Protocol revenue from paid gacha pack sales, battle platform fees, and marketplace fees, net of instant pack buyback payouts.",
   UserFees:
-    "Same as Fees: paid pack sales, battle platform fees, and marketplace fees, net of instant buyback payouts.",
+    "Gross user-paid fees from paid pack sales, battle platform fees, and marketplace fees before buyback payouts.",
   ProtocolRevenue:
     "Same as Revenue: protocol-retained revenue after instant buyback payouts.",
+  SupplySideRevenue:
+    "No supply-side revenue is reported by this adapter.",
 };
 
 const breakdownMethodology = {
+  Volume: {
+    "Gacha Pack Sales": "Paid pack purchase notional volume from the GachaPacks contract. Coupon redemptions are excluded.",
+    "Marketplace Sales": "Gross marketplace sale notional volume from MarketplaceEscrow Sale events.",
+    "Battle Platform Fees": "Battle platform fees paid when the second player joins and starts a battle.",
+  },
   Fees: {
     "Gacha Pack Sales": "Paid pack purchases emitted by the GachaPacks contract. Coupon redemptions are excluded.",
     "Battle Platform Fees": "Per-player battle platform fee, counted when the second player joins and the battle buys packs.",
     "Marketplace Fees": "Platform fee from marketplace sales and accepted bids.",
     "Pack Buyback Payouts": "Instant buyback payouts paid to users, subtracted from fees and revenue.",
+  },
+  Revenue: {
+    "Gacha Pack Sales": "Protocol-recognized revenue from paid pack purchases.",
+    "Battle Platform Fees": "Protocol-recognized revenue from battle platform fees.",
+    "Marketplace Fees": "Protocol-recognized marketplace fee revenue.",
+    "Pack Buyback Payouts": "Instant buyback payouts netted against protocol revenue.",
+  },
+  UserFees: {
+    "Gacha Pack Sales": "Gross paid pack purchase fees paid by users before buyback netting.",
+    "Battle Platform Fees": "Gross battle platform fees paid by both players before buyback netting.",
+    "Marketplace Fees": "Gross marketplace platform fees paid by buyers or sellers before buyback netting.",
+  },
+  ProtocolRevenue: {
+    "Gacha Pack Sales": "Protocol-retained revenue from paid pack purchases.",
+    "Battle Platform Fees": "Protocol-retained revenue from battle platform fees.",
+    "Marketplace Fees": "Protocol-retained marketplace fee revenue.",
+    "Pack Buyback Payouts": "Instant buyback payouts netted against protocol revenue.",
   },
 };
 
@@ -156,6 +190,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  // Buyback payouts can exceed gross sales in a window, so net fees/revenue may be negative.
   allowNegativeValue: true,
 };
 
