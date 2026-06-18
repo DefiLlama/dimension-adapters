@@ -29,8 +29,6 @@ const toUsd = (value: bigint) => Number(value) / USDC_DECIMALS;
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyUserFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const packPurchaseLogs = await options.getLogs({
@@ -72,8 +70,6 @@ const fetch = async (options: FetchOptions) => {
       const packPriceUsd = toUsd(price);
       dailyVolume.addUSDValue(packPriceUsd, "Gacha Pack Sales");
       dailyFees.addUSDValue(packPriceUsd, "Gacha Pack Sales");
-      dailyRevenue.addUSDValue(packPriceUsd, "Gacha Pack Sales");
-      dailyUserFees.addUSDValue(packPriceUsd, "Gacha Pack Sales");
     }
   }
 
@@ -87,8 +83,6 @@ const fetch = async (options: FetchOptions) => {
     if (salePriceUsd > 0) dailyVolume.addUSDValue(salePriceUsd, "Marketplace Sales");
     if (feeUsd > 0) {
       dailyFees.addUSDValue(feeUsd, "Marketplace Fees");
-      dailyRevenue.addUSDValue(feeUsd, "Marketplace Fees");
-      dailyUserFees.addUSDValue(feeUsd, "Marketplace Fees");
     }
   }
 
@@ -108,10 +102,7 @@ const fetch = async (options: FetchOptions) => {
       const platformFee = toBigInt(battle.platformFee ?? battle[5]);
       const battleFeesUsd = toUsd(platformFee * BATTLE_PLAYER_COUNT);
       if (battleFeesUsd <= 0) continue;
-      dailyVolume.addUSDValue(battleFeesUsd, "Battle Platform Fees");
       dailyFees.addUSDValue(battleFeesUsd, "Battle Platform Fees");
-      dailyRevenue.addUSDValue(battleFeesUsd, "Battle Platform Fees");
-      dailyUserFees.addUSDValue(battleFeesUsd, "Battle Platform Fees");
     }
   }
 
@@ -123,63 +114,45 @@ const fetch = async (options: FetchOptions) => {
     const payoutUsd = toUsd(toBigInt(price));
     if (payoutUsd <= 0) continue;
     dailyFees.addUSDValue(-payoutUsd, "Pack Buyback Payouts");
-    dailyRevenue.addUSDValue(-payoutUsd, "Pack Buyback Payouts");
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyUserFees,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
     dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Volume:
-    "Gross pack purchase volume, marketplace sale volume, and battle platform fees on Avalanche.",
+    "Gross pack purchase volume and marketplace sale volume.",
   Fees:
+    "Net fees from paid gacha pack sales, battle platform fees, and marketplace fees, minus instant pack buyback payouts.",
+  UserFees:
     "Net fees from paid gacha pack sales, battle platform fees, and marketplace fees, minus instant pack buyback payouts.",
   Revenue:
     "Protocol revenue from paid gacha pack sales, battle platform fees, and marketplace fees, net of instant pack buyback payouts.",
-  UserFees:
-    "Gross user-paid fees from paid pack sales, battle platform fees, and marketplace fees before buyback payouts.",
   ProtocolRevenue:
-    "Same as Revenue: protocol-retained revenue after instant buyback payouts.",
+    "Protocol revenue from paid gacha pack sales, battle platform fees, and marketplace fees, net of instant pack buyback payouts.",
   SupplySideRevenue:
     "No supply-side revenue is reported by this adapter.",
 };
 
+const commonBreakdown = {
+  "Gacha Pack Sales": "Paid pack purchases emitted by the GachaPacks contract. Coupon redemptions are excluded.",
+  "Battle Platform Fees": "Per-player battle platform fee, counted when the second player joins and the battle buys packs.",
+  "Marketplace Fees": "Platform fee from marketplace sales and accepted bids.",
+  "Pack Buyback Payouts": "Instant buyback payouts paid to users, subtracted from fees and revenue.",
+};
+
 const breakdownMethodology = {
-  Volume: {
-    "Gacha Pack Sales": "Paid pack purchase notional volume from the GachaPacks contract. Coupon redemptions are excluded.",
-    "Marketplace Sales": "Gross marketplace sale notional volume from MarketplaceEscrow Sale events.",
-    "Battle Platform Fees": "Battle platform fees paid when the second player joins and starts a battle.",
-  },
-  Fees: {
-    "Gacha Pack Sales": "Paid pack purchases emitted by the GachaPacks contract. Coupon redemptions are excluded.",
-    "Battle Platform Fees": "Per-player battle platform fee, counted when the second player joins and the battle buys packs.",
-    "Marketplace Fees": "Platform fee from marketplace sales and accepted bids.",
-    "Pack Buyback Payouts": "Instant buyback payouts paid to users, subtracted from fees and revenue.",
-  },
-  Revenue: {
-    "Gacha Pack Sales": "Protocol-recognized revenue from paid pack purchases.",
-    "Battle Platform Fees": "Protocol-recognized revenue from battle platform fees.",
-    "Marketplace Fees": "Protocol-recognized marketplace fee revenue.",
-    "Pack Buyback Payouts": "Instant buyback payouts netted against protocol revenue.",
-  },
-  UserFees: {
-    "Gacha Pack Sales": "Gross paid pack purchase fees paid by users before buyback netting.",
-    "Battle Platform Fees": "Gross battle platform fees paid by both players before buyback netting.",
-    "Marketplace Fees": "Gross marketplace platform fees paid by buyers or sellers before buyback netting.",
-  },
-  ProtocolRevenue: {
-    "Gacha Pack Sales": "Protocol-retained revenue from paid pack purchases.",
-    "Battle Platform Fees": "Protocol-retained revenue from battle platform fees.",
-    "Marketplace Fees": "Protocol-retained marketplace fee revenue.",
-    "Pack Buyback Payouts": "Instant buyback payouts netted against protocol revenue.",
-  },
+  Fees: commonBreakdown,
+  Revenue: commonBreakdown,
+  UserFees: commonBreakdown,
+  ProtocolRevenue: commonBreakdown,
 };
 
 const adapter: SimpleAdapter = {
