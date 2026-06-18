@@ -6,25 +6,30 @@ import { getERC4626VaultsYield } from "../helpers/erc4626";
 // Alchemix V3 deploys its yield-bearing collateral as standalone ERC-4626 "MYT"
 // vaults from a VaultV2Factory on each chain. Each vault accrues yield to its
 // share price (convertToAssets grows over time); Alchemix takes a 10% protocol
-// fee on that yield and 90% repays users' self-repaying loans — the same split
-// the existing V2 fees adapter (fees/alchemix.ts) already applies to V2 yield.
+// fee on that yield and 90% repays users' self-repaying loans.
 //
-// These are a separate contract set from the V2 alchemists (which fees/alchemix.ts
-// tracks via the Harvest event), so the two adapters do not overlap.
+// These vaults are a separate contract set from the V2 alchemists (which
+// fees/alchemix.ts tracks via the Harvest event), so the two adapters do not
+// overlap.
 
 const CREATE_VAULT_EVENT =
   "event CreateVaultV2(address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)";
 
-const config: Record<string, { factory: string; fromBlock: number }> = {
-  [CHAIN.ETHEREUM]: { factory: "0xdd56b00302e91C4c2b8246156bDEAa1cEDc58984", fromBlock: 24875892 },
-  [CHAIN.ARBITRUM]: { factory: "0x8c7C0C380bA4eE38461eb5a6b82e5d930EC11Ca2", fromBlock: 452291175 },
-  [CHAIN.OPTIMISM]: { factory: "0x8c7C0C380bA4eE38461eb5a6b82e5d930EC11Ca2", fromBlock: 150271732 },
+// Factories are the same source the V3 TVL adapter enumerates vaults from:
+// https://github.com/DefiLlama/DefiLlama-Adapters/blob/master/projects/alchemix-v3/index.js
+// fromBlock = the factory deployment block on each chain (ETH factory deployed 2026-04-14).
+const chainConfig: Record<string, { start: string; factory: string; fromBlock: number }> = {
+  [CHAIN.ETHEREUM]: { start: "2026-04-14", factory: "0xdd56b00302e91C4c2b8246156bDEAa1cEDc58984", fromBlock: 24875892 },
+  [CHAIN.ARBITRUM]: { start: "2026-04-14", factory: "0x8c7C0C380bA4eE38461eb5a6b82e5d930EC11Ca2", fromBlock: 452291175 },
+  [CHAIN.OPTIMISM]: { start: "2026-04-14", factory: "0x8c7C0C380bA4eE38461eb5a6b82e5d930EC11Ca2", fromBlock: 150271732 },
 };
 
+// Alchemix takes 10% of generated yield; the other 90% repays users' loans.
+// Same split the existing V2 adapter (fees/alchemix.ts) applies to Alchemix yield.
 const PROTOCOL_FEE = 0.1;
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const { factory, fromBlock } = config[options.chain];
+  const { factory, fromBlock } = chainConfig[options.chain];
 
   const logs = await options.getLogs({
     target: factory,
@@ -75,11 +80,7 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 2,
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: "2026-04-14" },
-    [CHAIN.ARBITRUM]: { start: "2026-04-14" },
-    [CHAIN.OPTIMISM]: { start: "2026-04-14" },
-  },
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // a vault's share price can dip on a loss day before the next yield accrual
