@@ -1,66 +1,86 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
 import fetchURL from "../../utils/fetchURL";
 
 /**
- * Previous source : (internal server error)
- * NEAR Intents Fees Adapter for DefiLlama
- * 
- * Data Source: https://platform.data.defuse.org/api/public/fees
- * Swagger UI: https://platform.data.defuse.org/swagger-ui/#/public/get_fees
- * 
- * Returns daily fee data aggregated by the NEAR Intents platform
- * 
- * New source: https://revenue.near.org/
+ * NEAR Intents fees adapter.
+ *
+ * Fees: Dune total (protocol fee + channel fees)
+ * Revenue split: NEAR-retained share from revenue.near.org.
  */
 
+const SPLIT_URL = "https://revenue.near.org/";
 
-let feeData: any
-let revenueData: any
+const feesQuery = (date: string) => `
+  WITH pf AS (
+    SELECT CAST(amount_fee AS double) AS fee
+    FROM dune.near.dataset_near_intents_protocol_fees
+    WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${date}'
+  ),
+  cf AS (
+    SELECT CAST(fee AS double) AS fee
+    FROM dune.near.dataset_near_intents_fees
+    WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${date}'
+  )
+  SELECT
+    (SELECT COALESCE(SUM(fee), 0) FROM pf) + (SELECT COALESCE(SUM(fee), 0) FROM cf) AS total_fees
+`;
 
-const fetch = async (options: FetchOptions) => {
-    const { dateString, createBalances } = options;
+let splitHtml: Promise<string> | undefined;
 
-    const dailyFees = createBalances();
-    const dailySupplySideRevenue = createBalances();
-    const dailyRevenue = createBalances();
+// NEAR-retained (revenue) share for the day; undefined if not published.
+async function getProtocolShare(dateString: string): Promise<number | undefined> {
+  try {
+    if (!splitHtml) splitHtml = fetchURL(SPLIT_URL);
+    const text: string = (await splitHtml).replace(/\\"/g, '"');
+    const matches = text.match(/\{"date_at":"\d{4}-\d{2}-\d{2}"[^{}]*\}/g) || [];
+    for (const m of matches) {
+      const obj = JSON.parse(m);
+      if (obj.date_at === dateString && typeof obj.total_fees_near === "number" && obj.total_fees_near > 0) {
+        return obj.protocol_fee_near / obj.total_fees_near;
+      }
+    }
+  } catch {
+    // fall through — report fees only
+  }
+  return undefined;
+}
 
-    if (!feeData)
-        feeData = fetchURL("https://revenue.near.org/api/total-fees")
-    if (!revenueData)
-        revenueData = fetchURL("https://revenue.near.org/api/revenue")
-    // Fetch fee data for the specific period using query parameters
-    const feeResponse = await feeData
-    const revenueResponse = await revenueData
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const { dateString, createBalances } = options;
 
-    if (!feeResponse || !feeResponse.rows || !Array.isArray(feeResponse.rows) || !revenueResponse || !revenueResponse.rows || !Array.isArray(revenueResponse.rows))
-        throw new Error("Invalid API response format");
-    const feeItem = feeResponse.rows.find(feeEntry => feeEntry.dt === dateString);
-    const revenueItem = revenueResponse.rows.find(revenueEntry => revenueEntry.dt === dateString);
-    if (!feeItem)
-        throw new Error(`No fee data found for date: ${dateString}`);
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
-    const { fees_usd, near_price_usd } = feeItem
-    const { daily_near } = revenueItem || { daily_near: 0 } //empty revenue entries are not included in the response
-    const revenue_usd = daily_near * near_price_usd;
-    dailyFees.addUSDValue(fees_usd);
-    dailyRevenue.addUSDValue(revenue_usd);
-    dailySupplySideRevenue.addUSDValue(fees_usd - revenue_usd);
+  const rows = await queryDuneSql(options, feesQuery(dateString));
+  const totalFees = Number(rows?.[0]?.total_fees) || 0;
+  dailyFees.addUSDValue(totalFees);
 
+  const protocolShare = await getProtocolShare(dateString);
+  if (protocolShare !== undefined && totalFees > 0) {
+    dailyRevenue.addUSDValue(totalFees * protocolShare);
+    dailySupplySideRevenue.addUSDValue(totalFees * (1 - protocolShare));
     return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  }
+
+  return { dailyFees };
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    start: '2025-05-06', // First date with data in the API
-    chains: [CHAIN.NEAR],
-    methodology: {
-        Fees: "Total fees collected by NEAR Intents platform.",
-        SupplySideRevenue: "Part of fees recieved by NEAR Intents' partners.",
-        Revenue: "Revenue collected by NEAR Intents platform.",
-        ProtocolRevenue: "All the revenue goes to the protocol treasury."
-    },
+  version: 1,
+  fetch,
+  start: '2024-12-10',
+  chains: [CHAIN.NEAR],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Total fees generated by NEAR Intents (protocol fee + distribution-channel fees).",
+    SupplySideRevenue: "Portion of fees paid out to integration partners, solvers and dApps under NEAR's revenue-sharing model.",
+    Revenue: "Portion of fees retained by NEAR after ecosystem payouts.",
+    ProtocolRevenue: "Retained fees go to the NEAR protocol treasury.",
+  },
 };
 
 export default adapter;
