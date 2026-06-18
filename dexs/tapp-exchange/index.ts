@@ -2,15 +2,18 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const ROUTER = "0x487e905f899ccb6d46fdaec56ba1e0c4cf119862a16c409904b8c78fab1f5e8a";
-const CLMM = "0x5c2e5a4d1b355b939ab160c618ed5504a6e1addf109388aa3b83b73b207ab6c7";
-const STABLE = "0xa611a8ba7261ed1f4d3afe4ac2166fc9f3180103e3296772d593a1e2720c7405";
+// Mainnet packages (explorer: https://explorer.aptoslabs.com/account/<addr>?network=mainnet).
+// ROUTER is the Tapp package from @tapp-exchange/sdk mainnet config; hook engines were resolved
+// from active pools' on-chain resources (hook_factory::PoolMeta.hook_type).
+const ROUTER = "0x487e905f899ccb6d46fdaec56ba1e0c4cf119862a16c409904b8c78fab1f5e8a"; // router::Swapped
+const CLMM = "0x5c2e5a4d1b355b939ab160c618ed5504a6e1addf109388aa3b83b73b207ab6c7"; // CLMM hook (hook_type 3)
+const STABLE = "0xa611a8ba7261ed1f4d3afe4ac2166fc9f3180103e3296772d593a1e2720c7405"; // stable hook (hook_type 4)
+const AMM = "0xb01a9ecc89b51481d92c3a4ff831e7864eceaa6c609a3691e0e8c0a050eeab7"; // AMM hook (hook_type 2)
 
-// Swap fee is set per pool at creation: CLMM fee over 1e6 (e.g. 0.05%/0.3%), stable over 1e10 (0.01%).
-// Protocol takes a uniform 33% cut (PoolMeta.platform_fee_rate); the other 67% goes to veTAPP voters.
-// LPs earn TAPP emissions (incentives), not fees, so supply-side revenue is zero.
+// Swap fee is set per pool at creation (PoolCreated.fee): stable over 1e10 (Curve-style), CLMM/AMM over 1e6.
+// Protocol takes a uniform 33% cut — every pool's hook_factory::PoolMeta.platform_fee_rate = 330000/1e6,
+// verified on-chain; the other 67% goes to veTAPP voters. LPs earn TAPP emissions (incentives), not fees.
 const PLATFORM_FEE = 0.33;
-const DEFAULT_SWAP_FEE = 0.0005; // CLMM standard tier; fallback when no creation event is matched
 
 const fetch = async (options: FetchOptions) => {
   const query = `
@@ -18,10 +21,10 @@ const fetch = async (options: FetchOptions) => {
       SELECT pool, fee FROM (
         SELECT json_extract_scalar(data, '$.pool_addr') AS pool,
                TRY_CAST(json_extract_scalar(data, '$.fee') AS DOUBLE)
-                 / (CASE WHEN event_type = '${CLMM}::clmm::PoolCreated' THEN 1e6 ELSE 1e10 END) AS fee,
+                 / (CASE WHEN event_type = '${STABLE}::stable::PoolCreated' THEN 1e10 ELSE 1e6 END) AS fee,
                ROW_NUMBER() OVER (PARTITION BY json_extract_scalar(data, '$.pool_addr') ORDER BY block_time DESC) rn
         FROM aptos.events
-        WHERE event_type IN ('${CLMM}::clmm::PoolCreated', '${STABLE}::stable::PoolCreated')
+        WHERE event_type IN ('${CLMM}::clmm::PoolCreated', '${STABLE}::stable::PoolCreated', '${AMM}::amm::PoolCreated')
           AND block_time <= from_unixtime(${options.endTimestamp})
       ) WHERE rn = 1
     ),
@@ -45,11 +48,10 @@ const fetch = async (options: FetchOptions) => {
   const perPool: Record<string, { bal: ReturnType<typeof options.createBalances>; swapFee: number }> = {};
   for (const row of rows) {
     if (!row.token) continue;
+    // Every Tapp pool is created via a known hook (AMM/CLMM/stable). A missing rate means a new hook engine launched — fail so the day is refilled once it's mapped, rather than guessing a fee.
+    if (row.swap_fee == null) throw new Error(`tapp-exchange: no swap fee rate for pool ${row.pool}`);
     dailyVolume.add(row.token, row.amount);
-    const pool = (perPool[row.pool] ??= {
-      bal: options.createBalances(),
-      swapFee: row.swap_fee != null ? Number(row.swap_fee) : DEFAULT_SWAP_FEE,
-    });
+    const pool = (perPool[row.pool] ??= { bal: options.createBalances(), swapFee: Number(row.swap_fee) });
     pool.bal.add(row.token, row.amount);
   }
 
@@ -59,18 +61,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  await Promise.all(
-    Object.values(perPool).map(async ({ bal, swapFee }) => {
-      const fees = (await bal.getUSDValue()) * swapFee;
-      const protocol = fees * PLATFORM_FEE;
-      const holders = fees - protocol;
-      dailyFees.addUSDValue(fees, "Swap Fees");
-      dailyRevenue.addUSDValue(protocol, "Swap Fees To Treasury");
-      dailyRevenue.addUSDValue(holders, "Swap Fees To veTAPP Voters");
-      dailyProtocolRevenue.addUSDValue(protocol, "Swap Fees To Treasury");
-      dailyHoldersRevenue.addUSDValue(holders, "Swap Fees To veTAPP Voters");
-    })
-  );
+  for (const { bal, swapFee } of Object.values(perPool)) {
+    const fees = (await bal.getUSDValue()) * swapFee;
+    const protocol = fees * PLATFORM_FEE;
+    const holders = fees - protocol;
+    dailyFees.addUSDValue(fees, "Swap Fees");
+    dailyRevenue.addUSDValue(protocol, "Swap Fees To Treasury");
+    dailyRevenue.addUSDValue(holders, "Swap Fees To veTAPP Voters");
+    dailyProtocolRevenue.addUSDValue(protocol, "Swap Fees To Treasury");
+    dailyHoldersRevenue.addUSDValue(holders, "Swap Fees To veTAPP Voters");
+  }
 
   return {
     dailyVolume,
