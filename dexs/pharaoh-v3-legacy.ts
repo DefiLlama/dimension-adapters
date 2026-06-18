@@ -69,11 +69,13 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2025-10-08',
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;

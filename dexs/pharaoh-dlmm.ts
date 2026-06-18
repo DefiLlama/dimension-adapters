@@ -388,7 +388,9 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  // DLMM xPHAR voter vs treasury split is only available from daily protocol rollups.
+  pullHourly: false,
   fetch,
   chains: [CHAIN.AVAX],
   start: "2025-10-08",
