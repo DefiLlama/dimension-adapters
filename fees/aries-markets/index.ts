@@ -7,7 +7,6 @@ const rateURL = "https://api-v2.ariesmarkets.xyz/reserve.rateHistory?input=";
 const reserveURL = "https://api-v2.ariesmarkets.xyz/reserve.current";
 
 const DAY_IN_YEARS = 365;
-const PROTOCOL_REVENUE_SHARE = 0.2;
 
 const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
   const input = encodeURIComponent(JSON.stringify({
@@ -37,11 +36,17 @@ const fetch = async (options: FetchOptions) => {
     const borrowApr = Number(rateHistory?.borrowApr);
     if (isNaN(borrowApr)) continue;
 
+    // Each reserve keeps a different cut of borrow interest for the protocol
+    // (reserve_ratio, in percent); the rest accrues to lenders. Confirmed
+    // against the reserve's supplyApr/borrowApr/utilization.
+    const reserveRatio = Number(reserve?.value?.reserve_config?.reserve_ratio) / 100;
+    if (isNaN(reserveRatio)) continue;
+
     const dailyInterest = borrowApr * totalBorrowed / DAY_IN_YEARS;
 
     dailyFees.add(reserveKey, dailyInterest, METRIC.BORROW_INTEREST);
-    dailyRevenue.add(reserveKey, dailyInterest * PROTOCOL_REVENUE_SHARE, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.add(reserveKey, dailyInterest * (1 - PROTOCOL_REVENUE_SHARE), METRIC.BORROW_INTEREST);
+    dailyRevenue.add(reserveKey, dailyInterest * reserveRatio, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.add(reserveKey, dailyInterest * (1 - reserveRatio), METRIC.BORROW_INTEREST);
   }
 
   return {
@@ -54,9 +59,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Interest paid by borrowers across all Aries lending markets.",
-  Revenue: "Portion of borrow interest kept by Aries Markets (20% of total interest).",
-  SupplySideRevenue: "Interest distributed to lenders who supply assets (80% of total interest).",
-  ProtocolRevenue: "Portion of borrow interest kept by Aries Markets treasury (20% of total interest).",
+  Revenue: "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.",
+  SupplySideRevenue: "Interest distributed to lenders who supply assets (the remainder of each market's interest).",
+  ProtocolRevenue: "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.",
 };
 
 const breakdownMethodology = {
