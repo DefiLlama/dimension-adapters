@@ -1,7 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
+import { sleep } from "../../utils/utils";
 
 // dreamDEX — on-chain spot central limit order book (CLOB) on Somnia.
 // Volume is sourced from the dreamDEX indexer API (one summation request per market per window),
@@ -20,12 +21,12 @@ const fetch = async (options: FetchOptions) => {
   const since = options.startTimestamp * 1000;
   const until = options.endTimestamp * 1000;
 
-  const { markets } = await httpGet(`${API}/v0/markets`);
+  const { markets } = await fetchURL(`${API}/v0/markets`);
 
   await PromisePool.withConcurrency(5)
     .for(markets)
     .process(async (market: any) => {
-      const { baseVolumeRaw } = await httpGet(
+      const { baseVolumeRaw } = await fetchURLAutoHandleRateLimit(
         `${API}/v0/markets/${market.symbol}/volume?since=${since}&until=${until}`
       );
       if (market.base.toLowerCase() === NATIVE_BASE_SENTINEL) {
@@ -33,6 +34,7 @@ const fetch = async (options: FetchOptions) => {
       } else {
         dailyVolume.add(market.base, baseVolumeRaw); // ERC20 base (USDC.e / WBTC / WETH)
       }
+      await sleep(500);
     });
 
   return { dailyVolume };
