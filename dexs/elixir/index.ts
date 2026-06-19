@@ -21,16 +21,21 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyRes = await request(url, dailyQuery, { dayId });
 
+  if (!dailyRes?.protocolDayData) {
+    throw new Error(`No data for day ${dayId}`);
+  }
+
   return {
-    dailyVolume: dailyRes?.protocolDayData?.volumeUSD ?? "0",
+    dailyVolume: dailyRes.protocolDayData.volumeUSD,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: "2025-03-14", // Block 47460790 on Base
+      start: "2025-03-14",
     },
   },
 };
