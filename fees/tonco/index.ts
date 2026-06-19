@@ -104,7 +104,8 @@ const adapter: SimpleAdapter = {
             fetch,
             start: '2024-11-25',
         },
-    }
+    },
+    pullHourly: true,
 };
 
 export default adapter;
