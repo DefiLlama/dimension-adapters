@@ -25,14 +25,19 @@ const fetchCronosFees = async (options: FetchOptions) => {
 
   allEvents.forEach((event: any) => {
     // `currency` is the ERC20 used for payment (e.g. WCRO); price is denominated in that token
-    dailyVolume.add(event.currency, event.price);
+    dailyVolume.add(event.currency, event.price, 'NFT Sales');
   });
 
   // Protocol fee is 2% of total volume
   const dailyFees = dailyVolume.clone(PROTOCOL_FEE_BPS / 10000);
+  // Mintpad retains 100% of the protocol fee (no supply-side split modeled)
+  const dailyRevenue = dailyFees.clone(1);
+  const dailyProtocolRevenue = dailyFees.clone(1);
 
   return {
     dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
     dailyVolume,
   };
 };
@@ -48,7 +53,20 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: "2% protocol fee charged on all NFT marketplace sales",
+    Revenue: "Protocol-retained portion of marketplace fees",
+    ProtocolRevenue: "Treasury/protocol retained portion of fees",
     Volume: "Total volume of NFT sales on the Mintpad exchange (TakerBid + TakerAsk + MakerMatch events)"
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Marketplace Fees': '2% fee applied to NFT sales volume from matched orders.',
+    },
+    Revenue: {
+      'Marketplace Fees To Treasury': 'Protocol-retained marketplace trading fees.',
+    },
+    Volume: {
+      'NFT Sales': 'Executed NFT sale notional from TakerBid, TakerAsk, and MakerMatch events.',
+    },
   }
 };
 
