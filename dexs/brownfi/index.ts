@@ -99,7 +99,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = feesRaw.clone(1, METRIC.SWAP_FEES)
   const dailyRevenue = revenue.clone(1, "Swap Fees to Protocol")
   const dailySupplySideRevenue = supplySideRevenue.clone(1, "Swap Fees to Liquidity Providers")
-  
+
   return {
     dailyVolume,
     dailyFees,
@@ -124,13 +124,13 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Fees from swap transactions.",
   },
   Revenue: {
-    [METRIC.SWAP_FEES]: "Protocol share from swap fees.",
-  },
-  SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: "Liquidity providers share from swap fees.",
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
   },
   ProtocolRevenue: {
-    [METRIC.SWAP_FEES]: "Protocol share from swap fees.",
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
+  },
+  SupplySideRevenue: {
+    "Swap Fees to Liquidity Providers": "Liquidity providers share from swap fees.",
   },
 }
 
