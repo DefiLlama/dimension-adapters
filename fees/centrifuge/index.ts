@@ -38,11 +38,57 @@ const chainConfig = {
                 name: "ACRDX",
             },
         ]
+    },
+    [CHAIN.BASE]: {
+        start: "2025-08-25",
+        vaults: [
+            {
+                token: "0x5a0f93d040de44e78f251b03c43be9cf317dcf64",
+                vault: "0x2aef271f00a9d1b0da8065d396f4e601dbd0ef0b",
+                name: "JAAA",
+            },
+        ]
+    },
+    [CHAIN.MONAD]: {
+        start: "2026-03-27",
+        vaults: [
+            {
+                token: "0xc18e6f730896971a79d748e8dea61067a9bc6040",
+                vault: "0x796ba8a2f2d80340ddb6ca8e43e7883812f13cd5",
+                name: "JTRSY",
+            },
+            {
+                token: "0xad48f183e586e92a591a610397ebf534609df797",
+                vault: "0x926030b9912bd42b092151cfb2396499b967df3a",
+                name: "JAAA",
+            },
+            {
+                token: "0x2fabf1c784b8583d63c00c5c9c0377d8cf1a3245",
+                vault: "0x082c62088669facc1fa9f056c5efc8cbccda39b2",
+                name: "ACRDX",
+            },
+        ]
+    },
+    [CHAIN.PHAROS]: {
+        start: "2026-03-30",
+        vaults: [
+            {
+                token: "0xc18e6f730896971a79d748e8dea61067a9bc6040",
+                vault: "0x160e0dd4c4f693b05eca83bc2ec6fd51954fc434",
+                name: "JTRSY",
+            },
+            {
+                token: "0xad48f183e586e92a591a610397ebf534609df797",
+                vault: "0x499a9f1ec1d60e6d0d49d3812d326ea659efd6c2",
+                name: "JAAA",
+            },
+        ]
     }
 }
 
 const expenseRatio = {
     "JSTRY": 0.25,
+    "JTRSY": 0.25,
     "JAAA": 0.5,
     "ACRDX": 0.5,
 }
