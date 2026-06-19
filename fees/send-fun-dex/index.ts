@@ -82,10 +82,10 @@ const fetch = async (options: FetchOptions) => {
 
   for (const row of rows ?? []) {
     const token = normalizeQuoteMint(row.token);
-    const protocolFee = row.protocol_fee ?? 0;
-    const creatorFee = row.creator_fee ?? 0;
-    const lpFee = row.lp_fee ?? 0;
-    const creationFee = row.creation_fee ?? 0;
+    const protocolFee = row.protocol_fee;
+    const creatorFee = row.creator_fee;
+    const lpFee = row.lp_fee;
+    const creationFee = row.creation_fee;
 
     // Fees: everything the user paid, labelled by source.
     dailyFees.add(token, protocolFee, METRIC.PROTOCOL_FEES);
