@@ -30,7 +30,7 @@ async function fetch({ createBalances, chain, api, getLogs }: FetchOptions) {
     let toIndex = fromIndex + callSize;
     if (toIndex > marketIndex) toIndex = marketIndex;
     
-    const markets = [];
+    const markets: number[] = [];
     for (let i = fromIndex; i < toIndex; i++) markets.push(i);
     
     const marketData = await api.multiCall({ target: market, abi: abi.getMarketAltData, calls: markets })
