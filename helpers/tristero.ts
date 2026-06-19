@@ -143,8 +143,8 @@ const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
 } as const;
 
 // V3 margin contracts follow Tristero backend addresses.yml rollouts
-// (d10f35b9 / 161a80b0) and production contract updates. Older escrows stay
-// active so still-open positions continue to be counted.
+// (d10f35b9 / 161a80b0; internal) and production contract updates. Older
+// escrows stay active so still-open positions continue to be counted.
 const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: '2026-05-21',
@@ -164,6 +164,9 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-14',
       },
+      // 2026-06-18 prod rollout; escrow/vault deployed on Arbitrum:
+      // https://arbitrum.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
+      // https://arbitrum.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
       {
         address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
@@ -189,6 +192,9 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-15',
       },
+      // 2026-06-18 prod rollout; escrow/vault deployed on Base:
+      // https://base.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
+      // https://base.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
       {
         address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
@@ -209,6 +215,9 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-15',
       },
+      // 2026-06-18 prod rollout; escrow/vault deployed on Ethereum:
+      // https://eth.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
+      // https://eth.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
       {
         address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
@@ -261,17 +270,23 @@ const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
     { start: "2026-05-21", end: "2026-06-09", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
     { start: "2026-06-09", end: "2026-06-15", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
     { start: "2026-06-14", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    // 2026-06-18 prod router; send() activity verified on Arbitrum:
+    // https://arbitrum.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
     { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
   [CHAIN.BASE]: [
     { start: "2026-05-21", end: "2026-06-08", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
     { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
     { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    // 2026-06-18 prod router; send() activity verified on Base:
+    // https://base.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
     { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
   [CHAIN.ETHEREUM]: [
     { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
     { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    // 2026-06-18 prod router; send() activity verified on Ethereum:
+    // https://eth.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
     { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
 };
