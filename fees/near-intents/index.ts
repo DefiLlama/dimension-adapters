@@ -1,66 +1,140 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { queryDuneSql } from "../../helpers/dune";
 
 /**
- * Previous source : (internal server error)
- * NEAR Intents Fees Adapter for DefiLlama
- * 
- * Data Source: https://platform.data.defuse.org/api/public/fees
- * Swagger UI: https://platform.data.defuse.org/swagger-ui/#/public/get_fees
- * 
- * Returns daily fee data aggregated by the NEAR Intents platform
- * 
- * New source: https://revenue.near.org/
+ * NEAR Intents fees - sourced from Dune (revenue.near.org methodology).
+ *
+ * Many frontends route swaps through NEAR Intents and each collects its own
+ * affiliate (distribution) fee. We split the daily fee dataset by referral:
+ *   - Fees: protocol fee + every frontend's affiliate fee (gross). Mirrors
+ *     revenue.near.org "Total generated fees" (dune query 6162763).
+ *   - Revenue: the share NEAR keeps = its own frontends' affiliate fees + the
+ *     protocol fee. Approximates revenue.near.org's "Front-end" revenue stream.
+ *   - SupplySideRevenue: the affiliate fees earned by third-party frontends and
+ *     solvers = gross fees minus NEAR's share. Always >= 0 (it is a subset of
+ *     the same daily dataset), so no negative supply-side and no lumpy wallet
+ *     sweeps.
+ *
+ * Revenue destination: NEAR's captured revenue is held in treasury before
+ *   BUYBACK_START and, since 2026-02-23, used to buy back $NEAR (not burned) -
+ *   "Evolving NEAR tokenomics". Attributed to ProtocolRevenue before / Holders
+ *   Revenue on-or-after that date.
+ *
+ * NOTE: NEAR's exact front-end referral classification lives in its backend and
+ *   is not public; NEAR_FRONTEND_REFERRALS is a best-effort allowlist of NEAR's
+ *   own frontends and may undercount vs the dashboard's "Front-end" stream.
+ *   The "Quote Improvement" stream (positive slippage) is not in the fee dataset
+ *   and is not captured here. Tune the allowlist as NEAR's frontends are confirmed.
  */
 
+// Date NEAR began using captured Intents revenue to buy back $NEAR
+const BUYBACK_START = '2026-02-23';
 
-let feeData: any
-let revenueData: any
+// NEAR's own frontends' referral codes (everything else is third-party supply side)
+const NEAR_FRONTEND_REFERRALS = [
+  'near-intents.intents-referral.near',
+  'new.intents-referral.near',
+  'near-intents-app',
+  'near-mobile',
+  'intents.tg',
+];
 
 const fetch = async (options: FetchOptions) => {
-    const { dateString, createBalances } = options;
+  const frontendList = NEAR_FRONTEND_REFERRALS.map((r) => `'${r}'`).join(', ');
+  const query = `
+    WITH prot AS (
+      SELECT SUM(CAST(amount_fee AS double)) AS usd
+      FROM dune.near.dataset_near_intents_protocol_fees
+      WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+    ),
+    ref AS (
+      SELECT
+        SUM(CASE WHEN referral IN (${frontendList})
+                 THEN CAST(fee AS double) ELSE 0 END) AS frontend_usd,
+        SUM(CASE WHEN referral IS NULL OR referral NOT IN (${frontendList})
+                 THEN CAST(fee AS double) ELSE 0 END) AS thirdparty_usd
+      FROM dune.near.dataset_near_intents_fees
+      WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+    )
+    SELECT
+      COALESCE((SELECT usd FROM prot), 0) AS protocol_usd,
+      COALESCE((SELECT frontend_usd FROM ref), 0) AS frontend_usd,
+      COALESCE((SELECT thirdparty_usd FROM ref), 0) AS thirdparty_usd
+  `;
 
-    const dailyFees = createBalances();
-    const dailySupplySideRevenue = createBalances();
-    const dailyRevenue = createBalances();
+  const res = await queryDuneSql(options, query);
+  const protocol_usd = res[0]?.protocol_usd ?? 0;
+  const frontend_usd = res[0]?.frontend_usd ?? 0;
+  const thirdparty_usd = res[0]?.thirdparty_usd ?? 0;
 
-    if (!feeData)
-        feeData = fetchURL("https://revenue.near.org/api/total-fees")
-    if (!revenueData)
-        revenueData = fetchURL("https://revenue.near.org/api/revenue")
-    // Fetch fee data for the specific period using query parameters
-    const feeResponse = await feeData
-    const revenueResponse = await revenueData
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(frontend_usd, 'NEAR Frontend Affiliate Fees');
+  dailyFees.addUSDValue(thirdparty_usd, 'Third-Party Affiliate Fees');
+  dailyFees.addUSDValue(protocol_usd, 'Protocol Fee');
 
-    if (!feeResponse || !feeResponse.rows || !Array.isArray(feeResponse.rows) || !revenueResponse || !revenueResponse.rows || !Array.isArray(revenueResponse.rows))
-        throw new Error("Invalid API response format");
-    const feeItem = feeResponse.rows.find(feeEntry => feeEntry.dt === dateString);
-    const revenueItem = revenueResponse.rows.find(revenueEntry => revenueEntry.dt === dateString);
-    if (!feeItem)
-        throw new Error(`No fee data found for date: ${dateString}`);
+  // NEAR keeps its own frontends' affiliate fees + the protocol fee.
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(frontend_usd, 'NEAR Frontend Affiliate Fees');
+  dailyRevenue.addUSDValue(protocol_usd, 'Protocol Fee');
 
-    const { fees_usd, near_price_usd } = feeItem
-    const { daily_near } = revenueItem || { daily_near: 0 } //empty revenue entries are not included in the response
-    const revenue_usd = daily_near * near_price_usd;
-    dailyFees.addUSDValue(fees_usd);
-    dailyRevenue.addUSDValue(revenue_usd);
-    dailySupplySideRevenue.addUSDValue(fees_usd - revenue_usd);
+  // The rest is earned by third-party frontends and solvers.
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(thirdparty_usd, 'Third-Party Affiliate Fees');
 
-    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  // Captured revenue: treasury before the buyback program, $NEAR buybacks after.
+  const captured = frontend_usd + protocol_usd;
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  if (options.dateString >= BUYBACK_START) {
+    dailyHoldersRevenue.addUSDValue(captured, 'NEAR Buyback');
+  } else {
+    dailyProtocolRevenue.addUSDValue(captured, 'NEAR Treasury');
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    start: '2025-05-06', // First date with data in the API
-    chains: [CHAIN.NEAR],
-    methodology: {
-        Fees: "Total fees collected by NEAR Intents platform.",
-        SupplySideRevenue: "Part of fees recieved by NEAR Intents' partners.",
-        Revenue: "Revenue collected by NEAR Intents platform.",
-        ProtocolRevenue: "All the revenue goes to the protocol treasury."
+  version: 1,
+  fetch,
+  start: '2024-12-10', // first date with fee data in the Dune datasets
+  chains: [CHAIN.NEAR],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Gross fees charged on NEAR Intents swaps - the protocol fee plus the affiliate (distribution) fee each frontend collects, summed across all integrators.",
+    Revenue: "The share NEAR keeps: affiliate fees from NEAR's own frontends plus the protocol fee. The affiliate fees earned by third-party frontends are excluded.",
+    ProtocolRevenue: "Captured revenue held by the treasury before the 2026-02-23 buyback program.",
+    HoldersRevenue: "Since 2026-02-23, NEAR's captured Intents revenue is used to buy back $NEAR on the open market (not burned), returning value to holders.",
+    SupplySideRevenue: "Affiliate fees earned by third-party frontends and solvers - gross fees minus the share NEAR keeps.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'NEAR Frontend Affiliate Fees': "Affiliate fees collected by NEAR's own frontends.",
+      'Third-Party Affiliate Fees': "Affiliate fees collected by third-party frontends/integrators.",
+      'Protocol Fee': "The NEAR Intents protocol fee charged on each swap.",
     },
+    Revenue: {
+      'NEAR Frontend Affiliate Fees': "Affiliate fees from NEAR's own frontends (kept by NEAR).",
+      'Protocol Fee': "The protocol fee, retained 100% by NEAR.",
+    },
+    ProtocolRevenue: {
+      'NEAR Treasury': "Captured revenue retained by the treasury before the 2026-02-23 buyback program.",
+    },
+    HoldersRevenue: {
+      'NEAR Buyback': "$NEAR bought back on the open market with captured Intents revenue, from 2026-02-23 onward.",
+    },
+    SupplySideRevenue: {
+      'Third-Party Affiliate Fees': "Affiliate fees paid out to third-party frontends and solvers.",
+    },
+  },
 };
 
 export default adapter;
