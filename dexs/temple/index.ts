@@ -31,7 +31,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.CANTON],
   runAtCurrTime: true,
