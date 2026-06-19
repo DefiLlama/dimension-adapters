@@ -11,14 +11,18 @@ const PROTOCOL_FEE_BPS = 200;
 const takerBidAbi = "event TakerBid(bytes32 orderHash, uint256 orderNonce, address indexed taker, address indexed maker, address indexed strategy, address currency, address collection, uint256 tokenId, uint256 amount, uint256 price)";
 const takerAskAbi = "event TakerAsk(bytes32 orderHash, uint256 orderNonce, address indexed taker, address indexed maker, address indexed strategy, address currency, address collection, uint256 tokenId, uint256 amount, uint256 price)";
 const makerMatchAbi = "event MakerMatch(bytes32 orderHash, uint256 bidOrderNonce, uint256 askOrderNonce, address indexed taker, address indexed maker, address indexed strategy, address currency, address collection, uint256 tokenId, uint256 amount, uint256 price)";
+// Emitted whenever a royalty is paid to a creator
+const royaltyPaymentAbi = "event RoyaltyPayment(address indexed collection, uint256 indexed tokenId, address indexed royaltyRecipient, address currency, uint256 amount)";
 
 const fetchCronosFees = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const [takerBidEvents, takerAskEvents, makerMatchEvents] = await Promise.all([
+  const [takerBidEvents, takerAskEvents, makerMatchEvents, royaltyEvents] = await Promise.all([
     options.getLogs({ target: contractAddress, eventAbi: takerBidAbi }),
     options.getLogs({ target: contractAddress, eventAbi: takerAskAbi }),
     options.getLogs({ target: contractAddress, eventAbi: makerMatchAbi }),
+    options.getLogs({ target: contractAddress, eventAbi: royaltyPaymentAbi }),
   ]);
 
   const allEvents = [...takerBidEvents, ...takerAskEvents, ...makerMatchEvents];
@@ -28,16 +32,23 @@ const fetchCronosFees = async (options: FetchOptions) => {
     dailyVolume.add(event.currency, event.price, 'NFT Sales');
   });
 
-  // Protocol fee is 2% of total volume
-  const dailyFees = dailyVolume.clone(PROTOCOL_FEE_BPS / 10000);
-  // Mintpad retains 100% of the protocol fee (no supply-side split modeled)
-  const dailyRevenue = dailyFees.clone(1);
-  const dailyProtocolRevenue = dailyFees.clone(1);
+  royaltyEvents.forEach((event: any) => {
+    dailySupplySideRevenue.add(event.currency, event.amount, 'Creator Royalties');
+  });
+
+  // Protocol fee: 2% of total volume (retained by Mintpad)
+  const dailyProtocolRevenue = dailyVolume.clone(PROTOCOL_FEE_BPS / 10000);
+  const dailyRevenue = dailyProtocolRevenue.clone(1);
+
+  // Total fees = protocol fee + creator royalties (income statement identity)
+  const dailyFees = dailyProtocolRevenue.clone(1);
+  dailyFees.addBalances(dailySupplySideRevenue);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
     dailyVolume,
   };
 };
@@ -52,17 +63,22 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "2% protocol fee charged on all NFT marketplace sales",
-    Revenue: "Protocol-retained portion of marketplace fees",
+    Fees: "Total fees from NFT sales: 2% protocol fee plus creator royalties",
+    Revenue: "Protocol-retained portion of marketplace fees (2% of volume)",
     ProtocolRevenue: "Treasury/protocol retained portion of fees",
+    SupplySideRevenue: "Creator royalties paid on each sale",
     Volume: "Total volume of NFT sales on the Mintpad exchange (TakerBid + TakerAsk + MakerMatch events)"
   },
   breakdownMethodology: {
     Fees: {
-      'Marketplace Fees': '2% fee applied to NFT sales volume from matched orders.',
+      'NFT Sales': '2% protocol fee applied to NFT sales volume from matched orders.',
+      'Creator Royalties': 'Creator royalties collected on each sale.',
     },
     Revenue: {
-      'Marketplace Fees To Treasury': 'Protocol-retained marketplace trading fees.',
+      'NFT Sales': 'Protocol-retained marketplace trading fees (2% of volume).',
+    },
+    SupplySideRevenue: {
+      'Creator Royalties': 'Royalties paid to NFT creators on secondary sales.',
     },
     Volume: {
       'NFT Sales': 'Executed NFT sale notional from TakerBid, TakerAsk, and MakerMatch events.',
