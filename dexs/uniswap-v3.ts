@@ -378,7 +378,8 @@ async function fetchDune(options: FetchOptions) {
   }, options);
   const poolFees = await options.api.multiCall({
     abi: 'uint256:fee',
-    calls: poolsAndVolumes.map((item: any) => item.pool)
+    calls: poolsAndVolumes.map((item: any) => item.pool),
+    permitFailure: true,
   })
   for (let i = 0; i < poolsAndVolumes.length; i++) {
     if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
