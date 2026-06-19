@@ -2,9 +2,11 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // MintpadExchange proxy
+// https://explorer.cronos.com/address/0xdFbE43b2c154B6a790158fa2696cDb32A86Efc78#code
 const contractAddress = "0xdFbE43b2c154B6a790158fa2696cDb32A86Efc78";
 
-// Protocol fee is 200 bps = 2% (set in StrategyStandardSaleForFixedPrice constructor)
+// Protocol fee is 200 bps = 2%, hardcoded in the StrategyStandardSaleForFixedPrice constructor.
+// StrategyStandardSaleForFixedPrice deployment on Cronos: https://explorer.cronos.com/address/0x08Ad0524498C1e0cBd0e9e876031efDc7484D7B4#code
 const PROTOCOL_FEE_BPS = 200;
 
 // All three sale events emit a `price` field representing the full sale price
@@ -79,6 +81,9 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       'Creator Royalties': 'Royalties paid to NFT creators on secondary sales.',
+    },
+    ProtocolRevenue: {
+      'NFT Sales': 'Protocol fee (2% of volume) retained by Mintpad treasury.',
     },
     Volume: {
       'NFT Sales': 'Executed NFT sale notional from TakerBid, TakerAsk, and MakerMatch events.',
