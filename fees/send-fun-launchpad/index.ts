@@ -38,8 +38,8 @@ const fetch = async (options: FetchOptions) => {
     WITH trades AS (
       SELECT
         quote_mint AS token,
-        SUM(CAST(protocol_fee AS decimal(38, 0))) AS protocol_fee,
-        SUM(CAST(creator_fee AS decimal(38, 0))) AS creator_fee,
+        COALESCE(SUM(CAST(protocol_fee AS decimal(38, 0))), 0) AS protocol_fee,
+        COALESCE(SUM(CAST(creator_fee AS decimal(38, 0))), 0) AS creator_fee,
         CAST(0 AS decimal(38, 0)) AS creation_fee
       FROM ${TABLES.trade}
       WHERE ${timeFilter}
@@ -50,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
         quote_mint AS token,
         CAST(0 AS decimal(38, 0)) AS protocol_fee,
         CAST(0 AS decimal(38, 0)) AS creator_fee,
-        SUM(CAST(creation_fee AS decimal(38, 0))) AS creation_fee
+        COALESCE(SUM(CAST(creation_fee AS decimal(38, 0))), 0) AS creation_fee
       FROM ${TABLES.create}
       WHERE ${timeFilter}
       GROUP BY quote_mint
@@ -61,9 +61,9 @@ const fetch = async (options: FetchOptions) => {
     )
     SELECT
       token,
-      SUM(protocol_fee) AS protocol_fee,
-      SUM(creator_fee) AS creator_fee,
-      SUM(creation_fee) AS creation_fee
+      COALESCE(SUM(protocol_fee), 0) AS protocol_fee,
+      COALESCE(SUM(creator_fee), 0) AS creator_fee,
+      COALESCE(SUM(creation_fee), 0) AS creation_fee
     FROM combined
     GROUP BY token
   `;
@@ -78,22 +78,22 @@ const fetch = async (options: FetchOptions) => {
 
   for (const row of rows ?? []) {
     const token = normalizeQuoteMint(row.token);
-    const protocolFee = row.protocol_fee ?? 0;
-    const creatorFee = row.creator_fee ?? 0;
-    const creationFee = row.creation_fee ?? 0;
+    const protocolFee = row.protocol_fee;
+    const creatorFee = row.creator_fee;
+    const creationFee = row.creation_fee;
 
     // Fees: everything the user paid, labelled by source.
     dailyFees.add(token, protocolFee, METRIC.PROTOCOL_FEES);
     dailyFees.add(token, creatorFee, METRIC.CREATOR_FEES);
-    dailyFees.add(token, creationFee, METRIC.SERVICE_FEES);
+    dailyFees.add(token, creationFee, "Token Creation Fee");
 
     // Revenue: protocol trade-fee slice + creation fees.
     dailyRevenue.add(token, protocolFee, METRIC.PROTOCOL_FEES);
-    dailyRevenue.add(token, creationFee, METRIC.SERVICE_FEES);
+    dailyRevenue.add(token, creationFee, "Token Creation Fee");
 
     // Holders: 100% of protocol revenue is distributed to SEND stakers.
     dailyHoldersRevenue.add(token, protocolFee, METRIC.PROTOCOL_FEES);
-    dailyHoldersRevenue.add(token, creationFee, METRIC.SERVICE_FEES);
+    dailyHoldersRevenue.add(token, creationFee, "Token Creation Fee");
 
     // Supply side: coin creators.
     dailySupplySideRevenue.add(token, creatorFee, METRIC.CREATOR_FEES);
@@ -125,16 +125,15 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.PROTOCOL_FEES]: "Protocol slice of every bonding-curve trade fee.",
     [METRIC.CREATOR_FEES]: "Creator slice of every bonding-curve trade fee.",
-    [METRIC.SERVICE_FEES]: "Token launch fee charged at token creation.",
+    "Token Creation Fee": "Token launch fee charged at token creation.",
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees (routed to SEND stakers).",
-    [METRIC.SERVICE_FEES]: "Token creation fees (routed to SEND stakers).",
+    "Token Creation Fee": "Token creation fees (routed to SEND stakers).",
   },
   HoldersRevenue: {
-    [METRIC.PROTOCOL_FEES]:
-      "Protocol slice of trade fees distributed to SEND stakers.",
-    [METRIC.SERVICE_FEES]: "Token creation fees distributed to SEND stakers.",
+    [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees distributed to SEND stakers.",
+    "Token Creation Fee": "Token creation fees distributed to SEND stakers.",
   },
   SupplySideRevenue: {
     [METRIC.CREATOR_FEES]: "Bonding-curve trade fees paid out to coin creators.",
@@ -142,8 +141,6 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  // Dune-backed adapter: queries refresh once per day, so use version 1
-  // (a version 2 adapter would re-run the same expensive query hourly).
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],

@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   const sql = `
     SELECT
       quote_mint AS token,
-      SUM(CAST(quote_amount_gross AS decimal(38, 0))) AS volume
+      COALESCE(SUM(CAST(quote_amount_gross AS decimal(38, 0))), 0) AS volume
     FROM ${TRADE_TABLE}
     WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
       AND evt_block_time < from_unixtime(${options.endTimestamp})
@@ -35,15 +35,13 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyVolume = options.createBalances();
   for (const row of rows ?? []) {
-    dailyVolume.add(normalizeQuoteMint(row.token), row.volume ?? 0);
+    dailyVolume.add(normalizeQuoteMint(row.token), row.volume);
   }
 
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  // Dune-backed adapter: queries refresh once per day, so use version 1
-  // (a version 2 adapter would re-run the same expensive query hourly).
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
