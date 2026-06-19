@@ -39,12 +39,14 @@ const LABELS = {
   quotePostFeeToAuthors: "Quote Post Fee To Authors",
   newPostFeeToHeyTreasury: "New Post Fee To Hey Treasury",
   commentFeeToHeyTreasury: "Comment Fee To Hey Treasury",
+  repostFeeToHeyTreasury: "Repost Fee To Hey Treasury",
   quotePostFeeToHeyTreasury: "Quote Post Fee To Hey Treasury",
   heyProBasicSubscription: "Hey Pro Basic Subscription",
   heyProProSubscription: "Hey Pro Pro Subscription",
   heyProEnterpriseSubscription: "Hey Pro Enterprise Subscription",
   heyProTierUpgrade: "Hey Pro Tier Upgrade",
   heyProGiftSubscription: "Hey Pro Gift Subscription",
+  heyProUnknownTierSubscription: "Hey Pro Unknown Tier Subscription",
 } as const;
 
 const SOCIAL_PAYMENT_FEE_LABELS: Record<number, string> = {
@@ -63,6 +65,7 @@ const SOCIAL_PAYMENT_AUTHOR_LABELS: Record<number, string> = {
 const SOCIAL_PAYMENT_TREASURY_LABELS: Record<number, string> = {
   [SocialPaymentActionType.POST]: LABELS.newPostFeeToHeyTreasury,
   [SocialPaymentActionType.COMMENT]: LABELS.commentFeeToHeyTreasury,
+  [SocialPaymentActionType.REPOST]: LABELS.repostFeeToHeyTreasury,
   [SocialPaymentActionType.QT]: LABELS.quotePostFeeToHeyTreasury,
 };
 
@@ -73,7 +76,7 @@ const PREMIUM_SUBSCRIPTION_LABELS: Record<number, string> = {
 };
 
 const getPremiumSubscriptionLabel = (tier: number): string =>
-  PREMIUM_SUBSCRIPTION_LABELS[tier] ?? LABELS.heyProBasicSubscription;
+  PREMIUM_SUBSCRIPTION_LABELS[tier] ?? LABELS.heyProUnknownTierSubscription;
 
 const addPremiumRevenue = (
   balances: {
@@ -209,6 +212,8 @@ const breakdownMethodology = {
       "GHO paid when upgrading an active Hey Pro subscription to a higher tier.",
     [LABELS.heyProGiftSubscription]:
       "GHO paid when gifting a Hey Pro subscription to another user.",
+    [LABELS.heyProUnknownTierSubscription]:
+      "Hey Pro subscription paid in native GHO for an unrecognized tier value.",
   },
   SupplySideRevenue: {
     [LABELS.commentFeeToAuthors]:
@@ -225,6 +230,8 @@ const breakdownMethodology = {
       "Hey treasury share from comment fees (0.01 GHO).",
     [LABELS.quotePostFeeToHeyTreasury]:
       "Hey treasury share from quote post fees (0.02 GHO).",
+    [LABELS.repostFeeToHeyTreasury]:
+      "Hey treasury share from repost fees (0 GHO under current fee schedule).",
     [LABELS.heyProBasicSubscription]:
       "Full Hey Pro Basic subscription revenue retained by Hey.",
     [LABELS.heyProProSubscription]:
@@ -235,6 +242,8 @@ const breakdownMethodology = {
       "Hey Pro tier upgrade revenue retained by Hey.",
     [LABELS.heyProGiftSubscription]:
       "Hey Pro gift subscription revenue retained by Hey.",
+    [LABELS.heyProUnknownTierSubscription]:
+      "Hey Pro subscription revenue retained by Hey for an unrecognized tier value.",
   },
   ProtocolRevenue: {
     [LABELS.newPostFeeToHeyTreasury]:
@@ -243,6 +252,8 @@ const breakdownMethodology = {
       "Comment fee revenue allocated to Hey treasury.",
     [LABELS.quotePostFeeToHeyTreasury]:
       "Quote post fee revenue allocated to Hey treasury.",
+    [LABELS.repostFeeToHeyTreasury]:
+      "Repost fee revenue allocated to Hey treasury (0 GHO under current fee schedule).",
     [LABELS.heyProBasicSubscription]:
       "Hey Pro Basic subscription revenue allocated to Hey treasury.",
     [LABELS.heyProProSubscription]:
@@ -253,6 +264,8 @@ const breakdownMethodology = {
       "Hey Pro tier upgrade revenue allocated to Hey treasury.",
     [LABELS.heyProGiftSubscription]:
       "Hey Pro gift subscription revenue allocated to Hey treasury.",
+    [LABELS.heyProUnknownTierSubscription]:
+      "Hey Pro subscription revenue allocated to Hey treasury for an unrecognized tier value.",
   },
 };
 
