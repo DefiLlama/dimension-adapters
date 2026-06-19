@@ -5,46 +5,27 @@ import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
 import { METRIC } from "../../helpers/metrics";
 
-const chainConfig: Record<string, { factory: string, start: string }> = {
+const chainConfig: Record<string, { factory: string, pairConfig: string, start: string }> = {
   [CHAIN.BERACHAIN]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
-    start: '2025-07-04',
-  },
-  [CHAIN.BASE]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
-    start: '2025-07-01',
-  },
-  [CHAIN.ARBITRUM]: {
-    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E",
-    start: '2025-07-01',
+    factory: "0x6Ccf36d3EaE84b2eB608704070B90f4419BBcD28",
+    pairConfig: "0x4955e0d8A7f25Ba83216946C17fe791D8C49c43a",
+    start: '2026-06-04',
   },
   [CHAIN.HYPERLIQUID]: {
-    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55",
-    start: '2025-07-19',
-  },
-  [CHAIN.LINEA]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
-    start: '2025-09-05',
-  },
-  [CHAIN.BSC]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
-    start: '2025-07-01',
-  },
-  [CHAIN.MONAD]: {
-    factory: "0x68bc42F886ddf6a4b0B90a9496493dA1f8304536",
-    start: '2025-12-02',
+    factory: "0x6A4Bd89709b67eC846F02cF9E95A0dd2Fb515720",
+    pairConfig: "0x1Fcd5D79A1AFdF2456947B3476A1f61096AD7771",
+    start: '2026-06-09',
   },
 };
 
-const brownfiV2SwapEvent = "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, uint price0, uint price1, address indexed to)"
+const brownfiV3SwapEvent = "event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,uint amount0OutRequested,uint amount1OutRequested,uint pythPrice0,uint pythPrice1,uint ammPrice,uint adjPrice,uint sPrice0,uint sPrice1,address indexed to)"
 
 const abis = {
-  fees: "function fee() external view returns (uint32)",
-  protocolFee: "function protocolFee() external view returns (uint64)"
+  getConfig: "function getConfig(address pair) external view returns (tuple(uint256 kB, uint256 kQ, uint64 lambda, uint32 fee, uint32 feeSplit, uint32 compress, uint32 sSell, uint32 sBuy, uint32 fixS, uint32 disThreshold, uint32 sBound, uint32 pythWeight, uint32 gamma))"
 };
 
 const fetch = async (options: FetchOptions) => {
-  const factory = chainConfig[options.chain].factory;
+  const { factory, pairConfig } = chainConfig[options.chain];
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
 
@@ -59,10 +40,12 @@ const fetch = async (options: FetchOptions) => {
     protocolFees[pair] = 0
   })
 
-  let _fees = await api.multiCall({ abi: abis.fees, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _fees.forEach((fee: any, i: number) => { if (fee !== null) fees[pairs[i]] = fee / 1e8 })
-  let _protocolFees = await api.multiCall({ abi: abis.protocolFee, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _protocolFees.forEach((fee: any, i: number) => { if (fee !== null) protocolFees[pairs[i]] = fee / 1e8 })
+  const configs = await api.multiCall({ target: pairConfig, abi: abis.getConfig, calls: pairs, permitFailure: true })
+  configs.forEach((config: any, i: number) => {
+    if (!config) return;
+    fees[pairs[i]] = Number(config.fee ?? config[3]) / 1e8
+    protocolFees[pairs[i]] = Number(config.feeSplit ?? config[4]) / 1e8
+  })
 
   const dailyVolume = createBalances()
   const feesRaw = createBalances()
@@ -80,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue: 0,
   }
 
-  const allLogs = await getLogs({ targets: pairIds, eventAbi: brownfiV2SwapEvent, flatten: false })
+  const allLogs = await getLogs({ targets: pairIds, eventAbi: brownfiV3SwapEvent, flatten: false })
   allLogs.map((logs: any, index) => {
     if (!logs.length) return;
     const pair = pairIds[index]
@@ -99,7 +82,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = feesRaw.clone(1, METRIC.SWAP_FEES)
   const dailyRevenue = revenue.clone(1, "Swap Fees to Protocol")
   const dailySupplySideRevenue = supplySideRevenue.clone(1, "Swap Fees to Liquidity Providers")
-  
+
   return {
     dailyVolume,
     dailyFees,
@@ -126,11 +109,11 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.SWAP_FEES]: "Protocol share from swap fees.",
   },
-  SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: "Liquidity providers share from swap fees.",
-  },
   ProtocolRevenue: {
     [METRIC.SWAP_FEES]: "Protocol share from swap fees.",
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: "Liquidity providers share from swap fees.",
   },
 }
 
