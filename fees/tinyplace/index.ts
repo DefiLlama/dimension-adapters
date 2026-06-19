@@ -3,10 +3,20 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 
+// CASH ($1 stablecoin SPL) mint used by tiny.place.
+// Source: https://solscan.io/token/CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH
 const CASH = "CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH";
 
+// tiny.place Solana revenue/treasury wallet (publicly disclosed in the protocol's docs).
+// Source: https://solscan.io/account/2mcvxY5LXKDUoUxArMMduGET1gevWEvr8c1NBoGxZENM
 const REVENUE_WALLET = "2mcvxY5LXKDUoUxArMMduGET1gevWEvr8c1NBoGxZENM";
 
+// SPL mint -> revenue-wallet token accounts (ATAs) that receive that mint.
+// Each account is the associated token account owned by REVENUE_WALLET for the given mint:
+//   USDC ATA: https://solscan.io/account/7ZuKVC1zWMmS8LG4wxXsZQSytZhUjUWRotR5bdXoxCQz
+//   CASH ATA: https://solscan.io/account/695awLr41LCP7T3cGh6bmPdQ5YRrZ74d9XLAL244YLvN
+// Native SOL has no token account; its inflows are counted separately from the wallet's
+// lamport balance changes (see native_sol_inflows below), so its list is intentionally empty.
 const REVENUE_TOKEN_ACCOUNTS = {
   [ADDRESSES.solana.USDC]: ["7ZuKVC1zWMmS8LG4wxXsZQSytZhUjUWRotR5bdXoxCQz"],
   [CASH]: ["695awLr41LCP7T3cGh6bmPdQ5YRrZ74d9XLAL244YLvN"],
@@ -67,6 +77,8 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    // All inflows are retained by the protocol; no supply-side split.
+    dailySupplySideRevenue: options.createBalances(),
   };
 };
 
@@ -84,13 +96,13 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, SOL, and WSOL inflows to the tinyplace revenue wallet on Solana.",
+      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, and native SOL inflows to the tinyplace revenue wallet on Solana.",
     },
     Revenue: {
-      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, SOL, and WSOL inflows to the tinyplace revenue wallet on Solana.",
+      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, and native SOL inflows to the tinyplace revenue wallet on Solana.",
     },
     ProtocolRevenue: {
-      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, SOL, and WSOL inflows to the tinyplace revenue wallet on Solana.",
+      [LABELS.PLATFORM_REVENUE]: "USDC, CASH, and native SOL inflows to the tinyplace revenue wallet on Solana.",
     },
   },
 };
