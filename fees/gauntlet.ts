@@ -10,9 +10,11 @@ const curatorConfig: CuratorConfig = {
     [CHAIN.ETHEREUM]: {
       morphoVaultOwners: [
         '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
       ],
       morphoVaultV2Owners: [
         '0xd79766D2FeC43886e995EA415a2Bf406280B2e2C',
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
       ],
       start: '2024-03-14',
     },
@@ -20,9 +22,11 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
         '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
       ],
       morphoVaultV2Owners: [
         '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
       ],
       start: '2024-06-18',
     },
@@ -35,6 +39,10 @@ const curatorConfig: CuratorConfig = {
     [CHAIN.HYPERLIQUID]: {
       morphoVaultOwners: [
         '0x09346F40e324458A8E211C5317981C78FAcDEc57',
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
+      ],
+      morphoVaultV2Owners: [
+        '0xB47f11484e19f1914D32fd393b17671221C10F1F',
       ],
       start: '2025-09-25',
     },
@@ -64,6 +72,31 @@ const curatorConfig: CuratorConfig = {
         '0xF9D8B7e7981986746c4DE236CC72F1a26AFb5851',
       ],
       start: '2025-07-14',
+    },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.STABLE]: {
+      morphoV2: [
+        '0xb7Df8db22A5DBBFA9ebeb94b3910aec6a4f05c08', // gtusdtb
+      ],
+      start: '2026-06-16',
+    },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.TEMPO]: {
+      morphoV2: [
+        '0xC609656Ed9ef219c98C8e549bF729144F211f06E', // gtpathusdp
+        '0xe5235da8Ad839dd2A9De1f1069c89cA3575b5208', // gtpathusdf
+      ],
+      start: '2026-04-16',
+    },
+    // Moolah (Morpho V1 fork), 10% performance fee
+    [CHAIN.BSC]: {
+      morpho: [
+        '0xfa27f172e0b6ebcef9c51abf817e2cb142fbe627', // vGauntletUSD1
+        '0x57134a64b7cd9f9eb72f8255a671f5bf2fe3e2d0', // vGauntletBNB
+        '0x9a17fd5cb8efc25d11567e713ae795a89775a759', // vGauntletU
+        '0x6d6783c146f2b0b2774c1725297f1845dc502525', // vGauntletUSDT
+      ],
+      start: '2026-04-27',
     },
   }
 };
@@ -123,7 +156,7 @@ const fetchSolana = async (options: FetchOptions) => {
   // For Drift vaults, fees should equal revenue (only manager fees)
   // Remove gross returns calculation as it was causing double-counting
   const dailyFees = dailyRevenue.clone(1, 'Solana Vaults Management Fees');
-  
+
   // TODO: track yields to suppliers
   const dailySupplySideRevenue = options.createBalances();
 
