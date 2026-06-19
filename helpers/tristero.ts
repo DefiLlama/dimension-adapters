@@ -143,8 +143,8 @@ const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
 } as const;
 
 // V3 margin contracts follow Tristero backend addresses.yml rollouts
-// (d10f35b9 / 161a80b0). Older escrows stay active so still-open positions
-// continue to be counted; day overlaps reflect public explorer cutover activity.
+// (d10f35b9 / 161a80b0) and production contract updates. Older escrows stay
+// active so still-open positions continue to be counted.
 const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
     start: '2026-05-21',
@@ -163,6 +163,11 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         address: '0x25E1c35721F8826B29401ed628D120037891312c',
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-14',
+      },
+      {
+        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-18',
       },
     ],
   },
@@ -184,6 +189,11 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-15',
       },
+      {
+        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-18',
+      },
     ],
   },
   [CHAIN.ETHEREUM]: {
@@ -198,6 +208,11 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
         address: '0x25E1c35721F8826B29401ed628D120037891312c',
         vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
         start: '2026-06-15',
+      },
+      {
+        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
+        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
+        start: '2026-06-18',
       },
     ],
   },
@@ -239,22 +254,25 @@ export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
 };
 
 // V3 source-side volume is indexed from router.send() calls. The schedule mirrors
-// Tristero backend addresses.yml generations (d10f35b9 / 161a80b0); day overlaps
-// reflect public explorer cutover activity and are safe because each tx has one router.
+// Tristero backend addresses.yml generations and production contract updates;
+// day overlaps reflect public explorer cutovers and are safe because each tx has one router.
 const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
   [CHAIN.ARBITRUM]: [
     { start: "2026-05-21", end: "2026-06-09", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
     { start: "2026-06-09", end: "2026-06-15", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-14", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-14", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
   [CHAIN.BASE]: [
     { start: "2026-05-21", end: "2026-06-08", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
     { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-15", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
   [CHAIN.ETHEREUM]: [
     { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-15", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
+    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
   ],
 };
 
@@ -859,14 +877,8 @@ export async function getOpenTristeroV3MarginPositions(
     permitFailure: true,
   });
 
-  owners.forEach((owner, index) => {
-    if (!normalizeAddress(owner)) {
-      const position = candidates[index];
-      throw new Error(`Unable to read Tristero v3 ownerOf for ${options.chain} position ${position.positionId} at ${position.escrow}`);
-    }
-  });
-
-  return candidates;
+  // Burned v3 position NFTs revert on ownerOf; after log replay they are not open.
+  return candidates.filter((_position, index) => normalizeAddress(owners[index]));
 }
 
 function topicAddress(address: string): string {
