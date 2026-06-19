@@ -67,7 +67,7 @@ async function fetch({ createBalances, chain, api, getLogs }: FetchOptions) {
         dailyFees.add(token, value * totalFee, isBuy ? 'BuyFee' : 'SellFee')
         dailySupplySideRevenue.add(token, value * distributorFee, 'DistributorFee')
         dailySupplySideRevenue.add(token, value * fee, 'LPFee')
-        dailyRevenue.add(token, value * fee, 'TreasuryFee')
+        dailyRevenue.add(token, value * treasuryFee, 'TreasuryFee')
         break;
     }
   });
