@@ -79,6 +79,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
