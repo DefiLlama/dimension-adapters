@@ -33,9 +33,9 @@ const adapter: SimpleAdapter = {
     Volume: 'Total token swap volumes retrieved from Byreal API.',
     Fees: 'All fees from token swaps.',
     UserFees: 'Users pay fees on every token swap.',
-    Revenue: 'Amount of 20% swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
-    ProtocolRevenue: 'Amount of 20% swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
-    SupplySideRevenue: 'Amount of 80% swap fees distributed to LPs.',
+    Revenue: 'Amount of 20% (12% before 2025-11-12) swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
+    ProtocolRevenue: 'Amount of 20% (12% before 2025-11-12) swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
+    SupplySideRevenue: 'Amount of 80% (88% before 2025-11-12) swap fees distributed to LPs.',
   }
 };
 
