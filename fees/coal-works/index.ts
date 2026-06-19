@@ -8,8 +8,13 @@ import {
   
   const fetch: any = async (options: FetchOptions) => {
     const dailyFees = await oreHelperCountSolBalanceDiff(options, 'Az6VVPggdbxjrt4sL7FzjBunWD7piMZCUKvx316yLLmw')
-    const dailyProtocolRevenue = dailyFees.clone(0.01);
-    const dailyHoldersRevenue = dailyFees.clone(0.0305);
+    // dailyFees is the SOL actually received by the protocol wallet, i.e. the 10%
+    // board fee. The methodology splits that fee as 1% admin + 7% buyback + 1%
+    // motherlode + 1% LP of total SOL deployed (summing to the 10% fee), so as a
+    // fraction of fees the protocol (admin) share is 1%/10% = 0.1 and the holders
+    // share (1.05% stakers + 1% motherlode + 1% LP = 3.05% of deployed) is 0.305.
+    const dailyProtocolRevenue = dailyFees.clone(0.1);
+    const dailyHoldersRevenue = dailyFees.clone(0.305);
 
     return {
       dailyFees,
