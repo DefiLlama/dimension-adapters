@@ -21,7 +21,7 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees.clone(0.25);
   const dailyHoldersRevenue = dailyFees.clone(0.60);
   const dailyProtocolRevenue = dailyFees.clone(0.15);
-  const dailyRevenue = dailyFees.clone(0.85);
+  const dailyRevenue = dailyFees.clone(0.75); // 15% protocol + 60% holders (supply-side is the remaining 25%)
 
   return { dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyFees, };
 }
