@@ -31,9 +31,14 @@ import { queryDuneSql } from "../../helpers/dune";
 // Date NEAR began using captured Intents revenue to buy back $NEAR
 const BUYBACK_START = '2026-02-23';
 
-// NEAR's own frontends' referral codes (everything else is third-party supply side)
+// NEAR's own frontends' referral codes - their affiliate fees are NEAR revenue.
+// Every other referral is a third-party channel (supply side), including the
+// largest fee generators: swapkit (SwapKit cross-chain SDK powering THORSwap and
+// many wallets - ~78% of all fees, kept by SwapKit) and zashi. The
+// `.intents-referral.near` suffix is NEAR's shared referral registry, so only
+// NEAR-owned sub-accounts belong here (solswap/trumpswap/infinex are third party).
 const NEAR_FRONTEND_REFERRALS = [
-  'near-intents.intents-referral.near',
+  'near-intents.intents-referral.near', // near.com / app.near-intents.org
   'new.intents-referral.near',
   'near-intents-app',
   'near-mobile',
