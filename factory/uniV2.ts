@@ -300,9 +300,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.MANTLE]: { factory: '0x3eF942017d51BA257c4B61BE2f8f641209C8b341' },
   },
   "zkSwap_Finance": {
-    [CHAIN.ERA]: { factory: '0x3a76e377ed58c8731f9df3a36155942438744ce3', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
-    [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
-    [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
+    [CHAIN.ERA]: { factory: '0x3a76e377ed58c8731f9df3a36155942438744ce3', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
+    [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
+    [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
   },
   "velodrome-v2": {
     [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
@@ -331,7 +331,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BSC]: { factory: '0x1D9F43a6195054313ac1aE423B1f810f593b6ac1', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
   "babydogeswap": {
-    [CHAIN.BSC]: { factory: '0x4693B62E5fc9c0a45F89D62e6300a03C85f43137', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.1 / 0.3, protocolRevenueRatio: 1 },
+    [CHAIN.BSC]: { factory: '0x4693B62E5fc9c0a45F89D62e6300a03C85f43137', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.1 / 0.3, protocolRevenueRatio: 0.1 / 0.3 },
   },
   "hydrometer": {
     [CHAIN.BASE]: { factory: '0xF60caCf0A3daa5B6a79ca6594BEF38F85391AE0A', swapEvent: velodromeSwapEvent },
@@ -698,7 +698,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BSC]: { factory: '0x940BEb635cbEeC04720AC97FADb97205676e6aa4', start: 1663921255 },
   },
   "netswap": {
-    [CHAIN.METIS]: { factory: '0x70f51d68D16e8f9e418441280342BD43AC9Dff9f', start: 1638760703, fees: 0.003, userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 1 },
+    [CHAIN.METIS]: { factory: '0x70f51d68D16e8f9e418441280342BD43AC9Dff9f', start: 1638760703, fees: 0.003, userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 0.05 / 0.3 },
   },
   "revoswap": {
     [CHAIN.XLAYER]: { factory: '0xa38498983e7b31DE851e36090bc9D1D8fB96BE5E', start: 1713225600, userFeesRatio: 1 },
