@@ -5,96 +5,92 @@ import { queryDuneSql } from "../../helpers/dune";
 /**
  * NEAR Intents fees - sourced from Dune (revenue.near.org methodology).
  *
- * Many frontends route swaps through NEAR Intents and each collects its own
- * affiliate (distribution) fee. We split the daily fee dataset by referral:
- *   - Fees: protocol fee + every frontend's affiliate fee (gross). Mirrors
- *     revenue.near.org "Total generated fees" (dune query 6162763).
- *   - Revenue: the share NEAR keeps = its own frontends' affiliate fees + the
- *     protocol fee. Approximates revenue.near.org's "Front-end" revenue stream.
- *   - SupplySideRevenue: the affiliate fees earned by third-party frontends and
- *     solvers = gross fees minus NEAR's share. Always >= 0 (it is a subset of
- *     the same daily dataset), so no negative supply-side and no lumpy wallet
- *     sweeps.
+ * Fees: gross fees charged on every swap - the protocol fee plus the affiliate
+ *   (distribution) fee each frontend collects, summed across all integrators.
+ *   Mirrors revenue.near.org "Total generated fees" (dune query 6162763).
  *
- * Revenue destination: NEAR's captured revenue is held in treasury before
+ * Revenue: NEAR's net captured revenue across all streams (front-end, quote
+ *   improvement, authorized/unauthorized partner, private agreement), measured
+ *   as NEAR/wNEAR swept into NEAR's revenue wallets - NEAR's own "NEAR Intents
+ *   Revenue" (dune query 6740088). Reconciles with revenue.near.org's "Revenue
+ *   by Stream" total (~2.4M NEAR) and with the on-chain buyback.
+ *
+ * SupplySideRevenue: gross fees minus NEAR's captured revenue - the share paid
+ *   to solvers and third-party distribution channels (e.g. SwapKit, the largest,
+ *   keeps its own affiliate fee). NEAR realizes its revenue in periodic on-chain
+ *   sweeps, so on a sweep day captured revenue can exceed that day's accrued
+ *   gross fees and supply-side goes briefly negative (allowNegativeValue); it
+ *   nets out positive over any window.
+ *
+ * ProtocolRevenue / HoldersRevenue: captured revenue is held in treasury before
  *   BUYBACK_START and, since 2026-02-23, used to buy back $NEAR (not burned) -
- *   "Evolving NEAR tokenomics". Attributed to ProtocolRevenue before / Holders
- *   Revenue on-or-after that date.
- *
- * NOTE: NEAR's exact front-end referral classification lives in its backend and
- *   is not public; NEAR_FRONTEND_REFERRALS is a best-effort allowlist of NEAR's
- *   own frontends and may undercount vs the dashboard's "Front-end" stream.
- *   The "Quote Improvement" stream (positive slippage) is not in the fee dataset
- *   and is not captured here. Tune the allowlist as NEAR's frontends are confirmed.
+ *   "Evolving NEAR tokenomics".
  */
 
 // Date NEAR began using captured Intents revenue to buy back $NEAR
 const BUYBACK_START = '2026-02-23';
 
-// NEAR's own frontends' referral codes - their affiliate fees are NEAR revenue.
-// Every other referral is a third-party channel (supply side), including the
-// largest fee generators: swapkit (SwapKit cross-chain SDK powering THORSwap and
-// many wallets - ~78% of all fees, kept by SwapKit) and zashi. The
-// `.intents-referral.near` suffix is NEAR's shared referral registry, so only
-// NEAR-owned sub-accounts belong here (solswap/trumpswap/infinex are third party).
-const NEAR_FRONTEND_REFERRALS = [
-  'near-intents.intents-referral.near', // near.com / app.near-intents.org
-  'new.intents-referral.near',
-  'near-intents-app',
-  'near-mobile',
-  'intents.tg',
-];
+// NEAR's revenue wallets (NEAR's own dune query 6740088)
+const FEE_WALLETS = `(VALUES
+  ('fefundsadmin.sputnik-dao.near'),
+  ('1csfundsadmin.sputnik-dao.near'),
+  ('buybacks.multisignature.near')
+) AS t(wallet)`;
 
 const fetch = async (options: FetchOptions) => {
-  const frontendList = NEAR_FRONTEND_REFERRALS.map((r) => `'${r}'`).join(', ');
   const query = `
-    WITH prot AS (
-      SELECT SUM(CAST(amount_fee AS double)) AS usd
-      FROM dune.near.dataset_near_intents_protocol_fees
-      WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+    WITH fee_wallets AS (SELECT wallet FROM ${FEE_WALLETS}),
+    gross AS (
+      SELECT SUM(fee) AS fees_usd FROM (
+        SELECT CAST(amount_fee AS double) AS fee
+        FROM dune.near.dataset_near_intents_protocol_fees
+        WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+        UNION ALL
+        SELECT CAST(fee AS double) AS fee
+        FROM dune.near.dataset_near_intents_fees
+        WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+      )
     ),
-    ref AS (
-      SELECT
-        SUM(CASE WHEN referral IN (${frontendList})
-                 THEN CAST(fee AS double) ELSE 0 END) AS frontend_usd,
-        SUM(CASE WHEN referral IS NULL OR referral NOT IN (${frontendList})
-                 THEN CAST(fee AS double) ELSE 0 END) AS thirdparty_usd
-      FROM dune.near.dataset_near_intents_fees
-      WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
+    native AS (
+      SELECT SUM(CAST(action_transfer_deposit AS DOUBLE) / 1e24) AS near_amt
+      FROM near.actions
+      WHERE action_kind = 'TRANSFER' AND execution_status = 'SUCCESS_VALUE'
+        AND receipt_receiver_account_id IN (SELECT wallet FROM fee_wallets)
+        AND block_date = DATE '${options.dateString}'
+    ),
+    wnear AS (
+      SELECT SUM(CAST(delta_amount AS DOUBLE) / 1e24) AS near_amt
+      FROM near.ft_transfers
+      WHERE contract_account_id = 'wrap.near' AND delta_amount > 0
+        AND affected_account_id IN (SELECT wallet FROM fee_wallets)
+        AND block_date = DATE '${options.dateString}'
     )
     SELECT
-      COALESCE((SELECT usd FROM prot), 0) AS protocol_usd,
-      COALESCE((SELECT frontend_usd FROM ref), 0) AS frontend_usd,
-      COALESCE((SELECT thirdparty_usd FROM ref), 0) AS thirdparty_usd
+      COALESCE((SELECT fees_usd FROM gross), 0) AS fees_usd,
+      COALESCE((SELECT near_amt FROM native), 0) + COALESCE((SELECT near_amt FROM wnear), 0) AS revenue_near
   `;
 
   const res = await queryDuneSql(options, query);
-  const protocol_usd = res[0]?.protocol_usd ?? 0;
-  const frontend_usd = res[0]?.frontend_usd ?? 0;
-  const thirdparty_usd = res[0]?.thirdparty_usd ?? 0;
+  const fees_usd = res[0]?.fees_usd ?? 0;
+  const revenue_near = res[0]?.revenue_near ?? 0;
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addCGToken('near', revenue_near, 'Captured Intents Revenue');
+  const revenue_usd = await dailyRevenue.getUSDValue();
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(frontend_usd, 'NEAR Frontend Affiliate Fees');
-  dailyFees.addUSDValue(thirdparty_usd, 'Third-Party Affiliate Fees');
-  dailyFees.addUSDValue(protocol_usd, 'Protocol Fee');
+  dailyFees.addUSDValue(fees_usd, 'Swap Fees');
 
-  // NEAR keeps its own frontends' affiliate fees + the protocol fee.
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addUSDValue(frontend_usd, 'NEAR Frontend Affiliate Fees');
-  dailyRevenue.addUSDValue(protocol_usd, 'Protocol Fee');
-
-  // The rest is earned by third-party frontends and solvers.
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(thirdparty_usd, 'Third-Party Affiliate Fees');
+  dailySupplySideRevenue.addUSDValue(fees_usd - revenue_usd, 'Fees To Solvers & Distribution Channels');
 
   // Captured revenue: treasury before the buyback program, $NEAR buybacks after.
-  const captured = frontend_usd + protocol_usd;
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   if (options.dateString >= BUYBACK_START) {
-    dailyHoldersRevenue.addUSDValue(captured, 'NEAR Buyback');
+    dailyHoldersRevenue.addCGToken('near', revenue_near, 'NEAR Buyback');
   } else {
-    dailyProtocolRevenue.addUSDValue(captured, 'NEAR Treasury');
+    dailyProtocolRevenue.addCGToken('near', revenue_near, 'NEAR Treasury');
   }
 
   return {
@@ -113,22 +109,20 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.NEAR],
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  allowNegativeValue: true, // sweep days: captured revenue can exceed that day's accrued fees
   methodology: {
     Fees: "Gross fees charged on NEAR Intents swaps - the protocol fee plus the affiliate (distribution) fee each frontend collects, summed across all integrators.",
-    Revenue: "The share NEAR keeps: affiliate fees from NEAR's own frontends plus the protocol fee. The affiliate fees earned by third-party frontends are excluded.",
+    Revenue: "NEAR's net captured revenue across all streams (front-end, quote improvement, authorized/unauthorized partner, private agreement), measured as NEAR/wNEAR swept into NEAR's revenue wallets. Reconciles with revenue.near.org's Revenue by Stream and the on-chain buyback.",
     ProtocolRevenue: "Captured revenue held by the treasury before the 2026-02-23 buyback program.",
     HoldersRevenue: "Since 2026-02-23, NEAR's captured Intents revenue is used to buy back $NEAR on the open market (not burned), returning value to holders.",
-    SupplySideRevenue: "Affiliate fees earned by third-party frontends and solvers - gross fees minus the share NEAR keeps.",
+    SupplySideRevenue: "Gross fees minus NEAR's captured revenue - the affiliate fees kept by solvers and third-party distribution channels (e.g. SwapKit).",
   },
   breakdownMethodology: {
     Fees: {
-      'NEAR Frontend Affiliate Fees': "Affiliate fees collected by NEAR's own frontends.",
-      'Third-Party Affiliate Fees': "Affiliate fees collected by third-party frontends/integrators.",
-      'Protocol Fee': "The NEAR Intents protocol fee charged on each swap.",
+      'Swap Fees': "Gross protocol + affiliate fees charged on NEAR Intents swaps across all integrators.",
     },
     Revenue: {
-      'NEAR Frontend Affiliate Fees': "Affiliate fees from NEAR's own frontends (kept by NEAR).",
-      'Protocol Fee': "The protocol fee, retained 100% by NEAR.",
+      'Captured Intents Revenue': "NEAR/wNEAR swept into NEAR's revenue wallets (fefundsadmin, 1csfundsadmin, buybacks.multisignature) across all revenue streams.",
     },
     ProtocolRevenue: {
       'NEAR Treasury': "Captured revenue retained by the treasury before the 2026-02-23 buyback program.",
@@ -137,7 +131,7 @@ const adapter: SimpleAdapter = {
       'NEAR Buyback': "$NEAR bought back on the open market with captured Intents revenue, from 2026-02-23 onward.",
     },
     SupplySideRevenue: {
-      'Third-Party Affiliate Fees': "Affiliate fees paid out to third-party frontends and solvers.",
+      'Fees To Solvers & Distribution Channels': "Gross fees less NEAR's captured share - kept by solvers and third-party distribution channels.",
     },
   },
 };
