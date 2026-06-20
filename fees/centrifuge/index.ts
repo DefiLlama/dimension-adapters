@@ -9,7 +9,7 @@ const chainConfig = {
             {
                 token: "0x8c213ee79581ff4984583c6a801e5263418c4b86",
                 vault: "0xfe6920eb6c421f1179ca8c8d4170530cdbdfd77a",
-                name: "JSTRY",
+                name: "JTRSY",
             },
             {
                 token: "0x5a0f93d040de44e78f251b03c43be9cf317dcf64",
@@ -87,7 +87,6 @@ const chainConfig = {
 }
 
 const expenseRatio = {
-    "JSTRY": 0.25,
     "JTRSY": 0.25,
     "JAAA": 0.5,
     "ACRDX": 0.5,
