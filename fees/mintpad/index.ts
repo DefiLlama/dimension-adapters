@@ -16,7 +16,7 @@ const makerMatchAbi = "event MakerMatch(bytes32 orderHash, uint256 bidOrderNonce
 // Emitted whenever a royalty is paid to a creator
 const royaltyPaymentAbi = "event RoyaltyPayment(address indexed collection, uint256 indexed tokenId, address indexed royaltyRecipient, address currency, uint256 amount)";
 
-const fetchCronosFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -27,11 +27,11 @@ const fetchCronosFees = async (options: FetchOptions) => {
     options.getLogs({ target: contractAddress, eventAbi: royaltyPaymentAbi }),
   ]);
 
-  const allEvents = [...takerBidEvents, ...takerAskEvents, ...makerMatchEvents];
+  const allSaleEvents = [...takerBidEvents, ...takerAskEvents, ...makerMatchEvents];
 
-  allEvents.forEach((event: any) => {
+  allSaleEvents.forEach((event: any) => {
     // `currency` is the ERC20 used for payment (e.g. WCRO); price is denominated in that token
-    dailyVolume.add(event.currency, event.price, 'NFT Sales');
+    dailyVolume.add(event.currency, event.price);
   });
 
   royaltyEvents.forEach((event: any) => {
@@ -39,7 +39,7 @@ const fetchCronosFees = async (options: FetchOptions) => {
   });
 
   // Protocol fee: 2% of total volume (retained by Mintpad)
-  const dailyProtocolRevenue = dailyVolume.clone(PROTOCOL_FEE_BPS / 10000);
+  const dailyProtocolRevenue = dailyVolume.clone(PROTOCOL_FEE_BPS / 10000, 'NFT Sale Fees');
   const dailyRevenue = dailyProtocolRevenue.clone(1);
 
   // Total fees = protocol fee + creator royalties (income statement identity)
@@ -58,12 +58,9 @@ const fetchCronosFees = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.CRONOS]: {
-      fetch: fetchCronosFees,
-      start: '2026-05-30',
-    },
-  },
+  fetch,
+  chains: [CHAIN.CRONOS],
+  start: '2026-05-30',
   methodology: {
     Fees: "Total fees from NFT sales: 2% protocol fee plus creator royalties",
     Revenue: "Protocol-retained portion of marketplace fees (2% of volume)",
@@ -73,20 +70,17 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'NFT Sales': '2% protocol fee applied to NFT sales volume from matched orders.',
+      'NFT Sale Fees': '2% protocol fee applied to NFT sales volume from matched orders.',
       'Creator Royalties': 'Creator royalties collected on each sale.',
     },
     Revenue: {
-      'NFT Sales': 'Protocol-retained marketplace trading fees (2% of volume).',
+      'NFT Sale Fees': 'Protocol-retained marketplace trading fees (2% of volume).',
     },
     SupplySideRevenue: {
       'Creator Royalties': 'Royalties paid to NFT creators on secondary sales.',
     },
     ProtocolRevenue: {
-      'NFT Sales': 'Protocol fee (2% of volume) retained by Mintpad treasury.',
-    },
-    Volume: {
-      'NFT Sales': 'Executed NFT sale notional from TakerBid, TakerAsk, and MakerMatch events.',
+      'NFT Sale Fees': 'Protocol fee (2% of volume) retained by Mintpad treasury.',
     },
   }
 };
