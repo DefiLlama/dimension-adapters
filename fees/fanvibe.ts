@@ -17,6 +17,7 @@ const fetch = async (options: FetchOptions) => {
   const data: FanVibeOverview = await httpGet(
     `${API_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}`,
   );
+
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - data.timestamp) > 24 * 60 * 60) {
     throw new Error("FanVibe API data is stale");
@@ -35,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyVolume.addUSDValue(data.dailyVolumeUsd, "Prediction Market Stakes");
+  dailyVolume.addUSDValue(data.dailyVolumeUsd);
   dailyFees.addUSDValue(data.dailyFeesUsd, "Stake Fees");
   dailyRevenue.addUSDValue(data.dailyRevenueUsd, "Stake Fees To Protocol");
 
@@ -50,12 +51,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.XLAYER]: {
-      fetch,
-      start: "2026-06-12",
-    },
-  },
+  chains: [CHAIN.XLAYER],
+  start: "2026-06-12",
+  fetch,
   methodology: {
     Volume:
       "Gross accepted OKB stakes on FanVibe real World Cup match and champion markets. Rejected/refunded stake attempts are excluded.",
@@ -64,9 +62,6 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "100% of FanVibe protocol revenue is retained by the protocol.",
   },
   breakdownMethodology: {
-    Volume: {
-      "Prediction Market Stakes": "Gross accepted OKB stakes on FanVibe real World Cup match and champion markets. Rejected/refunded stake attempts are excluded.",
-    },
     Fees: {
       "Stake Fees": "Protocol fee charged on accepted FanVibe stakes, equal to 0.5% of accepted stake volume.",
     },
