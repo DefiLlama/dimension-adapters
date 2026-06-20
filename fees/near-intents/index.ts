@@ -16,15 +16,14 @@ import { queryDuneSql } from "../../helpers/dune";
  *     - Front-end Affiliate Revenue = the front-end fund (fefundsadmin, "fe").
  *     - Other Revenue = the 1Click fund (1csfundsadmin) + buyback wallet, i.e.
  *       1Click/partner revenue shares, quote improvement, private agreements.
- *   Both come from the same wallet sweeps, so the split is consistent and each
- *   part is always >= 0 (revenue.near.org's exact per-stream split is backend
- *   logic and not reproducible from on-chain data).
  *
- * SupplySideRevenue: gross fees minus NEAR's captured revenue - the affiliate
- *   fees kept by solvers and third-party distribution channels (e.g. SwapKit).
- *   Captured revenue is realized in periodic sweeps, so on a sweep day it can
- *   exceed that day's accrued gross fees and supply-side goes briefly negative
- *   (allowNegativeValue); it nets out positive over time.
+ * SupplySideRevenue is intentionally NOT reported. The fees paid out to solvers
+ *   and third-party frontends would be gross fees minus NEAR's captured revenue,
+ *   but NEAR realizes its revenue in periodic (≈ monthly) on-chain sweeps, so on
+ *   a sweep day the swept amount far exceeds that day's accrued gross fees and a
+ *   daily fees-minus-revenue figure is meaningless/negative. The per-day split
+ *   of the sweep across the days it was earned (and NEAR-vs-third-party) is
+ *   NEAR's backend logic and not derivable on-chain, so supply-side is omitted.
  *
  * ProtocolRevenue / HoldersRevenue: captured revenue is held in treasury before
  *   BUYBACK_START and, since 2026-02-23, used to buy back $NEAR (not burned).
@@ -87,10 +86,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addCGToken('near', frontend_near, 'Front-end Affiliate Revenue');
   dailyRevenue.addCGToken('near', other_near, 'Other Revenue');
-  const revenue_usd = await dailyRevenue.getUSDValue();
-
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(fees_usd - revenue_usd, 'Fees To Solvers & Distribution Channels');
 
   // Captured revenue: treasury before the buyback program, $NEAR buybacks after.
   const dailyProtocolRevenue = options.createBalances();
@@ -106,7 +101,6 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    dailySupplySideRevenue,
   };
 };
 
@@ -117,13 +111,11 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.NEAR],
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  allowNegativeValue: true, // sweep days: captured revenue can exceed that day's accrued fees
   methodology: {
     Fees: "Gross fees charged on NEAR Intents swaps - the protocol fee plus the affiliate (distribution) fee each frontend collects, summed across all integrators.",
     Revenue: "NEAR's net captured revenue, measured as NEAR/wNEAR swept into its revenue wallets (reconciles with revenue.near.org and the on-chain buyback). Split by destination wallet into front-end affiliate revenue and Other.",
     ProtocolRevenue: "Captured revenue held by the treasury before the 2026-02-23 buyback program.",
     HoldersRevenue: "Since 2026-02-23, NEAR's captured Intents revenue is used to buy back $NEAR on the open market (not burned), returning value to holders.",
-    SupplySideRevenue: "Gross fees minus NEAR's captured revenue - the affiliate fees kept by solvers and third-party distribution channels (e.g. SwapKit).",
   },
   breakdownMethodology: {
     Fees: {
@@ -138,9 +130,6 @@ const adapter: SimpleAdapter = {
     },
     HoldersRevenue: {
       'NEAR Buyback': "$NEAR bought back on the open market with captured Intents revenue, from 2026-02-23 onward.",
-    },
-    SupplySideRevenue: {
-      'Fees To Solvers & Distribution Channels': "Gross fees less NEAR's captured share - kept by solvers and third-party distribution channels.",
     },
   },
 };
