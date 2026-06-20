@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 // Fee share constants (source: https://pokeliquid.xyz/docs)
-const TRADING_FEE_BPS = 200; // 2% on opens and closes
 const TRADING_INSURANCE_SHARE = 0.25; // 25% of trading fees → insurance
 const TRADING_LP_SHARE = 0.50; // 50% of trading fees → LPs
 // Remaining 25% → protocol treasury
@@ -32,9 +31,9 @@ const fetch = async (options: FetchOptions) => {
   `;
 
   const result = await queryDuneSql(options, query);
-  const row = result[0] || { insurance_in: 0 };
+  const row = result[0];
 
-  const insuranceIn = Number(row.insurance_in) || 0;
+  const insuranceIn = Number(row.insurance_in);
   // Derive total trading fees from insurance inflow.
   // Insurance receives TRADING_INSURANCE_SHARE (25%) of trading fees.
   const fees = insuranceIn / TRADING_INSURANCE_SHARE;
@@ -42,11 +41,13 @@ const fetch = async (options: FetchOptions) => {
   // Fee split: 50% to LPs (supply side), 50% to protocol (25% insurance + 25% treasury)
   // Invariant: dailyFees = dailyRevenue + dailySupplySideRevenue
   const supplySide = fees * TRADING_LP_SHARE;
-  const revenue = fees - supplySide;
+  const insurance = fees * TRADING_INSURANCE_SHARE;
+  const revenue = fees - supplySide - insurance;
 
   dailyFees.addUSDValue(fees, "Trading Fees");
   dailyRevenue.addUSDValue(revenue, "Trading Fees To Protocol");
   dailySupplySideRevenue.addUSDValue(supplySide, "Trading Fees To LPs");
+  dailySupplySideRevenue.addUSDValue(insurance, "Trading Fees To Insurance Fund");
 
   return {
     dailyFees,
@@ -58,9 +59,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees (2% of position size) collected on perpetual position opens and closes.",
-  Revenue: "50% of trading fees: 25% to protocol treasury + 25% to insurance fund.",
-  SupplySideRevenue: "50% of trading fees distributed pro-rata to liquidity providers.",
+  Fees: "Trading fees (2% of position size) collected on perpetual position opens/closes.",
+  Revenue: "Includes 25% of the trading fees retained by the protocol.",
+  ProtocolRevenue: "Includes 25% of the trading fees retained by the protocol.",
+  SupplySideRevenue: "50% of trading fees distributed pro-rata to liquidity providers and 25% of trading fees to the insurance fund.",
 };
 
 const breakdownMethodology = {
@@ -68,26 +70,24 @@ const breakdownMethodology = {
     "Trading Fees": "2% fee on position opens and closes, collected in USDC from trader collateral.",
   },
   Revenue: {
-    "Trading Fees To Protocol": "50% of trading fees retained by the protocol (25% treasury + 25% insurance fund).",
+    "Trading Fees To Protocol": "Includes 25% of the trading fees retained by the protocol.",
+  },
+  ProtocolRevenue: {
+    "Trading Fees To Protocol": "Includes 25% of the trading fees retained by the protocol.",
   },
   SupplySideRevenue: {
     "Trading Fees To LPs": "50% of trading fees distributed pro-rata to liquidity providers.",
+    "Trading Fees To Insurance Fund": "25% of trading fees distributed to the insurance fund.",
   },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-05-20",
-      meta: {
-        methodology,
-        breakdownMethodology,
-      },
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-06-07",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
