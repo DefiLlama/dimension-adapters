@@ -69,13 +69,13 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: 'Interest accrued from borrowers across all reserves, calculated from each reserve daily borrow APR and total borrowed amount',
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+    [METRIC.PROTOCOL_FEES]: `Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.`,
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+    [METRIC.PROTOCOL_FEES]: `Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.`,
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: 'Lenders receive 80% of borrow interest as yield on their supplied assets',
+    [METRIC.BORROW_INTEREST]: `Interest distributed to lenders who supply assets (the remainder of each market's interest).`,
   },
 };
 
