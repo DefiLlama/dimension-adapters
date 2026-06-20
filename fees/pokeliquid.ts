@@ -41,13 +41,12 @@ const fetch = async (options: FetchOptions) => {
   // Fee split: 50% to LPs (supply side), 50% to protocol (25% insurance + 25% treasury)
   // Invariant: dailyFees = dailyRevenue + dailySupplySideRevenue
   const supplySide = fees * TRADING_LP_SHARE;
-  const insurance = fees * TRADING_INSURANCE_SHARE;
-  const revenue = fees - supplySide - insurance;
+  const revenue = fees - supplySide - insuranceIn;
 
   dailyFees.addUSDValue(fees, "Trading Fees");
   dailyRevenue.addUSDValue(revenue, "Trading Fees To Protocol");
   dailySupplySideRevenue.addUSDValue(supplySide, "Trading Fees To LPs");
-  dailySupplySideRevenue.addUSDValue(insurance, "Trading Fees To Insurance Fund");
+  dailySupplySideRevenue.addUSDValue(insuranceIn, "Trading Fees To Insurance Fund");
 
   return {
     dailyFees,
