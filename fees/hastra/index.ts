@@ -77,13 +77,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    fetch: async (options: FetchOptions) => {
-        return options.chain === CHAIN.SOLANA
-            ? fetchSolana(options)
-            : fetchEthereum(options);
+    adapter: {
+      [CHAIN.SOLANA]: { start: '2025-11-21', fetch: fetchSolana},
+      [CHAIN.ETHEREUM]: { start: '2026-04-17', fetch: fetchEthereum},
     },
-    chains: [CHAIN.SOLANA, CHAIN.ETHEREUM],
-    start: "2025-11-21",
     isExpensiveAdapter: true,
     dependencies: [Dependencies.DUNE],
     methodology,
