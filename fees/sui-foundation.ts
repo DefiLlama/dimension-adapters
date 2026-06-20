@@ -10,7 +10,6 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   // Yield earned on the reserves backing the USDsui and suiUSDe stablecoins (USD).
@@ -19,16 +18,17 @@ const fetch = async (options: FetchOptions) => {
 
   const day = revenueByDate[options.dateString];
 
-  if (day) {
-    dailyFees.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
-    dailyRevenue.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
-    dailyProtocolRevenue.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
+  if(!day) {
+    throw new Error(`Sui Foundation: no data found for date ${options.dateString}`);
   }
+
+  dailyFees.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
+  dailyRevenue.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
+  dailyProtocolRevenue.addUSDValue(day.STABLECOIN_YIELD_REVENUE_USD, "Stablecoin Yields");
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue,
     dailyProtocolRevenue,
   }
 }
