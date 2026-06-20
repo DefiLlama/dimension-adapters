@@ -25,10 +25,12 @@ const fetch = async (options: FetchOptions) => {
   const dayKey = options.dateString.replace(/-/g, "");
   const day = days[dayKey];
 
-  if (day) {
-    dailyFees.addCGToken("ethereum", day.base_fee, METRIC.TRANSACTION_BASE_FEES);
-    dailyFees.addCGToken("ethereum", day.priority_fee, METRIC.TRANSACTION_PRIORITY_FEES);
+  if(!day) {
+    throw new Error(`Eclipse: no data found for date ${options.dateString}`);
   }
+
+  dailyFees.addCGToken("ethereum", day.base_fee, METRIC.TRANSACTION_BASE_FEES);
+  dailyFees.addCGToken("ethereum", day.priority_fee, METRIC.TRANSACTION_PRIORITY_FEES);
 
   return { dailyFees };
 };
