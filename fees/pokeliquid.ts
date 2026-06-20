@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -88,6 +88,8 @@ const adapter: SimpleAdapter = {
   start: "2026-06-07",
   methodology,
   breakdownMethodology,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
