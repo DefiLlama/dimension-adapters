@@ -136,14 +136,12 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
     // claimable balances, liquidity pools).
     const { USDY_CODE, USDY_ISSUER } = OndoContracts[CHAIN.STELLAR]
     const res = await axios.get(`https://horizon.stellar.org/assets?asset_code=${USDY_CODE}&asset_issuer=${USDY_ISSUER}`)
-    const record = res.data?._embedded?.records?.[0]
-    const usdy = record
-      ? Number(record.balances?.authorized ?? 0)
-      + Number(record.balances?.authorized_to_maintain_liabilities ?? 0)
-      + Number(record.contracts_amount ?? 0)
-      + Number(record.claimable_balances_amount ?? 0)
-      + Number(record.liquidity_pools_amount ?? 0)
-      : 0
+    const record = res.data._embedded.records[0]
+    const usdy =  Number(record.balances.authorized)
+      + Number(record.balances.authorized_to_maintain_liabilities)
+      + Number(record.contracts_amount)
+      + Number(record.claimable_balances_amount)
+      + Number(record.liquidity_pools_amount)
     return {
       OUSG: 0,
       USDY: usdy,
@@ -156,9 +154,9 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
       ledger_index: 'validated',
       strict: true,
     }])
-    const obligations = res?.result?.obligations || {}
+    const obligations = res.result.obligations
     return {
-      OUSG: Number(obligations[OUSG_CURRENCY] ?? 0),
+      OUSG: Number(obligations[OUSG_CURRENCY]),
       USDY: 0,
     }
   } else {
