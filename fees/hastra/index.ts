@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
-import { ethers } from "ethers";
 
 // --- Solana ---
 const WYLDS_MINT = "8fr7WGTVFszfyNWRMXj6fRjZZAnDwmXwEpCrtzmUkdih";
@@ -14,8 +13,6 @@ const VAULT_STAKE_OWNER = "DT7z9w9fGJ6sH7vmGbPCa5JLi2xp6XPrL61z2gctzmHb";
 // Mints to other addresses are new issuance, not yield, so filter to staking only.
 const ETH_WYLDS = "0x6aD038cA6C04e885630851278ca0a856Ad9a66Cc"; // 6 decimals
 const ETH_STAKING = "0x19ebb35279A16207Ec4ba82799CC64715065F7F6";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const fetchSolana = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
@@ -39,30 +36,27 @@ const fetchSolana = async (options: FetchOptions) => {
 
     return {
         dailyFees,
-        dailySupplySideRevenue: dailyFees
+        dailySupplySideRevenue: dailyFees,
+        dailyRevenue: 0,
     };
 };
 
 const fetchEthereum = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
 
-    const logs = await options.getLogs({
-        target: ETH_WYLDS,
-        eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-        topics: [
-            TRANSFER_TOPIC,
-            ethers.zeroPadValue(ZERO_ADDRESS, 32),
-            ethers.zeroPadValue(ETH_STAKING, 32),
-        ],
+    const rewardDistributionLogs = await options.getLogs({
+        target: ETH_STAKING,
+        eventAbi: "event RewardsDistributed (uint256 amount, uint256 timestamp)",
     });
 
-    for (const log of logs) {
-        dailyFees.add(ETH_WYLDS, log.value, METRIC.ASSETS_YIELDS);
+    for (const log of rewardDistributionLogs) {
+        dailyFees.add(ETH_WYLDS, log.amount, METRIC.ASSETS_YIELDS);
     }
 
     return {
         dailyFees,
-        dailySupplySideRevenue: dailyFees
+        dailySupplySideRevenue: dailyFees,
+        dailyRevenue: 0,
     };
 };
 
