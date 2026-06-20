@@ -29,12 +29,15 @@ function toYYYYMMDD(ts: number): bigint {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, toTimestamp } = options;
+  const { startTimestamp } = options;
 
   const date = toYYYYMMDD(startTimestamp);
   const prevDate = toYYYYMMDD(startTimestamp - ONE_DAY_SECONDS);
 
-  const bscApi = new ChainApi({ chain: CHAIN.BSC, timestamp: toTimestamp });
+  // Read at the latest block: the full daily series is persisted in current
+  // storage keyed by YYYYMMDD, and the contract did not exist before 2026, so
+  // historical-block reads of pre-deployment date keys would return 0.
+  const bscApi = new ChainApi({ chain: CHAIN.BSC });
 
   const inflowData = await bscApi.multiCall({
     abi: volumeByDateAbi,
@@ -70,7 +73,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.CHAIN_GLOBAL], // data from all chains but stored on BNB Chain
-  start: "2026-05-29",
+  start: "2025-10-31",
   fetch,
   methodology,
 };
