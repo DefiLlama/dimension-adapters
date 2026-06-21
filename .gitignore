@@ -2,7 +2,6 @@ node_modules
 .vscode
 .DS_store
 .env
-.env.local
 .idea
 yarn.lock
 test.py
