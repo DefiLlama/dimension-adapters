@@ -83,7 +83,7 @@ async function queryContract({
 
 async function getBlock(height: number): Promise<BlockInfo> {
   if (!blockCache[height]) {
-    const res = await httpGet(`${ZIGCHAIN_LCD}/cosmos/base/tendermint/v1beta1/blocks/${height}`);
+    const res = await httpGet(`${ZIGCHAIN_ARCHIVAL_LCD}/cosmos/base/tendermint/v1beta1/blocks/${height}`);
     blockCache[height] = {
       height,
       timestamp: Math.floor(new Date(res.block.header.time).getTime() / 1000),
