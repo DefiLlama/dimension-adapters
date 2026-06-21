@@ -5,6 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 const ZIGCHAIN = "zigchain";
 const ZIGCHAIN_LCD = "https://public-zigchain-lcd.numia.xyz";
+const ZIGCHAIN_ARCHIVAL_LCD = "https://api.zigchain.com";
 
 const MARKETS = [
   {
@@ -57,6 +58,12 @@ function encodeQuery(data: Record<string, unknown>) {
   return Buffer.from(JSON.stringify(data)).toString("base64");
 }
 
+function isMissingContractAtHeight(error: unknown) {
+  const axiosError = (error as { axiosError?: unknown })?.axiosError;
+  const message = typeof axiosError === "string" ? axiosError : JSON.stringify(axiosError ?? "");
+  return message.includes("no such contract") || message.includes("no commit info found");
+}
+
 async function queryContract({
   contract,
   data,
@@ -66,9 +73,10 @@ async function queryContract({
   data: Record<string, unknown>;
   height?: number;
 }) {
+  const lcd = height ? ZIGCHAIN_ARCHIVAL_LCD : ZIGCHAIN_LCD;
   const query = encodeURIComponent(encodeQuery(data));
   return httpGet(
-    `${ZIGCHAIN_LCD}/cosmwasm/wasm/v1/contract/${contract}/smart/${query}`,
+    `${lcd}/cosmwasm/wasm/v1/contract/${contract}/smart/${query}`,
     height ? { headers: { "x-cosmos-block-height": String(height) } } : undefined
   );
 }
@@ -113,7 +121,6 @@ async function getHeightAtOrBefore(timestamp: number) {
       high = mid - 1;
     }
   }
-
   return best;
 }
 
@@ -123,11 +130,17 @@ async function getMarkets(redBank: string, height: number) {
   const allMarkets: Market[] = [];
 
   do {
-    const markets = await queryContract({
-      contract: redBank,
-      height,
-      data: { markets_v2: { limit: pageLimit, start_after: startAfter } },
-    });
+    let markets;
+    try {
+      markets = await queryContract({
+        contract: redBank,
+        height,
+        data: { markets_v2: { limit: pageLimit, start_after: startAfter } },
+      });
+    } catch (error) {
+      if (startAfter === null && isMissingContractAtHeight(error)) return [];
+      throw error;
+    }
 
     const marketsData = markets.data?.data ?? markets.data ?? markets;
     allMarkets.push(...marketsData);
@@ -358,6 +371,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [ZIGCHAIN]: {
       fetch,
