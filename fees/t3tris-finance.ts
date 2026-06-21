@@ -1,5 +1,6 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 /**
  * T3tris Finance — Fees & Revenue Adapter
@@ -27,17 +28,18 @@ import { CHAIN } from "../helpers/chains";
  *   Vault fees (perf/mgmt/entry/exit) are in dailyFees but NOT in dailyRevenue.
  *   They go to each vault's feeRecipient, not to the protocol.
  *
- * Protocol address is deterministic (CREATE3) — same on all chains.
+ * Vaults are sourced from the T3tris ecosystem API
+ * (https://ecosystem.t3tris.finance/vaults); only vaults that are `verified`
+ * and not `blacklisted` are indexed.
+ *
+ * Landing: https://t3tris.finance/   App: https://app.t3tris.finance/
  */
 
-// T3tris protocol v1 proxy — deterministic CREATE3 address, same on all chains
-const T3TRIS_FACTORY = "0x0000000000CC53b5Fd649b80f08b05405779cC71";
+// T3tris ecosystem API — authoritative list of vaults with curation flags.
+// Only vaults that are `verified` and not `blacklisted` are indexed.
+const VAULTS_API = "https://ecosystem.t3tris.finance/vaults";
 
 const ABI = {
-  getDeployedVaultsCount:
-    "function getDeployedVaultsCount() external view returns (uint256)",
-  getDeployedVaults:
-    "function getDeployedVaults(uint256, uint256) external view returns (address[])",
   asset: "address:asset",
   decimals: "uint8:decimals",
   totalAssets: "uint256:totalAssets",
@@ -58,23 +60,11 @@ const EVENT_ABI = {
   t3trisProfit: "event T3trisProfit(uint256 profit)",
 };
 
-// Supported chains (will expand as T3tris deploys)
-const chainConfig: Record<string, { start: string }> = {
-  [CHAIN.ETHEREUM]: { start: "2025-01-01" },
-  [CHAIN.ARBITRUM]: { start: "2025-01-01" },
-  [CHAIN.BASE]: { start: "2025-01-01" },
-  [CHAIN.OPTIMISM]: { start: "2025-01-01" },
-  [CHAIN.POLYGON]: { start: "2025-01-01" },
-  [CHAIN.AVAX]: { start: "2025-01-01" },
-  [CHAIN.BSC]: { start: "2025-01-01" },
-  [CHAIN.LINEA]: { start: "2025-01-01" },
-  [CHAIN.SCROLL]: { start: "2025-01-01" },
-  [CHAIN.BLAST]: { start: "2025-01-01" },
-  [CHAIN.MANTLE]: { start: "2025-01-01" },
-  [CHAIN.MODE]: { start: "2025-01-01" },
-  [CHAIN.XDAI]: { start: "2025-01-01" },
-  [CHAIN.FANTOM]: { start: "2025-01-01" },
-  [CHAIN.SONIC]: { start: "2025-01-01" },
+// Supported chains: DefiLlama chain -> { ecosystem-API chainId, start }. T3tris
+// is live on Arbitrum only for now (same CREATE3 addresses on every EVM chain);
+// add a chain here once it goes live and the API returns verified vaults for it.
+const chainConfig: Record<string, { chainId: number; start: string }> = {
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2025-01-01" },
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -85,25 +75,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // 1. Discover all vaults from factory
-  let count: number;
+  // 1. Discover verified, non-blacklisted vaults from the T3tris ecosystem API
+  let vaults: string[];
   try {
-    count = await options.api.call({
-      abi: ABI.getDeployedVaultsCount,
-      target: T3TRIS_FACTORY,
-    });
+    const chainId = chainConfig[options.chain].chainId;
+    const all = await httpGet(VAULTS_API);
+    vaults = (all || [])
+      .filter(
+        (v: any) =>
+          v.verified && !v.blacklisted && Number(v.chainId) === chainId,
+      )
+      .map((v: any) => v.address);
   } catch {
-    // Factory not deployed on this chain yet
+    // API unreachable — report nothing for this run
     return {};
   }
-
-  if (count == 0) return {};
-
-  const vaults: string[] = await options.api.call({
-    abi: ABI.getDeployedVaults,
-    target: T3TRIS_FACTORY,
-    params: [0, count - 1],
-  });
 
   if (!vaults || vaults.length === 0) return {};
 
