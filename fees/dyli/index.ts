@@ -1,7 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import getTxReceipts from "../../helpers/getTxReceipts";
 import { METRIC } from "../../helpers/metrics";
+import { addTokensReceived } from "../../helpers/token";
 
 const USDC = ADDRESSES.abstract.USDC;
 
@@ -16,9 +18,10 @@ const VENDING_MACHINES = [
   "0x270Bbb21B1187Bc6e694F428DCb51432958Eb3d9",
 ];
 
+const SERVICE_FEE_TARGETS = [MAIN_CONTRACT, ...VENDING_MACHINES, PLATFORM_WALLET];
+
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const LISTING_BOUGHT =
   "event ListingBought(uint256 listingId, uint256 tokenId, address buyer, address seller, uint64 amount, uint128 pricePerItem)";
 const BID_ACCEPTED =
@@ -29,30 +32,7 @@ const MARKETPLACE_FEE_BPS = 500n;
 const TRADE_FEE_BPS = 250n;
 const BPS_DENOMINATOR = 10_000n;
 
-const toAddressTopic = (address: string) =>
-  `0x${address.toLowerCase().replace(/^0x/, "").padStart(64, "0")}`;
-
 const normalize = (address?: string) => address?.toLowerCase();
-
-const getTransferValue = (log: any) => BigInt(log.value ?? log.args?.value ?? 0);
-const getTransferFrom = (log: any) => normalize(log.from ?? log.args?.from);
-const getTransferTo = (log: any) => normalize(log.to ?? log.args?.to);
-
-const addTransferLogs = (
-  logs: any[],
-  dailyVolume: any,
-  dailyFees: any,
-  excludedSenders = new Set<string | undefined>(),
-) => {
-  logs.forEach((log) => {
-    if (excludedSenders.has(getTransferFrom(log))) return;
-    const amount = getTransferValue(log);
-    if (amount <= 0n) return;
-
-    dailyVolume.add(USDC, amount);
-    dailyFees.add(USDC, amount, METRIC.SERVICE_FEES);
-  });
-};
 
 const addMarketplaceLogs = (
   logs: any[],
@@ -72,71 +52,62 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const [
-    mainContractInflows,
-    platformWalletInflows,
-    vendingMachineInflows,
-    listingBoughtLogs,
-    bidAcceptedLogs,
-    orderAcceptedLogs,
-    usdcTransfers,
-  ] = await Promise.all([
-    options.getLogs({
-      target: USDC,
-      eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, toAddressTopic(MAIN_CONTRACT)],
-    }),
-    options.getLogs({
-      target: USDC,
-      eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, toAddressTopic(PLATFORM_WALLET)],
-    }),
-    Promise.all(
-      VENDING_MACHINES.map((machine) =>
-        options.getLogs({
-          target: USDC,
-          eventAbi: TRANSFER_EVENT,
-          topics: [TRANSFER_TOPIC, null as any, toAddressTopic(machine)],
-        }),
-      ),
-    ).then((logs) => logs.flat()),
-    options.getLogs({
-      target: MARKETPLACE,
-      eventAbi: LISTING_BOUGHT,
-    }),
-    options.getLogs({
-      target: MARKETPLACE,
-      eventAbi: BID_ACCEPTED,
-    }),
-    options.getLogs({
-      target: TRADING,
-      eventAbi: ORDER_ACCEPTED,
-      entireLog: true,
-    }),
-    options.getLogs({
-      target: USDC,
-      eventAbi: TRANSFER_EVENT,
-      entireLog: true,
-    }),
-  ]);
+  const serviceFeeInflows = await addTokensReceived({
+    options,
+    targets: SERVICE_FEE_TARGETS,
+    token: USDC,
+    logFilter: (log) => {
+      const to = normalize(log.to);
+      if (to === normalize(PLATFORM_WALLET)) return true;
+      return normalize(log.from) !== normalize(PLATFORM_WALLET);
+    },
+  });
 
-  const platformWalletSenders = new Set([normalize(PLATFORM_WALLET)]);
-  addTransferLogs(mainContractInflows, dailyVolume, dailyFees, platformWalletSenders);
-  addTransferLogs(vendingMachineInflows, dailyVolume, dailyFees, platformWalletSenders);
-  addTransferLogs(platformWalletInflows, dailyVolume, dailyFees);
+  const listingBoughtLogs = await options.getLogs({
+    target: MARKETPLACE,
+    eventAbi: LISTING_BOUGHT,
+  });
+
+  const bidAcceptedLogs = await options.getLogs({
+    target: MARKETPLACE,
+    eventAbi: BID_ACCEPTED,
+  });
+
+  const orderAcceptedLogs = await options.getLogs({
+    target: TRADING,
+    eventAbi: ORDER_ACCEPTED,
+    entireLog: true,
+  });
+
+  dailyVolume.addBalances(serviceFeeInflows);
+  dailyFees.addBalances(serviceFeeInflows, METRIC.SERVICE_FEES);
   addMarketplaceLogs(listingBoughtLogs, dailyVolume, dailyFees);
   addMarketplaceLogs(bidAcceptedLogs, dailyVolume, dailyFees);
 
-  const acceptedTradeTransactions = new Set(
-    orderAcceptedLogs.map((log: any) => log.transactionHash?.toLowerCase()).filter(Boolean),
-  );
+  const acceptedTradeTxHashes = [
+    ...new Set(
+      orderAcceptedLogs.map((log: any) => log.transactionHash?.toLowerCase()).filter(Boolean),
+    ),
+  ];
 
   let tradingVolume = 0n;
-  usdcTransfers.forEach((log: any) => {
-    if (!acceptedTradeTransactions.has(log.transactionHash?.toLowerCase())) return;
-    if (getTransferTo(log) === normalize(PLATFORM_WALLET)) return;
-    tradingVolume += getTransferValue(log);
-  });
+  if (acceptedTradeTxHashes.length) {
+    const receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
+      cacheKey: "dyli-p2p-trades",
+    });
+    const platformWallet = normalize(PLATFORM_WALLET);
+    const usdc = normalize(USDC);
+
+    for (const receipt of receipts) {
+      for (const log of receipt?.logs ?? []) {
+        if (normalize(log.address) !== usdc) continue;
+        const topics = log.topics ?? [];
+        if (topics.length < 3 || normalize(topics[0]) !== TRANSFER_TOPIC) continue;
+        if (`0x${topics[2].slice(26).toLowerCase()}` === platformWallet) continue;
+        tradingVolume += BigInt(log.data ?? 0);
+      }
+    }
+  }
 
   if (tradingVolume > 0n) {
     const tradingFees = (tradingVolume * TRADE_FEE_BPS) / BPS_DENOMINATOR;
