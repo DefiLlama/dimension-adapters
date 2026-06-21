@@ -101,7 +101,6 @@ const fetch = async (options: FetchOptions) => {
 
   dailyVolume.add(serviceFees);
   dailyVolume.add(cardSales);
-  dailyVolume.add(cardBuybackVolume);
 
   dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
   dailyFees.add(cardSales, CARD_SALES);
