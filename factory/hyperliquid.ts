@@ -30,6 +30,16 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "bloxwap-perps": {
+    addresses: ["0x71b09a08257078a4d642f7dd7315e656c837329a"],
+    start: "2026-04-25",
+    methodology: {
+      Fees: "Builder code fees (0.05%) paid by users on perpetual trades routed to Hyperliquid through Bloxwap.",
+      Revenue: "Builder code fees collected by Bloxwap from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Bloxwap from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "trust-wallet-perps": {
     addresses: ["0x5af1b5f44207784dcb850bbb4143c5dcd1885f71"],
     start: "2026-04-08",
