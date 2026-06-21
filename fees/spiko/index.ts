@@ -4,6 +4,7 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
+import { httpPost } from "../../utils/fetchURL";
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
@@ -64,6 +65,137 @@ const TOKENS: Record<string, Record<string, string>> = {
   },
 };
 
+// Stellar (Soroban) and Starknet have no on-chain reader in this repo and only retain
+// recent state over RPC, so their supply is read at the latest ledger/block (not the
+// historical period boundary). NAV still comes from the canonical Polygon oracle above.
+const STELLAR_TOKENS: Record<string, string> = {
+  USTBL: "CARUUX2FZNPH6DGJOEUFSIUQWYHNL5AVDV7PMVSHWL7OBYIBFC76F4TO",
+  EUTBL: "CBGV2QFQBBGEQRUKUMCPO3SZOHDDYO6SCP5CH6TW7EALKVHCXTMWDDOF",
+  SPKCC: "CDS2GCAQTNQINSCJUJIVBJXILKBWP5PU7LOBGHMP3X47QCQBFKPMTCNT",
+  eurSPKCC: "CDWOB6T7SVSMMQN5V3P2OPTBAXOP7DAZHGVW3PYTZIKHVFKN6TBSXR6A",
+};
+
+const STARKNET_TOKENS: Record<string, string> = {
+  USTBL: "0x020ff2f6021ada9edbceaf31b96f9f67b746662a6e6b2bc9d30c0d3e290a71f6",
+  EUTBL: "0x04f5e0de717daa6aa8de63b1bf2e8d7823ec5b21a88461b1519d9dbc956fb7f2",
+  SPKCC: "0x04bade88e79a6120f893d64e51006ac6853eceeefa1a50868d19601b1f0a567d",
+  eurSPKCC: "0x06472cabc51a3805975b9c60c7dec63897c9a287f2db173a1d6c589d18dd1e07",
+};
+
+const STELLAR_RPC = "https://soroban-rpc.creit.tech/";
+const STARKNET_RPC = "https://rpc.starknet.lava.build";
+const STARKNET_TOTAL_SUPPLY_SELECTOR =
+  "0x01557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836";
+
+// Minimal RFC4648 base32 decode (Stellar StrKey alphabet) — avoids a new dependency.
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function base32Decode(input: string): Buffer {
+  let bits = 0;
+  let value = 0;
+  const out: number[] = [];
+  for (const char of input.replace(/=+$/, "")) {
+    const idx = BASE32_ALPHABET.indexOf(char);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+
+// A Stellar contract StrKey is a version byte + 32-byte id + 2-byte CRC, base32-encoded.
+function decodeContractId(strKey: string): Buffer {
+  return base32Decode(strKey).slice(1, -2);
+}
+
+// Soroban ledger key for a contract's instance storage (where TotalSupply lives).
+function buildContractInstanceKey(contract: string): string {
+  const id = decodeContractId(contract);
+  const buf = Buffer.alloc(48);
+  buf.writeUInt32BE(6, 0); // CONTRACT_DATA
+  buf.writeUInt32BE(1, 4); // SC_ADDRESS_TYPE_CONTRACT
+  id.copy(buf, 8);
+  buf.writeUInt32BE(20, 40); // SCV_LEDGER_KEY_CONTRACT_INSTANCE
+  buf.writeUInt32BE(1, 44); // CONTRACT_DATA_PERSISTENT
+  return buf.toString("base64");
+}
+
+function parseTotalSupply(xdr: string): bigint {
+  const buf = Buffer.from(xdr, "base64");
+  const idx = buf.indexOf(Buffer.from("TotalSupply"));
+  if (idx === -1) throw new Error("TotalSupply not found in contract storage");
+  const len = buf.readUInt32BE(idx - 4);
+  let offset = idx + len;
+  offset += (4 - (len % 4)) % 4;
+  const type = buf.readUInt32BE(offset);
+  if (type !== 10) throw new Error("Unexpected TotalSupply ScVal type");
+  const hi = buf.readBigInt64BE(offset + 4);
+  const lo = buf.readBigUInt64BE(offset + 12);
+  return hi < 0n ? -(((-hi) << 64n) - lo) : (hi << 64n) + lo;
+}
+
+async function getStellarSupply(contract: string): Promise<number> {
+  const res = await httpPost(STELLAR_RPC, {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getLedgerEntries",
+    params: { keys: [buildContractInstanceKey(contract)] },
+  });
+  const xdr = res?.result?.entries?.[0]?.xdr;
+  if (!xdr) throw new Error(`Missing Soroban contract data for ${contract}`);
+  return Number(parseTotalSupply(xdr)) / 10 ** TOKEN_DECIMALS;
+}
+
+async function getStarknetSupply(contract: string): Promise<number> {
+  const res = await httpPost(STARKNET_RPC, {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "starknet_call",
+    params: [
+      { contract_address: contract, entry_point_selector: STARKNET_TOTAL_SUPPLY_SELECTOR, calldata: [] },
+      "latest",
+    ],
+  });
+  const result = res?.result;
+  if (!result) throw new Error(`Starknet totalSupply call failed for ${contract}`);
+  const [low, high] = result; // u256 (low, high)
+  const supply = BigInt(low) + (BigInt(high ?? 0) << 128n);
+  return Number(supply) / 10 ** TOKEN_DECIMALS;
+}
+
+// Resolve each fund's token supply (in whole shares) for the given chain.
+async function getSupplies(options: FetchOptions): Promise<Record<string, number>> {
+  const { chain } = options;
+  const out: Record<string, number> = {};
+
+  if (chain === CHAIN.STELLAR || chain === CHAIN.STARKNET) {
+    const tokenMap = chain === CHAIN.STELLAR ? STELLAR_TOKENS : STARKNET_TOKENS;
+    const read = chain === CHAIN.STELLAR ? getStellarSupply : getStarknetSupply;
+    await Promise.all(
+      Object.entries(tokenMap).map(async ([fund, contract]) => {
+        const supply = await read(contract).catch(() => undefined);
+        if (supply !== undefined) out[fund] = supply;
+      })
+    );
+    return out;
+  }
+
+  const tokenMap = TOKENS[chain];
+  const fundKeys = Object.keys(tokenMap);
+  const totalSupplies = await options.toApi.multiCall({
+    calls: fundKeys.map((f) => tokenMap[f]),
+    abi: "erc20:totalSupply",
+    permitFailure: true,
+  });
+  fundKeys.forEach((fund, i) => {
+    if (totalSupplies[i]) out[fund] = Number(totalSupplies[i]) / 10 ** TOKEN_DECIMALS;
+  });
+  return out;
+}
+
 // NAV is the same for every chain, so resolve it once per period (keyed by from/to) and
 // reuse it across all chain fetches in the same run.
 const navCache: Record<string, Promise<Record<string, { before: number; after: number }>>> = {};
@@ -99,30 +231,21 @@ async function getNavChanges(options: FetchOptions) {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { createBalances, chain, toApi, fromTimestamp, toTimestamp } = options;
+  const { createBalances, fromTimestamp, toTimestamp } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const tokenMap = TOKENS[chain];
-  const fundKeys = Object.keys(tokenMap);
-
-  const [navChanges, totalSupplies] = await Promise.all([
+  const [navChanges, supplies] = await Promise.all([
     getNavChanges(options),
-    toApi.multiCall({
-      calls: fundKeys.map((f) => tokenMap[f]),
-      abi: "erc20:totalSupply",
-      permitFailure: true,
-    }),
+    getSupplies(options),
   ]);
 
   const periodInYears = (toTimestamp - fromTimestamp) / YEAR_IN_SECONDS;
 
-  fundKeys.forEach((fund, index) => {
+  for (const [fund, supply] of Object.entries(supplies)) {
     const nav = navChanges[fund];
-    if (!nav || !totalSupplies[index]) return;
-
-    const supply = Number(totalSupplies[index]) / 10 ** TOKEN_DECIMALS;
+    if (!nav) continue;
     const { asset } = FUNDS[fund];
 
     // NAV growth distributed to token holders (the fund's gross yield).
@@ -134,7 +257,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const managementFee = supply * nav.after * MANAGEMENT_FEE_RATE * periodInYears;
     dailyFees.addCGToken(asset, managementFee, METRIC.MANAGEMENT_FEES);
     dailyRevenue.addCGToken(asset, managementFee, METRIC.MANAGEMENT_FEES);
-  });
+  }
 
   return {
     dailyFees,
@@ -178,6 +301,8 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: { start: '2024-10-25' },
     [CHAIN.BASE]: { start: '2025-02-12' },
     [CHAIN.ETHERLINK]: { start: '2025-02-12' },
+    [CHAIN.STARKNET]: { start: '2024-11-26' },
+    [CHAIN.STELLAR]: { start: '2025-10-01' },
   },
 };
 
