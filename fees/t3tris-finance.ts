@@ -86,8 +86,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
           v.verified && !v.blacklisted && Number(v.chainId) === chainId,
       )
       .map((v: any) => v.address);
-  } catch {
-    // API unreachable — report nothing for this run
+  } catch (e) {
+    // API unreachable — log and report nothing for this run so other chains continue
+    console.error(`T3tris: failed to fetch vaults for ${options.chain}:`, e);
     return {};
   }
 
@@ -193,11 +194,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 
     // Supply side = net yield to depositors (after all fees deducted)
-    dailySupplySideRevenue.add(token, netYield);
+    dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
 
-    // Vault fees paid to feeRecipient (performance + management)
-    // These are tracked in dailyFees but NOT in dailyRevenue
-    dailyFees.add(token, performanceFees + managementFees);
+    // Vault fees paid to feeRecipient (performance + management).
+    // These are tracked in dailyFees but NOT in dailyRevenue.
+    dailyFees.add(token, performanceFees, "Performance Fees");
+    dailyFees.add(token, managementFees, "Management Fees");
   }
 
   // 7. Track entry fees from DepositsSettled events → feeRecipient
@@ -216,7 +218,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
-        dailyFees.add(token, entryFeeAssets);
+        dailyFees.add(token, entryFeeAssets, "Entry Fees");
         // NOT added to dailyRevenue — goes to feeRecipient, not protocol
       }
     }
@@ -238,7 +240,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
-        dailyFees.add(token, exitFeeAssets);
+        dailyFees.add(token, exitFeeAssets, "Exit Fees");
         // NOT added to dailyRevenue — goes to feeRecipient, not protocol
       }
     }
@@ -263,9 +265,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
-        dailyFees.add(token, profit);
-        dailyRevenue.add(token, profit);
-        dailyProtocolRevenue.add(token, profit); // ONLY T3trisProfit goes to protocol
+        dailyFees.add(token, profit, "T3tris Profit");
+        dailyRevenue.add(token, profit, "T3tris Profit");
+        dailyProtocolRevenue.add(token, profit, "T3tris Profit"); // ONLY T3trisProfit goes to protocol
       }
     }
   }
@@ -290,8 +292,33 @@ const methodology = {
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Performance Fees":
+      "Performance fees (on profit above the high-water mark) collected by each vault's feeRecipient.",
+    "Management Fees":
+      "Management fees (annual % of TVL) collected by each vault's feeRecipient.",
+    "Entry Fees":
+      "Fees charged on deposits, collected by each vault's feeRecipient.",
+    "Exit Fees":
+      "Fees charged on withdrawals, collected by each vault's feeRecipient.",
+    "T3tris Profit": "Assets transferred to the t3treasury (T3trisProfit events).",
+  },
+  SupplySideRevenue: {
+    "Depositor Yield":
+      "Net yield earned by vault depositors after all fees are deducted.",
+  },
+  Revenue: {
+    "T3tris Profit": "Assets transferred to the t3treasury (T3trisProfit events).",
+  },
+  ProtocolRevenue: {
+    "T3tris Profit": "Assets transferred to the t3treasury (T3trisProfit events).",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(chainConfig).reduce(
     (acc, chain) => ({
       ...acc,
@@ -303,6 +330,7 @@ const adapter: SimpleAdapter = {
     {},
   ),
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
