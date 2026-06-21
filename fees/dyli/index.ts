@@ -82,9 +82,13 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
+  const serviceFees = serviceFeeInflows.clone();
+  serviceFees.subtract(cardBuybacks);
+  serviceFees.removeNegativeBalances();
+
   dailyVolume.addBalances(serviceFeeInflows);
-  dailyFees.addBalances(serviceFeeInflows, METRIC.SERVICE_FEES);
-  dailyFees.subtract(cardBuybacks, METRIC.SERVICE_FEES);
+  dailyVolume.addBalances(cardBuybacks);
+  dailyFees.addBalances(serviceFees, METRIC.SERVICE_FEES);
 
   const listingBoughtLogs = await options.getLogs({
     target: MARKETPLACE,
@@ -147,9 +151,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, plus marketplace and P2P trade settlement volume.",
+    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and wallet, net of vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
+    "Onchain USDC collected by DYLI contracts and wallet, net of vending-machine card buybacks up to zero, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   UserFees: "USDC paid by users through the tracked onchain DYLI payment paths.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
@@ -158,13 +162,13 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts up to zero.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
   UserFees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts up to zero.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
@@ -184,7 +188,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ABSTRACT],
   start: "2025-10-05",
-  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
 };
