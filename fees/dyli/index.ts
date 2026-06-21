@@ -1,3 +1,4 @@
+import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -7,6 +8,7 @@ import { addTokensReceived } from "../../helpers/token";
 
 const USDC = ADDRESSES.abstract.USDC;
 
+// DYLI production contracts on Abstract; source is DYLI's live production config.
 const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
 const MARKETPLACE = "0xC74d5002c10c13D2ad258B4584690829387f84dC";
 const TRADING = "0x7627994b4B2d56A05cb2978b813cA0E1ccB22f97";
@@ -25,22 +27,26 @@ const INTERNAL_ADDRESSES = new Set(
   ),
 );
 
-const TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
+const ERC20_INTERFACE = new Interface([TRANSFER_EVENT]);
 const LISTING_BOUGHT =
   "event ListingBought(uint256 listingId, uint256 tokenId, address buyer, address seller, uint64 amount, uint128 pricePerItem)";
 const BID_ACCEPTED =
   "event BidAccepted(uint256 bidId, uint256 tokenId, address seller, address buyer, uint64 amount, uint128 pricePerItem)";
 const ORDER_ACCEPTED = "event OrderAccepted(uint256 indexed orderId, address indexed accepter)";
 
-// Current DYLI production fees; public docs may lag platform config.
-const MARKETPLACE_FEE_BPS = 500n;
-const TRADE_FEE_BPS = 250n;
+// Current DYLI production fees; source is DYLI's live production config.
+const MARKETPLACE_FEE_BPS = 500n; // 5% secondary marketplace fee.
+const TRADE_FEE_BPS = 250n; // 2.5% accepted P2P trade fee.
 const BPS_DENOMINATOR = 10_000n;
+const CARD_SALES = "Card Sales";
+const CARD_BUYBACK_SPENDS = "Card Buyback Spends";
 
 const normalize = (address?: string) => address?.toLowerCase();
+const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const getLogFrom = (log: any) => normalize(log.from ?? log.from_address ?? log.args?.from);
 const getLogTo = (log: any) => normalize(log.to ?? log.to_address ?? log.args?.to);
+const isExternalSender = (log: any) => !INTERNAL_ADDRESSES.has(getLogFrom(log) || "");
 
 const addMarketplaceLogs = (
   logs: any[],
@@ -66,9 +72,7 @@ const fetch = async (options: FetchOptions) => {
       targets: SERVICE_FEE_TARGETS,
       token: USDC,
       logFilter: (log) => {
-        const to = getLogTo(log);
-        if (to === normalize(PLATFORM_WALLET)) return true;
-        return getLogFrom(log) !== normalize(PLATFORM_WALLET);
+        return isExternalSender(log);
       },
     }),
     addTokensReceived({
@@ -76,9 +80,7 @@ const fetch = async (options: FetchOptions) => {
       targets: VENDING_MACHINES,
       token: USDC,
       logFilter: (log) => {
-        const to = getLogTo(log);
-        if (to === normalize(PLATFORM_WALLET)) return true;
-        return getLogFrom(log) !== normalize(PLATFORM_WALLET);
+        return isExternalSender(log);
       },
     }),
     addTokensReceived({
@@ -92,16 +94,18 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
-  const serviceFees = serviceFeeInflows.clone(1, "Service Fees");
-  const cardSales = cardSaleInflows.clone(1, "Card Sales");
-  const cardBuybacks = cardBuybackOutflows.clone(-1, "Card Buyback Spends");
+  const serviceFees = serviceFeeInflows.clone(1, METRIC.SERVICE_FEES);
+  const cardSales = cardSaleInflows.clone(1, CARD_SALES);
+  const cardBuybacks = cardBuybackOutflows.clone(-1, CARD_BUYBACK_SPENDS);
+  const cardBuybackVolume = cardBuybackOutflows.clone(1, CARD_BUYBACK_SPENDS);
 
   dailyVolume.add(serviceFees);
   dailyVolume.add(cardSales);
+  dailyVolume.add(cardBuybackVolume);
 
-  dailyFees.add(serviceFees);
-  dailyFees.add(cardSales);
-  dailyFees.add(cardBuybacks);
+  dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
+  dailyFees.add(cardSales, CARD_SALES);
+  dailyFees.add(cardBuybacks, CARD_BUYBACK_SPENDS);
 
   const listingBoughtLogs = await options.getLogs({
     target: MARKETPLACE,
@@ -130,19 +134,29 @@ const fetch = async (options: FetchOptions) => {
 
   let tradingVolume = 0n;
   if (acceptedTradeTxHashes.length) {
-    const receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
-      cacheKey: "dyli-p2p-trades",
-    });
+    let receipts;
+    try {
+      receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
+        cacheKey: "dyli-p2p-trades",
+      });
+    } catch (error) {
+      throw new Error(`Failed to fetch DYLI P2P trade receipts: ${formatError(error)}`);
+    }
+
     const platformWallet = normalize(PLATFORM_WALLET);
     const usdc = normalize(USDC);
 
     for (const receipt of receipts) {
       for (const log of receipt?.logs ?? []) {
         if (normalize(log.address) !== usdc) continue;
-        const topics = log.topics ?? [];
-        if (topics.length < 3 || normalize(topics[0]) !== TRANSFER_TOPIC) continue;
-        if (`0x${topics[2].slice(26).toLowerCase()}` === platformWallet) continue;
-        tradingVolume += BigInt(log.data ?? 0);
+
+        const parsedLog = ERC20_INTERFACE.parseLog({
+          topics: log.topics ?? [],
+          data: log.data ?? "0x",
+        });
+        if (!parsedLog || parsedLog.name !== "Transfer") continue;
+        if (normalize(parsedLog.args.to) === platformWallet) continue;
+        tradingVolume += BigInt(parsedLog.args.value);
       }
     }
   }
@@ -166,8 +180,7 @@ const methodology = {
   Volume:
     "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and wallet, net of vending-machine card buybacks up to zero, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
-  UserFees: "USDC paid by users through the tracked onchain DYLI payment paths.",
+    "Onchain USDC collected by DYLI contracts and wallet after subtracting vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
 };
@@ -175,20 +188,20 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet and batchRedeem fee paths.",
-    "Card Sales": "USDC spent by users on card packs (vending-machine sales).",
-    "Card Buyback Spends": "USDC spent by the protocol on card buybacks (vending-machine buybacks).",
+    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales).",
+    [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks).",
     [METRIC.TRADING_FEES]: "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
   Revenue: {
     [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    "Card Sales": "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
-    "Card Buyback Spends": "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
+    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
+    [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
     [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
   },
   ProtocolRevenue: {
     [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    "Card Sales": "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
-    "Card Buyback Spends": "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
+    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
+    [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
     [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
   },
 };
