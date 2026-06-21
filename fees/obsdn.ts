@@ -13,8 +13,9 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: ordersMatchedFeesAbi,
   });
 
-  let totalFees = 0;
-  let makerRebates = 0;
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   for (const log of logs) {
     const maker = Number(log.fees.maker) / X18;
@@ -23,20 +24,25 @@ const fetch = async (options: FetchOptions) => {
     const sequencer = Number(log.fees.sequencer) / X18;
 
     if (maker >= 0) {
-      totalFees += maker;
+      dailyFees.addUSDValue(maker, "Maker Fees");
+      dailyRevenue.addUSDValue(maker, "Maker Fees");
     } else {
-      makerRebates += Math.abs(maker);
+      dailyFees.addUSDValue(Math.abs(maker), "Maker Rebates");
+      dailySupplySideRevenue.addUSDValue(Math.abs(maker), "Maker Rebates");
     }
-    totalFees += taker + liquidation + sequencer;
-  }
 
-  const dailyFees = totalFees;
-  const dailySupplySideRevenue = makerRebates;
-  const dailyRevenue = dailyFees - dailySupplySideRevenue;
+    dailyFees.addUSDValue(taker, "Taker Fees");
+    dailyRevenue.addUSDValue(taker, "Taker Fees");
+
+    dailyFees.addUSDValue(liquidation, "Liquidation Fees");
+    dailyRevenue.addUSDValue(liquidation, "Liquidation Fees");
+
+    dailyFees.addUSDValue(sequencer, "Sequencer Fees");
+    dailyRevenue.addUSDValue(sequencer, "Sequencer Fees");
+  }
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
@@ -51,6 +57,31 @@ const methodology = {
   SupplySideRevenue: "Maker rebates paid to liquidity providers.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Maker Fees": "Trading fees paid by makers.",
+    "Maker Rebates": "Rebates paid to makers.",
+    "Taker Fees": "Trading fees paid by takers.",
+    "Liquidation Fees": "Liquidation fees paid on liquidations.",
+    "Sequencer Fees": "Sequencer fees paid on orders.",
+  },
+  Revenue: {
+    "Maker Fees": "Trading fees paid by makers.",
+    "Taker Fees": "Trading fees paid by takers.",
+    "Liquidation Fees": "Liquidation fees paid on liquidations.",
+    "Sequencer Fees": "Sequencer fees paid on orders.",
+  },
+  ProtocolRevenue: {
+    "Maker Fees": "Trading fees paid by makers.",
+    "Taker Fees": "Trading fees paid by takers.",
+    "Liquidation Fees": "Liquidation fees paid on liquidations.",
+    "Sequencer Fees": "Sequencer fees paid on orders.",
+  },
+  SupplySideRevenue: {
+    "Maker Rebates": "Rebates paid to makers.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -58,6 +89,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2026-06-20",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
