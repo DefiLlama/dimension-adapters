@@ -19,6 +19,11 @@ const VENDING_MACHINES = [
 ];
 
 const SERVICE_FEE_TARGETS = [MAIN_CONTRACT, ...VENDING_MACHINES, PLATFORM_WALLET];
+const INTERNAL_ADDRESSES = new Set(
+  [MAIN_CONTRACT, MARKETPLACE, TRADING, PLATFORM_WALLET, ...VENDING_MACHINES].map((address) =>
+    address.toLowerCase(),
+  ),
+);
 
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -28,11 +33,14 @@ const BID_ACCEPTED =
   "event BidAccepted(uint256 bidId, uint256 tokenId, address seller, address buyer, uint64 amount, uint128 pricePerItem)";
 const ORDER_ACCEPTED = "event OrderAccepted(uint256 indexed orderId, address indexed accepter)";
 
+// Current DYLI production fees; public docs may lag platform config.
 const MARKETPLACE_FEE_BPS = 500n;
 const TRADE_FEE_BPS = 250n;
 const BPS_DENOMINATOR = 10_000n;
 
 const normalize = (address?: string) => address?.toLowerCase();
+const getLogFrom = (log: any) => normalize(log.from ?? log.from_address ?? log.args?.from);
+const getLogTo = (log: any) => normalize(log.to ?? log.to_address ?? log.args?.to);
 
 const addMarketplaceLogs = (
   logs: any[],
@@ -52,16 +60,31 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const serviceFeeInflows = await addTokensReceived({
-    options,
-    targets: SERVICE_FEE_TARGETS,
-    token: USDC,
-    logFilter: (log) => {
-      const to = normalize(log.to);
-      if (to === normalize(PLATFORM_WALLET)) return true;
-      return normalize(log.from) !== normalize(PLATFORM_WALLET);
-    },
-  });
+  const [serviceFeeInflows, cardBuybacks] = await Promise.all([
+    addTokensReceived({
+      options,
+      targets: SERVICE_FEE_TARGETS,
+      token: USDC,
+      logFilter: (log) => {
+        const to = getLogTo(log);
+        if (to === normalize(PLATFORM_WALLET)) return true;
+        return getLogFrom(log) !== normalize(PLATFORM_WALLET);
+      },
+    }),
+    addTokensReceived({
+      options,
+      fromAdddesses: VENDING_MACHINES,
+      token: USDC,
+      logFilter: (log) => {
+        const to = getLogTo(log);
+        return !to || !INTERNAL_ADDRESSES.has(to);
+      },
+    }),
+  ]);
+
+  dailyVolume.addBalances(serviceFeeInflows);
+  dailyFees.addBalances(serviceFeeInflows, METRIC.SERVICE_FEES);
+  dailyFees.subtract(cardBuybacks, METRIC.SERVICE_FEES);
 
   const listingBoughtLogs = await options.getLogs({
     target: MARKETPLACE,
@@ -79,8 +102,6 @@ const fetch = async (options: FetchOptions) => {
     entireLog: true,
   });
 
-  dailyVolume.addBalances(serviceFeeInflows);
-  dailyFees.addBalances(serviceFeeInflows, METRIC.SERVICE_FEES);
   addMarketplaceLogs(listingBoughtLogs, dailyVolume, dailyFees);
   addMarketplaceLogs(bidAcceptedLogs, dailyVolume, dailyFees);
 
@@ -128,7 +149,7 @@ const methodology = {
   Volume:
     "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and wallet, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
+    "Onchain USDC collected by DYLI contracts and wallet, net of vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   UserFees: "USDC paid by users through the tracked onchain DYLI payment paths.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
@@ -137,13 +158,13 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
   UserFees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
@@ -163,6 +184,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ABSTRACT],
   start: "2025-10-05",
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
 };
