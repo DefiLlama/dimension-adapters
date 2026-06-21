@@ -85,6 +85,7 @@ const fetch = async (options: FetchOptions) => {
 
   const serviceFees = serviceFeeInflows.clone();
   serviceFees.subtract(cardBuybacks);
+  // Buybacks are seller-funded settlement payouts, so excess payouts should not create negative protocol revenue.
   serviceFees.removeNegativeBalances();
 
   dailyVolume.addBalances(serviceFeeInflows);
@@ -154,7 +155,7 @@ const methodology = {
   Volume:
     "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and wallet, net of vending-machine card buybacks up to zero, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
+    "Onchain USDC collected by DYLI contracts and wallet, net of seller-funded vending-machine card buybacks and floored at zero, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   UserFees: "USDC paid by users through the tracked onchain DYLI payment paths.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
@@ -163,13 +164,13 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts up to zero.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of seller-funded vending-machine card buyback payouts and floored at zero.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
   UserFees: {
     [METRIC.SERVICE_FEES]:
-      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of vending-machine card buyback payouts up to zero.",
+      "USDC transfers into DYLI mint, vending-machine, platform-wallet, and batchRedeem fee paths, net of seller-funded vending-machine card buyback payouts and floored at zero.",
     [METRIC.TRADING_FEES]:
       "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
   },
