@@ -18,7 +18,7 @@ const RECORDS = {
                 '0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29', // JPYC Stablecoin
         },
         subgraphEndpoint:
-            'https://api.studio.thegraph.com/query/64582/sf-prd-mainnet/version/latest',
+            'https://api.studio.thegraph.com/query/1749811/sf-prd-mainnet/version/latest',
     },
     [CHAIN.ARBITRUM]: {
         tokens: {
@@ -30,7 +30,7 @@ const RECORDS = {
                 ADDRESSES.arbitrum.WETH, // WETH
         },
         subgraphEndpoint:
-            'https://api.studio.thegraph.com/query/64582/sf-prd-arbitrum-one/version/latest',
+            'https://api.studio.thegraph.com/query/1749811/sf-prd-arbitrum-one/version/latest',
     },
     [CHAIN.FILECOIN]: {
         tokens: {
