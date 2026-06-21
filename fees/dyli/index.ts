@@ -1,3 +1,4 @@
+import { id } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -7,6 +8,7 @@ import { addTokensReceived } from "../../helpers/token";
 
 const USDC = ADDRESSES.abstract.USDC;
 
+// DYLI production contracts on Abstract; source is DYLI's live production config.
 const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
 const MARKETPLACE = "0xC74d5002c10c13D2ad258B4584690829387f84dC";
 const TRADING = "0x7627994b4B2d56A05cb2978b813cA0E1ccB22f97";
@@ -25,20 +27,21 @@ const INTERNAL_ADDRESSES = new Set(
   ),
 );
 
-const TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const TRANSFER_EVENT = "Transfer(address,address,uint256)";
+const TRANSFER_TOPIC = id(TRANSFER_EVENT);
 const LISTING_BOUGHT =
   "event ListingBought(uint256 listingId, uint256 tokenId, address buyer, address seller, uint64 amount, uint128 pricePerItem)";
 const BID_ACCEPTED =
   "event BidAccepted(uint256 bidId, uint256 tokenId, address seller, address buyer, uint64 amount, uint128 pricePerItem)";
 const ORDER_ACCEPTED = "event OrderAccepted(uint256 indexed orderId, address indexed accepter)";
 
-// Current DYLI production fees; public docs may lag platform config.
-const MARKETPLACE_FEE_BPS = 500n;
-const TRADE_FEE_BPS = 250n;
+// Current DYLI production fees; source is DYLI's live production config.
+const MARKETPLACE_FEE_BPS = 500n; // 5% secondary marketplace fee.
+const TRADE_FEE_BPS = 250n; // 2.5% accepted P2P trade fee.
 const BPS_DENOMINATOR = 10_000n;
 
 const normalize = (address?: string) => address?.toLowerCase();
+const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const getLogFrom = (log: any) => normalize(log.from ?? log.from_address ?? log.args?.from);
 const getLogTo = (log: any) => normalize(log.to ?? log.to_address ?? log.args?.to);
 
@@ -119,9 +122,15 @@ const fetch = async (options: FetchOptions) => {
 
   let tradingVolume = 0n;
   if (acceptedTradeTxHashes.length) {
-    const receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
-      cacheKey: "dyli-p2p-trades",
-    });
+    let receipts;
+    try {
+      receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
+        cacheKey: "dyli-p2p-trades",
+      });
+    } catch (error) {
+      throw new Error(`Failed to fetch DYLI P2P trade receipts: ${formatError(error)}`);
+    }
+
     const platformWallet = normalize(PLATFORM_WALLET);
     const usdc = normalize(USDC);
 
