@@ -7,7 +7,7 @@ import { fetchAssetAddresses, fetchVaultConfigs } from "./helpers";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const YIELD_FROM_DEFI = "Yields from DeFi Protocols";
-const INSTITUTIONAL_BORROW_INTEREST = "Borrow Interest from Insitutional Borrowers";
+const INSTITUTIONAL_BORROW_INTEREST = "Borrow Interest from Institutional Borrowers";
 
 const fetch = async (options: FetchOptions) => {
 	const infra = capConfig[options.chain].infra;
@@ -169,7 +169,7 @@ const methodology = {
 const breakdownMethodology = {
 	Fees: {
 		[YIELD_FROM_DEFI]: "Yield earned on idle reserve funds deployed to external DeFi protocols (Aave/Morpho etc.).",
-		[INSTITUTIONAL_BORROW_INTEREST]: "Interest paid by institutional borrowers (agents) on funds borrowed from the vault.",
+		[INSTITUTIONAL_BORROW_INTEREST]: "Interest paid by institutional borrowers on funds borrowed from the vault.",
 		[METRIC.PROTOCOL_FEES]: "Protocol share of borrow fees.",
 		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
 		'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
@@ -181,7 +181,7 @@ const breakdownMethodology = {
 	},
 	SupplySideRevenue: {
 		[YIELD_FROM_DEFI]: "Yield earned on idle reserve funds deployed to external DeFi protocols (Aave/Morpho etc.).",
-		[INSTITUTIONAL_BORROW_INTEREST]: "Interest paid by institutional borrowers (agents) on funds borrowed from the vault.",
+		[INSTITUTIONAL_BORROW_INTEREST]: "Interest paid by institutional borrowers on funds borrowed from the vault.",
 		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
 	  'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
 	},
