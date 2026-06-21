@@ -67,8 +67,9 @@ const fetch = async (options: FetchOptions) => {
       token: USDC,
       logFilter: (log) => {
         const to = getLogTo(log);
-        if (to === normalize(PLATFORM_WALLET)) return true;
-        return getLogFrom(log) !== normalize(PLATFORM_WALLET);
+        const from = getLogFrom(log);
+        if (to === normalize(PLATFORM_WALLET)) return !INTERNAL_ADDRESSES.has(from || "");
+        return from !== normalize(PLATFORM_WALLET);
       },
     }),
     addTokensReceived({
