@@ -21,6 +21,8 @@ const chunk = <T>(items: T[], size: number) =>
 const overlaps = (a: number, b: number, x: number, y: number) => a < y && b > x;
 const volume = (rows: Kline[], start: number, end: number) =>
   rows.filter((row) => row[0] >= start && row[0] < end).reduce((sum, row) => sum + Number(row[7] || 0), 0);
+const notionalVolume = (rows: Kline[], start: number, end: number) =>
+  rows.filter((row) => row[0] >= start && row[0] < end).reduce((sum, row) => sum + Number(row[5] || 0), 0);
 const isPredictionTicker = (symbol: string) => symbol.includes("_UP_DOWN_") || /^EVENT\d+_/.test(symbol);
 const getRollingEvent = (symbol: string) => symbol.match(/^(.+)_\d+_[YN]USDT$/)?.[1];
 
@@ -63,37 +65,46 @@ const fetchKlines = async (eventName: string, symbols: string[], interval: strin
 };
 
 const fetchFallbackVolume = async (req: Req) => {
-  let total = 0;
+  let totalVolume = 0;
+  let totalNotionalVolume = 0;
   for (let from = req.from; from < req.to; from += CHUNK_MS) {
     const to = Math.min(req.to, from + CHUNK_MS);
     const res = await fetchKlines(req.eventName, [req.symbol], "1s", from, to);
     const rows = res[req.symbol];
-    if (Array.isArray(rows)) total += volume(rows, req.from, req.to);
+    if (Array.isArray(rows)) {
+      totalVolume += volume(rows, req.from, req.to);
+      totalNotionalVolume += notionalVolume(rows, req.from, req.to);
+    }
+
   }
-  return total;
+  return { totalVolume, totalNotionalVolume };
 };
 
 const fetchEventVolume = async ([eventName, reqs]: [string, Req[]], start: number, end: number) => {
   if (eventName.includes("_UP_DOWN_")) {
     const { results } = await PromisePool.withConcurrency(2).for(reqs).process(fetchFallbackVolume);
-    return results.reduce((sum, value) => sum + value, 0);
+    return { totalVolume: results.reduce((sum, value) => sum + value.totalVolume, 0), totalNotionalVolume: results.reduce((sum, value) => sum + value.totalNotionalVolume, 0) };
   }
 
-  let total = 0;
+  let totalVolume = 0;
+  let totalNotionalVolume = 0;
   for (const symbols of chunk(reqs.map((req) => req.symbol), 100)) {
     const res = await fetchKlines(eventName, symbols, "1d", start, end);
     if (!res.code) Object.values(res).forEach((rows) => {
-      if (Array.isArray(rows)) total += volume(rows, start, end);
+      if (Array.isArray(rows)) {
+        totalVolume += volume(rows, start, end);
+        totalNotionalVolume += notionalVolume(rows, start, end);
+      }
     });
   }
-  return total;
+  return { totalVolume, totalNotionalVolume };
 };
 
 const fetch = async (options: FetchOptions) => {
   const start = options.startOfDay * 1000;
   const end = start + DAY_MS;
   const { results } = await PromisePool.withConcurrency(2).for(Array.from(await getRequests(start, end))).process((entry) => fetchEventVolume(entry, start, end));
-  return { dailyVolume: results.reduce((sum, value) => sum + value, 0) };
+  return { dailyVolume: results.reduce((sum, value) => sum + value.totalVolume, 0), dailyNotionalVolume: results.reduce((sum, value) => sum + value.totalNotionalVolume, 0) };
 };
 
 const adapter: SimpleAdapter = {
