@@ -1619,14 +1619,14 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
   //   totalVolume: "totalVolumeUSD",
   //   start: '2022-01-21',
   // },
-  "pharaoh-exchange": {
-    endpoints: {
-      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    start: '2023-12-12',
-  },
+  // "pharaoh-exchange": {
+  //   endpoints: {
+  //     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
+  //   },
+  //   factoriesName: "factories",
+  //   totalVolume: "totalVolumeUSD",
+  //   start: '2023-12-12',
+  // },
 }
 
 // Build subgraph-based adapters into SimpleAdapter format
