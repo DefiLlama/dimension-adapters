@@ -17,20 +17,19 @@ const managerContracts: TManagers = {
   [CHAIN.POLYGON_ZKEVM]: "0xaB7794EcD2c8e9Decc6B577864b40eBf9204720f",
 };
 
-const ABDKToFloat = (x: bigint): number => {
-  // ABDK: value(x) = x / 2 ** 64
-  return Number(x) / 2 ** 64
-};
+// ABDK 64.64 fixed-point: value = x / 2**64.
+const ABDKToFloat = (x: bigint): number => Number(x) / 2 ** 64;
 
-const fetch = async ({ getLogs, chain, }: FetchOptions): Promise<FetchResultVolume> => {
+const LIQUIDATE_EVENT = "event Liquidate(uint24 perpetualId,address indexed liquidator,address indexed trader,int128 amountLiquidatedBC,int128 liquidationPrice,int128 newPositionSizeBC,int128 fFeeCC,int128 fPnlCC)";
+const TRADE_EVENT = "event Trade(uint24 indexed perpetualId,address indexed trader,tuple(uint16 leverageTDR,uint16 brokerFeeTbps,uint24 iPerpetualId,address traderAddr,uint32 executionTimestamp,address brokerAddr,uint32 submittedTimestamp,uint32 flags,uint32 iDeadline,address executorAddr,int128 fAmount,int128 fLimitPrice,int128 fTriggerPrice,bytes brokerSignature) order,bytes32 orderDigest,int128 newPositionSizeBC,int128 price,int128 fFeeCC,int128 fPnlCC,int128 fB2C)";
+
+const fetch = async ({ getLogs, chain }: FetchOptions): Promise<FetchResultVolume> => {
   const managerAddr = managerContracts[chain];
 
-  const [liquidations, trades] = await Promise.all(
-    [
-      "event Liquidate(uint24 perpetualId,address indexed liquidator,address indexed trader,int128 amountLiquidatedBC,int128 liquidationPrice,int128 newPositionSizeBC,int128 fFeeCC,int128 fPnlCC)",
-      "event Trade(uint24 indexed perpetualId,address indexed trader,tuple(uint16 leverageTDR, uint16 brokerFeeTbps,uint24 iPerpetualId,address traderAddr,uint32 executionTimestamp,address brokerAddr,uint32 submittedTimestamp,uint32 flags,uint32 iDeadline, address executorAddr,int128 fAmount,int128 fLimitPrice, int128 fTriggerPrice,bytes brokerSignature) order,bytes32 orderDigest,int128 newPositionSizeBC,int128 price,int128 fFeeCC,int128 fPnlCC,int128 fB2C)",
-    ].map((eventAbi) => getLogs({ target: managerAddr, eventAbi }))
-  );
+  const [liquidations, trades] = await Promise.all([
+    getLogs({ target: managerAddr, eventAbi: LIQUIDATE_EVENT }),
+    getLogs({ target: managerAddr, eventAbi: TRADE_EVENT }),
+  ]);
 
   const liquidationsVolume = liquidations
     .map(
@@ -43,14 +42,20 @@ const fetch = async ({ getLogs, chain, }: FetchOptions): Promise<FetchResultVolu
   const tradesVolume = trades
     .map((e) => Math.abs(ABDKToFloat(e.order.fAmount)) * ABDKToFloat(e.price))
     .reduce((a: number, b: number) => a + b, 0);
+
   return {
     dailyVolume: liquidationsVolume + tradesVolume,
   };
 };
 
+const methodology = {
+  Volume: "Notional volume from Trade and Liquidate events (|amount| x price).",
+};
+
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch, start: "2023-03-26",
