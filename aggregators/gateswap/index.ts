@@ -98,8 +98,9 @@ async function fetchSolana(options: FetchOptions) {
       SELECT DISTINCT tx_id
       FROM solana.account_activity
       WHERE TIME_RANGE
+        AND tx_success
         AND address = '${SOL_FEE_COLLECTOR}'
-        AND amount > 0
+        AND balance_change > 0
     )
     SELECT COALESCE(SUM(t.amount_usd), 0) AS daily_volume
     FROM dex_solana.trades t
