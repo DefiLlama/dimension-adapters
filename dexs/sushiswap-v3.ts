@@ -84,6 +84,7 @@ async function fetch(options: FetchOptions) {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -96,7 +97,7 @@ export default {
     Fees: "Each pool charges between 0.01% to 1% fee",
     UserFees: "Users pay between 0.01% to 1% fee",
     Revenue: "Share from 0 to 25% of the fee goes to treasury",
-    HoldersRevenue: "No fee shareed to xSUSHI stakers.",
+    HoldersRevenue: "Protocol fee share routed to xSUSHI stakers through the SushiBar flow",
     ProtocolRevenue: "Treasury receives all revenue",
     SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
   },
@@ -116,6 +117,9 @@ export default {
     },
     SupplySideRevenue: {
       "Swap Fees To Liquidity Providers": "Swap fees retained by liquidity providers after protocol fees.",
+    },
+    HoldersRevenue: {
+      "Swap Fees To xSUSHI Stakers": "Protocol fee share routed to xSUSHI stakers through the SushiBar flow.",
     },
   },
 }

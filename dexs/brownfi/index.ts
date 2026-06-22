@@ -3,6 +3,7 @@ import { filterPools } from "../../helpers/uniswap";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 const chainConfig: Record<string, { factory: string, start: string }> = {
   [CHAIN.BERACHAIN]: {
@@ -64,15 +65,19 @@ const fetch = async (options: FetchOptions) => {
   _protocolFees.forEach((fee: any, i: number) => { if (fee !== null) protocolFees[pairs[i]] = fee / 1e8 })
 
   const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
+  const feesRaw = createBalances()
+  const revenue = createBalances()
+  const supplySideRevenue = createBalances()
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, minUSDValue: 100 })
   const pairIds = Object.keys(filteredPairs)
 
   if (!pairIds.length) return {
     dailyVolume,
-    dailyFees,
+    dailyFees: 0,
+    dailyUserFees: 0,
+    dailyRevenue: 0,
+    dailySupplySideRevenue: 0,
+    dailyProtocolRevenue: 0,
   }
 
   const allLogs = await getLogs({ targets: pairIds, eventAbi: brownfiV2SwapEvent, flatten: false })
@@ -85,15 +90,16 @@ const fetch = async (options: FetchOptions) => {
     const feeRate = fee / (1 + fee)
     logs.forEach((log: any) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * feeRate, amount1: Number(log.amount1Out) * feeRate })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0Out) * feeRate * protocolFee, amount1: Number(log.amount1Out) * feeRate * protocolFee })
-      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
-      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0Out) * feeRate * (1 - protocolFee), amount1: Number(log.amount1Out) * feeRate * (1 - protocolFee) })
+      addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
+      addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
+      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
     })
   })
+
+  const dailyFees = feesRaw.clone(1, METRIC.SWAP_FEES)
+  const dailyRevenue = revenue.clone(1, "Swap Fees to Protocol")
+  const dailySupplySideRevenue = supplySideRevenue.clone(1, "Swap Fees to Liquidity Providers")
+
   return {
     dailyVolume,
     dailyFees,
@@ -110,14 +116,31 @@ const methodology = {
   Revenue: "Protocol share from swap fees.",
   ProtocolRevenue: "Protocol share from swap fees.",
   SupplySideRevenue: "Liquidity providers share from swap fees.",
-  HoldersRevenue: "Holders does not earn any revenue.",
+  HoldersRevenue: "Holders do not earn any revenue.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees from swap transactions.",
+  },
+  Revenue: {
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
+  },
+  ProtocolRevenue: {
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
+  },
+  SupplySideRevenue: {
+    "Swap Fees to Liquidity Providers": "Liquidity providers share from swap fees.",
+  },
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapters;

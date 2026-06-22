@@ -19,6 +19,8 @@ const coins: Record<string, string> = {
   DRF: "0x294de7579d55c110a00a7c4946e09a1b5cbeca2592fbb83fd7bfacba3cfeaf0e::drf::DRF",
   SEND: "0xb45fcfcc2cc07ce0702cc2d229621e046c906ef14d9b25e8e4d25f6e8763fef7::send::SEND",
   XBTC: "0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC",
+  SUIUSDE: "0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE",
+  USDSUI: "0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI",
 };
 
 const fetchVolumeInUsd = (
@@ -61,6 +63,7 @@ const methodology = {
 
 export default {
   version: 2,
+  pullHourly: true,
   methodology,
   adapter: {
     [CHAIN.SUI]: {

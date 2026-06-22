@@ -261,7 +261,7 @@ const fetch: FetchV2 = async (options) => {
   totalFees.add(dailyVotingFeesRevenue, 'Voting Fees')
   totalFees.add(dailyVotingIncentivesRevenue, 'Voting Incentives')
 
-  totalRevenue.add(dailyFees.clone(0.8), 'Yield Trading Fees To Holders')
+  totalRevenue.add(dailyFees.clone(0.6), 'Yield Trading Fees To Holders')
   totalRevenue.add(dailyVotingFeesRevenue, 'Voting Fees')
   totalRevenue.add(dailyVotingIncentivesRevenue, 'Voting Incentives')
 

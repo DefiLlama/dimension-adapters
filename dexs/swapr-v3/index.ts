@@ -25,7 +25,7 @@ const fetch = async (
     dailyVolume: req.algebraDayData?.volumeUSD,
     dailyFees: req.algebraDayData?.feesUSD,
     dailyUserFees: req.algebraDayData?.feesUSD,
-    dailyRevenue: req.algebraDayData?.feesUSD,
+    dailyRevenue: req.algebraDayData?.feesUSD * protocolFee,
     dailyProtocolRevenue: req.algebraDayData?.feesUSD * protocolFee,
     dailySupplySideRevenue: req.algebraDayData?.feesUSD * (1 - protocolFee),
   }
