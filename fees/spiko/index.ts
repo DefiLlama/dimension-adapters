@@ -177,7 +177,10 @@ async function getSupplies(options: FetchOptions): Promise<Record<string, number
     const read = chain === CHAIN.STELLAR ? getStellarSupply : getStarknetSupply;
     await Promise.all(
       Object.entries(tokenMap).map(async ([fund, contract]) => {
-        const supply = await read(contract).catch(() => undefined);
+        const supply = await read(contract).catch((e) => {
+          console.log(`Spiko: failed to read ${fund} supply on ${chain}: ${e.message}`);
+          return undefined;
+        });
         if (supply !== undefined) out[fund] = supply;
       })
     );
@@ -211,6 +214,11 @@ async function getNavChanges(options: FetchOptions) {
         getBlock(options.fromTimestamp, NAV_CHAIN, {}),
         getBlock(options.toTimestamp, NAV_CHAIN, {}),
       ]);
+      // getBlock returns null on failure; reading the oracle at a null block silently
+      // falls back to "latest" and corrupts the NAV delta, so fail loudly instead.
+      if (!blockBefore || !blockAfter) {
+        throw new Error(`Spiko: failed to resolve ${NAV_CHAIN} blocks for NAV lookup`);
+      }
       const apiBefore = new sdk.ChainApi({ chain: NAV_CHAIN, block: blockBefore });
       const apiAfter = new sdk.ChainApi({ chain: NAV_CHAIN, block: blockAfter });
       const [before, after] = await Promise.all([
@@ -295,6 +303,8 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   version: 2,
+  // NAV oracles publish once per day, so hourly granularity adds no signal.
+  pullHourly: false,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2024-05-01' },
