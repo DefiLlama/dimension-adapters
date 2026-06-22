@@ -12,7 +12,7 @@ export const chainConfigMap: any = {
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
   [CHAIN.ENERGYWEB]: { explorer: 'https://explorer.energyweb.org', CGToken: 'energy-web-token', burnRatio: 0 },
-  [CHAIN.FLOW]: { explorer: 'https://evm.flowscan.io', CGToken: 'flow', allStatsApi: 'https://evm.flowscan.io:8080' },
+  [CHAIN.FLOW]: { explorer: 'https://evm.flow.com', CGToken: 'flow', allStatsApi: 'https://evm.flow.com:8080' },
   [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://stats-immutable-mainnet.k8s.blockscout.com' },
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
   [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://stats-etherlink-mainnet.k8s-prod-1.blockscout.com' },
