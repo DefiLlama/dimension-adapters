@@ -60,6 +60,11 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Transaction gas fees (in ETH) paid by users on the Fuel Ignition network.",
+  Revenue: "Blob/data-availability fees (in FUEL) for posting Fuel batch data to the DA layer.",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   runAtCurrTime: true,
@@ -67,6 +72,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.FUEL],
   start: '2024-11-01',
   protocolType: ProtocolType.CHAIN,
+  methodology,
 };
 
 export default adapter;
