@@ -33,7 +33,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   filecoin: { chain: CHAIN.FILECOIN, baseUrl: "https://filecoin.blockscout.com", version: 2, start: "2023-03-14" },
   flare: { chain: CHAIN.FLARE, baseUrl: "https://flare-explorer.flare.network", version: 1, start: "2022-07-13" },
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1, start: "2025-02-14" },
-  flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flowscan.io", statsUrl: "https://evm.flowscan.io:8080", version: 1, start: "2024-09-04" },
+  flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flow.com", version: 2, start: "2024-09-04" },
   fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io", version: 2, start: "2019-07-29" },
   harmony: { chain: CHAIN.HARMONY, baseUrl: "https://explorer.harmony.one", statsUrl: "https://stats.explorer.harmony.one", version: 1, start: "2019-08-15" },
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1, start: "2024-09-09" },
