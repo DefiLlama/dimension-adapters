@@ -1,14 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchStats } from "./pharaoh-v3";
-
-export const PHARAOH_METRIC = {
-  SwapFees: 'Token Swap Fees',
-  VoteIncentives: 'Vote Incentives To xPHAR Voters',
-  SwapFeesToTreasury: 'Token Swap Fees To Treasury',
-  SwapFeesToVoters: 'Token Swap Fees To xPHAR Voters',
-  SwapFeesToLPs: 'Token Swap Fees To LPs',
-}
+import { PHARAOH_METRIC } from "./pharaoh-v2";
 
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
@@ -80,7 +73,7 @@ const breakdownMethodology = {
     [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   SupplySideRevenue: {
-    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees dstributed to liquidity providers.",
+    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees distributed to liquidity providers.",
   },
 };
 

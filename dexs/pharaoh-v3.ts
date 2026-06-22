@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
-import { PHARAOH_METRIC } from "./pharaoh-v3-legacy";
+import { PHARAOH_METRIC } from "./pharaoh-v2";
 
 const PHAR_TOKEN_CONTRACT = "0x13A466998Ce03Db73aBc2d4DF3bBD845Ed1f28E7";
 
@@ -413,7 +413,7 @@ const breakdownMethodology = {
     [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   SupplySideRevenue: {
-    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees dstributed to liquidity providers.",
+    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees distributed to liquidity providers.",
   },
 };
 
