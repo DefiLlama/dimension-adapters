@@ -15,18 +15,19 @@ import { addTokensReceived } from "../../helpers/token";
 const FEE_RECIPIENT = "0x362294a899B304C933135781Bb1f976ed8062781";
 const FEE_BPS = 5; // 0.05% integrator fee -> feeFraction = FEE_BPS / 10_000
 
-// The fee recipient also receives non-swap inflows (lending receipt tokens,
-// reward claims). To count ONLY swap fees, we scope to the swap router/settler
-// contracts that pay the integrator fee (verified on-chain via the fee wallet's
-// inbound transfers). Excludes lending (mint/0x0) and NEST reward-claim sources.
-// Append new aggregator/router addresses here as routing expands.
+// The fee recipient is mixed-use (it also receives lending receipt tokens and
+// reward-claim inflows), so we count ONLY transfers from the swap routers/settlers
+// that pay the integrator fee. Each address below was identified from the fee
+// wallet's on-chain inbound transfers; the role + a representative fee-paying tx
+// are noted so the allowlist can be re-validated. Append new routers as routing
+// expands. (Lending mint from 0x0 and aggregateClaim/NEST sources are excluded.)
 const SWAP_FEE_SOURCES = [
-  "0xce8d068708566607d6c9e4333221fa17bfaa9548",
-  "0x744489ee3d540777a66f2cf297479745e0852f7a",
-  "0x663dc15d3c1ac63ff12e45ab68fea3f0a883c251",
-  "0xeaf58788a405f3253814b4559391a22be8616250",
-  "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
-  "0xdb544d63d32d9f3e52ff3a8bfe2a374df0463f8d",
+  "0xce8d068708566607d6c9e4333221fa17bfaa9548", // settler — tx 0x9b3014bf024ee1ce55d2db1458ea3779b6fdb936acb58b9298f486b5ee14c562
+  "0x744489ee3d540777a66f2cf297479745e0852f7a", // settler — tx 0x55d919b33749c1820966ce836bb9b2c2c8bcdeab086d7cfbe88428d75c6b97f7
+  "0x663dc15d3c1ac63ff12e45ab68fea3f0a883c251", // swap()  — tx 0xb1240eb485244aa7f2549ec41efcb9db4b010a1f7b719c7886f3a91610c2b5f5
+  "0xeaf58788a405f3253814b4559391a22be8616250", // multicall — tx 0x2310d7572665bcc36007b84dd12c75b3496189b895203f314689ca5179ac6f1f
+  "0x6131b5fae19ea4f9d964eac0408e4408b66337b5", // swap()  — tx 0x775985b5e9b97178729664b428db894b354ee340b0c8cd364a2c2598d231fedb
+  "0xdb544d63d32d9f3e52ff3a8bfe2a374df0463f8d", // exactInputSingle — tx 0xe8505dbde6d46ffd1f0d80f9e7dd041dfec711444a02dff1bdc54a2e2e81abf0
 ];
 
 const fetch = async (options: FetchOptions) => {
