@@ -78,12 +78,9 @@ async function fetch(options: FetchOptions) {
 }
 
 async function fetchSolana(options: FetchOptions) {
-  const dailyVolume = options.createBalances();
-  let data: any[];
-  try {
-    data = await queryDuneSql(
-      options,
-      `
+  const data = await queryDuneSql(
+    options,
+    `
     WITH gateswap_txs AS (
       -- Native + Alpha: identified by Gate program ID in account_keys
       SELECT DISTINCT id AS tx_id
@@ -109,12 +106,10 @@ async function fetchSolana(options: FetchOptions) {
     JOIN gateswap_txs g ON t.tx_id = g.tx_id
     WHERE TIME_RANGE
     `,
-    );
-  } catch (e: any) {
-    if (e?.message?.includes('DUNE_API_KEYS')) return { dailyVolume };
-    throw e;
-  }
-  dailyVolume.addUSDValue(data![0]?.daily_volume ?? 0);
+  );
+
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(data[0]?.daily_volume ?? 0);
   return { dailyVolume };
 }
 
