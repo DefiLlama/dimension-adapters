@@ -45,8 +45,8 @@ const fetchEthereum: FetchV2 = async (options: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees.clone(1);
   dailySupplySideRevenue.subtract(dailyRevenue);
 
-  const dailyProtocolRevenue = dailyRevenue.clone(0.5)
-  const dailyHoldersRevenue = dailyRevenue.clone(0.5)
+  const dailyProtocolRevenue = dailyRevenue.clone(0.8)
+  const dailyHoldersRevenue = dailyRevenue.clone(0.2)
 
   return {
     dailyFees,
@@ -73,8 +73,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees.clone(1);
   dailySupplySideRevenue.subtract(dailyRevenue);
 
-  const dailyProtocolRevenue = dailyRevenue.clone(0.5)
-  const dailyHoldersRevenue = dailyRevenue.clone(0.5)
+  const dailyProtocolRevenue = dailyRevenue.clone(0.8)
+  const dailyHoldersRevenue = dailyRevenue.clone(0.2)
 
   return {
     dailyFees,
