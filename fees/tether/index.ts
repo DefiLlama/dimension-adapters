@@ -153,9 +153,9 @@ const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '1', 30 * 3,
   ]);
 
 adapter.methodology = {
-  Fees: 'All yields from USDT backing asset investments (US Treasury Bills, other fixed-income assets), price fluctuations in gold, and bitcoin held in the Tether reserves. Price fluctuations in other backing assets are excluded.',
-  Revenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets) price fluctuations in gold, and bitcoin held in the Tether reserves.',
-  ProtocolRevenue: 'All yields from USDT backing assets investments (US Treasury Bills, other fixed income assets) price fluctuations in gold, and bitcoin held in the Tether reserves.',
+  Fees: 'Asset yields from USDT backing investments: US Treasury Bills and other fixed-income assets like repos, commercial paper, money market funds and secured loans.',
+  Revenue: 'Asset yields from USDT backing investments (US Treasury Bills and other fixed-income assets like repos, commercial paper, money market funds and secured loans) collected by Tether.',
+  ProtocolRevenue: 'Asset yields from USDT backing investments (US Treasury Bills and other fixed-income assets like repos, commercial paper, money market funds and secured loans) collected by Tether.',
 }
 
 adapter.breakdownMethodology = {
