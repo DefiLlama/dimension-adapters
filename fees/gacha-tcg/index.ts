@@ -1,6 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
+// Gacha Pull main contract on Abstract (pack purchases & buyback events)
+// https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619
 const CONTRACT = '0x268031de8363401d61b6a256bea009bb57277619'
 const USDC_E = '0x84a71ccd554cc1b02749b35d22f684cc8ec987e1'
 
@@ -13,6 +15,7 @@ const PURCHASED_ABI = 'event Purchased(uint256 indexed seqNo, uint32 indexed pre
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const [purchaseLogs, buybackLogs] = await Promise.all([
     options.getLogs({ target: CONTRACT, eventAbi: PURCHASED_ABI, topics: [PURCHASE_TOPIC] }),
@@ -24,26 +27,44 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(USDC_E, log.amount, 'Pack purchases')
   })
   buybackLogs.forEach((log: any) => {
-    dailyFees.add(USDC_E, -log.amount, 'Buybacks')
+    dailySupplySideRevenue.add(USDC_E, log.amount, 'Buybacks')
     dailyRevenue.add(USDC_E, -log.amount, 'Buybacks')
   })
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyUserFees: dailyFees,
   }
 }
 
 const methodology = {
-  Fees: 'Net spread captured by the protocol: pack purchases minus USDC.e returned to players through the buyback program (≈5-15% of pack price per Gacha Pull docs).',
-  Revenue: 'Same as Fees — net spread kept by the protocol after buybacks.',
-  UserFees: 'Net amount paid by players (pack price minus buyback received).',
+  Fees: 'Gross USDC.e paid by players to mint card packs (Purchased event).',
+  Revenue: 'Net spread captured by the protocol: pack purchases minus USDC.e returned to players through the buyback program.',
+  SupplySideRevenue: 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
+  UserFees: 'Same as Fees - gross USDC.e spent by players on pack purchases.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'Pack purchases': 'USDC.e paid by players to mint card packs (Purchased event).',
+  },
+  Revenue: {
+    'Pack purchases': 'USDC.e paid by players to mint card packs (Purchased event).',
+    'Buybacks': 'USDC.e returned to players when they sell cards back to the protocol (Buyback event); subtracted from revenue.',
+  },
+  SupplySideRevenue: {
+    'Buybacks': 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
+  },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  allowNegativeValue: true, // hourly buybacks can exceed hourly pack purchases
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch,

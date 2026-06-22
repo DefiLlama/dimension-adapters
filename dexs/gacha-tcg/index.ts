@@ -1,6 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
+// Gacha Pull main contract on Abstract (pack purchases & buyback events)
+// https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619
 const CONTRACT = '0x268031de8363401d61b6a256bea009bb57277619'
 const USDC_E = '0x84a71ccd554cc1b02749b35d22f684cc8ec987e1'
 
@@ -28,9 +30,18 @@ const methodology = {
   Volume: 'Sum of pack purchase amounts plus USDC.e returned to players through the buyback program.',
 }
 
+const breakdownMethodology = {
+  Volume: {
+    'Pack purchases': 'USDC.e paid by players to mint card packs (Purchased event).',
+    'Buybacks': 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch,
