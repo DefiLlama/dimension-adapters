@@ -30,6 +30,16 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "bloxwap-perps": {
+    addresses: ["0x71b09a08257078a4d642f7dd7315e656c837329a"],
+    start: "2026-04-25",
+    methodology: {
+      Fees: "Builder code fees (0.05%) paid by users on perpetual trades routed to Hyperliquid through Bloxwap.",
+      Revenue: "Builder code fees collected by Bloxwap from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Bloxwap from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "trust-wallet-perps": {
     addresses: ["0x5af1b5f44207784dcb850bbb4143c5dcd1885f71"],
     start: "2026-04-08",
@@ -231,6 +241,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Trading fees paid by users for perps in OneKey Wallet.",
       Revenue: "Fees collected by OneKey from Hyperliquid Perps as Builder Revenue.",
       ProtocolRevenue: "Fees collected by OneKey from Hyperliquid Perps as Builder Revenue.",
+    },
+  },
+  "omni-terminal": {
+    addresses: ["0x733f40a4fa0cd13d59abade04b9ed2e9acac6457"],
+    start: "2026-02-26",
+    methodology: {
+      Volume: "Total volume from users trading Hyperliquid perps through Omni Terminal.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Omni Terminal.",
+      Revenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
     },
   },
   "pear-interface": {

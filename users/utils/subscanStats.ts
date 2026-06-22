@@ -20,6 +20,10 @@ const subscanStatsChains: Record<string, ChainConfig> = {
   hydration: { chain: CHAIN.HYDRADX, subscanName: "hydration" },
   robonomics: { chain: CHAIN.ROBONOMICS, subscanName: "robonomics" },
   darwinia: { chain: CHAIN.DARWINIA, subscanName: "darwinia" },
+  bifrost: { chain: CHAIN.BIFROST, subscanName: "bifrost" },
+  moonriver: { chain: CHAIN.MOONRIVER, subscanName: "moonriver" },
+  acala: { chain: CHAIN.ACALA, subscanName: "acala" },
+  "space-and-time": { chain: CHAIN.SPACE_AND_TIME, subscanName: "sxt" },
 };
 
 function fetchSubscanDaily(subscanName: string, category: string, date: string) {

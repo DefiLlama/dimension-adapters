@@ -1,152 +1,125 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../helpers/chains";
-import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { FetchOptions } from "../adapters/types";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import { CHAIN } from "../helpers/chains";
+import { getUniV3LogAdapter, UniGetRevenueRatioProps } from "../helpers/uniswap";
 
-const endpointsV3 = {
-  // [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96EYD64NqmnFxMELu2QLWB95gqCmA9N96ssYsZfFiYHg'),
-  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('94BrP5miCYj9qezUqULAYpuLtKb5AyAo4jnU6wsAj8JJ'),
-  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'), // index error
-  // [CHAIN.BOBA]: sdk.graph.modifyEndpoint('71VWMKCvsWRqrJouxmEQwSEMqqnqiiVYSxTZvzR8PHRx'), // index error
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5nnoU1nUFeWqtXgbpC54L9PWdpgo7Y9HYinR3uTMsfzs'),
-  // [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4BzEvR229mwKjneCbJTDM8dsS3rjgoKcXt5C7J1DaUxK'), // index error
-  // [CHAIN.FUSE]: sdk.graph.modifyEndpoint('7E265DKJJiTn8bVF1nqmBr6C2tmo5MVQFNb9sm4cxng5'), // index error
-  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('GFvGfWBX47RNnvgwL6SjAAf2mrqrPxF91eA53F4eNegW'),
-  // [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('F46W9YVQXGism5iN9NZNhKm2DQCvjhr4u847rL1tRebS'),
-  // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Dr3FkshPgTMMDwxckz3oZdwLxaPcbzZuAbE92i6arYtJ'),
-  // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('CqLnQY1d6DLcBYu7aZvGmt17LoNdTe4fDYnGbE2EgotR'), // index error
-  // [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('E2x2gmtYdm2HX3QXorUBY4KegfGu79Za6TEQYjVrx15c'), // index error
-  // [CHAIN.THUNDERCORE]: 'https://graph-node.thundercore.com/subgraphs/name/sushi-v3/v3-thundercore', // index error
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
-  [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
-  [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
-  [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-3/gn",
-  // [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn", // 0 results, unnecessary compute usage
-  [CHAIN.FILECOIN]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-filecoin/gn",
-  [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/api/public/fc1ae952-7a36-44ac-9e9b-f46d70cedf7d/subgraphs/sushi-v3/v3-metis/v0.0.1/gn",
-  // [CHAIN.KAVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-kava/gn", // subgraph not found
-  [CHAIN.ZETA]: "https://api.goldsky.com/api/public/project_cls39ugcfyhbq01xl9tsf6g38/subgraphs/v3-zetachain/1.0.0/gn",
-  // [CHAIN.HAQQ]: "https://haqq.graph.p2p.org/subgraphs/name/sushi/v3-haqq-2",
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('E2vqqvSzDdUiPP1r7PFnPKZQ34pAhNZjc6rEcdj3uE5t'),
-  [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
-  // [CHAIN.SKALE_EUROPA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-skale-europa-2/gn", // block lookup/indexing issues
-  [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
-  // [CHAIN.HEMI]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-hemi/gn",
-  // [CHAIN.KATANA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-katana/gn",
+const sushiV3Configs: Record<string, { factory: string, start: string }> = {
+  [CHAIN.ARBITRUM]: { factory: "0x1af415a1eba07a4986a52b6f2e7de7003d82231e", start: "2023-04-03" },
+  [CHAIN.ARBITRUM_NOVA]: { factory: "0xaa26771d497814e81d305c511efbb3ced90bf5bd", start: "2023-04-03" },
+  [CHAIN.XDAI]: { factory: "0xf78031cbca409f2fb6876bdfdbc1b2df24cf9bef", start: "2023-04-03" },
+  [CHAIN.BASE]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2023-08-03" },
+  [CHAIN.BLAST]: { factory: "0x7680d4b43f3d1d54d6cfeeb2169463bfa7a6cf0d", start: "2024-04-12" },
+  [CHAIN.BSC]: { factory: "0x126555dd55a39328F69400d6aE4F782Bd4C34ABb", start: "2023-04-03" },
+  [CHAIN.OPTIMISM]: { factory: "0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0", start: "2023-04-03" },
+  [CHAIN.POLYGON]: { factory: "0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2", start: "2023-04-03" },
+  [CHAIN.POLYGON_ZKEVM]: { factory: "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", start: "2023-04-06" },
+  [CHAIN.LINEA]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2023-07-26" },
+  [CHAIN.THUNDERCORE]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2023-11-22" },
+  [CHAIN.FANTOM]: { factory: "0x7770978eED668a3ba661d51a773d3a992Fc9DDCB", start: "2023-04-03" },
+  [CHAIN.ETHEREUM]: { factory: "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F", start: "2023-04-03" },
+  [CHAIN.AVAX]: { factory: "0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715", start: "2023-04-03" },
+  [CHAIN.HEMI]: { factory: "0xcdbcd51a5e8728e0af4895ce5771b7d17ff71959", start: "2025-03-12" },
+  [CHAIN.KAVA]: { factory: "0x1e9b24073183d5c6b7ae5fb4b8f0b1dd83fdc77a", start: "2023-10-26" },
+  [CHAIN.CORE]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2024-04-12" },
+  [CHAIN.METIS]: { factory: "0x145d82bca93cca2ae057d1c6f26245d1b9522e6f", start: "2024-09-19" },
+  [CHAIN.SCROLL]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-09-20" },
+  [CHAIN.SONIC]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-12-25" },
+  [CHAIN.KATANA]: { factory: "0x203e8740894c8955cb8950759876d7e7e45e04c1", start: "2025-07-01" },
+
+  // bad rpc chains
+  // [CHAIN.FUSE]: { factory: "0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa", start: "2023-04-03" },
+  // [CHAIN.BITTORRENT]: { factory: "0xbbde1d67297329148fe1ed5e6b00114842728e65", start: "2023-11-20" },
+  // [CHAIN.ROOTSTOCK]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-05-22" },
 }
-
-const v3Graphs = getGraphDimensions2({
-  graphUrls: endpointsV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Set revenue to 0 as protocol fee is not set for all pools for now
-  }
-});
-
-const startTimeV3: { [key: string]: number } = {
-  [CHAIN.ARBITRUM_NOVA]: 1680566400,
-  [CHAIN.ARBITRUM]: 1680307200,
-  [CHAIN.AVAX]: 1680566400,
-  [CHAIN.BSC]: 1680566400,
-  [CHAIN.BOBA]: 1680739200,
-  [CHAIN.ETHEREUM]: 1680652800,
-  [CHAIN.FANTOM]: 1680566400,
-  [CHAIN.FUSE]: 1680566400,
-  [CHAIN.XDAI]: 1680652800,
-  [CHAIN.MOONRIVER]: 1680566400,
-  [CHAIN.OPTIMISM]: 1680652800,
-  [CHAIN.POLYGON]: 1680566400,
-  [CHAIN.POLYGON_ZKEVM]: 1680739200,
-  [CHAIN.THUNDERCORE]: 1684281600,
-  [CHAIN.BASE]: 1691020800,
-  [CHAIN.CORE]: 1689897600,
-  [CHAIN.BLAST]: 1709337600,
-  [CHAIN.ROOTSTOCK]: 1709337600,
-  [CHAIN.BITTORRENT]: 1711982400,
-  [CHAIN.FILECOIN]: 1711982400,
-  [CHAIN.METIS]: 1711982400,
-  [CHAIN.KAVA]: 1711982400,
-  [CHAIN.ZETA]: 1711982400,
-  [CHAIN.HAQQ]: 1711982400,
-  [CHAIN.LINEA]: 1711982400,
-  [CHAIN.SCROLL]: 1711982400,
-  [CHAIN.SKALE_EUROPA]: 1711982400,
-  [CHAIN.SONIC]: 1711982400,
-}
-
-const v3: any = Object.keys(endpointsV3).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: async (options: FetchOptions) => {
-        const res = (await v3Graphs(options))
-        const result = {
-          dailyVolume: res.dailyVolume,
-          dailyFees: res.dailyFees,
-          dailyUserFees: res.dailyUserFees,
-          dailyRevenue: res.dailyRevenue,
-          dailySupplySideRevenue: res.dailySupplySideRevenue,
-          dailyProtocolRevenue: res.dailyProtocolRevenue,
-          dailyHoldersRevenue: res.dailyHoldersRevenue,
-        };
-
-        Object.entries(result).forEach(([key, value]) => {
-          if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
-        });
-
-        return result;
-      },
-      start: startTimeV3[chain],
-    },
-  }),
-  {}
-);
 
 const getUniV3LogAdapterConfig = {
   userFeesRatio: 1,
-  revenueRatio: 0,
-  protocolRevenueRatio: 0,
-  holdersRevenueRatio: 0,
+  dynamicProtocolFees: true,
+  getRevenueRatio: (props: UniGetRevenueRatioProps): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
+    // dynamic fetch pool protocol fee share and count them toward protocol revenue
+    const rate = (props.protocolFeeRatioToken0 && props.protocolFeeRatioToken1) ? (props.protocolFeeRatioToken0 + props.protocolFeeRatioToken1) / 2 : 0;
+
+    // Where SushiSwap V3 protocol fees go (verified on-chain on Ethereum):
+    // Each pool's slot0.feeProtocol sets the protocol cut (1/N of swap fees; active
+    // pools use feeProtocol=4 -> 25%). The factory owner calls collectProtocol and
+    // routes those fees to the V3 FeeCollector (0xdbeca8fb...). From there the value
+    // splits two ways:
+    //   - ~62% -> Sushi ops/treasury multisig (0x19b3eb3a...)   => ProtocolRevenue
+    //   - ~38% -> a shared fee converter (0xac4c6e... -> 0xc10ee9031f...) that swaps
+    //             the collected tokens into SUSHI and deposits it into the SushiBar
+    //             (xSUSHI, 0x8798249c...) where stakers accrue it    => HoldersRevenue
+    // The 62/38 split is the all-time USD ratio of the FeeCollector's direct outflows
+    // to those two destinations. Note V2 protocol fees do NOT follow this path - they
+    // accrue to the legacy SushiMaker and currently sit there unconverted, reaching
+    // neither the treasury nor xSUSHI.
+    return { _revenueRatio: rate, _protocolRevenueRatio: rate * 0.62, _holdersRevenueRatio: rate * 0.38 };
+  }
 }
 
-v3[CHAIN.ARBITRUM_NOVA] = { fetch: getUniV3LogAdapter({ factory: '0xaa26771d497814e81d305c511efbb3ced90bf5bd', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), }
-// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.HEMI] = { fetch: getUniV3LogAdapter({ factory: '0xcdbcd51a5e8728e0af4895ce5771b7d17ff71959', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.KATANA] = { fetch: getUniV3LogAdapter({ factory: '0x203e8740894c8955cb8950759876d7e7e45e04c1', ...getUniV3LogAdapterConfig }), }
-v3[CHAIN.KAVA] = { fetch: getUniV3LogAdapter({ factory: '0x1e9b24073183d5c6b7ae5fb4b8f0b1dd83fdc77a', ...getUniV3LogAdapterConfig }), }
+async function fetch(options: FetchOptions) {
+  const config = sushiV3Configs[options.chain];
+  const results = await getUniV3LogAdapter({ factory: config.factory, ...getUniV3LogAdapterConfig })(options);
 
-// chains badly support rpc getLogs
-// v3[CHAIN.BITTORRENT] = { fetch: getUniV3LogAdapter({ factory: '0xbbde1d67297329148fe1ed5e6b00114842728e65', ...getUniV3LogAdapterConfig }), }
-// v3[CHAIN.ROOTSTOCK] = { fetch: getUniV3LogAdapter({ factory: '0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e', ...getUniV3LogAdapterConfig }), }
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  if (results.dailyProtocolRevenue) {
+    dailyRevenue.add(results.dailyProtocolRevenue, 'Swap Fees To Treasury')
+    dailyProtocolRevenue.add(results.dailyProtocolRevenue, 'Swap Fees To Treasury')
+  }
+  if (results.dailyHoldersRevenue) {
+    dailyRevenue.add(results.dailyHoldersRevenue, 'Swap Fees To xSUSHI Stakers')
+    dailyHoldersRevenue.add(results.dailyHoldersRevenue, 'Swap Fees To xSUSHI Stakers')
+  }
+  if (results.dailySupplySideRevenue)
+    dailySupplySideRevenue.add(results.dailySupplySideRevenue, 'Swap Fees To Liquidity Providers')
+  else
+    dailySupplySideRevenue.add(results.dailyFees, 'Swap Fees To Liquidity Providers')
+
+  return {
+    dailyVolume: results.dailyVolume,
+    dailyFees: results.dailyFees.clone(1, 'Token Swap Fees'),
+    dailyUserFees: results.dailyFees.clone(1, 'Token Swap Fees'),
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  };
+}
 
 export default {
   version: 2,
+  pullHourly: true,
+  fetch: fetch,
+  adapter: sushiV3Configs,
   methodology: {
     Fees: "Each pool charges between 0.01% to 1% fee",
     UserFees: "Users pay between 0.01% to 1% fee",
-    Revenue: "0 to 1/4 of the fee goes to treasury",
-    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
-    ProtocolRevenue: "Treasury receives a share of the fees",
+    Revenue: "Share from 0 to 25% of the fee goes to treasury",
+    HoldersRevenue: "Protocol fee share routed to xSUSHI stakers through the SushiBar flow",
+    ProtocolRevenue: "Treasury receives all revenue",
     SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
   },
-  adapter: v3,
+  breakdownMethodology: {
+    Fees: {
+      "Token Swap Fees": "Swap fees paid by users on SushiSwap V3 pools. Fee rates vary by pool from 0.01% to 1%.",
+    },
+    UserFees: {
+      "Token Swap Fees": "Swap fees paid by users on SushiSwap V3 pools. Fee rates vary by pool from 0.01% to 1%.",
+    },
+    Revenue: {
+      "Swap Fees To Treasury": "Protocol fee share routed to the Sushi treasury.",
+      "Swap Fees To xSUSHI Stakers": "Protocol fee share routed to xSUSHI stakers through the SushiBar flow.",
+    },
+    ProtocolRevenue: {
+      "Swap Fees To Treasury": "Protocol fee share routed to the Sushi treasury.",
+    },
+    SupplySideRevenue: {
+      "Swap Fees To Liquidity Providers": "Swap fees retained by liquidity providers after protocol fees.",
+    },
+    HoldersRevenue: {
+      "Swap Fees To xSUSHI Stakers": "Protocol fee share routed to xSUSHI stakers through the SushiBar flow.",
+    },
+  },
 }

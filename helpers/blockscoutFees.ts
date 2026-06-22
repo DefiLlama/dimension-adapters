@@ -21,7 +21,7 @@ export const chainConfigMap: any = {
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
   [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain', deadFrom: '2026-01-15', },
   [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
-  [CHAIN.TELOS]: { explorer: 'https://telostx.com', CGToken: 'telos' },
+  [CHAIN.TELOS]: { explorer: 'https://www.teloscan.io', CGToken: 'telos', start: '2026-01-01' },
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },

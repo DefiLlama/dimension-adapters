@@ -1,5 +1,4 @@
-import fetchURL, { httpGet } from "../../utils/fetchURL";
-import { ProtocolType } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
@@ -7,6 +6,7 @@ type ChainConfig = {
   baseUrl: string;
   statsUrl?: string;
   version: 1 | 2;
+  start?: string;
 };
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
@@ -78,6 +78,10 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1 },
   "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
   fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1 },
+  citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
+  gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
+  lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
+  "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 },
   b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1 },
   degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2 },
 };
@@ -115,7 +119,8 @@ export const blockscoutStatsExports = Object.entries(blockscoutStatsChains).map(
   name: id,
   id,
   chain: config.chain,
-  protocolType: ProtocolType.CHAIN,
+  type: "chain",
+  start: config.start,
   getUsers: getBlockscoutUsers(config),
   getNewUsers: getBlockscoutNewUsers(config),
 }));

@@ -4,21 +4,6 @@ import { queryDuneSql } from "../helpers/dune";
 import { FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 
-interface IData {
-  quote_mint: string;
-  total_volume: number;
-  total_trading_fees: number;
-  total_protocol_fees: number;
-}
-
-interface IDammv2Data {
-  account_config: string;
-  total_volume: number;
-  total_lp_fees: number;
-  total_partner_fees: number;
-  total_protocol_fees: number;
-}
-
 const PLATFORM_WALLET = "7c8XjugvjW5pMKkrV5myZfoWrQ1QHjwWC3RYZWUToJRk";
 const QUOTE_MINT_DEFAULT = "So11111111111111111111111111111111111111112";
 
@@ -28,9 +13,7 @@ const metrics = {
   ProtocolFees: "Protocol Fees",
 };
 
-// Shared CTE for platform configs — embedded in both queries to avoid a
-// separate Dune API call.  A start-date filter limits the scan to pools
-// created since the adapter went live.
+// Shared CTE for platform configs — used by both DBC and DAMM v2 queries
 const CONFIGS_CTE = `
     platform_configs AS (
         SELECT DISTINCT account_config
@@ -38,8 +21,8 @@ const CONFIGS_CTE = `
         WHERE account_creator = '{{platformWallet}}'
     )`;
 
-// DBC query, excluding migrated configs
-const dbcSQL = `
+// Combined query: DBC (non-migrated) + DAMM v2 (migrated) in a single Dune API call
+const combinedSQL = `
     WITH
     ${CONFIGS_CTE},
     migrated_configs AS (
@@ -55,7 +38,7 @@ const dbcSQL = `
         WHERE p.account_creator = '{{platformWallet}}'
           AND p.account_config NOT IN (SELECT account_config FROM migrated_configs)
     ),
-    swap_events AS (
+    dbc_swap_events AS (
         SELECT
             s.config,
             t.account_quote_mint,
@@ -68,25 +51,23 @@ const dbcSQL = `
         JOIN dbc_tokens t ON s.config = t.account_config
         WHERE s.evt_block_time >= from_unixtime({{start}})
           AND s.evt_block_time < from_unixtime({{end}})
-    )
-    SELECT
-        account_quote_mint AS quote_mint,
-        SUM(
-            CASE
-                WHEN trade_direction = 1 THEN COALESCE(amount_in, 0)
-                ELSE COALESCE(output_amount, 0)
-            END
-        ) AS total_volume,
-        SUM(COALESCE(trading_fee, 0)) AS total_trading_fees,
-        SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees
-    FROM swap_events
-    GROUP BY account_quote_mint
-`;
-
-// DAMM v2 query (migrated pools) — configs CTE embedded to avoid a separate API call
-const dammV2SQL = `
-  WITH
-    ${CONFIGS_CTE},
+    ),
+    dbc_results AS (
+        SELECT
+            'dbc' AS source,
+            account_quote_mint AS identifier,
+            SUM(
+                CASE
+                    WHEN trade_direction = 1 THEN COALESCE(amount_in, 0)
+                    ELSE COALESCE(output_amount, 0)
+                END
+            ) AS total_volume,
+            SUM(COALESCE(trading_fee, 0)) AS fee_1,
+            SUM(COALESCE(protocol_fee, 0)) AS fee_2,
+            CAST(0 AS DECIMAL(38,0)) AS fee_3
+        FROM dbc_swap_events
+        GROUP BY account_quote_mint
+    ),
     migration_configs AS (
       SELECT DISTINCT
         m.account_config,
@@ -94,7 +75,7 @@ const dammV2SQL = `
       FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
       JOIN platform_configs pc ON m.account_config = pc.account_config
     ),
-    swap_events AS (
+    damm_swap_events AS (
       SELECT
         s.pool,
         m.account_config,
@@ -106,15 +87,21 @@ const dammV2SQL = `
       JOIN migration_configs m ON s.pool = m.account_pool
       WHERE s.evt_block_time >= from_unixtime({{start}})
         AND s.evt_block_time < from_unixtime({{end}})
+    ),
+    damm_results AS (
+      SELECT
+          'dammv2' AS source,
+          account_config AS identifier,
+          SUM(COALESCE(output_amount, 0)) AS total_volume,
+          SUM(COALESCE(trading_fee, 0)) AS fee_1,
+          SUM(COALESCE(protocol_fee, 0)) AS fee_2,
+          SUM(COALESCE(partner_fee, 0)) AS fee_3
+      FROM damm_swap_events
+      GROUP BY account_config
     )
-  SELECT
-    account_config,
-    SUM(COALESCE(output_amount, 0)) AS total_volume,
-    SUM(COALESCE(trading_fee, 0)) AS total_lp_fees,
-    SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
-    SUM(COALESCE(partner_fee, 0)) AS total_partner_fees
-  FROM swap_events
-  GROUP BY account_config
+    SELECT source, identifier, total_volume, fee_1, fee_2, fee_3 FROM dbc_results
+    UNION ALL
+    SELECT source, identifier, total_volume, fee_1, fee_2, fee_3 FROM damm_results
 `;
 
 const getSqlFromString = (sql: string, variables: Record<string, any> = {}): string => {
@@ -125,44 +112,42 @@ const getSqlFromString = (sql: string, variables: Record<string, any> = {}): str
 };
 
 const fetch = async (options: FetchOptions) => {
-  // Step 1: Fetch DBC fees (non-migrated only)
-  const dbcQuery = getSqlFromString(dbcSQL, {
+  // Single Dune API call for both DBC and DAMM v2 data
+  const query = getSqlFromString(combinedSQL, {
     platformWallet: PLATFORM_WALLET,
     start: options.startTimestamp,
     end: options.endTimestamp,
   });
-  const dbcData: IData[] = await queryDuneSql(options, dbcQuery);
+  const data: { source: string; identifier: string; total_volume: number; fee_1: number; fee_2: number; fee_3: number }[] = await queryDuneSql(options, query);
 
-  // Step 2: Fetch DAMM v2 fees (migrated pools)
-  const dammv2Query = getSqlFromString(dammV2SQL, {
-    platformWallet: PLATFORM_WALLET,
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  });
-  const dammv2Data: IDammv2Data[] = await queryDuneSql(options, dammv2Query);
+  const dbcData = data.filter(r => r.source === 'dbc');
+  const dammv2Data = data.filter(r => r.source === 'dammv2');
 
-  // Step 3: Aggregate fees and volume
+  // Step 2: Aggregate fees and volume
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  // DBC
+  // DBC — fee_1 = trading_fee, fee_2 = protocol_fee
   dbcData.forEach((row) => {
-    dailyFees.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
-    dailyFees.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    dailyFees.add(row.identifier, Number(row.fee_1), metrics.TradingFees);
+    dailyFees.add(row.identifier, Number(row.fee_2), metrics.ProtocolFees);
 
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    dailyProtocolRevenue.add(row.identifier, Number(row.fee_1), metrics.TradingFees);
+    dailyProtocolRevenue.add(row.identifier, Number(row.fee_2), metrics.ProtocolFees);
   });
 
-  // DAMM v2
+  // DAMM v2 — fee_1 = lp_fee (trading), fee_2 = protocol_fee, fee_3 = partner_fee
   dammv2Data.forEach((row) => {
-    const quoteMint = dbcData[0]?.quote_mint ?? QUOTE_MINT_DEFAULT;
-    dailyFees.add(quoteMint, Number(row.total_lp_fees), metrics.TradingFees);
-    dailyFees.add(quoteMint, Number(row.total_partner_fees), metrics.PartnersFees);
-    dailyFees.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    const quoteMint = dbcData[0]?.identifier ?? QUOTE_MINT_DEFAULT;
+    dailyFees.add(quoteMint, Number(row.fee_1), metrics.TradingFees);
+    dailyFees.add(quoteMint, Number(row.fee_3), metrics.PartnersFees);
+    dailyFees.add(quoteMint, Number(row.fee_2), metrics.ProtocolFees);
 
-    dailyProtocolRevenue.add(quoteMint, Number(row.total_lp_fees), metrics.TradingFees);
-    dailyProtocolRevenue.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    dailyProtocolRevenue.add(quoteMint, Number(row.fee_1), metrics.TradingFees);
+    dailyProtocolRevenue.add(quoteMint, Number(row.fee_2), metrics.ProtocolFees);
+
+    dailySupplySideRevenue.add(quoteMint, Number(row.fee_3), metrics.PartnersFees);
   });
 
   return {
@@ -170,6 +155,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -183,6 +169,7 @@ const adapter: SimpleAdapter = {
     UserFees: "Total trading fees paid by users.",
     Revenue: "Fees collected by Orynth.",
     ProtocolRevenue: "All fees collected by Orynth.",
+    SupplySideRevenue: "Partner fees from DAMM v2 migrated pools.",
   },
   breakdownMethodology: {
     Fees: {
@@ -197,6 +184,9 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
       [metrics.ProtocolFees]: "Total fees paid to Orynth protocol.",
+    },
+    SupplySideRevenue: {
+      [metrics.PartnersFees]: "Partner fees from DAMM v2 migrated pools.",
     },
   },
 };

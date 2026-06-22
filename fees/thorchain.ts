@@ -11,9 +11,9 @@ interface IChartItem {
 }
 
 const fetch = async (options: FetchOptions) => {
-  // const feeEndpoint = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=100`;
-  const feeEndpoint = `https://vanaheimex.com/api/reserve?from=${options.startOfDay}&to=${options.endTimestamp}`;
-  const historicalFees: IChartItem[] = (await httpGet(feeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;
+  // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
+  const feeEndpoint = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
+  const historicalFees: IChartItem[] = (await httpGet(feeEndpoint, { headers: { "x-client-id": "defillama" } })).intervals;
 
   const dayData = historicalFees.find((feeItem: IChartItem) =>
     feeItem.startTime === String(options.startOfDay) && feeItem.endTime === String(options.endTimestamp)

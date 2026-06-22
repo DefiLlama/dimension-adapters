@@ -4,14 +4,31 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000, 2500];
 
+// On-chain crypto gacha sinks. Pack purchases arrive as exact-tier USDC transfers, so
+// these are tier-filtered (99.9% of inflows match a tier; non-tier is rounding noise).
+const GACHA_ONCHAIN_ADDRESSES = [
+  'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z', // decommissioned pre-Dec-2025, kept for history
+  'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3', // primary on-chain sink
+];
+
+// CC fiat/credit-card rail. Card-pack purchases settle off-chain (card/Coinbase) and then
+// top this wallet up in BUNDLED, non-tier amounts (e.g. $200 = 2 packs, $750 = 3 packs).
+// Count ALL non-team inflows here, not just tier amounts - the tier filter drops ~41% of
+// fiat-rail revenue (bundled buys). Matches blocmates' reference model (dune query 7444053).
+const GACHA_FIAT_ADDRESS = '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s';
+
 const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
 
-// Buyback hubs: DCA bots are funded with USDC from here, market-buy CARDS across the
-// pools and send the bought CARDS back here. CARDS received here from non-team wallets
-// is the open-market buyback (value accrual to CARDS holders), live since 2026-06-11.
-// Extend this list if the team rotates to a new hub.
-const BUYBACK_ADDRESSES = [
-  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu',
+// Open-market CARDS buyback hubs: DCA bots funded with USDC from here market-buy CARDS
+// across the pools and send the bought CARDS back here. CARDS received here from non-team
+// wallets would be the open-market buyback (value accrual to CARDS holders).
+//
+// DISABLED: the hub below was identified heuristically and is NOT an officially confirmed
+// CC wallet, so we do not attribute its CARDS inflows to holders revenue. With this list
+// empty, dailyHoldersRevenue is 0 and dailyProtocolRevenue equals dailyRevenue. Re-add the
+// confirmed address(es) here to re-enable the holders-vs-protocol split.
+const BUYBACK_ADDRESSES: string[] = [
+  // 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial buyback hub (seen since 2026-06-11)
 ];
 
 //https://dune.com/queries/7450765
@@ -40,13 +57,29 @@ const TEAM_ADDRESSES = [
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3',
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z',
   '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s',
-  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // buyback hub (since 2026-06-11)
+  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // unofficial CC bot wallet; kept as an exclusion (it sends USDC into the gacha sink) even though its buyback role is no longer tracked
 ]
 
 const fetch = async (options: FetchOptions) => {
+  const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+  }
+
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+
+  // No confirmed buyback hub -> return a constant 0 so the CARDS-buyback CTE stays valid
+  // SQL (an empty IN-list would not) and holders revenue resolves to 0.
+  const cardsBuybackCte = BUYBACK_ADDRESSES.length > 0
+    ? `SELECT SUM(amount) AS cards_bought
+      FROM tokens_solana.transfers
+      WHERE to_owner IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND token_mint_address = '${CARDS_MINT}'
+        AND TIME_RANGE`
+    : `SELECT CAST(0 AS DOUBLE) AS cards_bought`;
 
   const query = `
     WITH gacha_in AS (
@@ -60,9 +93,18 @@ const fetch = async (options: FetchOptions) => {
         SUM(CASE WHEN amount / POWER(10, 6) = 1000 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_1000,
         SUM(CASE WHEN amount / POWER(10, 6) = 2500 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_2500
       FROM tokens_solana.transfers
-      WHERE to_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3','96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s')
+      WHERE to_owner IN (${GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
         AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
         AND amount / power(10, 6) IN (${GACHA_TIERS.map(tier => tier).join(', ')})
+        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+        AND TIME_RANGE
+    ),
+    gacha_fiat AS (
+      SELECT
+        SUM(amount / POWER(10, 6)) AS fiat_spend
+      FROM tokens_solana.transfers
+      WHERE to_owner = '${GACHA_FIAT_ADDRESS}'
+        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
         AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
         AND TIME_RANGE
     ),
@@ -84,13 +126,7 @@ const fetch = async (options: FetchOptions) => {
         AND TIME_RANGE
     ),
     cards_buyback AS (
-      SELECT
-        SUM(amount) AS cards_bought
-      FROM tokens_solana.transfers
-      WHERE to_owner IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND token_mint_address = '${CARDS_MINT}'
-        AND TIME_RANGE
+      ${cardsBuybackCte}
     )
     SELECT
       COALESCE(g.gacha_spend_25, 0) AS gacha_spend_25,
@@ -101,10 +137,12 @@ const fetch = async (options: FetchOptions) => {
       COALESCE(g.gacha_spend_250, 0) AS gacha_spend_250,
       COALESCE(g.gacha_spend_1000, 0) AS gacha_spend_1000,
       COALESCE(g.gacha_spend_2500, 0) AS gacha_spend_2500,
+      COALESCE(gf.fiat_spend, 0) AS gacha_spend_fiat,
       COALESCE(f.inflow, 0) AS fees_royalty,
       COALESCE(b.buyback, 0) AS buyback,
       COALESCE(cb.cards_bought, 0) AS cards_buyback
     FROM gacha_in g
+      CROSS JOIN gacha_fiat gf
       CROSS JOIN fees f
       CROSS JOIN buyback b
       CROSS JOIN cards_buyback cb
@@ -121,6 +159,11 @@ const fetch = async (options: FetchOptions) => {
         dailyVolume.addUSDValue(spend);
         dailyFees.addUSDValue(spend, `Gacha $${tier} Pack Sales`);
       }
+    }
+    const fiatSpend = Number(result.gacha_spend_fiat || 0);
+    if (fiatSpend) {
+      dailyVolume.addUSDValue(fiatSpend);
+      dailyFees.addUSDValue(fiatSpend, 'Gacha Fiat Pack Sales');
     }
     dailyFees.addUSDValue(result.fees_royalty, 'Royalty Fees');
     dailyFees.addUSDValue(-result.buyback, 'Pack Buyback Spends');
@@ -149,12 +192,12 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: "Volume from gacha (card pack sales).",
-  Fees: "Total fees from gacha (card pack sales) and marketplace transactions.",
-  Revenue: "Revenue from gacha sales + marketplace fees/royalties.",
+  Volume: "Volume from gacha card pack sales, including packs bought on-chain (USDC) and via the CC fiat/credit-card rail.",
+  Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
+  Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-  HoldersRevenue: "USD value of CARDS bought back on the open market by the team and accumulated, returned to CARDS holders (since June 2026).",
-  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks and CARDS token buybacks."
+  HoldersRevenue: "USD value of CARDS bought back on the open market by the team and accumulated, returned to CARDS holders. Currently 0: tracking is disabled until the buyback hub wallet is officially confirmed.",
+  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks. Equals Revenue while open-market CARDS buyback tracking is disabled."
 }
 
 const gachaBreakdown = {
@@ -166,6 +209,7 @@ const gachaBreakdown = {
   "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
   "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
   "Gacha $2500 Pack Sales": "Gacha pack sales at $2500.",
+  "Gacha Fiat Pack Sales": "Gacha pack sales settled via the CC fiat/credit-card rail. Bundled into non-tier amounts, so all non-team inflows to the fiat-rail wallet are counted.",
   "Royalty Fees": "Royalty fees from marketplace transactions.",
   "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
 }

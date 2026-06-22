@@ -129,8 +129,8 @@ const fetchFromOku = async (options: FetchOptions) => {
     const response: IOkuResponse[] = (await httpPost(url, body)).result
     const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
     const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
-    const dailyRevenue = dailyFees * getRevenueShare(dailyFees, options);
     const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+    const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
     return {
       dailyVolume,
       dailyFees,
@@ -291,7 +291,6 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
   const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
@@ -304,13 +303,12 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
     logs.forEach((log: any) => {
       addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
       addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
-      addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio })
       addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
     })
   })
 
   const dailyHoldersRevenue = await fetchHoldersRevenue(options)
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue }
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue : dailyHoldersRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue }
 }
 
 function getRevenueShare(fee: number, options: FetchOptions): number {
@@ -374,14 +372,14 @@ export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
 async function fetchDune(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const poolsAndVolumes = await queryDune('3996608', {
     fullQuery: await UNISWAP_V3_QUERY(options),
   }, options);
   const poolFees = await options.api.multiCall({
     abi: 'uint256:fee',
-    calls: poolsAndVolumes.map((item: any) => item.pool)
+    calls: poolsAndVolumes.map((item: any) => item.pool),
+    permitFailure: true,
   })
   for (let i = 0; i < poolsAndVolumes.length; i++) {
     if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
@@ -390,19 +388,19 @@ async function fetchDune(options: FetchOptions) {
       // add clean volume, exclude blacklist token
       dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
       dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
-      dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * revenueRatio)
     }
   }
 
-  const dailySupplySideRevenue = dailyFees.clone()
-  dailySupplySideRevenue.subtract(dailyRevenue)
   const dailyHoldersRevenue = await fetchHoldersRevenue(options)
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyHoldersRevenue)
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue,
-    dailyRevenue,
+    dailyRevenue: dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
   }
@@ -449,5 +447,8 @@ async function fetchDune(options: FetchOptions) {
     return await fetchDune(options);
   },
 };
+
+adapter.allowNegativeValue = true; // revenue calculated here is combination of v2 & v3, supply side revenue can be negative when v2+v3 revenue > v3 ssr 
+                                   // which is already compensated by v2 ssr, so cumulative holds correct
 
 export default adapter;

@@ -127,7 +127,10 @@ export const fetchOriginFees = (products: OriginProduct[]) =>
       dailyFees.addUSDValue(productFees, ORIGIN_YIELD_LABEL);
       dailyRevenue.addUSDValue(productRevenue, ORIGIN_PROTOCOL_FEE_LABEL);
       dailySupplySideRevenue.addUSDValue(productSupplySide, ORIGIN_REBASE_LABEL);
-      dailyHoldersRevenue.addUSDValue(productFees, STAKING_REWARDS_LABEL);
+      // Holders revenue is the performance fee forwarded to OGN stakers, i.e. the
+      // protocol revenue — not the gross product yield (which mostly rebases to
+      // OToken holders as supply-side revenue).
+      dailyHoldersRevenue.addUSDValue(productRevenue, STAKING_REWARDS_LABEL);
     }
 
     return {
