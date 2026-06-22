@@ -86,7 +86,6 @@ type ChainUserConfig = {
 
 const alliumChainMap: Record<string, string> = {
     arbitrum: CHAIN.ARBITRUM,
-    avalanche: CHAIN.AVAX,
     ethereum: CHAIN.ETHEREUM,
     optimism: CHAIN.OPTIMISM,
     polygon: CHAIN.POLYGON,
@@ -102,11 +101,8 @@ const alliumChainMap: Record<string, string> = {
     manta_pacific: CHAIN.MANTA,
     ronin: CHAIN.RONIN,
     sonic: CHAIN.SONIC,
-    mantle: CHAIN.MANTLE,
     berachain: CHAIN.BERACHAIN,
-    blast: CHAIN.BLAST,
     monad: CHAIN.MONAD,
-    plasma: CHAIN.PLASMA,
     sei: CHAIN.SEI,
     core: CHAIN.CORE,
     tempo: CHAIN.TEMPO,
