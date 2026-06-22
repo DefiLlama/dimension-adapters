@@ -41,10 +41,10 @@ const fetchEthereum: FetchV2 = async (options: FetchOptions) => {
   });
   dailyFees.addBalances(dailyMaticXFees);
   dailyRevenue.addBalances(dailyMaticXRev);
-  
+
   const dailySupplySideRevenue = dailyFees.clone(1);
   dailySupplySideRevenue.subtract(dailyRevenue);
-  
+
   const dailyProtocolRevenue = dailyRevenue.clone(0.5)
   const dailyHoldersRevenue = dailyRevenue.clone(0.5)
 
@@ -69,12 +69,50 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   });
 
   const dailyRevenue = dailyFees.clone(1 / 9);
-  
+
   const dailySupplySideRevenue = dailyFees.clone(1);
   dailySupplySideRevenue.subtract(dailyRevenue);
-  
+
   const dailyProtocolRevenue = dailyRevenue.clone(0.5)
   const dailyHoldersRevenue = dailyRevenue.clone(0.5)
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  };
+};
+
+// Hedera HBARX: liquid-staked HBAR. The StakePoolsManager contract takes a 10%
+// protocol fee on staking rewards and emits it as nodeStakingDaoFeeTransfer; the
+// remaining 90% accrues to HBARX holders via the HBARX:HBAR exchange rate.
+const STADER_HEDERA_STAKE_MANAGER = "0x0000000000000000000000000000000000158d97"; // 0.0.1412503
+
+const fetchHedera: FetchV2 = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const feeLogs = await options.getLogs({
+    target: STADER_HEDERA_STAKE_MANAGER,
+    eventAbi: "event nodeStakingDaoFeeTransfer(address indexed to, uint256 amount)",
+  });
+
+  let daoFeeHbar = 0;
+  feeLogs.forEach((log: any) => {
+    daoFeeHbar += Number(log.amount) / 1e8; // amount is in tinybar (HBAR has 8 decimals)
+  });
+
+  // daoFee is the 10% protocol cut on staking rewards => gross rewards = daoFee * 10
+  dailyRevenue.addCGToken("hedera-hashgraph", daoFeeHbar);
+  dailyFees.addCGToken("hedera-hashgraph", daoFeeHbar * 10);
+
+  const dailySupplySideRevenue = dailyFees.clone(1);
+  dailySupplySideRevenue.subtract(dailyRevenue);
+
+  const dailyProtocolRevenue = dailyRevenue.clone(0.8);
+  const dailyHoldersRevenue = dailyRevenue.clone(0.2);
 
   return {
     dailyFees,
@@ -95,6 +133,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch,
       start: "2022-07-27",
+    },
+    [CHAIN.HEDERA]: {
+      fetch: fetchHedera,
+      start: "2022-11-06",
     },
   },
   dependencies: [Dependencies.DUNE],
