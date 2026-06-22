@@ -22,6 +22,7 @@ const routescanStatsChains: Record<string, ChainConfig> = {
   chz: { chain: CHAIN.CHILIZ, chainId: 88888, start: "2023-02-08" },
   nibiru: { chain: CHAIN.NIBIRU, chainId: 6900, start: "2025-02-11" },
   btnx: { chain: CHAIN.BOTANIX, chainId: 3637, start: "2025-05-22" },
+  beam: { chain: CHAIN.BEAM, chainId: 4337, start: "2023-08-14" },
 };
 
 async function fetchMetric(config: ChainConfig, metric: string, date: string) {
