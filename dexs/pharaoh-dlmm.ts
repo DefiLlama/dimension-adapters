@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
+import { PHARAOH_METRIC } from "./pharaoh-v3-legacy";
 
 const PHAR_TOKEN_CONTRACT = "0x13A466998Ce03Db73aBc2d4DF3bBD845Ed1f28E7";
 
@@ -335,14 +336,20 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(stats.dlmmFeesUSD, "Swap fees");
-  dailyUserFees.addUSDValue(stats.dlmmFeesUSD, "Swap fees");
-  dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, "Swap fees to xPHAR voters");
-  dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, "Vote incentives to xPHAR voters");
-  dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, "Swap fees to treasury");
-  dailySupplySideRevenue.addUSDValue(stats.dlmmSupplySideRevenueUSD, "Swap fees to LPs");
-  dailyRevenue.add(dailyProtocolRevenue);
-  dailyRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, "Swap fees to xPHAR voters");
+  dailyFees.addUSDValue(stats.dlmmFeesUSD, PHARAOH_METRIC.SwapFees);
+  dailyFees.addUSDValue(stats.dlmmBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+
+  dailyUserFees.addUSDValue(stats.dlmmFeesUSD, PHARAOH_METRIC.SwapFees);
+  
+  dailyRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+  dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+  
+  dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+  dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+  
+  dailySupplySideRevenue.addUSDValue(stats.dlmmSupplySideRevenueUSD, PHARAOH_METRIC.SwapFeesToLPs);
 
   return {
     dailyVolume,
@@ -366,24 +373,26 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Swap fees": "Swap fees paid by traders.",
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   Revenue: {
-    "Swap fees to treasury": "Treasury share of swap fees.",
-    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   UserFees: {
-    "Swap fees": "Swap fees paid by traders.",
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
   },
   ProtocolRevenue: {
-    "Swap fees to treasury": "Treasury share of swap fees.",
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
   },
   HoldersRevenue: {
-    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
-    "Vote incentives to xPHAR voters": "Vote incentives distributed to xPHAR voters.",
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   SupplySideRevenue: {
-    "Swap fees to LPs": "Swap fees retained by liquidity providers.",
+    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees dstributed to liquidity providers.",
   },
 };
 

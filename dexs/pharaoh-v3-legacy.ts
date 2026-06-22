@@ -2,6 +2,14 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchStats } from "./pharaoh-v3";
 
+export const PHARAOH_METRIC = {
+  SwapFees: 'Token Swap Fees',
+  VoteIncentives: 'Vote Incentives To xPHAR Voters',
+  SwapFeesToTreasury: 'Token Swap Fees To Treasury',
+  SwapFeesToVoters: 'Token Swap Fees To xPHAR Voters',
+  SwapFeesToLPs: 'Token Swap Fees To LPs',
+}
+
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
 
@@ -13,17 +21,23 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(stats.legacyFeesUSD, "Swap fees");
-  dailyUserFees.addUSDValue(stats.legacyFeesUSD, "Swap fees");
-  dailyHoldersRevenue.addUSDValue(stats.legacyUserFeesRevenueUSD, "Swap fees to xPHAR voters");
-  dailyHoldersRevenue.addUSDValue(stats.legacyBribeRevenueUSD, "Vote incentives to xPHAR voters");
-  dailyProtocolRevenue.addUSDValue(stats.legacyProtocolRevenueUSD, "Swap fees to treasury");
+  dailyFees.addUSDValue(stats.legacyFeesUSD, PHARAOH_METRIC.SwapFees);
+  dailyFees.addUSDValue(stats.legacyBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+  
+  dailyUserFees.addUSDValue(stats.legacyFeesUSD, PHARAOH_METRIC.SwapFees);
+
+  dailyRevenue.addUSDValue(stats.legacyUserFeesRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyRevenue.addUSDValue(stats.legacyBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+  dailyHoldersRevenue.addUSDValue(stats.legacyUserFeesRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyHoldersRevenue.addUSDValue(stats.legacyBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+
+  dailyRevenue.addUSDValue(stats.legacyProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+  dailyProtocolRevenue.addUSDValue(stats.legacyProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+
   dailySupplySideRevenue.addUSDValue(
     stats.legacyFeesUSD - stats.legacyUserFeesRevenueUSD - stats.legacyProtocolRevenueUSD,
-    "Swap fees to LPs",
+    PHARAOH_METRIC.SwapFeesToLPs,
   );
-  dailyRevenue.add(dailyProtocolRevenue);
-  dailyRevenue.addUSDValue(stats.legacyUserFeesRevenueUSD, "Swap fees to xPHAR voters");
 
   return {
     dailyVolume,
@@ -47,24 +61,26 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Swap fees": "Swap fees paid by traders.",
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   Revenue: {
-    "Swap fees to treasury": "Treasury share of swap fees.",
-    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   UserFees: {
-    "Swap fees": "Swap fees paid by traders.",
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
   },
   ProtocolRevenue: {
-    "Swap fees to treasury": "Treasury share of swap fees.",
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
   },
   HoldersRevenue: {
-    "Swap fees to xPHAR voters": "Swap fees distributed to xPHAR voters.",
-    "Vote incentives to xPHAR voters": "Vote incentives distributed to xPHAR voters.",
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
   },
   SupplySideRevenue: {
-    "Swap fees to LPs": "Swap fees retained by liquidity providers.",
+    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees dstributed to liquidity providers.",
   },
 };
 
