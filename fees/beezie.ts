@@ -2,17 +2,7 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
-/**
- * Beezie DefiLlama Dimension Adapter
- *
- * Tracks fees from:
- * 1. Claw Machine plays (V1 on Flow, V2 on Base)
- * 2. Secondary market trades via BidRouter (both chains)
- *
- * V1 (Flow): Played(user, amount, commission) — protocol takes `purchaseFeeBps` as commission
- * V2 (Base): Played(user, amount) — entire play amount goes to protocol (earningsBalance)
- * BidRouter:  BidFulfilled(bidder, fulfiller, salt, paymentToken, bidAmount, collection, tokenId)
- */
+// Tracks claw machine plays and BidRouter trades (swaps + marketplace).
 
 // --- ABIs ---
 
@@ -80,14 +70,12 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
     return { dailyFees: options.createBalances() };
   }
 
-  // Get play token for each machine (permitFailure in case some contracts are invalid)
   const playTokens = await options.api.multiCall({
     abi: version === "v2" ? clawMachineV2Abi.playToken : clawMachineV1Abi.playToken,
     calls: clawMachines,
     permitFailure: true,
   });
 
-  // Build a map of machine address -> play token, skipping failed calls
   const machineToToken = new Map<string, string>();
   const validMachines: string[] = [];
   clawMachines.forEach((machine, i) => {
@@ -100,11 +88,12 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
   const dailyFees = options.createBalances();
 
   if (version === "v2") {
-    // V2: Played(user, amount) — 5% blind-box fee on play amount
+    // Played.amount = price * times (full play cost). Users can SWAP the won card back within
+    // 15 mins and recover the play price minus 5%, so 5% is the non-refundable fee per pull.
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV2Abi.played,
-      onlyArgs:false,
+      onlyArgs: false,
     });
 
     for (const log of logs) {
@@ -115,7 +104,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
       dailyFees.add(token, BigInt(log.args.amount.toString()) * 500n / 10_000n, "Claw Machine Fees");
     }
   } else {
-    // V1: Played(user, amount, commission) — commission goes to protocol
+    // V1: commission field = protocol's take per play (explicit on-chain fee)
     const logs = await options.getLogs({
       targets: validMachines,
       eventAbi: clawMachineV1Abi.played,
@@ -134,7 +123,7 @@ const fetchClawFees = async (options: FetchOptions, clawMachines: string[], vers
   return { dailyFees };
 };
 
-// Claw manager addresses — transfers from these to BidRouter are claw swaps
+// Transfers from these addresses to BidRouter are claw swaps (not P2P marketplace)
 const CLAW_MANAGERS = new Set(
   [
     "0x2129836a9ee21cD92129B05453F4Bdbd879566D7",
@@ -152,7 +141,6 @@ const CLAW_MANAGERS = new Set(
 const fetchBidRouterVolume = async (options: FetchOptions, bidRouterAddress: string) => {
   const tokens = config[options.chain].paymentTokens;
 
-  // Claw swaps: transfers from claw manager addresses
   const swapVolume = options.createBalances();
   await addTokensReceived({
     options,
@@ -162,7 +150,6 @@ const fetchBidRouterVolume = async (options: FetchOptions, bidRouterAddress: str
     fromAdddesses: [...CLAW_MANAGERS],
   });
 
-  // Marketplace purchases: transfers from anyone else
   const marketplaceVolume = options.createBalances();
   await addTokensReceived({
     options,
@@ -175,43 +162,48 @@ const fetchBidRouterVolume = async (options: FetchOptions, bidRouterAddress: str
   return { swapVolume, marketplaceVolume };
 };
 
-// --- Main Fetch ---
-
 const fetch = async (options: FetchOptions) => {
   const chainConfig = config[options.chain];
 
-  // 1. Discover all claw machines from factory events
   const clawMachines = await fetchClawMachineAddresses(options, chainConfig.factory, chainConfig.factoryStartBlock);
-
-  // 2. Get claw machine fees
   const claw = await fetchClawFees(options, clawMachines, chainConfig.version);
-
-  // 3. Get BidRouter volume split by swaps vs marketplace
   const bids = await fetchBidRouterVolume(options, chainConfig.bidRouter);
 
-  // 4. Combine fees
-  // Daily fees = claw fees + 6% of claw swaps + 6% of marketplace
+  // Claw: 5% non-refundable per play. BidRouter: 6% on every swap and marketplace sale.
   const dailyFees = options.createBalances();
   dailyFees.addBalances(claw.dailyFees, "Claw Machine Fees");
   dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
   dailyFees.addBalances(bids.marketplaceVolume.clone(0.06), "Marketplace Fees");
 
+  // Beezie keeps 100% of fees — no LP/seller/creator share — so revenue == fees.
   return {
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
-// --- Methodology ---
-
 const methodology = {
-  Fees: "Fees from claw machine plays (V1: commission, V2: 5% of blind-box play amount), 6% on BidRouter swaps, and 6% on marketplace purchases.",
+  Fees: "5% of each claw pull (users can SWAP the won card back within 15 mins and recover the play price minus 5%), plus 6% on every BidRouter swap and marketplace sale. Trade volume itself is not counted — only Beezie's cut.",
+  Revenue: "Beezie keeps 100% of all fees — no share goes to sellers, creators, or LPs.",
+  ProtocolRevenue: "All revenue goes to the Beezie treasury.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Claw Machine Fees": "Fees from claw machine plays (V1: commission, V2: 5% of blind-box play amount)",
-    "Swap Fees": "6% fee on BidRouter swaps from claw managers",
-    "Marketplace Fees": "6% fee on BidRouter marketplace purchases",
+    "Claw Machine Fees": "5% of play price per pull (V1: on-chain commission field; V2: Played.amount x 5%) — the non-refundable cut after a SWAP-back",
+    "Swap Fees": "6% of the buyback value when a user swaps a won item back through BidRouter",
+    "Marketplace Fees": "6% on every P2P collectible sale through BidRouter",
+  },
+  Revenue: {
+    "Claw Machine Fees": "5% claw cut retained by Beezie",
+    "Swap Fees": "6% swap fee retained by Beezie",
+    "Marketplace Fees": "6% marketplace fee retained by Beezie",
+  },
+  ProtocolRevenue: {
+    "Claw Machine Fees": "5% claw cut to Beezie treasury",
+    "Swap Fees": "6% swap fee to Beezie treasury",
+    "Marketplace Fees": "6% marketplace fee to Beezie treasury",
   },
 };
 
@@ -221,7 +213,6 @@ const adapter: Adapter = {
   version: 2,
   methodology,
   breakdownMethodology,
-  skipBreakdownValidation: true,
   pullHourly: true,
   fetch,
   adapter: config,
