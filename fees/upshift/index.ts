@@ -84,6 +84,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
       if (before && after && after !== before) {
         const netYieldUsd = (after.asset_share_ratio - before.asset_share_ratio) * after.total_shares * after.underlying_price;
+        // floor at zero on NAV drawdowns: a loss day generates no fees and is not clawed back from suppliers
         if (netYieldUsd > 0) {
           dailySupplySideRevenue.addUSDValue(netYieldUsd, 'Assets Yields To Suppliers');
           const grossYieldUsd = netYieldUsd / (1 - perfFee);
