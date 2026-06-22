@@ -4,22 +4,6 @@ import { queryDuneSql } from "../helpers/dune";
 import { FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 
-interface IData {
-  quote_mint: string;
-  total_volume: number;
-  total_trading_fees: number;
-  total_protocol_fees: number;
-  total_referral_fees: number;
-}
-
-interface IDammv2Data {
-  account_config: string;
-  total_lp_fees: number;
-  total_partner_fees: number;
-  total_protocol_fees: number;
-  total_referral_fees: number;
-}
-
 const metrics = {
   TradingFees: METRIC.TRADING_FEES,
   PartnerFees: 'Partner Fees',
@@ -27,7 +11,8 @@ const metrics = {
   ProtocolFees: 'Protocol Fees',
 }
 
-const dbcSQL = `
+// Combined query: DBC + DAMM v2 in a single Dune API call
+const combinedSQL = `
   WITH
       dbc_tokens AS (
           SELECT DISTINCT
@@ -36,7 +21,7 @@ const dbcSQL = `
           FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_token2022
           WHERE account_config IN ('{{config}}')
       ),
-      swap_events AS (
+      dbc_swap_events AS (
           SELECT
               s.config,
               t.account_quote_mint,
@@ -48,18 +33,18 @@ const dbcSQL = `
           WHERE s.evt_executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
               AND s.evt_block_time >= from_unixtime({{start}})
               AND s.evt_block_time < from_unixtime({{end}})
-      )
-  SELECT
-      account_quote_mint as quote_mint,
-      SUM(COALESCE(trading_fee, 0)) AS total_trading_fees,
-      SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
-      SUM(COALESCE(referral_fee, 0)) AS total_referral_fees
-  FROM swap_events
-  GROUP BY account_quote_mint
-`;
-
-const dammV2SQL = `
-  WITH
+      ),
+      dbc_results AS (
+          SELECT
+              'dbc' AS source,
+              account_quote_mint AS identifier,
+              SUM(COALESCE(trading_fee, 0)) AS fee_1,
+              SUM(COALESCE(protocol_fee, 0)) AS fee_2,
+              SUM(COALESCE(referral_fee, 0)) AS fee_3,
+              CAST(0 AS DECIMAL(38,0)) AS fee_4
+          FROM dbc_swap_events
+          GROUP BY account_quote_mint
+      ),
       migration_configs AS (
           SELECT DISTINCT
               account_config,
@@ -67,7 +52,7 @@ const dammV2SQL = `
           FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
           WHERE account_config IN ('{{config}}')
       ),
-      swap_events AS (
+      damm_swap_events AS (
           SELECT
               s.pool,
               m.account_config,
@@ -93,15 +78,21 @@ const dammV2SQL = `
           JOIN migration_configs m ON s.pool = m.account_pool
           WHERE s.evt_block_time >= from_unixtime({{start}})
               AND s.evt_block_time < from_unixtime({{end}})
+      ),
+      damm_results AS (
+          SELECT
+              'dammv2' AS source,
+              account_config AS identifier,
+              SUM(COALESCE(lp_fee, 0)) AS fee_1,
+              SUM(COALESCE(protocol_fee, 0)) AS fee_2,
+              SUM(COALESCE(partner_fee, 0)) AS fee_3,
+              SUM(COALESCE(referral_fee, 0)) AS fee_4
+          FROM damm_swap_events
+          GROUP BY account_config
       )
-  SELECT
-      account_config,
-      SUM(COALESCE(lp_fee, 0)) AS total_lp_fees,
-      SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
-      SUM(COALESCE(partner_fee, 0)) AS total_partner_fees,
-      SUM(COALESCE(referral_fee, 0)) AS total_referral_fees
-  FROM swap_events
-  GROUP BY account_config
+      SELECT source, identifier, fee_1, fee_2, fee_3, fee_4 FROM dbc_results
+      UNION ALL
+      SELECT source, identifier, fee_1, fee_2, fee_3, fee_4 FROM damm_results
 `;
 
 const getSqlFromString = (
@@ -123,45 +114,43 @@ const config = [
 ];
 
 const fetch = async (options: FetchOptions) => {
-  const query = getSqlFromString(dbcSQL, {
-    config: config.join("','"),
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  });
-  const dammv2Query = getSqlFromString(dammV2SQL, {
+  const query = getSqlFromString(combinedSQL, {
     config: config.join("','"),
     start: options.startTimestamp,
     end: options.endTimestamp,
   });
 
-  const dbcData: IData[] = await queryDuneSql(options, query);
-  const dammv2Data: IDammv2Data[] = await queryDuneSql(options, dammv2Query);
+  const data: { source: string; identifier: string; fee_1: number; fee_2: number; fee_3: number; fee_4: number }[] = await queryDuneSql(options, query);
+  const dbcData = data.filter(r => r.source === 'dbc');
+  const dammv2Data = data.filter(r => r.source === 'dammv2');
+
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // DBC — fee_1 = trading_fee, fee_2 = protocol_fee, fee_3 = referral_fee
   dbcData.forEach((row) => {
-    dailyFees.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
-    dailyFees.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
-    dailyFees.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
+    dailyFees.add(row.identifier, Number(row.fee_1), metrics.TradingFees);
+    dailyFees.add(row.identifier, Number(row.fee_2), metrics.ProtocolFees);
+    dailyFees.add(row.identifier, Number(row.fee_3), metrics.ReferralFees);
 
-    dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
-
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    dailySupplySideRevenue.add(row.identifier, Number(row.fee_3), metrics.ReferralFees);
+    dailyProtocolRevenue.add(row.identifier, Number(row.fee_1), metrics.TradingFees);
+    dailyProtocolRevenue.add(row.identifier, Number(row.fee_2), metrics.ProtocolFees);
   });
 
+  // DAMM v2 — fee_1 = lp_fee, fee_2 = protocol_fee, fee_3 = partner_fee, fee_4 = referral_fee
   dammv2Data.forEach((row) => {
-    dailyFees.add(quote_mint, Number(row.total_lp_fees), metrics.TradingFees);
-    dailyFees.add(quote_mint, Number(row.total_partner_fees), metrics.PartnerFees);
-    dailyFees.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
-    dailyFees.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
+    dailyFees.add(quote_mint, Number(row.fee_1), metrics.TradingFees);
+    dailyFees.add(quote_mint, Number(row.fee_3), metrics.PartnerFees);
+    dailyFees.add(quote_mint, Number(row.fee_2), metrics.ProtocolFees);
+    dailyFees.add(quote_mint, Number(row.fee_4), metrics.ReferralFees);
 
-    dailySupplySideRevenue.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    dailySupplySideRevenue.add(quote_mint, Number(row.total_partner_fees), metrics.PartnerFees);
+    dailySupplySideRevenue.add(quote_mint, Number(row.fee_4), metrics.ReferralFees);
+    dailySupplySideRevenue.add(quote_mint, Number(row.fee_3), metrics.PartnerFees);
 
-    dailyProtocolRevenue.add(quote_mint, Number(row.total_lp_fees), metrics.TradingFees);
-    dailyProtocolRevenue.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
+    dailyProtocolRevenue.add(quote_mint, Number(row.fee_1), metrics.TradingFees);
+    dailyProtocolRevenue.add(quote_mint, Number(row.fee_2), metrics.ProtocolFees);
   });
 
   return {
