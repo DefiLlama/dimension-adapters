@@ -1,15 +1,23 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
+import { PHARAOH_METRIC } from "./pharaoh-v3-legacy";
 
 const PHAR_TOKEN_CONTRACT = "0x13A466998Ce03Db73aBc2d4DF3bBD845Ed1f28E7";
-const XPHAR_TOKEN_CONTRACT = "0xE8164Ea89665DAb7a553e667F81F30CfDA736B9A";
 
 export const subgraphEndpoints: any = {
   [CHAIN.AVAX]: "https://avalanchev2.kingdomsubgraph.com/subgraphs/name/pharaoh-v3-pruned/",
 };
 
+const rawSubgraphEndpoints: any = {
+  [CHAIN.AVAX]: "https://gateway.kingdom.dev/avalanche/subgraph/v1/graphql",
+};
+
 const subgraphQueryLimit = 1000;
+
+const historicalRollupAgeSeconds = 25 * 60 * 60;
+const dayInSeconds = 24 * 60 * 60;
+const avaxChainId = 43114;
 
 interface IGraphRes {
   clVolumeUSD: number;
@@ -24,8 +32,32 @@ interface IGraphRes {
   legacyUserFeesRevenueUSD: number;
 }
 
-interface IVoteBribe {
+interface IProtocolDayData {
+  startOfDay: number;
+  volumeUsd: string;
+  feesUsd: string;
+  voterFeesUsd: string;
+  treasuryFeesUsd: string;
+}
+
+interface IPoolHourStats {
+  volumeUSD: number;
+  feesUSD: number;
+  voterFeesUSD: number;
+  treasuryFeesUSD: number;
+}
+
+interface IPoolMetadata {
   id: string;
+  feeProtocol?: string;
+}
+
+interface IGaugeMetadata {
+  pool: string;
+  isAlive?: boolean;
+}
+
+interface IVoteBribe {
   token: { id: string };
   legacyPool?: { id: string };
   clPool?: { id: string };
@@ -65,7 +97,7 @@ async function getBribes(options: FetchOptions) {
       voteBribes(
         first: $first
         skip: $skip
-        where: { timestamp_gte: $from, timestamp_lte: $to }
+        where: { timestamp_gt: $from, timestamp_lt: $to }
       ) {
         token {
           id
@@ -83,8 +115,8 @@ async function getBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startOfDay,
-      to: options.startOfDay + 24 * 60 * 60,
+      from: options.startTimestamp,
+      to: options.endTimestamp,
       first,
       skip,
     }).then((data) => data.voteBribes);
@@ -94,19 +126,16 @@ async function getBribes(options: FetchOptions) {
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  
-  // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
     query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
       tokenDayDatas(
         first: $first
         skip: $skip
-        where: { 
+        where: {
           startOfDay: $startOfDay
           token_in: [${tokenIds}]
         }
       ) {
-        id
         token {
           id
         }
@@ -120,8 +149,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       first,
       skip,
       startOfDay: options.startOfDay,
-    }).then((data) => 
-      // Transform tokenDayDatas to match expected token format
+    }).then((data) =>
       data.tokenDayDatas.map((td: any) => ({
         id: td.token.id,
         priceUSD: td.priceUSD,
@@ -131,17 +159,118 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
   return paginate<IToken>(getData, subgraphQueryLimit);
 }
 
+function shouldUseDayRollups(options: FetchOptions) {
+  const startsAtDayBoundary = options.startTimestamp === options.startOfDay
+    || options.startTimestamp === options.startOfDay - 1;
+  const isFullDayWindow = startsAtDayBoundary
+    && options.endTimestamp === options.startOfDay + dayInSeconds;
+
+  return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+}
+
+function getStartOfDay(timestamp: number) {
+  return Math.floor(timestamp / (24 * 60 * 60)) * 24 * 60 * 60;
+}
+
+function getWindowStartOfDays(options: FetchOptions) {
+  const days = new Set<number>();
+  const firstDay = getStartOfDay(options.startTimestamp);
+  const lastDay = getStartOfDay(options.endTimestamp - 1);
+
+  for (let day = firstDay; day <= lastDay; day += 24 * 60 * 60) {
+    days.add(day);
+  }
+  days.add(options.startOfDay);
+
+  return Array.from(days);
+}
+
+async function fetchPoolHourStats(
+  options: FetchOptions,
+  root: "ClPoolHourData" | "LegacyPoolHourData",
+  poolRoot: "ClPool" | "LegacyPool",
+): Promise<IPoolHourStats> {
+  const query = gql`
+    query poolHourStats($from: Int!, $to: Int!, $first: Int!, $skip: Int!) {
+      items: ${root}(
+        limit: $first
+        offset: $skip
+        where: { chainId: { _eq: ${avaxChainId} }, startOfHour: { _gt: $from, _lt: $to } }
+      ) {
+        pool
+        volumeUSD
+        feesUSD
+        treasuryFeesUSD
+      }
+    }
+  `;
+
+  const items = await paginate<{
+    pool?: string;
+    volumeUSD?: string;
+    feesUSD?: string;
+    treasuryFeesUSD?: string;
+  }>(
+    (first, skip) => request<any>(rawSubgraphEndpoints[options.chain], query, {
+      from: options.startTimestamp,
+      to: options.endTimestamp,
+      first,
+      skip,
+    }).then((data) => data.items),
+    subgraphQueryLimit,
+  );
+  const poolIds = Array.from(new Set(items.map((item) => item.pool ?? "").filter(Boolean)));
+  const metadataQuery = gql`
+    query poolMetadata($poolIds: [String!]!) {
+      pools: ${poolRoot}(where: { chainId: { _eq: ${avaxChainId} }, id: { _in: $poolIds } }) {
+        id
+        feeProtocol
+      }
+      gauges: Gauge(where: { chainId: { _eq: ${avaxChainId} }, pool: { _in: $poolIds } }) {
+        pool
+        isAlive
+      }
+    }
+  `;
+  const metadata = poolIds.length
+    ? await request<any>(rawSubgraphEndpoints[options.chain], metadataQuery, { poolIds })
+    : { pools: [], gauges: [] };
+  const poolById = new Map<string, IPoolMetadata>((metadata.pools ?? []).map((pool: IPoolMetadata) => [pool.id, pool]));
+  const gaugeIsAliveByPool = new Map<string, boolean>((metadata.gauges ?? []).map((gauge: IGaugeMetadata) => [gauge.pool, gauge.isAlive === true]));
+  const protocolSplit = items.reduce((sum, item) => {
+    const feesUSD = Number(item.feesUSD ?? 0);
+    const treasuryFeesUSD = Number(item.treasuryFeesUSD ?? 0);
+    const feeProtocol = Number(poolById.get(item.pool ?? "")?.feeProtocol ?? 0);
+    const protocolFeesUSD = feesUSD * feeProtocol;
+    const voterFeesUSD = gaugeIsAliveByPool.get(item.pool ?? "") === true
+      ? Math.max(protocolFeesUSD - treasuryFeesUSD, 0)
+      : 0;
+
+    return {
+      voterFeesUSD: sum.voterFeesUSD + voterFeesUSD,
+      treasuryFeesUSD: sum.treasuryFeesUSD + treasuryFeesUSD,
+    };
+  }, { voterFeesUSD: 0, treasuryFeesUSD: 0 });
+
+  return {
+    volumeUSD: items.reduce((sum, item) => sum + Number(item.volumeUSD ?? 0), 0),
+    feesUSD: items.reduce((sum, item) => sum + Number(item.feesUSD ?? 0), 0),
+    voterFeesUSD: protocolSplit.voterFeesUSD,
+    treasuryFeesUSD: protocolSplit.treasuryFeesUSD,
+  };
+}
+
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const statsQuery = gql`
-    query getProtocolDayData($startOfDay: Int!) {
-      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+    query getProtocolDayData($startOfDays: [Int!]!) {
+      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay_in: $startOfDays }) {
         startOfDay
         volumeUsd: volumeUSD
         feesUsd: feesUSD
         voterFeesUsd: voterFeesUSD
         treasuryFeesUsd: treasuryFeesUSD
       }
-      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay: $startOfDay }) {
+      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay_in: $startOfDays }) {
         startOfDay
         volumeUsd: volumeUSD
         feesUsd: feesUSD
@@ -151,75 +280,102 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     }
   `;
 
-  const voteBribes = await getBribes(options);
-  const tokenIds = new Set(voteBribes.map((e) => e.token.id));
-  tokenIds.add(PHAR_TOKEN_CONTRACT.toLowerCase());
-
-  const tokens = await getTokens(options, Array.from(tokenIds));
   const {
     ClProtocolDayData: clProtocolDayData,
     LegacyProtocolDayData: legacyProtocolDayData,
   } = await request(subgraphEndpoints[options.chain], statsQuery, {
-    startOfDay: options.startOfDay,
+    startOfDays: getWindowStartOfDays(options),
   });
-
+  const clDayData = clProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
+  const legacyDayData = legacyProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
+  const voteBribes = await getBribes(options);
+  const tokenIds = new Set(voteBribes.map((e) => e.token.id));
+  tokenIds.add(PHAR_TOKEN_CONTRACT.toLowerCase());
+  const tokens = await getTokens(options, Array.from(tokenIds));
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
 
-  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
   const legacyUserBribeRevenueUSD = legacyVoteBribes.reduce((acc, bribe) => {
     const token = tokens.find((t) => t.id === bribe.token.id);
     return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
   }, 0);
+  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
+    const token = tokens.find((t) => t.id === bribe.token.id);
+    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
+  }, 0);
+
+  const clDayFeesUSD = Number(clDayData?.feesUsd ?? 0);
+  const clDayVoterFeesUSD = Number(clDayData?.voterFeesUsd ?? 0);
+  const clDayTreasuryFeesUSD = Number(clDayData?.treasuryFeesUsd ?? 0);
+  const legacyDayFeesUSD = Number(legacyDayData?.feesUsd ?? 0);
+  const legacyDayVoterFeesUSD = Number(legacyDayData?.voterFeesUsd ?? 0);
+  const legacyDayTreasuryFeesUSD = Number(legacyDayData?.treasuryFeesUsd ?? 0);
+  const useDayRollups = shouldUseDayRollups(options);
+  const [clStats, legacyStats] = await Promise.all([
+    useDayRollups
+      ? Promise.resolve({
+        volumeUSD: Number(clDayData?.volumeUsd ?? 0),
+        feesUSD: clDayFeesUSD,
+        voterFeesUSD: clDayVoterFeesUSD,
+        treasuryFeesUSD: clDayTreasuryFeesUSD,
+      })
+      : fetchPoolHourStats(options, "ClPoolHourData", "ClPool"),
+    useDayRollups
+      ? Promise.resolve({
+        volumeUSD: Number(legacyDayData?.volumeUsd ?? 0),
+        feesUSD: legacyDayFeesUSD,
+        voterFeesUSD: legacyDayVoterFeesUSD,
+        treasuryFeesUSD: legacyDayTreasuryFeesUSD,
+      })
+      : fetchPoolHourStats(options, "LegacyPoolHourData", "LegacyPool"),
+  ]);
 
   return {
-    clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
-    clFeesUSD: Number(clProtocolDayData?.[0]?.feesUsd ?? 0),
-    legacyVolumeUSD: Number(legacyProtocolDayData?.[0]?.volumeUsd ?? 0),
-    legacyFeesUSD: Number(legacyProtocolDayData?.[0]?.feesUsd ?? 0),
+    clVolumeUSD: clStats.volumeUSD,
+    clFeesUSD: clStats.feesUSD,
+    legacyVolumeUSD: legacyStats.volumeUSD,
+    legacyFeesUSD: legacyStats.feesUSD,
     clBribeRevenueUSD: clUserBribeRevenueUSD,
     legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
-    clUserFeesRevenueUSD: Number(clProtocolDayData?.[0]?.voterFeesUsd ?? 0),
-    legacyUserFeesRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.voterFeesUsd ?? 0,
-    ),
-    clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
-    legacyProtocolRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
-    ),
+    clUserFeesRevenueUSD: clStats.voterFeesUSD,
+    legacyUserFeesRevenueUSD: legacyStats.voterFeesUSD,
+    clProtocolRevenueUSD: clStats.treasuryFeesUSD,
+    legacyProtocolRevenueUSD: legacyStats.treasuryFeesUSD,
   };
 };
 
 const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
+  const dailyVolume = stats.clVolumeUSD;
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
+  const clSupplySideRevenue =
+    stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD;
 
-  dailyFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
-  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Rewards')
+  dailyFees.addUSDValue(stats.clFeesUSD, PHARAOH_METRIC.SwapFees);
+  dailyFees.addUSDValue(stats.clBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
 
-  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
-  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
-  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
+  dailyUserFees.addUSDValue(stats.clFeesUSD, PHARAOH_METRIC.SwapFees);
+  
+  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, PHARAOH_METRIC.SwapFeesToVoters);
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, PHARAOH_METRIC.VoteIncentives);
 
-  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
-  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
-
-  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
-
-  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Token Swap Fees To LPs')
+  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, PHARAOH_METRIC.SwapFeesToTreasury);
+  
+  dailySupplySideRevenue.addUSDValue(clSupplySideRevenue, PHARAOH_METRIC.SwapFeesToLPs);
 
   return {
-    dailyVolume: stats.clVolumeUSD,
+    dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailyRevenue,
@@ -228,44 +384,47 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees are collected from users on each swap + bribes revenue.",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
-  UserFees: "User pays fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
+  Fees: "Swap fees generated by Pharaoh concentrated liquidity pools.",
+  Revenue: "Swap fee revenue directed to the protocol treasury and xPHAR voters.",
+  UserFees: "Swap fees paid by traders.",
+  ProtocolRevenue: "Treasury share of swap fees.",
+  HoldersRevenue: "Swap fees and vote incentives distributed to xPHAR voters.",
+  SupplySideRevenue: "Swap fees retained by liquidity providers.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
+  },
+  Revenue: {
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
+  },
+  UserFees: {
+    [PHARAOH_METRIC.SwapFees]: "Swap fees paid by traders.",
+  },
+  ProtocolRevenue: {
+    [PHARAOH_METRIC.SwapFeesToTreasury]: "Swap fees shared to treasury.",
+  },
+  HoldersRevenue: {
+    [PHARAOH_METRIC.SwapFeesToVoters]: "Swap fees shared to xPHAR voters.",
+    [PHARAOH_METRIC.VoteIncentives]: "Vote incentives distributed to xPHAR voters.",
+  },
+  SupplySideRevenue: {
+    [PHARAOH_METRIC.SwapFeesToLPs]: "Swap fees dstributed to liquidity providers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2025-10-08',
   methodology,
-  breakdownMethodology: {
-    Fees: {
-      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
-      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
-    },
-    UserFees: {
-      'Token Swap Fees': 'Swap fees paid by users on Pharaoh concentrated liquidity pools.',
-      'Bribes Rewards': 'Vote bribes deposited for Pharaoh concentrated liquidity pools.',
-    },
-    Revenue: {
-      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
-      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
-      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
-    },
-    ProtocolRevenue: {
-      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
-    },
-    HoldersRevenue: {
-      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xPHAR holders.',
-      'Bribes Revenue': 'Vote bribes distributed to xPHAR holders.',
-    },
-    SupplySideRevenue: {
-      'Token Swap Fees To LPs': 'Concentrated liquidity swap fees retained by LPs after holder and treasury fee shares.',
-    },
-  }
+  breakdownMethodology,
 };
 
 export default adapter;
