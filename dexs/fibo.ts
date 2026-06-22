@@ -14,6 +14,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "Total USDC wagered on FIBO parimutuel Up/Down rounds in the period. TVL is not applicable (2-minute rounds).",

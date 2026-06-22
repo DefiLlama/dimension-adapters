@@ -13,8 +13,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.add(FIBO_USDC, data.dailyFeesUsdc, "Protocol fees");
-  dailyRevenue.add(FIBO_USDC, data.dailyRevenueUsdc, "Protocol revenue");
+  dailyFees.add(FIBO_USDC, data.dailyFeesUsdc, "Round settlement fee accruals");
+  dailyRevenue.add(
+    FIBO_USDC,
+    data.dailyRevenueUsdc,
+    "Treasury fee revenue (round settlements)",
+  );
   dailyProtocolRevenue.add(
     FIBO_USDC,
     data.dailyProtocolRevenueUsdc,
@@ -22,7 +26,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   );
   dailySupplySideRevenue.add(
     FIBO_USDC,
-    data.dailySupplySideRevenueUsdc ?? "0",
+    data.dailySupplySideRevenueUsdc,
     "Supply side",
   );
 
@@ -36,6 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Protocol fee accruals on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun).",
     Revenue: "Fees retained by protocol treasury (100% of fees).",
@@ -45,11 +50,12 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Protocol fees":
-        "Indexed fee_accrual events from ryze-api Elasticsearch (GET /api/pulse/defillama/daily)",
+      "Round settlement fee accruals":
+        "USDC protocol fees accrued on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun)",
     },
     Revenue: {
-      "Protocol revenue": "Same as fees; no supply-side fee split",
+      "Treasury fee revenue (round settlements)":
+        "Fees retained by FIBO protocol treasury (100% of round settlement fees)",
     },
     ProtocolRevenue: {
       "Treasury revenue": "100% of protocol fees",

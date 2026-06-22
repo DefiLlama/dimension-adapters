@@ -34,7 +34,9 @@ export async function fetchFiboDailyMetrics(
   if (
     data.dailyVolumeUsdc === undefined ||
     data.dailyFeesUsdc === undefined ||
-    data.dailyRevenueUsdc === undefined
+    data.dailyRevenueUsdc === undefined ||
+    data.dailyProtocolRevenueUsdc === undefined ||
+    data.dailySupplySideRevenueUsdc === undefined
   ) {
     throw new Error("fibo: invalid daily metrics response from ryze-api");
   }
