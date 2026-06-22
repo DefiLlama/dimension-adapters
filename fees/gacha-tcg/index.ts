@@ -43,7 +43,7 @@ const methodology = {
   Fees: 'Gross USDC.e paid by players to mint card packs (Purchased event).',
   Revenue: 'Net spread captured by the protocol: pack purchases minus USDC.e returned to players through the buyback program.',
   SupplySideRevenue: 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
-  UserFees: 'Net amount paid by players: pack purchases minus USDC.e received back through the buyback program (i.e. the actual economic cost to players).',
+  UserFees: 'Net amount paid by players: pack purchases minus USDC.e received back through the buyback program.',
 }
 
 const breakdownMethodology = {
