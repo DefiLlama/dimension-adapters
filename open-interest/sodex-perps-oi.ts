@@ -4,7 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 
 const API_BASE = "https://data-api.sodex.com/api/defillama";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const res = await httpGet(`${API_BASE}/perp/open-interest?timestamp=${options.startOfDay}`);
 
   return {

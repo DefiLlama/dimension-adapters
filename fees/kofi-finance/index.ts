@@ -1,4 +1,4 @@
-import type { Adapter } from "../../adapters/types";
+import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -15,8 +15,8 @@ interface IFeeData {
     timestamp: number;
 }
 
-const fetch = async (timestamp: number) => {
-    const dayEndpoint = `${api_url}?timestamp=${timestamp}`;
+const fetch = async (options: FetchOptions) => {
+    const dayEndpoint = `${api_url}?timestamp=${options.toTimestamp}`;
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
 
     const dailyFees = dayFeesData.fee.reduce((partialSum: number, a: IFeeData) => partialSum + a.fee, 0);
@@ -42,12 +42,9 @@ const methodology = {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.APTOS]: {
-            fetch,
-            start: '2025-05-14',
-        },
-    },
+    fetch,
+    chains: [CHAIN.APTOS],
+    start: '2025-05-14',
     methodology,
 }
 

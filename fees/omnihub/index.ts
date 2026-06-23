@@ -6,7 +6,7 @@ const abi_event = {
   rewardsDeposit: "event RewardsDeposit(address indexed creator, uint256 creatorReward, address indexed referral, uint256 referralReward, address indexed omnihub, uint256 omnihubReward, address from)",
 };
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const address = "0xaD4c0bf78Ce754D5D4D045e37783e95834b900fE";
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

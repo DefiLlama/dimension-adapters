@@ -7,9 +7,9 @@ let _fetch = adapter.adapter[CHAIN.OPTIMISM].fetch;
 const fetch = async (options: any) => {
   let res = await (_fetch as any)(options)
   return {
-    dailyFees: res.dailyFees,
-    dailyRevenue: res.dailyFees,
-    dailyHoldersRevenue: res.dailyFees,
+    dailyFees: res.dailyFees.clone(1, 'Token Swap Fees'),
+    dailyRevenue: res.dailyFees.clone(1, 'Swap Fees To Voters'),
+    dailyHoldersRevenue: res.dailyFees.clone(1, 'Swap Fees To Voters'),
   }
 }
 
@@ -21,5 +21,21 @@ export default {
       start: adapter.adapter[CHAIN.OPTIMISM].start,
       fetch,
     }
+  },
+  methodology: {
+    Fees: 'Token swap fees paid by users.',
+    Revenue: 'Swap fees distributed to VELO token holders.',
+    HoldersRevenue: 'Swap fees dfistributed to VELO token holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Token swap fees paid by users.',
+    },
+    Revenue: {
+      'Swap Fees To Voters': 'Swap fees dfistributed to VELO token holders.',
+    },
+    HoldersRevenue: {
+      'Swap Fees To Voters': 'Swap fees dfistributed to VELO token holders.',
+    },
   }
 }

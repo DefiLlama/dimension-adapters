@@ -26,7 +26,7 @@ const chainToEnv = (chain: CHAIN) => {
   }
 }
 
-const fetch = async (_a: any, _t: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(options.chain as CHAIN)}`
   const dayTimestamp = new Date(options.startOfDay * 1000)
   const dateStr = dayTimestamp.toISOString().split('T')[0]

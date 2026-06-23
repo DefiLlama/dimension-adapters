@@ -675,6 +675,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
     [CHAIN.PLASMA]: 'plasma',
     [CHAIN.MONAD]: 'monad',
+    [CHAIN.HYPERLIQUID]: 'hyperevm',
   }
   
   // https://docs.allium.so/changelog/deprecated-schemas
@@ -701,9 +702,9 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
-      FROM ${chainKey}${tableMap[options.chain] ? '.assets.${tableMap[options.chain]}' : '.assets.native_token_transfers'}
+      FROM ${chainKey}${tableMap[options.chain] ? `.assets.${tableMap[options.chain]}` : '.assets.native_token_transfers'}
       WHERE to_address in ${targetList} 
-      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
@@ -716,7 +717,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
       FROM ${getAlliumChain(options.chain)}.raw.traces
       WHERE to_address in ${targetList} 
       AND status = 1
-      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }

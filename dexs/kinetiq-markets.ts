@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue, fetchHIP3DeployerData } from "../helpers/hyperliquid";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { dailyVolume: builderVolume, dailyFees: builderFees } = await fetchBuilderCodeRevenue({
     options,
     builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',

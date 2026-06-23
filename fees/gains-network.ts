@@ -43,7 +43,7 @@ const prefetch = async (options: FetchOptions) => {
       AND day < from_unixtime(${options.endTimestamp})`);
 };
 
-const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
   // const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
@@ -78,7 +78,7 @@ const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promis
   };
 };
 
-const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+const fetchApechain = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
   // Dune does not currently support Apechain. Using events until support is added.
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();

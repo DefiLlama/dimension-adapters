@@ -9,7 +9,7 @@ interface IData {
   total_fees: number;
 }
 
-const fetch = async (_: number, _1: any, {fromTimestamp, toTimestamp}: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async ({fromTimestamp, toTimestamp}: FetchOptions): Promise<FetchResultFees> => {
   const url = `${API_URL}?from=${fromTimestamp}&to=${toTimestamp}`;
   const data: IData = await httpGet(url);
   return {
@@ -24,12 +24,9 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2021-06-29',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2021-06-29',
   methodology,
 };
 

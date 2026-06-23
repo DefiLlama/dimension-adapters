@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -22,7 +22,7 @@ export interface AaveLendingPoolConfig {
 }
 
 export interface AaveAdapterExportConfig {
-  start?: IStartTimestamp | number | string;
+  start?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -211,11 +211,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           const e = Number(event.liquidatedCollateralAmount)
           const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
           const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
-  
-          // protocol fees from liquidation bonus
-          const b = (e - e / x)
-          const b2 = b * y
-  
+
+          // protocol fees from liquidation bonus, if no bonus (x = 0), expect b = b2
+          const b = x > 0 ? (e - e / x) : 0
+          const b2 = x > 0 ? b * y : b
+          
           // count liquidation bonus as fees
           balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
   
@@ -1031,7 +1031,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
         ],
       },
       [CHAIN.MANTLE]: {
-        start: '2024-05-117',
+        start: '2024-05-17',
         pools: [
           {
             version: 3,
@@ -1268,6 +1268,72 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 3,
             lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
             dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
+          },
+        ],
+      },
+    },
+  },
+  'purrlend': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x81D5D25ea81b72E546fC71B5bAa8B059eF0dA702',
+            dataProvider: '0xfCaE4E9Acb1E5C78aa699d43c5cc0eAC5399E754',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-10-27',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xb61218d3efE306f7579eE50D1a606d56bc222048',
+            dataProvider: '0xa8Ca6a4A485485910aA4023b9963Dfd2f3A5aeb0',
+          },
+        ],
+      },
+    },
+  },
+  'edel': {
+    config: {
+      [CHAIN.ETHEREUM]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x3EEeB3cd20f844a578807fc457388Ceb9A67fAa6',
+            dataProvider: '0xf3A3F900151c092007FD495ABf3f0f6162A37501',
+          },
+        ],
+      },
+    },
+  },
+  'zona': {
+    config: {
+      [CHAIN.PHAROS]: {
+        start: '2026-04-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xda464e68208A3083Eb65FE5c522a72AeD1C1372a',
+            dataProvider: '0xA91424C666193C2b2fb684E25dEadf03B333f49A',
+          },
+        ],
+      },
+    },
+  },
+  'kaskad': {
+    config: {
+      [CHAIN.IGRA]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x1Fc4f91E99eFDC90c4B2B8F69fE0b4BFd819a330',
+            dataProvider: '0xFEaD8E14e58ecF72B5cD585458f07523F173E2F4',
           },
         ],
       },

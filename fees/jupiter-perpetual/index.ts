@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -141,7 +141,7 @@ const adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2024-01-23",
+  start: "2023-10-01",
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,

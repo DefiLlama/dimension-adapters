@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../../fees/jupiter";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const query = `
         with trade_data as (

@@ -15,7 +15,7 @@ const events = [
 ];
 
 // GambitTradingCallbacksV1 address
-const FEE_ADDRESS = {
+const FEE_ADDRESS: Record<string, string[]> = {
   [CHAIN.ERA]: [
     "0xE95a6FCC476Dc306749c2Ac62fB4637c27ac578d",
     "0x6cf71FaeA3771D56e72c72501e7172e79116E2A3",
@@ -32,25 +32,21 @@ const FEE_ADDRESS = {
   ],
 };
 
-const fetch = (addressList: string[]) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    { createBalances, getLogs, chain }: FetchOptions
-  ): Promise<FetchResultFees> => {
-    const USDC = (ADDRESSES as any)[chain].USDC;
+const fetch = async (options: FetchOptions) => {
+  const addressList = FEE_ADDRESS[options.chain];
+    const USDC = (ADDRESSES as any)[options.chain].USDC;
 
     const [devFeeVol, ssFeeVol, referralFeeVol, usdcVaultFeeVol]: any =
       await Promise.all(
         events.map(async (e: string) =>
           (
-            await getLogs({ targets: addressList, eventAbi: e })
+            await options.getLogs({ targets: addressList, eventAbi: e })
           ).reduce((acc, i) => acc + Number(i.valueUsdc), 0)
         )
       );
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const dailySupplySideRevenue = createBalances();
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     dailyFees.add(USDC, devFeeVol, 'Governance Fees');
     dailyFees.add(USDC, ssFeeVol, 'Staking Fees');
     dailyFees.add(USDC, referralFeeVol, 'Referral Fees');
@@ -60,13 +56,11 @@ const fetch = (addressList: string[]) => {
     dailySupplySideRevenue.add(USDC, referralFeeVol, 'Referral Fees');
 
     return {
-      timestamp,
       dailyFees,
       dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue,
-    } as FetchResultFees;
-  };
+    };
 };
 
 const methodology = {
@@ -97,15 +91,14 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
+  fetch,
   methodology,
   breakdownMethodology,
   adapter: {
     [CHAIN.ERA]: {
-      fetch: fetch(FEE_ADDRESS[CHAIN.ERA]),
       start: '2023-08-01', // 2023/08/01 00:00:00
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(FEE_ADDRESS[CHAIN.ARBITRUM]),
       start: '2023-11-02', // 2023/11/02 00:00:00
     },
   },

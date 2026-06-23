@@ -28,12 +28,14 @@ const DEFAULTS: any = {
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
+  NEAR_RPC: "https://free.rpc.fastnear.com,https://near.lava.build,https://rpc.mainnet.near.org",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
   DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
+  DEBUG_BREAKDOWN_FEES: true,
 }
 
 export const ENV_KEYS = new Set([
@@ -85,6 +87,8 @@ export const ENV_KEYS = new Set([
   'MIRACLETRADE_API_KEY',
   'FRED_API_KEY',
   'SUBSCAN_API_KEY',
+  'PEARL_BLOCKBOOK_API',
+  'OKLINK_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

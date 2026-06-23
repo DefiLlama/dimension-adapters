@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
@@ -480,14 +480,6 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
-const LABELS = {
-  CurveDEXSwapFees: 'CurveDEX Swap Fees',
-  CurveDEXSwapRevenue: 'CurveDEX Admin Fees',
-  CurveDEXFeesTreasury: 'CurveDEX Admin Fees To Treasury',
-  CurveDEXFeesHolders: 'CurveDEX Fees To veCRV Holders',
-  CurveDEXFeesLPs: 'CurveDEX Fees To LPs',
-}
-
 async function fetchFromApi(options: FetchOptions) {
   const apiResponse = await fetchCurveApiData(options.startTimestamp, options.endTimestamp);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
@@ -502,11 +494,11 @@ async function fetchFromApi(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(chainData.total_fees, LABELS.CurveDEXSwapFees);
-  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury, LABELS.CurveDEXSwapRevenue);
-  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury, LABELS.CurveDEXFeesTreasury);
-  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp, LABELS.CurveDEXFeesLPs);
-  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao, LABELS.CurveDEXFeesHolders);
+  dailyFees.addUSDValue(chainData.total_fees);
+  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury);
+  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury);
+  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp);
+  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao);
   
   return {
     dailyVolume: chainData.total_volume,
@@ -531,10 +523,10 @@ async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) 
   const lpRevenue = swapFees.clone(1);
   lpRevenue.subtract(adminFees);
 
-  dailyFees.add(swapFees, LABELS.CurveDEXSwapFees);
-  dailyRevenue.add(adminFees, LABELS.CurveDEXSwapRevenue);
-  dailySupplySideRevenue.add(lpRevenue, LABELS.CurveDEXFeesLPs);
-  dailyHoldersRevenue.add(adminFees, LABELS.CurveDEXFeesHolders);
+  dailyFees.add(swapFees);
+  dailyRevenue.add(adminFees);
+  dailySupplySideRevenue.add(lpRevenue);
+  dailyHoldersRevenue.add(adminFees);
 
   return {
     dailyVolume,
@@ -554,7 +546,7 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
       return {
         ...acc,
         [chain]: {
-          fetch: async function(options: FetchOptions) {
+          fetch: async function(options: FetchOptions): Promise<FetchResultV2> {
             // Try API first, fall back to on-chain if chain not in API or API fails
             try {
               return await fetchFromApi(options);
@@ -572,34 +564,6 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   return adapter;
 }
 
-// https://resources.curve.finance/pools/overview/#pool-fees
 const adapter = getCurveExport(CurveDexConfigs)
-
-adapter.methodology = {
-  Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
-  UserFees: "Trading and liquidity fees paid by users",
-  Revenue: "Fees distributed to veCRV holders and protocol treasury",
-  ProtocolRevenue: "Fees allocated to the protocol treasury",
-  HoldersRevenue: "Fees distributed to veCRV governance token holders",
-  SupplySideRevenue: "Fees distributed to liquidity providers"
-}
-
-adapter.breakdownMethodology = {
-  Fees: {
-    [LABELS.CurveDEXSwapFees]: 'Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)',
-  },
-  Revenue: {
-    [LABELS.CurveDEXSwapRevenue]: 'Fees distributed to veCRV holders and protocol treasury',
-  },
-  ProtocolRevenue: {
-    [LABELS.CurveDEXFeesTreasury]: 'Fees allocated to the protocol treasury',
-  },
-  HoldersRevenue: {
-    [LABELS.CurveDEXFeesHolders]: 'Fees distributed to veCRV governance token holders',
-  },
-  SupplySideRevenue: {
-    [LABELS.CurveDEXFeesLPs]: 'Fees distributed to liquidity providers',
-  },
-}
 
 export default adapter;

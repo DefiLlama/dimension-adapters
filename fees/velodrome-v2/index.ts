@@ -100,17 +100,48 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
     })
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyBribesRevenue: dailyBribes } as any
+  const totalFees = createBalances()
+  const totalHoldersRevenue = createBalances()
+
+  totalFees.add(dailyFees, 'Token Swap Fees')
+  totalFees.add(dailyBribes, 'External Bribes Rewards')
+  totalHoldersRevenue.add(dailyFees, 'Swap Fees To Voters')
+  totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
+
+  return { dailyFees: totalFees, dailyRevenue: totalHoldersRevenue, dailyHoldersRevenue: totalHoldersRevenue } as any
 }
 
-export default uniV2Exports({
-  [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent, voter: '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c', maxPairSize: 500, customLogic, },
-  [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', customLogic },
-  [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, customLogic, },
-  [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic},
-  [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic},
-  [CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
-  [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
-  [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic},
-  [CHAIN.SWELLCHAIN]: {factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,}
-})
+export default {
+  ...uniV2Exports({
+    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent, voter: '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c', maxPairSize: 500, customLogic, },
+    [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', customLogic },
+    [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, customLogic, },
+    [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic},
+    [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic},
+    [CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
+    [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
+    [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic},
+    [CHAIN.SWELLCHAIN]: {factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,}
+  }),
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: 'Total swap fees paid by users + external bribes rewards.',
+    Revenue: 'Swap fees + external bribes are distributed to holders',
+    HoldersRevenue: 'Swap fees + external bribes are distributed to holders',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Total swap fees paid by users',
+      'External Bribes Rewards': 'External bribes rewards are distributed to holders.',
+    },
+    Revenue: {
+      'Swap Fees To Voters': 'Total swap fees distributed to holders',
+      'External Bribes Revenue': 'External bribes rewards are distributed to holders.',
+    },
+    HoldersRevenue: {
+      'Swap Fees To Voters': 'Total swap fees distributed to holders',
+      'External Bribes Revenue': 'External bribes rewards are distributed to holders.',
+    },
+  }
+}

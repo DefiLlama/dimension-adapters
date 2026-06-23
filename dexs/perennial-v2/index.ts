@@ -48,7 +48,7 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (config.deadFrom) {
     const deadFromTimestamp = Date.parse(config.deadFrom) / 1000;

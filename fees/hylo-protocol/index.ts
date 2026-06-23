@@ -1,14 +1,48 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import fetchURL from "../../utils/fetchURL";
 
 // Hylo Protocol fee accounts
 const HYUSD_FEE_ACCOUNT = "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS";
 const JITOSOL_FEE_ACCOUNT = "FpLaqELxKRm6S3bjfNSknwZu43TL89VYkwuMDwsRMj59";
 const HYLOSOL_FEE_ACCOUNT = "CZbazc6YTRC9QyvxqPJpmerChyuzEHAdX854CB7PbQGb";
 
+const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
+const JITOSOL_MINT = "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn";
+const HYLOSOL_MINT = "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchFromApi = async (options: FetchOptions) => {
+  const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const to_date = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10);
+  const url = `https://api.hylo.so/activity/volumes?from=${date}&to=${to_date}`;
+  const res = await fetchURL(url);
+  const row = res?.volumes?.find((v: any) => v.date === date);
+  if (!row) throw new Error(`Hylo API returned no data for ${date}`);
+
+  const dailyRevenue = options.createBalances();
+  const dailyYields = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  // Amounts are decimal strings in human units; convert to raw using token decimals.
+  dailyRevenue.addUSDValue(+row.fee_hyusd); // hyUSD is pegged to $1
+  dailyRevenue.add(JITOSOL_MINT, Math.floor(+row.fee_jitosol * 1e9));
+  dailyRevenue.add(HYLOSOL_MINT, Math.floor(+row.fee_hylosol * 1e9));
+
+  // yield_harvested is denominated in hyUSD (stability pool yields distributed to users)
+  dailyYields.addUSDValue(+row.yield_harvested);
+
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailyYields);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailyYields,
+  };
+};
+
+const fetchFromDune = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyYields = options.createBalances();
   const dailyFees = options.createBalances();
@@ -111,6 +145,15 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees          // Protocol revenue + stability pool yields
   }
 }
+
+const fetch: any = async (options: FetchOptions) => {
+  try {
+    return await fetchFromApi(options);
+  } catch (e) {
+    // Fall back to Dune query if the Hylo API is unavailable
+    return await fetchFromDune(options);
+  }
+};
 
 const adapter: SimpleAdapter = {
   version: 1,

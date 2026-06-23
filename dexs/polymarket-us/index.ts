@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL = "https://www.polymarketexchange.com/files/time-and-sales";
+const VOLUME_THRESHOLD = 500_000_000;
 
 interface Trade {
     transactionTime: Date;
@@ -28,7 +29,7 @@ function parseTradeCSV(csv: string): Trade[] {
     return trades;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
 
     const manifestData = await fetchURL(`${BASE_URL}/manifest.json`);
     const todaysData = manifestData.files.find((item: any) => item.filename === `${options.dateString.replaceAll('-', '')}-time-and-sales.csv`);
@@ -68,6 +69,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
             dailySupplySideRevenue.addUSDValue(fee * 0.5, 'Taker Rebates');
             dailyRevenue.addUSDValue(fee * 0.25, 'Protocol Revenue');
         }
+    }
+
+    const volumeInUsd = await dailyVolume.getUSDValue();
+    if(volumeInUsd > VOLUME_THRESHOLD) {
+      throw new Error('Inflated Volumes, cant be verified')
     }
 
     return {

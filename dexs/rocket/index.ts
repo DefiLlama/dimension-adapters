@@ -23,7 +23,7 @@ const ROCKET_API = "https://beta.rocket-cluster-1.com";
 const MAKER_FEE = 0.0001; // 0.01%
 const TAKER_FEE = 0.0001; // 0.01%
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     let instruments: string[] = [];
     try {
         const instrumentsData = await fetchURL(`${ROCKET_API}/instruments`);

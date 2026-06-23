@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyTokenTaxes = options.createBalances();
 
@@ -48,8 +48,8 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
             AND block_time BETWEEN llama_replace_date_range
             `, options);
 
-  transactions.map((p: any) => dailyFees.addGasToken(p.value * 0.01))
-  transactions_v2.map((p: any) => dailyFees.addGasToken(p.value))
+  transactions.map((p: any) => dailyFees.addGasToken((p.value || 0) * 0.01))
+  transactions_v2.map((p: any) => dailyFees.addGasToken(p.value || 0))
 
 
   const revFromToken = await queryIndexer(`
@@ -66,25 +66,38 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
           AND from_address = '\\xf819d9cb1c2a819fd991781a822de3ca8607c3c9'
           AND block_time BETWEEN llama_replace_date_range
           `, options);
-  revFromToken.concat(transactions_v2).map((p: any) => dailyTokenTaxes.addGasToken(p.value))
+  revFromToken.concat(transactions_v2).map((p: any) => dailyTokenTaxes.addGasToken(p.value || 0))
 
   // ref https://dune.com/queries/2621049/4349967
-  return { timestamp, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyTokenTaxes }
+  const totalFees = options.createBalances()
+  totalFees.add(dailyFees, 'Trading Fees')
+  totalFees.add(dailyTokenTaxes, 'Token Tax Fees')
+  return { dailyFees: totalFees, dailyRevenue: totalFees, dailyProtocolRevenue: totalFees }
 
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-05-25',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-05-25',
   methodology: {
     Fees: 'All trading fees paid by users.',
     Revenue: 'All trading fees paid by users.',
-    HoldersRevenue: 'Fees distributed to token holders',
     ProtocolRevenue: 'All trading fees paid by users.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Trading Fees': 'Trading fees paid by users through Unibot.',
+      'Token Tax Fees': 'Token tax fees collected by Unibot.',
+    },
+    Revenue: {
+      'Trading Fees': 'Trading fees paid by users through Unibot.',
+      'Token Tax Fees': 'Token tax fees collected by Unibot.',
+    },
+    ProtocolRevenue: {
+      'Trading Fees': 'Trading fees paid by users through Unibot.',
+      'Token Tax Fees': 'Token tax fees collected by Unibot.',
+    },
   }
 };
 

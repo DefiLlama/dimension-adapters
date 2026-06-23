@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const dailyApiUrl = "https://stats.rushbot.io/daily/solana";
 
-const fetch = async (_a: any, _b: any, { endTimestamp, startTimestamp }: FetchOptions) => {
+const fetch = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
   const url = `${dailyApiUrl}?from=${startTimestamp}&to=${endTimestamp}`;
 
   const data = await fetchURL(url);

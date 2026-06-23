@@ -24,8 +24,8 @@ interface IAccrueInterestLog {
   totalBorrowsNew: BigNumberish;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
-  const context = await getContext(timestamp, {}, { fromTimestamp, toTimestamp });
+const fetch = async ({ createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
+  const context = await getContext(toTimestamp, {}, { fromTimestamp, toTimestamp });
   const dailyProtocolFees = createBalances();
   const dailyProtocolRevenue = createBalances();
   await getDailyProtocolFees(context, { dailyProtocolFees, dailyProtocolRevenue, });
@@ -40,7 +40,6 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
   await getDailyEnergyRentalFees(context, { dailyProtocolFees, dailySupplySideRevenue });
 
   return {
-    timestamp,
     dailyFees: dailyProtocolFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyHoldersRevenue: 0,
@@ -122,14 +121,34 @@ const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, to
 };
 
 const endpoint = `https://api.trongrid.io`
-// TODO: check and replace code to fetch logs more than 200
-const getLogs = async (address: string, min_block_timestamp: number, max_block_timestamp: number) => {
-  const url = `${endpoint}/v1/contracts/${fromHex(address)}/events?event_name=AccrueInterest&min_block_timestamp=${min_block_timestamp}&max_block_timestamp=${max_block_timestamp}&limit=200`;
-  const res = await httpGet(url);
-  return res.data;
-}
-
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// TronGrid caps each events response at 200. On busy days a single market emits more than
+// 200 AccrueInterest events in a day (e.g. 398 on the USDT market on 2024-12-03), so a single
+// capped request silently drops the remainder and undercounts borrow interest. Paginate with
+// the fingerprint cursor, mirroring getDailyEnergyRentalFees below.
+const getLogs = async (address: string, min_block_timestamp: number, max_block_timestamp: number) => {
+  let logs: any[] = [];
+  let fingerprint: string | undefined = undefined;
+  for (let page = 0; page < 200; page++) {
+    const params = [
+      'event_name=AccrueInterest',
+      `min_block_timestamp=${min_block_timestamp}`,
+      `max_block_timestamp=${max_block_timestamp}`,
+      'order_by=block_timestamp,asc',
+      'limit=200',
+    ];
+    if (fingerprint) params.push(`fingerprint=${fingerprint}`);
+    const url = `${endpoint}/v1/contracts/${fromHex(address)}/events?${params.join('&')}`;
+    const res = await httpGet(url);
+    const events = res.data ?? [];
+    logs = logs.concat(events);
+    fingerprint = res.meta?.fingerprint;
+    if (!fingerprint || !events.length) break;
+    await delay(2500);
+  }
+  return logs;
+}
 const getDailyProtocolFees = async ({
   markets,
   underlyings,
@@ -206,13 +225,10 @@ const getDailyEnergyRentalFees = async (
 
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.TRON]: {
-      fetch: fetch,
-      start: '2023-11-19',
-      // runAtCurrTime: true,
-    },
-  },
+  fetch,
+  chains: [CHAIN.TRON],
+  start: '2023-11-19',
+  // runAtCurrTime: true,
   methodology: {
     Fees: "Total interest paid by borrowers across all lending markets, plus usage fees paid by renters on the Energy Rental Market",
     Revenue: "Protocol's share of interest based on each market's reserve factor",

@@ -14,7 +14,7 @@ const apiEndpoint = (fromTimestamp: number, toTimestamp: number) => {
   return url;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const apiRes = await httpGet(apiEndpoint(options.fromTimestamp, options.toTimestamp))
   
   const dailyVolume = apiRes.data.cumulative_trading_volume_usd[1] - apiRes.data.cumulative_trading_volume_usd[0]; 

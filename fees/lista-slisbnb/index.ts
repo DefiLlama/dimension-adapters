@@ -45,12 +45,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   
-  dailyFees.addCGToken("binancecoin", supplySideRewards / 0.95);
-  dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards);
+  dailyFees.addCGToken("binancecoin", supplySideRewards / 0.95, 'BNB Staking Rewards');
+  dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards, 'BNB Staking Rewards To Stakers');
 
-  const dailyRevenue = dailyFees.clone(0.05); // 5%
-  const dailyProtocolRevenue = dailyRevenue.clone(0.5); // 50%
-  const dailyHoldersRevenue = dailyRevenue.clone(0.5); // 50%
+  const dailyRevenue = dailyFees.clone(0.05, 'BNB Staking Rewards Commission'); // 5%
+  const dailyProtocolRevenue = dailyRevenue.clone(0.5, 'BNB Staking Rewards Commission'); // 50%
+  const dailyHoldersRevenue = dailyRevenue.clone(0.5, 'BNB Staking Rewards Distribution'); // 50%
 
   return {
     dailyFees,
@@ -66,7 +66,6 @@ const methodology = {
   ProtocolRevenue: 'There are 50% revenue goes to the protocol',
   HoldersRevenue: 'There are 50% revenue goes to veLISTA holders.',
   SupplySideRevenue: 'Stakers earn 95% staking rewards.',
-
 }
 const adapter: SimpleAdapter = {
   version: 2,
@@ -77,6 +76,20 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'BNB Staking Rewards': 'Total BNB staking rewards collected by running BSC validators.',
+    },
+    Revenue: {
+      'BNB Staking Rewards Commission': 'Revenue is 5% staking rewards.',
+    },
+    SupplySideRevenue: {
+      'BNB Staking Rewards To Stakers': 'Stakers earn 95% staking rewards.',
+    },
+    HoldersRevenue: {
+      'BNB Staking Rewards Distribution': 'There are 50% revenue goes to veLISTA holders.',
+    },
+  }
 };
 
 export default adapter;

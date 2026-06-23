@@ -14,7 +14,7 @@ const chainOverrides: { [key: string]: string } = {
   islm: "haqq",
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const overriddenChain = chainOverrides[options.chain] || options.chain; // Override if exists, else use original
   const response: DailyFeeResponse = await fetchURL(
     `https://stride-fees-production.up.railway.app/api/${overriddenChain}/stats/fees`

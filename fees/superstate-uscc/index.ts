@@ -52,8 +52,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "Total Yields from Superstate USCC basis trading",
-    Revenue: "0.75% Annual Management fee collected by superstate",
+    Fees: "Total Yields from Bitwise USCC basis trading",
+    Revenue: "0.75% Annual Management fee collected by Bitwise",
 };
 
 const adapter: SimpleAdapter = {
