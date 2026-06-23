@@ -4,7 +4,7 @@ import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
-const XRAM_TOKEN_CONTRACT = "	0xAE6D5FcE541216BDA471D311425B5412D9f1DEb9";
+const XRAM_TOKEN_CONTRACT = "0xAE6D5FcE541216BDA471D311425B5412D9f1DEb9";
 
 export const subgraphEndpoints: any = {
   [CHAIN.ARBITRUM]: "https://arbitrumv2.kingdomsubgraph.com/subgraphs/name/ramses-pruned",
@@ -106,7 +106,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       tokenDayDatas(
         first: $first
         skip: $skip
-        where: { 
+        where: {
           startOfDay: $startOfDay
           token_in: [${tokenIds}]
         }
@@ -238,7 +238,7 @@ function getPoolStats(stats: IGraphRes, poolType: PoolType): PoolStats {
   };
 }
 
-function createFetchHandler(poolType: PoolType) {
+export function createFetchHandler(poolType: PoolType) {
   return async (options: FetchOptions) => {
     const stats = await fetchStats(options);
     const poolStats = getPoolStats(stats, poolType);
@@ -310,28 +310,15 @@ export const breakdownMethodology = {
   },
 };
 
-export function createClAdapter(chain: string, start: string): SimpleAdapter {
-  return {
-    fetch,
-    chains: [chain],
-    start,
-    methodology,
-    breakdownMethodology,
-  };
-}
-
-const legacyFetch = createFetchHandler('legacy');
-
-export function createLegacyAdapter(chain: string, start: string): SimpleAdapter {
-  return {
-    fetch: legacyFetch,
-    chains: [chain],
-    start,
-    methodology,
-    breakdownMethodology,
-  };
-}
-
-const adapter: SimpleAdapter = createClAdapter(CHAIN.HYPERLIQUID, '2025-11-08');
+const adapter: SimpleAdapter = {
+  methodology,
+  breakdownMethodology,
+  fetch,
+  adapter: {
+    [CHAIN.HYPERLIQUID]: { start: '2025-11-08' },
+    [CHAIN.ARBITRUM]: { start: '2026-01-13' },
+    [CHAIN.POLYGON]: { start: '2026-01-28' },
+  },
+};
 
 export default adapter;
