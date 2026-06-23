@@ -7,7 +7,7 @@ import fetchURL from "../../utils/fetchURL";
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-10-29',
-        token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
+        token: '0x17418038ecF73BA4026c4f428547BF099706F27B',
     },
     [CHAIN.AVAX]: {
         start: '2025-01-29',

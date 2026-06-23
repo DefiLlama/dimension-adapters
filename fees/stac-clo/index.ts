@@ -1,10 +1,15 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { getTokenSupply } from "../../helpers/solana";
 
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-10-29',
         token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
+    },
+    [CHAIN.SOLANA]: {
+        start: '2026-03-03',
+        token: 'u49MwZqu4bHRHRsciaBarHK7JZDYGxuaNnwyMBdEKYk',
     }
 }
 
@@ -47,12 +52,17 @@ async function fetch(options: FetchOptions) {
     const priceChange = options.preFetchedResults.priceChange;
     const currentPrice = options.preFetchedResults.currentPrice;
 
-    const totalSupply = await options.api.call({
-        target: chainConfig[options.chain].token,
-        abi: 'function totalSupply() view returns (uint256)',
-    })
+    let totalSupplyAfterDecimals = 0;
 
-    const totalSupplyAfterDecimals = totalSupply / (10 ** tokenDecimals);
+    if (options.chain === CHAIN.SOLANA) {
+        totalSupplyAfterDecimals = await getTokenSupply(chainConfig[options.chain].token);
+    } else {
+        const totalSupply = await options.api.call({
+            target: chainConfig[options.chain].token,
+            abi: 'function totalSupply() view returns (uint256)',
+        })
+        totalSupplyAfterDecimals = totalSupply / (10 ** tokenDecimals);
+    }
 
     const managementFeesForPeriod = currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
     const yieldForPeriod = priceChange * totalSupplyAfterDecimals;
