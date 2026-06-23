@@ -417,9 +417,9 @@ const configs: Record<string, Record<string, any>> = {
   "octoswap-classic": {
     [CHAIN.MONAD]: { factory: '0xCe104732685B9D7b2F07A09d828F6b19786cdA32', revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
-  "pharaoh-v2": {
-    [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
-  },
+  // "pharaoh-v2": {
+  //   [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
+  // },
   "swapmode-v2": {
     [CHAIN.MODE]: { factory: '0xfb926356BAf861c93C3557D7327Dbe8734A71891', start: '2024-02-02', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
