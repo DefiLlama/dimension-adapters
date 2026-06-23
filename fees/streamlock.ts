@@ -51,7 +51,15 @@ function getPoints(): Promise<DailyPoint[]> {
     pointsPromise = fetchURL(HISTORY_URL).then((r: any) => {
       if (!r || !Array.isArray(r.points))
         throw new Error("Streamlock: malformed /history response (no points[] array)");
-      return r.points as DailyPoint[];
+      const points = r.points as DailyPoint[];
+      const bad = points.findIndex(
+        (p) => typeof p?.timestamp !== "number" || typeof p?.daily !== "object" || p.daily === null
+      );
+      if (bad !== -1)
+        throw new Error(
+          `Streamlock: malformed /history point at index ${bad} (missing timestamp/daily)`
+        );
+      return points;
     });
   return pointsPromise;
 }
