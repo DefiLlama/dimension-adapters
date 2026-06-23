@@ -26,7 +26,7 @@ const chains: { [chain: Chain]: { start: string; configKey?: string } } = {
   [CHAIN.BOB]: { start: "2024-09-17" },
   [CHAIN.BASE]: { start: "2024-09-17" },
   [CHAIN.LINEA]: { start: "2024-09-17" },
-  [CHAIN.ROOTSTOCK]: { start: "2024-09-17", configKey: "rootstock" },
+  //[CHAIN.ROOTSTOCK]: { start: "2024-09-17", configKey: "rootstock" },
   [CHAIN.AILAYER]: { start: "2024-09-17" },
   [CHAIN.SONEIUM]: { start: "2025-03-17" },
   [CHAIN.INK]: { start: "2025-03-17" },
