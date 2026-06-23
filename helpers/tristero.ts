@@ -1099,7 +1099,9 @@ function decodeV3DelegatedBatchSendOrders(data: string | undefined, delegatedSen
   let parsed;
   try {
     parsed = DELEGATED_EXECUTE_INTERFACE.parseTransaction({ data });
-  } catch {
+  } catch (error) {
+    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to parse Tristero delegated execute calldata ${calldataContext}: ${(error as Error).message}`);
     return [];
   }
 
@@ -1111,7 +1113,10 @@ function decodeV3DelegatedBatchSendOrders(data: string | undefined, delegatedSen
       ["tuple(address target,uint256 value,bytes callData)[]"],
       parsed.args.executionCalldata,
     ) as unknown as [Array<{ target: string; callData: string }>];
-  } catch {
+  } catch (error) {
+    const executionCalldata = String(parsed.args.executionCalldata);
+    const calldataContext = `${executionCalldata.slice(0, 74)}${executionCalldata.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to decode Tristero delegated execution calldata ${calldataContext}: ${(error as Error).message}`);
     return [];
   }
 
