@@ -10,6 +10,7 @@ const alphaGrowthVaults: any = {
   },
   [CHAIN.MONAD]: {
     eulerVaultOwners: ["0x36639EA17c35A4639eaE371391497Cb3D02d120a"],
+    start: "2026-06-20",
   }
 };
 
