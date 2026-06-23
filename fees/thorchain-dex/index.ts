@@ -8,7 +8,7 @@ const chainConfig = {
   [CHAIN.ETHEREUM]: { start: '2022-09-07', symbol: 'ETH' },
   [CHAIN.BITCOIN]: { start: '2022-09-07', symbol: 'BTC' },
   [CHAIN.LITECOIN]: { start: '2022-09-07', symbol: 'LTC' },
-  [CHAIN.DOGECHAIN]: { start: '2022-09-07', symbol: 'DOGE' },
+  // [CHAIN.DOGECHAIN]: { start: '2022-09-07', symbol: 'DOGE' },
   [CHAIN.COSMOS]: { start: '2022-09-07', symbol: 'GAIA' },
   [CHAIN.AVAX]: { start: '2022-09-07', symbol: 'AVAX' },
   [CHAIN.BSC]: { start: '2022-09-07', symbol: 'BSC' },
@@ -79,11 +79,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const fetch: any = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const chainShortName = chainConfig[options.chain].symbol;
-  const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+  const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
-  const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+  const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
-
+  console.log('poolsUrl', poolsUrl);
   const earnings = await fetchCacheURL(earningsUrl);
   await sleep(3000);
   const revenue = await fetchCacheURL(reserveUrl);
