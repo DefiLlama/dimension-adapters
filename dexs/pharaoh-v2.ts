@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getAdapter } from "../factory/uniV2";
+import { getUniV2LogAdapter } from "../helpers/uniswap";
 
 export const PHARAOH_METRIC = {
   SwapFees: 'Token Swap Fees',
@@ -10,19 +10,15 @@ export const PHARAOH_METRIC = {
   SwapFeesToLPs: 'Token Swap Fees To LPs',
 }
 
-const uniV2Adapter = getAdapter('pharaoh-v2');
-
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   
-  if (uniV2Adapter && uniV2Adapter.fetch) {
-    const results: any = await uniV2Adapter.fetch(options);
-    dailyVolume.add(results.dailyVolume);
-    dailyFees.add(results.dailyFees, PHARAOH_METRIC.SwapFees);
-    dailyRevenue.add(results.dailyFees, PHARAOH_METRIC.SwapFeesToVoters);
-  }
+  const results: any = await getUniV2LogAdapter({ factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57' })(options);
+  dailyVolume.add(results.dailyVolume);
+  dailyFees.add(results.dailyFees, PHARAOH_METRIC.SwapFees);
+  dailyRevenue.add(results.dailyFees, PHARAOH_METRIC.SwapFeesToVoters);
 
   return {
     dailyVolume,
