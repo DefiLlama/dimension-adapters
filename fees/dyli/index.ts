@@ -101,6 +101,7 @@ const fetch = async (options: FetchOptions) => {
 
   dailyVolume.add(serviceFees);
   dailyVolume.add(cardSales);
+  dailyVolume.add(cardBuybackVolume); // Buybacks are gross card activity, while fees are net of the payout.
 
   dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
   dailyFees.add(cardSales, CARD_SALES);
