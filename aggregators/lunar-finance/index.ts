@@ -2,6 +2,8 @@
  * Lunar Finance — DEX aggregator volume (+ sweeper)
  * Official Lunar Finance team · https://lunarfinance.io
  *
+ * Paste into: dimension-adapters/aggregators/lunar-finance/index.ts
+ *
  * DATA SOURCES (disclosed):
  * 1. Lunar analytics API — confirmed swap transactions (meta-aggregator routes)
  * 2. On-chain LunarSweeperRouter — batch sweeper legs where router is deployed
@@ -33,31 +35,35 @@ const fetch = async (options: FetchOptions) => {
   const sweeperApiUsd = parseLunarUsdWei(
     sweeperPayload.dailySwapVolume ?? sweeperPayload.dailyVolume,
   );
-
-  const dailyVolume = options.createBalances();
-  const totalUsd = dexUsd + sweeperApiUsd;
-  if (totalUsd > 0) dailyVolume.addUSD(totalUsd.toString());
-
-  if (LUNAR_SWEEPER_ROUTER[options.chain]) {
-    const onChain = await fetchSweeperOnChainVolume(options);
-    for (const [token, amount] of Object.entries(onChain.getBalances())) {
-      if (token === "usd") continue;
-      dailyVolume.add(token, amount);
-    }
-  }
+  const apiUsd = dexUsd + sweeperApiUsd;
 
   const dailyFees = parseLunarUsdWei(dexPayload.dailyFees);
   const dailyRevenue = parseLunarUsdWei(
     dexPayload.dailyProtocolRevenue ?? dexPayload.dailyRevenue,
   );
 
-  return {
-    dailyVolume,
+  const baseResult = {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailyUserFees: dailyFees,
   };
+
+  // BSC only: merge API USD with on-chain sweeper router token amounts
+  if (LUNAR_SWEEPER_ROUTER[options.chain]) {
+    const dailyVolume = options.createBalances();
+    if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
+
+    const onChain = await fetchSweeperOnChainVolume(options);
+    for (const [token, amount] of Object.entries(onChain.getBalances())) {
+      if (token === "usd") continue;
+      dailyVolume.add(token, amount);
+    }
+
+    return { ...baseResult, dailyVolume };
+  }
+
+  return { ...baseResult, dailyVolume: apiUsd };
 };
 
 const adapter: SimpleAdapter = {
