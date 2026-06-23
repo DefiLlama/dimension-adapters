@@ -13,7 +13,10 @@ const fetch = async (options: FetchOptions) => {
   const data = await fetchUrl(URL);
 
   const dailyVolume = options.createBalances();
-  for (const listing of data.listings ?? []) {
+  if (!Array.isArray(data.listings) || data.listings.length === 0) {
+    throw new Error("Variational response missing listings")
+  }
+  for (const listing of data.listings) {
     dailyVolume.addUSDValue(Number(listing.volume_24h), { id: baseAsset(String(listing.ticker)), isUSDValue: true });
   }
 
