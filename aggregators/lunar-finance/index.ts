@@ -53,10 +53,18 @@ const fetch = async (options: FetchOptions) => {
 
   // BSC only: merge API USD with on-chain sweeper router token amounts
   if (LUNAR_SWEEPER_ROUTER[options.chain]) {
-    const onChain = await fetchSweeperOnChainVolume(options);
-    for (const [token, amount] of Object.entries(onChain.getBalances())) {
-      if (token === "usd") continue;
-      dailyVolume.add(token, amount);
+    try {
+      const onChain = await fetchSweeperOnChainVolume(options);
+      for (const [token, amount] of Object.entries(onChain.getBalances())) {
+        if (token === "usd") continue;
+        dailyVolume.add(token, amount);
+      }
+    } catch (err) {
+      // Fallback: use API data only if on-chain fetch fails
+      console.warn(
+        `Failed to fetch on-chain sweeper data for ${options.chain}:`,
+        err,
+      );
     }
   }
 
