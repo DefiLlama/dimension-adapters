@@ -51,7 +51,7 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
     Fees: "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot, directed to ASTER stakers.",
-    HoldersRevenue: "Aster token strategic buybacks from platform fees."
+    HoldersRevenue: "Aster token strategic buybacks from platform fees. (Used to be burnt before Feb 2nd, 2026, now directed to ASTER stakers)"
 }
 
 const breakdownMethodology = {
@@ -59,7 +59,7 @@ const breakdownMethodology = {
       "Listing Fees": "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot, directed to ASTER stakers.",
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: "Aster tokens purchased by the protocol treasury through TWAP contract for strategic buybacks, funded by accumulated platform fees.",
+      [METRIC.TOKEN_BUY_BACK]: "Aster tokens purchased by the protocol treasury through TWAP contract for strategic buybacks, funded by accumulated platform fees. (Used to be burnt before Feb 2nd, 2026, now directed to ASTER stakers)",
     }
 };
 
