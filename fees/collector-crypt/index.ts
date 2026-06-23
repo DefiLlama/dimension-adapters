@@ -1,8 +1,10 @@
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
 const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000, 2500];
+
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 // On-chain crypto gacha sinks. Pack purchases arrive as exact-tier USDC transfers, so
 // these are tier-filtered (99.9% of inflows match a tier; non-tier is rounding noise).
@@ -31,7 +33,6 @@ const BUYBACK_ADDRESSES: string[] = [
   // 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial buyback hub (seen since 2026-06-11)
 ];
 
-//https://dune.com/queries/7450765
 const TEAM_ADDRESSES = [
   'BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
   '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
@@ -60,12 +61,14 @@ const TEAM_ADDRESSES = [
   'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // unofficial CC bot wallet; kept as an exclusion (it sends USDC into the gacha sink) even though its buyback role is no longer tracked
 ]
 
-const fetch = async (options: FetchOptions) => {
-  const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
-  }
+const timeRange = (options: FetchOptions) =>
+  `block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
+const teamAddresses = TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+const gachaOnchainAddresses = GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+const gachaTiers = GACHA_TIERS.join(', ');
+
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -73,57 +76,57 @@ const fetch = async (options: FetchOptions) => {
   // No confirmed buyback hub -> return a constant 0 so the CARDS-buyback CTE stays valid
   // SQL (an empty IN-list would not) and holders revenue resolves to 0.
   const cardsBuybackCte = BUYBACK_ADDRESSES.length > 0
-    ? `SELECT SUM(amount) AS cards_bought
-      FROM tokens_solana.transfers
-      WHERE to_owner IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND token_mint_address = '${CARDS_MINT}'
-        AND TIME_RANGE`
-    : `SELECT CAST(0 AS DOUBLE) AS cards_bought`;
+    ? `SELECT COALESCE(SUM(raw_amount), 0) AS cards_bought
+      FROM solana.assets.transfers
+      WHERE to_address IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND from_address NOT IN (${teamAddresses})
+        AND mint = '${CARDS_MINT}'
+        AND ${timeRange(options)}`
+    : `SELECT 0 AS cards_bought`;
 
   const query = `
     WITH gacha_in AS (
       SELECT
-        SUM(CASE WHEN amount / POWER(10, 6) = 25 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_25,
-        SUM(CASE WHEN amount / POWER(10, 6) = 50 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_50,
-        SUM(CASE WHEN amount / POWER(10, 6) = 75 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_75,
-        SUM(CASE WHEN amount / POWER(10, 6) = 80 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_80,
-        SUM(CASE WHEN amount / POWER(10, 6) = 100 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_100,
-        SUM(CASE WHEN amount / POWER(10, 6) = 250 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_250,
-        SUM(CASE WHEN amount / POWER(10, 6) = 1000 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_1000,
-        SUM(CASE WHEN amount / POWER(10, 6) = 2500 THEN amount / POWER(10, 6) ELSE 0 END) AS gacha_spend_2500
-      FROM tokens_solana.transfers
-      WHERE to_owner IN (${GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND amount / power(10, 6) IN (${GACHA_TIERS.map(tier => tier).join(', ')})
-        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-        AND TIME_RANGE
+        SUM(CASE WHEN amount = 25 THEN amount ELSE 0 END) AS gacha_spend_25,
+        SUM(CASE WHEN amount = 50 THEN amount ELSE 0 END) AS gacha_spend_50,
+        SUM(CASE WHEN amount = 75 THEN amount ELSE 0 END) AS gacha_spend_75,
+        SUM(CASE WHEN amount = 80 THEN amount ELSE 0 END) AS gacha_spend_80,
+        SUM(CASE WHEN amount = 100 THEN amount ELSE 0 END) AS gacha_spend_100,
+        SUM(CASE WHEN amount = 250 THEN amount ELSE 0 END) AS gacha_spend_250,
+        SUM(CASE WHEN amount = 1000 THEN amount ELSE 0 END) AS gacha_spend_1000,
+        SUM(CASE WHEN amount = 2500 THEN amount ELSE 0 END) AS gacha_spend_2500
+      FROM solana.assets.transfers
+      WHERE to_address IN (${gachaOnchainAddresses})
+        AND from_address NOT IN (${teamAddresses})
+        AND amount IN (${gachaTiers})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
     ),
     gacha_fiat AS (
       SELECT
-        SUM(amount / POWER(10, 6)) AS fiat_spend
-      FROM tokens_solana.transfers
-      WHERE to_owner = '${GACHA_FIAT_ADDRESS}'
-        AND from_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-        AND TIME_RANGE
+        COALESCE(SUM(amount), 0) AS fiat_spend
+      FROM solana.assets.transfers
+      WHERE to_address = '${GACHA_FIAT_ADDRESS}'
+        AND from_address NOT IN (${teamAddresses})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
     ),
     fees AS (
       SELECT
-        SUM(amount / POWER(10, 6)) AS inflow
-      FROM tokens_solana.transfers
-      WHERE to_owner = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd'
-        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-        AND TIME_RANGE
+        COALESCE(SUM(amount), 0) AS inflow
+      FROM solana.assets.transfers
+      WHERE to_address = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd'
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
     ),
     buyback AS (
       SELECT
-        SUM(amount / POWER(10, 6)) AS buyback
-      FROM tokens_solana.transfers
-      WHERE from_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3')
-        AND to_owner NOT IN (${TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-        AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-        AND TIME_RANGE
+        COALESCE(SUM(amount), 0) AS buyback
+      FROM solana.assets.transfers
+      WHERE from_address IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3')
+        AND to_address NOT IN (${teamAddresses})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
     ),
     cards_buyback AS (
       ${cardsBuybackCte}
@@ -148,7 +151,7 @@ const fetch = async (options: FetchOptions) => {
       CROSS JOIN cards_buyback cb
   `;
 
-  const data = await queryDuneSql(options, query);
+  const data = await queryAllium(query);
 
   let cardsBought = 0;
   if (data && data.length > 0) {
@@ -227,11 +230,13 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-06-04',
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
