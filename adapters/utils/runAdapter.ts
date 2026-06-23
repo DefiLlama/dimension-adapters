@@ -102,7 +102,7 @@ type AdapterRunOptions = {
   withMetadata?: boolean, // if true, returns metadata with the response
   cacheResults?: boolean, // deprecated, if true, caches the results in adapterRunResponseCache
   runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
-  getCategory?: (symbol: string) => string | undefined, // resolver mapping a token symbol to a sector/category bucket
+  getTag?: (symbol: string) => string | undefined, // resolver mapping a token symbol to a tag
   metadata?: {
     [key: string]: any
     adapterType?: string
@@ -140,7 +140,7 @@ async function _runAdapter({
   deadChains = new Set(),
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
   metadata = {},
-  getCategory,
+  getTag,
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -193,7 +193,7 @@ async function _runAdapter({
   let breakdownByToken: any = {}
   let breakdownByLabelByChain: any = {}
   let breakdownByLabel: any = {}
-  let breakdownByCategory: any = {}
+  let breakdownByTag: any = {}
 
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]
@@ -213,7 +213,7 @@ async function _runAdapter({
   if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
   if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
-  if (Object.keys(breakdownByCategory).length === 0) breakdownByCategory = undefined
+  if (Object.keys(breakdownByTag).length === 0) breakdownByTag = undefined
 
   // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
   if (chains.length > 1 && chains.includes(CHAIN.CHAIN_GLOBAL)) {
@@ -230,7 +230,7 @@ async function _runAdapter({
     aggregated,
     breakdownByLabel,
     breakdownByLabelByChain,
-    breakdownByCategory,
+    breakdownByTag,
     timestamp: response.find(i => i?.timestamp)?.timestamp
   }
 
@@ -292,14 +292,14 @@ async function _runAdapter({
           breakdownByToken[chain] = breakdownByToken[chain] || {}
           breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
 
-          // categoryBreakdown: bucket per-token usd values into sector categories, summed across chains.
-          if (getCategory && usdTokenBalances) {
+          // tagBreakdown: bucket per-token usd values into tags, summed across chains.
+          if (getTag && usdTokenBalances) {
             for (const [symbol, usd] of Object.entries(usdTokenBalances)) {
-              const bucket = getCategory(symbol)
+              const bucket = getTag(symbol)
               if (!bucket) continue
-              if (!breakdownByCategory[recordType]) breakdownByCategory[recordType] = {}
-              breakdownByCategory[recordType][bucket] =
-                (breakdownByCategory[recordType][bucket] || 0) + roundValue(usd as number)
+              if (!breakdownByTag[recordType]) breakdownByTag[recordType] = {}
+              breakdownByTag[recordType][bucket] =
+                (breakdownByTag[recordType][bucket] || 0) + roundValue(usd as number)
             }
           }
 
