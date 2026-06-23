@@ -253,6 +253,7 @@ interface Hip3DeployerMetrics {
 interface QueryIndexerResult {
   dailyPerpVolume: Balances;
   dailySpotVolume: Balances;
+  dailyLiquidationVolume: Balances;
 
   // perp fees = hyperliquid revenue + builders revenue + HIP-3 deployers revenue
   dailyPerpRevenue: Balances;
@@ -307,6 +308,7 @@ export async function queryHyperliquidIndexer(
 
   const dailyPerpVolume = options.createBalances();
   const dailySpotVolume = options.createBalances();
+  const dailyLiquidationVolume = options.createBalances();
   const dailyPerpRevenue = options.createBalances();
   const dailySpotRevenue = options.createBalances();
   const dailyBuildersRevenue = options.createBalances();
@@ -325,6 +327,7 @@ export async function queryHyperliquidIndexer(
     dailyPerpVolume.addCGToken("usd-coin", item.perpsVolumeUsd);
     dailySpotVolume.addCGToken("usd-coin", item.spotVolumeUsd);
     dailyPriorityFeesUsd.addCGToken("usd-coin", item.priorityFeeUsd ? item.priorityFeeUsd : 0);
+    dailyLiquidationVolume.addCGToken("usd-coin", item.liquidationVolumeUsd ? item.liquidationVolumeUsd : 0);
 
     // add fees from perps trading
     for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
@@ -411,6 +414,7 @@ export async function queryHyperliquidIndexer(
   return {
     dailyPerpVolume,
     dailySpotVolume,
+    dailyLiquidationVolume,
     dailyPerpRevenue,
     dailySpotRevenue,
     dailyBuildersRevenue,
