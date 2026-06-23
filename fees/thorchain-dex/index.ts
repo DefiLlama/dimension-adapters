@@ -83,7 +83,7 @@ const fetch: any = async (options: FetchOptions) => {
   // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
   const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
-  console.log('poolsUrl', poolsUrl);
+
   const earnings = await fetchCacheURL(earningsUrl);
   await sleep(3000);
   const revenue = await fetchCacheURL(reserveUrl);
