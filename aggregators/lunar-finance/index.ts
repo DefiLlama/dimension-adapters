@@ -1,49 +1,84 @@
-import fetchURL from "../../utils/fetchURL";
+/**
+ * Lunar Finance — DEX aggregator volume (+ sweeper)
+ * Official Lunar Finance team · https://lunarfinance.io
+ *
+ * DATA SOURCES (disclosed):
+ * 1. Lunar analytics API — confirmed swap transactions (meta-aggregator routes)
+ * 2. On-chain LunarSweeperRouter — batch sweeper legs where router is deployed
+ */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-
-const LUNA_API_BASE = "https://api.lunarfinance.io";
-const SWAP_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/dexs`;
-
-interface LunaAnalyticsResponse {
-  success: boolean;
-  data: {
-    dailySwapVolume?: {
-      usd: string;
-    };
-    dailyFees?: {
-      usd: string;
-    };
-    dailyRevenue?: {
-      usd: string;
-    };
-  };
-}
+import {
+  fetchLunarAnalytics,
+  LUNAR_CHAIN_ID,
+  LUNAR_DEFAULT_START,
+  parseLunarUsdWei,
+} from "../../helpers/lunarFinance";
+import {
+  fetchSweeperOnChainVolume,
+  LUNAR_SWEEPER_ROUTER,
+} from "../../helpers/lunarSweeperOnChain";
 
 const fetch = async (options: FetchOptions) => {
-  const url = `${SWAP_ANALYTICS_ENDPOINT}?startTime=${options.startTimestamp + 1}&endTime=${options.endTimestamp}`;
-  const data: LunaAnalyticsResponse = await fetchURL(url);
+  const [dexRes, sweeperRes] = await Promise.all([
+    fetchLunarAnalytics("dexs", options),
+    fetchLunarAnalytics("sweeper", options).catch(() => ({ data: {} })),
+  ]);
 
-  const { dailySwapVolume, dailyFees, dailyRevenue } = data.data;
+  const dexPayload = dexRes.data ?? {};
+  const sweeperPayload = sweeperRes.data ?? {};
+
+  const dexUsd = parseLunarUsdWei(
+    dexPayload.dailySwapVolume ?? dexPayload.dailyVolume,
+  );
+  const sweeperApiUsd = parseLunarUsdWei(
+    sweeperPayload.dailySwapVolume ?? sweeperPayload.dailyVolume,
+  );
+
+  const dailyVolume = options.createBalances();
+  const totalUsd = dexUsd + sweeperApiUsd;
+  if (totalUsd > 0) dailyVolume.addUSD(totalUsd.toString());
+
+  if (LUNAR_SWEEPER_ROUTER[options.chain]) {
+    const onChain = await fetchSweeperOnChainVolume(options);
+    for (const [token, amount] of Object.entries(onChain.getBalances())) {
+      if (token === "usd") continue;
+      dailyVolume.add(token, amount);
+    }
+  }
+
+  const dailyFees = parseLunarUsdWei(dexPayload.dailyFees);
+  const dailyRevenue = parseLunarUsdWei(
+    dexPayload.dailyProtocolRevenue ?? dexPayload.dailyRevenue,
+  );
 
   return {
-    dailyVolume: Number(dailySwapVolume?.usd) / 1e18 || 0,
-    dailyFees: Number(dailyFees?.usd) / 1e18 || 0,
-    dailyRevenue: Number(dailyRevenue?.usd) / 1e18 || 0,
-    dailyProtocolRevenue: Number(dailyRevenue?.usd) / 1e18 || 0,
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyUserFees: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.SOLANA],
-  fetch,
-  start: '2025-05-01',
+  adapter: Object.fromEntries(
+    Object.keys(LUNAR_CHAIN_ID).map((chain) => [
+      chain,
+      {
+        fetch,
+        start:
+          LUNAR_SWEEPER_ROUTER[chain]?.start ?? LUNAR_DEFAULT_START,
+      },
+    ]),
+  ),
   methodology: {
-    Fees: "Swap fees include protocol fees charged by Luna Finance plus underlying DEX protocol fees paid by users.",
-    Revenue: "Revenue represents fees collected by Luna Finance protocol from swap transactions, typically 0.1-0.3% of transaction value.",
-    ProtocolRevenue: "Protocol revenue is the portion of fees that goes to Luna Finance treasury.",
-  }
+    Volume:
+      "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the sweeper analytics API and on-chain LunarSweeperRouter leg amounts where deployed.",
+    Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
+    Revenue: "Protocol fees retained by Lunar Finance.",
+    ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
+  },
 };
 
 export default adapter;
