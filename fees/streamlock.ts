@@ -39,28 +39,51 @@ interface DailyPoint {
   };
 }
 
-// Fetch the whole series once and share it across every per-day fetch() call in
-// a run.
+/**
+ * Fetch Streamlock's full daily income-statement series once and share the
+ * promise across every per-day fetch() call in a run. Throws on a malformed
+ * payload (missing / non-array `points`) so a broken data source surfaces as a
+ * hard failure instead of being silently read as zero fees forever.
+ */
 let pointsPromise: Promise<DailyPoint[]> | undefined;
 function getPoints(): Promise<DailyPoint[]> {
   if (!pointsPromise)
-    pointsPromise = fetchURL(HISTORY_URL).then((r: any) => r?.points ?? []);
+    pointsPromise = fetchURL(HISTORY_URL).then((r: any) => {
+      if (!r || !Array.isArray(r.points))
+        throw new Error("Streamlock: malformed /history response (no points[] array)");
+      return r.points as DailyPoint[];
+    });
   return pointsPromise;
 }
 
+/**
+ * Map the daily snapshot for the requested UTC day to DeFiLlama's three fee
+ * dimensions (SOL amounts, priced by DeFiLlama). A day that isn't in the series
+ * yet — e.g. today's snapshot hasn't been written — is a recoverable data gap,
+ * so we log and return zero balances rather than throwing.
+ */
 const fetch = async (options: FetchOptions) => {
   const points = await getPoints();
-  const point = points.find((p) => p.timestamp === options.startOfDay);
-  if (!point)
-    throw new Error(
-      `Streamlock: no daily snapshot for ${options.dateString} (${options.startOfDay})`
-    );
-
-  const d = point.daily;
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const result = {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 
+  const point = points.find((p) => p.timestamp === options.startOfDay);
+  if (!point) {
+    console.info(
+      `Streamlock: no daily snapshot for ${options.dateString} (${options.startOfDay}); returning zero balances`
+    );
+    return result;
+  }
+
+  const d = point.daily;
   dailyFees.addCGToken("solana", d.fees || 0, METRIC.SWAP_FEES);
   dailyRevenue.addCGToken(
     "solana",
@@ -73,13 +96,7 @@ const fetch = async (options: FetchOptions) => {
     "Swap fees to LPs + referral rebates"
   );
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
+  return result;
 };
 
 const methodology = {
@@ -115,7 +132,10 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  // version 1: the source is a daily-aggregate external endpoint keyed to UTC
+  // midnight (matched on options.startOfDay), so daily-granular scheduling — not
+  // v2's hourly model — is correct.
+  version: 1,
   chains: [CHAIN.SOLANA],
   fetch,
   start: START_DATE,
