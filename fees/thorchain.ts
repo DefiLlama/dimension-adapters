@@ -1,36 +1,35 @@
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (options: FetchOptions) => {
-  // RUNE-denominated gas/network fee for THORChain outbound transactions, from on-chain gas events.
-  // defi_gas_events stays current, unlike Midgard reserve.networkFee and the defi_fee_events / defi_swaps
-  // spells, which stalled after the late-May-2026 THORChain event-pipeline break.
-  const rows = await queryDuneSql(
-    options,
-    `SELECT SUM(rune_e8) / 1e8 AS gas_rune
-     FROM thorchain.defi_gas_events
-     WHERE TIME_RANGE`
-  );
+interface IRow {
+  DAY: string;
+  NETWORK_FEE: number;
+}
 
-  const gasRune = Number(rows?.[0]?.gas_rune ?? 0);
+const fetch = async ({ dateString, createBalances }: FetchOptions) => {
+  // THORChain's native L1 transaction fee (NativeTransactionFee, 0.02 RUNE/tx) in USD; it accrues to the Reserve.
+  // Source: raynalytics income statement (NETWORK_FEE), the only field that is the native chain fee rather than
+  // the outbound/swap mechanics. Days with no row = no native txs (e.g. network halt) -> 0.
+  const rows: IRow[] = await httpGet("https://raynalytics.net/api/income-expenses");
+  const dayData = rows.find((r) => r.DAY.slice(0, 10) === dateString);
 
-  const dailyFees = options.createBalances();
-  dailyFees.addCGToken("thorchain", gasRune, "Gas Fees");
+  const dailyFees = createBalances();
+  dailyFees.addUSDValue(dayData?.NETWORK_FEE ?? 0, "Network Fees");
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
-  Fees: "Gas/network fees paid for outbound transactions on THORChain, denominated in RUNE, from on-chain gas events (Dune thorchain.defi_gas_events).",
-  Revenue: "The RUNE-denominated network gas fee charged for THORChain transactions.",
-  ProtocolRevenue: "The RUNE-denominated network gas fee charged for THORChain transactions.",
+  Fees: "THORChain's native L1 transaction fee (the NativeTransactionFee constant, 0.02 RUNE per native transaction), charged on native THORChain txs.",
+  Revenue: "The native transaction fee accrues entirely to the THORChain Reserve, so revenue equals fees.",
+  ProtocolRevenue: "The native transaction fee accrues entirely to the THORChain Reserve.",
 };
 
 const breakdownMethodology = {
-  Fees: { "Gas Fees": "RUNE value of gas spent on THORChain outbound transactions ." },
-  Revenue: { "Gas Fees": "RUNE value of gas spent on THORChain outbound transactions." },
-  ProtocolRevenue: { "Gas Fees": "RUNE value of gas spent on THORChain outbound transactions." },
+  Fees: { "Network Fees": "Native L1 transaction fee (0.02 RUNE/tx) paid on native THORChain transactions." },
+  Revenue: { "Network Fees": "Native transaction fee retained by the THORChain Reserve." },
+  ProtocolRevenue: { "Network Fees": "Native transaction fee retained by the THORChain Reserve." },
 };
 
 const adapter: Adapter = {
