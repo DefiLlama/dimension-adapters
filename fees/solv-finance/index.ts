@@ -60,8 +60,6 @@ const fetch: FetchV2 = async (options) => {
 
   const configKey = chains[options.chain]?.configKey ?? options.chain;
   const pools = contracts[configKey];
-  if (!pools || pools.length === 0)
-    return {}
 
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await fees(options, pools);
 
@@ -77,8 +75,10 @@ async function fees(options: FetchOptions, pools: any[]) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  if (!pools)
+
+  if (!pools || pools.length === 0)
     return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  
   const shareConcretes = await concrete(pools, options);
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
