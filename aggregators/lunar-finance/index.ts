@@ -2,8 +2,6 @@
  * Lunar Finance — DEX aggregator volume (+ sweeper)
  * Official Lunar Finance team · https://lunarfinance.io
  *
- * Paste into: dimension-adapters/aggregators/lunar-finance/index.ts
- *
  * DATA SOURCES (disclosed):
  * 1. Lunar analytics API — confirmed swap transactions (meta-aggregator routes)
  * 2. On-chain LunarSweeperRouter — batch sweeper legs where router is deployed
@@ -49,21 +47,20 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
   };
 
+  // Create balances object for all chains
+  const dailyVolume = options.createBalances();
+  if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
+
   // BSC only: merge API USD with on-chain sweeper router token amounts
   if (LUNAR_SWEEPER_ROUTER[options.chain]) {
-    const dailyVolume = options.createBalances();
-    if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
-
     const onChain = await fetchSweeperOnChainVolume(options);
     for (const [token, amount] of Object.entries(onChain.getBalances())) {
       if (token === "usd") continue;
       dailyVolume.add(token, amount);
     }
-
-    return { ...baseResult, dailyVolume };
   }
 
-  return { ...baseResult, dailyVolume: apiUsd };
+  return { ...baseResult, dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -80,7 +77,7 @@ const adapter: SimpleAdapter = {
   ),
   methodology: {
     Volume:
-      "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the sweeper analytics API and on-chain LunarSweeperRouter leg amounts where deployed.",
+      "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the s[...]",
     Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
     Revenue: "Protocol fees retained by Lunar Finance.",
     ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
