@@ -4,20 +4,25 @@ import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL";
 
 
+// Start dates are each chain's first trading day on THORChain, taken from the first non-zero day in
+// raynalytics swap-volume-fees-by-chain (ETH/BTC/LTC = genesis; the rest are when their pools went live).
 const chainConfig = {
-  [CHAIN.ETHEREUM]: { start: '2022-09-07', symbol: 'ETH' },
-  [CHAIN.BITCOIN]: { start: '2022-09-07', symbol: 'BTC' },
-  [CHAIN.LITECOIN]: { start: '2022-09-07', symbol: 'LTC' },
-  // [CHAIN.DOGECHAIN]: { start: '2022-09-07', symbol: 'DOGE' },
-  [CHAIN.COSMOS]: { start: '2022-09-07', symbol: 'GAIA' },
-  [CHAIN.AVAX]: { start: '2022-09-07', symbol: 'AVAX' },
-  [CHAIN.BSC]: { start: '2022-09-07', symbol: 'BSC' },
-  [CHAIN.BITCOIN_CASH]: { start: '2022-09-07', symbol: 'BCH' },
-  [CHAIN.BASE]: { start: '2022-09-07', symbol: 'BASE' },
-  [CHAIN.THORCHAIN]: { start: '2022-09-07', symbol: 'THOR' },
-  [CHAIN.RIPPLE]: { start: '2022-09-07', symbol: 'XRP' },
-  [CHAIN.SOLANA]: { start: '2022-09-07', symbol: 'SOL' },
-  [CHAIN.TRON]: { start: '2022-09-07', symbol: 'TRON' },
+  [CHAIN.ETHEREUM]: { start: '2021-04-11', symbol: 'ETH' },
+  [CHAIN.BITCOIN]: { start: '2021-04-11', symbol: 'BTC' },
+  [CHAIN.LITECOIN]: { start: '2021-04-11', symbol: 'LTC' },
+  [CHAIN.DOGE]: { start: '2022-01-16', symbol: 'DOGE' },
+  // dead: Terra Classic collapsed, no THORChain swaps after 2022-05-10. Kept for historical data; returns 0 since.
+  [CHAIN.TERRA]: { start: '2022-03-24', deadFrom: '2022-05-10', symbol: 'TERRA' },
+  // Binance Beacon Chain (feed "BNB", dead 2024-03-25) omitted: no DefiLlama chain key for it (CHAIN.BSC is Binance Smart Chain).
+  [CHAIN.COSMOS]: { start: '2022-07-05', symbol: 'GAIA' },
+  [CHAIN.AVAX]: { start: '2022-09-23', symbol: 'AVAX' },
+  [CHAIN.BSC]: { start: '2023-09-10', symbol: 'BSC' },
+  [CHAIN.BITCOIN_CASH]: { start: '2021-04-11', symbol: 'BCH' },
+  [CHAIN.BASE]: { start: '2025-01-08', symbol: 'BASE' },
+  [CHAIN.THORCHAIN]: { start: '2021-04-11', symbol: 'THOR' },
+  [CHAIN.RIPPLE]: { start: '2025-06-04', symbol: 'XRP' },
+  [CHAIN.SOLANA]: { start: '2026-02-24', symbol: 'SOL' },
+  [CHAIN.TRON]: { start: '2025-10-01', symbol: 'TRON' },
 }
 
 interface Pool {
@@ -82,14 +87,15 @@ const fetch: any = async (options: FetchOptions) => {
   const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
   const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
-  const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
+  // Per-chain daily swap volume, full history. Used only to split the network-level outbound fee across
+  // chains by activity share. Different host (no date param), fetched once and reused for every chain.
+  const volumeByChainUrl = `https://raynalytics.net/api/swap-volume-fees-by-chain`;
 
   const earnings = await fetchCacheURL(earningsUrl);
   await sleep(3000);
   const revenue = await fetchCacheURL(reserveUrl);
   await sleep(2000);
-  const pools = await fetchCacheURL(poolsUrl);
-  await sleep(2000);
+  const volumeByChain = await fetchCacheURL(volumeByChainUrl);
 
   // Only fetch affiliate earnings for THOR chain
   let affiliateEarnings: any | null = null;
@@ -105,17 +111,23 @@ const fetch: any = async (options: FetchOptions) => {
 
   const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => assetFromString(pool.pool)?.chain === chainShortName);
 
-  const totalRuneDepth = pools.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
-  const poolsByChainData = pools.filter((pool: any) => assetFromString(pool.asset)?.chain === chainShortName);
-  const runeDepthPerChain = poolsByChainData.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
-
   const runePriceUSD = BigNumber(selectedEarningInterval.runePriceUSD || 0);
 
   // Net outbound (network) fee kept by the protocol, in RUNE: outbound gas charged minus gas reimbursed.
-  // Protocol-level value, attributed per chain by the chain's share of total RUNE pool depth.
+  // It is a single network-wide reserve figure, so we split it across chains by each chain's share of that
+  // day's swap volume. The denominator is restricted to the chains we track, so the shares re-normalise to 1
+  // and the network-wide outbound total is preserved.
+  const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const trackedSymbols = new Set(Object.values(chainConfig).map((c: any) => c.symbol));
+  const dayVolumeRows = volumeByChain.filter((r: any) => r.DATE.slice(0, 10) === dateStr && trackedSymbols.has(r.CHAIN));
+  const totalVolumeUSD = dayVolumeRows.reduce((acum: BigNumber, r: any) => acum.plus(r.USD_VOLUME || 0), BigNumber(0));
+  const chainVolumeUSD = dayVolumeRows
+    .filter((r: any) => r.CHAIN === chainShortName)
+    .reduce((acum: BigNumber, r: any) => acum.plus(r.USD_VOLUME || 0), BigNumber(0));
+  const volumeShare = totalVolumeUSD.isZero() ? BigNumber(0) : chainVolumeUSD.div(totalVolumeUSD);
+
   const netOutboundRune = BigNumber(selectedRevenueInterval?.gasFeeOutbound || 0).minus(BigNumber(selectedRevenueInterval?.gasReimbursement || 0));
-  const runeDepthShare = totalRuneDepth.isZero() ? BigNumber(0) : runeDepthPerChain.div(totalRuneDepth);
-  const rawOutboundFeeUSD = netOutboundRune.times(runeDepthShare).div(1e8).times(runePriceUSD);
+  const rawOutboundFeeUSD = netOutboundRune.times(volumeShare).div(1e8).times(runePriceUSD);
   const chainOutboundFeeUSD = rawOutboundFeeUSD.gt(0) ? rawOutboundFeeUSD : BigNumber(0);
 
   // Network-wide Incentive Pendulum split of system income between nodes (RUNE bonders) and pools (LPs).
@@ -124,8 +136,7 @@ const fetch: any = async (options: FetchOptions) => {
   const bondingEarnings = BigNumber(selectedEarningInterval.bondingEarnings || 0);
   const nodeShareRatio = systemIncome.isZero() ? BigNumber(0) : bondingEarnings.div(systemIncome);
 
-  // Slip-based liquidity (swap) fees paid by users on this chain's pools, in USD. Savers yield is NOT a
-  // separate user fee: it is paid out of these same liquidity fees, so counting it on top would double-count.
+  // Slip-based liquidity (swap) fees paid by users on this chain's pools, in USD.
   const chainSwapFeesUSD = poolsByChainEarnings.reduce((acum, pool) => {
     const liquidityFees = BigNumber(pool.totalLiquidityFeesRune).div(1e8).times(runePriceUSD);
     return acum.plus(liquidityFees);
@@ -143,7 +154,6 @@ const fetch: any = async (options: FetchOptions) => {
   //   5% developer fund:  from 2024-09-16.
   //   10% to TCY stakers: from 2025-05-01.
   //   5% marketing fund:  from 2025-11-04.
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
   const burnPct = dateStr >= '2024-09-16' ? 0.05 : 0;
   const devPct = dateStr >= '2024-09-16' ? 0.05 : 0;
   const tcyPct = dateStr >= '2025-05-01' ? 0.10 : 0;
@@ -237,7 +247,7 @@ const breakdownMethodology = {
     'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
   },
   ProtocolRevenue: {
-    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, attributed per chain by RUNE pool-depth share.",
+    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, a network-level figure split across chains by each chain's share of daily swap volume.",
     'Developer Fund': "5% of system income allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
   },
