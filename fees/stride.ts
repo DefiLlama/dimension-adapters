@@ -1,5 +1,6 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import fetchURL from "../utils/fetchURL";
 
 // Stride is a multichain liquid-staking protocol. Native tokens delegated through Stride
@@ -51,12 +52,12 @@ const fetch = async (options: FetchOptions) => {
 
   // Gross daily staking rewards = delegated stake * gross APR / 365.
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken(cg, (totalDelegations * grossApr) / 365);
+  dailyFees.addCGToken(cg, (totalDelegations * grossApr) / 365, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(STRIDE_FEE),
-    dailySupplySideRevenue: dailyFees.clone(1 - STRIDE_FEE),
+    dailyRevenue: dailyFees.clone(STRIDE_FEE, METRIC.PROTOCOL_FEES),
+    dailySupplySideRevenue: dailyFees.clone(1 - STRIDE_FEE, METRIC.STAKING_REWARDS),
   };
 };
 
@@ -66,10 +67,23 @@ const methodology = {
   SupplySideRevenue: "The remaining 90% of staking rewards accrue to stToken holders through redemption-rate appreciation.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: "Total host-chain staking rewards earned on tokens liquid staked through Stride (100% of rewards).",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "10% commission Stride charges on staking rewards.",
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: "90% of staking rewards passed to stToken holders via redemption-rate appreciation.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   fetch,
   chains: Object.keys(config),
   methodology,
+  breakdownMethodology,
   runAtCurrTime: true,
 };
 
