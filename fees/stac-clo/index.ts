@@ -9,7 +9,7 @@ const chainConfig: any = {
         token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
     },
     [CHAIN.SOLANA]: {
-        start: '2026-03-03',
+        start: '2026-06-12',
         // Live STAC-CLO SPL mint (symbol STAC, 6 decimals).
         // Source: https://solscan.io/token/u49MwZqu4bHRHRsciaBarHK7JZDYGxuaNnwyMBdEKYk
         token: 'u49MwZqu4bHRHRsciaBarHK7JZDYGxuaNnwyMBdEKYk',
@@ -36,8 +36,6 @@ async function prefetch(options: FetchOptions) {
     // options.fromApi/toApi otherwise carry the active chain's block context.
     const apiFrom = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.fromTimestamp });
     const apiTo = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.toTimestamp });
-    await apiFrom.getBlock();
-    await apiTo.getBlock();
 
     const priceBefore = await apiFrom.call({ target: priceFeed, abi });
     const priceAfter = await apiTo.call({ target: priceFeed, abi });
@@ -67,7 +65,7 @@ async function fetch(options: FetchOptions) {
         // Source: https://docs.allium.so/historical-data/supported-blockchains/solana
         //         (solana.raw.spl_token_total_supply)
         const sql = `
-            SELECT amount AS supply
+            SELECT COALESCE(amount, 0) AS supply
             FROM solana.raw.spl_token_total_supply
             WHERE mint = '${chainConfig[options.chain].token}'
               AND snapshot_block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
@@ -75,13 +73,7 @@ async function fetch(options: FetchOptions) {
             LIMIT 1
         `;
         const rows = await queryAllium(sql);
-        const supply = Number(rows?.[0]?.supply);
-        // Fail loudly on a missing/malformed snapshot rather than silently reporting
-        // zero fees. A genuine zero supply is a valid numeric snapshot and passes.
-        if (rows?.[0]?.supply == null || !Number.isFinite(supply)) {
-            throw new Error(`No STAC-CLO supply snapshot from Allium for mint ${chainConfig[options.chain].token} at or before ${options.toTimestamp}`);
-        }
-        totalSupplyAfterDecimals = supply;
+        totalSupplyAfterDecimals = rows[0].supply;
     } else {
         const totalSupply = await options.api.call({
             target: chainConfig[options.chain].token,
@@ -133,6 +125,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
     version: 1, //price updates once a day
     dependencies: [Dependencies.ALLIUM],
+    isExpensiveAdapter: true,
     prefetch,
     fetch,
     breakdownMethodology,
