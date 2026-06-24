@@ -54,8 +54,11 @@ const fetch = async (options: FetchOptions) => {
   `
   const data = await queryDuneSql(options, query)
 
-  const volume = data[0]?.daily_volume ?? 0;
-  const dailyVolume = volume > VOLUME_THRESHOLD ? 0 : volume;
+  const dailyVolume = data[0]?.daily_volume ?? 0;
+
+  if (dailyVolume > VOLUME_THRESHOLD) {
+    throw new Error('Daily volume is inflated');
+  }
 
   return {
     dailyVolume,
