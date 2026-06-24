@@ -34,9 +34,9 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.addGasToken(log.purchaseValue) // GMV routed to external marketplaces
-    dailyFees.addGasToken(log.feeAmount) // Crovia's 1.5% aggregation fee
-    dailyRevenue.addGasToken(log.feeAmount)
-    dailyProtocolRevenue.addGasToken(log.feeAmount)
+    dailyFees.addGasToken(log.feeAmount, "Aggregator Fees") // Crovia's 1.5% aggregation fee
+    dailyRevenue.addGasToken(log.feeAmount, "Aggregator Fees")
+    dailyProtocolRevenue.addGasToken(log.feeAmount, "Aggregator Fees")
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue }
@@ -46,15 +46,29 @@ const methodology = {
   Volume: 'CRO value of NFT purchases routed through the Crovia aggregator to external Cronos marketplaces (Ebisusbay, Minted).',
   Fees: "Crovia's 1.5% aggregation fee charged on each routed purchase.",
   Revenue: "Crovia's 1.5% aggregation fee (all retained by the protocol).",
-  ProtocolRevenue: "Crovia's 1.5% aggregation fee.",
+  ProtocolRevenue: "Crovia's 1.5% aggregation fee. (all retained by the protocol).",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Aggregator Fees": "Crovia's 1.5% aggregation fee charged on each routed purchase.",
+  },
+  Revenue: {
+    "Aggregator Fees": "Crovia's 1.5% aggregation fee charged on each routed purchase.",
+  },
+  ProtocolRevenue: {
+    "Aggregator Fees": "Crovia's 1.5% aggregation fee retained by the protocol.",
+  },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.CRONOS],
-  start: '2026-04-22', // first CroviaRouter deploy
+  start: '2026-04-22',
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter
