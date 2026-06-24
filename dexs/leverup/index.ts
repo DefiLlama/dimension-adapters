@@ -134,7 +134,7 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(log.slippageAmount) + BigInt(log.liquidationAmount);
     if (amount > 0n) {
       addFee(dailyFees, log.lvToken, amount, METRIC.LP_FEES);
-      addFee(dailyProtocolRevenue, log.lvToken, amount, METRIC.LP_FEES);
+      addFee(dailySupplySideRevenue, log.lvToken, amount, METRIC.LP_FEES);
     }
   });
 
