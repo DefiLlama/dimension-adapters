@@ -3,12 +3,32 @@ import { CHAIN } from "../helpers/chains";
 
 const LEVERUP_DIAMOND = '0xea1b8E4aB7f14F7dCA68c5B214303B13078FC5ec';
 
+// LeverUp V2 reports open interest through an on-chain view. Days before the V2 upgrade
+// fall back to the original method so existing history stays unchanged.
+const OI_VIEW_FROM_TIME = 1782291416;
+
+const oiAbi =
+  'function tradingOpenInterestUsd() view returns (uint256 totalUsd, uint256 longUsd, uint256 shortUsd)';
 const pairsV4Abi =
   'function pairsV4() view returns ((string name, address base, uint16 basePosition, uint8 pairType, uint8 status, uint256 maxLongOiUsd, uint256 maxShortOiUsd, uint256 fundingFeePerSecondP, uint256 minFundingFeeR, uint256 maxFundingFeeR, (uint256 notionalUsd, uint16 maxLeverage, uint16 initialLostP, uint16 liqLostP)[] leverageMargins, uint16 slippageConfigIndex, uint16 slippagePosition, (string name, uint256 onePercentDepthAboveUsd, uint256 onePercentDepthBelowUsd, uint16 openSlippageP, uint16 closeSlippageP, uint16 longPutSlippageP, uint16 shortPutSlippageP) slippageConfig, uint16 feeConfigIndex, uint16 feePosition, (uint16 openFeeP, uint16 closeFeeP, uint24 shareP, uint24 minCloseFeeP, uint24 lvTokenDiscountP) feeConfig, uint40 longHoldingFeeRate, uint40 shortHoldingFeeRate)[])';
 const getMarketInfosAbi =
   'function getMarketInfos(address[] pairBases) view returns ((address pairBase, uint256 longQty, uint256 shortQty, uint128 lpLongAvgPrice, uint128 lpShortAvgPrice, int256 fundingFeeRate)[])';
 
 async function fetch(options: FetchOptions) {
+  // LeverUp V2: read open interest from the on-chain view.
+  if (options.startOfDay >= OI_VIEW_FROM_TIME) {
+    const oi = await options.api.call({
+      target: LEVERUP_DIAMOND,
+      abi: oiAbi,
+    });
+    return {
+      openInterestAtEnd: Number(oi.totalUsd) / 1e18,
+      longOpenInterestAtEnd: Number(oi.longUsd) / 1e18,
+      shortOpenInterestAtEnd: Number(oi.shortUsd) / 1e18,
+    };
+  }
+
+  // Pre-V2 days: original method, so existing history is reproduced unchanged.
   const pairs = await options.api.call({
     target: LEVERUP_DIAMOND,
     abi: pairsV4Abi,

@@ -20,7 +20,9 @@ const closeTradeSuccessfulV2Abi =
   'event CloseTradeSuccessfulV2(address indexed user,bytes32 indexed tradeHash, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
 const executeCloseSuccessfulV2Abi =
   'event ExecuteCloseSuccessfulV2(address indexed user,bytes32 indexed tradeHash, uint8 executionType, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
-const interestDistributedAbi = 
+const lpRevenueAbi =
+  'event LpRevenue(address indexed user,bytes32 indexed tradeHash,address lvToken,uint256 slippageAmount,uint256 liquidationAmount)';
+const interestDistributedAbi =
   'event InterestDistributed(uint256 interest,uint256 interestFee,uint256 interestReceiverAmount)';
 const redeemFeeCollectedAbi = 
   'event RedeemFeeCollected(address indexed payer,address indexed recipient,address indexed reserveToken,uint256 grossAmount,uint256 feeAmount,bool isFastRedeem)';
@@ -35,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances()
 
-  const [openLogs, closeLogs, executeLogs, interestLogs, redeemLogs, withdrawalLogs] = await Promise.all([
+  const [openLogs, closeLogs, executeLogs, lpRevenueLogs, interestLogs, redeemLogs, withdrawalLogs] = await Promise.all([
     options.getLogs({
       target: LEVERUP_DIAMOND,
       eventAbi: openMarketTradeAbi,
@@ -47,6 +49,10 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       target: LEVERUP_DIAMOND,
       eventAbi: executeCloseSuccessfulV2Abi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: lpRevenueAbi,
     }),
     options.getLogs({
       target: LVMON_ISSUER,
@@ -123,7 +129,16 @@ const fetch = async (options: FetchOptions) => {
   closeLogs.forEach(processCloseLog);
   executeLogs.forEach(processCloseLog);
 
-  // 3. Process LVMON ecosystem fee events from new event addresses
+  // 3. LP Revenue
+  lpRevenueLogs.forEach((log: any) => {
+    const amount = BigInt(log.slippageAmount) + BigInt(log.liquidationAmount);
+    if (amount > 0n) {
+      addFee(dailyFees, log.lvToken, amount, METRIC.LP_FEES);
+      addFee(dailyProtocolRevenue, log.lvToken, amount, METRIC.LP_FEES);
+    }
+  });
+
+  // 4. Process LVMON ecosystem fee events from new event addresses
   interestLogs.forEach((log: any) => {
     const interest = BigInt(log.interest);
     const interestFee = BigInt(log.interestFee);
