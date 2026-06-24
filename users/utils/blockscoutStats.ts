@@ -63,6 +63,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   shimmerevm: { chain: CHAIN.SHIMMER_EVM, baseUrl: "https://explorer.evm.shimmer.network", version: 2 },
   songbird: { chain: CHAIN.SONGBIRD, baseUrl: "https://songbird-explorer.flare.network", version: 1 },
   soneium: { chain: CHAIN.SONEIUM, baseUrl: "https://soneium.blockscout.com", version: 2 },
+  somnia: { chain: CHAIN.SOMNIA, baseUrl: "https://explorer.somnia.network", statsUrl: "https://stats.mainnet.somnia.w3us.site", version: 1, start: "2025-07-01" },
   superposition: { chain: CHAIN.SUPERPOSITION, baseUrl: "https://explorer-superposition-1v9rjalnat.t.conduit.xyz", version: 1 },
   superseed: { chain: CHAIN.SSEED, baseUrl: "https://explorer.superseed.xyz", version: 1 },
   story: { chain: CHAIN.STORY, baseUrl: "https://www.storyscan.io", version: 2 },
