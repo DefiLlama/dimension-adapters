@@ -16,6 +16,7 @@ const CREATE_VAULT_EVENT =
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const WAD = 1e18;
+const DEFAULT_PERFORMANCE_FEE = 150000000000000000;
 
 type AlchemixV3Market = {
   myt: string;
@@ -96,7 +97,7 @@ function topicAddress(address: string) {
   return ethers.zeroPadValue(address.toLowerCase(), 32);
 }
 
-async function addMytShareFeesAsUnderlying(options: FetchOptions, balances: any, market: AlchemixV3Market, feeReceiver: string, label: string) {
+async function addMytShareFeesAsUnderlying(options: FetchOptions, balances: any[], market: AlchemixV3Market, feeReceiver: string, label: string) {
   const logs = await options.getLogs({
     target: market.myt,
     eventAbi: TRANSFER_EVENT,
@@ -111,16 +112,18 @@ async function addMytShareFeesAsUnderlying(options: FetchOptions, balances: any,
     abi: "function convertToAssets(uint256 shares) view returns (uint256 assets)",
     params: [shares.toString()],
   });
-  balances.add(asset, assets, label);
+  for (const balance of balances) balance.add(asset, assets, label);
 }
 
-async function addSyntheticFees(options: FetchOptions, balances: any, market: AlchemixV3Market, feeReceiver: string) {
+async function addSyntheticFees(options: FetchOptions, balances: any[], market: AlchemixV3Market, feeReceiver: string) {
   const logs = await options.getLogs({
     target: market.syntheticToken,
     eventAbi: TRANSFER_EVENT,
     topics: [TRANSFER_TOPIC, topicAddress(market.transmuter), topicAddress(feeReceiver)] as any,
   });
-  for (const log of logs) balances.add(market.syntheticToken, log.value, "Transmuter Early-Exit Fees");
+  for (const log of logs) {
+    for (const balance of balances) balance.add(market.syntheticToken, log.value, "Transmuter Early-Exit Fees");
+  }
 }
 
 async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any) {
@@ -142,6 +145,12 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
     permitFailure: true,
   });
 
+  const performanceFees = await options.toApi.multiCall({
+    abi: "uint96:performanceFee",
+    calls: vaults,
+    permitFailure: true,
+  });
+
   for (let i = 0; i < vaults.length; i++) {
     const token = assets[i];
     const totalSupply = totalSupplies[i];
@@ -151,11 +160,7 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
     if (!token || !totalSupply || !decimal || !before || !after) continue;
 
     const netYield = (Number(after) - Number(before)) * Number(totalSupply) / (10 ** Number(decimal));
-    let performanceFee = 0;
-    try {
-      const performanceFeeRaw = await options.toApi.call({ target: vaults[i], abi: "uint96:performanceFee" });
-      performanceFee = Number(performanceFeeRaw) / WAD;
-    } catch { }
+    const performanceFee = (performanceFees[i] != null ? Number(performanceFees[i]) : DEFAULT_PERFORMANCE_FEE) / WAD;
     if (netYield > 0 && performanceFee > 0 && performanceFee < 1) {
       const grossYield = netYield / (1 - performanceFee);
       const protocolYield = grossYield - netYield;
@@ -187,11 +192,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (vaults.length) {
     await addVaultYield(options, vaults, dailyFees, dailyRevenue, dailySupplySideRevenue);
   }
+  const protocolFeeBalances = [dailyFees, dailyRevenue];
   for (const market of markets) {
-    await addMytShareFeesAsUnderlying(options, dailyFees, market, feeReceiver, "Alchemist/Transmuter Protocol Fees");
-    await addMytShareFeesAsUnderlying(options, dailyRevenue, market, feeReceiver, "Alchemist/Transmuter Protocol Fees");
-    await addSyntheticFees(options, dailyFees, market, feeReceiver);
-    await addSyntheticFees(options, dailyRevenue, market, feeReceiver);
+    await addMytShareFeesAsUnderlying(options, protocolFeeBalances, market, feeReceiver, "Alchemist/Transmuter Protocol Fees");
+    await addSyntheticFees(options, protocolFeeBalances, market, feeReceiver);
   }
 
   return {
@@ -227,7 +231,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
