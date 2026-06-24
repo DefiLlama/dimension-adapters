@@ -42,13 +42,13 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.addGasToken(log.price)
-    dailyProtocolRevenue.addGasToken(log.fee, 'Marketplace Fees To Protocol') // Crovia's cut
-    dailySupplySideRevenue.addGasToken(log.royalty, 'Creator Royalties To Creators') // creator earnings (supply side)
-    // Fees = marketplace fee + creator royalty (gross value collected on a sale).
-    // Revenue = the protocol's cut only; the creator royalty is supply-side, not revenue.
-    dailyFees.addGasToken(log.fee, 'Marketplace Fees')
-    dailyFees.addGasToken(log.royalty, 'Creator Royalties')
-    dailyRevenue.addGasToken(log.fee, 'Marketplace Fees To Protocol')
+
+    dailyFees.addGasToken(log.fee, "Marketplace Fees")
+    dailyRevenue.addGasToken(log.fee, "Marketplace Fees to Protocol")
+    dailyProtocolRevenue.addGasToken(log.fee, "Marketplace Fees to Protocol")
+
+    dailyFees.addGasToken(log.royalty, "Creator Royalties")
+    dailySupplySideRevenue.addGasToken(log.royalty, "Royalties to Creators")
   }
 
   return {
@@ -58,45 +58,39 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0, // no on-chain token / revenue share
   }
 }
 
 const methodology = {
-  Fees: 'Total value collected on each Crovia marketplace sale: the Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO) plus the creator royalty, both in CRO.',
-  UserFees: 'Fees paid by traders per sale: marketplace fee + creator royalty.',
-  Revenue: 'The Crovia marketplace fee retained by the protocol (3% / 2.5%). Creator royalties are reported separately as supply-side revenue, not protocol revenue.',
-  ProtocolRevenue: 'The Crovia marketplace fee retained by the protocol (3% / 2.5%).',
-  SupplySideRevenue: 'Creator royalties paid to collection creators on each sale.',
-  HoldersRevenue: 'Crovia has no on-chain token; no revenue is distributed to holders.',
+  Volume: 'NFT purchases on the Crovia marketplace.',
+  Fees: 'The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO) plus the creator royalty.',
+  Revenue: 'The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO).',
+  ProtocolRevenue: 'The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO) retained by the protocol.',
+  SupplySideRevenue: 'The creator royalties paid to collection creators on each sale.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Marketplace Fees': 'Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO).',
-    'Creator Royalties': 'Creator royalty paid out of seller proceeds on each sale.',
-  },
-  UserFees: {
-    'Marketplace Fees': 'Crovia marketplace fee paid by the trader.',
-    'Creator Royalties': 'Creator royalty paid by the trader.',
+    "Marketplace Fees": "The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO).",
+    "Creator Royalties": "The creator royalties paid to collection creators on each sale.",
   },
   Revenue: {
-    'Marketplace Fees To Protocol': 'Crovia marketplace fee retained by the protocol.',
+    "Marketplace Fees to Protocol": "The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO).",
   },
   ProtocolRevenue: {
-    'Marketplace Fees To Protocol': 'Crovia marketplace fee retained by the protocol.',
+    "Marketplace Fees to Protocol": "The Crovia marketplace fee (3%, or 2.5% for high-tier listings >= 4000 CRO).",
   },
   SupplySideRevenue: {
-    'Creator Royalties To Creators': 'Creator royalties paid to collection creators.',
+    "Royalties to Creators": "The creator royalties paid to collection creators on each sale.",
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.CRONOS],
-  start: '2026-04-28', // first CroviaTrade (V1) deploy
   pullHourly: true,
+  chains: [CHAIN.CRONOS],
+  start: '2026-04-28',
   methodology,
   breakdownMethodology,
 }
