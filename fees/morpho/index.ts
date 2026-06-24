@@ -138,6 +138,8 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0x99D31FEcc885204b4136ea5D2ef2a37F36E3AeB8",
     start: "2026-01-23",
   },
+  // Sei deferred: not in Morpho API, and getLogs is disabled for sei (runAdapter problematicChains).
+  // blue 0xc9cDAc20FCeAAF616f7EB0bb6Cd2c69dcfa9094c, block 166036723.
   [CHAIN.ETHERLINK]: {
     fromBlock: 21047448,
     blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
@@ -153,11 +155,8 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
     start: "2025-11-10",
   },
-  // [CHAIN.TAC]: {
-  //   fromBlock: 853025,
-  //   blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",
-  //   start: "2025-06-25",
-  // },
+  // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
+  // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
 
 const info = {
