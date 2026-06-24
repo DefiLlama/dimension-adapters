@@ -75,7 +75,13 @@ async function fetch(options: FetchOptions) {
             LIMIT 1
         `;
         const rows = await queryAllium(sql);
-        totalSupplyAfterDecimals = Number(rows?.[0]?.supply ?? 0);
+        const supply = Number(rows?.[0]?.supply);
+        // Fail loudly on a missing/malformed snapshot rather than silently reporting
+        // zero fees. A genuine zero supply is a valid numeric snapshot and passes.
+        if (rows?.[0]?.supply == null || !Number.isFinite(supply)) {
+            throw new Error(`No STAC-CLO supply snapshot from Allium for mint ${chainConfig[options.chain].token} at or before ${options.toTimestamp}`);
+        }
+        totalSupplyAfterDecimals = supply;
     } else {
         const totalSupply = await options.api.call({
             target: chainConfig[options.chain].token,
