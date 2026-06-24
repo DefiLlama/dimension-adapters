@@ -5,7 +5,7 @@ import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
 import { SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 
-const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
+// const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
@@ -304,18 +304,18 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
     [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
   },
-  "velodrome-v2": {
-    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
-    [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-  },
+  // "velodrome-v2": {
+  //   [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  // },
   "dyorswap": {
     [CHAIN.MODE]: { factory: '0xE470699f6D0384E3eA68F1144E41d22C6c8fdEEf', start: '2023-11-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
     [CHAIN.BLAST]: { factory: '0xA1da7a7eB5A858da410dE8FBC5092c2079B58413', start: '2024-03-01', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
