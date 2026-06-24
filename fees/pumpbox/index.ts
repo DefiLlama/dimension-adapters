@@ -1,35 +1,43 @@
 import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
-// ── PumpBox Contracts on Base Mainnet ──
 const CHECKOUT_CONTRACT = "0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68";
-const USDC_BASE = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const USDC_BASE = ADDRESSES.base.USDC;
 
-// ── Event ABI (human-readable, per DefiLlama guidelines) ──
 const OPEN_BOX_REQUESTED =
   "event OpenBoxRequested(address indexed user, bytes32 indexed boxId, uint256 indexed requestId, uint32 quantity, uint256 paidAmount, uint256 clientEntropy)";
+
+const BUYBACK_EXECUTED = "event BuybackExecuted(address indexed seller, uint256 indexed tokenId, uint256 buybackPrice)";
 
 const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyVolume = createBalances();
 
-  // Get OpenBoxRequested logs within the current time window
-  // (getLogs automatically scopes to the correct fromBlock/toBlock range)
-  const logs = await getLogs({
+  const boxOpenedLogs = await getLogs({
     target: CHECKOUT_CONTRACT,
     eventAbi: OPEN_BOX_REQUESTED,
   });
 
-  // Sum all paidAmount across box-opening requests in this period.
-  // paidAmount is in USDC base units (6 decimals).
-  for (const log of logs) {
-    const paidAmount = log.paidAmount as bigint;
-    dailyFees.add(USDC_BASE, paidAmount, METRIC.SERVICE_FEES);
-    dailyRevenue.add(USDC_BASE, paidAmount, METRIC.SERVICE_FEES);
+  const buybackLogs = await getLogs({
+    target: CHECKOUT_CONTRACT,
+    eventAbi: BUYBACK_EXECUTED,
+  });
+
+  for (const log of boxOpenedLogs) {
+    dailyVolume.add(USDC_BASE, log.paidAmount);
+    dailyFees.add(USDC_BASE, log.paidAmount, "Box Opening Fees");
+    dailyRevenue.add(USDC_BASE, log.paidAmount, "Box Opening Fees");
+  }
+
+  for (const log of buybackLogs) {
+    dailyFees.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
+    dailyRevenue.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
   }
 
   return {
+    dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
@@ -37,23 +45,24 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "All USDC payments made by users when opening blind boxes. Each box has a fixed USDC price; users pay price × quantity.",
-  Revenue: "All box-opening payments are retained by the protocol as revenue (no supply-side split).",
-  ProtocolRevenue: "Same as Revenue — 100% of box-opening fees go to the protocol treasury.",
+  Volume: "All USDC payments made by users when opening blind boxes. Each box has a fixed USDC price; users pay price × quantity.",
+  Fees: "USDC paid by users to request blind box openings net of buyback spends.",
+  Revenue: "USDC paid by users to request blind box openings net of buyback spends.",
+  ProtocolRevenue: "USDC paid by users to request blind box openings net of buyback spends.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SERVICE_FEES]:
-      "USDC paid by users to request blind box openings. The checkout contract escrows USDC and transfers it to the payment receiver upon fulfillment.",
+    "Box Opening Fees": "USDC paid by users to request blind box openings. The checkout contract escrows USDC and transfers it to the payment receiver upon fulfillment.",
+    "Buyback Spends": "USDC spent by the protocol on box buybacks.",
   },
   Revenue: {
-    [METRIC.SERVICE_FEES]:
-      "100% of box-opening fees retained by the protocol. PumpBox does not split fees with LPs or creators.",
+    "Box Opening Fees": "USDC paid by users to request blind box openings.",
+    "Buyback Spends": "USDC spent by the protocol on box buybacks.",
   },
   ProtocolRevenue: {
-    [METRIC.SERVICE_FEES]:
-      "100% of Revenue is protocol revenue, transferred to the treasury address after box fulfillment.",
+    "Box Opening Fees": "USDC paid by users to request blind box openings.",
+    "Buyback Spends": "USDC spent by the protocol on box buybacks.",
   },
 };
 
@@ -62,9 +71,10 @@ const adapter: Adapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
-  start: "2024-10-15", // Contract deployment on Base mainnet (~block 46750378)
+  start: "2026-06-01",
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // Buyback spends can exceed box opening fees in a window
 };
 
 export default adapter;
