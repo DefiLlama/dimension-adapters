@@ -34,9 +34,9 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.addGasToken(log.purchaseValue) // GMV routed to external marketplaces
-    dailyFees.addGasToken(log.feeAmount, "Aggregator Fees") // Crovia's 1.5% aggregation fee
-    dailyRevenue.addGasToken(log.feeAmount, "Aggregator Fees")
-    dailyProtocolRevenue.addGasToken(log.feeAmount, "Aggregator Fees")
+    dailyFees.addGasToken(log.feeAmount, 'Aggregation Fees') // Crovia's 1.5% aggregation fee
+    dailyRevenue.addGasToken(log.feeAmount, 'Aggregation Fees To Protocol')
+    dailyProtocolRevenue.addGasToken(log.feeAmount, 'Aggregation Fees To Protocol')
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue }
@@ -46,27 +46,21 @@ const methodology = {
   Volume: 'CRO value of NFT purchases routed through the Crovia aggregator to external Cronos marketplaces (Ebisusbay, Minted).',
   Fees: "Crovia's 1.5% aggregation fee charged on each routed purchase.",
   Revenue: "Crovia's 1.5% aggregation fee (all retained by the protocol).",
-  ProtocolRevenue: "Crovia's 1.5% aggregation fee. (all retained by the protocol).",
+  ProtocolRevenue: "Crovia's 1.5% aggregation fee.",
 }
 
 const breakdownMethodology = {
-  Fees: {
-    "Aggregator Fees": "Crovia's 1.5% aggregation fee charged on each routed purchase.",
-  },
-  Revenue: {
-    "Aggregator Fees": "Crovia's 1.5% aggregation fee charged on each routed purchase.",
-  },
-  ProtocolRevenue: {
-    "Aggregator Fees": "Crovia's 1.5% aggregation fee retained by the protocol.",
-  },
+  Fees: { 'Aggregation Fees': "Crovia's 1.5% aggregation fee on each routed purchase." },
+  Revenue: { 'Aggregation Fees To Protocol': "Crovia's 1.5% aggregation fee, retained by the protocol." },
+  ProtocolRevenue: { 'Aggregation Fees To Protocol': "Crovia's 1.5% aggregation fee." },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  pullHourly: true,
   chains: [CHAIN.CRONOS],
-  start: '2026-04-22',
+  start: '2026-04-22', // first CroviaRouter deploy
+  pullHourly: true,
   methodology,
   breakdownMethodology,
 }
