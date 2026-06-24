@@ -118,35 +118,32 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol, creator, and LP fees charged on every DEX trade, plus any direct pool creation fees.",
-  Revenue:
-    "Protocol trade-fee slice plus creation fees (equals Fees minus creator and LP fees).",
-  ProtocolRevenue:
-    "Zero - send.fun keeps no treasury cut; 100% of protocol revenue is distributed to SEND stakers (see HoldersRevenue).",
-  HoldersRevenue:
-    "Protocol trade-fee slice and creation fees, routed 100% to SEND stakers.",
+  Fees: "Free on send.fun and partners, 0.05% on non-partner swaps.",
+  Revenue: "Protocol fees minus creator fees.",
+  ProtocolRevenue: "None. All of send.fun's revenue goes to SEND stakers.",
+  HoldersRevenue: "All of send.fun's revenue is paid out to people who stake SEND.",
   SupplySideRevenue:
-    "Trade fees paid to coin creators plus LP fees retained in DEX pool reserves for liquidity providers.",
+    "Creator fees paid to token creators, plus LP fees kept in the pool for liquidity providers.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of every DEX trade fee.",
-    [METRIC.CREATOR_FEES]: "Creator slice of every DEX trade fee.",
-    [METRIC.LP_FEES]: "DEX trade fee retained in pool reserves for liquidity providers.",
-    "Pool Creation Fee": "Pool creation fee charged on direct DEX pool creation.",
+    [METRIC.PROTOCOL_FEES]: "0.05% fee on non-partner swaps (free on send.fun and partners).",
+    [METRIC.CREATOR_FEES]: "0.1% creator fee on all swaps.",
+    [METRIC.LP_FEES]: "No LP fee on the DEX.",
+    "Pool Creation Fee": "No pool-creation fees on the DEX.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees (routed to SEND stakers).",
-    "Pool Creation Fee": "Pool creation fees (routed to SEND stakers).",
+    [METRIC.PROTOCOL_FEES]: "Protocol fees (paid to SEND stakers).",
+    "Pool Creation Fee": "Pool-creation fees (paid to SEND stakers).",
   },
   HoldersRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees distributed to SEND stakers.",
-    "Pool Creation Fee": "Pool creation fees distributed to SEND stakers.",
+    [METRIC.PROTOCOL_FEES]: "Protocol fees paid to SEND stakers.",
+    "Pool Creation Fee": "Pool-creation fees paid to SEND stakers.",
   },
   SupplySideRevenue: {
-    [METRIC.CREATOR_FEES]: "DEX trade fees paid out to coin creators.",
-    [METRIC.LP_FEES]: "DEX trade fees retained in pool reserves for LPs.",
+    [METRIC.CREATOR_FEES]: "Creator fees paid out to token creators.",
+    [METRIC.LP_FEES]: "Swap fees kept in the pool for liquidity providers.",
   },
 };
 
