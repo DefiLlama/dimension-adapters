@@ -28,9 +28,13 @@ const chainConfig: any = {
     },
     [CHAIN.TRON]: {
         start: '2026-04-10',
+        // HLSCOPE (symbol HLSCOPE, 6 decimals) TRC-20 token on Tron.
+        // Source: https://tronscan.org/#/token20/TSwyYj6zLPLKV6tbFCyTzuEqN7YaTPht1X
         token: 'TSwyYj6zLPLKV6tbFCyTzuEqN7YaTPht1X',
-        // Tron has no dedicated RedStone feed. NAV is chain-independent, so we
-        // read the Ethereum HLSCOPE feed for it (same approach as acred/vbill).
+        // Tron has no dedicated RedStone feed (RedStone lists HLSCOPE only on
+        // ethereum/polygon/optimism/plume: https://app.redstone.finance/app/feeds/).
+        // NAV is chain-independent, so reuse the Ethereum HLSCOPE feed (same address
+        // as the CHAIN.ETHEREUM entry above; same approach as acred/vbill).
         priceFeed: '0x1f14a50bA904A28CF6088e71B6a15561074398d7',
         priceFeedChain: CHAIN.ETHEREUM,
     }
