@@ -152,6 +152,14 @@ async function processCDO(
   let yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
   if (yieldAmount < 0n) yieldAmount = 0n;
 
+  // Cap yield at 50% annualized (~0.137% per day) to prevent spikes from
+  // non-linear yield recognition (sUSDe exchange rate jumps, Midas/Figure
+  // oracle gaps that bunch multiple days of yield into a single period).
+  // 50% APY is well above any legitimate strategy yield (~3-15% APY).
+  const MAX_ANNUAL_YIELD_BPS = 5000n; // 50% annualized
+  const maxYield = (navStart * MAX_ANNUAL_YIELD_BPS) / (10000n * 365n);
+  if (yieldAmount > maxYield) yieldAmount = maxYield;
+
   const ONE = 10n ** 18n;
   const protocolFromYield = (yieldAmount * reserveBps) / ONE;
   const supplyFromYield = yieldAmount - protocolFromYield;
