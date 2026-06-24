@@ -364,6 +364,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "turbo": {
     [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "intrinsic": {
+    [CHAIN.ROOTSTOCK]: { factory: '0x82dF0a279767021734EcE752979B34b3959C25D8', start: '2025-12-05', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   }
 }
 

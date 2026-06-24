@@ -1339,6 +1339,20 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
       },
     },
   },
+  'velkonix': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x202FC1FEf70C8a7001f1579518e9288A547C12Ee',
+            dataProvider: '0x6da56B769B42952CACA18D37Feda3015FDB2fE67',
+          },
+        ],
+      },
+    },
+  },
 }
 
 const aaveProtocols = Object.fromEntries(
