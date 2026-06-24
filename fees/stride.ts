@@ -50,7 +50,6 @@ const fetch = async (options: FetchOptions) => {
   if (!stat) throw new Error(`stride: no stake-stats entry for ${statsName}`);
   const netApr = Number(stat.strideYield);
 
-  // Gross daily staking rewards = delegated stake * gross APR / 365.
   const dailyFees = options.createBalances();
   dailyFees.addCGToken(cg, (totalDelegations * netApr * (1 / (1 - STRIDE_FEE))) / 365, METRIC.STAKING_REWARDS);
 
