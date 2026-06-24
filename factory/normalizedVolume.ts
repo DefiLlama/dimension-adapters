@@ -284,7 +284,7 @@ const protocols = {
     version: 2,
     minContracts: 8
   }),
-  'edgex-v2': dailyNormalizedVolumeAdapter({
+  'edgeX-v2': dailyNormalizedVolumeAdapter({
     protocolName: 'edgex-v2',
     chains: [CHAIN.EDGEX],
     start: '2026-05-28',
@@ -303,7 +303,7 @@ const protocols = {
     chains: [CHAIN.VALUECHAIN],
     start: '2026-05-31',
     version: 1,
-    minContracts: 70,
+    minContracts: 65,
   }),
   'orderly': dailyNormalizedVolumeAdapter({
     protocolName: 'orderly',
