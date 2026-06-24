@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const LEVERUP_DIAMOND = '0xea1b8E4aB7f14F7dCA68c5B214303B13078FC5ec';
 
-// LeverUp V2 reports open interest through an on-chain view. Days before the V2 upgrade
+// LeverUp V2 reports open interest through an on-chain view. Periods before the V2 upgrade
 // fall back to the original method so existing history stays unchanged.
 const OI_VIEW_FROM_TIME = 1782291416;
 
@@ -16,7 +16,7 @@ const getMarketInfosAbi =
 
 async function fetch(options: FetchOptions) {
   // LeverUp V2: read open interest from the on-chain view.
-  if (options.startOfDay >= OI_VIEW_FROM_TIME) {
+  if (options.startTimestamp >= OI_VIEW_FROM_TIME) {
     const oi = await options.api.call({
       target: LEVERUP_DIAMOND,
       abi: oiAbi,
