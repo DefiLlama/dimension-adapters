@@ -7,7 +7,7 @@ const QuickswapV3Factories: Record<string, string> = {
   [CHAIN.MANTA]: '0x56c2162254b0E4417288786eE402c2B41d4e181e',
   [CHAIN.IMX]: '0x56c2162254b0E4417288786eE402c2B41d4e181e',
   [CHAIN.POLYGON_ZKEVM]: '0x4B9f4d2435Ef65559567e5DbFC1BbB37abC43B57',
-  [CHAIN.SONEIUM]: '0x8Ff309F68F6Caf77a78E9C20d2Af7Ed4bE2D7093',
+  [CHAIN.XLAYER]: '0xd2480162Aa7F02Ead7BF4C127465446150D58452',
 }
 
 // Function to get correct fee ratios based on timestamp and chain
@@ -74,7 +74,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON_ZKEVM]: { start: '2023-03-27' },
     [CHAIN.MANTA]: { start: '2023-10-19' },
     [CHAIN.IMX]: { start: '2023-12-19' },
-    [CHAIN.SONEIUM]: { start: '2025-01-10' },
+    [CHAIN.XLAYER]: { start: '2024-04-09' },
   },
 }
 
