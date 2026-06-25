@@ -29,14 +29,22 @@ import { httpGet } from "../utils/fetchURL";
  *   They go to each vault's feeRecipient, not to the protocol.
  *
  * Vaults are sourced from the T3tris ecosystem API
- * (https://ecosystem.t3tris.finance/vaults); only vaults that are `verified`
- * and not `blacklisted` are indexed.
+ * (https://ecosystem.t3tris.finance/vaults); all vaults on the chain are
+ * indexed (no curation filter — fees/revenue are tracked for every vault).
+ *
+ *   Why no `verified`/`blacklisted` filter here: those flags are purely an
+ *   off-chain UI/curation concern. On-chain, every vault — verified or not,
+ *   blacklisted or not — actually moves real assets: depositors earn yield,
+ *   curators collect their perf/mgmt/entry/exit fees, and the t3treasury
+ *   still receives its T3trisProfit transfers. The economic activity (and the
+ *   fees the treasury collects) happens regardless of curation status, so all
+ *   vaults must be counted to report fees & revenue accurately.
  *
  * Landing: https://t3tris.finance/   App: https://app.t3tris.finance/
  */
 
 // T3tris ecosystem API — authoritative list of vaults with curation flags.
-// Only vaults that are `verified` and not `blacklisted` are indexed.
+// All vaults on the chain are indexed (no curation filter applied here).
 const VAULTS_API = "https://ecosystem.t3tris.finance/vaults";
 
 const ABI = {
@@ -62,7 +70,7 @@ const EVENT_ABI = {
 
 // Supported chains: DefiLlama chain -> { ecosystem-API chainId, start }. T3tris
 // is live on Arbitrum only for now (same CREATE3 addresses on every EVM chain);
-// add a chain here once it goes live and the API returns verified vaults for it.
+// add a chain here once it goes live and the API returns vaults for it.
 const chainConfig: Record<string, { chainId: number; start: string }> = {
   [CHAIN.ARBITRUM]: { chainId: 42161, start: "2025-01-01" },
 };
@@ -75,16 +83,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // 1. Discover verified, non-blacklisted vaults from the T3tris ecosystem API
+  // 1. Discover all vaults for this chain from the T3tris ecosystem API.
+  //    No curation filter — fees/revenue are tracked for every vault,
+  //    regardless of verified/blacklisted status. The `verified`/`blacklisted`
+  //    flags only affect off-chain UI curation; on-chain the assets still
+  //    transit and the t3treasury still receives its fees (T3trisProfit) in
+  //    every case, so all vaults are counted.
   let vaults: string[];
   try {
     const chainId = chainConfig[options.chain].chainId;
     const all = await httpGet(VAULTS_API);
     vaults = (all || [])
-      .filter(
-        (v: any) =>
-          v.verified && !v.blacklisted && Number(v.chainId) === chainId,
-      )
+      .filter((v: any) => Number(v.chainId) === chainId)
       .map((v: any) => v.address);
   } catch (e) {
     // API unreachable — log and report nothing for this run so other chains continue
