@@ -1,6 +1,6 @@
-import ADDRESSES from "../helpers/coreAssets.json";
-import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { queryDuneSql } from "../helpers/dune";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 import { METRIC } from "../helpers/metrics";
@@ -8,104 +8,94 @@ import { METRIC } from "../helpers/metrics";
 /**
  * Ayebot — self-custodial multichain Telegram trading bot (Solana + BSC).
  *
- * Fee flow (PLATFORM_FEE_TO_TREASURY_ENABLED = true):
- *  - Platform swap fees and leader copy-trading carry both land directly on a
- *    "hot" treasury wallet per chain (derived from the bot's key vault).
- *  - A periodic surplus sweep later forwards part of the native balance to a
- *    cold fee wallet, but that is downstream and partial, so fees are measured
- *    at the treasury where they first arrive in full.
- *
- * Assets received by the treasury:
+ * Swap platform fees and leader copy-trading carry are both collected on-chain
+ * by the protocol treasury wallet on each chain, where fees are measured:
  *  - Solana: native SOL (lamports) for both platform fees and carry.
  *  - BSC: WBNB for inline platform fees + native BNB for leader carry.
- *
- * Dimensions: all fees collected by the treasury are reported as dailyFees and,
- * since Ayebot is the recipient, as dailyRevenue / dailyProtocolRevenue.
+ * All collected fees are protocol revenue (Ayebot is the recipient).
  * All figures are derived from on-chain data; no off-chain API is used.
  */
 
-// Hot treasury wallets (where fees land first, in full).
+// Treasury wallets — verified on-chain as the recipients of fee inflows.
 const SOL_TREASURY = "FaYFaP8f6JNzTuZ1gsKn7nRUKcVzJ4TiLqErWESBnLT4";
 const BSC_TREASURY = "0xb49230598A51770Ccd5281B83e2CaF01086E61eA";
+// Canonical Wrapped BNB (WBNB) token on BSC.
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
-const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = options.createBalances();
+const chainConfig: Record<string, { start: string; treasury: string }> = {
+  [CHAIN.SOLANA]: { start: "2026-05-22", treasury: SOL_TREASURY },
+  [CHAIN.BSC]: { start: "2026-05-24", treasury: BSC_TREASURY },
+};
 
+async function fetchSolana(options: FetchOptions, treasury: string) {
+  const dailyFees = options.createBalances();
   // Inbound native SOL to the treasury (positive balance changes), excluding
-  // any outbound-originated internal movements from the same wallet.
+  // transactions where the treasury also sends out (internal movements).
   const query = `
     SELECT COALESCE(SUM(balance_change), 0) AS lamports
     FROM solana.account_activity
     WHERE TIME_RANGE
       AND tx_success
-      AND address = '${SOL_TREASURY}'
+      AND address = '${treasury}'
       AND balance_change > 0
       AND tx_id NOT IN (
         SELECT tx_id FROM solana.account_activity
         WHERE TIME_RANGE
-          AND address = '${SOL_TREASURY}'
+          AND address = '${treasury}'
           AND balance_change < 0
       )
   `;
   const [row] = await queryDuneSql(options, query);
   dailyFees.add(ADDRESSES.solana.SOL, Number(row?.lamports ?? 0), METRIC.TRADING_FEES);
+  return dailyFees;
+}
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
-};
-
-const fetchBsc = async (options: FetchOptions): Promise<FetchResultV2> => {
+async function fetchBsc(options: FetchOptions, treasury: string) {
   const dailyFees = options.createBalances();
-
   // Platform fees arrive as WBNB (inline KyberSwap).
-  await addTokensReceived({
-    options,
-    balances: dailyFees,
-    target: BSC_TREASURY,
-    tokens: [WBNB],
-  });
-
+  await addTokensReceived({ options, balances: dailyFees, target: treasury, tokens: [WBNB] });
   // Leader carry arrives as native BNB.
-  await getETHReceived({
-    options,
-    balances: dailyFees,
-    target: BSC_TREASURY,
-  });
+  await getETHReceived({ options, balances: dailyFees, target: treasury });
+  return dailyFees;
+}
+
+async function fetch(options: FetchOptions) {
+  const { treasury } = chainConfig[options.chain];
+  const dailyFees =
+    options.chain === CHAIN.SOLANA
+      ? await fetchSolana(options, treasury)
+      : await fetchBsc(options, treasury);
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
   };
-};
+}
 
-const methodology = {
-  Fees: "All trading fees collected by Ayebot: per-swap platform fees and leader copy-trading carry, received on-chain by the treasury wallet on each chain (native SOL on Solana; WBNB plus native BNB on BSC).",
-  Revenue: "All collected fees, received by the Ayebot treasury.",
-  ProtocolRevenue: "All collected fees, received by the Ayebot treasury.",
-};
-
-const adapter: Adapter = {
-  version: 2,
-  methodology,
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: Object.fromEntries(
+    Object.entries(chainConfig).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
+  ),
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: "2026-05-22",
+  methodology: {
+    Fees: "All trading fees collected by Ayebot: per-swap platform fees and leader copy-trading carry, received on-chain by the treasury wallet on each chain (native SOL on Solana; WBNB plus native BNB on BSC).",
+    Revenue: "All collected fees, received by the Ayebot treasury.",
+    ProtocolRevenue: "All collected fees, received by the Ayebot treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "All trading fees (platform fees + leader carry) received by the Ayebot treasury.",
     },
-    [CHAIN.BSC]: {
-      fetch: fetchBsc,
-      start: "2026-05-24",
+    Revenue: {
+      [METRIC.TRADING_FEES]: "All collected fees, retained by Ayebot.",
+    },
+    ProtocolRevenue: {
+      [METRIC.TRADING_FEES]: "All collected fees, retained by Ayebot.",
     },
   },
-  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;
