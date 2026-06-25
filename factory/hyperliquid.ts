@@ -507,6 +507,202 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "defiapp-perps": {
+    addresses: ["0x1922810825c90f4270048b96da7b1803cd8609ef"],
+    start: "2025-03-24",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "tria-perps": {
+    addresses: ["0x9f83fe01f4a62d44e8ca471e2eeb42b5c05531d9"],
+    start: "2026-01-27",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "invo-perps": {
+    addresses: ["0x557edb253b1d7ed5f15b248a5a3fd919fa5d3c81"],
+    start: "2025-12-11",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "vibeliquid-perps": {
+    addresses: ["0x4c13d871aa1862a3c60407bb9e01b20bf1e2fede"],
+    start: "2026-03-18",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "hyperx-perps": {
+    addresses: ["0xc74812f67eddaf2f3aed6e061eaa9168b36d7ea1"],
+    start: "2025-04-17",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "atomic-perps": {
+    addresses: ["0x53a1954188fc9bf2edb45b94450100507b92fcd1"],
+    start: "2025-11-21",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "fomo-social-trading-perps": {
+    addresses: ["0x2a2b6b093a9813fbd8cddae800c3d17d46460d17"],
+    start: "2026-06-05",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "xbit-perps": {
+    addresses: ["0x0c322f69ab8d0544be3cfd54424762a4251806c5"],
+    start: "2025-08-17",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "onyx-perps": {
+    addresses: ["0xb290f2f3fad4e540d0550985951cdad2711ac34a"],
+    start: "2025-08-29",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "blockchain-wallet-perps": {
+    addresses: ["0xdbc27ea7aa99274026404b2fa21114815d9997a6"],
+    start: "2026-05-12",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "cro-trade-perps": {
+    addresses: ["0x008adf65b8c404e8bba73f18671306066643761f"],
+    start: "2026-03-10",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "topdog-perps": {
+    addresses: ["0xaef63e8441987a5e9bf1d37ebb61d8855f405a98"],
+    start: "2025-04-14",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "origami-tech-perps": {
+    addresses: ["0x9b451f8941240db8bedc99bff8917a2ed9550074"],
+    start: "2025-11-07",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "cwallet-perps": {
+    addresses: ["0xb977b6625dfe3d26eefa4ac6f99ada6546586962"],
+    start: "2025-08-12",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "cipher-perps": {
+    addresses: ["0x32f6940795d6d484a6d29b6b628ebaff80a0c779"],
+    start: "2025-04-15",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "vergex-perps": {
+    addresses: ["0x891dc6f05ad47a3c1a05da55e7a7517971faaf0d"],
+    start: "2025-11-14",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "jester-perps": {
+    addresses: ["0x786a53cbf73dd90fd6f2b4cf9514b60c8411dca7"],
+    start: "2025-06-17",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "evplusai-perps": {
+    addresses: ["0xc1a2f762f67af72fd05e79afa23f8358a4d7dbaf"],
+    start: "2025-02-23",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  "mmt-perps": {
+    addresses: ["0xdc29d8532fb6f263e236b304c4b3349cc301048b"],
+    start: "2026-03-06",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
+  
+
+
+
+
+
 };
 
 
