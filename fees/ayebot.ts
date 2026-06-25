@@ -14,10 +14,10 @@ import { METRIC } from "../helpers/metrics";
  *  - BSC: WBNB (inline platform fees) + native BNB (four.meme platform fee and
  *    leader carry).
  *
- * Only dailyFees is reported (gross fees paid by users). Revenue is omitted: a
- * portion of the collected fees (leader carry) is redistributed to leaders and
- * is not separable on-chain, so a net protocol-revenue figure cannot be
- * derived reliably. All figures are derived from on-chain data.
+ * Fees are reported gross (everything users pay into the treasury). Revenue is
+ * reported equal to fees: a portion (leader carry) is later redistributed to
+ * leaders, but that share is not separable on-chain from the inbound flow, so
+ * no smaller net figure can be derived reliably. All figures are on-chain.
  */
 
 // Treasury wallet — recipient of fee inflows on each chain (verified on-chain).
@@ -77,7 +77,7 @@ async function fetch(options: FetchOptions) {
     options.chain === CHAIN.SOLANA
       ? await fetchSolana(options)
       : await fetchBsc(options);
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
@@ -89,10 +89,18 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "All trading fees paid by users and collected by the Ayebot treasury: per-swap platform fees and leader copy-trading carry (native SOL on Solana; WBNB plus native BNB on BSC).",
+    Revenue: "Reported equal to fees. Part of the collected fees (leader carry) is redistributed to leaders, but that share is not separable on-chain from the inbound flow, so fees are reported gross.",
+    ProtocolRevenue: "Reported equal to fees, for the same reason as Revenue.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "Platform fees and leader carry received by the Ayebot treasury.",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: "Gross fees received by the Ayebot treasury.",
+    },
+    ProtocolRevenue: {
+      [METRIC.TRADING_FEES]: "Gross fees received by the Ayebot treasury.",
     },
   },
 };
