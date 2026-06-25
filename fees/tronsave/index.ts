@@ -43,8 +43,6 @@ async function fetchTransactionPage(params: {
         url.searchParams.append(key, value)
     );
 
-    // A free Tronscan API key (header TRON-PRO-API-KEY) lifts the per-IP rate limit
-    // that otherwise returns HTTP 429. Get one at https://tronscan.org/#/myaccount/apiKeys
     const apiKey = getEnv("TRONSCAN_API_KEY");
     if (!apiKey) throw new Error("TRONSCAN_API_KEY is not set");
     const headers = { "TRON-PRO-API-KEY": apiKey };
@@ -98,4 +96,5 @@ export default {
             start: CONFIG.START_TIMESTAMP,
         },
     },
+    pullHourly: true,
 };
