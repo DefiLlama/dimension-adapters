@@ -111,7 +111,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.ARBITRUM],
+  chains: [CHAIN.AFX],
   start: AFX_START,
   methodology,
   breakdownMethodology,
