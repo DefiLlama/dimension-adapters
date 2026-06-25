@@ -1,6 +1,5 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
 
 /**
  * T3tris Finance — Fees & Revenue Adapter
@@ -28,26 +27,28 @@ import { httpGet } from "../utils/fetchURL";
  *   Vault fees (perf/mgmt/entry/exit) are in dailyFees but NOT in dailyRevenue.
  *   They go to each vault's feeRecipient, not to the protocol.
  *
- * Vaults are sourced from the T3tris ecosystem API
- * (https://ecosystem.t3tris.finance/vaults); all vaults on the chain are
- * indexed (no curation filter — fees/revenue are tracked for every vault).
- *
- *   Why no `verified`/`blacklisted` filter here: those flags are purely an
- *   off-chain UI/curation concern. On-chain, every vault — verified or not,
- *   blacklisted or not — actually moves real assets: depositors earn yield,
- *   curators collect their perf/mgmt/entry/exit fees, and the t3treasury
- *   still receives its T3trisProfit transfers. The economic activity (and the
- *   fees the treasury collects) happens regardless of curation status, so all
- *   vaults must be counted to report fees & revenue accurately.
+ * Vaults are discovered fully on-chain from the T3tris protocol contract (the
+ * vault factory/registry, deployed at a deterministic CREATE3 address that is
+ * identical on every EVM chain). Every vault ever deployed is enumerated via
+ * getDeployedVaultsCount() + getDeployedVaults(fromIndex, toIndex); there is no
+ * off-chain dependency and no curation filter — fees/revenue are tracked for
+ * every vault. (The `verified`/`blacklisted` flags exposed by the t3tris UI are
+ * a purely off-chain curation concern; on-chain every vault moves real assets
+ * and the t3treasury still receives its T3trisProfit transfers, so all vaults
+ * must be counted to report fees & revenue accurately.)
  *
  * Landing: https://t3tris.finance/   App: https://app.t3tris.finance/
  */
 
-// T3tris ecosystem API — authoritative list of vaults with curation flags.
-// All vaults on the chain are indexed (no curation filter applied here).
-const VAULTS_API = "https://ecosystem.t3tris.finance/vaults";
+// T3tris protocol contract (vault factory/registry). Deterministic CREATE3
+// proxy address — identical on every EVM chain T3tris is deployed to.
+const T3TRIS = "0x0000000000CC53b5Fd649b80f08b05405779cC71";
 
 const ABI = {
+  // Factory/registry: enumerate every deployed vault on-chain.
+  getDeployedVaultsCount: "uint256:getDeployedVaultsCount",
+  getDeployedVaults:
+    "function getDeployedVaults(uint256 fromIndex, uint256 toIndex) view returns (address[])",
   asset: "address:asset",
   decimals: "uint8:decimals",
   totalAssets: "uint256:totalAssets",
@@ -68,11 +69,11 @@ const EVENT_ABI = {
   t3trisProfit: "event T3trisProfit(uint256 profit)",
 };
 
-// Supported chains: DefiLlama chain -> { ecosystem-API chainId, start }. T3tris
-// is live on Arbitrum only for now (same CREATE3 addresses on every EVM chain);
-// add a chain here once it goes live and the API returns vaults for it.
-const chainConfig: Record<string, { chainId: number; start: string }> = {
-  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2025-01-01" },
+// Supported chains: DefiLlama chain -> { start }. T3tris is live on Arbitrum
+// only for now (same deterministic CREATE3 address on every EVM chain); add a
+// chain here once the protocol contract is deployed and enumerates vaults on it.
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.ARBITRUM]: { start: "2025-01-01" },
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -83,22 +84,41 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // 1. Discover all vaults for this chain from the T3tris ecosystem API.
-  //    No curation filter — fees/revenue are tracked for every vault,
-  //    regardless of verified/blacklisted status. The `verified`/`blacklisted`
-  //    flags only affect off-chain UI curation; on-chain the assets still
-  //    transit and the t3treasury still receives its fees (T3trisProfit) in
-  //    every case, so all vaults are counted.
+  // 1. Discover all vaults for this chain on-chain from the T3tris protocol
+  //    contract (vault factory/registry). Every vault ever deployed is
+  //    enumerated via getDeployedVaultsCount() + getDeployedVaults(from, to);
+  //    no off-chain dependency and no curation filter — fees/revenue are
+  //    tracked for every vault regardless of UI verified/blacklisted status.
   let vaults: string[];
   try {
-    const chainId = chainConfig[options.chain].chainId;
-    const all = await httpGet(VAULTS_API);
-    vaults = (all || [])
-      .filter((v: any) => Number(v.chainId) === chainId)
-      .map((v: any) => v.address);
+    const count = Number(
+      await options.api.call({
+        target: T3TRIS,
+        abi: ABI.getDeployedVaultsCount,
+      }),
+    );
+    if (!count) return {};
+
+    // getDeployedVaults(fromIndex, toIndex) is inclusive on both ends; page it
+    // to stay within multicall/return-size limits for large registries.
+    const PAGE = 200;
+    const pageCalls: { target: string; params: [number, number] }[] = [];
+    for (let from = 0; from < count; from += PAGE) {
+      pageCalls.push({
+        target: T3TRIS,
+        params: [from, Math.min(from + PAGE - 1, count - 1)],
+      });
+    }
+    const pages = await options.api.multiCall({
+      abi: ABI.getDeployedVaults,
+      calls: pageCalls,
+      permitFailure: true,
+    });
+    vaults = pages.filter(Boolean).flat();
   } catch (e) {
-    // API unreachable — log and report nothing for this run so other chains continue
-    console.error(`T3tris: failed to fetch vaults for ${options.chain}:`, e);
+    // Protocol not deployed on this chain (or RPC error) — report nothing for
+    // this run so other chains continue.
+    console.error(`T3tris: failed to enumerate vaults for ${options.chain}:`, e);
     return {};
   }
 
