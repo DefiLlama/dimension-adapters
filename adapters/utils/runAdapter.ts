@@ -102,6 +102,7 @@ type AdapterRunOptions = {
   withMetadata?: boolean, // if true, returns metadata with the response
   cacheResults?: boolean, // deprecated, if true, caches the results in adapterRunResponseCache
   runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
+  runType?: 'store-all' | 'refill-all' | 'default' | 'refill-yesterday', // run mode injected by the server, used to gate indexer-dependent helpers
   metadata?: {
     [key: string]: any
     adapterType?: string
@@ -138,6 +139,7 @@ async function _runAdapter({
   withMetadata = false,
   deadChains = new Set(),
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
+  runType,
   metadata = {},
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
@@ -451,6 +453,8 @@ async function _runAdapter({
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
       streamLogs,
+      runType,
+      version: adapterVersion,
       metadata,
     }
   }
