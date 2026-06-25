@@ -129,9 +129,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   ]);
 
   // 3. Build rate conversion calls (1 full share → assets)
+  //    Build the unit with BigInt so the uint256 param is always a plain
+  //    integer string. Number/** stringifies to exponential form (e.g.
+  //    "1e+21") for high-decimal vaults, which convertToAssets cannot parse.
   const convertCalls = vaults.map((vault: string, index: number) => ({
     target: vault,
-    params: [String(10 ** Number(decimals[index] || 18))],
+    params: [(10n ** BigInt(Number(decimals[index] || 18))).toString()],
   }));
 
   // 4. Get share price at start and end of period
@@ -184,14 +187,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
     const netYield = (Number(supply) * rateGrowth) / unit;
 
-    if (netYield <= 0) continue;
+    // Depositor yield and performance fees only accrue on positive yield;
+    // management fees are charged on TVL × time and accrue regardless (see
+    // below), so we no longer skip the whole vault on a flat/negative period.
+    const depositorYield = netYield > 0 ? netYield : 0;
 
     // Performance fee (WAD, 1e18 = 100%): perfFeeAmount = netYield × f / (1 - f)
     const perfFeeFrac = perfFees[i] ? Number(perfFees[i]) / 1e18 : 0;
     const performanceFees =
-      perfFeeFrac > 0 ? (netYield * perfFeeFrac) / (1 - perfFeeFrac) : 0;
+      depositorYield > 0 && perfFeeFrac > 0
+        ? (depositorYield * perfFeeFrac) / (1 - perfFeeFrac)
+        : 0;
 
     // Management fee (WAD, 1e18 = 100%): totalAssets × f × (timespan / (mgmtDays × 86400))
+    // Charged on TVL over time, so it accrues even on flat or negative periods.
     let managementFees = 0;
     if (mgmtFees[i] && tvl) {
       const mgmtFeeFrac = Number(mgmtFees[i].managementFeeWad || 0) / 1e18;
@@ -203,15 +212,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
+    // Nothing to record for this vault if there is neither yield nor a fee.
+    if (depositorYield <= 0 && performanceFees <= 0 && managementFees <= 0)
+      continue;
+
     // Gross vault yield = everything the strategies produced this period
     // (depositor yield + curator performance/management fees). It is split
     // below between depositors and the vault curator, both supply-side.
-    dailyFees.add(token, netYield + performanceFees + managementFees, "Vault Yield");
+    dailyFees.add(token, depositorYield + performanceFees + managementFees, "Vault Yield");
 
     // Supply side = net yield to depositors + curator fees. The curator is a
     // third-party vault manager (NOT the t3tris protocol), so its performance
     // and management fees are a supply-side cost, not protocol revenue.
-    dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
+    dailySupplySideRevenue.add(token, depositorYield, "Depositor Yield");
     dailySupplySideRevenue.add(token, performanceFees, "Curator Performance Fees");
     dailySupplySideRevenue.add(token, managementFees, "Curator Management Fees");
   }
