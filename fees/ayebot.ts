@@ -14,24 +14,30 @@ import { METRIC } from "../helpers/metrics";
  *  - BSC: WBNB (inline platform fees) + native BNB (four.meme platform fee and
  *    leader carry).
  *
- * Fees are reported gross (everything users pay into the treasury). Revenue is
- * reported equal to fees: a portion (leader carry) is later redistributed to
- * leaders, but that share is not separable on-chain from the inbound flow, so
- * no smaller net figure can be derived reliably. All figures are on-chain.
+ * Only dailyFees is reported. Part of the inflow (leader carry) is later
+ * redistributed to leaders — a supply-side cost — but that share is not
+ * separable on-chain from the inbound flow, so neither a clean protocol-revenue
+ * nor a supply-side figure can be derived. skipBreakdownValidation is set for
+ * this reason, rather than aliasing gross fees to revenue. All figures on-chain.
  */
 
-// Treasury wallet — recipient of fee inflows on each chain (verified on-chain).
+// Treasury wallet — recipient of fee inflows on each chain. Verified on-chain
+// as the sender of the periodic surplus sweep to the cold fee wallet:
+//  - Solana treasury: https://solscan.io/account/FaYFaP8f6JNzTuZ1gsKn7nRUKcVzJ4TiLqErWESBnLT4
+//  - BSC treasury:    https://bscscan.com/address/0xb49230598A51770Ccd5281B83e2CaF01086E61eA
 const SOL_TREASURY = "FaYFaP8f6JNzTuZ1gsKn7nRUKcVzJ4TiLqErWESBnLT4";
 const BSC_TREASURY = "0xb49230598A51770Ccd5281B83e2CaF01086E61eA";
-// Cold fee wallet (historical/fallback recipient). Tracked alongside the
-// treasury, and used as an internal-sender filter to net out the periodic
-// surplus sweep that rebalances native BNB between the two protocol wallets.
+// Cold fee wallet (historical/fallback recipient), tracked alongside the
+// treasury and used as an internal-sender filter to net out the surplus sweep:
+//  https://bscscan.com/address/0x59cB774c3462D11C36F56E3a4007379Ea77299d3
 const BSC_FEE_WALLET = "0x59cB774c3462D11C36F56E3a4007379Ea77299d3";
-// Canonical Wrapped BNB (WBNB) on BSC.
+// Canonical Wrapped BNB (WBNB) on BSC:
+//  https://bscscan.com/token/0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
 const BSC_SINKS = [BSC_TREASURY, BSC_FEE_WALLET];
 
+// Start dates = first on-chain fee inflow observed on each treasury.
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.SOLANA]: { start: "2026-05-22" },
   [CHAIN.BSC]: { start: "2026-05-24" },
@@ -77,7 +83,7 @@ async function fetch(options: FetchOptions) {
     options.chain === CHAIN.SOLANA
       ? await fetchSolana(options)
       : await fetchBsc(options);
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees };
 }
 
 const adapter: SimpleAdapter = {
@@ -87,20 +93,16 @@ const adapter: SimpleAdapter = {
   ),
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  // Leader carry redistributed to leaders is a supply-side cost, but it is not
+  // separable on-chain from the inbound fee flow, so no revenue/supply-side
+  // split can be derived. Only gross dailyFees is reported.
+  skipBreakdownValidation: true,
   methodology: {
     Fees: "All trading fees paid by users and collected by the Ayebot treasury: per-swap platform fees and leader copy-trading carry (native SOL on Solana; WBNB plus native BNB on BSC).",
-    Revenue: "Reported equal to fees. Part of the collected fees (leader carry) is redistributed to leaders, but that share is not separable on-chain from the inbound flow, so fees are reported gross.",
-    ProtocolRevenue: "Reported equal to fees, for the same reason as Revenue.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "Platform fees and leader carry received by the Ayebot treasury.",
-    },
-    Revenue: {
-      [METRIC.TRADING_FEES]: "Gross fees received by the Ayebot treasury.",
-    },
-    ProtocolRevenue: {
-      [METRIC.TRADING_FEES]: "Gross fees received by the Ayebot treasury.",
     },
   },
 };
