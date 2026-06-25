@@ -1,8 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { queryDuneSql } from "../helpers/dune";
-import { addTokensReceived, getETHReceived } from "../helpers/token";
+import { addTokensReceived, getETHReceived, getSolanaReceived } from "../helpers/token";
 import { METRIC } from "../helpers/metrics";
 
 /**
@@ -45,24 +44,14 @@ const chainConfig: Record<string, { start: string }> = {
 
 async function fetchSolana(options: FetchOptions) {
   const dailyFees = options.createBalances();
-  // Inbound native SOL to the treasury (positive balance changes), excluding
-  // transactions where the treasury also sends out (internal movements).
-  const query = `
-    SELECT COALESCE(SUM(balance_change), 0) AS lamports
-    FROM solana.account_activity
-    WHERE TIME_RANGE
-      AND tx_success
-      AND address = '${SOL_TREASURY}'
-      AND balance_change > 0
-      AND tx_id NOT IN (
-        SELECT tx_id FROM solana.account_activity
-        WHERE TIME_RANGE
-          AND address = '${SOL_TREASURY}'
-          AND balance_change < 0
-      )
-  `;
-  const [row] = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, Number(row?.lamports ?? 0), METRIC.TRADING_FEES);
+  // Native SOL fees received by the treasury (platform fees + leader carry),
+  // sourced from Allium transfers via getSolanaReceived.
+  await getSolanaReceived({
+    options,
+    balances: dailyFees,
+    target: SOL_TREASURY,
+    mints: [ADDRESSES.solana.SOL],
+  });
   return dailyFees;
 }
 
@@ -91,8 +80,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.fromEntries(
     Object.entries(chainConfig).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
   ),
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
   // Leader carry redistributed to leaders is a supply-side cost, but it is not
   // separable on-chain from the inbound fee flow, so no revenue/supply-side
   // split can be derived. Only gross dailyFees is reported.
