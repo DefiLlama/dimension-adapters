@@ -8,26 +8,36 @@ import { METRIC } from "../helpers/metrics";
 /**
  * Ayebot — self-custodial multichain Telegram trading bot (Solana + BSC).
  *
- * Swap platform fees and leader copy-trading carry are both collected on-chain
- * by the protocol treasury wallet on each chain, where fees are measured:
- *  - Solana: native SOL (lamports) for both platform fees and carry.
- *  - BSC: WBNB for inline platform fees + native BNB for leader carry.
- * All collected fees are protocol revenue (Ayebot is the recipient).
- * All figures are derived from on-chain data; no off-chain API is used.
+ * Swap platform fees and leader copy-trading carry are collected on-chain by
+ * the protocol treasury wallet on each chain, where fees are measured:
+ *  - Solana: native SOL (lamports), both platform fees and carry.
+ *  - BSC: WBNB (inline platform fees) + native BNB (four.meme platform fee and
+ *    leader carry).
+ *
+ * Only dailyFees is reported (gross fees paid by users). Revenue is omitted: a
+ * portion of the collected fees (leader carry) is redistributed to leaders and
+ * is not separable on-chain, so a net protocol-revenue figure cannot be
+ * derived reliably. All figures are derived from on-chain data.
  */
 
-// Treasury wallets — verified on-chain as the recipients of fee inflows.
+// Treasury wallet — recipient of fee inflows on each chain (verified on-chain).
 const SOL_TREASURY = "FaYFaP8f6JNzTuZ1gsKn7nRUKcVzJ4TiLqErWESBnLT4";
 const BSC_TREASURY = "0xb49230598A51770Ccd5281B83e2CaF01086E61eA";
-// Canonical Wrapped BNB (WBNB) token on BSC.
+// Cold fee wallet (historical/fallback recipient). Tracked alongside the
+// treasury, and used as an internal-sender filter to net out the periodic
+// surplus sweep that rebalances native BNB between the two protocol wallets.
+const BSC_FEE_WALLET = "0x59cB774c3462D11C36F56E3a4007379Ea77299d3";
+// Canonical Wrapped BNB (WBNB) on BSC.
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
-const chainConfig: Record<string, { start: string; treasury: string }> = {
-  [CHAIN.SOLANA]: { start: "2026-05-22", treasury: SOL_TREASURY },
-  [CHAIN.BSC]: { start: "2026-05-24", treasury: BSC_TREASURY },
+const BSC_SINKS = [BSC_TREASURY, BSC_FEE_WALLET];
+
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.SOLANA]: { start: "2026-05-22" },
+  [CHAIN.BSC]: { start: "2026-05-24" },
 };
 
-async function fetchSolana(options: FetchOptions, treasury: string) {
+async function fetchSolana(options: FetchOptions) {
   const dailyFees = options.createBalances();
   // Inbound native SOL to the treasury (positive balance changes), excluding
   // transactions where the treasury also sends out (internal movements).
@@ -36,12 +46,12 @@ async function fetchSolana(options: FetchOptions, treasury: string) {
     FROM solana.account_activity
     WHERE TIME_RANGE
       AND tx_success
-      AND address = '${treasury}'
+      AND address = '${SOL_TREASURY}'
       AND balance_change > 0
       AND tx_id NOT IN (
         SELECT tx_id FROM solana.account_activity
         WHERE TIME_RANGE
-          AND address = '${treasury}'
+          AND address = '${SOL_TREASURY}'
           AND balance_change < 0
       )
   `;
@@ -50,27 +60,24 @@ async function fetchSolana(options: FetchOptions, treasury: string) {
   return dailyFees;
 }
 
-async function fetchBsc(options: FetchOptions, treasury: string) {
+async function fetchBsc(options: FetchOptions) {
   const dailyFees = options.createBalances();
-  // Platform fees arrive as WBNB (inline KyberSwap).
-  await addTokensReceived({ options, balances: dailyFees, target: treasury, tokens: [WBNB] });
-  // Leader carry arrives as native BNB.
-  await getETHReceived({ options, balances: dailyFees, target: treasury });
+  // Native BNB fees (four.meme platform fee + leader carry). notFromSenders
+  // excludes the two protocol wallets, netting out the internal surplus sweep
+  // in both directions; genuine fees are always sent by user/follower wallets.
+  await getETHReceived({ options, balances: dailyFees, targets: BSC_SINKS, notFromSenders: BSC_SINKS });
+  // Inline KyberSwap platform fees arrive as WBNB (ERC-20). No internal sweep
+  // moves WBNB, so no sender filter is needed.
+  await addTokensReceived({ options, balances: dailyFees, targets: BSC_SINKS, tokens: [WBNB] });
   return dailyFees;
 }
 
 async function fetch(options: FetchOptions) {
-  const { treasury } = chainConfig[options.chain];
   const dailyFees =
     options.chain === CHAIN.SOLANA
-      ? await fetchSolana(options, treasury)
-      : await fetchBsc(options, treasury);
-
-  return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
+      ? await fetchSolana(options)
+      : await fetchBsc(options);
+  return { dailyFees };
 }
 
 const adapter: SimpleAdapter = {
@@ -81,19 +88,11 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "All trading fees collected by Ayebot: per-swap platform fees and leader copy-trading carry, received on-chain by the treasury wallet on each chain (native SOL on Solana; WBNB plus native BNB on BSC).",
-    Revenue: "All collected fees, received by the Ayebot treasury.",
-    ProtocolRevenue: "All collected fees, received by the Ayebot treasury.",
+    Fees: "All trading fees paid by users and collected by the Ayebot treasury: per-swap platform fees and leader copy-trading carry (native SOL on Solana; WBNB plus native BNB on BSC).",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]: "All trading fees (platform fees + leader carry) received by the Ayebot treasury.",
-    },
-    Revenue: {
-      [METRIC.TRADING_FEES]: "All collected fees, retained by Ayebot.",
-    },
-    ProtocolRevenue: {
-      [METRIC.TRADING_FEES]: "All collected fees, retained by Ayebot.",
+      [METRIC.TRADING_FEES]: "Platform fees and leader carry received by the Ayebot treasury.",
     },
   },
 };
