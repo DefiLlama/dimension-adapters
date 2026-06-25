@@ -49,8 +49,6 @@ type DecodedV3SendOrder = {
   orderType: string;
   srcToken: string;
   srcQuantity: bigint;
-  dstToken: string;
-  dstQuantity: bigint;
   customData: string;
 };
 
@@ -277,7 +275,7 @@ export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
   [CHAIN.UNICHAIN]: { start: "2025-11-27" },
 };
 
-// V3 send volume is indexed from router.send() calls. The schedule mirrors
+// V3 source-side volume is indexed from router.send() calls. The schedule mirrors
 // Tristero backend addresses.yml generations and production contract updates;
 // day overlaps reflect public explorer cutovers and are safe because each tx has one router.
 const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
@@ -1077,8 +1075,6 @@ function decodeV3SendOrder(data?: string): DecodedV3SendOrder | null {
       orderType: order.orderType,
       srcToken: order.parameters.srcAsset,
       srcQuantity: BigInt(order.parameters.srcQuantity),
-      dstToken: order.parameters.dstAsset,
-      dstQuantity: BigInt(order.parameters.dstQuantity),
       customData: order.customData,
     };
   } catch (error) {
@@ -1159,11 +1155,6 @@ function addDecodedV3SendOrderVolume(
 ) {
   const srcTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
   if (srcTokenAddress) dailyVolume.add(srcTokenAddress, decodedOrder.srcQuantity);
-
-  if (decodedOrder.orderType.toUpperCase() !== "MARGIN") {
-    const dstTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.dstToken);
-    if (dstTokenAddress) dailyVolume.add(dstTokenAddress, decodedOrder.dstQuantity);
-  }
 
   const marginLoan = decodeMarginLoan(decodedOrder);
   if (marginLoan?.quantity) {
