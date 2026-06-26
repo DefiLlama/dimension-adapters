@@ -12,7 +12,6 @@ export type ChainEndpoints = {
 
 export type FetchResultBase = {
   timestamp?: number;
-  block?: number;
 };
 
 export type FetchResultV2 = {
@@ -77,22 +76,15 @@ export type FetchGetLogsOptions = {
   parseLog?: boolean,
 }
 
-export type Fetch = (
-  timestamp: number,
-  chainBlocks: ChainBlocks,
-  options: FetchOptions,
-) => Promise<FetchResult>;
-
 export type FetchV2 = (
   options: FetchOptions,
 ) => Promise<FetchResultV2>;
 
-export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapterChainConfig = {
-  start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format -  indicates when the adapter can start fetching data
-  deadFrom?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format - indicates when the adapter should stop fetching data
-  fetch?: Fetch | FetchV2;
+  start?: string; // date can be in "YYYY-MM-DD" format -  indicates when the adapter can start fetching data
+  deadFrom?: string; // date can be in "YYYY-MM-DD" format - indicates when the adapter should stop fetching data
+  fetch?: FetchV2;
   runAtCurrTime?: boolean;
 }
 
@@ -127,11 +119,11 @@ export type AdapterBase = {
   doublecounted?: boolean;
   methodology?: string | IJSON<string>;
   breakdownMethodology?: Record<string, string | IJSON<string>>;
-  fetch?: Fetch | FetchV2;
+  fetch?: FetchV2;
   chains?: (string | [string, BaseAdapterChainConfig])[]
   prefetch?: FetchV2;
   runAtCurrTime?: boolean;
-  start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+  start?: string; // date can be in "YYYY-MM-DD" format
   _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results - We stopped caching these results but left as is as it is used in batching dune queries, we can re-use it later if needed
   pullHourly?: boolean;
   skipBreakdownValidation?: boolean; // this is to skip the validation that requires at least one of dailyRevenue, dailySupplySideRevenue or dailyProtocolRevenue to be present when dailyFees is present, this is useful for some adapters that have a breakdown in their dailyFees but dont have a clear way to attribute the fees to either supply side or protocol revenue
@@ -230,7 +222,7 @@ export const whitelistedDimensionKeys = new Set([
   'dailyVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'dailyNormalizedVolume', 'dailyActiveLiquidity',
   'totalFees', 'dailyFees', 'dailyUserFees', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'dailyBribesRevenue', 'dailyTokenTaxes',
   'tokenIncentives',
-  'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome',, 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome', , 'dailyPremiumVolume', 'dailyNotionalVolume',
   'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed',
 ])
 export const accumulativeKeySet = new Set([

@@ -113,8 +113,15 @@ function getChainVolume2({
       if (totalFeesField)
         response.dailyFees = totalFees - prevTotalFees
 
-      if (!prevTotalFees || !prevTotal) {
+      // Gate fees zero-out on totalFeesField — configs that derive fees from
+      // volume via feeConfig leave prevTotalFees intentionally undefined, and
+      // a combined check would zero out a healthy prevTotal alongside it.
+      // Use === undefined so a legitimately-zero prev cumulative (new protocol)
+      // produces a correct diff instead of being treated as missing data.
+      if (prevTotal === undefined) {
         response.dailyVolume = 0;
+      }
+      if (totalFeesField && prevTotalFees === undefined) {
         response.dailyFees = 0;
       }
 

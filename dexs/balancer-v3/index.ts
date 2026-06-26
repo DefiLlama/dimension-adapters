@@ -119,13 +119,13 @@ const adapter: SimpleAdapter = {
     Fees: "Fees earned from all the trades and yields.",
     UserFees: "Fees earned from all the trades.",
     Revenue:
-      "Revenue earned by the protocol, which is 50% of the trade fees and 10% of the yield capture.",
+      "Revenue earned by the protocol and holders, which is 25% ( 50 % before 2026-04-23 ) of the trade fees and 10% of the yield capture.",
     ProtocolRevenue:
-      "Revenue earned by the protocol, which is 50% of the trade fees and 10% of the yield capture.",
+      "Revenue earned by the protocol, which is 25% ( 8.75% before 2026-04-23 ) of the trade fees and 10% of the yield capture.",
     HoldersRevenue:
-      "Portion of protocol revenue distributed to token holders (e.g., veBAL/BAL), parameterized here.",
+      "Portion of protocol revenue distributed to token holders (e.g., veBAL/BAL) (82.5 % of revenue before 2026-04-23, 0 % of revenue after )",
     SupplySideRevenue:
-      "Revenue earned by the supply side, which is 90% of the yield capture and 50% of the fees.",
+      "Revenue earned by the supply side, which is 90% of the yield capture and 75% ( 50 % before 2026-04-23 ) of the fees.",
   },
   breakdownMethodology: {
     Fees: {

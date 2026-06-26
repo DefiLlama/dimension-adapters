@@ -227,6 +227,7 @@ const fetch = async ({ chain, toTimestamp, createBalances, getLogs, getFromBlock
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM],
   fetch,
   start: '2022-12-11',

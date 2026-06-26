@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import axios from "axios";
+import { getConfig } from "../../helpers/cache";
+import { httpGet } from "../../utils/fetchURL";
 
 /**
  * Fetches data from Lista DAO
@@ -43,10 +44,7 @@ interface ApyHistoryResponse {
 }
 
 const getVaultInfo = async (): Promise<VaultInfo[]> => {
-  const { data } = await axios.get<VaultResponse>(
-    "https://api.lista.org/api/moolah/vault/list?page=1&pageSize=100&sort=depositsUsd&order=desc"
-  );
-
+  const data: VaultResponse = await getConfig('lista-lending-vaults', 'https://api.lista.org/api/moolah/vault/list?page=1&pageSize=100&sort=depositsUsd&order=desc');
   return data.data.list.map((vault) => ({
     address: vault.address.toLowerCase(),
     fee: vault.fee,
@@ -60,8 +58,8 @@ const getVaultInfo = async (): Promise<VaultInfo[]> => {
 // const marketFeeClaimedEvent =
 //   "event MarketFeeClaimed(bytes32 id, address token, uint256 assets, uint256 shares)";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  // const dailyFees = options.createBalances();
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const vaultInfoList = await getVaultInfo();
@@ -91,7 +89,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // Calculate supply side revenue and protocol revenue from APY history
   for (const vaultInfo of vaultInfoList) {
     const url = `https://api.lista.org/api/moolah/vault/apy/history?address=${vaultInfo.address}&startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`;
-    const { data } = await axios.get<ApyHistoryResponse>(url);
+    const data: ApyHistoryResponse = await httpGet(url);
 
     if (data.data && data.data.length > 0) {
       const dayData = data.data[0];
@@ -99,21 +97,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       const totalAssetsUsd = parseFloat(dayData.totalAssetsUsd);
 
       const dailyInterest = (apy * totalAssetsUsd) / 365;
-      dailySupplySideRevenue.addCGToken("usd-coin", dailyInterest);
 
+      dailyFees.addCGToken('usd-coin', dailyInterest, 'Borrow Interest');
+      
       if (vaultInfo.ownedByDao) {
         const performanceFee = dailyInterest * (vaultInfo.fee);
-        dailyRevenue.addCGToken("usd-coin", performanceFee);
+        const performanceFeeToCurators = performanceFee * 0.5;
+        dailyRevenue.addCGToken("usd-coin", performanceFeeToCurators, 'Performance Fees');
+        dailySupplySideRevenue.addCGToken("usd-coin", performanceFeeToCurators, 'Curators Fees');
+        dailySupplySideRevenue.addCGToken("usd-coin", dailyInterest - performanceFee, 'Borrow Interest To Lenders');
+      } else {
+        dailySupplySideRevenue.addCGToken("usd-coin", dailyInterest, 'Borrow Interest To Lenders');
       }
     }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  const dailyFees = dailyRevenue.clone(0.05);
-  dailyFees.addBalances(dailySupplySideRevenue);
 
   return {
-    dailyFees: dailySupplySideRevenue,
+    dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -121,7 +124,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Fees: "Interest earned by lenders from borrowers",
   Revenue: "ListaDAO Curator vaults performance fees (in basis points) charged on vault interest",
-  SupplySideRevenue: "Interest earned by lenders in the vaults",
+  ProtocolRevenue: "ListaDAO Curator vaults performance fees (in basis points) charged on vault interest",
+  SupplySideRevenue: "Interest earned by lenders in the vaults and fees to curators",
 };
 
 const adapter: SimpleAdapter = {
@@ -131,6 +135,18 @@ const adapter: SimpleAdapter = {
   start: '2025-04-16',
   isExpensiveAdapter: true,
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'Interest earned by lenders from borrowers',
+    },
+    Revenue: {
+      'Performance Fees': 'ListaDAO Curator vaults performance fees (in basis points) charged on vault interest',
+    },
+    SupplySideRevenue: {
+      'Curators Fees': 'Performance fees paid to vaults curators.',
+      'Borrow Interest To Lenders': 'Interest earned by lenders in the vaults',
+    },
+  }
 };
 
 export default adapter;

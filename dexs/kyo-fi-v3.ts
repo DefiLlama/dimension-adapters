@@ -13,7 +13,7 @@ const eventAbis = {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const BLOCK_STEP = 10_000;
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getFromBlock, getLogs } = fetchOptions;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -70,12 +70,9 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: '2025-01-13'
-    }
-  }
+  fetch,
+  chains: [CHAIN.SONEIUM],
+  start: '2025-01-13',
 };
 
 export default adapters;

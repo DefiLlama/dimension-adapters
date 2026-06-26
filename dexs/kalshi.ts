@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   // const data = await fetchURL(`https://kalshi-public-docs.s3.amazonaws.com/reporting/market_data_${options.dateString}.json`)
   const dateString = new Date((options.startOfDay - (24 * 3600)) * 1000).toISOString().split('T')[0]
   
@@ -11,7 +11,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     SELECT 
       SUM(price * contracts_traded / 100) AS cash_volume
     FROM kalshi.trade_report
-    WHERE date = date('${dateString}')
+    WHERE date = '${dateString}'
   ),
   market_report_agg AS (
     SELECT 

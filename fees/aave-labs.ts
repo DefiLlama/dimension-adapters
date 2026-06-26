@@ -4,7 +4,7 @@ import { getETHReceived } from '../helpers/token';
 
 const FEE_WALLET = '0xC542C2F197c4939154017c802B0583C596438380';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const fees = await getETHReceived({ options, target: FEE_WALLET });
   const dailyFees = options.createBalances();
   dailyFees.add(fees, 'CowSwap Partner Fees');

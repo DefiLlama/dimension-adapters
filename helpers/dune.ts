@@ -206,6 +206,9 @@ const _queryDune = async (queryId: string, query_parameters: any = {}, options?:
       success = true
       let endTime = +Date.now() / 1e3
 
+      const executionCostCredits = executionCostMap[queryId]
+      log(`[Dune] queryId=${queryId} credits=${executionCostCredits ?? 'n/a'} rows=${rows?.length ?? 0} took=${(endTime - startTime).toFixed(1)}s`)
+
       await elastic.addRuntimeLog({
         runtime: endTime - startTime, success, metadata: {
           ...dimensionProtocolMetadata,
@@ -213,7 +216,7 @@ const _queryDune = async (queryId: string, query_parameters: any = {}, options?:
           ...duneMetadata,
           ...metadata,
           rows: rows?.length,
-          executionCostCredits: executionCostMap[queryId],
+          executionCostCredits,
         },
       })
       return rows
@@ -261,8 +264,11 @@ export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { ext
   }, options, { extraUIDKey })
 }
 
-export const queryDuneResult = async (_: any, queryId: string) => {
-  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results`)
+export const queryDuneResult = async (_: any, queryId: string, filters?: string) => {
+  const params: Record<string, string> = { limit: '100000' }
+  if (filters) params.filters = filters
+  const urlParams = new URLSearchParams(params).toString()
+  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results?${urlParams}`)
   return latest_result.result.rows
 }
 

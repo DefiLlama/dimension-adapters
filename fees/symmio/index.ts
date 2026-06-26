@@ -1,30 +1,11 @@
 import request from "graphql-request";
-import { Adapter, Chain, Fetch } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { Adapter, FetchOptions } from "../../adapters/types";
+import { config as symmioConfig } from "../../helpers/symmio";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 type DailyHistory = {
   platformFee: string
   symmioShare: string
-  day: string
-  accountSource: string
-  openInterest: string
-  source: string
-}
-
-type DailySolver = {
-  openInterest: string
-}
-
-const config: Partial<Record<Chain, string>> = {
-  [CHAIN.ARBITRUM]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/arbitrum_analytics/latest/gn',
-  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn',
-  [CHAIN.BSC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bnb_analytics/latest/gn',
-  [CHAIN.MANTLE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mantle_analytics/latest/gn',
-  // [CHAIN.BERACHAIN]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bera_analytics/latest/gn',    // goldsky is dropping support for Berachain subgraph
-  [CHAIN.MODE]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/mode_analytics/latest/gn',
-  [CHAIN.SONIC]: 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/sonic_analytics/latest/gn',
-  [CHAIN.COTI]: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics'
 }
 
 const methodology = {
@@ -35,68 +16,50 @@ const methodology = {
 
 const start = '2025-09-30'
 
-const solverQuery = `
-  query ($day: String!) {
-    solverDailyHistories (where: {day: $day}) {
-      openInterest
-    }
-  }
-`
-
 const query = `
   query ($day: String!) {
     dailyHistories(where: { day: $day }) {
       platformFee
       symmioShare
-      day
-      accountSource
-      openInterest
-      source
     }
   }
 `
 
-const fetch: Fetch = async (timestamp, _cb, { chain }) => {
-  const endpoint = config[chain]
+const fetch = async ({ chain, toTimestamp }: FetchOptions) => {
+  const endpoint = symmioConfig[chain]
   if (!endpoint) return {}
 
-  const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+  const startOfDay = getTimestampAtStartOfDayUTC(toTimestamp);
   const day = String(Math.floor(startOfDay / 86400));
-
-  const { dailyHistories }: { dailyHistories: DailyHistory[] } = await request(endpoint, query, { day })
-  const { solverDailyHistories }: { solverDailyHistories: DailySolver[] } = await request(endpoint, solverQuery, { day })
+  const { dailyHistories = [] } = await request(endpoint, query, { day })
+    .catch((error) => {
+      console.error(`Symmio fees graph request failed on ${chain} (${endpoint})`, error)
+      return { dailyHistories: [] };
+    }) as { dailyHistories: DailyHistory[] };
 
   let dailyFees = 0;
   let dailyRevenue = 0;
   let dailySupplySideRevenue = 0;
-  let openInterestAtEnd = 0;
 
-  dailyHistories.forEach(({ platformFee, symmioShare, openInterest } ) => {
+  dailyHistories.forEach(({ platformFee, symmioShare } ) => {
     const fee = Number(platformFee) / 1e18
     const share = Number(symmioShare) / 1e18
-    const oi = Number(openInterest) / 1e18
 
     dailyFees += fee;
     dailyRevenue += share;
     dailySupplySideRevenue += (fee - share);
-    openInterestAtEnd += oi;
-  })
-
-  solverDailyHistories.forEach(({ openInterest }) => {
-    openInterestAtEnd += Number(openInterest) / 1e18;
   })
 
   return {
     dailyFees: dailyFees.toString(),
     dailyRevenue: dailyRevenue.toString(),
     dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-    openInterestAtEnd: openInterestAtEnd.toString(),
   };
 }
 
 const adapters: Adapter = {
   version: 1,
-  adapter: Object.fromEntries(Object.keys(config).map((chain) => [chain, { fetch, methodology, start }])),
+  adapter: Object.fromEntries(Object.keys(symmioConfig).map((chain) => [chain, { fetch, methodology, start }])),
   start
 }
 

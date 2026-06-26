@@ -101,7 +101,10 @@ const adapter: Adapter = {
       [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to stakers.',
       [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
     },
-  }
+  },
+  // sometime rate negative hourly and back to positive in the next hour
+  // we run afapter houly so this should be allowed
+  allowNegativeValue: true,
 };
 
 export default adapter;

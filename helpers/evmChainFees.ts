@@ -49,7 +49,7 @@ type EvmChainMetricsAccumulator = EvmChainMetrics & {
 
 export type EvmChainMetricConfig = {
   chain: string;
-  start?: string | number;
+  start?: string;
   blockChunkSize?: number;
   blockConcurrency?: number;
   provider?: ProviderLike;

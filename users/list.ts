@@ -1,7 +1,7 @@
 import chains from "./chains"
 import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
-import { Adapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { parseUserResponse } from "./utils/countUsers";
 import { createFactoryExports } from "../factory/registry";
@@ -38,7 +38,7 @@ function getProtocolActiveUsersAdapter(item: typeof routers[0]): Adapter {
     return parseUserResponse(data, item.chains);
   }
 
-  async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+  async function fetch({ chain, preFetchedResults, }: FetchOptions) {
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
         dailyActiveUsers: preFetchedResults?.all.users
@@ -67,7 +67,7 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
     return data[0]
   }
 
-  async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+  async function fetch({ chain, preFetchedResults }: FetchOptions) {
 
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
@@ -90,7 +90,7 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
 
 function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
 
-  async function fetch(_: any, _1: any, { startTimestamp, endTimestamp, }: FetchOptions) {
+  async function fetch({ startTimestamp, endTimestamp, }: FetchOptions) {
     const [data] = await item.getUsers!(startTimestamp, endTimestamp);
 
     return {
@@ -105,13 +105,14 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
     chains: [item.chain],
     start: item.start,
     fetch: fetch as any,
+    protocolType: ProtocolType.CHAIN,
   }
 }
 
 
 function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
 
-  async function fetch(_: any, _1: any, { startTimestamp, endTimestamp, }: FetchOptions) {
+  async function fetch({ startTimestamp, endTimestamp, }: FetchOptions) {
     const [data] = await item.getNewUsers!(startTimestamp, endTimestamp);
 
     return {
@@ -124,5 +125,6 @@ function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
     chains: [item.chain],
     start: item.start,
     fetch: fetch as any,
+    protocolType: ProtocolType.CHAIN,
   }
 }

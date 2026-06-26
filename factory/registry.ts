@@ -53,7 +53,6 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV3',
     'uniSubgraph',
     'blockscout',
-    'hyperliquid:fees',
     'hyperliquid:validatorFees',
     'hyperliquid',
     'symmio',
@@ -67,6 +66,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'joeLiquidityBook',
     'curve',
     'subscan',
+    'polymarket:fees',
   ],
   'dexs': [
     'helpers/crypto-card',
@@ -77,7 +77,6 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV2:fees',
     'uniV3:fees',
     'hyperliquid',
-    'hyperliquid:fees',
     'symmio',
     'orderly',
     'gmxV1',

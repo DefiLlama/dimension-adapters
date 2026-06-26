@@ -271,10 +271,16 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
 
-  // bad rpcs chains
-  // [CHAIN.SEI]: { start: "2024-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
-  // [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
-  // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
+  // Re-enabled chains (previously marked as bad RPCs)
+  [CHAIN.SEI]: {
+    start: "2024-01-01",
+    contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  },
+  [CHAIN.INJECTIVE]: {
+    start: "2024-06-01",
+    contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
+  },
+  [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
 };
 
 const DEFAULT_FEE = 1n;
@@ -290,36 +296,39 @@ const APTOS_PYTH_CONTRACT =
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
 
 // ============ ABI for fee query ============
-const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
+const SINGLE_UPDATE_FEE_ABI =
+  "function singleUpdateFeeInWei() view returns (uint256)";
 
 // ============ EVM Fetch Function ============
-async function fetchEvm(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const config = evmChainConfig[options.chain];
 
-  if (config) {
-    const updateLogs = await options.getLogs({
-      target: config.contract,
-      eventAbi: PRICE_FEED_UPDATE_ABI,
-    });
+  try {
+    if (config) {
+      const updateLogs = await options.getLogs({
+        target: config.contract,
+        eventAbi: PRICE_FEED_UPDATE_ABI,
+      });
 
-    let updateFee = await options.api.call({
-      abi: SINGLE_UPDATE_FEE_ABI,
-      target: config.contract,
-      permitFailure: true,
-    })
+      let updateFee = await options.api.call({
+        abi: SINGLE_UPDATE_FEE_ABI,
+        target: config.contract,
+        permitFailure: true,
+      });
 
-    //Not throwing error because there are many chains and accidentally some can fail
-    if (!updateFee) {
-      updateFee = 0
+      // Default to 0 instead of throwing: with this many chains, an occasional
+      // failed fee lookup shouldn't break the whole adapter.
+      if (!updateFee) {
+        updateFee = 0;
+      }
+
+      const updateCount = updateLogs.length;
+      dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
     }
-
-    const updateCount = updateLogs.length;
-    dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
+  } catch (error) {
+    // Swallow errors so that a single failing chain due to bad RPC doesn't break the entire adapter.
+    // Only allowed when the adapter has too many chains
   }
 
   return {
@@ -330,11 +339,7 @@ async function fetchEvm(
 }
 
 // ============ Solana Fetch Function ============
-async function fetchSolana(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = await getSolanaReceivedDune({
     options,
     target: SOLANA_FEE_ADDRESS,
@@ -349,11 +354,7 @@ async function fetchSolana(
 // ============ Sui Fetch Function ============
 const SUI_COIN_TYPE = "0x2::sui::SUI";
 
-async function fetchSui(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchSui(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -379,19 +380,15 @@ async function fetchSui(
 // ============ Aptos Fetch Function ============
 const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
 
-async function fetchAptos(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   const query = `
-    SELECT SUM(amount) AS total_fees
-    FROM aptos.core.fungible_asset_activities
-    WHERE owner_address = '${APTOS_PYTH_CONTRACT}'
-      AND asset_type = '${APTOS_COIN_TYPE}'
-      AND activity_type = 'deposit'
+    SELECT COALESCE(sum(amount), 0) as total_fees
+    FROM aptos.assets.fungible_transfers
+    WHERE to_address = '${APTOS_PYTH_CONTRACT}'
+      AND token_address = '${APTOS_COIN_TYPE}'
+      AND deposit_metadata:type::STRING = '0x1::fungible_asset::Deposit'
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
@@ -408,18 +405,17 @@ async function fetchAptos(
 }
 
 // ============ Near Fetch Function ============
-async function fetchNear(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchNear(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const query = `
-    SELECT SUM(deposit) AS total_fees
-    FROM near.raw.receipts
+    SELECT
+      COALESCE(SUM(TRY_CAST(action_contents:deposit::STRING AS DECIMAL(38, 0))), 0) AS total_fees
+    FROM near.raw.transaction_actions
     WHERE receiver_id = '${NEAR_PYTH_CONTRACT}'
-    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-    AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND action = 'FunctionCall'
+      AND action_contents:method_name::STRING = 'update_price_feeds'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
@@ -442,8 +438,8 @@ const adapter: SimpleAdapter = {
     ...evmAdapterEntries,
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2023-01-01" },
     [CHAIN.SUI]: { fetch: fetchSui, start: "2023-06-01" },
-    // [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
-    // [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
+    [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
+    [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
   },
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,

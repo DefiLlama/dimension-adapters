@@ -8,6 +8,9 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "xflows": {
+    [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
+  },
   "warpx-v3": {
     [CHAIN.MEGAETH]: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
   },
@@ -29,6 +32,9 @@ const configs: Record<string, Record<string, any>> = {
   "kura-v3": {
     [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
+  "kayen-v3": {
+    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
   },
@@ -46,9 +52,6 @@ const configs: Record<string, Record<string, any>> = {
   },
   "linehub-v3": {
     [CHAIN.LINEA]: { factory: '0x6c379d538f2f7cb642851e154a8e572d63238df4' },
-  },
-  "nile-exchange": {
-    [CHAIN.LINEA]: { factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42' },
   },
   "nuri-exchange-v2": {
     [CHAIN.SCROLL]: { factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42' },
@@ -119,13 +122,13 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.TAIKO]: { factory: '0xfCA1AEf282A99390B62Ca8416a68F5747716260c' },
   },
   "kim-exchange-v3": {
-    [CHAIN.MODE]: { factory: '0xB5F00c2C5f8821155D8ed27E31932CFD9DB3C5D5', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.MODE]: { factory: '0xB5F00c2C5f8821155D8ed27E31932CFD9DB3C5D5', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "moraswap-v3": {
     [CHAIN.NEON]: { factory: '0x58122246F7e33669cde3486Dd72f95c2e886E375' },
   },
   "scribe-exchange-v4": {
-    [CHAIN.SCROLL]: { factory: '0xDc62aCDF75cc7EA4D93C69B2866d9642E79d5e2e', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.SCROLL]: { factory: '0xDc62aCDF75cc7EA4D93C69B2866d9642E79d5e2e', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "thruster-v3": {
     [CHAIN.BLAST]: { factory: '0x71b08f13B3c3aF35aAdEb3949AFEb1ded1016127' },
@@ -134,7 +137,7 @@ const configs: Record<string, Record<string, any>> = {
     defichain_evm: { factory: '0x9C444DD15Fb0Ac0bA8E9fbB9dA7b9015F43b4Dc1' },
   },
   "xtrade": {
-    [CHAIN.XLAYER]: { factory: '0x612D9EA08be59479B112D8d400C7F0A2E4aD4172', poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
+    [CHAIN.XLAYER]: { factory: '0x612D9EA08be59479B112D8d400C7F0A2E4aD4172', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
   "SwapX-algebra": {
     [CHAIN.SONIC]: { factory: '0x8121a3F8c4176E9765deEa0B95FA2BDfD3016794', start: "2024-12-24", isAlgebraV3: true },
@@ -159,6 +162,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "fluxion-network": {
     [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "fusionx-v3": {
+    [CHAIN.MANTLE]: { factory: '0x530d2766D1988CC1c000C8b7d00334c14B69AD71', start: '2023-07-13', userFeesRatio: 1, revenueRatio: 0.334, protocolRevenueRatio: 0.167, holdersRevenueRatio: 0.167 },
   },
   "octoswap-cl": {
     [CHAIN.MONAD]: { factory: '0x30Db57A29ACf3641dfc3885AF2e5f1F5A408D9CB', revenueRatio: 1 / 5, protocolRevenueRatio: 1 / 5 },
@@ -330,6 +336,7 @@ const configs: Record<string, Record<string, any>> = {
   "virtus-protocol-cl": {
     [CHAIN.BASE]: {
       factory: '0x0e5Ab24beBdA7e5Bb3961f7E9b3532a83aE86B48',
+      isAlgebraV3: true,
       poolCreatedEvent: "event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)",
       start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1
     },
@@ -340,6 +347,24 @@ const configs: Record<string, Record<string, any>> = {
   "stableswap-xyz-v3": {
     [CHAIN.STABLE]: { factory: "0x88F0a512eF09175D456bc9547f914f48C013E4aA", revenueRatio: 0, }
   },
+  "ubeswap-v3": {
+    [CHAIN.CELO]: { factory: '0x67FEa58D5a5a4162cED847E13c2c81c73bf8aeC4', start: '2024-05-20', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  'phlox': {
+    [CHAIN.LUKSO]: { factory: '0xFce4C544f07E2ca758a179788fe56e6A2941E681', start: '2026-04-21', userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
+  },
+  'fluxflow-v3': {
+    [CHAIN.FLUENT]: { factory: '0x69Be606be7Fd2d27C8f9821329c748c77d24FF4f', start: '2026-04-12', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
+  },
+  "krokoswap-v3": {
+    [CHAIN.KASPLEX]: { factory: '0x0dfb1Bb755d872EA1fa4d95E4ad0c2E6317Ce9B9', start: '2026-03-04', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
+  "kublerx-v3": {
+    [CHAIN.BITKUB]: { factory: '0xD679d310008A2595B8d3DeB83bb93EB23F9b0942', start: '2026-05-22', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "turbo": {
+    [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  }
 }
 
 const optionsMap: Record<string, any> = {
@@ -373,6 +398,14 @@ const methodologyMap: Record<string, any> = {
     UserFees: 'Users pay fees on every swap.',
     Revenue: 'No revenue.',
     SupplySideRevenue: 'All swap fees are distributed to LPs.',
+  },
+  "fusionx-v3": {
+    Fees: "Swap fees paid by users on each FusionX V3 pool.",
+    UserFees: "Users pay each pool's configured V3 fee on every swap.",
+    Revenue: "33.4% of swap fees are protocol-controlled revenue.",
+    ProtocolRevenue: "16.7% of swap fees go to the protocol.",
+    HoldersRevenue: "16.7% of swap fees go to token holders.",
+    SupplySideRevenue: "66.6% of swap fees go to liquidity providers.",
   },
   "datadex": {
     Fees: "Swap fees collected from users on each trade.",
@@ -562,6 +595,7 @@ const feesMethodologyMap: Record<string, any> = {
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
   const adapter = uniV3Exports(config, optionsMap[name])
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   protocols[name] = adapter
@@ -571,6 +605,7 @@ for (const [name, config] of Object.entries(configs)) {
 const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
   const adapter = uniV3Exports(config)
+  adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]

@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import * as sdk from "@defillama/sdk";
 
-const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise<any> => {
+const fetch = async (options: FetchOptions): Promise<any> => {
   const dayID = Math.floor(options.startOfDay / 86400);
   const query = `
     {
@@ -15,20 +15,33 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
     }`;
   const url = sdk.graph.modifyEndpoint('LgiKJnsTspbsPBLqDPqULPtnAdSZP6LfPCSo3GWuJ5a');
   const req = await request(url, query);
+
+  // 15% treasury, 1.5% Algebra infra, 83.5% veSTELLA voters.
+  const COMMUNITY_FEE = 0.22       // protocol vault share of total swap fees
+  const LP_SHARE = 1 - COMMUNITY_FEE
+  const TREASURY = 0.15            // of the community vault
+  const ALGEBRA = 0.015            // of the community vault (infra licence)
+  const VESTELLA = 0.835           // of the community vault
+
+  const feesUSD = Number(req.algebraDayData?.feesUSD ?? 0)
+  const protocolRevenue = feesUSD * COMMUNITY_FEE * TREASURY
+  const holdersRevenue = feesUSD * COMMUNITY_FEE * VESTELLA
   return {
-    dailyVolume: req.algebraDayData?.volumeUSD,
-    dailyFees: req.algebraDayData?.feesUSD,
-    dailyRevenue: req.algebraDayData?.feesUSD,
-    dailyProtocolRevenue: req.algebraDayData?.feesUSD * 0.15,
-    dailyHoldersRevenue: req.algebraDayData?.feesUSD * 0.835,
+    dailyVolume: Number(req.algebraDayData?.volumeUSD ?? 0),
+    dailyFees: feesUSD,
+    dailySupplySideRevenue: feesUSD * (LP_SHARE + COMMUNITY_FEE * ALGEBRA),
+    dailyRevenue: protocolRevenue + holdersRevenue,
+    dailyProtocolRevenue: protocolRevenue,
+    dailyHoldersRevenue: holdersRevenue,
   }
 }
 
 const methodology = {
   Fees: 'All trading fees paid by users.',
-  Revenue: '15% for treasury, 1.5% for algebra, 83.5% to veSTELLA voters',
-  ProtocolRevenue: '15% for treasury',
-  HoldersRevenue: '83.5% to veSTELLA voters',
+  SupplySideRevenue: '78% of swap fees retained by liquidity providers in-pool, plus the 1.5% Algebra infrastructure cut of the 22% community vault (~0.33% of total fees), totalling ~78.33% of total fees.',
+  Revenue: 'The 22% protocol community vault, minus the Algebra infra cut: ~21.67% of total fees (15% treasury + 83.5% veSTELLA of the 22% vault).',
+  ProtocolRevenue: '15% of the 22% community vault to treasury (~3.3% of total fees).',
+  HoldersRevenue: '83.5% of the 22% community vault to veSTELLA voters (~18.37% of total fees).',
 }
 
 const adapter: SimpleAdapter = {

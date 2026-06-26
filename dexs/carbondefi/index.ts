@@ -25,7 +25,7 @@ const chainInfo: { [key: string]: any } = {
   },
 };
 
-const getData = async (_a: any, _b: any, options: FetchOptions) => {
+const getData = async (options: FetchOptions) => {
   const analyticsEndpoint = chainInfo[options.chain].endpoint;
   const chainStartTimestamp = chainInfo[options.chain].startTimestamp;
 

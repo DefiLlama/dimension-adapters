@@ -28,7 +28,7 @@ const factories: any = {
   [CHAIN.SOMNIA]: '0x0ccff3D02A3a200263eC4e0Fdb5E60a56721B8Ae',
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const { api, startOfDay } = options
   if (!chainData[api.chain]) {
     const data = httpGet(`https://api.quickswap.exchange/v2/analytics/chart-data/${api.chainId}?durationIndex=5&version=v4`)

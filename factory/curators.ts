@@ -20,13 +20,6 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
-  "alpha-growth": {
-    vaults: {
-      [CHAIN.UNICHAIN]: {
-        eulerVaultOwners: ['0x8d9fF30f8ecBA197fE9492A0fD92310D75d352B9'],
-      },
-    },
-  },
   "alphaping": {
     vaults: {
       [CHAIN.ETHEREUM]: {
@@ -113,17 +106,6 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
-  "euler-dao": {
-    vaults: {
-      [CHAIN.ETHEREUM]: { eulerVaultOwners: ['0xEe009FAF00CF54C1B4387829aF7A8Dc5f0c8C8C5', '0x95058F3d4C69F14f6125ad4602E925845BD5d6A4'], start: '2024-09-23' },
-      [CHAIN.BASE]: { eulerVaultOwners: ['0x8359062798F09E277ABc6EB7D51652289176D2e9', '0x95058F3d4C69F14f6125ad4602E925845BD5d6A4'], start: '2024-09-23' },
-      [CHAIN.UNICHAIN]: { eulerVaultOwners: ['0x3566a8b300606516De2E4576eC4132a0E13f9f66'], start: '2025-05-14' },
-      [CHAIN.SWELLCHAIN]: { eulerVaultOwners: ['0xC798cA555e4C7e6Fa04A23e1a727c12884F40B69'], start: '2025-01-01' },
-      [CHAIN.LINEA]: { eulerVaultOwners: ['0x624DC899774EEf1cD9c17ED10d19c9483Fa9eb0A'], start: '2025-10-01' },
-      [CHAIN.ARBITRUM]: { eulerVaultOwners: ['0xAeE4e2E8024C1B58f4686d1CB1646a6d5755F05C'], start: '2025-10-01' },
-      [CHAIN.MONAD]: { eulerVaultOwners: ['0x5D42F8aCd567810D57D60f90bB9C6d194207a6e1'], start: '2025-11-28' },
-    },
-  },
   "feather": {
     vaults: {
       [CHAIN.SEI]: {
@@ -159,21 +141,14 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x16fa314141C76D4a0675f5e8e3CCBE4E0fA22C7c'],
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
       },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
+        start: '2025-09-04',
+      },
       [CHAIN.KATANA]: {
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
         start: '2025-12-22'
       },
-    },
-  },
-  "k3": {
-    vaults: {
-      [CHAIN.BSC]: { eulerVaultOwners: ['0x5Bb012482Fa43c44a29168C6393657130FDF0506', '0x2E28c94eE56Ac6d82600070300d86b3a14D5d71A'], start: '2023-10-02' },
-      [CHAIN.AVAX]: { eulerVaultOwners: ['0xa4dC6C20475fDD05b248fbE51F572bD3154dd03B', '0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'], start: '2023-10-02' },
-      [CHAIN.BOB]: { eulerVaultOwners: ['0xDb81B93068B886172988A1A4Dd5A1523958a23f0'], start: '2024-08-29' },
-      [CHAIN.PLASMA]: { eulerVaultOwners: ['0x060DB084bF41872861f175d83f3cb1B5566dfEA3'], start: '2025-10-03' },
-      [CHAIN.ARBITRUM]: { eulerVaultOwners: ['0xAeE4e2E8024C1B58f4686d1CB1646a6d5755F05C'], start: '2025-07-01' },
-      [CHAIN.UNICHAIN]: { eulerVaultOwners: ['0xAeE4e2E8024C1B58f4686d1CB1646a6d5755F05C'], start: '2025-10-01' },
-      [CHAIN.ETHEREUM]: { morphoVaultOwners: ['0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'], eulerVaultOwners: ['0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'], start: '2025-07-01' },
     },
   },
   "keyring": {
@@ -200,8 +175,17 @@ const configs: Record<string, CuratorConfig> = {
   "mev-capital": {
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0x06590Fef209Ebc1f8eEF83dA05984cD4eFf0d0E3', '0x650741eB4f6AB0776B9bF98A3280E3Cd6A2F1BF1', '0x6fA5d361Ab8165347F636217001E22a7cEF09B48'],
+        morphoVaultOwners: ['0x06590Fef209Ebc1f8eEF83dA05984cD4eFf0d0E3', '0x650741eB4f6AB0776B9bF98A3280E3Cd6A2F1BF1', '0x6fA5d361Ab8165347F636217001E22a7cEF09B48', '0x0f2dc4f7d060e5cee687b3acabd85d5c94efb756'],
         eulerVaultOwners: ['0xF1B4Ad34B4DbBAab120e4A04Eb3D3707Ea41b6eb', '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1'],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        morphoVaultOwners: [
+          '0x444543b439b1169cefc50be42caa628b0ea35d85',
+          '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1',
+          '0x6fA5d361Ab8165347F636217001E22a7cEF09B48',
+          '0x0f2dc4f7d060e5cee687b3acabd85d5c94efb756',
+        ],
+        start: '2025-04-24',
       },
       [CHAIN.SONIC]: {
         eulerVaultOwners: ['0xb1a084b03a75f4bBb895b91BF1f5E9615A28F17D', '0xB672Ea44A1EC692A9Baf851dC90a1Ee3DB25F1C4', '0x6293e97900aA987Cf3Cbd419e0D5Ba43ebfA91c1', '0x3fEcc0d59BF024De157996914e548047ec0ccCE5'],
@@ -231,7 +215,9 @@ const configs: Record<string, CuratorConfig> = {
   "muscadine": {
     vaults: {
       [CHAIN.BASE]: {
-        morpho: ['0xf7e26Fa48A568b8b0038e104DfD8ABdf0f99074F', '0xAeCc8113a7bD0CFAF7000EA7A31afFD4691ff3E9', '0x21e0d366272798da3A977FEBA699FCB91959d120', '0x89712980cb434ef5ae4ab29349419eb976b0b496', '0xd6dcad2f7da91fbb27bda471540d9770c97a5a43', '0x99dcd0d75822ba398f13b2a8852b07c7e137ec70'],
+        morphoVaultOwners: ['0xf35B121bA32cBeaA27716abEfFb6B65a55f9B333'],
+        morphoVaultV2Owners: ['0xf35B121bA32cBeaA27716abEfFb6B65a55f9B333'],
+        start: '2025-06-04',
       },
     },
   },
@@ -316,6 +302,26 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "rockawayx": {
+    breakdownFees: true,
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Morpho V2 vaults — "RockawayX USDC Yield" (0xE018...1965) + "RockawayX wETH" (0x64C1...9cB9)
+        morphoVaultV2Owners: ['0x9ECBf5aB609E33EC90D69888362639d652Eb8bf3'],
+        start: '2026-03-06',
+      },
+      [CHAIN.BSC]: {
+        // Lista/Moolah vault "RockawayX PT Yield" — fork MetaMorpho, fee() = 10%
+        morpho: ['0xb5a30e1fa2cf3c8dea882124b3ab5a47a27c5dd2'],
+        start: '2026-04-16',
+      },
+      [CHAIN.SEI]: {
+        // Feather PYUSD0 — vault MetaMorpho v1 sur Sei, fee() = 15%
+        morpho: ['0x6137dcfdd3c83fe2922b1cba4105d2e92b327a06'],
+        start: '2026-03-22',
+      },
+    },
+  },
   "seamless-vaults": {
     breakdownFees: true,
     vaults: {
@@ -330,6 +336,7 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         eulerVaultOwners: ['0x5aB5FE7d04CFDeFb9daf61f6f569a58A53D05eE1'],
+        morphoVaultOwners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
         morphoVaultV2Owners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
       },
     },
@@ -367,6 +374,15 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.CORN]: {
         morphoVaultOwners: ['0x84ae7f8eb667b391a5ae2f69bd5a0e4b5b77c999'],
         start: '2025-04-30',
+      },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
+        morphoVaultV2Owners: ['0x0b1aA22117E38f260e0F3aB3b0F12a22c2691ffC'],
+        start: '2025-07-17',
+      },
+      [CHAIN.KATANA]: {
+        morphoVaultOwners: ['0xe6FC2a011153DD5a230725a9F0c89a9c81aB4887'],
+        start: '2025-06-23',
       },
       [CHAIN.MONAD]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
@@ -436,10 +452,14 @@ const configs: Record<string, CuratorConfig> = {
     breakdownFees: true,
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B'],
+        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x75a1253432356f90611546a487b5350CEF08780D'],
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B', '0x50b75d586929ab2f75dc15f07e1b921b7c4ba8fa'],
+      },
+      [CHAIN.ARBITRUM]: {
+        morphoVaultOwners: ['0xFc5F89d29CCaa86e5410a7ad9D9d280d4455C12B'],
+        start: '2025-07-22',
       },
       [CHAIN.KATANA]: {
         start: '2025-06-30',

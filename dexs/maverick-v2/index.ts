@@ -3,12 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type {
   Adapter,
-  FetchResultV2,
-  ChainBlocks,
-  ChainEndpoints,
   FetchOptions,
 } from "../../adapters/types";
-import { Chain } from "../../adapters/types";
 
 interface GqlPoolDayStats {
   tokenBVolume: number;
@@ -52,7 +48,7 @@ const endpoints = {
     "E67Z1ykigDsybn4fnWuNHn4AcpuCxfjwzwPQxZs5r5c",
   ),
   [CHAIN.SCROLL]: sdk.graph.modifyEndpoint(
-    "CNr8WTqBRNG5XbJQdSHX5jjfiQQyuFpkpBctTw1sDsDj",
+    "Bi7b1vnoE5NT4XxrT4EwWuWuGYfic7pnB3Z5e7Mao9cj",
   ),
 };
 
@@ -69,115 +65,101 @@ const processAmount = (
   return { feeTokenUnits, volumeTokenUnits };
 };
 
-const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`
-    query data($timestampFrom: Int!, $timestampTo: Int!) {
-      poolDayStats(
-        where: { timestamp_gt: $timestampFrom, timestamp_lte: $timestampTo }
-      ) {
-        tokenBVolume
-        tokenAVolume
-        pool {
-          id
-          feeAIn
-          feeBIn
-          tokenA {
-            id
-            symbol
-            decimals
-          }
-          tokenB {
-            id
-            symbol
-            decimals
-          }
-        }
-        timestamp
+const graphQuery = gql`
+query data($timestampFrom: Int!, $timestampTo: Int!) {
+  poolDayStats(
+    where: { timestamp_gt: $timestampFrom, timestamp_lte: $timestampTo }
+  ) {
+    tokenBVolume
+    tokenAVolume
+    pool {
+      id
+      feeAIn
+      feeBIn
+      tokenA {
+        id
+        symbol
+        decimals
+      }
+      tokenB {
+        id
+        symbol
+        decimals
       }
     }
-  `;
+    timestamp
+  }
+}
+`;
+const fetch = async ({ createBalances, fromTimestamp, toTimestamp, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyVolume = createBalances();
 
-  return (chain: Chain) => {
-    return async (
-      timestamp: number,
-      _: ChainBlocks,
-      { createBalances, fromTimestamp, toTimestamp }: FetchOptions,
-    ): Promise<FetchResultV2> => {
-      const dailyFees = createBalances();
-      const dailyVolume = createBalances();
+  try {
+    const graphRes: GqlQueryResponse = await request(
+      endpoints[chain],
+      graphQuery,
+      {
+        timestampFrom: fromTimestamp,
+        timestampTo: toTimestamp,
+      },
+    );
 
-      try {
-        const graphRes: GqlQueryResponse = await request(
-          graphUrls[chain],
-          graphQuery,
-          {
-            timestampFrom: fromTimestamp,
-            timestampTo: toTimestamp,
-          },
-        );
+    if (graphRes && graphRes.poolDayStats) {
+      for (const stats of graphRes.poolDayStats) {
+        const { feeTokenUnits: feeA, volumeTokenUnits: volumeA } =
+          processAmount(
+            stats.pool.feeAIn,
+            stats.pool.tokenA.decimals,
+            stats.tokenAVolume,
+          );
 
-        if (graphRes && graphRes.poolDayStats) {
-          for (const stats of graphRes.poolDayStats) {
-            const { feeTokenUnits: feeA, volumeTokenUnits: volumeA } =
-              processAmount(
-                stats.pool.feeAIn,
-                stats.pool.tokenA.decimals,
-                stats.tokenAVolume,
-              );
+        const { feeTokenUnits: feeB, volumeTokenUnits: volumeB } =
+          processAmount(
+            stats.pool.feeBIn,
+            stats.pool.tokenB.decimals,
+            stats.tokenBVolume,
+          );
 
-            const { feeTokenUnits: feeB, volumeTokenUnits: volumeB } =
-              processAmount(
-                stats.pool.feeBIn,
-                stats.pool.tokenB.decimals,
-                stats.tokenBVolume,
-              );
-
-            dailyFees.add(stats.pool.tokenA.id, feeA);
-            dailyFees.add(stats.pool.tokenB.id, feeB);
-            dailyVolume.add(stats.pool.tokenA.id, volumeA);
-            dailyVolume.add(stats.pool.tokenB.id, volumeB);
-          }
-        }
-
-        return {
-          dailyVolume: dailyVolume,
-          dailyFees: dailyFees,
-        };
-      } catch (error) {
-        console.error(`Error fetching data for ${chain}:`, error);
-        return {
-          dailyVolume: createBalances(),
-          dailyFees: createBalances(),
-        };
+        dailyFees.add(stats.pool.tokenA.id, feeA);
+        dailyFees.add(stats.pool.tokenB.id, feeB);
+        dailyVolume.add(stats.pool.tokenA.id, volumeA);
+        dailyVolume.add(stats.pool.tokenB.id, volumeB);
       }
+    }
+
+    return {
+      dailyVolume: dailyVolume,
+      dailyFees: dailyFees,
     };
-  };
+  } catch (error) {
+    console.error(`Error fetching data for ${chain}:`, error);
+    return {
+      dailyVolume: createBalances(),
+      dailyFees: createBalances(),
+    };
+  }
 };
 
 const adapter: Adapter = {
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: graph(endpoints)(CHAIN.ETHEREUM),
       start: '2024-06-03',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: graph(endpoints)(CHAIN.ARBITRUM),
       start: '2024-06-03',
     },
     [CHAIN.ERA]: {
-      fetch: graph(endpoints)(CHAIN.ERA),
       start: '2024-06-03',
     },
     [CHAIN.BSC]: {
-      fetch: graph(endpoints)(CHAIN.BSC),
       start: '2024-06-03',
     },
     [CHAIN.BASE]: {
-      fetch: graph(endpoints)(CHAIN.BASE),
       start: '2024-06-03',
     },
     [CHAIN.SCROLL]: {
-      fetch: graph(endpoints)(CHAIN.SCROLL),
       start: '2024-07-10',
     },
   },

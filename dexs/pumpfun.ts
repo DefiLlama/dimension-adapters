@@ -5,7 +5,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const vol = await queryDuneSql(options, `
     SELECT 
       SUM(
@@ -30,13 +30,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-01-14',
   dependencies: [Dependencies.DUNE],
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-01-14'
-    },
-  },
   isExpensiveAdapter: true
 };
 

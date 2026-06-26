@@ -34,7 +34,7 @@ const breakdownMethodology = {
 	},
 };
 
-const fetch =async (_a: number, _b:any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch =async (options: FetchOptions): Promise<FetchResultFees> => {
 
 	const date = new Date(options.startOfDay * 1000);
 	const dateStr = date.toISOString().split("T")[0];
@@ -44,7 +44,7 @@ const fetch =async (_a: number, _b:any, options: FetchOptions): Promise<FetchRes
 	const diffTime = Math.abs(today.getTime() - date.getTime());
 	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-	const url = `${API_URL}/history/analytics/total-fees/${diffDays}`;
+	const url = `${API_URL}/cached/history/analytics/total-fees/${diffDays}`;
 	const value: IData = await fetchURL(url);
 	if (!value.success) throw new Error("Failed to fetch data");
 

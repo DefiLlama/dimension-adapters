@@ -7,7 +7,7 @@ import { sleep } from "../../utils/utils";
 
 const PERP_API_URL = 'https://perp-api.phoenix.trade/v1';
 
-async function fetch(_: any, __: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
     const marketsData = await fetchURL(`${PERP_API_URL}/view/markets`);
@@ -21,7 +21,7 @@ async function fetch(_: any, __: any, options: FetchOptions) {
         .process(async (market) => {
             const ohlcvData = await fetchURLAutoHandleRateLimit(`${PERP_API_URL}/candles/${market}?timeframe=1d&limit=300&startTime=${startTime}&endTime=${endTime}`);
             const todaysData = ohlcvData.filter((data: any) => data.time >= startTime && data.time < endTime);
-            dailyVolume.addUSDValue(todaysData[0]?.volume ?? 0);
+            dailyVolume.addUSDValue(todaysData[0]?.volumeQuote ?? 0);
             await sleep(1000);
         });
 

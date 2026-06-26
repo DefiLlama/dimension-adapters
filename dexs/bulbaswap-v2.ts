@@ -5,7 +5,7 @@ import { httpPost } from "../utils/fetchURL";
 const v2Fees = 0.0035;
 const v2Endpoints = "https://api.bulbaswap.io/v1/subgraph-apis/v2";
 
-const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayID = Math.floor(options.startOfDay / 86400);
   const factoryQuery = `{
     uniswapFactory(id: "0x8D2A8b8F7d200d75Bf5F9E84e01F9272f90EFB8b") {
@@ -34,12 +34,9 @@ const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MORPH]: {
-      fetch: fetchV2Data,
-      start: '2021-04-14',
-    },
-  },
-};
+  fetch,
+  chains: [CHAIN.MORPH],
+  start: '2024-10-27',
+}
 
 export default adapter;

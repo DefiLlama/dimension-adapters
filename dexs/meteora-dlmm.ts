@@ -26,7 +26,7 @@ async function fetch() {
       const protocol_fees = (pool.protocol_fees && pool.protocol_fees['24h']) ? Number(pool.protocol_fees['24h']) : 0;
 
       // Ignore if TVL < 1M and volume > 10x TVL
-      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10))
+      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10) || fees > volume * 0.1)
         continue;
 
       dailyVolume += volume;

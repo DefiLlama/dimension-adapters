@@ -170,12 +170,14 @@ export async function connectClickhouse(): Promise<ClickHouseClient> {
 export async function queryClickhouse<T extends Row>(
   sql: string,
   params?: Record<string, unknown>,
+  settings?: Record<string, string | number>,
 ): Promise<T[]> {
   const c = await connectClickhouse();
   const rs = await c.query({
     query: sql,
     query_params: params,
     format: "JSONEachRow",
+    clickhouse_settings: settings as any,
   });
   return rs.json<T>();
 }

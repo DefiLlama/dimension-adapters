@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived, getETHReceived, nullAddress } from '../../helpers/token';
+import { addTokensReceived } from '../../helpers/token';
 import coreAssets from "../../helpers/coreAssets.json"
 import { METRIC } from "../../helpers/metrics";
 
@@ -21,9 +21,12 @@ async function fetch(options: FetchOptions) {
   dailyRevenue.addBalances(reserveRevenue, METRIC.PROTOCOL_FEES);
   dailyRevenue.addBalances(stakingRevenue, METRIC.STAKING_REWARDS);
 
+  const dailyHoldersRevenue = reserveRevenue.clone(1, METRIC.TOKEN_BUY_BACK);
+
   return {
     dailyFees,
-    dailyRevenue
+    dailyRevenue,
+    dailyHoldersRevenue,
   }
 }
 
@@ -34,6 +37,9 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.PROTOCOL_FEES]: 'LINK tokens transferred from the Payment Abstraction Layer to the protocol reserve contract',
     [METRIC.STAKING_REWARDS]: 'LINK tokens transferred from the Payment Abstraction Layer to the staking rewards contract for distribution to node operators'
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'LINK token buybacks funded via revenue from various offchain and onchain sources'
   }
 };
 
@@ -45,7 +51,8 @@ const adapter: SimpleAdapter = {
   start: "2025-02-21",
   methodology: {
     Fees: "All the tokens received by the fee aggregator contract",
-    Revenue: "All the LINK tokens transferred from the PaymentAbstractionLayer to the Reserve and Staking Rewards contracts"
+    Revenue: "All the LINK tokens transferred from the PaymentAbstractionLayer to the Reserve and Staking Rewards contracts",
+    HoldersRevenue: "LINK token buybacks funded via revenue from various offchain and onchain sources"
   },
   breakdownMethodology
 }

@@ -1,4 +1,4 @@
-import { Fetch, FetchResult, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, FetchV2, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -25,14 +25,27 @@ const chainMap: Record<string, string> = {
     [CHAIN.TRON]: "tron",
     [CHAIN.APTOS]: "aptos",
     [CHAIN.BASE]: "base",
+    [CHAIN.TON]: "ton",
+    [CHAIN.MANTLE]: "mantle",
+    [CHAIN.MEGAETH]: "megaeth",
+    [CHAIN.INK]: "ink",
+    [CHAIN.STABLE]: "stable",
+    [CHAIN.CELO]: "celo",
+    [CHAIN.SEI]: "sei",
+    [CHAIN.FLARE]: "flare",
+    [CHAIN.FRAXTAL]: "frax",
+    [CHAIN.SUI]: "sui",
+    [CHAIN.KATANA]: "katana",
 };
 
 const prefetch: FetchV2 = async () => {
-    const res = await fetchURL(api);
+    const url = new URL(api);
+    url.searchParams.set("project", "stableflow");
+    const res = await fetchURL(url.toString());
     return res.data;
 };
 
-const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const {
         chain: currentChainBlock,
         startTimestamp,
@@ -51,8 +64,8 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchRes
 
 const adapter: SimpleAdapter = {
     version: 1,
-    prefetch,
     fetch,
+    prefetch,
     chains: Object.keys(chainMap),
     start: "2025-10-10",
 };

@@ -14,7 +14,8 @@ const multisigs: TMulitsig = {
   [CHAIN.ARBITRUM]: [multisig1],
   [CHAIN.BASE]: [multisig2],
   [CHAIN.POLYGON]: [multisig1],
-  [CHAIN.BSC]: [multisig1]
+  [CHAIN.BSC]: [multisig1],
+  [CHAIN.MONAD]: [multisig2],
 }
 
 const fetch: any = async (options: FetchOptions) => {
@@ -33,7 +34,7 @@ const adapter: Adapter = {
   methodology,
   version: 2,
   pullHourly: true,
-  chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.BSC,],
+  chains: Object.keys(multisigs),
 }
 
 export default adapter;

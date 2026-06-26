@@ -22,13 +22,13 @@ export async function queryEvents({ eventType, eventModule, options, transform =
   const items:any[] = []
   let cursor = null
   do {
-    const { data , nextCursor, hasNextPage } = await call('suix_queryEvents', [filter, cursor, 100, true], { withMetadata: true, })
+    const { data = [], nextCursor, hasNextPage } = await call('suix_queryEvents', [filter, cursor, 100, true], { withMetadata: true, })
     cursor = hasNextPage ? nextCursor : null
     items.push(...data.filter((ev:any)=>{
       const ts = Number(ev.timestampMs)/1e3
       return options.startTimestamp < ts && ts < options.endTimestamp
     }))
-    if(Number(data[data.length-1].timestampMs)/1e3 < options.startTimestamp){
+    if(!data.length || Number(data[data.length-1].timestampMs)/1e3 < options.startTimestamp){
       cursor = null
     }
   } while (cursor)

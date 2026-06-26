@@ -107,41 +107,63 @@ async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances();
-  const dailyBribesRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
+  const bondingCurveFees = options.createBalances()
+  const borrowFees = options.createBalances()
+  const bribes = options.createBalances()
+  const holdersRevenue = options.createBalances()
+  
   // Fees
-  await addBondigCurveFees(options, dailyFees);
-  await addBorrowFees(options, dailyFees);
+  await addBondigCurveFees(options, bondingCurveFees);
+  await addBorrowFees(options, borrowFees);
 
   // Bribes
-  await addBribes(options, dailyBribesRevenue);
+  await addBribes(options, bribes);
 
   // Holders Revenue
-  await addHoldersRevenue(options, dailyHoldersRevenue);
+  await addHoldersRevenue(options, holdersRevenue);
+  
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  
+  dailyFees.add(bondingCurveFees, 'Bonding Curve Fees')
+  dailyFees.add(borrowFees, 'Borrow Fees')
+  dailyFees.add(bribes, 'Bribes Rewards')
+  dailyFees.add(holdersRevenue, 'BGT Staking Rewards')
+
+  dailySupplySideRevenue.add(bondingCurveFees, 'Bonding Curve Fees')
+  dailySupplySideRevenue.add(borrowFees, 'Borrow Fees')
+  
+  dailyHoldersRevenue.add(bribes, 'Bribes Revenue')
+  dailyHoldersRevenue.add(holdersRevenue, 'BGT Staking Rewards')
 
   return {
     dailyFees,
-    dailyBribesRevenue,
+    dailySupplySideRevenue,
     dailyRevenue: dailyHoldersRevenue,
     dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
   };
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Fees paid when buying/selling BERO token through the bonding curve mechanism, charged at 0.3% of trading amount",
-    [METRIC.BORROW_INTEREST]: "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount",
-  },
-  BribesRevenue: {
-    "Bribes from external protocols": "Incentives paid by external protocols to veToken holders to direct emissions and liquidity to specific pools",
+    'Bonding Curve Fees': "Fees paid when buying or selling BERO through the bonding curve, charged at 0.3% of traded amount.",
+    'Borrow Fees': "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount.",
+    'Bribes Rewards': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
   },
   Revenue: {
-    "BGT staking rewards": "BGT rewards distributed through the Beradrome Reward Vault to token holders who are automatically staked",
+    'Bribes Revenue': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
   },
   HoldersRevenue: {
-    "BGT staking rewards": "BGT rewards distributed through the Beradrome Reward Vault to token holders who are automatically staked",
+    'Bribes Revenue': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
+  },
+  SupplySideRevenue: {
+    'Bonding Curve Fees': "Fees paid when buying or selling BERO through the bonding curve, charged at 0.3% of traded amount.",
+    'Borrow Fees': "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount.",
   },
 };
 
@@ -152,10 +174,11 @@ const adapter: Adapter = {
   start: "2025-02-06",
   pullHourly: true,
   methodology: {
-    Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
-    BribesRevenue: "Bribes from plugins distributed to holders.",
-    Revenue: "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
-    HoldersRevenue: "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
+    Fees: "BERO bonding curve fees, HONEY borrow fees, bribes rewards from plugin bribe contracts, and BGT staking rewards distributed through the Beradrome Reward Vault.",
+    Revenue: "Bribes revenue from plugin bribe contracts plus BGT staking rewards distributed through the Beradrome Reward Vault.",
+    HoldersRevenue: "Bribes revenue from plugin bribe contracts plus BGT staking rewards distributed through the Beradrome Reward Vault.",
+    SupplySideRevenue: "BERO bonding curve fees and HONEY borrow fees.",
+    ProtocolRevenue: "No protocol revenue.",
   },
   breakdownMethodology,
 };

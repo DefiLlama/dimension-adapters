@@ -14,7 +14,7 @@ type RevenueDailyResponseSchema = {
   data: RevenueDailyPoint[];
 };
 
-const solanaFetch: any = async (_a: any, _b:any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const result: RevenueDailyResponseSchema = await fetchURL("https://metabase.internal-streamflow.com/_public/api/v1/stats/revenue-daily?days=365");
 
   const day = 60 * 60 * 24;
@@ -41,19 +41,16 @@ const solanaFetch: any = async (_a: any, _b:any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-04-20',
+  allowNegativeValue: true, // Streamflow buy back more than revenue, so revenue can be negative
   methodology: {
     Fees: "All fees paid by users to use a particular Streamflow product.",
     Revenue: "All fees collected by the Streamflow protocols, a portion of which goes towards $STREAM buybacks and distribution to stakers.",
     ProtocolRevenue: "All fees collected by the Streamflow protocols that go into the Streamflow treasury.",
     HoldersRevenue: "Portion of the revenue used to buyback $STREAM tokens.",
   },
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: solanaFetch,
-      start: '2025-04-20',
-    },
-  },
-  allowNegativeValue: true, // Streamflow buy back more than revenue, so revenue can be negative
 }
 
 export default adapter;

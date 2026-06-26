@@ -1,9 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 import { addOneToken } from "../../helpers/prices";
+import { getConfig } from "../../helpers/cache";
 
-const API_BASE = "https://api.metric.xyz";
+// const API_BASE = "https://api.metric.xyz";
+const API_BASE = "http://54.199.103.16:8080";
 
 const chainConfig: Record<string, { name: string, start: string }> = {
     [CHAIN.ETHEREUM]: { name: "ethereum", start: "2026-02-23" },
@@ -35,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const chainName = chainConfig[options.chain].name;
 
-    const pools: PoolMeta[] = await httpGet(`${API_BASE}/${chainName}/metadata`);
+    const pools: PoolMeta[] = await getConfig(`metric.xyz-pools-${chainName}`, `${API_BASE}/${chainName}/metadata`);
 
     if (!pools.length) return { dailyVolume };
 

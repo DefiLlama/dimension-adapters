@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
@@ -488,31 +488,54 @@ async function fetchFromApi(options: FetchOptions) {
     throw new Error(`No data for chain ${options.chain} in API response`);
   }
 
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(chainData.total_fees);
+  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury);
+  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury);
+  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp);
+  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao);
+  
   return {
     dailyVolume: chainData.total_volume,
-    dailyFees: chainData.total_fees,
-    dailyUserFees: chainData.total_fees,
-    dailyRevenue: chainData.fees_to_dao + chainData.fees_to_treasury,
-    dailyProtocolRevenue: chainData.fees_to_treasury,
-    dailySupplySideRevenue: chainData.fees_to_lp,
-    dailyHoldersRevenue: chainData.fees_to_dao,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 }
 
 async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) {
   const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, config);
 
-  const dailySupplySideRevenue = swapFees.clone(1);
-  dailySupplySideRevenue.subtract(adminFees);
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  
+  const lpRevenue = swapFees.clone(1);
+  lpRevenue.subtract(adminFees);
+
+  dailyFees.add(swapFees);
+  dailyRevenue.add(adminFees);
+  dailySupplySideRevenue.add(lpRevenue);
+  dailyHoldersRevenue.add(adminFees);
 
   return {
     dailyVolume,
-    dailyFees: swapFees,
-    dailyUserFees: swapFees,
-    dailyRevenue: adminFees,
-    dailyProtocolRevenue: 0,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: adminFees,
+    dailyHoldersRevenue,
   };
 }
 
@@ -523,7 +546,7 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
       return {
         ...acc,
         [chain]: {
-          fetch: async function(options: FetchOptions) {
+          fetch: async function(options: FetchOptions): Promise<FetchResultV2> {
             // Try API first, fall back to on-chain if chain not in API or API fails
             try {
               return await fetchFromApi(options);
@@ -541,16 +564,6 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   return adapter;
 }
 
-// https://resources.curve.finance/pools/overview/#pool-fees
 const adapter = getCurveExport(CurveDexConfigs)
-
-adapter.methodology = {
-  Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
-  UserFees: "Trading and liquidity fees paid by users",
-  Revenue: "Fees distributed to veCRV holders and protocol treasury",
-  ProtocolRevenue: "Fees allocated to the protocol treasury",
-  HoldersRevenue: "Fees distributed to veCRV governance token holders",
-  SupplySideRevenue: "Fees distributed to liquidity providers"
-}
 
 export default adapter;

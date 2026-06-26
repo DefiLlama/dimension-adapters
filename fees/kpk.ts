@@ -4,24 +4,50 @@ import { addTokensReceived } from "../helpers/token";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
 
-// -------------------------
-// KPK's Morpho vaults
-// -------------------------
 const curatorConfig: CuratorConfig = {
   vaults: {
     [CHAIN.ETHEREUM]: {
+      // All KPK Morpho vaults, listed explicitly (V1 MetaMorpho and V2). They are
+      // listed here rather than discovered by owner because every V2 vault's
+      // CreateVaultV2 owner is its per-vault creation owner, which was later
+      // transferred to the shared Security Council Safe; owner-based discovery
+      // would match none of them. The helper reads gross yield from share-price
+      // growth for every listed vault. KPK charges a 0% curator fee on Morpho, so
+      // these contribute Fees and SupplySideRevenue only, never Revenue.
       morpho: [
-        "0xe108fbc04852B5df72f9E44d7C29F47e7A993aDd",
-        "0x0c6aec603d48eBf1cECc7B247a2c3DA08b398DC1",
-        "0xd564F765F9aD3E7d2d6cA782100795a885e8e7C8",
-        "0x4Ef53d2cAa51C447fdFEEedee8F07FD1962C9ee6",
-        "0xa877D5bb0274dcCbA8556154A30E1Ca4021a275f",
-        "0xbb50a5341368751024ddf33385ba8cf61fe65ff9",
+        // V1 (legacy, winding down)
+        "0xe108fbc04852B5df72f9E44d7C29F47e7A993aDd", // USDC Prime
+        "0x0c6aec603d48eBf1cECc7B247a2c3DA08b398DC1", // EURC Yield
+        "0xd564F765F9aD3E7d2d6cA782100795a885e8e7C8", // ETH Prime
+        "0xc88eFFD6e74D55c78290892809955463468E982A", // ETH Yield
+        "0x9178eBE0691593184c1D785a864B62a326cc3509", // USDC Yield
+        "0xdaD4e51d64c3B65A9d27aD9F3185B09449712065", // USDT Prime
+        // V2 (live book)
+        "0x4Ef53d2cAa51C447fdFEEedee8F07FD1962C9ee6", // USDC Prime
+        "0xa877D5bb0274dcCbA8556154A30E1Ca4021a275f", // EURC Yield
+        "0xbb50a5341368751024ddf33385ba8cf61fe65ff9", // ETH Prime
+        "0x5dbf760b4fd0cDdDe0366b33aEb338b2A6d77725", // ETH Yield
+        "0xD5cCe260E7a755DDf0Fb9cdF06443d593AaeaA13", // USDC Yield
+        "0x870F0BF29A25A40E7CC087cD5C53e70C11F2C8A8", // USDT Prime
+        "0x1a1985F50352b58090eb36425AfdFacbaC7806F4", // USDC Prime Core
+      ],
+      // Euler: KPK earns its 5% interestFee on the UNDERLYING eVaults (borrow
+      // markets), not on the Euler Earn aggregator (0% fee, no interestFee). These
+      // are the markets KPK governs (governorAdmin = KPK Curator Safe). The
+      // getEulerVaultFee helper reads interestFee() (uint, 1e4 scale) off each
+      // eVault; verify per address via Read Contract -> interestFee() (= 500 = 5%).
+      // EVK fee mechanism: https://docs.euler.finance/euler-vault-kit-white-paper/
+      euler: [
+        "0x2Ff596321782FE034102f55af5ad707A4Ce0d6a7", // USDC Prime RWA: VBILL
+        "0x8b2d7534Ffcf6c2a9226f439CDaC26c6666E97a9", // USDC Prime RWA: STAC
+        "0xf55B46C10138782aDE3275D81e44B8464100eAfF", // ETH Yield Term: wstETH
+        "0xB5fa20eb3c1A146E1090F24CF3c7D60263Dafa71", // ETH Yield Term: tETH
       ],
     },
     [CHAIN.ARBITRUM]: {
       morpho: [
-        "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d",
+        "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d", // USDC Yield (V1)
+        "0x5837e4189819637853a357aF36650902347F5e73", // USDC Yield (V2)
       ],
     },
   },
@@ -30,28 +56,54 @@ const curatorConfig: CuratorConfig = {
 // -------------------------------
 // Gearbox TreasurySplitter config
 // -------------------------------
+// Gearbox routes the curator's protocol-fee share to a TreasurySplitter, which
+// splits inflows between recipients per its defaultSplit() (verifiable on-chain).
+// Gearbox fee model: https://docs.gearbox.finance/overview/protocol-fees
+// TreasurySplitter (Read defaultSplit / DistributeToken events):
+// https://etherscan.io/address/0x111438B87888abee9bf2759599AAB423DcA54786
 const TREASURY_SPLITTER = "0x111438B87888abee9bf2759599AAB423DcA54786";
 
-const GEARBOX_FEE_TOKENS = [
-  "0xA9d17f6D3285208280a1Fd9B94479c62e0AABa64",
-  "0x9396DCbf78fc526bb003665337C5E73b699571EF",
-  "0x7f39C581F595B53c5cb19bd0b3f8dA6c935E2Ca0",
-  "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+// KPK's Gearbox curator fee is routed as diesel (ERC-4626) shares into the
+// splitter on credit-account repayment, then split on distribute(). The
+// diesel-share tokens themselves are not reliably priced by DefiLlama (e.g.
+// kpkWETH has no price feed), so each received amount is converted to its
+// underlying asset via convertToAssets() and booked as the underlying, which is
+// priced. The diesel share is worth more than 1:1 of its underlying (it accrues
+// interest), so this conversion is required for correct valuation. Each "share"
+// is a Gearbox PoolV3 diesel token; "underlying" is its asset() (verify via
+// Read Contract -> asset()/convertToAssets on the Etherscan pages below).
+const GEARBOX_DIESEL_TOKENS = [
+  {
+    // https://etherscan.io/address/0x9396DCbf78fc526bb003665337C5E73b699571EF#readContract
+    share: "0x9396DCbf78fc526bb003665337C5E73b699571EF", // kpkWETH (Gearbox WETH pool)
+    underlying: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
+  },
+  {
+    // https://etherscan.io/address/0xA9d17f6D3285208280a1Fd9B94479c62e0AABa64#readContract
+    share: "0xA9d17f6D3285208280a1Fd9B94479c62e0AABa64", // kpkwstETH (Gearbox wstETH pool)
+    underlying: "0x7f39C581F595B53c5cb19bd0b3f8dA6c935E2Ca0", // wstETH
+  },
 ];
 
-// 50% of Gearbox fees
+// KPK's share of Gearbox TreasurySplitter inflows. The splitter's defaultSplit()
+// allocates 5000 bps (50%) to each of two recipients; KPK's fee Safe is one of
+// them. Verify on-chain: TreasurySplitter.defaultSplit() returns the recipients
+// and their bps. https://etherscan.io/address/0x111438B87888abee9bf2759599AAB423DcA54786#readContract
 const KPK_SHARE_BPS = 5000n;
 
-// Base curator adapter
+// breakdown label distinguishing Gearbox inflows from Morpho/Euler yields
+const GEARBOX_FEE_LABEL = "Gearbox TreasurySplitter";
+
+// Base curator adapter (Morpho + Euler fees, via share-price growth)
 const baseAdapter: SimpleAdapter = getCuratorExport(curatorConfig);
 
-// Wrap each chain fetch
+// Wrap each chain fetch to add Gearbox TreasurySplitter inflows
 for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
   const originalFetch = chainCfg.fetch as ((o: FetchOptions) => Promise<FetchResultV2>) | undefined;
   if (!originalFetch) continue;
 
   chainCfg.fetch = (async (options: FetchOptions): Promise<FetchResultV2> => {
-    // 1) Morpho/Euler fees
+    // 1) Morpho + Euler vault fees
     const morphoResult = await originalFetch(options);
 
     const dailyFees: Balances =
@@ -60,32 +112,68 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
     const dailySupplySideRevenue: Balances =
       (morphoResult.dailySupplySideRevenue as Balances) ?? options.createBalances();
 
-    const dailyRevenue: Balances = options.createBalances();
+    // Carry forward the curator revenue the helper already computed (Euler 5%
+    // interestFee). Morpho contributes none (KPK charges 0% on Morpho).
+    const dailyRevenue: Balances =
+      (morphoResult.dailyRevenue as Balances) ?? options.createBalances();
 
-    // 2) Gearbox TreasurySplitter fees (ETH chain only)
+    // 2) Gearbox TreasurySplitter fees (ETH chain only). Inflows into the splitter
+    // (diesel shares minted by the pool on repayment) are the accrual signal; the
+    // outflows are KPK's manual distribute() claims and are intentionally ignored.
     if (chain === CHAIN.ETHEREUM) {
-      const gearboxDailyFees: Balances = await addTokensReceived({
+      const shareTokens = GEARBOX_DIESEL_TOKENS.map((t) => t.share);
+
+      // amount of each diesel share received by the splitter this period
+      const gearboxReceived: Balances = await addTokensReceived({
         options,
-        tokens: GEARBOX_FEE_TOKENS,
+        tokens: shareTokens,
         targets: [TREASURY_SPLITTER],
       });
+      const raw = gearboxReceived.getBalances();
 
-      const raw = gearboxDailyFees.getBalances();
-
+      // map "ethereum:<addr>" / "<addr>" -> received share amount (lowercased)
+      const receivedByShare: Record<string, bigint> = {};
       for (const [tokenId, rawAmount] of Object.entries(raw)) {
         const amount = BigInt(rawAmount.toString());
         if (amount === 0n) continue;
+        const addr = (tokenId.includes(":") ? tokenId.split(":")[1] : tokenId).toLowerCase();
+        receivedByShare[addr] = amount;
+      }
 
-        // strip "ethereum:" prefix if present
-        let cleanToken = tokenId;
-        const [maybeChain, addr] = tokenId.split(":");
-        if (addr && maybeChain === chain) cleanToken = addr;
+      // convert each received share amount to its underlying asset (the diesel
+      // share is worth > 1:1 of underlying and is not reliably priced)
+      const dieselWithFlow = GEARBOX_DIESEL_TOKENS.filter(
+        (t) => receivedByShare[t.share.toLowerCase()],
+      );
+      if (dieselWithFlow.length > 0) {
+        // these are known Gearbox pool contracts; do not swallow a failed read,
+        // let it surface rather than silently undercounting fees.
+        const underlyingAmounts = await options.api.multiCall({
+          abi: "function convertToAssets(uint256 shares) view returns (uint256)",
+          calls: dieselWithFlow.map((t) => ({
+            target: t.share,
+            params: [receivedByShare[t.share.toLowerCase()].toString()],
+          })),
+        });
 
-        dailyFees.add(cleanToken, amount);
+        for (let i = 0; i < dieselWithFlow.length; i++) {
+          if (underlyingAmounts[i] === undefined || underlyingAmounts[i] === null) {
+            throw new Error(`Gearbox convertToAssets failed for ${dieselWithFlow[i].share}`);
+          }
+          const assets = BigInt(underlyingAmounts[i].toString());
+          if (assets === 0n) continue;
 
-        const half = (amount * KPK_SHARE_BPS) / 10_000n;
-        if (half > 0n) {
-          dailyRevenue.add(cleanToken, half);
+          const underlying = dieselWithFlow[i].underlying;
+          dailyFees.add(underlying, assets, GEARBOX_FEE_LABEL);
+
+          // KPK keeps 50% (revenue); the other 50% goes to the second splitter
+          // recipient and is treated as supply-side so that
+          // dailyFees = dailyRevenue + dailySupplySideRevenue holds.
+          const kpkShare = (assets * KPK_SHARE_BPS) / 10_000n;
+          if (kpkShare > 0n) {
+            dailyRevenue.add(underlying, kpkShare, GEARBOX_FEE_LABEL);
+          }
+          dailySupplySideRevenue.add(underlying, assets - kpkShare, GEARBOX_FEE_LABEL);
         }
       }
     }
@@ -101,12 +189,28 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
 
 // Methodology
 baseAdapter.methodology = {
-  Fees: "Total fee = Morpho/Euler vault fees + all ERC20 transfers of specified Gearbox tokens into TreasurySplitter.",
-  Revenue: "Total revenue = 50% of Gearbox TreasurySplitter inflows (Morpho fees excluded).",
-  ProtocolRevenue: "Total revenue = 50% of Gearbox TreasurySplitter inflows (Morpho fees excluded).",
-  SupplySideRevenue: "Only from Morpho/Euler. Gearbox does not contribute supply-side revenue.",
+  Fees: "Gross interest/yield from KPK-curated Morpho and Euler vaults, plus realized Gearbox TreasurySplitter inflows.",
+  Revenue: "Curator's cut: Euler 5% interestFee on KPK's underlying markets + 50% of Gearbox TreasurySplitter inflows. Morpho is excluded (KPK charges a 0% curator fee on Morpho).",
+  ProtocolRevenue: "Same as Revenue.",
+  SupplySideRevenue: "Interest/yield distributed to vault depositors (Morpho and Euler), plus the half of Gearbox TreasurySplitter inflows that goes to the second recipient.",
 };
 
-baseAdapter.pullHourly = true;
+// document the Gearbox breakdown label used in the .add() calls above, alongside
+// the curator-helper's existing labels (Morpho/Euler yields).
+const existingBreakdown = (baseAdapter.breakdownMethodology ?? {}) as Record<string, Record<string, string>>;
+const mergeBreakdown = (key: string, gearboxDesc: string) => ({
+  ...(existingBreakdown[key] ?? {}),
+  [GEARBOX_FEE_LABEL]: gearboxDesc,
+});
+baseAdapter.breakdownMethodology = {
+  ...existingBreakdown,
+  Fees: mergeBreakdown("Fees", "Diesel-share inflows into the Gearbox TreasurySplitter, valued in the underlying asset (WETH/wstETH)."),
+  Revenue: mergeBreakdown("Revenue", "KPK's 50% share of Gearbox TreasurySplitter inflows."),
+  SupplySideRevenue: mergeBreakdown("SupplySideRevenue", "The other 50% of Gearbox TreasurySplitter inflows, paid to the second recipient."),
+};
+
+// Daily granularity is sufficient for share-price-growth accrual and avoids the
+// 24x multicall load (across many vaults) that hourly sampling would impose.
+baseAdapter.pullHourly = false;
 
 export default baseAdapter;

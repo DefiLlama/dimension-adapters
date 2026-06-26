@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
 
 const ADA_ID = "ada.lovelace";
 const endpoint = "https://api.sundae.fi/graphql";
@@ -47,7 +48,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     query fetchPools($start: String!, $end: String!) {
       pools {
         popular {
-          ticks(start: $start, end: $end, interval: All) {
+          ticks(start: $start, end: $end, interval: Daily) {
             rich {
               protocolFees { quantity asset { id } }
               lpFees(unit: Natural) { quantity asset { id } }
@@ -82,6 +83,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyFees.addBalances(dailySupplySideRevenue, METRIC.LP_FEES);
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
 
+
   return {
     dailyFees,
     dailyRevenue,
@@ -107,7 +109,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2022-01-20",

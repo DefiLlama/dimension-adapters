@@ -17,8 +17,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (
-  timestamp: number,
-  _: ChainBlocks,
   options: FetchOptions
 ): Promise<FetchResultVolume> => {
   const volume = // https://dune.com/queries/4789107/7941663

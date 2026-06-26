@@ -4,7 +4,7 @@ import { httpPost } from "../utils/fetchURL";
 
 const v3Endpoints = "https://api.bulbaswap.io/v1/subgraph-apis/v3";
 
-const fetchV3Data = async (_: any, _tt: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const v3FactoryQuery = `{
     factory(id: "0xFf8578C2949148A6F19b7958aE86CAAb2779CDDD") {
       totalValueLockedUSD
@@ -30,12 +30,9 @@ const fetchV3Data = async (_: any, _tt: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MORPH]: {
-      fetch: fetchV3Data,
-      start: '2021-04-14',
-    },
-  },
+  fetch,
+  chains: [CHAIN.MORPH],
+  start: '2024-10-19',
 };
 
 export default adapter;

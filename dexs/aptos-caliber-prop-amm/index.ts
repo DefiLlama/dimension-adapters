@@ -1,11 +1,13 @@
 /*
  * Aptos Caliber Prop AMM – daily volume (USDC)
  *
- * Volume = sum of USDC amounts from SwapEventV2:
+ * Volume = sum of USDC amounts from both swap event streams (union):
  * - When token_in is USDC: amount_in / 1e6
  * - When token_out is USDC: amount_out / 1e6
  *
- * Event: 0x9f848aa20dc3829b23079d595ed719f55eec932a6805acf4909be88c88dd4d66::pools::SwapEventV2
+ * Events:
+ * - 0x9f848aa20dc3829b23079d595ed719f55eec932a6805acf4909be88c88dd4d66::pools::SwapEventV2
+ * - 0x759ead4f35266aff94d74d68d7c063e605742a496095c997e1cc9b07f7dd5f37::pools::SwapEvent
  * USDC: 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b
  */
 
@@ -13,19 +15,21 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const SWAP_EVENT_TYPE =
+const SWAP_EVENT_V2 =
   "0x9f848aa20dc3829b23079d595ed719f55eec932a6805acf4909be88c88dd4d66::pools::SwapEventV2";
+const SWAP_EVENT_V3 =
+  "0x759ead4f35266aff94d74d68d7c063e605742a496095c997e1cc9b07f7dd5f37::pools::SwapEvent";
 const USDC_TOKEN =
   "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     WITH raw AS (
       SELECT
         block_time,
         json_parse(data) AS event_json
       FROM aptos.events
-      WHERE event_type = '${SWAP_EVENT_TYPE}'
+      WHERE event_type IN ('${SWAP_EVENT_V2}', '${SWAP_EVENT_V3}')
         AND TIME_RANGE
     ),
     swaps AS (
@@ -49,7 +53,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = await queryDuneSql(options, query)
 
   return {
-    dailyVolume: data[0]?.daily_volume ?? 0  }
+    dailyVolume: data[0]?.daily_volume ?? 0,
+  }
 }
 
 const adapter: SimpleAdapter = {

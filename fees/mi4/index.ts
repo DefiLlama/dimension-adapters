@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics"
 
 // https://securitize.io/primary-market/mantle-index-four-fund
 
@@ -45,10 +44,11 @@ const fetch = async (options: FetchOptions) => {
     const currentPeriod = options.toTimestamp - options.fromTimestamp
     const managementFees = tvlUSD * MANAGEMENT_FEES_RATE * currentPeriod / (365 * 24 * 3600)
 
-    dailyFees.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES)
+    dailyFees.addUSDValue(managementFees, 'Management Fees - MI4')
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
 }
 const adapters : SimpleAdapter = {
@@ -59,6 +59,18 @@ const adapters : SimpleAdapter = {
     methodology: {
         Fees: "1% total deposited assets charged as management fees annually.",
         Revenue: "Management fees are revenue.",
-    }
+        ProtocolRevenue: "All revenue are collected by protocol.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Management Fees - MI4': '1% total deposited assets charged as management fees annually.',
+    },
+    Revenue: {
+      'Management Fees - MI4': 'All management fees are revenue.',
+    },
+    ProtocolRevenue: {
+      'Management Fees - MI4': 'All revenue are collected by protocol.',
+    },
+  }
 };
 export default adapters;

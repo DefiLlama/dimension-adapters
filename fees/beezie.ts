@@ -1,99 +1,181 @@
-/**
- * Beezie "The Claw" (Base) — fee adapter
- *
- * Claw pull: user pays to play the claw machine (money in → claw wallet). That is gross take from plays, not final profit.
- * Claw SWAP: after a win, the user can sell the prize back to Beezie within the offer window (money out ← claw wallet).
- * We report net economics as inflows minus SWAP payouts; see https://docs.beezie.com/our-offerings/the-claw
- *
- * Tier names match known machine wallets; any factory machine not in those lists is "Other".
- */
-
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { addTokensReceived } from "../helpers/token";
 
-/** Exclude Beezie internal flows so pulls/swaps reflect user↔machine only */
-const INTERNAL_WALLET = "0x80d7c04b738ef379971a6b73f25b1a71ea1c820d";
+// Tracks claw machine plays and BidRouter trades (swaps + marketplace).
 
-/** Dune varbinary literals (lowercase hex) — must match analytics tier buckets */
-const TIER_CASE = `
-    CASE
-      WHEN claw_wallet IN (
-        0x25acd3ccb939703a742187d6f504428c684ea50c,
-        0x8ed22e2569e4a5b4a872299591f0ac016ce19f4e,
-        0xfdf28b9b957baed8f3d9962effa9b0fe1e189d6a,
-        0x92d79b4b48230d44f915d47fea6c5f63c4565a69,
-        0xa34426b958bc792bf2640befa204df579d81b3bf
-      ) THEN 'Wildcard'
-      WHEN claw_wallet IN (
-        0x044cec512d7a5d6852a1b1f1bf5bb9f746962073,
-        0x1334e20c249b2c7b45a6b4bafa2947163d74c8b6,
-        0x6f4aba86b9e441f77a51fa4d9fc47001e5bf1072,
-        0x08f49b9d64a807ec00b1ba986dc9392c26029fcb
-      ) THEN 'Gold TCG'
-      WHEN claw_wallet IN (
-        0x7b8958961517daa2a0bea01249a9ac17f27725d6,
-        0x7d71dfc365e6518d40cfdb3f10068be0974e9992,
-        0x686328b1a104819dda8e8fa5681694a7b93e4061,
-        0x310b050b945c7b9ee66704ca137ddac003371508,
-        0x406762fc03d59776e2ea3c6546588aaf1813f173
-      ) THEN 'Silver TCG'
-      WHEN claw_wallet IN (0x5dfb0592e11d63fdaa880020e69f81cc122d2c97) THEN 'Platinum TCG'
-      ELSE 'Other'
-    END`;
+// --- ABIs ---
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+const factoryAbi = {
+  clawMachineCreated: "event ClawMachineCreated(address indexed clawMachine)",
+};
 
-  const query = `
-    WITH claw_wallets AS (
-      SELECT DISTINCT clawMachine AS claw_wallet
-      FROM beezie_base.beezieclawmachinefactoryv2_evt_clawmachinecreated
-    ),
-    machine_tier AS (
-      SELECT
-        claw_wallet,
-        ${TIER_CASE} AS claw_name
-      FROM claw_wallets
-    ),
-    inflows AS (
-      SELECT
-        mt.claw_name,
-        COALESCE(SUM(t.amount_usd), 0) AS total
-      FROM tokens_base.transfers t
-      INNER JOIN machine_tier mt ON t."to" = mt.claw_wallet
-      WHERE t."from" != ${INTERNAL_WALLET}
-        AND t.block_time >= from_unixtime(${options.startTimestamp})
-        AND t.block_time < from_unixtime(${options.endTimestamp})
-      GROUP BY 1
-    ),
-    outflows AS (
-      SELECT
-        mt.claw_name,
-        COALESCE(SUM(t.amount_usd), 0) AS total
-      FROM tokens_base.transfers t
-      INNER JOIN machine_tier mt ON t."from" = mt.claw_wallet
-      WHERE t."to" != ${INTERNAL_WALLET}
-        AND t.block_time >= from_unixtime(${options.startTimestamp})
-        AND t.block_time < from_unixtime(${options.endTimestamp})
-      GROUP BY 1
-    ),
-    names AS (
-      SELECT DISTINCT claw_name FROM machine_tier
-    )
-    SELECT
-      n.claw_name,
-      COALESCE(i.total, 0) - COALESCE(o.total, 0) AS net_revenue
-    FROM names n
-    LEFT JOIN inflows i ON n.claw_name = i.claw_name
-    LEFT JOIN outflows o ON n.claw_name = o.claw_name
-  `;
+const clawMachineV1Abi = {
+  played: "event Played(address indexed user, uint256 indexed amount, uint256 commission)",
+  playToken: "function playToken() view returns (address)",
+};
 
-  const rows: { claw_name: string; net_revenue: number }[] = await queryDuneSql(options, query);
-  for (const row of rows) {
-    dailyFees.addUSDValue(row.net_revenue ?? 0, row.claw_name);
+const clawMachineV2Abi = {
+  played: "event Played(address indexed user, uint256 indexed amount)",
+  playToken: "function playToken() view returns (address)",
+};
+
+// --- Contract Addresses ---
+
+const config: Record<
+  string,
+  {
+    factory: string;
+    factoryStartBlock: number;
+    bidRouter: string;
+    version: "v1" | "v2";
+    start: string;
+    paymentTokens: string[];
+  }
+> = {
+  [CHAIN.BASE]: {
+    factory: "0x8B50BAB7464764f6d102a9819B7db967256Db14c",
+    factoryStartBlock: 40451500,
+    bidRouter: "0x80d7C04B738eF379971a6b73f25B1A71ea1c820D",
+    version: "v2",
+    start: "2026-01-06",
+    paymentTokens: ["0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"], // USDC
+  },
+  //flow doesnt have a good rpc to go back this long
+  // [CHAIN.FLOW]: {
+  //   factory: "0xde545660B5EeA686286b578F7491C7E5CEeaf895",
+  //   factoryStartBlock: 12572646,
+  //   bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
+  //   version: "v1",
+  //   start: "2024-11-01",
+  //   paymentTokens: ["0xd3bF53DAC106A0290B0483EcBC89d40FcC961f3e"], // PYUSD
+  // },
+};
+
+// --- Fetch Logic ---
+
+const fetchClawMachineAddresses = async (options: FetchOptions, factoryAddress: string, startBlock: number): Promise<string[]> => {
+  const logs = await options.getLogs({
+    target: factoryAddress,
+    eventAbi: factoryAbi.clawMachineCreated,
+    fromBlock: startBlock,
+    cacheInCloud: true,
+  });
+
+  return logs.map((log: any) => log.clawMachine);
+};
+
+const fetchClawFees = async (options: FetchOptions, clawMachines: string[], version: "v1" | "v2") => {
+  if (!clawMachines.length) {
+    return { dailyFees: options.createBalances() };
   }
 
+  const playTokens = await options.api.multiCall({
+    abi: version === "v2" ? clawMachineV2Abi.playToken : clawMachineV1Abi.playToken,
+    calls: clawMachines,
+    permitFailure: true,
+  });
+
+  const machineToToken = new Map<string, string>();
+  const validMachines: string[] = [];
+  clawMachines.forEach((machine, i) => {
+    if (playTokens[i]) {
+      machineToToken.set(machine.toLowerCase(), playTokens[i]);
+      validMachines.push(machine);
+    }
+  });
+
+  const dailyFees = options.createBalances();
+
+  if (version === "v2") {
+    // Played.amount = price * times (full play cost). Users can SWAP the won card back within
+    // 15 mins and recover the play price minus 5%, so 5% is the non-refundable fee per pull.
+    const logs = await options.getLogs({
+      targets: validMachines,
+      eventAbi: clawMachineV2Abi.played,
+      onlyArgs: false,
+    });
+
+    for (const log of logs) {
+      const machine = log.address?.toLowerCase() ?? "";
+      const token = machineToToken.get(machine);
+      if (!token) continue;
+
+      dailyFees.add(token, BigInt(log.args.amount.toString()) * 500n / 10_000n, "Claw Machine Fees");
+    }
+  } else {
+    // V1: commission field = protocol's take per play (explicit on-chain fee)
+    const logs = await options.getLogs({
+      targets: validMachines,
+      eventAbi: clawMachineV1Abi.played,
+      onlyArgs: false,
+    });
+
+    for (const log of logs) {
+      const machine = log.address?.toLowerCase() ?? "";
+      const token = machineToToken.get(machine);
+      if (!token) continue;
+
+      dailyFees.add(token, log.args.commission, "Claw Machine Fees");
+    }
+  }
+
+  return { dailyFees };
+};
+
+// Transfers from these addresses to BidRouter are claw swaps (not P2P marketplace)
+const CLAW_MANAGERS = new Set(
+  [
+    "0x2129836a9ee21cD92129B05453F4Bdbd879566D7",
+    "0x46e2Af76235d2fb959cf725f73443042a9aF7080",
+    "0x279Dd5eE509783D04F002FDFc3d688a911557305",
+    "0x61aA186Be094041F5C8C41c6AadF210532111fDc",
+    "0xBa2b26Dd25C57838B7E500c539e0d85293d96FD4",
+    "0xa69D72428AfFcCEcAc7C2fa91492480273E41200",
+    "0x48C27EF6218Bc4f0714dd00df6941868B1afa54a",
+    "0x69daaBeD9750a96F0eE7340b800930366D9dC976",
+    "0x3BD1141C1dc3E74197411452DcAd9B1b2b6329F2",
+  ].map((a) => a.toLowerCase()),
+);
+
+const fetchBidRouterVolume = async (options: FetchOptions, bidRouterAddress: string) => {
+  const tokens = config[options.chain].paymentTokens;
+
+  const swapVolume = options.createBalances();
+  await addTokensReceived({
+    options,
+    target: bidRouterAddress,
+    balances: swapVolume,
+    tokens,
+    fromAdddesses: [...CLAW_MANAGERS],
+  });
+
+  const marketplaceVolume = options.createBalances();
+  await addTokensReceived({
+    options,
+    target: bidRouterAddress,
+    balances: marketplaceVolume,
+    tokens,
+    logFilter: (log: any) => !CLAW_MANAGERS.has((log.from ?? "").toLowerCase()),
+  });
+
+  return { swapVolume, marketplaceVolume };
+};
+
+const fetch = async (options: FetchOptions) => {
+  const chainConfig = config[options.chain];
+
+  const clawMachines = await fetchClawMachineAddresses(options, chainConfig.factory, chainConfig.factoryStartBlock);
+  const claw = await fetchClawFees(options, clawMachines, chainConfig.version);
+  const bids = await fetchBidRouterVolume(options, chainConfig.bidRouter);
+
+  // Claw: 5% non-refundable per play. BidRouter: 6% on every swap and marketplace sale.
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(claw.dailyFees, "Claw Machine Fees");
+  dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
+  dailyFees.addBalances(bids.marketplaceVolume.clone(0.06), "Marketplace Fees");
+
+  // Beezie keeps 100% of fees — no LP/seller/creator share — so revenue == fees.
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -101,28 +183,39 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const tierNetDesc = "Net for this claw tier: token inflows to those machine wallets (plays) minus outflows (SWAP / buyback payouts).";
+const methodology = {
+  Fees: "5% of each claw pull (users can SWAP the won card back within 15 mins and recover the play price minus 5%), plus 6% on every BidRouter swap and marketplace sale. Trade volume itself is not counted — only Beezie's cut.",
+  Revenue: "Beezie keeps 100% of all fees — no share goes to sellers, creators, or LPs.",
+  ProtocolRevenue: "All revenue goes to the Beezie treasury.",
+};
 
-const adapter: SimpleAdapter = {
-  version: 1,
+const breakdownMethodology = {
+  Fees: {
+    "Claw Machine Fees": "5% of play price per pull (V1: on-chain commission field; V2: Played.amount x 5%) — the non-refundable cut after a SWAP-back",
+    "Swap Fees": "6% of the buyback value when a user swaps a won item back through BidRouter",
+    "Marketplace Fees": "6% on every P2P collectible sale through BidRouter",
+  },
+  Revenue: {
+    "Claw Machine Fees": "5% claw cut retained by Beezie",
+    "Swap Fees": "6% swap fee retained by Beezie",
+    "Marketplace Fees": "6% marketplace fee retained by Beezie",
+  },
+  ProtocolRevenue: {
+    "Claw Machine Fees": "5% claw cut to Beezie treasury",
+    "Swap Fees": "6% swap fee to Beezie treasury",
+    "Marketplace Fees": "6% marketplace fee to Beezie treasury",
+  },
+};
+
+// --- Adapter Export ---
+
+const adapter: Adapter = {
+  version: 2,
+  methodology,
+  breakdownMethodology,
+  pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.BASE]: { start: "2026-01-15" },
-  },
-  dependencies: [Dependencies.DUNE],
-  allowNegativeValue: true,
-  methodology: {
-    Fees: "Net claw economics after SWAP payouts, split by tier.",
-    Revenue: "Net claw economics after SWAP payouts, split by tier.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      ['Wildcard']: tierNetDesc,
-      ['Gold TCG']: tierNetDesc,
-      ['Silver TCG']: tierNetDesc,
-      ['Platinum TCG']: tierNetDesc,
-    },
-  },
+  adapter: config,
 };
 
 export default adapter;

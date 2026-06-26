@@ -2,7 +2,7 @@ import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const URL = "https://market-info-e33088ab.gmxsolana.io/api/v2/solana/pairs";
+const URL = "https://market-info-mainnet-prod.gmtrade.xyz/api/v2/solana/pairs";
 
 const fetch = async (_a: any) => {
   const pairs = await fetchURL(URL)

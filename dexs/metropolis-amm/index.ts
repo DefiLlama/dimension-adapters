@@ -1,22 +1,4 @@
-import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
-import { httpPost } from "../../utils/fetchURL";
-
-
-const fetch = async (_: number, _block: any, { startOfDayId }: FetchOptions) => {
-  const query = `query { uniswapDayData(id: ${startOfDayId}) { dailyVolumeUSD } }`;
-  const { data: { uniswapDayData: { dailyVolumeUSD } } } = await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-dex-1', { query })
-  const dailyVolume = +dailyVolumeUSD
-  const dailyFees = dailyVolume * 0.3/100
-  return {
-    dailyVolume,
-    dailyFees,
-    dailySupplySideRevenue: dailyFees * 0.6,
-    dailyRevenue: dailyFees * 0.4,
-    dailyProtocolRevenue: dailyFees * 0.1,
-    dailyHoldersRevenue: dailyFees * 0.3,
-  }
-};
+import { uniV2Exports } from "../../helpers/uniswap";
 
 const methodology = {
   Fees: "0.3% of the trading volume",
@@ -26,9 +8,18 @@ const methodology = {
   HoldersRevenue: "30% of the swap fees",
 };
 
-export default {
-  fetch,
-  start: "2024-12-16",
-  chains: [CHAIN.SONIC],
-  methodology,
-}
+const adapter = uniV2Exports({
+  sonic: {
+    factory: "0x1570300e9cFEC66c9Fb0C8bc14366C86EB170Ad0",
+    fees: 0.003,
+    userFeesRatio: 1,
+    revenueRatio: 0.4,
+    holdersRevenueRatio: 0.3,
+    protocolRevenueRatio: 0.1,
+    start: "2024-12-16",
+  },
+});
+
+adapter.methodology = methodology;
+
+export default adapter;

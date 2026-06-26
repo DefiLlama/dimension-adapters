@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../../a
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
 
     const query = `
@@ -22,8 +22,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-    chains: [CHAIN.TEMPO],
     fetch,
+    chains: [CHAIN.TEMPO],
     start: '2026-01-16',
     dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,

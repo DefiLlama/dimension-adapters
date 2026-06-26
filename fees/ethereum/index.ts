@@ -82,15 +82,18 @@
 // export default adapter;
 
 import { Row } from "@clickhouse/client"
-import { FetchOptions, ProtocolType, Adapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, Adapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { queryClickhouse } from "../../helpers/indexer";
+import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 
 type FeesRow = Row & {
   total_fees_wei: string;
   base_burn_wei: string;
 };
+
+type BlobFeesRow = { blob_fees_wei: string };
 
 export const SQL_TOTAL_FEES = `
   SELECT
@@ -108,6 +111,8 @@ export const SQL_TOTAL_FEES = `
 // because indexer v2 doesn't store blocks, we can't get block base_fee_per_gas
 // it also doesn't have base_fee_per_gas in transaction records
 // TODO: we do a trick here, get base_fee_per_gas from the minimum effective_gas_price from transactions in block
+// EIP-1559 (block 12965000, London fork, 2021-08-05) is when the base-fee burn
+// turned on; pre-London blocks have no protocol burn so we filter them out.
 export const SQL_TOTAL_FEES_BURNED = `
   SELECT
     CAST(
@@ -123,14 +128,35 @@ export const SQL_TOTAL_FEES_BURNED = `
       chain = {chain:UInt64}
       AND block_number >= {fromBlock:UInt32}
       AND block_number <  {toBlock:UInt32}
+      AND block_number >= 12965000
     GROUP BY block_number
   )
 `;
 
+// Blob fees (EIP-4844, live since 2024-03-13). Read from Dune because the
+// internal evm_indexer schema doesn't expose blob columns. Sourced from
+// `ethereum.blobs_submissions`, which carries the per-tx `blob_gas_used` and
+// the receipt-recorded `blob_gas_price` — the latter is authoritative across
+// all fork denominators (Cancun, Pectra EIP-7691, Fusaka, EIP-7918 floor),
+// so we don't have to track BLOB_BASE_FEE_UPDATE_FRACTION changes ourselves.
+// Arithmetic is done in DOUBLE to dodge Trino's DECIMAL multiplication-width
+// overflow; the final SUM is cast back to DECIMAL(38,0) for clean integer
+// VARCHAR output. Sub-wei rounding from DOUBLE is invisible at daily totals.
+const SQL_TOTAL_BLOB_FEES_BURNED = `
+  SELECT SUM(blob_gas_used * blob_base_fee) AS blob_fees_wei
+  FROM ethereum.blobs_submissions
+  WHERE TIME_RANGE
+`;
+
+// Dencun hard fork (EIP-4844 / blob market) activated 2024-03-13 ~13:55 UTC.
+// We use start-of-day 2024-03-13 UTC as the gate so any window ending on or
+// before 2024-03-12 skips the Dune call entirely (no blob rows exist yet).
+const DENCUN_ACTIVATION_TIMESTAMP = 1710288000;
+
 export const fetch = async (options: FetchOptions) => {
   const chainId = options.api.chainId
   const fromBlock = Number(options.fromApi.block)
-  
+
   // delay 50 blocks is acceptable on ethereum from the indexer
   const safeBlock = Number(options.toApi.block) - 50
 
@@ -140,19 +166,33 @@ export const fetch = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
   }
 
-  const totalFeesRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock });
-  const totalFeesBurnedRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock });
+  const blobFeesPromise: Promise<BlobFeesRow[]> =
+    options.endTimestamp > DENCUN_ACTIVATION_TIMESTAMP
+      ? (queryDuneSql(options, SQL_TOTAL_BLOB_FEES_BURNED) as Promise<BlobFeesRow[]>)
+      : Promise.resolve([]);
+
+  const [totalFeesRows, totalFeesBurnedRows, blobFeesRows] = await Promise.all([
+    queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock }),
+    queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock }),
+    blobFeesPromise,
+  ]);
 
   const totalFeesWei = BigInt(totalFeesRows?.[0]?.total_fees_wei ?? "0");
-  const baseFeesWei = BigInt(totalFeesBurnedRows?.[0]?.base_burn_wei ?? "0");
+  const baseFeesWei  = BigInt(totalFeesBurnedRows?.[0]?.base_burn_wei ?? "0");
   const priorityWei  = totalFeesWei - baseFeesWei;
+  const blobFeesWei  = BigInt(blobFeesRows?.[0]?.blob_fees_wei ?? "0");
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   dailyFees.addGasToken(baseFeesWei, METRIC.TRANSACTION_BASE_FEES);
   dailyFees.addGasToken(priorityWei, METRIC.TRANSACTION_PRIORITY_FEES);
+  dailyFees.addGasToken(blobFeesWei, METRIC.TRANSACTION_BLOB_FEES);
+
+  // Blob fees, like base fees, are permanently burned — they accrue to no
+  // proposer / no validator. Treat them the same way in the revenue split.
   dailyRevenue.addGasToken(baseFeesWei, METRIC.TRANSACTION_BASE_FEES);
+  dailyRevenue.addGasToken(blobFeesWei, METRIC.TRANSACTION_BLOB_FEES);
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
 }
@@ -163,21 +203,25 @@ const adapter: Adapter = {
   start: '2015-07-30',
   chains: [CHAIN.ETHEREUM],
   protocolType: ProtocolType.CHAIN,
+  dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: 'Total ETH gas fees (including base fees and priority fees) paid by users',
-    Revenue: 'Amount of ETH base fees that were burned',
-    HoldersRevenue: 'Amount of ETH base fees that were burned',
+    Fees: 'Total ETH gas fees (base fees + priority fees) plus blob fees (post-EIP-4844, type-3 blob-carrying transactions) paid by users',
+    Revenue: 'Amount of ETH burned — base fees plus blob fees (both are permanently burned, accruing to no proposer)',
+    HoldersRevenue: 'Amount of ETH burned — base fees plus blob fees',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees paid by users',
       [METRIC.TRANSACTION_PRIORITY_FEES]: 'Total ETH priority fees paid by users',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees paid by users on type-3 transactions (EIP-4844, live since 2024-03-13)',
     },
     Revenue: {
-      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees burned',
     },
     HoldersRevenue: {
-      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees burned',
     },
   }
 }

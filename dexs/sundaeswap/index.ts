@@ -1,21 +1,77 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { request, gql } from "graphql-request";
+import {
+  FetchOptions,
+  FetchResult,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
+const endpoint = "https://api.sundae.fi/graphql";
 
-interface IVolumeall {
-  volumeLovelace: number;
-  day: string;
+interface VolumeStat {
+  asset: {
+    id: string;
+  };
+  quantity: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
-  const dailyVolume = options.createBalances()
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).response;
-  const volume = historicalVolume.find(dayItem => dayItem.day === dateStr)?.volumeLovelace as any
-  if (!volume) return { dailyVolume };
-  dailyVolume.addGasToken(volume)
+interface GraphQLResponse {
+  stats: {
+    volume: VolumeStat;
+  };
+}
+
+const query = gql`
+  query StatsVolume {
+    stats {
+      volume {
+        asset {
+          id
+        }
+        quantity
+      }
+    }
+  }
+`;
+
+const fetch = async (
+  options: FetchOptions,
+): Promise<FetchResult> => {
+  const dailyVolume =
+    options.createBalances();
+
+  const response =
+    await request<GraphQLResponse>(
+      endpoint,
+      query,
+    );
+
+  const volume =
+    response.stats.volume;
+
+  if (!volume) {
+    return { dailyVolume };
+  }
+
+  const assetId =
+    volume.asset.id;
+
+  const quantity =
+    Number(volume.quantity);
+
+  if (
+    assetId === "ada.lovelace" ||
+    assetId === "lovelace"
+  ) {
+    dailyVolume.addGasToken(
+      quantity,
+    );
+  } else {
+    dailyVolume.add(
+      assetId,
+      quantity,
+    );
+  }
 
   return { dailyVolume };
 };
@@ -24,7 +80,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.CARDANO],
   fetch,
-  start: '2022-02-01',
+  //start: "2022-02-01",
+  runAtCurrTime: true,
 };
 
 export default adapter;

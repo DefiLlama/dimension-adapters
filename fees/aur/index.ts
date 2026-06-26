@@ -36,11 +36,14 @@ export async function aurHelperTotalSuiDeployed(
 const aurEvent =
   "0xcc3ac0c9cc23c0bcc31ec566ef4baf6f64adcee83175924030829a3f82270f37::gameplay::EndRoundEvent";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await aurHelperTotalSuiDeployed(options, aurEvent);
 
-  const dailyProtocolRevenue = dailyFees.clone(0.083, METRIC.PROTOCOL_FEES);
-  const dailyHoldersRevenue = dailyFees.clone(0.5, METRIC.TOKEN_BUY_BACK);
+  // dailyFees is the full 12% deployment fee. Per the methodology it splits into
+  // 1% of deployed to the treasury and 11% to AUR buybacks, i.e. 1/12 and 11/12
+  // of fees respectively (they sum to the full fee).
+  const dailyProtocolRevenue = dailyFees.clone(1 / 12, METRIC.PROTOCOL_FEES);
+  const dailyHoldersRevenue = dailyFees.clone(11 / 12, METRIC.TOKEN_BUY_BACK);
 
   return {
     dailyFees,

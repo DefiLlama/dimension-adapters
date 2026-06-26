@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const FEE_TOKENS: Record<string, string[]> = {
   [CHAIN.POLYGON]: [
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC
+    ADDRESSES.polygon.USDC,
+    ADDRESSES.polygon.PUSD,
   ],
 };
 
@@ -42,11 +44,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "All USDC transferred into the fee wallet during the day is counted as total fees.",
+    "All USDC and PUSD transferred into the fee wallet during the day is counted as total fees.",
   Revenue:
-    "All USDC fees received by the wallet are considered revenue.",
+    "All USDC and PUSD fees received by the wallet are considered revenue.",
   ProtocolRevenue:
-    "All USDC fees received by the wallet are considered protocol revenue.",
+    "All USDC and PUSD fees received by the wallet are considered protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {

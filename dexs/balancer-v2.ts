@@ -44,7 +44,7 @@ export default {
     UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
     Revenue: "Balancer V2 protocol collects 50% swap fees as revenue.",
     ProtocolRevenue: "Share of revenue to Balancer DAO.",
-    HoldersRevenue: "Share of revenue to veBAL holders.",
+    HoldersRevenue: "Share of revenue to veBAL holders (None after 2026-04-23)",
     SupplySideRevenue: "50% from swap fees paid by traders are shared to pool LPs",
   },
   adapter: {

@@ -6,7 +6,7 @@ import { httpGet } from "../utils/fetchURL";
 const adapter: Adapter = {
   adapter: {
     [CHAIN.TRON]: {
-      fetch: async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
+      fetch: async ({ createBalances, startOfDay }: FetchOptions) => {
         const dailyFees = createBalances()
         const ts = startOfDay
         const today = new Date(ts * 1000).toISOString().substring(0, "2022-11-03".length)
@@ -16,7 +16,6 @@ const adapter: Adapter = {
         dailyFees.addCGToken('tron', trxFeesToday.total_trx_burn, METRIC.TRANSACTION_GAS_FEES)
 
         return {
-          timestamp,
           dailyFees,
           dailyRevenue: dailyFees,
           dailyHoldersRevenue: dailyFees,

@@ -18,13 +18,14 @@ type IConfig = {
   [s: string | Chain]: {
     treasury: string;
     blacklists?: Array<string>;
+    airdropFunders?: Array<string>;
+    usdtAddress: string;
   };
 };
 
 const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
 const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
-const USDT_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
 
@@ -53,39 +54,58 @@ const chainConfig: IConfig = {
     blacklists: [
       '0xe2796707590384430d887f15bdf97c660d95894a',
     ],
+    airdropFunders: [
+      "0x096FBee7b8DFb88993A94c6145211163D2616245",
+      "0xeea6F790F18563E91b18DF00B89d9f79b2E6761F",
+    ],
+    usdtAddress: ADDRESSES.ethereum.USDT
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
+    airdropFunders: ["0x096FBee7b8DFb88993A94c6145211163D2616245"],
+    usdtAddress: ADDRESSES.arbitrum.USDT
   },
   [CHAIN.BSC]: {
     treasury: "0xd77e9062c6df3f2d1cb5bf45855fa1e7712a059e",
+    usdtAddress: ADDRESSES.bsc.USDT
   },
   [CHAIN.OPTIMISM]: {
     treasury: "0xe972d450ec5b11b99d97760422e0e054afbc8042",
+    usdtAddress: ADDRESSES.optimism.USDT
   },
   [CHAIN.MANTLE]: {
-    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+    treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55",
+    usdtAddress: ADDRESSES.mantle.USDT
   },
   [CHAIN.BASE]: {
-    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
+    usdtAddress: ADDRESSES.base.USDT
   },
   [CHAIN.SONIC]: {
-    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.sonic.USDT
   },
   [CHAIN.BERACHAIN]: {
-    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736"
   }, 
   [CHAIN.PLASMA]: {
-    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
   },
   [CHAIN.HYPERLIQUID]: {
-    treasury: "0x17A191644E750AA24a5ec13A253b9446f4eF178b"
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    airdropFunders: ["0xeea6F790F18563E91b18DF00B89d9f79b2E6761F"],
+    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+  },
+  [CHAIN.MONAD]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"
   }
 };
 
 const fetch = async (options: FetchOptions) => {
   const { chain } = options;
-  await getWhitelistedAssets(options.api);
   const { api, getLogs } = options;
 
   const dailyFees = options.createBalances()
@@ -135,13 +155,13 @@ const fetch = async (options: FetchOptions) => {
   })
 
 
-  const dailyRevenue = await addTokensReceived({
+  const treasuryInflows = await addTokensReceived({
     options,
     target: chainConfig[chain].treasury,
     tokens: rewardTokens.concat(sys),
   });
 
-  const allRevenueTokenList = dailyRevenue.getBalances();
+  const allRevenueTokenList = treasuryInflows.getBalances();
   const allSupplySideTokenList = dailySupplySideRevenue.getBalances();
 
   for (const token in allRevenueTokenList) {
@@ -157,7 +177,7 @@ const fetch = async (options: FetchOptions) => {
     const rawAmountRevenue = allRevenueTokenList[token];
     const rawAmountSupplySide = allSupplySideTokenList[token];
 
-    dailyRevenue.removeTokenBalance(token);
+    treasuryInflows.removeTokenBalance(token);
     dailySupplySideRevenue.removeTokenBalance(token);
 
     let underlyingAsset = assetInfo[1]!;
@@ -183,7 +203,7 @@ const fetch = async (options: FetchOptions) => {
         .dividedToIntegerBy(1e18);
     }
 
-    dailyRevenue.addToken(
+    treasuryInflows.addToken(
       underlyingAsset,
       assetAmountRevenue,
       isBridged
@@ -198,33 +218,35 @@ const fetch = async (options: FetchOptions) => {
         underlyingAsset,
         assetAmountSupplySide,
         isBridged
-          ? {
-            skipChain: true,
-          }
-          : undefined
+          ? { skipChain: true, label: 'AMM Swap Fees To LPs' }
+          : { label: 'AMM Swap Fees To LPs' }
       );
     }
   }
 
   // these revenue should be counted in fees too
-  // Only track tokens sent from treasury (or team wallet) to the airdrop distributor, matching Pendle's Dune query
-  const tokenToDistributor = chain === CHAIN.ETHEREUM ? await addTokensReceived({
+  // Only track tokens sent from addresses funded by the pendle deployer to the airdrop distributor, matching Pendle's Dune query
+  let tokenToDistributor = options.createBalances()
+  const sources = [chainConfig[chain].treasury, ...(chainConfig[chain].airdropFunders ?? [])]
+  tokenToDistributor = await addTokensReceived({
     options,
     target: AIRDROP_DISTRIBUTOR,
-    fromAddressFilter: chainConfig[chain].treasury,
-  }) : options.createBalances()
+    fromAdddesses: sources,
+  })
 
-  tokenToDistributor.removeTokenBalance(USDT_ETHEREUM) // ignore USDT airdrop
+  tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
 
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addBalances(treasuryInflows, 'YT And Swap Fees')
   dailyRevenue.addBalances(tokenToDistributor, 'Other Fees')
   dailyFees.addBalances(dailyRevenue, 'YT And Swap Fees');
   dailyFees.addBalances(dailySupplySideRevenue, 'AMM Swap Fees To LPs');
 
   // https://docs.pendle.finance/ProtocolMechanics/Mechanisms/Fees
-  // Protocol revenue (20% cut) only started in September 2025; before that, 100% went to vePENDLE holders
+  // Protocol revenue (20% cut) only started in September 2025; before that, 100% went to sPENDLE holders
   const protocolRevenueStartDate = new Date('2025-09-01').getTime() / 1000
   const hasProtocolRevenue = options.startOfDay >= protocolRevenueStartDate
-  const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'vePENDLE Distributions') : dailyRevenue.clone(1, 'vePENDLE Distributions')
+  const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'sPENDLE Distributions') : dailyRevenue.clone(1, 'sPENDLE Distributions')
   const dailyProtocolRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.2, 'Treasury And Operations') : dailyRevenue.clone(0)
 
   return {
@@ -240,7 +262,7 @@ const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
     Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees.',
     ProtocolRevenue: '20% revenue to protocol treasury and operations (since September 2025, 0% before).',
-    HoldersRevenue: '80% revenue distributed to vePENDLE holders (100% before September 2025).',
+    HoldersRevenue: '80% revenue distributed to sPENDLE holders (100% before September 2025).',
     SupplySideRevenue: '20% of AMM swap fees distributed to liquidity providers.',
 }
 
@@ -257,7 +279,7 @@ const breakdownMethodology = {
       'AMM Swap Fees To LPs': '20% of AMM swap fees distributed to liquidity providers.',
     },
     HoldersRevenue: {
-      'vePENDLE Distributions': 'Revenue distributed to vePENDLE/sPENDLE holders as yield and reward tokens.',
+      'sPENDLE Distributions': 'Revenue distributed to vePENDLE/sPENDLE holders as yield and reward tokens.',
     },
     ProtocolRevenue: {
       'Treasury And Operations': '20% of revenue split between protocol treasury (10%) and operations (10%), effective since September 2025.',
@@ -278,7 +300,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: { start: '2025-02-14' },
     [CHAIN.BERACHAIN]: { start: '2025-02-07' }, 
     [CHAIN.PLASMA]: { start: '2025-09-24' },
-    [CHAIN.HYPERLIQUID]: { start: '2025-07-09' }
+    [CHAIN.HYPERLIQUID]: { start: '2025-07-09' },
+    [CHAIN.MONAD]: { start: '2026-06-19' }
   },
   methodology,
   breakdownMethodology,

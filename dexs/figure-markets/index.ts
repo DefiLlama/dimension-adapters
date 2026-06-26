@@ -11,7 +11,7 @@ interface Market {
   takerFee?: { rate?: number };
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const locations = ["US", "CAYMAN"];
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();

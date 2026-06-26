@@ -4,14 +4,14 @@ import { METRIC } from "../../helpers/metrics";
 const axios = require("axios");
 const { CHAIN } = require("../../helpers/chains");
 
-const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptions) => {
+const fetch = async ({ dateString, createBalances }: FetchOptions) => {
   const url = `https://api.alkimi.org/api/v1/public/data?startDate=${dateString}&endDate=${dateString}`;
   const resp = await axios.get(url);
   const entry = resp.data?.data?.[0];
   if (!entry)
     throw new Error(`No Alkimi revenue data found for ${dateString}`);
 
-  const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
+  const revenueUsd = parseFloat(entry.alkimiRevenueInUSD || "0");
 
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();
@@ -47,12 +47,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      start: '2024-01-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  start: '2024-01-01',
   methodology,
   breakdownMethodology,
 };

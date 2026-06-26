@@ -11,7 +11,7 @@ const endpoints = {
 const onChainAdapter: any = uniV2Exports({
   [CHAIN.BASE]: {
     factory: '0xEC6540261aaaE13F236A032d454dc9287E52e56A',
-    start: '2020-10-08',
+    start: '2025-06-04',
     userFeesRatio: 1,
     revenueRatio: 0.05 / 0.3,
     protocolRevenueRatio: 0.01 / 0.3,
@@ -20,7 +20,7 @@ const onChainAdapter: any = uniV2Exports({
   },
 }, { runAsV1: true })
 
-async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+async function fetch({ startOfDay }: FetchOptions) {
   const dayId = Math.floor(startOfDay / 86400)
 
   const query = `{    uniswapDayData(id: ${dayId}) {      dailyVolumeUSD    }  }`

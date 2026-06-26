@@ -18,6 +18,7 @@ const abi = {
     "function vaults(uint256 startIndex_, uint256 endIndex_) returns (address[] memory)",
   token0: "address:token0",
   token1: "address:token1",
+  managerFeeBPS: "uint16:managerFeeBPS",
   fees: "function totalUnderlyingWithFees(address vault_) external view returns (uint256 amount0, uint256 amount1, uint256 fee0, uint256 fee1)",
 };
 
@@ -47,6 +48,8 @@ const contracts: IAddress = {
 async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOptions) {
   const { helper, factory } = contracts[chain];
   const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
 
   const limit = await api.call({ target: factory, abi: abi.numVaults });
   const vaults = await api.call({
@@ -57,47 +60,61 @@ async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOption
 
   const calls = vaults.map((v: string) => ({ target: helper, params: [v] }));
 
-  const [token0s, token1s, prevBals, currBals] = await Promise.all([
+  const [token0s, token1s, managerFeeBPSs, prevBals, currBals] = await Promise.all([
     api.multiCall({ calls: vaults, abi: abi.token0, permitFailure: true }),
     api.multiCall({ calls: vaults, abi: abi.token1, permitFailure: true }),
+    api.multiCall({ calls: vaults, abi: abi.managerFeeBPS, permitFailure: true }),
     fromApi.multiCall({ calls, abi: abi.fees, permitFailure: true }),
     toApi.multiCall({ calls, abi: abi.fees, permitFailure: true }),
   ]);
 
   vaults.forEach((_: string, index: number) => {
     const token0 = token0s[index];
-    const prevFee0 = prevBals[index]?.fee0 ?? 0;
-    const currFee0 = currBals[index].fee0;
-
     const token1 = token1s[index];
-    const prevFee1 = prevBals[index]?.fee1 ?? 0;
-    const currFee1 = currBals[index].fee1;
+    const mgrBPS = BigInt(managerFeeBPSs[index] ?? 0);
 
-    if (token0 && prevFee0 && currFee0) {
-      const dailyFee0 = BigInt(currFee0) - BigInt(prevFee0);
-      if (dailyFee0 >= 0) {
-        dailyFees.add(token0, dailyFee0, METRIC.MANAGEMENT_FEES);
+    const prevFee0 = prevBals[index]?.fee0 ?? 0;
+    const currFee0 = currBals[index]?.fee0;
+    const prevFee1 = prevBals[index]?.fee1 ?? 0;
+    const currFee1 = currBals[index]?.fee1;
+
+    if (token0 && currFee0 !== undefined) {
+      const delta0 = BigInt(currFee0) - BigInt(prevFee0);
+      if (delta0 > 0n) {
+        const managerCut0 = (delta0 * mgrBPS) / 10000n;
+        dailyFees.add(token0, delta0, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(token0, delta0 - managerCut0, 'LP Fees To Depositors');
+        dailySupplySideRevenue.add(token0, managerCut0, 'LP Fees To Vaults Managers');
       }
     }
 
-    if (token1 && prevFee1 && currFee1) {
-      const dailyFee1 = BigInt(currFee1) - BigInt(prevFee1);
-      if (dailyFee1 >= 0) {
-        dailyFees.add(token1, dailyFee1, METRIC.MANAGEMENT_FEES);
+    if (token1 && currFee1 !== undefined) {
+      const delta1 = BigInt(currFee1) - BigInt(prevFee1);
+      if (delta1 > 0n) {
+        const managerCut1 = (delta1 * mgrBPS) / 10000n;
+        dailyFees.add(token1, delta1, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(token1, delta1 - managerCut1, 'LP Fees To Depositors');
+        dailySupplySideRevenue.add(token1, managerCut1, 'LP Fees To Vaults Managers');
       }
     }
   });
 
-  return { dailyFees };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue: 0 };
 }
 
 const methodology = {
-  Fees: 'All yields are collected from deposited assets by liquidity providers.',
+  Fees: 'Gross Uniswap V3 LP fees accrued across all ArrakisV2 vault positions before management fees cut.',
+  SupplySideRevenue: 'Depositors share of accrued fees: gross fees minus management fees per vault + fees paid to vaults managers.',
+  Revenue: 'No protocol revenue.',
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.MANAGEMENT_FEES]: 'Fees collected by Arrakis protocol for managing liquidity vault positions on behalf of depositors',
+    [METRIC.LP_FEES]: 'Uniswap V3 trading fees accrued to vault LP positions',
+  },
+  SupplySideRevenue: {
+    'LP Fees To Depositors': 'Uniswap V3 fees remaining in vault after manager fee is subtracted',
+    'LP Fees To Vaults Managers': 'Uniswap V3 fees allocated to vaults managers',
   },
 };
 
@@ -107,7 +124,6 @@ const adapter: Adapter = {
   chains: [CHAIN.ETHEREUM],
   start: '2023-08-26',
   methodology,
-  skipBreakdownValidation: true, // because cost are not clear
   breakdownMethodology,
 };
 

@@ -82,13 +82,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      start: "2024-05-10",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SUI],
+  start: "2024-05-10",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };

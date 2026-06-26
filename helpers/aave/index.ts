@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -22,7 +22,7 @@ export interface AaveLendingPoolConfig {
 }
 
 export interface AaveAdapterExportConfig {
-  start?: IStartTimestamp | number | string;
+  start?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -54,27 +54,33 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     abi: AaveAbis.getReserveConfiguration,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
-  
+
   // get reserves factors
   const reserveFactors: Array<number> = pool.version === 1
     ? reservesList.map(_ => 0)
-    : reserveConfigs.map((config: any) => Number(config.reserveFactor))
+    : reserveConfigs.map((config: any) => config ? Number(config.reserveFactor) : 0)
 
   // count fees by growth liquidity index
   const reserveDataBefore = await options.fromApi.multiCall({
     abi: pool.version === 1 ? AaveAbis.getReserveDataV1 : pool.version === 2 ? AaveAbis.getReserveDataV2 : AaveAbis.getReserveDataV3,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
   const reserveDataAfter = await options.toApi.multiCall({
     abi: pool.version === 1 ? AaveAbis.getReserveDataV1 : pool.version === 2 ? AaveAbis.getReserveDataV2 : AaveAbis.getReserveDataV3,
     target: pool.dataProvider,
     calls: reservesList,
+    permitFailure: true,
   })
 
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
+    if (!reserveDataBefore[reserveIndex] || !reserveDataAfter[reserveIndex]) continue
+    if (pool.version !== 1 && !reserveConfigs[reserveIndex]) continue
+
     let totalLiquidity = BigInt(0)
     let totalVariableDebt = BigInt(0)
     if (pool.version === 1) {
@@ -205,11 +211,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           const e = Number(event.liquidatedCollateralAmount)
           const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
           const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
-  
-          // protocol fees from liquidation bonus
-          const b = (e - e / x)
-          const b2 = b * y
-  
+
+          // protocol fees from liquidation bonus, if no bonus (x = 0), expect b = b2
+          const b = x > 0 ? (e - e / x) : 0
+          const b2 = x > 0 ? b * y : b
+          
           // count liquidation bonus as fees
           balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
   
@@ -1025,7 +1031,7 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
         ],
       },
       [CHAIN.MANTLE]: {
-        start: '2024-05-117',
+        start: '2024-05-17',
         pools: [
           {
             version: 3,
@@ -1200,6 +1206,134 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 3,
             lendingPoolProxy: '0x3C7FEA4d4c3EbBf19E73b6C99CE4B8884B87Bfa6',
             dataProvider: '0x94e8122dF227B34998Ba7523ad88c943191cF4F1',
+          },
+        ],
+      },
+    },
+  },
+  'primefi-xyz': {
+    config: {
+      [CHAIN.BASE]: {
+        start: '2025-09-25',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
+            dataProvider: '0x7b7Cd09465ff2cab67360D5CD24A3Cc3ad0C856a',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-09-25',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0xb339448E13E273f6F46e3390e0932Ab7fF9F113F',
+            dataProvider: '0x3Bc108Ca0202739FC65bf453A255E5c49Ba6544a',
+          },
+        ],
+      },
+      [CHAIN.XDC]: {
+        start: '2025-10-13',
+        pools: [
+          {
+            version: 2,
+            lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
+            dataProvider: '0x2E6bA568aaebadb4db3E018313ee34baD0328988',
+          },
+        ],
+      },
+    },
+  },
+  'zentra': {
+    config: {
+      [CHAIN.CITREA]: {
+        start: '2026-01-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xfb7908150b738e7dB9862007c66C9eb7850706F5',
+            dataProvider: '0x0FC811fE6bD0Be53717f9ca722E30a7bc4B90C31',
+          },
+        ],
+      },
+    },
+  },
+  'vena-finance': {
+    config: {
+      [CHAIN.FLUENT]: {
+        start: '2026-04-03',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
+            dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
+          },
+        ],
+      },
+    },
+  },
+  'purrlend': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x81D5D25ea81b72E546fC71B5bAa8B059eF0dA702',
+            dataProvider: '0xfCaE4E9Acb1E5C78aa699d43c5cc0eAC5399E754',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-10-27',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xb61218d3efE306f7579eE50D1a606d56bc222048',
+            dataProvider: '0xa8Ca6a4A485485910aA4023b9963Dfd2f3A5aeb0',
+          },
+        ],
+      },
+    },
+  },
+  'edel': {
+    config: {
+      [CHAIN.ETHEREUM]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x3EEeB3cd20f844a578807fc457388Ceb9A67fAa6',
+            dataProvider: '0xf3A3F900151c092007FD495ABf3f0f6162A37501',
+          },
+        ],
+      },
+    },
+  },
+  'zona': {
+    config: {
+      [CHAIN.PHAROS]: {
+        start: '2026-04-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xda464e68208A3083Eb65FE5c522a72AeD1C1372a',
+            dataProvider: '0xA91424C666193C2b2fb684E25dEadf03B333f49A',
+          },
+        ],
+      },
+    },
+  },
+  'kaskad': {
+    config: {
+      [CHAIN.IGRA]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x1Fc4f91E99eFDC90c4B2B8F69fE0b4BFd819a330',
+            dataProvider: '0xFEaD8E14e58ecF72B5cD585458f07523F173E2F4',
           },
         ],
       },

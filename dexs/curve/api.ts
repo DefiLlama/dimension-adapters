@@ -34,6 +34,7 @@ export async function fetchCurveApiData(startTimestamp: number, endTimestamp: nu
   }
 
   const url = `${CURVE_API_BASE}?start=${startTimestamp}&end=${endTimestamp}`;
+  console.log(url)
   const promise = httpGet(url).catch((err) => {
     // Clear cache on failure so retries can happen
     if (cachedPromise?.key === cacheKey) cachedPromise = null;

@@ -1,39 +1,75 @@
 import { Adapter, FetchOptions, } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { METRIC } from '../helpers/metrics';
+import { addTokensReceived } from '../helpers/token';
 
-const fetchFees = async (options: FetchOptions) => {
+type ChainConfig = {
+  collectors: string[];
+  start: string;
+  skipIndexer: boolean;
+}
+
+// Verified Illuvium revenue wallets; deprecated Fuel Exchange and REVDIS distribution wallets are excluded.
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.IMMUTABLEX]: {
+    collectors: [
+      "0x9989818AE063f715a857925E419bA4B65b793d99",
+      "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177",
+    ],
+    start: '2026-02-09',
+    skipIndexer: true,
+  },
+  [CHAIN.ETHEREUM]: {
+    collectors: [
+      "0xBB7d2d46352AD21e4Dfc07dB90C9Bd1ec2dBb177",
+    ],
+    start: '2025-03-26',
+    skipIndexer: false,
+  }
+}
+
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  let transfers = [] as any[]
-  let cursor = ""
-  do {
-    const url = `https://api.immutable.com/v1/transfers?receiver=0x2208850ea5569617d5350f8cf681031102c1d931&max_timestamp=${new Date(options.endTimestamp * 1e3).toISOString()}&min_timestamp=${new Date(options.startTimestamp * 1e3).toISOString()}&cursor=${cursor}`
-    const data = await fetch(url).then(r => r.json())
-    transfers = transfers.concat(data.result)
-    cursor = data.cursor
-  } while (cursor !== "")
 
-  transfers.forEach(transfer => {
-    if (transfer.token.type === "ETH") {
-      dailyFees.addCGToken("ethereum", transfer.token.data.quantity / 1e18)
-    }
+  const config = chainConfig[options.chain]
+  const collectorSet = new Set(config.collectors?.map(address => address.toLowerCase()))
+  const inflows = await addTokensReceived({
+    options,
+    targets: config.collectors,
+    skipIndexer: config.skipIndexer,
+    logFilter: (log) => !collectorSet.has(String(log.from ?? log.fromAddress ?? log.sender ?? '').toLowerCase()),
   })
+
+  dailyFees.add(inflows, METRIC.SERVICE_FEES);
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.IMMUTABLEX]: {
-      fetch: fetchFees,
+  pullHourly: true,
+  adapter: chainConfig,
+  fetch,
+  methodology: {
+    Fees: "External ERC20 transfers into verified Illuvium Vault revenue wallets on Immutable zkEVM, plus ERC20 transfers and net native ETH inflow into the verified Unified Fuel revenue wallet on Ethereum.",
+    Revenue: "Tracked Vault and Unified Fuel inflows are protocol revenue.",
+    ProtocolRevenue: "Tracked Vault and Unified Fuel inflows are protocol revenue.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SERVICE_FEES]: "External transfers into verified Illuvium Vault and Unified Fuel revenue wallets.",
+    },
+    Revenue: {
+      [METRIC.SERVICE_FEES]: "Tracked Vault and Unified Fuel inflows retained by the protocol.",
+    },
+    ProtocolRevenue: {
+      [METRIC.SERVICE_FEES]: "Tracked Vault and Unified Fuel inflows retained by the protocol",
     },
   },
-  methodology: {
-    Fees: "ETH paid to purchase fuel",
-    Revenue: "ETH paid to purchase fuel",
-  }
 }
 
 export default adapter;

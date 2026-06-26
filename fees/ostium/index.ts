@@ -15,7 +15,7 @@ const FEES_CHARGED_EVENT = 'event FeesCharged(uint256 indexed orderId, uint256 i
 const FEES_CHARGED_V2_EVENT = 'event FeesChargedV2(uint256 indexed orderId, uint256 indexed tradeId, address indexed trader, int256 rolloverFees, int256 fundingFees)';
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -91,7 +91,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyProtocolRevenue.addCGToken("usd-coin", -Number(fee), METRIC.SERVICE_FEES);
   });
 
-  // 5.Trading Spreads / Price Impact (100% MMV) - from Dune
+  // 5.Trading Spreads / Price Impact - from Dune
+  // Pre 2026-04-28: 100% to MMV (LP supply side).
+  // From 2026-04-28 onwards: 100% to protocol (new liquidity model captures spreads as revenue).
+  const SPREADS_TO_PROTOCOL_TS = 1777334400; // 2026-04-28 00:00:00 UTC
   const spreadsResults = await queryDuneSql(options, `
     WITH open_orders AS (
       SELECT order_id, trade_id, executed_at, price_impact_p,
@@ -129,9 +132,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       AND executed_at < FROM_UNIXTIME(${options.endTimestamp})
   `);
   if (spreadsResults && spreadsResults.length > 0) {
-    const totalSpreads = Number(spreadsResults[0].total_price_impact);
-    dailyFees.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
-    dailySupplySideRevenue.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
+    const totalSpreads = Number(spreadsResults[0].total_price_impact) || 0;
+    if (totalSpreads) {
+      dailyFees.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
+      const goesToProtocol = options.startTimestamp >= SPREADS_TO_PROTOCOL_TS;
+      if (goesToProtocol) {
+        dailyProtocolRevenue.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
+      } else {
+        dailySupplySideRevenue.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
+      }
+    }
   }
 
   return {
@@ -149,15 +159,15 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Fees charged when a position is liquidated; 100% to MMV.',
     [METRIC.SERVICE_FEES]: 'Flat oracle fee charged when the protocol fetches external price for an action; 100% protocol.',
     [METRIC.MARGIN_FEES]: 'Rollover fees applied to open positions, realized on close; 100% to MMV.',
-    'Trading Spreads': 'Trading spreads (price impact) charged on position open/close; 100% to MMV.',
+    'Trading Spreads': 'Trading spreads (price impact) charged on position open/close. Before 2026-04-28: 100% to MMV. From 2026-04-28 onwards: 100% to protocol (new liquidity model captures spreads as protocol revenue).',
   },
 };
 
 const methodology = {
   Fees: "Gross protocol revenue: opening fees, liquidation fees, oracle fees, dev fees, rollover fees, and trading spreads.",
-  Revenue: "100% of dev opening fees, 100% of oracle fees.",
-  ProtocolRevenue: "100% of dev opening fees, 100% of oracle fees.",
-  SupplySideRevenue: "100% of vault opening fees (to MMV), 100% of liquidation fees, 100% of rollover fees, 100% of trading spreads."
+  Revenue: "100% of dev opening fees, 100% of oracle fees, and 100% of trading spreads from 2026-04-28 onwards.",
+  ProtocolRevenue: "100% of dev opening fees, 100% of oracle fees, and 100% of trading spreads from 2026-04-28 onwards.",
+  SupplySideRevenue: "100% of vault opening fees (to MMV), 100% of liquidation fees, 100% of rollover fees, and 100% of trading spreads before 2026-04-28."
 }
 
 const adapter: SimpleAdapter = {

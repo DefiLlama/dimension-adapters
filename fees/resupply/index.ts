@@ -51,7 +51,8 @@ const adapters: Adapter = {
     },
   },
   methodology,
-  version: 2
+  version: 2,
+  pullHourly: true,
 }
 
 export default adapters;

@@ -154,7 +154,7 @@ async function queryOkxApi(timestamp:string, path:string){
   return data
 }
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (SwapRouters[options.chain]) {
     const dailyVolume = options.createBalances()
     
