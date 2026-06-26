@@ -19,13 +19,16 @@ import { CHAIN } from "../helpers/chains";
  *      We do NOT index silo contracts or silo PNL events directly.
  *
  * DefiLlama mapping:
- *   - dailyFees             = gross yield + entry/exit fees + T3trisProfit
- *   - dailySupplySideRevenue = net yield to depositors
+ *   - dailyFees              = gross yield (depositor yield + curator perf/mgmt
+ *                              fees) + entry/exit fees + T3trisProfit
+ *   - dailySupplySideRevenue = net depositor yield + curator performance,
+ *                              management, entry and exit fees
  *   - dailyRevenue           = T3trisProfit only (assets sent to t3treasury)
  *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue)
  *
- *   Vault fees (perf/mgmt/entry/exit) are in dailyFees but NOT in dailyRevenue.
- *   They go to each vault's feeRecipient, not to the protocol.
+ *   Vault fees (perf/mgmt/entry/exit) go to each vault's feeRecipient — a
+ *   third-party curator, NOT the t3tris protocol. They are counted in dailyFees
+ *   and dailySupplySideRevenue, but NOT in dailyRevenue/dailyProtocolRevenue.
  *
  * Vaults are discovered fully on-chain from the T3tris protocol contract (the
  * vault factory/registry, deployed at a deterministic CREATE3 address that is
@@ -42,6 +45,9 @@ import { CHAIN } from "../helpers/chains";
 
 // T3tris protocol contract (vault factory/registry). Deterministic CREATE3
 // proxy address — identical on every EVM chain T3tris is deployed to.
+// Verify (Arbitrum): https://arbiscan.io/address/0x0000000000CC53b5Fd649b80f08b05405779cC71
+// Deployment record: t3tris-finance/T3tris-Vault → T3TRIS_PROTOCOL_V1 in
+// script/deployment/production/Utils/Constants.sol.
 const T3TRIS = "0x0000000000CC53b5Fd649b80f08b05405779cC71";
 
 const ABI = {
@@ -72,6 +78,9 @@ const EVENT_ABI = {
 // Supported chains: DefiLlama chain -> { start }. T3tris is live on Arbitrum
 // only for now (same deterministic CREATE3 address on every EVM chain); add a
 // chain here once the protocol contract is deployed and enumerates vaults on it.
+// `start` is a conservative lower bound that predates the first vault
+// deployment (no vaults/events exist before it); verify against the contract's
+// creation tx on Arbiscan (link above) if a tighter bound is needed.
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ARBITRUM]: { start: "2025-01-01" },
 };
@@ -201,7 +210,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const rateBefore = ratesBefore[i];
     const rateAfter = ratesAfter[i];
 
-    if (!token || !supply || !rateBefore || !rateAfter) continue;
+    // Required reads for the yield computation. A vault missing any of these
+    // (e.g. a failed multicall) is skipped — log it with the vault address and
+    // the missing fields so the gap is visible rather than silently swallowed.
+    if (!token || !supply || !rateBefore || !rateAfter) {
+      const missing = [
+        !token && "asset",
+        !supply && "totalSupply",
+        !rateBefore && "pricePerShare(start)",
+        !rateAfter && "pricePerShare(end)",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      console.error(
+        `T3tris: skipping vault ${vaults[i]} on ${options.chain} — missing ${missing}`,
+      );
+      continue;
+    }
 
     const unit = 10 ** decimal;
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
