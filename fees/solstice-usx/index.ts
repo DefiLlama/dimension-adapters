@@ -23,7 +23,7 @@ const getRedemptionPrice = async (timestamp: number) => {
   return price * 10 ** exponent;
 };
 
-const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
   const { results, errors } = await PromisePool

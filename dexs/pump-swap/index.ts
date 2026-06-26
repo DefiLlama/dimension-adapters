@@ -8,20 +8,25 @@ interface IData {
   clean_volume: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const QUOTE_TOKENS = [
+  ADDRESSES.solana.SOL,
+  'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+  ADDRESSES.solana.USDC,
+  ADDRESSES.solana.USDT,
+  ADDRESSES.solana.PUMP,
+  'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT',
+].map((a) => `'${a}'`).join(',')
+
+const fetch = async (options: FetchOptions) => {
   const data: IData[] = await queryAllium(
     `WITH pool_filter AS (
       SELECT DISTINCT
         liquidity_pool_address
       FROM solana.dex.pools
       WHERE project = 'pumpswap'
-        AND token1_address IN (
-          '${ADDRESSES.solana.SOL}',
-          'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-          '${ADDRESSES.solana.USDC}',
-          '${ADDRESSES.solana.USDT}',
-          '${ADDRESSES.solana.PUMP}',
-          'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
+        AND (
+          token0_address IN (${QUOTE_TOKENS})
+          OR token1_address IN (${QUOTE_TOKENS})
         )
     ),
     volume_data AS (

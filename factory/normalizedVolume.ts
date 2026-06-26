@@ -26,7 +26,7 @@ interface HourlyVolumeRecord {
 
 
 function fetchV1({ protocolName, minContracts }: { protocolName: string, minContracts?: number }){
-  return async (_a: any, _b: any, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
 
     const response = await elastic.search({
       index: HOURLY_VOLUME_INDEX,
@@ -196,7 +196,7 @@ const protocols = {
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
     start: '2026-01-20',
-    minContracts: 90
+    minContracts: 60
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
@@ -220,7 +220,8 @@ const protocols = {
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
     chains: [CHAIN.TRON],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 100
   }),
   'apex-omni': dailyNormalizedVolumeAdapter({
     protocolName: 'apex-omni',
@@ -239,7 +240,7 @@ const protocols = {
     protocolName: 'pacifica',
     chains: [CHAIN.SOLANA],
     start: '2026-01-20',
-    version: 1,
+    version: 2,
     minContracts: 45
   }),
   'extended': dailyNormalizedVolumeAdapter({
@@ -282,6 +283,34 @@ const protocols = {
     start: '2026-05-25',
     version: 2,
     minContracts: 8
+  }),
+  'edgeX-v2': dailyNormalizedVolumeAdapter({
+    protocolName: 'edgex-v2',
+    chains: [CHAIN.EDGEX],
+    start: '2026-05-28',
+    version: 1,
+    minContracts: 50
+  }),
+  'dango': dailyNormalizedVolumeAdapter({
+    protocolName: 'dango',
+    chains: [CHAIN.DANGO],
+    start: '2026-05-28',
+    version: 2,
+    minContracts: 6
+  }),
+  'sodex': dailyNormalizedVolumeAdapter({
+    protocolName: 'sodex',
+    chains: [CHAIN.VALUECHAIN],
+    start: '2026-05-31',
+    version: 1,
+    minContracts: 65,
+  }),
+  'orderly': dailyNormalizedVolumeAdapter({
+    protocolName: 'orderly',
+    chains: [CHAIN.ORDERLY],
+    start: '2026-05-28',
+    version: 1,
+    minContracts: 90
   }),
 
 } as const;

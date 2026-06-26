@@ -1,10 +1,11 @@
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
+// Subgraph endpoint is dead, also the projects official website is dead.
 const endpoint = "https://api.studio.thegraph.com/query/62472/core-analytics-082/version/latest";
 
 const query = gql`
@@ -34,10 +35,10 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const response: IGraphResponse = await request(endpoint, query, {
-    from: String(timestamp - ONE_DAY_IN_SECONDS),
-    to: String(timestamp),
+    from: String(options.toTimestamp - ONE_DAY_IN_SECONDS),
+    to: String(options.toTimestamp),
   });
 
   let dailyVolume = new BigNumber(0);
@@ -57,7 +58,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
-      start: async () => 236678,
+      start: "2024-03-01", // Dimension adapter is not mapped in defillama-server.
+      deadFrom : "2026-06-01" // No point mapping now, as the data source is not present.
     },
   },
 };

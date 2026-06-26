@@ -23,7 +23,7 @@ const chains: TChains =  {
   [CHAIN.MERLIN]: 4200,
 };
 
-const fetch = async (_t: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const startTimestamp = options.startOfDay - 86400;
   const endTimestamp = options.startOfDay;
   let isSuccess = true;

@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const HISTORICAL_OPEN_INTEREST_ENDPOINT = "https://api.strikefinance.org/stat/v1/dashboard/open-interest";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { open_interest }: { open_interest: [number, string, number | string][] } = await fetchURL(HISTORICAL_OPEN_INTEREST_ENDPOINT);
   const startTimestamp = options.startTimestamp * 1000;
   const targetTimestamp = options.endTimestamp * 1000;

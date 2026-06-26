@@ -1,6 +1,5 @@
 import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 const apiEVM = "https://api-evm.orderly.org/md/volume/daily_stats";
@@ -18,13 +17,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       start: '2023-10-26',
-      fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) => {
-        const t = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000));
+      fetch: async ({ startOfDay }: FetchOptions) => {
         const data: DailyStats[] = await fetchURL(apiEVM);
         return {
-          timestamp: t,
           dailyFees: data.find(
-            ({ createdAt }) => new Date(createdAt).valueOf() / 1_000 === t
+            ({ createdAt }) => new Date(createdAt).valueOf() / 1_000 === startOfDay
           )?.netFee,
         };
       },

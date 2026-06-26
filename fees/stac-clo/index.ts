@@ -1,10 +1,18 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { queryAllium } from "../../helpers/allium";
+import * as sdk from "@defillama/sdk";
 
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
         start: '2025-10-29',
         token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
+    },
+    [CHAIN.SOLANA]: {
+        start: '2026-06-12',
+        // Live STAC-CLO SPL mint (symbol STAC, 6 decimals).
+        // Source: https://solscan.io/token/u49MwZqu4bHRHRsciaBarHK7JZDYGxuaNnwyMBdEKYk
+        token: 'u49MwZqu4bHRHRsciaBarHK7JZDYGxuaNnwyMBdEKYk',
     }
 }
 
@@ -21,17 +29,16 @@ const MANAGEMENT_FEE = 0.3 / 100;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
 
 async function prefetch(options: FetchOptions) {
-    const priceBefore = await options.fromApi.call({
-        target: priceFeed,
-        abi: 'function latestAnswer() view returns (int256)',
-        chain:"ethereum",
-    })
+    const abi = 'function latestAnswer() view returns (int256)';
 
-    const priceAfter = await options.toApi.call({
-        target: priceFeed,
-        abi: 'function latestAnswer() view returns (int256)',
-        chain: "ethereum",
-    })
+    // The RedStone NAV feed lives on Ethereum. Read it on Ethereum at the period
+    // blocks regardless of which chain is being processed (e.g. Solana), since
+    // options.fromApi/toApi otherwise carry the active chain's block context.
+    const apiFrom = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.fromTimestamp });
+    const apiTo = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.toTimestamp });
+
+    const priceBefore = await apiFrom.call({ target: priceFeed, abi });
+    const priceAfter = await apiTo.call({ target: priceFeed, abi });
 
     return {
         priceChange: (priceAfter - priceBefore) / (10 ** REDSTONE_ORACLE_DECIMALS),
@@ -39,7 +46,7 @@ async function prefetch(options: FetchOptions) {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -47,12 +54,33 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const priceChange = options.preFetchedResults.priceChange;
     const currentPrice = options.preFetchedResults.currentPrice;
 
-    const totalSupply = await options.api.call({
-        target: chainConfig[options.chain].token,
-        abi: 'function totalSupply() view returns (uint256)',
-    })
+    let totalSupplyAfterDecimals = 0;
 
-    const totalSupplyAfterDecimals = totalSupply / (10 ** tokenDecimals);
+    if (options.chain === CHAIN.SOLANA) {
+        // getTokenSupply() RPC only returns the CURRENT supply, which would be applied
+        // to every historical period during backfills (STAC supply is mutable via
+        // mint/burn). Read the point-in-time supply from Allium's per-mint supply
+        // snapshots (captured on each mint/burn event); take the latest snapshot at or
+        // before the period end. `amount` is already normalized by the token decimals.
+        // Source: https://docs.allium.so/historical-data/supported-blockchains/solana
+        //         (solana.raw.spl_token_total_supply)
+        const sql = `
+            SELECT COALESCE(amount, 0) AS supply
+            FROM solana.raw.spl_token_total_supply
+            WHERE mint = '${chainConfig[options.chain].token}'
+              AND snapshot_block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
+            ORDER BY snapshot_block_slot DESC
+            LIMIT 1
+        `;
+        const rows = await queryAllium(sql);
+        totalSupplyAfterDecimals = rows[0].supply;
+    } else {
+        const totalSupply = await options.api.call({
+            target: chainConfig[options.chain].token,
+            abi: 'function totalSupply() view returns (uint256)',
+        })
+        totalSupplyAfterDecimals = totalSupply / (10 ** tokenDecimals);
+    }
 
     const managementFeesForPeriod = currentPrice * totalSupplyAfterDecimals * MANAGEMENT_FEE * (options.toTimestamp - options.fromTimestamp) / ONE_YEAR_IN_SECONDS;
     const yieldForPeriod = priceChange * totalSupplyAfterDecimals;
@@ -96,6 +124,8 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 1, //price updates once a day
+    dependencies: [Dependencies.ALLIUM],
+    isExpensiveAdapter: true,
     prefetch,
     fetch,
     breakdownMethodology,

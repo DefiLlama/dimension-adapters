@@ -148,7 +148,7 @@ async function getActivePerpMarkets(api: any): Promise<OrderBookDetail[]> {
   return activePerpMarkets
 }
 
-async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // Get all active perp markets
   const markets = await getActivePerpMarkets(options.api)
   

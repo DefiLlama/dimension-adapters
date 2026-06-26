@@ -12,7 +12,7 @@ interface YieldDistributionsResponse {
   data: YieldDistribution[];
 }
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
 
   const dailyFees = options.createBalances();

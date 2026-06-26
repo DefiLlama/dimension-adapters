@@ -6,7 +6,7 @@ const iETHv2_VAULT = "0xA0D3707c569ff8C87FA923d3823eC5D81c98Be78";
 const stETHAddress = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const EventLogCollectRevenue = 'event LogCollectRevenue(uint256 amount, address indexed to)';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const [currentRevenueValue, startRevenueValue] = await Promise.all([
     options.api.call({

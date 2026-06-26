@@ -26,7 +26,7 @@ const abis = {
   fee: "uint256:fee",
 };
 
-const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -123,11 +123,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetch as any,
-      start: "2025-04-04",
-    },
-  },
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: "2025-04-04",
 };
 export default adapters;

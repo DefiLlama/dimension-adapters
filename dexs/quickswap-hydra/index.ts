@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter, ChainEndpoints, Fetch, } from "../../adapters/types";
+import { Adapter, ChainEndpoints, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -16,11 +16,10 @@ interface IVolumeStat {
   id: string;
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: Fetch = async (timestamp: any, _cb: any, { chain, }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-    const graphQuery = gql`
+  const graphQuery = gql`
     query MyQuery {
       volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
         cumulativeVolumeUsd
@@ -30,45 +29,30 @@ const graphs = (graphUrls: ChainEndpoints) => {
     }
   `;
 
-    const graphRes = await request(graphUrls[chain], graphQuery);
-    const volumeStats: IVolumeStat[] = graphRes.volumeStats;
+  const graphRes = await request(endpoints[options.chain], graphQuery);
+  const volumeStats: IVolumeStat[] = graphRes.volumeStats;
 
-    let dailyVolumeUSD = BigInt(0);
-    let totalVolumeUSD = BigInt(0);
+  let dailyVolumeUSD = BigInt(0);
+  let totalVolumeUSD = BigInt(0);
 
-    volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.volumeUsd);
-      totalVolumeUSD += BigInt(vol.cumulativeVolumeUsd);
-    });
+  volumeStats.forEach((vol) => {
+    dailyVolumeUSD += BigInt(vol.volumeUsd);
+    totalVolumeUSD += BigInt(vol.cumulativeVolumeUsd);
+  });
 
-    const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
+  const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
 
-    return {
-      dailyVolume: finalDailyVolume.toString(),
-      timestamp: todaysTimestamp,
-    };
+  return {
+    dailyVolume: finalDailyVolume.toString(),
+    timestamp: todaysTimestamp,
   };
-  return fetch;
-};
-
-const methodology = {
-  dailyVolume:
-    "Total cumulativeVolumeUsd for specified chain for the given day",
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch: graphs(endpoints),
-      start: '2024-07-02',
-    },
-    [CHAIN.MANTA]: {
-      fetch: graphs(endpoints),
-      start: '2024-07-02',
-    },
-  },
-  methodology,
+  fetch,
+  chains: [CHAIN.POLYGON_ZKEVM, CHAIN.MANTA],
+  start: '2024-07-02',
 };
 
 export default adapter;

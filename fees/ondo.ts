@@ -5,6 +5,7 @@ import * as solana from '../helpers/solana'
 import axios from "axios"
 import { getCoinSupply } from "../helpers/aptos"
 import { getObject } from '../helpers/sui'
+import { rpcCall } from '../helpers/ripple'
 
 /**
  * 
@@ -18,10 +19,10 @@ import { getObject } from '../helpers/sui'
  */
 
 const methodology = {
-  Fees: 'Total yields were collected by investment assets.',
-  Revenue: 'Total yields were distributed to investors and Ondo protocol.',
-  ProtocolRevenue: 'Total yields were collected by Ondo protocol.',
-  SupplySideRevenue: 'Total yields were distributed to investors.',
+  Fees: "The daily yield earned by USDY and OUSG holders, calculated as each token's price increase over the day times the amount of tokens in circulation.",
+  Revenue: "Zero. Ondo passes all of this yield to token holders and currently charges no fee (USDY has no fee, OUSG's 0.15% fee is waived until 2027).",
+  ProtocolRevenue: 'Zero, for the same reason as Revenue.',
+  SupplySideRevenue: 'All of the yield, since 100% goes to USDY and OUSG holders.',
 }
 
 const OndoContracts: any = {
@@ -54,6 +55,17 @@ const OndoContracts: any = {
   },
   [CHAIN.NOBLE]: {
     USDY: 'ausdy',
+  },
+  [CHAIN.SEI]: {
+    USDY: '0x54cD901491AeF397084453F4372B93c33260e2A6',
+  },
+  [CHAIN.STELLAR]: {
+    USDY_CODE: 'USDY',
+    USDY_ISSUER: 'GAJMPX5NBOG6TQFPQGRABJEEB2YE7RFRLUKJDZAZGAD5GFX4J7TADAZ6',
+  },
+  [CHAIN.RIPPLE]: {
+    OUSG_ISSUER: 'rHuiXXjHLpMP8ZE9sSQU5aADQVWDwv6h5p',
+    OUSG_CURRENCY: '4F55534700000000000000000000000000000000',
   },
 }
 
@@ -118,6 +130,34 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
     return {
       OUSG: 0,
       USDY: Number(parseInt(res.data.amount.amount)) / 1e18,
+    }
+  } else if (useChainApi.chain === CHAIN.STELLAR) {
+    // Total supply = sum of every balance bucket (accounts, contracts/SAC,
+    // claimable balances, liquidity pools).
+    const { USDY_CODE, USDY_ISSUER } = OndoContracts[CHAIN.STELLAR]
+    const res = await axios.get(`https://horizon.stellar.org/assets?asset_code=${USDY_CODE}&asset_issuer=${USDY_ISSUER}`)
+    const record = res.data._embedded.records[0]
+    const usdy =  Number(record.balances.authorized)
+      + Number(record.balances.authorized_to_maintain_liabilities)
+      + Number(record.contracts_amount)
+      + Number(record.claimable_balances_amount)
+      + Number(record.liquidity_pools_amount)
+    return {
+      OUSG: 0,
+      USDY: usdy,
+    }
+  } else if (useChainApi.chain === CHAIN.RIPPLE) {
+    // obligations on the issuing account = total issued supply
+    const { OUSG_ISSUER, OUSG_CURRENCY } = OndoContracts[CHAIN.RIPPLE]
+    const res = await rpcCall('gateway_balances', [{
+      account: OUSG_ISSUER,
+      ledger_index: 'validated',
+      strict: true,
+    }])
+    const obligations = res.result.obligations
+    return {
+      OUSG: Number(obligations[OUSG_CURRENCY]),
+      USDY: 0,
     }
   } else {
     const [supplyOUSG, supplyUSDY, supplyUSDYc] = await useChainApi.multiCall({
@@ -188,6 +228,15 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
     },
     [CHAIN.NOBLE]: {
+      fetch: fetch,
+    },
+    [CHAIN.SEI]: {
+      fetch: fetch,
+    },
+    [CHAIN.STELLAR]: {
+      fetch: fetch,
+    },
+    [CHAIN.RIPPLE]: {
       fetch: fetch,
     },
   },

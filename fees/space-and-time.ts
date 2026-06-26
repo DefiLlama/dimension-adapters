@@ -36,7 +36,7 @@ const getQueryRouterFees = async (startTimestamp: number, endTimestamp: number, 
   return Number(logs.reduce((sum, log) => sum + BigInt(log.args.fulfillerAmount), 0n));
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances()

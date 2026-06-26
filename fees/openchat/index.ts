@@ -6,7 +6,7 @@ const LEDGER_ID = "2ouva-viaaa-aaaaq-aaamq-cai";
 const ACCOUNT_ID = "4bkt6-4aaaa-aaaaf-aaaiq-cai";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     let response;
 
     try {

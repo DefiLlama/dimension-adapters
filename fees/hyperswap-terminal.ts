@@ -2,7 +2,6 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
-import { METRIC } from "../helpers/metrics";
 
 interface HyperswapResponse {
   date: string;
@@ -12,7 +11,7 @@ interface HyperswapResponse {
   timestamp: string;
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dateString = options.dateString;
   const url = `https://api-perps.hyperswap.exchange/api/defillama/daily-stats?date=${dateString}`;
   
@@ -28,9 +27,9 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   dailyVolume.addUSDValue(data.dailyVolume);
-  dailyFees.addUSDValue(data.dailyFees, METRIC.TRADING_FEES);
-  dailyRevenue.addUSDValue(data.dailyRevenue, METRIC.TRADING_FEES);
-  dailySupplySideRevenue.addUSDValue(data.dailyFees - data.dailyRevenue, 'Refferal Fees');
+  dailyFees.addUSDValue(data.dailyFees, 'Terminal Trading Fees');
+  dailyRevenue.addUSDValue(data.dailyRevenue, 'Terminal Protocol Fees');
+  dailySupplySideRevenue.addUSDValue(data.dailyFees - data.dailyRevenue, 'Terminal Fees To Referrers');
 
   return {
     dailyVolume,
@@ -51,13 +50,13 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Trading fees charged to users on perpetual trades.",
+    'Terminal Trading Fees': "Trading fees charged to users on perpetual trades.",
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: "Trading fees minus referral payouts, representing net protocol revenue.",
+    'Terminal Protocol Fees': "Trading fees minus referral payouts, representing net protocol revenue.",
   },
   SupplySideRevenue: {
-    ['Referral Fees']: "Referral fees for referrers.",
+    'Terminal Fees To Referrers': "Referral fees for referrers.",
   },
 };
 

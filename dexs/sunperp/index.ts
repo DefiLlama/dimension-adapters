@@ -1,52 +1,38 @@
-import { CHAIN } from "../../helpers/chains"
-import { httpGet } from "../../utils/fetchURL"
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
+import { PromisePool } from "@supercharge/promise-pool";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const volumeEndpoint = "https://www.sunperp.com/api/v1/app-gw/hbg/v1/app/dex/home/tradeVolumeStat"
+const API_BASE = "https://api.sunperp.com";
 
-interface respData {
-    date: string;
-    dailyVolume: number;
-}
+const fetch = async (options: FetchOptions) => {
+  const { data } = await fetchURL(`${API_BASE}/sapi/v1/public/contract_info?business_type=swap`);
+  const contracts = data.filter(({ contract_status }: any) => contract_status === 1);
+  // Avoid Error Handling, Contract list is current; some markets may not have klines for older dates.
+  const { results } = await PromisePool.withConcurrency(3)
+    .for(contracts)
+    .process(async ({ contract_code }: any) => {
+      const { data = [] } = await fetchURLAutoHandleRateLimit(
+        `${API_BASE}/sapi/v1/market/history/kline?contract_code=${encodeURIComponent(contract_code)}&period=1day&from=${options.startOfDay}&to=${options.endTimestamp}`
+      );
+      return data.reduce(
+        (sum: number, { id, trade_turnover }: any) =>
+          id >= options.startOfDay && id < options.endTimestamp ? sum + Number(trade_turnover || 0) : sum,
+        0
+      );
+    });
 
-const configRule = {
-    headers: {
-        "Accept": "*/*",
-    },
+  return {
+    dailyVolume: results.reduce((sum, volume) => sum + volume, 0),
+  };
 };
 
-const fetch = async (_,_a:any,{ startOfDay }: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getTimestampAtStartOfDayUTC(startOfDay);
-    const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
-
-    const resp = await httpGet(volumeEndpoint, configRule);
-    if (!resp || !resp.success) {
-        return {
-            timestamp: dayTimestamp,
-        }
-    }
-
-    const data: respData[] = resp.data;
-    const dailyVolume = data.find(dayItem => dayItem.date === dateStr)?.dailyVolume as any
-    if (!dailyVolume) {
-        return {
-            timestamp: dayTimestamp,
-        }
-    }
-    return {
-        timestamp: dayTimestamp,
-        dailyVolume,
-    };
-}
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    adapter: {
-        [CHAIN.TRON]: {
-            fetch,
-        },
-    },
+  version: 1,
+  fetch,
+  chains: [CHAIN.TRON],
+  start: "2025-09-10",
 };
 
 export default adapter;

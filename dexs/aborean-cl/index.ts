@@ -53,7 +53,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   return { dailyBribesRevenue }
 }
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -124,7 +124,26 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions)
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyBribesRevenue }
+  const dailyRevenue = fetchOptions.createBalances()
+  const dailyHoldersRevenue = fetchOptions.createBalances()
+  const totalFees = fetchOptions.createBalances()
+
+  totalFees.addBalances(dailyFees, 'Token Swap Fees')
+  totalFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
+
+  dailyRevenue.addBalances(dailyFees, 'Token Swap Fees To Holders')
+  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addBalances(dailyFees, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  return {
+    dailyVolume,
+    dailyFees: totalFees,
+    dailyUserFees: totalFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+  }
 }
 
 const adapters: SimpleAdapter = {
@@ -132,5 +151,29 @@ const adapters: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ABSTRACT],
   start: '2025-10-02',
+  methodology: {
+    Fees: "Swap fees paid by users plus external bribes deposited for Aborean concentrated liquidity pools.",
+    UserFees: "Swap fees paid by users plus external bribes deposited for Aborean concentrated liquidity pools.",
+    Revenue: "Swap fees and external bribes distributed to ABR holders.",
+    HoldersRevenue: "Swap fees and external bribes distributed to ABR holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean concentrated liquidity pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean concentrated liquidity pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean concentrated liquidity pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean concentrated liquidity pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+  }
 }
 export default adapters;

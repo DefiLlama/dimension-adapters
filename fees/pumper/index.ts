@@ -11,7 +11,7 @@ const USDC_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const PROTOCOL_FEE_TYPE = "protocol";
 const REFERRER_FEE_TYPE = "referrer";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const query = `
       WITH
       fee_txs AS (

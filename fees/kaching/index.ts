@@ -4,51 +4,63 @@ import { httpGet } from "../../utils/fetchURL";
 
 const BASE_API_URL = "https://api.kaching.vip";
 
-const fetchAptos = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchAptos = async (options: FetchOptions) => {
   const revenueResponse = await httpGet(`${BASE_API_URL}/transactions/revenue?timestamp=${options.startOfDay}`);
+  if (!revenueResponse.today.revenue) {
+    throw new Error(`No data found for date ${options.dateString}`);
+  }
 
   // Revenue is in USDC
-  const revenue = Number(revenueResponse.today.revenue)
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(Number(revenueResponse.today.revenue), "Lottery Ticket Purchase Fees");
 
   return {
-    dailyFees: revenue,
-    dailyRevenue: revenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 }
 
-const POTS_URL = "https://api.kaching.vip/pots";
-const MAX_PAGES = 100;
+const TICKET_PURCHASES_URL = "https://api.kaching.vip/transactions/ticket-purchases";
+const PAGE_LIMIT = 50;
+const MAX_PAGES = 200;
 
-async function fetchAllActivePots() {
-  const pots: any[] = [];
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
   let page = 1;
-  let totalPages = 1;
-  do {
-    const data = await httpGet(POTS_URL, {
-      params: { page, limit: 100, status: "active", includePrivate: true },
+
+  while (page <= MAX_PAGES) {
+    const data = await httpGet(TICKET_PURCHASES_URL, {
+      params: { startDate: options.dateString, endDate: options.dateString, page, limit: PAGE_LIMIT },
     });
-    if (!data?.pots) break;
-    pots.push(...data.pots);
-    totalPages = data.totalPages;
+
+    const rows: any[] = data?.data ?? [];
+    if (!rows.length) {
+      throw new Error(`No data found for date ${options.dateString}`);
+    }
+
+    for (const row of rows) {
+      const amt = Number(row.amount ?? 0);
+      if (isFinite(amt) && amt > 0) dailyFees.addUSDValue(amt, "Lottery Ticket Purchase Fees");
+    }
+
+    const totalPages: number = data?.totalPages ?? 1;
+
+    // Guard: if actual page count exceeds our cap, fail loudly rather than
+    // return a silent undercount.
+    if (totalPages > MAX_PAGES) {
+      throw new Error(
+        `Kaching: totalPages (${totalPages}) exceeds MAX_PAGES (${MAX_PAGES}). Partial data would be returned — aborting.`
+      );
+    }
+
+    if (page >= totalPages) break;
     page++;
-  } while (page <= totalPages && page <= MAX_PAGES);
-  return pots;
-}
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
-  const pots = await fetchAllActivePots();
-  const revenue = pots.reduce(
-    (sum: number, pot: any) => sum + (pot.prizePool.currentAmount),
-    0
-  );
-
-  if (!isFinite(revenue)) {
-    throw new Error(`Invalid revenue value: ${revenue}`);
   }
 
   return {
-    dailyFees: revenue,
-    dailyRevenue: revenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 }
 
@@ -56,6 +68,15 @@ const methodology = {
   Fees: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
   Revenue: "Revenue generated from lottery ticket purchases on the Kaching decentralized lottery platform.",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    "Lottery Ticket Purchase Fees": "Fees paid by users for purchasing lottery tickets.",
+  },
+  Revenue: {
+    "Lottery Ticket Purchase Fees": "Fees paid by users for purchasing lottery tickets.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -66,10 +87,11 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
+      start: '2026-05-16',
     }
   },
-  runAtCurrTime: true,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

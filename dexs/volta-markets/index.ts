@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
@@ -45,8 +45,8 @@ interface IGraphResponseOI {
   }>
 }
 
-const fetch: Fetch = async (timestamp:number, _b:any, options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+const fetch = async (options: FetchOptions) => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
   const dailyData: IGraphResponse = await request(config[options.chain].endpoint, historicalDataDerivatives, {
     id: String(dayTimestamp) + ':daily',
     period: 'daily',

@@ -18,7 +18,8 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getUniV2LogAdapter({ factory: factories[chain] }),
+        // no revenue from fees: https://docs.integral.link/size/getting-started/liquidity-provider/earning-fees#mechanism
+        fetch: getUniV2LogAdapter({ factory: factories[chain], revenueRatio: 0 }),
       },
     };
   }, {} as BaseAdapter),

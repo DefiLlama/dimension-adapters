@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoint = sdk.graph.modifyEndpoint('6eeKiwCJQECCwhE7doeoKCAqSK7VatCsv3piHomYzi6o')
 
@@ -24,15 +23,13 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch: Fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)));
+const fetch = async (options: FetchOptions) => {
   const dailyData: IGraphResponse = await request(endpoint, historicalDataSwap, {
-    id: String(dayTimestamp) + ":daily",
+    id: String(options.startOfDay) + ":daily",
     period: "daily",
   });
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -40,15 +37,11 @@ const getFetch: Fetch = async (timestamp: number) => {
   }
 }
 
-const startTimestamp = 1693997105;
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: getFetch,
-      start: startTimestamp,
-    },
-  },
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2023-09-06',
 }
 
 export default adapter;

@@ -11,7 +11,7 @@ const TREASURY_ADDRESS = 'AMkHU8Zfw53mVPjnn4rHmFTTF26sNFkUUQkuLA6f1s1d'
 // Fee collector (receives admin fees)
 const FEE_COLLECTOR_ADDRESS = '8MzVYN1ZFGRUuW5iz5Y183DYnqF7zFfhDTz4Qd4LC1w6'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     // Query SOL received by fee_collector from Chopcorp program transactions only
     // Using subquery to filter by program ID (slower but accurate for multisig)
     const duneQuery = `

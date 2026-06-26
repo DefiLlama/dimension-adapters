@@ -5,7 +5,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 const EXTENDED_BUILDER_NAMES = ["Planemo Trading"];
 const EXTENDED_BUILDER_ID = "114410";
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees } = await fetchBuilderData({
     options,
     builderNames: EXTENDED_BUILDER_NAMES,
@@ -31,12 +31,9 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STARKNET]: {
-      fetch: fetchExtended,
-      start: "2026-04-12",
-    },
-  },
+  fetch,
+  chains: [CHAIN.STARKNET],
+  start: "2026-04-12",
   methodology,
   breakdownMethodology: {
     Fees: {
