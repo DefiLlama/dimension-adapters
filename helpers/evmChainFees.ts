@@ -90,7 +90,6 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  */
 export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainFeesConfig> = {
   core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500, revenueShare: 1 },
-  kava: { chain: CHAIN.KAVA, start: "2022-05-10", blockChunkSize: 100, revenueShare: 1 },
   merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250, rpcTimeoutMs: 20_000, revenueShare: 1 },
 };
 

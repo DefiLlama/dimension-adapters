@@ -11,7 +11,7 @@ const alliumFeesConfigs: Record<string, { chain: CHAIN; start: string }> = {
   "sonic": { chain: CHAIN.SONIC, start: "2025-02-05" },
 };
 
-const rpcFeesConfigKeys = ["core", "kava"] as const;
+const rpcFeesConfigKeys = ["core"] as const;
 
 const feesProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(alliumFeesConfigs)) {
