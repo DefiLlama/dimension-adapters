@@ -109,15 +109,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         params: [from, Math.min(from + PAGE - 1, count - 1)],
       });
     }
+    // Fail loudly on any failed page: permitFailure defaults to false, so a
+    // missing page throws into the catch below rather than silently producing
+    // a partial vault list (which would under-report fees/revenue).
     const pages = await options.api.multiCall({
       abi: ABI.getDeployedVaults,
       calls: pageCalls,
-      permitFailure: true,
     });
-    vaults = pages.filter(Boolean).flat();
+    vaults = pages.flat();
   } catch (e) {
-    // Protocol not deployed on this chain (or RPC error) — report nothing for
-    // this run so other chains continue.
+    // Protocol not deployed on this chain, or a registry page failed to read —
+    // report nothing for this run rather than continuing with incomplete vault
+    // discovery, so other chains continue.
     console.error(`T3tris: failed to enumerate vaults for ${options.chain}:`, e);
     return {};
   }
