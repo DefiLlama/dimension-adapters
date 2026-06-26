@@ -96,6 +96,7 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
     return {
       dailyActiveUsers: data?.usercount,
       dailyTransactionsCount: data?.txcount,
+      dailyGasUsed: data?.gas,
     }
   }
 
