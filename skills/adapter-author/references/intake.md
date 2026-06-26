@@ -4,7 +4,7 @@ Use after the broad opener in `SKILL.md` when facts are still missing. One unres
 
 ## Evidence to inspect first
 
-- `pull_request_template.md` - TVL belongs in `DefiLlama-Adapters`; listing metadata in `defillama-server`; normal adapter PRs do not edit package files.
+- `pull_request_template.md` - TVL belongs in `DefiLlama-Adapters`; normal adapter PRs do not edit package files.
 - `GUIDELINES.md` and the matching category `GUIDELINES.md` - global rules, v1/v2 guidance, fee/revenue model, common traps.
 - `adapters/types.ts` - supported `AdapterType`s, `whitelistedDimensionKeys`, the actual metric keys runtime accepts (e.g. `tokenIncentives`, not `dailyTokenIncentives`).
 - `.github/workflows/getFileList.js` - PR CI changed-file roots; factory-backed roots are not all covered.
@@ -24,7 +24,7 @@ Use after the broad opener in `SKILL.md` when facts are still missing. One unres
 ## Repo-fit routing (stop and route)
 
 - TVL of any kind (staked, pool2, borrowed, treasury) -> `DefiLlama-Adapters`.
-- Logo, category, description, socials, treasury list, audit list, token id, oracle source -> `defillama-server`.
+- Logo, category, description, socials, treasury list, audit list, token id, oracle source -> mail to metadata@defillama.com
 - Liquidations with no local repo precedent -> ask maintainers.
 - Metric not in `whitelistedDimensionKeys` -> ask maintainers.
 - `aggregator-options` -> ask maintainers (folder exists, wiring does not).

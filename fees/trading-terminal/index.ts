@@ -4,7 +4,7 @@ import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 
 const LABELS = {
   TRADING_TERMINAL_FEES: 'Trading Terminal Fees',
@@ -81,9 +81,26 @@ async function fetchSolana(options: FetchOptions) {
       (SELECT payout_amount FROM cashbackPayouts) AS cashback_payout_amount
   `;
 
-  const [row] = await queryDuneSql(options, query);
-  const tradingFees = Number(row?.fee ?? 0);
-  const cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
+  let tradingFees = 0;
+  let cashbackPayouts = 0;
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788861) to avoid re-running the full Solana scan on
+  // every historical refill; newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788861');
+    const matched = cached.find(
+      (row: any) => typeof row.day === 'string' && row.day.slice(0, 10) === options.dateString,
+    );
+    if (!matched) {
+      throw new Error(`No cached trading-terminal result for ${options.dateString}; re-run dune query 7788861`);
+    }
+    tradingFees = Number(matched.fee_lamports ?? 0);
+    cashbackPayouts = Number(matched.cashback_payout_lamports ?? 0);
+  } else {
+    const [row] = await queryDuneSql(options, query);
+    tradingFees = Number(row?.fee ?? 0);
+    cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
+  }
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
