@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json';
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../helpers/dune";
 
 // Labels for breakdownMethodology compliance.
 
@@ -43,7 +43,7 @@ const INTERNAL_TREASURY_WALLETS = [
 const formatAddresses = (addresses: string[]) =>
   addresses.map(a => `'${a}'`).join(', ');
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const terminalFeeWalletsSql = formatAddresses(TROJAN_TERMINAL_FEE_WALLETS);
   const internalWalletsSql = formatAddresses(INTERNAL_TREASURY_WALLETS);
   // block_date is the partition key on these tables; filtering on it (alongside
@@ -99,7 +99,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         WHERE num_transfers >= 2) AS cashback_lamports
   `;
 
-  const [row] = await queryDuneSql(options, query);
+  let row: any;
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788856) to avoid re-running the full Solana scan on
+  // every historical refill; newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788856');
+    row = cached.find(
+      (r: any) => typeof r.day === 'string' && r.day.slice(0, 10) === options.dateString,
+    );
+    if (!row) {
+      throw new Error(`No cached primordium result for ${options.dateString}; re-run dune query 7788856`);
+    }
+  } else {
+    row = (await queryDuneSql(options, query))[0];
+  }
   const botFee = Number(row?.bot_fee_lamports ?? 0);
   const terminalFeeSol = Number(row?.terminal_fee_lamports ?? 0);
   const terminalFeeUsdc = Number(row?.terminal_fee_usdc ?? 0);

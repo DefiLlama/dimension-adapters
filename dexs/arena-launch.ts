@@ -1,6 +1,5 @@
 import { FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { breakdownMethodology } from './ramses-hl-cl'
 
 const abi = {
   "Buy": "event Buy(address user, uint256 tokenId, uint256 tokenAmount, uint256 cost, uint256 tokenSupply, address referrerAddress, uint256 referralFee, uint256 creatorFee, uint256 protocolFee)",

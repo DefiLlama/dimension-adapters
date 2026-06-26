@@ -8,7 +8,7 @@ const DEPLOYED_TOKENS: Record<string, string> = {
   'PUP': 'pup',
 }
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // const spotTradeFeesQuery = `
   //   WITH base_trades AS (
   //     SELECT 
@@ -55,7 +55,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
   //   dailyFees.addCGToken(cgToken, Number(row.total_fees));
   // }
 
-  if (timestamp < LLAMA_HL_INDEXER_FROM_TIME) {
+  if (options.toTimestamp < LLAMA_HL_INDEXER_FROM_TIME) {
     throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
   }
 
@@ -66,7 +66,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
 
-  const dateString = new Date(timestamp * 1000).toISOString().split('T')[0].replaceAll('-', '');
+  const dateString = new Date(options.toTimestamp * 1000).toISOString().split('T')[0].replaceAll('-', '');
   const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`);
 
   for (const item of response.data) {

@@ -64,6 +64,14 @@ const chainConfig = {
     subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-monad/1.0.0/gn',
     start: '2026-03-30'
   },
+  [CHAIN.ABSTRACT]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-abstract/1.0.0/gn',
+    start: '2026-06-15'
+  },
+  [CHAIN.RONIN]: {
+    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-ronin/1.0.0/gn',
+    start: '2026-06-15'
+  },
 }
 
 // DERIVED fee model (CONFIRMED 2026-06-01) — applied to NFT-pool volume only.
@@ -81,7 +89,7 @@ const DAY_QUERY = gql`
   }
 `
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options) => {
   const { chain, startOfDay } = options
   const url = chainConfig[chain].subgraph
 

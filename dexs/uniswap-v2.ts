@@ -23,6 +23,7 @@ const chainConfig: Record<string, {
     factory: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
     source: 'CLICKHOUSE',
     start: '2024-02-12',
+    feeSwitchDate: "2026-06-02",
   },
   [CHAIN.BASE]: {
     factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
@@ -46,6 +47,7 @@ const chainConfig: Record<string, {
     factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6',
     source: 'CLICKHOUSE',
     start: '2024-02-14',
+    feeSwitchDate: "2026-06-02",
   },
   [CHAIN.UNICHAIN]: {
     factory: '0x1f98400000000000000000000000000000000002',
@@ -94,16 +96,14 @@ function getLogAdapterConfig(options: FetchOptions) {
   if (feeSwitchDate && options.dateString >= feeSwitchDate) {
     return {
       userFeesRatio: 1,
-      revenueRatio: 0.05 / 0.3,
+      revenueRatio: 0, // Tracked combined in Uniswap V3 adapter
       protocolRevenueRatio: 0,
-      holdersRevenueRatio: 0.05 / 0.3,
     }
   } else {
     return {
       userFeesRatio: 1,
       revenueRatio: 0,
       protocolRevenueRatio: 0,
-      holdersRevenueRatio: 0,
     }
   }
 }
@@ -192,10 +192,9 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees.clone(1 - feeRates.revenueRatio),
-      dailyRevenue: dailyFees.clone(feeRates.revenueRatio),
+      dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
+      dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: dailyFees.clone(feeRates.holdersRevenueRatio),
     };
   };
 
@@ -243,14 +242,13 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees.clone(1 - feeRates.revenueRatio),
-    dailyRevenue: dailyFees.clone(feeRates.revenueRatio),
+    dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
+    dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyFees.clone(feeRates.holdersRevenueRatio),
   };
 }
 
-const fetch = async (_t: any, _tb: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (!config) {
     throw Error(`config not found for chain ${options.chain}`);
@@ -269,10 +267,10 @@ const fetch = async (_t: any, _tb: any, options: FetchOptions) => {
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
+  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI. (Tracked combined in Uniswap V3 adapter)',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs, From 8 Mar 2026, 83% (100% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains are distributed to LPs.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
+  SupplySideRevenue: '83% (100% before fee switch) of fees are distributed to liquidity providers.',
+  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI (Tracked combined in Uniswap V3 adapter)',
 }
 
 const adapter: Adapter = {

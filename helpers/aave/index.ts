@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
@@ -22,7 +22,7 @@ export interface AaveLendingPoolConfig {
 }
 
 export interface AaveAdapterExportConfig {
-  start?: IStartTimestamp | number | string;
+  start?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -31,6 +31,9 @@ const PercentageMathDecimals = 1e4;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
+
+const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
+const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
@@ -104,7 +107,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
-      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
+      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore
 
       balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
@@ -114,9 +117,14 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
       const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-      
-      // contracts substract reserve/revenue from liquidity index
-      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+
+      const windowSeconds = options.toTimestamp - options.fromTimestamp
+
+      const periodSupplyRate = Number(growthLiquidityIndex) / Number(reserveLiquidityIndexBefore)
+      const annualizedSupplyRate = windowSeconds > 0? periodSupplyRate * SECONDS_PER_YEAR / windowSeconds : periodSupplyRate
+      if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
+
+      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
@@ -211,11 +219,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           const e = Number(event.liquidatedCollateralAmount)
           const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
           const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
-  
-          // protocol fees from liquidation bonus
-          const b = (e - e / x)
-          const b2 = b * y
-  
+
+          // protocol fees from liquidation bonus, if no bonus (x = 0), expect b = b2
+          const b = x > 0 ? (e - e / x) : 0
+          const b2 = x > 0 ? b * y : b
+          
           // count liquidation bonus as fees
           balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
   
@@ -1334,6 +1342,20 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 3,
             lendingPoolProxy: '0x1Fc4f91E99eFDC90c4B2B8F69fE0b4BFd819a330',
             dataProvider: '0xFEaD8E14e58ecF72B5cD585458f07523F173E2F4',
+          },
+        ],
+      },
+    },
+  },
+  'velkonix': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x202FC1FEf70C8a7001f1579518e9288A547C12Ee',
+            dataProvider: '0x6da56B769B42952CACA18D37Feda3015FDB2fE67',
           },
         ],
       },

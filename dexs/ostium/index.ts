@@ -2,7 +2,7 @@ import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   // Bilateral OI: max(oi_long, oi_short) * 2.
   // Ostium is a bilateral OTC venue: every trade has a counterparty (another trader

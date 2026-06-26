@@ -8,7 +8,7 @@ const MARKETS: Record<string, { cgId: string }> = {
   '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': { cgId: 'ethereum' },
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const queryId = '6948793';
   let data: any[] = []
 

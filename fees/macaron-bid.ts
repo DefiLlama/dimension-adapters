@@ -7,7 +7,7 @@ const DEV_PLATFORM_WALLET = 'FeeRmkRwtAhsoNkKgHHYAp5RL2gC9pfdXp7WCEvVFAZC'
 const AUCTION_MINING_PROGRAM_ID = 'BidUuhFU1wyjgmpTv4YMQrqzersavZLJRnsgpw3i4k88'
 const BLOCK_MINING_PROGRAM_ID = 'BLockwMhb4Z5M3Xw1FdEobBpqTbER5akiyYKkMD4h7uj'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
    const timestamp = options.startOfDay
    const feeChangeDate = 1734433461 // Dec 17, 2025 10:44:21 UTC
    const feeChangeDate2 = 1735308000 // Dec 27, 2025 14:00:00 UTC

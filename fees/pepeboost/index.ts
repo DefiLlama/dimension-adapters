@@ -3,7 +3,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
 // Labelled as "Pepe Boost Fees" on Solscan.
@@ -12,7 +12,7 @@ const FEE_WALLET = 'G9PhF9C9H83mAjjkdJz4MDqkufiTPMJkx7TnKE1kFyCp';
 // Rewards are distributed daily at 00:00 UTC according to docs.
 const REWARD_RELAYER = 'BXhkDUR2MCA6wPrnmUN1q2PHLqf973E5L3aqXzouojQE';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -64,9 +64,25 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       (SELECT rewards FROM rewardPayouts) AS rewards
   `;
 
-  const fees = await queryDuneSql(options, query);
-  const totalFees = Number(fees[0].fee);
-  const rewards = Number(fees[0].rewards);
+  let totalFees = 0;
+  let rewards = 0;
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788879); newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788879');
+    const matched = cached.find(
+      (r: any) => typeof r.day === 'string' && r.day.slice(0, 10) === options.dateString,
+    );
+    if (!matched) {
+      throw new Error(`No cached pepeboost result for ${options.dateString}; re-run dune query 7788879`);
+    }
+    totalFees = Number(matched.fee_unfiltered_lamports ?? 0);
+    rewards = Number(matched.rewards_lamports ?? 0);
+  } else {
+    const fees = await queryDuneSql(options, query);
+    totalFees = Number(fees[0].fee);
+    rewards = Number(fees[0].rewards);
+  }
   dailyFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
   dailyUserFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
   dailyRevenue.add(ADDRESSES.solana.SOL, totalFees - rewards, 'Trading Fees To Protocol');

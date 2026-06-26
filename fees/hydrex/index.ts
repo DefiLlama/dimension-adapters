@@ -13,9 +13,9 @@ const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, getToBlock, api } = options;
 
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
-  const dailyBribesRevenue = createBalances();
 
   // 1. Get options revenue from Option Exercise events (goes to Strategic Protocol Reserve/treasury)
   const exerciseLogs = await getLogs({
@@ -24,8 +24,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   exerciseLogs.forEach((log: any) => {
-    dailyFees.add(ADDRESSES.base.USDC, log.paymentAmount);
-    dailyProtocolRevenue.add(ADDRESSES.base.USDC, log.paymentAmount);
+    dailyFees.add(ADDRESSES.base.USDC, log.paymentAmount, 'Option Exercise Fees');
+    dailyRevenue.add(ADDRESSES.base.USDC, log.paymentAmount, 'Option Exercise Fees');
+    dailyProtocolRevenue.add(ADDRESSES.base.USDC, log.paymentAmount, 'Option Exercise Fees');
   });
 
   // 2. Get all bribe contracts from CreateBribe events (cache from start to avoid re-querying all history)
@@ -66,26 +67,23 @@ const fetch = async (options: FetchOptions) => {
     });
 
     logs.forEach((log: any) => {
-      dailyFees.add(log.rewardToken, log.reward);
-
       if (isExternal) {
-        dailyBribesRevenue.add(log.rewardToken, log.reward);
+        dailyFees.add(log.rewardToken, log.reward, 'Bribes Rewards');
+        dailyRevenue.add(log.rewardToken, log.reward, 'Bribes Revenue');
+        dailyHoldersRevenue.add(log.rewardToken, log.reward, 'Bribes Revenue');
       } else {
-        dailyHoldersRevenue.add(log.rewardToken, log.reward);
+        dailyFees.add(log.rewardToken, log.reward, 'DEX Fees');
+        dailyRevenue.add(log.rewardToken, log.reward, 'DEX Fees');
+        dailyHoldersRevenue.add(log.rewardToken, log.reward, 'DEX Fees To Holders');
       }
     });
   }
-
-  const dailyRevenue = createBalances();
-  dailyRevenue.addBalances(dailyProtocolRevenue);
-  dailyRevenue.addBalances(dailyHoldersRevenue);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    dailyBribesRevenue,
   };
 };
 
@@ -100,7 +98,25 @@ const adapter: SimpleAdapter = {
     Revenue: "Protocol revenue from DEX fees (to holders), option exercises (to Strategic Protocol Reserve/treasury), and Omni Liquidity fees (to holders). External bribes are tracked separately in BribesRevenue.",
     ProtocolRevenue: "Revenue from option exercises allocated to the Strategic Protocol Reserve (treasury).",
     HoldersRevenue: "Protocol-generated revenue from DEX fees and Omni Liquidity fees distributed to governance token holders (excludes external bribes which are tracked in BribesRevenue).",
-    BribesRevenue: "External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'DEX Fees': 'Total fees from DEX fees',
+      'Option Exercise Fees': 'Total fees from option exercises',
+      'Bribes Rewards': 'External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue)',
+    },
+    Revenue: {
+      'DEX Fees': 'Share of fees from DEX fees to holders',
+      'Option Exercise Fees': 'Revenue from option exercises allocated to the Strategic Protocol Reserve (treasury).',
+      'Bribes Revenue': 'External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue)',
+    },
+    HoldersRevenue: {
+      'DEX Fees': 'Share of fees from DEX fees to holders',
+      'Bribes Revenue': 'External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue)',
+    },
+    ProtocolRevenue: {
+      'Option Exercise Fees': 'Revenue from option exercises allocated to the Strategic Protocol Reserve (treasury).',
+    },
   }
 };
 

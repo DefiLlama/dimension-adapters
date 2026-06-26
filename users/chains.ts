@@ -1,7 +1,10 @@
 import { queryAllium } from "../helpers/allium";
 import fetchURL, { httpGet } from "../utils/fetchURL";
+import { ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
+import { routescanStatsExports } from "./utils/routescanStats";
+import { subscanStatsExports } from "./utils/subscanStats";
 
 async function solanaUsers(start: number, end: number) {
     const queryId = await queryAllium(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
@@ -75,6 +78,8 @@ type ChainUserConfig = {
     name: string,
     id: string,
     chain: string,
+    protocolType?: ProtocolType,
+    start?: string,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }
@@ -94,6 +99,7 @@ const alliumChainMap: Record<string, string> = {
     katana: CHAIN.KATANA,
     abstract: CHAIN.ABSTRACT,
     linea: CHAIN.LINEA,
+    manta_pacific: CHAIN.MANTA,
     ronin: CHAIN.RONIN,
     sonic: CHAIN.SONIC,
     mantle: CHAIN.MANTLE,
@@ -201,4 +207,4 @@ export default [
     type: "chain",
     chain: chain.chain,
     getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, routescanStatsExports, subscanStatsExports)

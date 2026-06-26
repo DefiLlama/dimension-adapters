@@ -130,19 +130,63 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
   return { dailyVolume, dailyFees }
 }
 
-const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { getToBlock, getFromBlock } = options
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
+  const { dailyVolume, dailyFees: swapFees } = await getVolumeAndFees(fromBlock, toBlock, options);
   const { dailyBribesRevenue } = await getBribes(options);
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyVolume, dailyBribesRevenue }
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  dailyFees.addBalances(swapFees, 'Token Swap Fees')
+  dailyFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
+
+  dailyRevenue.addBalances(swapFees, 'Token Swap Fees To Holders')
+  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addBalances(swapFees, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailyVolume,
+  }
 }
 
 const adapters: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ABSTRACT],
-  start: '2025-10-02'
+  start: '2025-10-02',
+  methodology: {
+    Fees: "Swap fees paid by users plus external bribes deposited for Aborean pools.",
+    UserFees: "Swap fees paid by users plus external bribes deposited for Aborean pools.",
+    Revenue: "Swap fees and external bribes distributed to ABR holders.",
+    HoldersRevenue: "Swap fees and external bribes distributed to ABR holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+  }
 }
 
 export default adapters

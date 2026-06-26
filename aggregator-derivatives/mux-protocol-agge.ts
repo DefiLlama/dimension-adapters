@@ -17,7 +17,7 @@ const chainsMap = {
   [CHAIN.FANTOM]: "Fantom"
 }
 
-const fetch = async (_1: number, _: any, { chain, dateString }: FetchOptions) => {
+const fetch = async ({ chain, dateString }: FetchOptions) => {
   const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
 
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
@@ -34,12 +34,12 @@ const fetch = async (_1: number, _: any, { chain, dateString }: FetchOptions) =>
     .find(dayItem => dayItem.time.slice(0, 10) === dateString)?.volume
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   };
 }
 
 export default {
-  fetch,
   version: 1,
+  fetch,
   chains: Object.keys(chainsMap) as Chain[],
 }

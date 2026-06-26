@@ -1,5 +1,5 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import * as sdk from "@defillama/sdk";
@@ -12,8 +12,8 @@ interface IDayDataGraph {
 
 const URL = sdk.graph.modifyEndpoint('5m8N5qAkDWTf2hhMFhJJJDsWWF5b9J7bzFbXwPnZHJQQ');
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dayTimestamp = getTimestampAtStartOfDay(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const dayTimestamp = getTimestampAtStartOfDay(options.toTimestamp);
   const chain = CHAIN.ARBITRUM;
   const balances = new sdk.Balances({ chain });
   const balances1 = new sdk.Balances({ chain });
@@ -39,7 +39,6 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
   balances1.add(ADDRESSES.arbitrum.USDC_CIRCLE, totalVolume);
 
   return {
-    timestamp: dayTimestamp,
     dailyNotionalVolume: 0,
     dailyPremiumVolume:  balances,
   };

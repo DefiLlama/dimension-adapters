@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 const DERIVATIVE_URL = `https://bigquery-api-636134865280.europe-west1.run.app/injective_derivative_volume`;
 
-const fetch = async (_: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const derivativeRes: any = await httpGet(`${DERIVATIVE_URL}?start_date=${options.dateString}`);
   if (derivativeRes.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
 

@@ -38,9 +38,6 @@ day_selector as (
         date_trunc('day', t.block_time) as date
         , t.blockchain as chain
         , sum(f.protocol_fee_eth) as protocol_fee_revenue
-        , sum(f.limit_pi_fee_eth) as limit_revenue
-        , sum(f.market_pi_fee_eth) as market_revenue
-        , sum(f.ui_fee_eth) as ui_fee_revenue
         , sum(f.partner_fee_partner_cut_eth) as partner_fee_partner_revenue
         , sum(f.partner_fee_cow_cut_eth) as partner_fee_cow_revenue
     from dune.cowprotocol.fct_trades as t
@@ -49,28 +46,37 @@ day_selector as (
         and t.order_uid = f.order_uid
     where
         date_trunc('day', t.block_time) = from_unixtime({{start}})
-        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'lens')
+        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'bnb', 'lens')
     group by 1, 2
+)
+, fees_all_chains as (
+    select * from fees_per_chain
+    union all
+    select
+        (select start_date from day_selector) as date
+        , 'ethereum' as chain
+        , 0 as protocol_fee_revenue
+        , 0 as partner_fee_partner_revenue
+        , 0 as partner_fee_cow_revenue
+    from mevblocker m
+    where not exists (select 1 from fees_per_chain f where f.chain = 'ethereum')
 )
 select
     f.date,
     f.chain,
     f.protocol_fee_revenue,
-    f.limit_revenue,
-    f.market_revenue,
-    f.ui_fee_revenue,
     f.partner_fee_partner_revenue,
     f.partner_fee_cow_revenue,
-    case 
+    case
         when f.chain = 'ethereum' then coalesce(m.mev_blocker_fee, 0)
         else 0
     end as mev_blocker_fee,
-    case 
+    case
         when f.chain = 'ethereum' then coalesce(m.mev_blocker_sale, 0)
         else 0
     end as mev_blocker_sale
 from
-    fees_per_chain f
+    fees_all_chains f
     left join mevblocker m on f.date = m.date and f.chain = 'ethereum'
 order by
     f.chain

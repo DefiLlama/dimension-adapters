@@ -36,7 +36,7 @@ enum DataSource {
 }
 
 interface BaseChainConfig {
-  start: number | string;
+  start: string;
   dataSource: DataSource;
 }
 
@@ -420,7 +420,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
 
 // --- Main fetch function ---
 
-const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchV2 = async (options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG[options.chain];
 
   let v2Stats: any = {};

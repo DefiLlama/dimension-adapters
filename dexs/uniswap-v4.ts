@@ -18,7 +18,7 @@
 
 // const dataCache = {} as any
 
-// async function fetch(_: any, _1: any, { api, startOfDay, }: FetchOptions) {
+// async function fetch(options: FetchOptions) {
 //   switch (api.chain) {
 //     case 'unichain': api.chainId = 130; break;
 //   }

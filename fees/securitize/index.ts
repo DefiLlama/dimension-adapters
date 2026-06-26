@@ -120,7 +120,7 @@ const isWeekend = (timestampSeconds: number) =>
   );
 
 
-const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
@@ -194,7 +194,7 @@ const getYieldDistributionHours = (options: FetchOptions)=> {
   const endTs = distributionDayStart + 16 * 3600; // 16:00:00 UTC
   return [startTs, endTs]
 }
-const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
@@ -245,7 +245,7 @@ const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<Fe
   }
 };
 
-const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()

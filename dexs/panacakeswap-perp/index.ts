@@ -13,7 +13,7 @@ const abis = {
   "OpenMarketTrade": "event OpenMarketTrade(address indexed user, bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint64 entryPrice, address pairBase, address tokenIn, uint96 margin, uint64 stopLoss, uint64 takeProfit, uint24 broker, bool isLong, uint96 openFee, int256 longAccFundingFeePerShare, uint96 executionFee, uint40 timestamp, uint80 qty, uint40 holdingFeeRate, uint256 openBlock) ot)",
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const target = config[chain].contract
 
@@ -32,7 +32,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
   openLogs.forEach(({ ot }: any) => {
     dailyVolume.addCGToken('tether', Number(ot.entryPrice) * Number(ot.qty) * 10 **(-18))
   })
-  return { timestamp, dailyVolume }
+  return { dailyVolume }
 };
 
 const adapter: any = {

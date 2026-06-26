@@ -1,17 +1,21 @@
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter, } from '../adapters/types'
 import { formatAddress } from '../utils/utils';
-import { addOneToken } from '../helpers/prices';
+import { isCoreAsset } from '../helpers/prices';
 
 interface IRingDexConfig {
   factory: string;
   start: string;
+  washingTokens?: string[];
 }
 
 const RingDexConfigs: Record<string, IRingDexConfig> = {
   [CHAIN.ETHEREUM]: {
     factory: '0xeb2A625B704d73e82946D8d026E1F588Eed06416',
     start: '2024-07-07',
+    washingTokens: [
+      '0xF7FAF71a5435D2DDa60FBFdB4F67B3F1a89A49b1' //fwWETH
+    ]
   },
   [CHAIN.BLAST]: {
     factory: '0x24F5Ac9A706De0cF795A8193F6AB3966B14ECfE6',
@@ -35,11 +39,11 @@ const methodology = {
 
 const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)';
 
-const fetch = async (_: number, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const allPairsLength = await options.api.call({ target: RingDexConfigs[options.chain].factory, abi: 'uint256:allPairsLength' })
   const calls: Array<any> = [];
   for (let i = 0; i < Number(allPairsLength); i++) {
-    calls.push({ params:[i] })
+    calls.push({ params: [i] })
   }
   const allPairs = await options.api.multiCall({
     target: RingDexConfigs[options.chain].factory,
@@ -80,11 +84,18 @@ const fetch = async (_: number, _1: any, options: FetchOptions) => {
     flatten: true,
     onlyArgs: false,
   })
+
   for (const log of swapLogs) {
     const tokens = pairs[formatAddress(log.address)];
     if (tokens) {
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokens[0], token1: tokens[1], amount0: log.args.amount0In, amount1: log.args.amount1In })
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokens[0], token1: tokens[1], amount0: log.args.amount0Out, amount1: log.args.amount1Out })
+      // so many scam token pairs in ringdex, so adding non core assets to dailyVolume
+      if (isCoreAsset(options.chain, tokens[0])) {
+        dailyVolume.add(tokens[1], Math.abs(Number(log.args.amount1In)))
+        dailyVolume.add(tokens[1], Math.abs(Number(log.args.amount1Out)))
+      } else {
+        dailyVolume.add(tokens[0], Math.abs(Number(log.args.amount0In)))
+        dailyVolume.add(tokens[0], Math.abs(Number(log.args.amount0Out)))
+      }
     }
   }
 

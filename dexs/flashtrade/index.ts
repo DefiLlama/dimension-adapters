@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const targetDate = options.dateString;
 
     // `source=all` returns the protocol's complete trading activity; omitting `poolName`
@@ -26,12 +26,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-12-29'
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2023-12-29',
 }
 
 export default adapter;

@@ -46,7 +46,7 @@ const openSwapStablesEventAbi = "event OpenSwap(uint256 indexed swapId, address 
 const OpenSwapStEthTopic = '0x8534de2e250e111b80b34e6e91e687d99262e65a434f09c1433f9a9a21335beb'
 const openSwapStETHEventAbi = "event OpenSwap(uint256 indexed swapId, address indexed buyer, address inputAsset, address asset, uint8 direction, (uint256 inputAssetTotalAmount, uint256 assetTotalAmount, uint256 collateral, uint256 notional, uint256 openingFeeLPAmount, uint256 openingFeeTreasuryAmount, uint256 iporPublicationFee, uint256 liquidationDepositAmount) amounts, uint256 openTimestamp, uint256 endTimestamp, (uint256 iporIndexValue, uint256 ibtPrice, uint256 ibtQuantity, uint256 fixedInterestRate) indicator)"
 
-const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBalances, }: FetchOptions) => {
+const fetch: any = async ({ chain, getLogs, createBalances, }: FetchOptions) => {
   const dailyNotionalVolume = createBalances()
   const { stables, stETHs, iporProtocolRouter } = chainsData[chain]
   stables.push(iporProtocolRouter)
@@ -62,7 +62,7 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
     }
     dailyNotionalVolume.add(log.asset, balance)
   })
-  return { timestamp, dailyVolume: dailyNotionalVolume };
+  return { dailyVolume: dailyNotionalVolume };
 };
 
 const adapter: SimpleAdapter = {

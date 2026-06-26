@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import type { Adapter, FetchResult } from "../../adapters/types";
+import type { Adapter, FetchResult, FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 
@@ -53,8 +53,8 @@ const methodology = {
 const adapter: Adapter = { version: 1, adapter: {}, methodology, };
 for (let chain in FEES) {
   adapter.adapter![chain] = {
-    fetch: (timestamp: number) =>
-      feesFromSubgraph(timestamp, chain.toLocaleLowerCase()),
+    fetch: (options: FetchOptions) =>
+      feesFromSubgraph(options.toTimestamp, chain.toLocaleLowerCase()),
     start: CHAIN_STARTS[chain],
   };
 }

@@ -25,8 +25,8 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
-export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400;
-export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = 1776211200;
+export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400; // 2025-08-01
+export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = '2026-04-15';
 export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
 export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
 export const fetchBuilderCodeRevenue = async ({
@@ -253,12 +253,14 @@ interface Hip3DeployerMetrics {
 interface QueryIndexerResult {
   dailyPerpVolume: Balances;
   dailySpotVolume: Balances;
+  dailyUnitVolume: Balances;
 
   // perp fees = hyperliquid revenue + builders revenue + HIP-3 deployers revenue
   dailyPerpRevenue: Balances;
   dailyBuildersRevenue: Balances;
   dailyHip3DeployersRevenue: Balances;
   dailyHyperliquidRevenue: Balances;
+  dailyPerpMakerRebates: Balances;
 
   // spot fees = sport revenue + unit revenue
   dailySpotRevenue: Balances;
@@ -307,10 +309,12 @@ export async function queryHyperliquidIndexer(
 
   const dailyPerpVolume = options.createBalances();
   const dailySpotVolume = options.createBalances();
+  const dailyUnitVolume = options.createBalances();
   const dailyPerpRevenue = options.createBalances();
   const dailySpotRevenue = options.createBalances();
   const dailyBuildersRevenue = options.createBalances();
   const dailyHip3DeployersRevenue = options.createBalances();
+  const dailyPerpMakerRebates = options.createBalances();
   const dailyUnitRevenue = options.createBalances();
   const dailyPriorityFeesUsd = options.createBalances();
   const hip3Deployers: Record<string, Hip3DeployerMetrics> = {};
@@ -350,6 +354,18 @@ export async function queryHyperliquidIndexer(
       } else if (CoinGeckoMaps[coin]) {
         dailySpotRevenue.addCGToken(CoinGeckoMaps[coin], fees);
       }
+    }
+
+    // add volume from spot trading
+    for (const [coin, fees] of Object.entries(item.spotVolumeByTokens || {})) {
+      // add unit volume
+      if (coinsDeployedByUnit[coin]) {
+        dailyUnitVolume.addCGToken(coinsDeployedByUnit[coin], fees);
+      }
+    }
+    
+    for (const [coin, amount] of Object.entries(item.makerRebateByTokens)) {
+      if (CoinGeckoMaps[coin]) dailyPerpMakerRebates.addCGToken(CoinGeckoMaps[coin], amount);
     }
 
     currentPerpOpenInterest = item.perpsOpenInterestUsd
@@ -406,16 +422,19 @@ export async function queryHyperliquidIndexer(
   const dailyPerpRevenueUSD = await dailyPerpRevenue.getUSDValue();
   const dailyBuildersRevenueUSD = await dailyBuildersRevenue.getUSDValue();
   const dailyHip3DeployersRevenueUSD = await dailyHip3DeployersRevenue.getUSDValue();
-  dailyHyperliquidRevenue.addCGToken('usd-coin', dailyPerpRevenueUSD - dailyBuildersRevenueUSD - dailyHip3DeployersRevenueUSD)
+  const dailyPerpMakerRebatesUSD = await dailyPerpMakerRebates.getUSDValue();
+  dailyHyperliquidRevenue.addCGToken('usd-coin', dailyPerpRevenueUSD - dailyBuildersRevenueUSD - dailyHip3DeployersRevenueUSD - dailyPerpMakerRebatesUSD)
 
   return {
     dailyPerpVolume,
     dailySpotVolume,
+    dailyUnitVolume,
     dailyPerpRevenue,
     dailySpotRevenue,
     dailyBuildersRevenue,
     dailyHip3DeployersRevenue,
     dailyHyperliquidRevenue,
+    dailyPerpMakerRebates,
     dailyUnitRevenue,
     dailyPriorityFeesUsd,
     currentPerpOpenInterest,
@@ -568,7 +587,7 @@ export const exportHIP3DeployerAdapter = (
     doublecounted: true, // all metrics are double-counted to hyperliquid
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const result = await fetchHIP3DeployerData({
             options,
             hip3DeployerId: dexId,
@@ -642,7 +661,7 @@ export const exportBuilderAdapter = (
     start: startDate,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyVolume = options.createBalances();
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
@@ -718,7 +737,7 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
     skipBreakdownValidation: true,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
-        fetch: async function (_1: number, _: any, options: FetchOptions) {
+        fetch: async function (options: FetchOptions) {
           const dailyFees = options.createBalances();
           const dailyRevenue = options.createBalances();
           const dailySupplySideRevenue = options.createBalances();
@@ -728,7 +747,7 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
             
             // hl indexer sotre history snapshots
             const endpoint = getEnv("LLAMA_HL_INDEXER");
-            if (options.startOfDay >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
+            if (options.dateString >= LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME && endpoint) {
               try {
                 const response = await httpGet(`${endpoint}/v1/data/snapshot/validatorSummaries/${timestamp}`);
                 validators = response.data;

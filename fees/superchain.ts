@@ -64,7 +64,7 @@ const opOwnedFilterOut: any = {
   ]
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     targets: revenueToAddresses[options.chain],
     eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
@@ -107,21 +107,18 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   methodology,
+  fetch,
   adapter: {
     [CHAIN.BASE]: {
-      fetch,
       start: '2023-06-01',
     },
     [CHAIN.ETHEREUM]: {
-      fetch,
       start: '2022-04-01',
     },
     [CHAIN.UNICHAIN]: {
-      fetch,
       start: '2025-02-01',
     },
     [CHAIN.SONEIUM]: {
-      fetch,
       start: '2024-12-01',
     },
   }

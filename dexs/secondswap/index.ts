@@ -22,7 +22,7 @@ const chainConfig = {
 	// },
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const config = chainConfig[options.chain];
 	
 	const [purchase_events, settingContractResult] = await Promise.all([

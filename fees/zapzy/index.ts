@@ -3,7 +3,7 @@ import { CHAIN } from '../../helpers/chains'
 import { queryDuneSql } from '../../helpers/dune'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -90,7 +90,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
   `;
 
   const data = await queryDuneSql(options, query);
-  
+
   if (!data || data.length === 0) {
     throw new Error('No data found for the current date');
   }
@@ -100,7 +100,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const totalRevenueLamports = result.revenue * 1e9;
 
   dailyFees.add(ADDRESSES.solana.SOL, totalFeesLamports);
-  
+
   const dailyRevenue = options.createBalances();
   dailyRevenue.add(ADDRESSES.solana.SOL, totalRevenueLamports);
 
@@ -114,6 +114,9 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  chains: [CHAIN.SOLANA],
+  start: '2025-08-27',
+  fetch,
   dependencies: [Dependencies.DUNE],
   methodology: {
     // https://docs.zapzy.io/sections/zapzy/fees-and-rewards#before-bonding-1-25%25
@@ -121,12 +124,6 @@ const adapter: SimpleAdapter = {
     Revenue: "50% of fees go to the protocol.",
     SupplySideRevenue: "50% of fees are distributed to coin creators.",
   },
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-08-27',
-    }
-  }
 };
 
 export default adapter;
