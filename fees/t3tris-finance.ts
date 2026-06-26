@@ -64,6 +64,9 @@ const ABI = {
     "function getPerformanceFee() external view returns (uint64)",
   getManagementFee:
     "function getManagementFee() external view returns (uint64 managementFeeWad, uint32 managementFeeDays)",
+  // High-water mark (WAD-scaled PPS): performance fees only accrue on gains
+  // above it, so it gates the perf-fee basis below.
+  getPpsHighWaterMark: "function getPpsHighWaterMark() view returns (uint128)",
 };
 
 const EVENT_ABI = {
@@ -183,8 +186,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }),
   ]);
 
-  // 5. Get fee configuration for each vault
-  const [perfFees, mgmtFees] = await Promise.all([
+  // 4b. Start-of-period supply & TVL (the end-of-period values are already in
+  //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
+  //     a time-weighted (trapezoidal) estimate over the window, so intra-period
+  //     deposits/redeems don't skew the 24h depositor yield or management fees.
+  const [suppliesBefore, tvlBefore] = await Promise.all([
+    options.fromApi.multiCall({
+      abi: ABI.totalSupply,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    options.fromApi.multiCall({
+      abi: ABI.totalAssets,
+      calls: vaults,
+      permitFailure: true,
+    }),
+  ]);
+
+  // 5. Get fee configuration + high-water mark for each vault
+  const [perfFees, mgmtFees, hwms] = await Promise.all([
     options.api.multiCall({
       abi: ABI.getPerformanceFee,
       calls: vaults,
@@ -192,6 +212,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }),
     options.api.multiCall({
       abi: ABI.getManagementFee,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    options.api.multiCall({
+      abi: ABI.getPpsHighWaterMark,
       calls: vaults,
       permitFailure: true,
     }),
@@ -231,31 +256,58 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const unit = 10 ** decimal;
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
 
-    // Net yield to shareholders = totalSupply × delta(PPS) / unit
+    // Time-weighted (trapezoidal) supply & TVL: average the start and end
+    // snapshots instead of using the end-only value, so the 24h fees are far
+    // less sensitive to intra-period deposits/redeems. Fall back to the end
+    // snapshot when the start read is unavailable (e.g. a failed multicall).
+    const supplyStart = suppliesBefore[i];
+    const avgSupply =
+      supplyStart != null
+        ? (Number(supplyStart) + Number(supply)) / 2
+        : Number(supply);
+    const tvlStart = tvlBefore[i];
+    const avgTvl =
+      tvlStart != null ? (Number(tvlStart) + Number(tvl)) / 2 : Number(tvl);
+
+    // Net yield to shareholders = avgSupply × delta(PPS) / unit
     // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
-    const netYield = (Number(supply) * rateGrowth) / unit;
+    const netYield = (avgSupply * rateGrowth) / unit;
 
     // Depositor yield and performance fees only accrue on positive yield;
     // management fees are charged on TVL × time and accrue regardless (see
     // below), so we no longer skip the whole vault on a flat/negative period.
     const depositorYield = netYield > 0 ? netYield : 0;
 
-    // Performance fee (WAD, 1e18 = 100%): perfFeeAmount = netYield × f / (1 - f)
+    // Performance fees are only charged on price-per-share gains ABOVE the
+    // vault's high-water mark (HWM). Inferring them from any positive PPS
+    // growth overcounts while the vault is still below its HWM (PPS rose but
+    // hasn't recovered past its prior peak, so no fee is actually taken). Use
+    // only the growth above max(startPPS, HWM) as the fee basis. HWM is
+    // WAD-scaled PPS; convert to the rate scale (assets per `unit` shares) used
+    // by rateBefore/rateAfter. Missing HWM → fall back to 0 (no gate), keeping
+    // the prior behaviour for any vault without the getter.
+    const hwmRate = hwms[i] != null ? (Number(hwms[i]) / 1e18) * unit : 0;
+    const perfBasisStart = Math.max(Number(rateBefore), hwmRate);
+    const perfRateGrowth = Number(rateAfter) - perfBasisStart;
+    const perfYield =
+      perfRateGrowth > 0 ? (avgSupply * perfRateGrowth) / unit : 0;
+
+    // Performance fee (WAD, 1e18 = 100%): perfFeeAmount = perfYield × f / (1 - f)
     const perfFeeFrac = perfFees[i] ? Number(perfFees[i]) / 1e18 : 0;
     const performanceFees =
-      depositorYield > 0 && perfFeeFrac > 0
-        ? (depositorYield * perfFeeFrac) / (1 - perfFeeFrac)
+      perfYield > 0 && perfFeeFrac > 0
+        ? (perfYield * perfFeeFrac) / (1 - perfFeeFrac)
         : 0;
 
-    // Management fee (WAD, 1e18 = 100%): totalAssets × f × (timespan / (mgmtDays × 86400))
+    // Management fee (WAD, 1e18 = 100%): avgTVL × f × (timespan / (mgmtDays × 86400))
     // Charged on TVL over time, so it accrues even on flat or negative periods.
     let managementFees = 0;
-    if (mgmtFees[i] && tvl) {
+    if (mgmtFees[i] && avgTvl) {
       const mgmtFeeFrac = Number(mgmtFees[i].managementFeeWad || 0) / 1e18;
       const mgmtFeeDays = Number(mgmtFees[i].managementFeeDays || 365);
       if (mgmtFeeFrac > 0 && mgmtFeeDays > 0) {
         managementFees =
-          (Number(tvl) * mgmtFeeFrac * timespan) /
+          (avgTvl * mgmtFeeFrac * timespan) /
           (mgmtFeeDays * SECONDS_PER_DAY);
       }
     }
