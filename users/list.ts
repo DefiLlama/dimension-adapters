@@ -103,9 +103,9 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
   return {
     version: 1,
     chains: [item.chain],
-    start: item.start,
     fetch: fetch as any,
     protocolType: ProtocolType.CHAIN,
+    start: (item as any).start,
   }
 }
 
@@ -123,8 +123,8 @@ function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
   return {
     version: 1,
     chains: [item.chain],
-    start: item.start,
     fetch: fetch as any,
     protocolType: ProtocolType.CHAIN,
+    start: (item as any).start,
   }
 }
