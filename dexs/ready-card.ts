@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions) => {
         varbinary_to_uint256(e.data[3]) / 1e6 as amount -- "value"
       from starknet.events e
       where TIME_RANGE
-        and e.block_date >= DATE '2024-11-01'
         and e.from_address = 0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8 -- USDC (old)
         and e.keys[1] = 0x0099cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9 -- Transfer
         and e.data[2] in ( -- "to": Kulipa Settlement Account
@@ -28,8 +27,6 @@ const fetch = async (options: FetchOptions) => {
           where t.transaction_hash = e.transaction_hash
             and t.block_date >= date(from_unixtime(${options.startTimestamp}))
             and t.block_date <= date(from_unixtime(${options.endTimestamp}))
-            and t.block_time >= from_unixtime(${options.startTimestamp})
-            and t.block_time <= from_unixtime(${options.endTimestamp})
             and contains(t.calldata, 0x0000000000000000000000000000000000000073657373696f6e2d746f6b656e) -- SESSION_MAGIC
         )
 
@@ -39,7 +36,6 @@ const fetch = async (options: FetchOptions) => {
         varbinary_to_uint256(e.data[1]) / 1e6 as amount -- "value"
       from starknet.events e
       where TIME_RANGE
-        and e.block_date >= DATE '2025-10-01' -- USDC migration
         and e.from_address = 0x033068f6539f8e6e6b131e6b2b814e6c34a5224bc66947c47dab9dfee93b35fb -- USDC (new)
         and e.keys[1] = 0x0099cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9 -- Transfer
         and e.keys[3] in ( -- "to": Kulipa Settlement Account
@@ -52,8 +48,6 @@ const fetch = async (options: FetchOptions) => {
           where t.transaction_hash = e.transaction_hash
             and t.block_date >= date(from_unixtime(${options.startTimestamp}))
             and t.block_date <= date(from_unixtime(${options.endTimestamp}))
-            and t.block_time >= from_unixtime(${options.startTimestamp})
-            and t.block_time <= from_unixtime(${options.endTimestamp})
             and contains(t.calldata, 0x0000000000000000000000000000000000000073657373696f6e2d746f6b656e) -- SESSION_MAGIC
         )
     )
