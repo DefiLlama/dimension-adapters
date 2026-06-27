@@ -58,7 +58,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!row.mint) continue;
     if (row.kind === 'interest') {
       dailyFees.add(row.mint, row.net, "Borrow Interest");
+    } else if (row.kind === 'repayment') {
+      dailyRevenue.add(row.mint, row.net, labels[row.kind]);
     } else {
+      dailyFees.add(row.mint, row.net, labels[row.kind]);
       dailyRevenue.add(row.mint, row.net, labels[row.kind]);
     }
   }
@@ -73,13 +76,15 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: 'Total interest paid by borrowers on repaid loans. Note: Revenue exceeds Fees on some days because the protocol origination fees are charged upfront',
-    Revenue: 'Protocol fees charged at loan origination (25% of interest), at repayment (10% of interest) and on collateral claim after maturity (0.1% of collateral, excluding NFT/RWA).',
-    ProtocolRevenue: 'Protocol fees charged at loan origination (25% of interest), at repayment (10% of interest) and on collateral claim after maturity (0.1% of collateral, excluding NFT/RWA).',
+    Fees: 'Borrow interest paid by borrowers on repaid loans, plus loan origination fees and collateral claim fees.',
+    Revenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
+    ProtocolRevenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
   },
   breakdownMethodology: {
     Fees: {
       'Borrow Interest': 'Total interest paid by borrowers over the full term of repaid loans.',
+      [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
+      [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
     Revenue: {
       [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
