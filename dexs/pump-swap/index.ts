@@ -5,7 +5,6 @@ import { queryAllium } from "../../helpers/allium";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
-  day: string;
   vol_clean: number;
 }
 
