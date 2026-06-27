@@ -421,7 +421,6 @@ export function createEvmChainUsersFetcher(config: EvmChainMetricConfig) {
     return [{
       usercount: metrics.activeUsers,
       txcount: metrics.transactionCount,
-      gas: metrics.totalGasUsed.toString(),
     }];
   };
 }
