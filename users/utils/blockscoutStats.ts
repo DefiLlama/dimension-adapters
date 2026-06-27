@@ -16,6 +16,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   aurora: { chain: CHAIN.AURORA, baseUrl: "https://aurorascan.dev", version: 2 },
   bob: { chain: CHAIN.BOB, baseUrl: "https://explorer-bob-mainnet-0.t.conduit.xyz", version: 1 },
   boba: { chain: CHAIN.BOBA, baseUrl: "https://blockscout.boba.network", version: 2 },
+  bsquared: { chain: CHAIN.BSQUARED, baseUrl: "https://explorer.bsquared.network", statsUrl: "https://12d6a1773a-stats-blockscout.bsquared.network", version: 1, start: "2024-04-15" },
   celo: { chain: CHAIN.CELO, baseUrl: "https://celo.blockscout.com", version: 2 },
   corn: { chain: CHAIN.CORN, baseUrl: "https://explorer-corn-maizenet.t.conduit.xyz", version: 1 },
   coti: { chain: CHAIN.COTI, baseUrl: "https://mainnet.cotiscan.io", version: 2 },
