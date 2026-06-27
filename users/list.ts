@@ -3,7 +3,7 @@ import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
 import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { parseUserResponse } from "./utils/countUsers";
+import { parseNewUserResponse, parseUserResponse } from "./utils/countUsers";
 import { createFactoryExports } from "../factory/registry";
 
 routers.concat(compoundV2 as any).forEach((item: any) => {
@@ -64,18 +64,18 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
 
   async function prefetch({ startTimestamp, endTimestamp }: FetchOptions) {
     const data = await item.getNewUsers(startTimestamp, endTimestamp)
-    return data[0]
+    return parseNewUserResponse(data)
   }
 
   async function fetch({ chain, preFetchedResults }: FetchOptions) {
 
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
-        dailyNewUsers: preFetchedResults?.user_count
+        dailyNewUsers: preFetchedResults?.total
       }
 
-    return { // this is going to be empty as we don't have a breakdown of new users by chain
-      dailyNewUsers: preFetchedResults?.[chain]?.users,
+    return {
+      dailyNewUsers: preFetchedResults?.byChain?.[chain]?.users,
     }
   }
 
