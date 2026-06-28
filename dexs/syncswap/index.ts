@@ -3,11 +3,23 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken, isCoreAsset } from "../../helpers/prices";
 
 // SyncSwap PoolMaster registry per chain. Enumerates every Classic + Stable pool
-const MASTER: Record<string, string> = {
-  [CHAIN.ERA]: "0xbB05918E9B4bA9Fe2c8384d223f0844867909Ffb",
-  [CHAIN.LINEA]: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
-  [CHAIN.SCROLL]: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
-  [CHAIN.SOPHON]: "0x5b9f21d407F35b10CbfDDca17D5D84b129356ea3",
+const chainConfig: Record<string, { master: string, start: string }> = {
+  [CHAIN.ERA]: {
+    master: "0xbB05918E9B4bA9Fe2c8384d223f0844867909Ffb",
+    start: "2023-03-24",
+  },
+  [CHAIN.LINEA]: {
+    master: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
+    start: "2023-07-14",
+  },
+  [CHAIN.SCROLL]: {
+    master: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
+    start: "2023-10-17",
+  },
+  [CHAIN.SOPHON]: {
+    master: "0x5b9f21d407F35b10CbfDDca17D5D84b129356ea3",
+    start: "2024-12-17",
+  },
 };
 
 // SyncSwap fees are uint24 values scaled to MAX_FEE (1e5). swapFee is the total
@@ -39,7 +51,7 @@ async function loadPools(options: FetchOptions, master: string) {
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options;
-  const master = MASTER[chain];
+  const { master } = chainConfig[chain];
 
   const { pools, token0s, token1s } = await loadPools(options, master);
   const pairObject: Record<string, string[]> = {};
@@ -124,13 +136,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   methodology,
-  isExpensiveAdapter: true,
-  adapter: {
-    [CHAIN.ERA]: { start: "2024-03-06" },
-    [CHAIN.LINEA]: { start: "2024-03-06" },
-    [CHAIN.SCROLL]: { start: "2024-03-06" },
-    [CHAIN.SOPHON]: { start: "2024-12-17" },
-  },
+  pullHourly: true,
+  adapter: chainConfig
 };
 
 export default adapter;
