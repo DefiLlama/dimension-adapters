@@ -56,7 +56,7 @@ const TOKENS: Record<string, Record<string, string>> = {
     USTBL: "0xe4880249745eAc5F1eD9d8F7DF844792D560e750",
     EUTBL: "0xa0769f7A8fC65e47dE93797b4e21C073c117Fc80",
     SPKCC: "0xf695Df6c0f3bB45918A7A82e83348FC59517734E",
-    eurSPKCC: "0x99F70A0e1786402a6796c6B0AA997ef340a5c6da",
+    eurSPKCC: "0x4f33aCf823E6eEb697180d553cE0c710124C8D59",
   },
   [CHAIN.ETHERLINK]: {
     USTBL: "0xe4880249745eAc5F1eD9d8F7DF844792D560e750",
@@ -312,8 +312,8 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: { start: '2024-10-25' },
     [CHAIN.BASE]: { start: '2025-02-12' },
     [CHAIN.ETHERLINK]: { start: '2025-02-12' },
-    [CHAIN.STARKNET]: { start: '2024-11-26' },
-    [CHAIN.STELLAR]: { start: '2025-10-01' },
+    [CHAIN.STARKNET]: { start: '2024-11-26', runAtCurrTime: true },
+    [CHAIN.STELLAR]: { start: '2025-10-01', runAtCurrTime: true },
   },
 };
 
