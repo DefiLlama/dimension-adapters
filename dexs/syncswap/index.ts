@@ -1,95 +1,105 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
+import { addOneToken, isCoreAsset } from "../../helpers/prices";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.ERA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-zksync',
-  [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea',
-  [CHAIN.SCROLL]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-scroll',
-  [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
+// SyncSwap PoolMaster registry per chain. Enumerates every Classic + Stable pool
+const MASTER: Record<string, string> = {
+  [CHAIN.ERA]: "0xbB05918E9B4bA9Fe2c8384d223f0844867909Ffb",
+  [CHAIN.LINEA]: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
+  [CHAIN.SCROLL]: "0x608Cb7C3168427091F5994A45Baf12083964B4A3",
+  [CHAIN.SOPHON]: "0x5b9f21d407F35b10CbfDDca17D5D84b129356ea3",
 };
 
-const headers = {
-  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-  'origin': 'https://syncswap.xyz',
-};
+// SyncSwap fees are uint24 values scaled to MAX_FEE (1e5). swapFee is the total
+// fee as a fraction of the input amount; protocolFee is the share of that fee
+// taken by the protocol (the remainder accrues to LPs).
 const FEE_DENOMINATOR = 100_000;
-const MAX_SWAP_FEE = 10_000; // SyncSwap docs: fee values are 6-decimal uint24; max swap fee is 10%.
-const PAGE_SIZE = 1000;
-const PAIR_BATCH_SIZE = 50; // Subgraph fails on large id_in lists.
+const ZERO = "0x0000000000000000000000000000000000000000";
 
-async function fetch(options: FetchOptions) {
-  const endpoint = endpoints[options.chain];
-  const defaultFeesQuery = gql`
-    {
-      defaultFeeDatas {
-        id
-        minFee
-        maxFee
-        protocolFee
-      }
-    }
-  `
-  const pairDayDataQuery = gql`
-    query GetPairDayData($date: Int!, $skip: Int!) {
-      pairDayDatas(
-        first: ${PAGE_SIZE}
-        skip: $skip
-        orderBy: pairAddress
-        orderDirection: asc
-        where: { date: $date }
-      ) {
-        pairAddress
-        dailyVolumeUSD
-      }
-    }
-  `
+const abi = {
+  poolsLength: "function poolsLength() view returns (uint256)",
+  pools: "function pools(uint256) view returns (address)",
+  getSwapFee: "function getSwapFee(address pool, address sender, address tokenIn, address tokenOut, bytes data) view returns (uint24)",
+  getProtocolFee: "function getProtocolFee(address pool) view returns (uint24)",
+  swap: "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)",
+};
 
-  const { defaultFeeDatas } = await request(endpoint, defaultFeesQuery, undefined, headers);
-  const defaultFees = Object.fromEntries(defaultFeeDatas.map((i: any) => [i.id, i]));
-  const pairDayDatas: any[] = [];
-  for (let skip = 0; ; skip += PAGE_SIZE) {
-    const { pairDayDatas: page } = await request(endpoint, pairDayDataQuery, { date: options.startOfDay, skip }, headers);
-    pairDayDatas.push(...page);
-    if (page.length < PAGE_SIZE) break;
-  }
+// Enumerate the PoolMaster registry (pools(i)), not factory PoolCreated logs: the
+// registry was migrated without backfilling creation events, so log discovery is
+// incomplete
+async function loadPools(options: FetchOptions, master: string) {
+  const { api } = options;
+  const length = Number(await api.call({ target: master, abi: abi.poolsLength }));
+  const calls = Array.from({ length }, (_, i) => ({ target: master, params: [i] }));
+  const pools: string[] = await api.multiCall({ abi: abi.pools, calls });
+  const token0s: string[] = await api.multiCall({ abi: "address:token0", calls: pools, permitFailure: true });
+  const token1s: string[] = await api.multiCall({ abi: "address:token1", calls: pools, permitFailure: true });
+  return { pools, token0s, token1s };
+}
 
-  const pairsQuery = gql`
-    query GetPairs($ids: [ID!]) {
-      pairs(first: ${PAIR_BATCH_SIZE}, where: { id_in: $ids }) {
-        id
-        poolType
-        swapFee01Min
-        swapFee01Max
-        swapFee10Min
-        swapFee10Max
-        protocolFee
-      }
-    }
-  `
-  const pairConfigs: any = {};
-  const pairIds = [...new Set(pairDayDatas.map(i => i.pairAddress.toLowerCase()))];
-  for (let i = 0; i < pairIds.length; i += PAIR_BATCH_SIZE) {
-    const { pairs } = await request(endpoint, pairsQuery, { ids: pairIds.slice(i, i + PAIR_BATCH_SIZE) }, headers);
-    pairs.forEach((i: any) => pairConfigs[i.id.toLowerCase()] = i);
-  }
+const fetch: FetchV2 = async (options: FetchOptions) => {
+  const { createBalances, getLogs, chain, api } = options;
+  const master = MASTER[chain];
 
-  const dailyVolume = options.createBalances()
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  pairDayDatas.forEach(i => {
-    const pair = pairConfigs[i.pairAddress.toLowerCase()];
-    const fee = [pair.swapFee01Min, pair.swapFee01Max, pair.swapFee10Min, pair.swapFee10Max].map(Number);
-    const defaultFee = defaultFees[pair.poolType];
-    const swapFee = Math.max(...fee) <= MAX_SWAP_FEE ? fee.reduce((sum, fee) => sum + fee, 0) / fee.length : (Number(defaultFee.minFee) + Number(defaultFee.maxFee)) / 2;
-    const fees = Number(i.dailyVolumeUSD) * swapFee / FEE_DENOMINATOR;
-    const revenue = fees * Number(pair.protocolFee ?? defaultFee.protocolFee) / FEE_DENOMINATOR;
-    dailyVolume.addUSDValue(Number(i.dailyVolumeUSD));
-    dailyFees.addUSDValue(fees);
-    dailyRevenue.addUSDValue(revenue);
+  const { pools, token0s, token1s } = await loadPools(options, master);
+  const pairObject: Record<string, string[]> = {};
+  pools.forEach((pool: string, i: number) => {
+    if (pool && token0s[i] && token1s[i]) pairObject[pool] = [token0s[i], token1s[i]];
   });
-  const dailySupplySideRevenue = dailyFees.clone()
-  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  // Volume is valued on the core-asset side of each swap (addOneToken), so only
+  // pools pairing a core asset can contribute. Filtering to these skips the dead/
+  // unpriceable long tail and bounds the number of getLogs targets.
+  const pairIds = Object.keys(pairObject).filter(
+    (p) => isCoreAsset(chain, pairObject[p][0]) || isCoreAsset(chain, pairObject[p][1])
+  );
+
+  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+
+  if (!pairIds.length) {
+    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  }
+
+  const allLogs = await getLogs({ targets: pairIds, eventAbi: abi.swap, flatten: false });
+
+  // Read the fee config only for pools that actually traded in the window.
+  const activeIdx = allLogs.map((logs: any[], i: number) => (logs.length ? i : -1)).filter((i: number) => i >= 0);
+  const activePools = activeIdx.map((i: number) => pairIds[i]);
+  const swapFees = await api.multiCall({
+    abi: abi.getSwapFee,
+    target: master,
+    calls: activePools.map((p) => ({ params: [p, ZERO, pairObject[p][0], pairObject[p][1], "0x"] })),
+    permitFailure: true,
+  });
+  const protocolFees = await api.multiCall({
+    abi: abi.getProtocolFee,
+    target: master,
+    calls: activePools.map((p) => ({ params: [p] })),
+    permitFailure: true,
+  });
+  activeIdx.forEach((index: number, j: number) => {
+    const swapFee = Number(swapFees[j] ?? 0) / FEE_DENOMINATOR; // total fee, fraction of volume
+    if (!swapFee) return;
+    const protocolFee = swapFee * (Number(protocolFees[j] ?? 0) / FEE_DENOMINATOR); // protocol share of the fee
+    const lpFee = swapFee - protocolFee;
+    const [token0, token1] = pairObject[pairIds[index]];
+    const core0 = isCoreAsset(chain, token0);
+
+    allLogs[index].forEach((log: any) => {
+      const amount0 = log.amount0Out > 0n ? Number(log.amount0Out) : Number(log.amount0In);
+      const amount1 = log.amount1Out > 0n ? Number(log.amount1Out) : Number(log.amount1In);
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
+
+      // Apply fees to the core-asset side of the trade (addOneToken's priced side).
+      const [token, amount] = core0 ? [token0, amount0] : [token1, amount1];
+      dailyFees.add(token, amount * swapFee);
+      dailyRevenue.add(token, amount * protocolFee);
+      dailySupplySideRevenue.add(token, amount * lpFee);
+    });
+  });
 
   return {
     dailyVolume,
@@ -98,36 +108,29 @@ async function fetch(options: FetchOptions) {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
-  }
-}
+  };
+};
 
 const methodology = {
-  Volume: "Count token swap volume from SyncSwap subgraphs.",
-  Fees: "Swap fees paid by users, calculated from each pool's daily volume and fee configuration in the SyncSwap subgraphs.",
-  UserFees: "Users pay fees for every swap on SyncSwap.",
-  Revenue: "Protocol share of swap fees, calculated from each pool's protocol fee configuration.",
-  ProtocolRevenue: "Protocol share of swap fees, calculated from each pool's protocol fee configuration.",
-  SupplySideRevenue: "LP share of swap fees after the protocol share.",
-}
+  Volume: "Token swap volume on SyncSwap Classic and Stable pools, summed from on-chain Swap events and valued on the core-asset side of each trade.",
+  Fees: "Swap fees paid by users, computed per pool as swap volume times the pool's swap fee rate read from the SyncSwap PoolMaster.",
+  UserFees: "Users pay a swap fee on every trade.",
+  Revenue: "Protocol share of swap fees, taken as the pool's protocol fee percentage of the swap fee.",
+  ProtocolRevenue: "Protocol share of swap fees, taken as the pool's protocol fee percentage of the swap fee.",
+  SupplySideRevenue: "LP share of swap fees, the remainder after the protocol fee.",
+};
 
 const adapter: SimpleAdapter = {
-  methodology,
-  version: 1,
+  version: 2,
   fetch,
+  methodology,
+  isExpensiveAdapter: true,
   adapter: {
-    [CHAIN.ERA]: {
-      start: '2024-03-06',
-    },
-    [CHAIN.LINEA]: {
-      start: '2024-03-06',
-    },
-    [CHAIN.SCROLL]: {
-      start: '2024-03-06',
-    },
-    [CHAIN.SOPHON]: {
-      start: '2024-12-17',
-    },
-  }
-}
+    [CHAIN.ERA]: { start: "2024-03-06" },
+    [CHAIN.LINEA]: { start: "2024-03-06" },
+    [CHAIN.SCROLL]: { start: "2024-03-06" },
+    [CHAIN.SOPHON]: { start: "2024-12-17" },
+  },
+};
 
-export default adapter
+export default adapter;
