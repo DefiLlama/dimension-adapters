@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
 // Douro Labs is the official Pyth Pro data distributor
 // Revenue split: Douro Labs keeps 40%, Pyth DAO receives 60%
@@ -24,17 +24,17 @@ const fetch = async (options: FetchOptions) => {
   // so DefiLlama data lags ~1 month vs actual earning period
   const subscriptionQuery = `
     SELECT
-      token_mint_address,
-      COALESCE(SUM(amount), 0) as total_amount
-    FROM tokens_solana.transfers
-    WHERE block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
-      AND token_mint_address IN ('${USDC_MINT}', '${PYTH_MINT}')
-      AND from_owner = '${DOURO_LABS_WALLET}'
-      AND to_owner = '${PYTH_DAO_WALLET}'
-    GROUP BY token_mint_address
+      mint as token_mint_address,
+      TO_VARCHAR(COALESCE(SUM(TRY_TO_DECIMAL(raw_amount_str, 38, 0)), 0)) as total_amount
+    FROM solana.assets.transfers
+    WHERE block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND mint IN ('${USDC_MINT}', '${PYTH_MINT}')
+      AND from_address = '${DOURO_LABS_WALLET}'
+      AND to_address = '${PYTH_DAO_WALLET}'
+    GROUP BY mint
   `;
 
-  const subscriptionRes = await queryDuneSql(options, subscriptionQuery);
+  const subscriptionRes = await queryAllium(subscriptionQuery);
 
   for (const row of subscriptionRes) {
     const daoAmount = BigInt(row.total_amount || 0);
@@ -75,14 +75,15 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-01-01",
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;

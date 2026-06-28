@@ -51,7 +51,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
   methodology,
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  deadFrom: "2026-02-23",
 }
 
 export default adapter
