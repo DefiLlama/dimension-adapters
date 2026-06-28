@@ -115,9 +115,12 @@ function addVaultMetadata(
 // valued at the spot price; for sell-high vaults the investment token already is the base asset,
 // so notional equals the principal. linkedPrice and the oracle prices share decimals (the contract
 // compares them directly), so the spot/strike ratio is decimal-safe.
+// A buy-low vault must have a positive strike and spot price; missing/zero pricing is a data error
+// and fails loud rather than falling back to principal, which would misclassify notional as premium.
 function toNotional(metadata: VaultMetadata, principal: bigint, spotPrice: bigint): bigint {
   if (!metadata.isBuyLow) return principal;
-  if (metadata.strike <= 0n || spotPrice <= 0n) return principal;
+  if (metadata.strike <= 0n || spotPrice <= 0n)
+    throw new Error(`Prodigy.Fi buy-low notional has invalid pricing (investmentToken=${metadata.investmentToken}, strike=${metadata.strike}, spot=${spotPrice})`);
   return principal * spotPrice / metadata.strike;
 }
 
