@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
       mint as token_mint_address,
       TO_VARCHAR(COALESCE(SUM(TRY_TO_DECIMAL(raw_amount_str, 38, 0)), 0)) as total_amount
     FROM solana.assets.transfers
-    WHERE block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_address = '${DOURO_LABS_WALLET}'
       AND to_address = '${PYTH_DAO_WALLET}'

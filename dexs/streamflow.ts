@@ -45,7 +45,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE outer_program_id IN (${programList})
       AND transfer_type = 'spl_token_transfer'
       AND from_address != signer
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${start}) AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
     GROUP BY mint
   `);
 
