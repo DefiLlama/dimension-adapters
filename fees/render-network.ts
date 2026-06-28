@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from "../helpers/allium";
 
 // Render Network — Burn-Mint Equilibrium (BME) fee tracking on Solana.
 // References:
@@ -30,16 +30,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   const query = `
-    SELECT 
-      COALESCE(SUM(amount) / 1e8, 0) AS render_burnt
-    FROM tokens_solana.transfers
-    WHERE token_mint_address = '${RENDER_MINT}'
-      AND from_owner = '${BURN_WALLET}'
-      AND action = 'burn'
-      AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-      AND block_time <  FROM_UNIXTIME(${options.endTimestamp})
+    SELECT
+      COALESCE(SUM(raw_amount) / 1e8, 0) AS render_burnt
+    FROM solana.assets.transfers
+    WHERE mint = '${RENDER_MINT}'
+      AND from_address = '${BURN_WALLET}'
+      AND type IN ('burn', 'burnChecked')
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
-  const data: DailyBurn[] = await queryDuneSql(options, query);
+  const data: DailyBurn[] = await queryAllium(query);
 
   const renderBurnt = data[0].render_burnt;
   if (renderBurnt > 0) {
@@ -94,14 +94,15 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2024-01-08",
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
