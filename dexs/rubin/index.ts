@@ -1,5 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 // Rubin — self-custody decentralized perpetual & spot exchange.
 // Volume + open interest come from Rubin's public Comlink-style REST indexer:
@@ -20,7 +21,7 @@ const fetch = async (_options: FetchOptions): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: ['rubin'],
+  chains: [CHAIN.RUBIN],
   start: '2026-06-01',
   runAtCurrTime: true,
 };
