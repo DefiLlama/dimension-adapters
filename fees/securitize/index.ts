@@ -5,6 +5,7 @@ import {queryAllium} from "../../helpers/allium";
 import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
 import {httpGet} from "../../utils/fetchURL";
+import * as sdk from "@defillama/sdk";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -92,10 +93,14 @@ const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
 // A yield drip mints a tiny fraction of a holder's balance (~the daily T-bill
 // rate, e.g. 0.0086%/day); new subscriptions/principal mint a large fraction.
 // Classifying each on-chain Issue event by mintValue/recipientBalance cleanly
-// separates the two. Validated against labelled Securitize data (issuance_drip
-// vs issuance_fiat) with real balances: a 0.5% cut keeps ~97.6% of yield by
-// value and leaks 0% of principal. Being purely on-chain, it has full history
-// (no 30-day feed limit) and needs no distribution-time window.
+// separates the two. Being purely on-chain, it has full history (no 30-day feed
+// limit) and needs no distribution-time window.
+// Validation: against the Securitize issuer ledger (token_transactions, the
+// labelled issuance_drip vs issuance_fiat subtypes) with real wallet balances,
+// on all three chain types — drips land on the published daily rate
+// (~0.0086-0.0097%/day), subscriptions sit >=0.5%; a 0.5% cut keeps ~97.6% of
+// yield by value and leaks 0% of principal. Daily rates cross-checked against
+// Securitize's published per-chain BUIDL rate sheet.
 const YIELD_RATIO_THRESHOLD = 0.005;
 
 const getPeriodFraction = (options: FetchOptions, denominator: number) =>
@@ -141,8 +146,12 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
       permitFailure: true,
     })
 
-    // contract was not deployed yet
-    if (!totalSupply) continue;
+    // No supply: either not deployed yet, or a transient read failure (permitFailure).
+    // Log so a recoverable RPC failure isn't silently dropped as "not deployed".
+    if (!totalSupply) {
+      console.error(`securitize: no totalSupply for ${contract.address} on ${options.chain} — skipping (not deployed yet or RPC failure)`)
+      continue;
+    }
 
     const mngmtFee = estimateManagementFee(totalSupply, bps, options);
     dailyFees.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
@@ -160,28 +169,47 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
     // Yield is distributed by minting to holders. Capture every Issue (mint) over
     // the whole period and keep only the ones that are a small fraction of the
     // recipient's balance (a yield drip), discarding large mints (new principal /
-    // subscriptions). See YIELD_RATIO_THRESHOLD. Balances are read at the start of
-    // the period (prior balance), matching the classification it was validated on.
-    const issueEvents: Array<any> = await options.getLogs({
+    // subscriptions). See YIELD_RATIO_THRESHOLD. Each mint is classified against the
+    // recipient's balance at the block BEFORE the mint (prior balance), so a holder
+    // who subscribes and is dripped in the same period is rated correctly.
+    const logs: Array<any> = await options.getLogs({
       target: contract.address,
       eventAbi: EVM_ABI.issue,
       fromBlock,
       toBlock,
+      entireLog: true,
+      parseLog: true,
     })
-    if (!issueEvents.length) continue;
+    if (!logs.length) continue;
 
-    const recipients: string[] = [...new Set(issueEvents.map(e => e.to))];
-    const balances = await options.fromApi.multiCall({
-      abi: 'erc20:balanceOf',
-      target: contract.address,
-      calls: recipients,
-      permitFailure: true,
-    })
-    const balanceOf: Record<string, number> = {};
-    recipients.forEach((r, i) => { balanceOf[r] = Number(balances[i] ?? 0); });
+    const events = logs.map((log: any) => ({
+      to: log.parsedLog.args.to,
+      value: log.parsedLog.args.value,
+      block: Number(log.blockNumber),
+    }))
 
-    for (const e of issueEvents) {
-      const bal = balanceOf[e.to] ?? 0;
+    // Group recipients by mint block; one multiCall per block reads every
+    // recipient's balance at block-1 (their balance just before that mint).
+    const recipientsByBlock = new Map<number, Set<string>>();
+    for (const e of events) {
+      if (!recipientsByBlock.has(e.block)) recipientsByBlock.set(e.block, new Set());
+      recipientsByBlock.get(e.block)!.add(e.to);
+    }
+    const priorBalance: Record<string, number> = {}; // key `${block}:${to}`
+    for (const [block, recipientSet] of recipientsByBlock) {
+      const recipients = [...recipientSet];
+      const api = new sdk.ChainApi({ chain: options.chain, block: block - 1 });
+      const balances = await api.multiCall({
+        abi: 'erc20:balanceOf',
+        target: contract.address,
+        calls: recipients,
+        permitFailure: true,
+      })
+      recipients.forEach((r, i) => { priorBalance[`${block}:${r}`] = Number(balances[i] ?? 0); });
+    }
+
+    for (const e of events) {
+      const bal = priorBalance[`${e.block}:${e.to}`] ?? 0;
       const ratio = bal > 0 ? Number(e.value) / bal : Infinity;
       if (ratio < YIELD_RATIO_THRESHOLD) {
         dailyFees.addToken(contract.address, e.value, METRIC.AssetYields)
@@ -213,28 +241,34 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
+  // BUIDL fungible-asset object on Aptos (symbol BUIDL, 6 decimals); the FA object
+  // is owned by the ds_token deployment 0x4de5876d…e808a.
   const APTOS_BUIDL_CONTRACT = '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'
   const APTOS_GRAPHQL_ENDPOINT = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
+  // 20 bps management fee. Source: static.primary_market_listing (BUIDL / aptos).
   const APTOS_BPS = 20
 
-  // VERIFY: mints appear in aptos.assets.fungible_transfers as rows with NULL from_address.
+  // Mints are reconstructed transfers with NULL from_address. block_timestamp alone
+  // is not a unique order (Allium rebuilds Aptos transfers from deposit/withdraw
+  // events, many can share a timestamp), so the running-balance window is ordered by
+  // (block_timestamp, transaction_version, event_index) for a deterministic bal_before.
   const sql = `
       WITH t AS (
-        SELECT block_timestamp, from_address, to_address, raw_amount AS amt
+        SELECT block_timestamp, transaction_version, event_index, from_address, to_address, raw_amount AS amt
         FROM aptos.assets.fungible_transfers
         WHERE fa_address = '${APTOS_BUIDL_CONTRACT}'
           AND block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
       ),
       deltas AS (
-        SELECT block_timestamp, to_address AS wallet, amt AS delta, (from_address IS NULL) AS is_mint
+        SELECT block_timestamp, transaction_version, event_index, to_address AS wallet, amt AS delta, (from_address IS NULL) AS is_mint
           FROM t WHERE to_address IS NOT NULL
         UNION ALL
-        SELECT block_timestamp, from_address AS wallet, -amt AS delta, FALSE AS is_mint
+        SELECT block_timestamp, transaction_version, event_index, from_address AS wallet, -amt AS delta, FALSE AS is_mint
           FROM t WHERE from_address IS NOT NULL
       ),
       seq AS (
         SELECT wallet, block_timestamp, delta, is_mint,
-          SUM(delta) OVER (PARTITION BY wallet ORDER BY block_timestamp
+          SUM(delta) OVER (PARTITION BY wallet ORDER BY block_timestamp, transaction_version, event_index
                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS bal_before
         FROM deltas
       )
@@ -283,13 +317,17 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
   const dailySupplySideRevenue = options.createBalances()
 
   const SOLANA_BUIDL_CONTRACT = 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr'
+  // 20 bps management fee. Source: static.primary_market_listing (BUIDL / solana).
   const SOLANA_BPS = 20
 
-  // VERIFY: sender/recipient column names in tokens_solana.transfers (to_address/from_address).
+  // tokens_solana.transfers uses to_owner/from_owner for the wallet addresses, and
+  // marks SPL mints in `action`. Accept both 'mint' and 'mintTo' (Dune's curated
+  // value has been seen as either). Ordered by block_time for the running-balance
+  // window — one drip per wallet per day, so second-level granularity suffices.
   const sql = `
       WITH t AS (
         SELECT block_time, action, CAST(amount AS double) AS amt,
-               to_address AS to_w, from_address AS from_w
+               to_owner AS to_w, from_owner AS from_w
         FROM tokens_solana.transfers
         WHERE token_mint_address = '${SOLANA_BUIDL_CONTRACT}'
           AND block_time <= FROM_UNIXTIME(${options.toTimestamp})
@@ -307,7 +345,7 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
       )
       SELECT COALESCE(SUM(delta), 0) AS total_yield
       FROM seq
-      WHERE action = 'mint'
+      WHERE action IN ('mint', 'mintTo')
         AND block_time BETWEEN FROM_UNIXTIME(${options.fromTimestamp}) AND FROM_UNIXTIME(${options.toTimestamp})
         AND bal_before > 0
         AND delta / bal_before < ${YIELD_RATIO_THRESHOLD}
