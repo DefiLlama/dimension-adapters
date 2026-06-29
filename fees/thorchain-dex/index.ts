@@ -1,23 +1,26 @@
-import BigNumber from "bignumber.js";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL";
 
-
+// Start dates are each chain's first trading day on THORChain, taken from the first non-zero day in
+// raynalytics swap-volume-fees-by-chain (ETH/BTC/LTC = genesis; the rest are when their pools went live).
 const chainConfig = {
-  [CHAIN.ETHEREUM]: { start: '2022-09-07', symbol: 'ETH' },
-  [CHAIN.BITCOIN]: { start: '2022-09-07', symbol: 'BTC' },
-  [CHAIN.LITECOIN]: { start: '2022-09-07', symbol: 'LTC' },
-  [CHAIN.DOGECHAIN]: { start: '2022-09-07', symbol: 'DOGE' },
-  [CHAIN.COSMOS]: { start: '2022-09-07', symbol: 'GAIA' },
-  [CHAIN.AVAX]: { start: '2022-09-07', symbol: 'AVAX' },
-  [CHAIN.BSC]: { start: '2022-09-07', symbol: 'BSC' },
-  [CHAIN.BITCOIN_CASH]: { start: '2022-09-07', symbol: 'BCH' },
-  [CHAIN.BASE]: { start: '2022-09-07', symbol: 'BASE' },
-  [CHAIN.THORCHAIN]: { start: '2022-09-07', symbol: 'THOR' },
-  [CHAIN.RIPPLE]: { start: '2022-09-07', symbol: 'XRP' },
-  [CHAIN.SOLANA]: { start: '2022-09-07', symbol: 'SOL' },
-  [CHAIN.TRON]: { start: '2022-09-07', symbol: 'TRON' },
+  [CHAIN.ETHEREUM]: { start: '2021-04-11', symbol: 'ETH' },
+  [CHAIN.BITCOIN]: { start: '2021-04-11', symbol: 'BTC' },
+  [CHAIN.LITECOIN]: { start: '2021-04-11', symbol: 'LTC' },
+  [CHAIN.DOGE]: { start: '2022-01-16', symbol: 'DOGE' },
+  // dead: Terra Classic collapsed, no THORChain swaps after 2022-05-10. Kept for historical data; returns 0 since.
+  [CHAIN.TERRA]: { start: '2022-03-24', deadFrom: '2022-05-10', symbol: 'TERRA' },
+  // Binance Beacon Chain (feed "BNB", dead 2024-03-25) omitted: no DefiLlama chain key for it (CHAIN.BSC is Binance Smart Chain).
+  [CHAIN.COSMOS]: { start: '2022-07-05', symbol: 'GAIA' },
+  [CHAIN.AVAX]: { start: '2022-09-23', symbol: 'AVAX' },
+  [CHAIN.BSC]: { start: '2023-09-10', symbol: 'BSC' },
+  [CHAIN.BITCOIN_CASH]: { start: '2021-04-11', symbol: 'BCH' },
+  [CHAIN.BASE]: { start: '2025-01-08', symbol: 'BASE' },
+  [CHAIN.THORCHAIN]: { start: '2021-04-11', symbol: 'THOR' },
+  [CHAIN.RIPPLE]: { start: '2025-06-04', symbol: 'XRP' },
+  [CHAIN.SOLANA]: { start: '2026-02-24', symbol: 'SOL' },
+  [CHAIN.TRON]: { start: '2025-10-01', symbol: 'TRON' },
 }
 
 interface Pool {
@@ -79,17 +82,18 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const fetch: any = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const chainShortName = chainConfig[options.chain].symbol;
-  const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
+  const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
-  const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startTimestamp}&to=${options.endTimestamp}`;
-  const poolsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/pools?period=24h`;
+  const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
+  // Per-chain daily swap volume, full history. Used only to split the network-level outbound fee across
+  // chains by activity share. Different host (no date param), fetched once and reused for every chain.
+  const volumeByChainUrl = `https://raynalytics.net/api/swap-volume-fees-by-chain`;
 
   const earnings = await fetchCacheURL(earningsUrl);
   await sleep(3000);
   const revenue = await fetchCacheURL(reserveUrl);
   await sleep(2000);
-  const pools = await fetchCacheURL(poolsUrl);
-  await sleep(2000);
+  const volumeByChain = await fetchCacheURL(volumeByChainUrl);
 
   // Only fetch affiliate earnings for THOR chain
   let affiliateEarnings: any | null = null;
@@ -102,107 +106,101 @@ const fetch: any = async (options: FetchOptions) => {
   const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
   const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
 
-
   const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => assetFromString(pool.pool)?.chain === chainShortName);
 
-  const totalRuneDepth = pools.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
-  const poolsByChainData = pools.filter((pool: any) => assetFromString(pool.asset)?.chain === chainShortName);
-  const runeDepthPerChain = poolsByChainData.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
+  const runePriceUSD = Number(selectedEarningInterval.runePriceUSD || 0);
+  // RUNE amounts are in 1e8 base units; values here are USD fees in the thousands, well within JS precision.
+  const toUSD = (runeBaseUnits: any) => (Number(runeBaseUnits) || 0) / 1e8 * runePriceUSD;
+  const sumVolume = (rows: any[]) => rows.reduce((acc: number, r: any) => acc + (r.USD_VOLUME || 0), 0);
 
-  const runePriceUSD = BigNumber(selectedEarningInterval.runePriceUSD || 0);
+  // Net outbound (network) fee kept by the protocol: outbound gas charged minus gas reimbursed. It is a single
+  // network-wide reserve figure, so we split it across chains by each chain's share of that day's swap volume.
+  // The denominator is restricted to the chains we track, so the shares re-normalise to 1 and the network-wide
+  // outbound total is preserved.
+  const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const netOutboundRune = Number(selectedRevenueInterval?.gasFeeOutbound || 0) - Number(selectedRevenueInterval?.gasReimbursement || 0);
 
-  // Net outbound (network) fee kept by the protocol, in RUNE: outbound gas charged minus gas reimbursed.
-  // Protocol-level value, attributed per chain by the chain's share of total RUNE pool depth.
-  const netOutboundRune = BigNumber(selectedRevenueInterval?.gasFeeOutbound || 0).minus(BigNumber(selectedRevenueInterval?.gasReimbursement || 0));
-  const runeDepthShare = totalRuneDepth.isZero() ? BigNumber(0) : runeDepthPerChain.div(totalRuneDepth);
-  const rawOutboundFeeUSD = netOutboundRune.times(runeDepthShare).div(1e8).times(runePriceUSD);
-  const chainOutboundFeeUSD = rawOutboundFeeUSD.gt(0) ? rawOutboundFeeUSD : BigNumber(0);
+  const trackedSymbols = new Set(Object.values(chainConfig).map((c: any) => c.symbol));
+  const dayVolumeRows = volumeByChain.filter((r: any) => r.DATE.slice(0, 10) === dateStr && trackedSymbols.has(r.CHAIN));
+  const totalVolume = sumVolume(dayVolumeRows);
+  // The outbound fee can only be attributed via swap-volume share. If there is a positive outbound fee but no
+  // volume data for the day, fail loudly instead of silently dropping it (a swap-volume feed gap / mismatch).
+  if (netOutboundRune > 0 && totalVolume === 0)
+    throw new Error(`thorchain-dex: outbound fee present (${netOutboundRune} RUNE base units) on ${dateStr} but no swap-volume data to attribute it across chains`);
+  const volumeShare = totalVolume ? sumVolume(dayVolumeRows.filter((r: any) => r.CHAIN === chainShortName)) / totalVolume : 0;
 
-  // Network-wide Incentive Pendulum split of system income between nodes (RUNE bonders) and pools (LPs).
-  // We apply this ratio to the chain's actual swap fees, so RUNE block-reward emissions are excluded from fees/revenue.
-  const systemIncome = BigNumber(selectedEarningInterval.earnings || 0);
-  const bondingEarnings = BigNumber(selectedEarningInterval.bondingEarnings || 0);
-  const nodeShareRatio = systemIncome.isZero() ? BigNumber(0) : bondingEarnings.div(systemIncome);
+  const outboundFee = Math.max(0, toUSD(netOutboundRune) * volumeShare);
 
-  // Slip-based liquidity (swap) fees paid by users on this chain's pools, in USD. Savers yield is NOT a
-  // separate user fee: it is paid out of these same liquidity fees, so counting it on top would double-count.
-  const chainSwapFeesUSD = poolsByChainEarnings.reduce((acum, pool) => {
-    const liquidityFees = BigNumber(pool.totalLiquidityFeesRune).div(1e8).times(runePriceUSD);
-    return acum.plus(liquidityFees);
-  }, BigNumber(0));
+  // Network-wide Incentive Pendulum split of system income between nodes (RUNE bonders) and LPs. We apply this
+  // ratio to the chain's actual swap fees, so RUNE block-reward emissions are excluded from fees/revenue.
+  const systemIncome = Number(selectedEarningInterval.earnings || 0);
+  const nodeShareRatio = systemIncome ? Number(selectedEarningInterval.bondingEarnings || 0) / systemIncome : 0;
+
+  // Slip-based liquidity (swap) fees paid by users on this chain's pools, in USD.
+  const swapFees = poolsByChainEarnings.reduce((acc, pool) => acc + toUSD(pool.totalLiquidityFeesRune), 0);
 
   // Affiliate fees charged by interfaces/wallets (pass-through to integrators, so they are also supply-side).
-  // Only exposed at the network level, attributed to the THORChain native chain.
-  const affiliateFeesUSD = (chainShortName === 'THOR' && affiliateEarnings?.intervals?.length > 0)
-    ? BigNumber(affiliateEarnings.intervals[0].volumeUSD).div(1e2)
-    : BigNumber(0);
+  // Network-level, attributed to the THORChain native chain; already reported in USD (cents).
+  const affiliateFees = (chainShortName === 'THOR' && affiliateEarnings?.intervals?.length > 0)
+    ? Number(affiliateEarnings.intervals[0].volumeUSD || 0) / 1e2
+    : 0;
 
-  // THORChain governance carve-outs from system income (= swap fees here; RUNE block-reward emissions are
-  // ~0 and excluded). Percentages are fixed protocol constants; activation dates:
-  //   5% RUNE burn:       from 2024-09-16.
-  //   5% developer fund:  from 2024-09-16.
-  //   10% to TCY stakers: from 2025-05-01.
-  //   5% marketing fund:  from 2025-11-04.
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  // THORChain governance carve-outs from swap fees (RUNE block-reward emissions are ~0 and excluded). Fixed
+  // protocol constants; activation dates: 5% burn + 5% dev from 2024-09-16, 10% TCY from 2025-05-01, 5%
+  // marketing from 2025-11-04.
   const burnPct = dateStr >= '2024-09-16' ? 0.05 : 0;
   const devPct = dateStr >= '2024-09-16' ? 0.05 : 0;
   const tcyPct = dateStr >= '2025-05-01' ? 0.10 : 0;
   const marketingPct = dateStr >= '2025-11-04' ? 0.05 : 0;
 
-  const burnUSD = chainSwapFeesUSD.times(burnPct);
-  const tcyUSD = chainSwapFeesUSD.times(tcyPct);
-  const devUSD = chainSwapFeesUSD.times(devPct);
-  const marketingUSD = chainSwapFeesUSD.times(marketingPct);
+  const burn = swapFees * burnPct;
+  const dev = swapFees * devPct;
+  const tcy = swapFees * tcyPct;
+  const marketing = swapFees * marketingPct;
 
-  // The rest of system income is split between nodes (RUNE bonders) and pools (LPs) by the Incentive
-  // Pendulum ratio. node + LP + every carve-out sum to the swap fees exactly, so the income-statement
-  // identity (Fees = Revenue + SupplySideRevenue) holds.
-  const nodePoolUSD = chainSwapFeesUSD.minus(burnUSD).minus(tcyUSD).minus(devUSD).minus(marketingUSD);
-  const nodeRevenueUSD = nodePoolUSD.times(nodeShareRatio);
-  const lpRevenueUSD = nodePoolUSD.minus(nodeRevenueUSD);
+  // The rest is split between nodes (RUNE bonders) and LPs by the Incentive Pendulum ratio. node + LP + every
+  // carve-out sum to swap fees exactly, so the identity Fees = Revenue + SupplySideRevenue holds.
+  const nodePool = swapFees * (1 - burnPct - devPct - tcyPct - marketingPct);
+  const nodeRevenue = nodePool * nodeShareRatio;
+  const lpRevenue = nodePool - nodeRevenue;
 
   // Emit each component under its own label so the breakdown is itemized in the UI.
   // Only the RUNE burn accrues to every RUNE holder -> holders. The node-bonder (security) share, the LP
   // share, affiliate (integrator) fees and TCY rewards all pay suppliers -> supply. Outbound fee and the
   // developer/marketing funds are kept by the protocol -> protocol.
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(chainSwapFeesUSD.toNumber(), 'Swap Fees');
-  dailyFees.addUSDValue(chainOutboundFeeUSD.toNumber(), 'Outbound Fees');
-  dailyFees.addUSDValue(affiliateFeesUSD.toNumber(), 'Affiliate Fees');
-
-  const dailyUserFees = options.createBalances();
-  dailyUserFees.addUSDValue(chainSwapFeesUSD.toNumber(), 'Swap Fees');
-  dailyUserFees.addUSDValue(chainOutboundFeeUSD.toNumber(), 'Outbound Fees');
-  dailyUserFees.addUSDValue(affiliateFeesUSD.toNumber(), 'Affiliate Fees');
+  dailyFees.addUSDValue(swapFees, 'Swap Fees');
+  dailyFees.addUSDValue(outboundFee, 'Outbound Fees');
+  dailyFees.addUSDValue(affiliateFees, 'Affiliate Fees');
 
   // RUNE-holder value is only the RUNE burn - the single component that accrues to every RUNE holder.
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addUSDValue(burnUSD.toNumber(), 'RUNE Burn');
+  dailyHoldersRevenue.addUSDValue(burn, 'RUNE Burn');
 
   // Supply-side value: the node-operator (RUNE bonder) share is a security cost, the LP share pays
   // liquidity providers, affiliate fees pass through to integrators, and TCY rewards pay TCY stakers.
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(nodeRevenueUSD.toNumber(), 'Swap Fees To RUNE Bonders');
-  dailySupplySideRevenue.addUSDValue(lpRevenueUSD.toNumber(), 'Swap Fees To LPs');
-  dailySupplySideRevenue.addUSDValue(affiliateFeesUSD.toNumber(), 'Affiliate Fees To Integrators');
-  dailySupplySideRevenue.addUSDValue(tcyUSD.toNumber(), 'TCY Staker Rewards');
+  dailySupplySideRevenue.addUSDValue(nodeRevenue, 'Swap Fees To RUNE Bonders');
+  dailySupplySideRevenue.addUSDValue(lpRevenue, 'Swap Fees To LPs');
+  dailySupplySideRevenue.addUSDValue(affiliateFees, 'Affiliate Fees To Integrators');
+  dailySupplySideRevenue.addUSDValue(tcy, 'TCY Staker Rewards');
 
+  // Revenue = protocol-kept income (outbound + dev + marketing) + the RUNE burn. The node-bonder share is a
+  // security cost and the LP/affiliate/TCY shares pay suppliers, so none of those count as revenue.
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addUSDValue(chainOutboundFeeUSD.toNumber(), 'Outbound Fees To Protocol');
-  dailyProtocolRevenue.addUSDValue(devUSD.toNumber(), 'Developer Fund');
-  dailyProtocolRevenue.addUSDValue(marketingUSD.toNumber(), 'Marketing Fund');
+  dailyProtocolRevenue.addUSDValue(outboundFee, 'Outbound Fees To Protocol');
+  dailyProtocolRevenue.addUSDValue(dev, 'Developer Fund');
+  dailyProtocolRevenue.addUSDValue(marketing, 'Marketing Fund');
 
-  // Revenue = value kept by the protocol + the RUNE burn. The node-bonder share is a security cost and the
-  // LP/affiliate/TCY shares pay suppliers, so none of those count as revenue.
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addUSDValue(burnUSD.toNumber(), 'RUNE Burn');
-  dailyRevenue.addUSDValue(chainOutboundFeeUSD.toNumber(), 'Outbound Fees To Protocol');
-  dailyRevenue.addUSDValue(devUSD.toNumber(), 'Developer Fund');
-  dailyRevenue.addUSDValue(marketingUSD.toNumber(), 'Marketing Fund');
+  dailyRevenue.addUSDValue(burn, 'RUNE Burn');
+  dailyRevenue.addUSDValue(outboundFee, 'Outbound Fees To Protocol');
+  dailyRevenue.addUSDValue(dev, 'Developer Fund');
+  dailyRevenue.addUSDValue(marketing, 'Marketing Fund');
 
   return {
     dailyFees,
-    dailyUserFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -237,7 +235,7 @@ const breakdownMethodology = {
     'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
   },
   ProtocolRevenue: {
-    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, attributed per chain by RUNE pool-depth share.",
+    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, a network-level figure split across chains by each chain's share of daily swap volume.",
     'Developer Fund': "5% of system income allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
   },
@@ -260,4 +258,4 @@ const adapters: SimpleAdapter = {
   breakdownMethodology,
 };
 
-export default adapters
+export default adapters;

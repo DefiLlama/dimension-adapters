@@ -26,6 +26,7 @@ const breakdownMethodology = {
     'Builder Code Distribution': 'All extra fees added on top by builders are fully passed down to these platforms.',
     'HLP': '1% of the perp trade fees go to HLP vault (used to be 3% before 30 Aug 2025)',
     'HIP-3 Deployer Distribution': 'Fees are distributed back to HIP-3 markets deployers.',
+    'Maker Rebates': 'Fees are rebated and distributed back to makers.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "99% of perp trade fees (excluding spot fees and builders fees) for buy back HYPE tokens.",
@@ -77,6 +78,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailySupplySideRevenue.add(result.dailyHyperliquidRevenue.clone(hlpShare), 'HLP')
     dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builder Code Distribution')
     dailySupplySideRevenue.add(result.dailyHip3DeployersRevenue, 'HIP-3 Deployer Distribution')
+    dailySupplySideRevenue.add(result.dailyPerpMakerRebates, 'Maker Rebates')
     
     // 99% of revenue
     dailyRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), 'Perp Fees')

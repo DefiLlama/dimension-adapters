@@ -3,7 +3,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
 const FEE_WALLETS = [
@@ -75,10 +75,26 @@ const fetch: any = async (options: FetchOptions) => {
       (SELECT rewards FROM rewardPayouts) AS rewards
   `;
 
-  const [row] = await queryDuneSql(options, query);
-  const totalFees = Number(row?.fees) * 1e9;
-  // rewards come from tokens_solana.sol_transfers.amount, which is already in raw lamports - no scaling.
-  const rewards = Number(row?.rewards);
+  let totalFees = 0;
+  let rewards = 0;
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788875); newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788875');
+    const matched = cached.find(
+      (r: any) => typeof r.day === 'string' && r.day.slice(0, 10) === options.dateString,
+    );
+    if (!matched) {
+      throw new Error(`No cached sol-trading-bot result for ${options.dateString}; re-run dune query 7788875`);
+    }
+    totalFees = Number(matched.fees_sol ?? 0) * 1e9;
+    rewards = Number(matched.rewards_lamports ?? 0);
+  } else {
+    const [row] = await queryDuneSql(options, query);
+    totalFees = Number(row?.fees) * 1e9;
+    // rewards come from tokens_solana.sol_transfers.amount, which is already in raw lamports - no scaling.
+    rewards = Number(row?.rewards);
+  }
 
   dailyFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
   dailyRevenue.add(ADDRESSES.solana.SOL, totalFees - rewards, LABELS.TRADING_FEES_TO_PROTOCOL);

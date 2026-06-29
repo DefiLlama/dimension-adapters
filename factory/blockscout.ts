@@ -128,6 +128,8 @@ const protocolChainMap: Record<string, string> = {
   "gatelayer": CHAIN.GATE_LAYER,
   "igra": CHAIN.IGRA,
   "shido": CHAIN.SHIDO,
+  "b3": CHAIN.B3,
+  "degen": CHAIN.DEGEN,
 }
 
 const deadFromMap: Record<string, string> = {

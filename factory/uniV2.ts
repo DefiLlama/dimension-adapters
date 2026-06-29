@@ -304,18 +304,18 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
     [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
   },
-  "velodrome-v2": {
-    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
-    [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-  },
+  // "velodrome-v2": {
+  //   [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  // },
   "dyorswap": {
     [CHAIN.MODE]: { factory: '0xE470699f6D0384E3eA68F1144E41d22C6c8fdEEf', start: '2023-11-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
     [CHAIN.BLAST]: { factory: '0xA1da7a7eB5A858da410dE8FBC5092c2079B58413', start: '2024-03-01', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
@@ -417,9 +417,9 @@ const configs: Record<string, Record<string, any>> = {
   "octoswap-classic": {
     [CHAIN.MONAD]: { factory: '0xCe104732685B9D7b2F07A09d828F6b19786cdA32', revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
-  "pharaoh-v2": {
-    [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
-  },
+  // "pharaoh-v2": {
+  //   [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
+  // },
   "swapmode-v2": {
     [CHAIN.MODE]: { factory: '0xfb926356BAf861c93C3557D7327Dbe8734A71891', start: '2024-02-02', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
@@ -1619,14 +1619,14 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
   //   totalVolume: "totalVolumeUSD",
   //   start: '2022-01-21',
   // },
-  "pharaoh-exchange": {
-    endpoints: {
-      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    start: '2023-12-12',
-  },
+  // "pharaoh-exchange": {
+  //   endpoints: {
+  //     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
+  //   },
+  //   factoriesName: "factories",
+  //   totalVolume: "totalVolumeUSD",
+  //   start: '2023-12-12',
+  // },
 }
 
 // Build subgraph-based adapters into SimpleAdapter format

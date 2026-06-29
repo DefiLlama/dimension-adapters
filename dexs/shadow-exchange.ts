@@ -209,7 +209,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   fetch,
   chains: [CHAIN.SONIC],
-  start: "2024-12-27"
+  start: "2024-12-26"
 };
 
 export default adapter;

@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://gateway.liquify.com/chain/thorchain_midgard/v2/history/swaps?interval=day&count=400"
 
 interface IVolumeall {
   totalFees: string;
@@ -23,7 +22,8 @@ const calVolume = (total: IVolumeall): number => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;
+  const url = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/swaps?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
+  const historicalVolume: IVolumeall[] = (await httpGet(url, { headers: {"x-client-id": "defillama"}})).intervals;
   const dailyVolumeCall = historicalVolume.find((dayItem: IVolumeall) => Number(dayItem.startTime) === options.startOfDay);
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);
 
@@ -38,7 +38,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.THORCHAIN],
-  start: '2022-09-07',
+  start: '2021-04-11',
   methodology,
 };
 

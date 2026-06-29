@@ -1,7 +1,7 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
 const inflatedFees = [1712275200] // 2024-04-05, Inflated fees (22M fees for 48M volume)
@@ -71,7 +71,25 @@ async function fetch(options: FetchOptions) {
       (SELECT bonkReferralRewards FROM bonkRewardTransfers) AS bonkReferralRewards
   `;
 
-  const data = await queryDuneSql(options, query);
+  let data: any[];
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788884); newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788884');
+    const matched = cached.find(
+      (r: any) => typeof r.day === 'string' && r.day.slice(0, 10) === options.dateString,
+    );
+    if (!matched) {
+      throw new Error(`No cached bonk-bot result for ${options.dateString}; re-run dune query 7788884`);
+    }
+    data = [{
+      dailyFees: matched.daily_fees_usd,
+      solReferralRewards: matched.sol_referral_rewards_lamports,
+      bonkReferralRewards: matched.bonk_referral_rewards_raw,
+    }];
+  } else {
+    data = await queryDuneSql(options, query);
+  }
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

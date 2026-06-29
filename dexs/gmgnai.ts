@@ -28,7 +28,7 @@ const chainConfig: Record<string, ChainConfig> = {
     ],
   },
   [CHAIN.BASE]: {
-    start: "2024-07-05",
+    start: "2024-06-05",
     contract: "0xd8Ba9D1a99Fc21f0ECA24e9b85737c28A194a4E2",
     wrappedNative: ADDRESSES.base.WETH,
     swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path)[] descs)",
@@ -37,6 +37,24 @@ const chainConfig: Record<string, ChainConfig> = {
     start: "2024-11-27",
     contract: "0x1de460f363AF910f51726DEf188F9004276Bf4bc",
     wrappedNative: ADDRESSES.bsc.WBNB,
+    swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path, address, bytes32)[] descs)",
+  },
+  [CHAIN.MONAD]: {
+    start: "2025-11-22",
+    contract: "0xc9ca80b5ea956aFA98627963D1880033545d108E",
+    wrappedNative: ADDRESSES.monad.WMON,
+    swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path, address, bytes32)[] descs)",
+  },
+  [CHAIN.HYPERLIQUID]: {
+    start: "2026-05-21",
+    contract: "0xFCaCD2f51Fc8FA0FE1Ff3e781cE9F97584E62d99",
+    wrappedNative: ADDRESSES.hyperliquid.WHYPE,
+    swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path, address, bytes32)[] descs)",
+  },
+  [CHAIN.MEGAETH]: {
+    start: "2026-05-19",
+    contract: "0xB40864738AE17750d802EEa82322873Fe2d2046b",
+    wrappedNative: ADDRESSES.megaeth.MEGA,
     swapEvent: "event Swap(address indexed payer,address indexed receiver,address indexed feeToken,uint256 amountIn,uint256 amountOut,(uint8 swapType,address tokenIn,address tokenOut,address poolAddress,uint24 fee,int24 tickSpacing,address factoryAddress,bytes path, address, bytes32)[] descs)",
   },
 };
