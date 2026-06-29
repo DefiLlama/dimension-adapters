@@ -18,7 +18,7 @@ const config: any = {
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
-  // pullHourly: true,
+  pullHourly: true,
   version: 2,
   adapter: {},
   methodology: {
