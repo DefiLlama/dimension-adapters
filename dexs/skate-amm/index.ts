@@ -39,6 +39,9 @@ const fetch = async (options: FetchOptions) => {
     // data. Sum both so historical v1 volume and current v2 volume both count.
     for (const skateDataApi of skateDataApis) {
       const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
+      if(!tokenVolumeInfo.success) {
+        throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
+      }
       if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
         for (const tokenInfo of tokenVolumeInfo.data) {
             dailyVolume.add(tokenInfo.token, tokenInfo.volume);
@@ -63,6 +66,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     adapter: chainConfig,
+    pullHourly: true,
 }
 
 export default adapter;
