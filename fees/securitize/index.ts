@@ -205,7 +205,15 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
         calls: recipients,
         permitFailure: true,
       })
-      recipients.forEach((r, i) => { priorBalance[`${block}:${r}`] = Number(balances[i] ?? 0); });
+      recipients.forEach((r, i) => {
+        // permitFailure makes a failed read look like 0 (→ ratio Infinity → mint
+        // dropped as principal). Log it so a transient failure doesn't silently
+        // undercount yield instead of being mistaken for a genuine zero balance.
+        if (balances[i] == null) {
+          console.error(`securitize: balanceOf failed for ${r} at block ${block - 1} on ${options.chain} — yield for that mint may be undercounted`)
+        }
+        priorBalance[`${block}:${r}`] = Number(balances[i] ?? 0);
+      });
     }
 
     for (const e of events) {
