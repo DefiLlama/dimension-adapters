@@ -3,41 +3,14 @@ import ADDRESSES from '../helpers/coreAssets.json'
 
 import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dailyFees = options.createBalances();
-  const transfer_txs = await queryIndexer(`
-      SELECT
-          block_time,
-          encode(transaction_hash, 'hex') AS HASH,
-          encode(data, 'hex') AS data
-      FROM
-          ethereum.event_logs
-      WHERE
-          block_number > 18332267
-          AND contract_address IN (
-              SELECT DISTINCT address
-              FROM ethereum.traces
-              WHERE
-                  block_number > 18332267
-                  AND from_address IN ('\\x28B108B9932dD9E26103b9d3ed1999d3087F537d')
-                  AND "type" = 'create'
-          )
-          AND topic_0 = '\\x9377d2ca0fa4b8097cf0c9128e900f40fc24811a43eefb75da59072dbbcc8c85'
-          AND block_time BETWEEN llama_replace_date_range;
-          `, options);
-
-  transfer_txs.map((e: any) => {
-    const amount = Number('0x' + e.data.slice((5 * 64), (5 * 64) + 64))
-    dailyFees.addGasToken(amount);
-  })
-
-  return { dailyFees, dailyRevenue: dailyFees,}
+const fetch = async (): Promise<FetchResultFees> => {
+  return {} // stop using indexa db
 }
 
 const fetchSolana = async (options: FetchOptions) => {
+  throw new Error('This returns empty, no point running it')
   const dailyFees = options.createBalances();
 
   const query = `

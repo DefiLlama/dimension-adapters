@@ -77,7 +77,7 @@ const addLegacyVolume = async (dailyVolume: any, { getLogs, chain, api }: FetchO
       cowswapData[log.transactionHash.toLowerCase()] = legacyInterface.parseLog(log)?.args
     })
   }
-  const data: any = await getTransactions(chain, logs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
+  const data: any = await getTransactions(chain, logs.map((log: any) => log.transactionHash))
   for (const d of data) {
     if (!d) continue;
     const decoded = legacyInterface.parseTransaction(d)
@@ -103,7 +103,7 @@ const addLegacyVolume = async (dailyVolume: any, { getLogs, chain, api }: FetchO
     target: legacyJamAddress[chain] || legacyJamAddress.default,
     topics: ['0x7a70845dec8dc098eecb16e760b0c1569874487f0459ae689c738e281b28ed38'], // Settlement
   });
-  const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
+  const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash))
   for (const d of jamData) {
     if (!d) continue;
     const decoded = LEGACY_JAM.interface.parseTransaction(d)
@@ -202,7 +202,7 @@ const addCurrentVolume = async (dailyVolume: any, { getLogs, chain, api }: Fetch
   // A single tx can emit several BebopOrder events; dedupe so each settlement
   // tx's calldata is decoded (and its volume counted) only once.
   const rfqTxHashes = [...new Set(rfqLogs.map((log: any) => log.transactionHash))]
-  const rfqTxs: any[] = await getTransactions(chain, rfqTxHashes, { cacheKey: 'bebop-rfq' })
+  const rfqTxs: any[] = await getTransactions(chain, rfqTxHashes)
   for (const tx of rfqTxs) {
     if (!tx) continue
     // Only count txs that call the RFQ contract directly. Orders routed through

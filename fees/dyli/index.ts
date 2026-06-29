@@ -135,9 +135,7 @@ const fetch = async (options: FetchOptions) => {
   if (acceptedTradeTxHashes.length) {
     let receipts;
     try {
-      receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes, {
-        cacheKey: "dyli-p2p-trades",
-      });
+      receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes);
     } catch (error) {
       throw new Error(`Failed to fetch DYLI P2P trade receipts: ${formatError(error)}`);
     }
