@@ -46,7 +46,7 @@ day_selector as (
         and t.order_uid = f.order_uid
     where
         date_trunc('day', t.block_time) = from_unixtime({{start}})
-        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'lens')
+        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'bnb', 'lens')
     group by 1, 2
 )
 , fees_all_chains as (

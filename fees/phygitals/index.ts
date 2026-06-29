@@ -1,73 +1,74 @@
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
 
   const query = `
-        SELECT 
+        SELECT
             SUM(
-              CASE 
-                WHEN to_owner = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS' 
-                     AND from_owner NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
-                THEN amount / 1e6
+              CASE
+                WHEN to_address = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS'
+                     AND from_address NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
+                THEN raw_amount / 1e6
                 ELSE 0
               END
             ) AS gacha_spend,
-            
+
             SUM(
-              CASE 
-                WHEN to_owner = '42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e' 
-                     AND from_owner NOT IN ('62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
-                THEN amount / 1e6
+              CASE
+                WHEN to_address = '42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e'
+                     AND from_address NOT IN ('62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
+                THEN raw_amount / 1e6
                 ELSE 0
               END
             ) AS gacha_spend1,
 
             SUM(
-              CASE 
-                WHEN to_owner = '4SabGkbLc9uxzrq4f1Es9tJPZfHVzP28kwSosR2sYJRt' 
-                     AND from_owner NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
-                THEN amount / 1e6
+              CASE
+                WHEN to_address = '4SabGkbLc9uxzrq4f1Es9tJPZfHVzP28kwSosR2sYJRt'
+                     AND from_address NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
+                THEN raw_amount / 1e6
                 ELSE 0
               END
             ) AS luckydraw_fees,
 
             SUM(
-              CASE 
-                WHEN to_owner = '2CEe9G68EqWmer21DhRhxJ3coUvRspDxT9NJuc2PJYo5' 
-                     AND from_owner NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
-                THEN amount / 1e6
+              CASE
+                WHEN to_address = '2CEe9G68EqWmer21DhRhxJ3coUvRspDxT9NJuc2PJYo5'
+                     AND from_address NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
+                THEN raw_amount / 1e6
                 ELSE 0
               END
             ) AS royalties,
 
             SUM(
-              CASE 
-                WHEN from_owner = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS' 
-                     AND to_owner NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
-                THEN amount / 1e6
+              CASE
+                WHEN from_address = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS'
+                     AND to_address NOT IN ('42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e', '5sn2nniGv88bxzxBDkqWP6i8bejsr9WwCpZXq2ZkLHgf')
+                THEN raw_amount / 1e6
                 ELSE 0
               END
             ) AS buyback
-        FROM tokens_solana.transfers
-        WHERE token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-            AND TIME_RANGE
+        FROM solana.assets.transfers
+        WHERE mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+            AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+            AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
             AND (
-              to_owner IN (
+              to_address IN (
                 '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS',
                 '4SabGkbLc9uxzrq4f1Es9tJPZfHVzP28kwSosR2sYJRt',
                 '2CEe9G68EqWmer21DhRhxJ3coUvRspDxT9NJuc2PJYo5',
                 '42oNTirN62M3MkA52KiTTGyf9RnDh2YvqNdpFSgkf97e'
-              ) 
-              OR from_owner = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS'
+              )
+              OR from_address = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS'
             )
     `;
 
-  const data = await queryDuneSql(options, query);
+  const data = await queryAllium(query);
 
   if (data && data.length > 0) {
     const result = data[0];
@@ -107,13 +108,14 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   start: '2025-03-16',
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 }
 
 export default adapter;

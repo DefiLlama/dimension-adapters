@@ -121,6 +121,9 @@ const configs: Record<string, Record<string, any>> = {
   "dtx-v3": {
     [CHAIN.TAIKO]: { factory: '0xfCA1AEf282A99390B62Ca8416a68F5747716260c' },
   },
+  "taiko-swap": {
+    [CHAIN.TAIKO]: { factory: '0x826d713e30f0bf09dd3219494a508e6b30327d4f', start: '2025-11-14', revenueRatio: 0 },
+  },
   "kim-exchange-v3": {
     [CHAIN.MODE]: { factory: '0xB5F00c2C5f8821155D8ed27E31932CFD9DB3C5D5', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },
   },
@@ -364,6 +367,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "turbo": {
     [CHAIN.HYPERLIQUID]: { factory: '0xc72d2695A203696243Aa3EdD6CC98E43262E007E', start: '2026-05-30', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "intrinsic": {
+    [CHAIN.ROOTSTOCK]: { factory: '0x82dF0a279767021734EcE752979B34b3959C25D8', start: '2025-12-05', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   }
 }
 

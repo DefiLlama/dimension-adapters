@@ -79,6 +79,7 @@ export const chainConfigMap: any = {
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
   [CHAIN.CAPX]: { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/" },
+  [CHAIN.BSQUARED]: { CGToken: 'bitcoin', explorer: 'https://explorer.bsquared.network/node-api/proxy', start: '2025-07-06' },
   [CHAIN.SANKO]: { CGToken: 'dream-machine-token', explorer: 'https://explorer.sanko.xyz/' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'adventure-gold', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },

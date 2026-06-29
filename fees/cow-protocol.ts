@@ -21,7 +21,7 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (options: FetchOptions) => {
   const preFetchedResults = options.preFetchedResults || [];
-  const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
+  const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain === CHAIN.BSC ? 'bnb' : options.chain;
   const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
   const dailyFees = options.createBalances();
@@ -129,6 +129,7 @@ const chainConfig = {
   [CHAIN.XDAI]: { start: '2023-02-03' },
   [CHAIN.AVAX]: { start: '2025-06-30' },
   [CHAIN.POLYGON]: { start: '2025-06-30' },
+  [CHAIN.BSC]: { start: '2025-09-04' },
   [CHAIN.LENS]: { start: '2025-06-16', },
 }
 

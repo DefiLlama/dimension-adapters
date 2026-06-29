@@ -111,32 +111,29 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol and creator fees charged on every bonding-curve trade, plus token creation fees.",
-  Revenue:
-    "Protocol trade-fee slice plus token creation fees (equals Fees minus creator fees).",
-  ProtocolRevenue:
-    "Zero - send.fun keeps no treasury cut; 100% of protocol revenue is distributed to SEND stakers (see HoldersRevenue).",
-  HoldersRevenue:
-    "Protocol trade-fee slice and token creation fees, routed 100% to SEND stakers.",
-  SupplySideRevenue: "Bonding-curve trade fees paid to coin creators.",
+  Fees: "Free on send.fun and partners, 2% on non-partner swaps.",
+  Revenue: "Protocol fees minus creator fees.",
+  ProtocolRevenue: "None. All of send.fun's revenue goes to SEND stakers.",
+  HoldersRevenue: "100% of send.fun's revenue is paid out to people who stake SEND.",
+  SupplySideRevenue: "None. Zero creator fees on the bonding curve.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of every bonding-curve trade fee.",
-    [METRIC.CREATOR_FEES]: "Creator slice of every bonding-curve trade fee.",
-    "Token Creation Fee": "Token launch fee charged at token creation.",
+    [METRIC.PROTOCOL_FEES]: "2% fee on non-partner swaps (free on send.fun and partners).",
+    [METRIC.CREATOR_FEES]: "None. Zero creator fees on the bonding curve.",
+    "Token Creation Fee": "One-time fee to launch a token.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees (routed to SEND stakers).",
-    "Token Creation Fee": "Token creation fees (routed to SEND stakers).",
+    [METRIC.PROTOCOL_FEES]: "Protocol fees paid to SEND stakers.",
+    "Token Creation Fee": "Token-launch fees paid to SEND stakers.",
   },
   HoldersRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol slice of trade fees distributed to SEND stakers.",
-    "Token Creation Fee": "Token creation fees distributed to SEND stakers.",
+    [METRIC.PROTOCOL_FEES]: "Protocol fees paid to SEND stakers.",
+    "Token Creation Fee": "Token-launch fees paid to SEND stakers.",
   },
   SupplySideRevenue: {
-    [METRIC.CREATOR_FEES]: "Bonding-curve trade fees paid out to coin creators.",
+    [METRIC.CREATOR_FEES]: "None. Zero creator fees on the bonding curve.",
   },
 };
 

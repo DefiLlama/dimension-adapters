@@ -1,6 +1,6 @@
 ---
 name: adapter-author
-description: Helps coding agents author and fix DefiLlama dimension adapters in this repo. Use for fees, revenue, volume, aggregator volume, bridge-aggregator volume, derivatives, options, open interest, incentives, active/new users, normalized volume, and NFT volume. Also gates out requests that belong in `DefiLlama-Adapters` (TVL) or `defillama-server` (listing metadata).
+description: Helps coding agents author and fix DefiLlama dimension adapters in this repo. Use for fees, revenue, volume, aggregator volume, bridge-aggregator volume, derivatives, options, open interest, incentives, active/new users, normalized volume, and NFT volume. Also gates out requests that belong in `DefiLlama-Adapters` (TVL)
 ---
 
 # Adapter Author
@@ -14,7 +14,7 @@ Before editing any file, decide whether the request belongs here. `dimension-ada
 Stop and route elsewhere when:
 
 - TVL of any kind -> `DefiLlama/DefiLlama-Adapters`.
-- Listing metadata only (logo, category, description, socials, treasury, audits) -> `DefiLlama/defillama-server`.
+- Listing metadata only (logo, category, description, socials, treasury, audits) -> mail to metadata@defillama.com
 - Metric not in `whitelistedDimensionKeys`, or category folder is not core-wired (e.g. `aggregator-options`) -> ask maintainers.
 
 ## Intake
