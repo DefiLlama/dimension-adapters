@@ -260,6 +260,22 @@ okuChains.forEach(chain => {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.TEMPO] = {
+  fetch: async (options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x24a3d4757e330890a8b8978028c9e58e04611fd6", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.MEGAETH] = {
+  fetch: async (options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x3a5f0cd7d62452b7f899b2a5758bfa57be0de478", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
 
