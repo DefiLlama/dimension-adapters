@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const labels = {
+const labels: Record<string, string> = {
   origination: "Loan Origination Fees",
   repayment: "Loan Repayment Fees",
   collateral_claim: "Collateral Claim Fees"
@@ -53,19 +53,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
 
   for (const row of rows) {
     if (!row.mint) continue;
     if (row.kind === 'interest') {
       dailyFees.add(row.mint, row.net, "Borrow Interest");
+      dailySupplySideRevenue.add(row.mint, row.net, "Borrow Interest to Lenders");
     } else if (row.kind === 'repayment') {
       dailyRevenue.add(row.mint, row.net, labels[row.kind]);
+      dailySupplySideRevenue.subtractToken(row.mint, row.net, "Borrow Interest to Lenders");
     } else {
       dailyFees.add(row.mint, row.net, labels[row.kind]);
       dailyRevenue.add(row.mint, row.net, labels[row.kind]);
     }
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -79,6 +83,7 @@ const adapter: SimpleAdapter = {
     Fees: 'Borrow interest paid by borrowers on repaid loans, plus loan origination fees and collateral claim fees.',
     Revenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
     ProtocolRevenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
+    SupplySideRevenue: "90% of borrow interest is paid to lenders.",
   },
   breakdownMethodology: {
     Fees: {
@@ -96,6 +101,9 @@ const adapter: SimpleAdapter = {
       [labels.repayment]: "10% of interest, deducted from the lender's return when the loan is repaid.",
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
+    SupplySideRevenue: {
+      'Borrow Interest to Lenders': '90% of borrow interest is paid to lenders'
+    }
   },
 };
 
