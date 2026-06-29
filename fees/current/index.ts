@@ -92,7 +92,7 @@ const adapter: SimpleAdapter = {
   start: "2026-03-25",
   methodology,
   breakdownMethodology,
-  pullHourly: true,
+  pullHourly: false, //api doesnt truly return hourly data
 };
 
 export default adapter;
