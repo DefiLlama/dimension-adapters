@@ -1,31 +1,41 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import {
-  fetchFiboDailyMetrics,
-  FIBO_USDC,
-} from "../helpers/fibo";
+import fetchURL from "../utils/fetchURL";
+import coreAssets from "../helpers/coreAssets.json"
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const data = await fetchFiboDailyMetrics(options);
+const FIBO_API_URL = "https://api.fibo.fun/api/pulse";
+type FiboDailyMetrics = {
+  start: number;
+  end: number;
+  dailyFeesUsdc: string;
+  dailyRevenueUsdc: string;
+  dailyProtocolRevenueUsdc: string;
+  dailySupplySideRevenueUsdc: string;
+};
+const baseUsdc = coreAssets.base.USDC
+
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const url = `${FIBO_API_URL}/defillama/daily?start=${options.startTimestamp}&end=${options.endTimestamp}`;
+  const data: FiboDailyMetrics = await fetchURL(url);
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.add(FIBO_USDC, data.dailyFeesUsdc, "Round settlement fee accruals");
+  dailyFees.add(baseUsdc, data.dailyFeesUsdc, "Round settlement fee accruals");
   dailyRevenue.add(
-    FIBO_USDC,
+    baseUsdc,
     data.dailyRevenueUsdc,
     "Treasury fee revenue (round settlements)",
   );
   dailyProtocolRevenue.add(
-    FIBO_USDC,
+    baseUsdc,
     data.dailyProtocolRevenueUsdc,
     "Treasury revenue",
   );
   dailySupplySideRevenue.add(
-    FIBO_USDC,
+    baseUsdc,
     data.dailySupplySideRevenueUsdc,
     "Supply side",
   );
@@ -39,8 +49,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   methodology: {
     Fees: "Protocol fee accruals on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun).",
     Revenue: "Fees retained by protocol treasury (100% of fees).",
