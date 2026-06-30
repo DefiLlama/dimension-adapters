@@ -21,7 +21,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   dailyFees.add(baseUsdc, data.dailyFeesUsdc, "Round settlement fee accruals");
   dailyRevenue.add(
@@ -34,17 +33,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     data.dailyProtocolRevenueUsdc,
     "Treasury revenue",
   );
-  dailySupplySideRevenue.add(
-    baseUsdc,
-    data.dailySupplySideRevenueUsdc,
-    "Supply side",
-  );
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
   };
 };
 
@@ -54,8 +47,6 @@ const adapter: SimpleAdapter = {
     Fees: "Protocol fee accruals on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun).",
     Revenue: "Fees retained by protocol treasury (100% of fees).",
     ProtocolRevenue: "All fee revenue to treasury.",
-    SupplySideRevenue:
-      "None — winners are paid from the parimutuel pool, not a separate supply-side fee share.",
   },
   breakdownMethodology: {
     Fees: {
@@ -68,9 +59,6 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       "Treasury revenue": "100% of protocol fees",
-    },
-    SupplySideRevenue: {
-      "Supply side": "Zero",
     },
   },
   adapter: {
