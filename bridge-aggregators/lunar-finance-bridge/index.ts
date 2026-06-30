@@ -6,12 +6,12 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import {
-  deriveLunarSupplySideRevenue,
   fetchLunarAnalytics,
   LUNAR_ADAPTER_CHAINS,
   LUNAR_DEFAULT_START,
   LUNAR_PRIMARY_CHAIN,
   parseLunarUsdWei,
+  resolveLunarSupplySideRevenue,
 } from "../../helpers/lunarFinance";
 
 const emptyResult = {
@@ -38,13 +38,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = parseLunarUsdWei(
     payload.dailyProtocolRevenue ?? payload.dailyRevenue,
   );
-  const dailySupplySideRevenue =
-    parseLunarUsdWei(payload.dailySupplySideRevenue) ||
-    deriveLunarSupplySideRevenue(
-      dailyFees,
-      dailyRevenue,
-      `Lunar Finance bridge (${options.chain})`,
-    );
+  const dailySupplySideRevenue = resolveLunarSupplySideRevenue(
+    payload.dailySupplySideRevenue,
+    dailyFees,
+    dailyRevenue,
+    `Lunar Finance bridge (${options.chain})`,
+  );
 
   return {
     dailyBridgeVolume,

@@ -102,27 +102,40 @@ export const LUNAR_CHAIN_ID: Record<string, string> = {
 export const LUNAR_SUPPORTED_CHAINS = Object.keys(LUNAR_CHAIN_ID);
 
 /**
- * Chains with Lunar Finance activity (from analytics API metadata).
+ * DefiLlama chains registered on Lunar adapters (~50 supported chains).
+ * Source: Lunar backend chain-ID mapping; excludes dead/niche chains not supported in-app.
  * The API currently returns protocol-wide totals per request regardless of `chain`
  * filter, so adapters attribute API metrics on LUNAR_PRIMARY_CHAIN only.
  */
-export const LUNAR_ADAPTER_CHAINS = [
-  "solana",
-  "ethereum",
-  "arbitrum",
-  "polygon",
-  "bsc",
-  "base",
-  "optimism",
-  "avax",
-  "sui",
-  "aptos",
-  "ton",
-  "tron",
-  "near",
-  "starknet",
-  "cardano",
-] as const;
+const LUNAR_ADAPTER_CHAIN_EXCLUDE = new Set([
+  "canto",
+  "corn",
+  "cronos",
+  "etlk",
+  "flare",
+  "fuse",
+  "harmony",
+  "injective",
+  "kroma",
+  "klaytn",
+  "merlin",
+  "metis",
+  "moonriver",
+  "neutron",
+  "okexchain",
+  "osmosis",
+  "rsk",
+  "sty",
+  "telos",
+  "boba",
+  "bouncebit",
+  "btr",
+  "celestia",
+]);
+
+export const LUNAR_ADAPTER_CHAINS = Object.keys(LUNAR_CHAIN_ID).filter(
+  (chain) => !LUNAR_ADAPTER_CHAIN_EXCLUDE.has(chain),
+);
 
 /** Chain that receives protocol-wide API totals until per-chain filtering is available. */
 export const LUNAR_PRIMARY_CHAIN = "ethereum";
@@ -136,14 +149,26 @@ export interface LunarAnalyticsEnvelope {
   data?: Record<string, BalanceField>;
 }
 
+export function hasLunarUsdField(field: BalanceField): boolean {
+  return field?.usd !== undefined && field?.usd !== null;
+}
+
 /** Backend stores USD in 1e18-scaled integer strings under `.usd` */
 export function parseLunarUsdWei(field: BalanceField): number {
-  if (!field?.usd) return 0;
-  const raw = typeof field.usd === "string" ? field.usd : String(field.usd);
+  if (!hasLunarUsdField(field)) return 0;
+  const raw = typeof field!.usd === "string" ? field!.usd : String(field!.usd);
+  if (raw.trim() === "" || raw.trim() === "0") return 0;
   const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isFinite(n)) {
+    throw new Error(`Lunar analytics invalid USD value: ${JSON.stringify(raw)}`);
+  }
+  if (n < 0) {
+    throw new Error(`Lunar analytics negative USD value: ${raw}`);
+  }
   return n / 1e18;
 }
+
+const FEE_BALANCE_TOLERANCE = 1e-9;
 
 /** Enforce Fees = Revenue + SupplySideRevenue; throws on upstream imbalance. */
 export function deriveLunarSupplySideRevenue(
@@ -155,6 +180,26 @@ export function deriveLunarSupplySideRevenue(
     throw new Error(`${context}: revenue exceeds fees`);
   }
   return dailyFees - dailyRevenue;
+}
+
+/** Parse supply-side revenue from API when present; otherwise derive and validate. */
+export function resolveLunarSupplySideRevenue(
+  field: BalanceField,
+  dailyFees: number,
+  dailyRevenue: number,
+  context: string,
+): number {
+  if (!hasLunarUsdField(field)) {
+    return deriveLunarSupplySideRevenue(dailyFees, dailyRevenue, context);
+  }
+  const dailySupplySideRevenue = parseLunarUsdWei(field);
+  const total = dailyRevenue + dailySupplySideRevenue;
+  if (Math.abs(total - dailyFees) > FEE_BALANCE_TOLERANCE) {
+    throw new Error(
+      `${context}: fees (${dailyFees}) != revenue (${dailyRevenue}) + supply side (${dailySupplySideRevenue})`,
+    );
+  }
+  return dailySupplySideRevenue;
 }
 
 /**

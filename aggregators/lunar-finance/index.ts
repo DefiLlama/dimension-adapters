@@ -8,17 +8,17 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import {
-  deriveLunarSupplySideRevenue,
   fetchLunarAnalytics,
   LUNAR_ADAPTER_CHAINS,
   LUNAR_DEFAULT_START,
   LUNAR_PRIMARY_CHAIN,
   parseLunarUsdWei,
+  resolveLunarSupplySideRevenue,
 } from "../../helpers/lunarFinance";
 import {
   fetchSweeperOnChainVolume,
   LUNAR_SWEEPER_ROUTER,
-} from "../../helpers/lunarSweeperOnChain";
+} from "./sweeperOnChain";
 
 const emptyFees = {
   dailyFees: 0,
@@ -27,6 +27,12 @@ const emptyFees = {
   dailyUserFees: 0,
   dailySupplySideRevenue: 0,
 };
+
+function parseSweeperApiUsd(
+  payload: Record<string, { usd?: string | number } | undefined>,
+): number {
+  return parseLunarUsdWei(payload.dailySwapVolume ?? payload.dailyVolume);
+}
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -42,32 +48,33 @@ const fetch = async (options: FetchOptions) => {
   let baseResult = { ...emptyFees };
 
   if (isPrimaryChain) {
-    const [dexRes, sweeperRes] = await Promise.all([
-      fetchLunarAnalytics("dexs", options),
-      fetchLunarAnalytics("sweeper", options).catch(() => ({ data: {} })),
-    ]);
-
+    const dexRes = await fetchLunarAnalytics("dexs", options);
     const dexPayload = dexRes.data ?? {};
-    const sweeperPayload = sweeperRes.data ?? {};
 
     dexUsd = parseLunarUsdWei(
       dexPayload.dailySwapVolume ?? dexPayload.dailyVolume,
     );
-    sweeperApiUsd = parseLunarUsdWei(
-      sweeperPayload.dailySwapVolume ?? sweeperPayload.dailyVolume,
-    );
+
+    try {
+      const sweeperRes = await fetchLunarAnalytics("sweeper", options);
+      sweeperApiUsd = parseSweeperApiUsd(sweeperRes.data ?? {});
+    } catch (err) {
+      console.warn(
+        `Lunar Finance sweeper API unavailable for ${options.chain}:`,
+        err,
+      );
+    }
 
     const dailyFees = parseLunarUsdWei(dexPayload.dailyFees);
     const dailyRevenue = parseLunarUsdWei(
       dexPayload.dailyProtocolRevenue ?? dexPayload.dailyRevenue,
     );
-    const dailySupplySideRevenue =
-      parseLunarUsdWei(dexPayload.dailySupplySideRevenue) ||
-      deriveLunarSupplySideRevenue(
-        dailyFees,
-        dailyRevenue,
-        `Lunar Finance dexs (${options.chain})`,
-      );
+    const dailySupplySideRevenue = resolveLunarSupplySideRevenue(
+      dexPayload.dailySupplySideRevenue,
+      dailyFees,
+      dailyRevenue,
+      `Lunar Finance dexs (${options.chain})`,
+    );
 
     baseResult = {
       dailyFees,
@@ -90,8 +97,19 @@ const fetch = async (options: FetchOptions) => {
         `Failed to fetch on-chain sweeper data for ${options.chain}:`,
         err,
       );
+      try {
+        const sweeperRes = await fetchLunarAnalytics("sweeper", options);
+        const fallbackUsd = parseSweeperApiUsd(sweeperRes.data ?? {});
+        if (fallbackUsd > 0) dailyVolume.addUSDValue(fallbackUsd);
+      } catch (apiErr) {
+        console.warn(
+          `Lunar Finance sweeper API fallback failed for ${options.chain}:`,
+          apiErr,
+        );
+      }
     }
   } else if (isPrimaryChain) {
+    // Sweeper API is non-EVM; EVM sweeper volume is tracked on-chain per router chain.
     const apiUsd = dexUsd + sweeperApiUsd;
     if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
   }

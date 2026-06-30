@@ -2,7 +2,7 @@
  * On-chain LunarSweeperRouter volume (EVM only).
  */
 import { Interface } from "ethers";
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 
 /**
@@ -24,6 +24,8 @@ const ROUTER_IFACE = new Interface([
 ]);
 
 const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const SWEEP_SELECTOR = ROUTER_IFACE.getFunction("sweep")!.selector;
+const SWEEP_PERMIT2_SELECTOR = ROUTER_IFACE.getFunction("sweepWithPermit2")!.selector;
 
 type Leg = { tokenIn: string; amountIn: bigint };
 
@@ -31,20 +33,19 @@ function decodeLegs(tx: { input?: string; data?: string }): Leg[] {
   const data = tx.input ?? tx.data;
   if (!data || data.length < 10) return [];
 
-  try {
-    const parsed = ROUTER_IFACE.parseTransaction({ data });
-    if (!parsed || (parsed.name !== "sweep" && parsed.name !== "sweepWithPermit2")) {
-      return [];
-    }
-    const legs = parsed.args.legs as Array<{ tokenIn: string; amountIn: bigint }>;
-    return legs.map((leg) => ({
-      tokenIn:
-        leg.tokenIn.toLowerCase() === NATIVE ? NATIVE : leg.tokenIn,
-      amountIn: BigInt(leg.amountIn),
-    }));
-  } catch {
+  const selector = data.slice(0, 10).toLowerCase();
+  if (selector !== SWEEP_SELECTOR && selector !== SWEEP_PERMIT2_SELECTOR) {
     return [];
   }
+
+  const parsed = ROUTER_IFACE.parseTransaction({ data });
+  if (!parsed) return [];
+
+  const legs = parsed.args.legs as Array<{ tokenIn: string; amountIn: bigint }>;
+  return legs.map((leg) => ({
+    tokenIn: leg.tokenIn.toLowerCase() === NATIVE ? NATIVE : leg.tokenIn,
+    amountIn: BigInt(leg.amountIn),
+  }));
 }
 
 /**
