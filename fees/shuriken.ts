@@ -52,7 +52,8 @@ const fetchSolana = async (options: FetchOptions) => {
         TIME_RANGE
         AND address IN (
           '9cSuF94JWPb1HQzWMcifJzkoggwAtfjsojcUqny5XuJy',
-          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5'
+          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5',
+          'shrknHaCuVXmahvxLER4Qm9vooBzhbYsMP7HnAAS9Hn'
         )
         AND tx_success
         AND balance_change > 0 
@@ -68,7 +69,8 @@ const fetchSolana = async (options: FetchOptions) => {
         TIME_RANGE
         AND trades.trader_id not IN (
           '9cSuF94JWPb1HQzWMcifJzkoggwAtfjsojcUqny5XuJy',
-          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5'
+          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5',
+          'shrknHaCuVXmahvxLER4Qm9vooBzhbYsMP7HnAAS9Hn'
         )
       GROUP BY trades.tx_id
     )
