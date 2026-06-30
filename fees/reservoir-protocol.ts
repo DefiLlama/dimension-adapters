@@ -25,6 +25,7 @@ const MERKL_RECIPIENTS_SET = new Set([
   '0x65078cfef8f7c07441661393eab6cb93b31db0dd',
   '0x99a95a9e38e927486fc878f41ff8b118eb632b10',
   '0x31eae643b679a84b37e3d0b4bd4f5da90fb04a61',
+  '0x9a319b57b80c50f8b19db35d3224655f3add8e4f', // Plasma adapter wallet
 ]);
 // Stablecoins priced at $1; 6-dec ones scaled to 18-dec rUSD via SCALE_6DEC.
 const MERKL_STABLES: [string, number][] = [
@@ -41,10 +42,49 @@ const MERKL_PRICED = [
   '0xda5e1988097297dcdc1f90d4dfe7909e847cbef6', // WLFI
 ];
 
+const MERKL_STABLES_ARB: [string, number][] = [
+  ['0xaf88d065e77c8cC2239327C5EDb3A432268e5831', 6],   // USDC
+  ['0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', 6],   // USDT
+  ['0x7dfF72693f6A4149b17e7C6314655f6A9F7c8B33', 18],  // GHO
+  ['0x8292bb45bf1ee4d140127049757c2e0ff06317ed', 18],  // RLUSD
+  ['0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', 18],  // USD1
+];
+const MERKL_STABLES_BASE: [string, number][] = [
+  ['0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],   // USDC
+  ['0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', 6],   // USDT
+  ['0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA', 6],   // USDbC
+];
+const MERKL_STABLES_OP: [string, number][] = [
+  ['0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', 6],   // USDC
+  ['0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', 6],   // USDT
+  ['0x7F5c764cBc14f9669B88837ca1490cCa17c31607', 6],   // USDC.e
+];
+
+// ─── Uniswap V4 fee collection ────────────────────────────────────────────────
+const UNI_V4_PM             = '0x000000000004444c5dc75cB358380D2e3dE08A90';
+const UNI_V4_HARVEST_TOPIC  = '0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec';
+// data layout: bytes[0:32]=liquidityDelta, bytes[32:64]=fees0, bytes[64:96]=fees1
+
+// ─── FLUID native token rewards ───────────────────────────────────────────────
+const FLUID_TOKEN        = '0x6f40d4a6237c257fff2db00fa0510deeecd303eb';
+const FLUID_DISTRIBUTORS = [
+  '0x639f35c5e212d61fe14bd5cd8b66aae4df11a50c',
+  '0x7060fe0dd3e31be01efac6b28c8d38018fd163b0',
+];
+
 // ─── Morpho Blue direct market position ──────────────────────────────────────
-const MORPHO_BLUE        = '0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb';
-const MONARCH_MARKET_ID  = '0xef2c308b5abecf5c8750a1aa82b47c558005feb7a03f4f8e1ad682d71ac8d0ba';
-const MONARCH_WALLET     = '0x289C204B35859bFb924B9C0759A4FE80f610671c';
+const MORPHO_BLUE         = '0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb';
+const MONARCH_WALLET      = '0x289C204B35859bFb924B9C0759A4FE80f610671c';
+const MONARCH_MARKET_IDS  = [
+  '0xef2c308b5abecf5c8750a1aa82b47c558005feb7a03f4f8e1ad682d71ac8d0ba', // mF-ONE
+  '0xeb17955ea422baeddbfb0b8d8c9086c5be7a9cfdefb292119a102e981a30062e', // USDC/stcUSD
+  '0xbbf7ce1b40d32d3e3048f5cf27eeaa6de8cb27b80194690aab191a63381d8c99', // USDC/siUSD
+  '0x802ec6e878dc9fe6905b8a0a18962dcca10440a87fa2242fbf4a0461c7b0c789', // USDC/PT-cUSD
+  '0x03f715ef1ae508ab3e1faf4dffdbf2a077d1f0ad10c5aad42cf4438d5e3328af', // USDC/PT-stcUSD
+  '0x79b4e55cef9e7c214b5cc965e1984229ada26a66051e35366a75c4d92b776735', // USDC/PT-srUSDe
+  '0x27b9a0a5bfee98a31eb51e3850250d103a9f8e41673c782defc66aa943af0e65', // USDC/PT-srUSDe-2APR
+  '0x32b4a75db50a20f7435dfdcf54593a2e96fc97901321d3ab07268941dee93edb', // USDC/PT-siUSD
+];
 const morphoMarketAbi    = 'function market(bytes32) view returns (uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee)';
 const morphoPositionAbi  = 'function position(bytes32, address) view returns (uint256 supplyShares, uint128 borrowShares, uint128 collateral)';
 
@@ -96,15 +136,19 @@ const VAULT_POSITIONS: [string, string][] = [
   ['0xbeEF346d7099865208Ff331e4f648f4154DDAa05', '0xb82749F316CB9c06F38587aBecF3EB1bC842CC93'], // bbqUSDCreservoir fund
   ['0xbeeff2C5bF38f90e3482a8b19F12E5a6D2FCa757', '0xC5deA68CCe26c014BEC516CDA70c107c534a73C4'], // bbqUSDC-HYI fund
   ['0xdd0f28e19C1780eb6396170735D45153D261490d', '0x86Ac8e29Be5ad83c611fE054Df20970d3b4f9BE0'], // gtUSDC-old2 fund
+  // Additional positions
+  ['0xdC035D45d973E3EC169d2276DDab16f1e407384F', '0x0b578e123e3725a15F6FCbd43ADf314EaA667c04'], // sDSR (Spark USDS)
+  ['0x19ebb35279A16207Ec4ba82799CC64715065F7F6', '0x289C204B35859bFb924B9C0759A4FE80f610671c'], // Hastra PRIME
+  ['0xC21b08C16458202593D4D9B26b9984Ee67b38BbD', '0x289C204B35859bFb924B9C0759A4FE80f610671c'], // Sentora PRIME
 ];
 
 // ─── Ethereum rebasing (ERC20 balance-delta) positions ───────────────────────
 // [token, owner, underlyingDecimals]
 // Aave aTokens and other rebasing ERC20s that don't implement convertToAssets.
 const REBASE_ETH_POSITIONS: [string, string, number][] = [
-  ['0xFa82580c16A31D0c1bC632A36F82e83EfEF3Eec0', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 6],  // aEthRLUSD
+  ['0xFa82580c16A31D0c1bC632A36F82e83EfEF3Eec0', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 18], // aEthRLUSD (RLUSD=18dec)
   ['0x0C0d01AbF3e6aDfcA0989eBbA9d6e85dD58EaB1E', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 6],  // aEthPYUSD
-  ['0x7c0477d085ECb607CF8429f3eC91Ae5E1e460F4F', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 18], // aEthUSDG
+  ['0x7c0477d085ECb607CF8429f3eC91Ae5E1e460F4F', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 6],  // aEthUSDG (USDG=6dec)
   ['0xE3190143Eb552456F88464662f0c0C4aC67A77eB', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 6],  // aHorRwaRLUSD
   ['0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d', '0x3063C5907FAa10c01B242181Aa689bEb23D2BD65', 18], // stkGHO
   ['0xA01227A26A7710bc75071286539E47AdB6DEa417', '0x8d3A354f187065e0D4cEcE0C3a5886ac4eBc4903', 18], // tUSDe
@@ -133,6 +177,7 @@ const BASE_VAULT_POSITIONS: [string, string][] = [
 // ─── Plasma ERC4626 positions ─────────────────────────────────────────────────
 const PLASMA_VAULT_POSITIONS: [string, string][] = [
   ['0x1DD4b13fcAE900C60a350589BE8052959D2Ed27B', '0x289C204B35859bFb924B9C0759A4FE80f610671c'], // fUSDT0
+  ['0x1DD4b13fcAE900C60a350589BE8052959D2Ed27B', '0x9A319b57B80c50f8B19DB35D3224655F3aDd8E4f'], // fUSDT0 adapter2
   ['0xd8f824d4252caE7d5E49B95d47B0EfAfe6f2d570', '0x9A319b57B80c50f8B19DB35D3224655F3aDd8E4f'], // fUSDe
   ['0x96D7478219bFCc9B5d25F08ccb983815ee9D05e2', '0x289C204B35859bFb924B9C0759A4FE80f610671c'], // fGHO
   ['0xe818ad0D20D504C55601b9d5e0E137314414dec4', '0x9A319b57B80c50f8B19DB35D3224655F3aDd8E4f'], // k3USDT
@@ -167,6 +212,17 @@ const OP_VAULT_POSITIONS: [string, string][] = [
 // ─── BSC ERC4626 positions ────────────────────────────────────────────────────
 const BSC_VAULT_POSITIONS: [string, string][] = [
   ['0xA5b8FCa32E5252B0B58EAbf1A8c79d958F8EE6A2', '0x289C204B35859bFb924B9C0759A4FE80f610671c'], // fvUSDT (Venus)
+];
+
+// ─── Berachain ERC4626 positions ─────────────────────────────────────────────
+const BERA_VAULT_POSITIONS: [string, string][] = [
+  ['0x551FB0309dd7E1C6E1A59d9389ef10dA864a552e', '0x0db79c0770E1C647b8Bb76D94C22420fAA7Ac181'], // Ethena sUSDe
+  ['0x30BbA9CD9Eb8c95824aa42Faa1Bb397b07545bc1', '0x0db79c0770E1C647b8Bb76D94C22420fAA7Ac181'], // Re7HONEY
+];
+
+// ─── Plume ERC4626 positions ──────────────────────────────────────────────────
+const PLUME_VAULT_POSITIONS: [string, string][] = [
+  ['0xc0Df5784f28046D11813356919B869dDA5815B16', '0x98Cb8fD0D8b6bf104Fa2B5BAB91fd4B0fcC43A47'], // Re7 pUSD
 ];
 
 // ─── Mantle rebasing (Aave aTokens) ──────────────────────────────────────────
@@ -215,22 +271,45 @@ function computeRebaseYield(
 }
 
 function computeMorphoBlueYield(
-  marketFrom: any, marketTo: any,
-  posFrom: any, posTo: any,
+  marketsFrom: any[], marketsTo: any[],
+  positionsFrom: any[], positionsTo: any[],
 ): bigint {
-  if (!marketFrom || !marketTo || !posFrom || !posTo) return 0n;
-  const totAssetsFrom = BigInt(marketFrom[0]);
-  const totSharesFrom = BigInt(marketFrom[1]);
-  const totAssetsTo   = BigInt(marketTo[0]);
-  const totSharesTo   = BigInt(marketTo[1]);
-  if (totSharesFrom === 0n || totSharesTo === 0n) return 0n;
-  const supSharesFrom = BigInt(posFrom[0]);
-  const supSharesTo   = BigInt(posTo[0]);
-  const valueFrom = supSharesFrom * totAssetsFrom / totSharesFrom;
-  const valueTo   = supSharesTo   * totAssetsTo   / totSharesTo;
-  const delta = valueTo - valueFrom;
-  if (delta <= 0n) return 0n;
-  return delta * SCALE_6DEC; // loan asset is USDC (6 dec); scale to 18-dec rUSD
+  let total = 0n;
+  for (let i = 0; i < marketsFrom.length; i++) {
+    const mf = marketsFrom[i], mt = marketsTo[i], pf = positionsFrom[i], pt = positionsTo[i];
+    if (!mf || !mt || !pf || !pt) continue;
+    const totSharesFrom = BigInt(mf[1]);
+    const totSharesTo   = BigInt(mt[1]);
+    if (totSharesFrom === 0n || totSharesTo === 0n) continue;
+    const valueFrom = BigInt(pf[0]) * BigInt(mf[0]) / totSharesFrom;
+    const valueTo   = BigInt(pt[0]) * BigInt(mt[0]) / totSharesTo;
+    const delta = valueTo - valueFrom;
+    if (delta <= 0n) continue;
+    total += delta * SCALE_6DEC; // loan asset is USDC (6 dec); scale to 18-dec rUSD
+  }
+  return total;
+}
+
+async function collectMerklStableYield(
+  options: FetchOptions,
+  stables: [string, number][],
+): Promise<bigint> {
+  const distTopic   = padAddr(MERKL_DISTRIBUTOR_ETH);
+  const transferAbi = 'event Transfer(address indexed from, address indexed to, uint256 value)';
+  const logArrays   = await Promise.all(
+    stables.map(([addr]) => options.getLogs({ target: addr, eventAbi: transferAbi,
+      topics: [TRANSFER_TOPIC, distTopic, null as any] })),
+  );
+  let total = 0n;
+  for (let i = 0; i < stables.length; i++) {
+    const dec = stables[i][1];
+    for (const log of logArrays[i]) {
+      if (!MERKL_RECIPIENTS_SET.has((log.to as string).toLowerCase())) continue;
+      const raw = BigInt(log.value);
+      total += dec === 6 ? raw * SCALE_6DEC : raw;
+    }
+  }
+  return total;
 }
 
 // ─── prefetch ─────────────────────────────────────────────────────────────────
@@ -255,6 +334,8 @@ async function prefetch(options: FetchOptions): Promise<any> {
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
     monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
+    beraBalances,        beraRatesFrom,        beraRatesTo,
+    plumeBalances,       plumeRatesFrom,       plumeRatesTo,
   ] = await Promise.all([
     options.fromApi.call({ target: WSRUSD,        abi: convertToAssetsAbi,  params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
     options.toApi.call({   target: WSRUSD,        abi: convertToAssetsAbi,  params: [WAD.toString()], chain: CHAIN.ETHEREUM }),
@@ -305,11 +386,19 @@ async function prefetch(options: FetchOptions): Promise<any> {
     // Plasma rebasing
     options.fromApi.multiCall({ abi: balanceOfAbi, calls: rebalCalls(REBASE_PLASMA_POSITIONS), permitFailure: true, chain: CHAIN.PLASMA }),
     options.toApi.multiCall({   abi: balanceOfAbi, calls: rebalCalls(REBASE_PLASMA_POSITIONS), permitFailure: true, chain: CHAIN.PLASMA }),
-    // Morpho Blue direct market (Monarch mF-ONE, loan asset USDC)
-    options.fromApi.call({ target: MORPHO_BLUE, abi: morphoMarketAbi,    params: [MONARCH_MARKET_ID],                   chain: CHAIN.ETHEREUM }),
-    options.toApi.call({   target: MORPHO_BLUE, abi: morphoMarketAbi,    params: [MONARCH_MARKET_ID],                   chain: CHAIN.ETHEREUM }),
-    options.fromApi.call({ target: MORPHO_BLUE, abi: morphoPositionAbi,  params: [MONARCH_MARKET_ID, MONARCH_WALLET],   chain: CHAIN.ETHEREUM }),
-    options.toApi.call({   target: MORPHO_BLUE, abi: morphoPositionAbi,  params: [MONARCH_MARKET_ID, MONARCH_WALLET],   chain: CHAIN.ETHEREUM }),
+    // Morpho Blue direct markets (8 Monarch markets, loan asset USDC)
+    options.fromApi.multiCall({ target: MORPHO_BLUE, abi: morphoMarketAbi,   calls: MONARCH_MARKET_IDS.map(id => ({ params: [id] })),                  permitFailure: true, chain: CHAIN.ETHEREUM }),
+    options.toApi.multiCall({   target: MORPHO_BLUE, abi: morphoMarketAbi,   calls: MONARCH_MARKET_IDS.map(id => ({ params: [id] })),                  permitFailure: true, chain: CHAIN.ETHEREUM }),
+    options.fromApi.multiCall({ target: MORPHO_BLUE, abi: morphoPositionAbi, calls: MONARCH_MARKET_IDS.map(id => ({ params: [id, MONARCH_WALLET] })), permitFailure: true, chain: CHAIN.ETHEREUM }),
+    options.toApi.multiCall({   target: MORPHO_BLUE, abi: morphoPositionAbi, calls: MONARCH_MARKET_IDS.map(id => ({ params: [id, MONARCH_WALLET] })), permitFailure: true, chain: CHAIN.ETHEREUM }),
+    // Bera ERC4626
+    options.fromApi.multiCall({ abi: balanceOfAbi,       calls: balCalls(BERA_VAULT_POSITIONS),  permitFailure: true, chain: CHAIN.BERACHAIN }),
+    options.fromApi.multiCall({ abi: convertToAssetsAbi, calls: rateCalls(BERA_VAULT_POSITIONS), permitFailure: true, chain: CHAIN.BERACHAIN }),
+    options.toApi.multiCall({   abi: convertToAssetsAbi, calls: rateCalls(BERA_VAULT_POSITIONS), permitFailure: true, chain: CHAIN.BERACHAIN }),
+    // Plume ERC4626
+    options.fromApi.multiCall({ abi: balanceOfAbi,       calls: balCalls(PLUME_VAULT_POSITIONS),  permitFailure: true, chain: CHAIN.PLUME }),
+    options.fromApi.multiCall({ abi: convertToAssetsAbi, calls: rateCalls(PLUME_VAULT_POSITIONS), permitFailure: true, chain: CHAIN.PLUME }),
+    options.toApi.multiCall({   abi: convertToAssetsAbi, calls: rateCalls(PLUME_VAULT_POSITIONS), permitFailure: true, chain: CHAIN.PLUME }),
   ]);
 
   return {
@@ -328,6 +417,8 @@ async function prefetch(options: FetchOptions): Promise<any> {
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
     monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
+    beraBalances, beraRatesFrom, beraRatesTo,
+    plumeBalances, plumeRatesFrom, plumeRatesTo,
   };
 }
 
@@ -349,6 +440,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     rebaseMantleBalsFrom, rebaseMantleBalsTo,
     rebasePlasmaBalsFrom, rebasePlasmaBalsTo,
     monarchMarketFrom, monarchMarketTo, monarchPosFrom, monarchPosTo,
+    beraBalances, beraRatesFrom, beraRatesTo,
+    plumeBalances, plumeRatesFrom, plumeRatesTo,
   } = options.preFetchedResults;
 
   const wsrRateDelta = BigInt(wsrRateTo) - BigInt(wsrRateFrom);
@@ -398,6 +491,29 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       }
     }
 
+    // FLUID native token rewards from treasury distributors
+    const fluidLogs = (await Promise.all(
+      FLUID_DISTRIBUTORS.map(dist => options.getLogs({ target: FLUID_TOKEN, eventAbi: transferAbi,
+        topics: [TRANSFER_TOPIC, padAddr(dist), null as any] })),
+    )).flat();
+    for (const log of fluidLogs) {
+      if (!MERKL_RECIPIENTS_SET.has((log.to as string).toLowerCase())) continue;
+      dailyFees.add(FLUID_TOKEN, BigInt(log.value), METRIC.ASSETS_YIELDS);
+    }
+
+    // Uniswap V4 fee harvests: ModifyLiquidity on PoolManager (USDe/USDT pool)
+    const v4LogsEth = await options.getLogs({
+      target: UNI_V4_PM,
+      topics: [UNI_V4_HARVEST_TOPIC, null as any, padAddr(MONARCH_WALLET)],
+    });
+    for (const log of v4LogsEth) {
+      const d = (log as any).data as string; // "0x" + hex; [32:64]=fees0(18dec), [64:96]=fees1(6dec)
+      const fees0 = BigInt('0x' + d.slice(66, 130));
+      const fees1 = BigInt('0x' + d.slice(130, 194));
+      if (fees0 > 0n) dailyFees.add(RUSD, fees0,              METRIC.ASSETS_YIELDS); // USDe 18-dec
+      if (fees1 > 0n) dailyFees.add(RUSD, fees1 * SCALE_6DEC, METRIC.ASSETS_YIELDS); // USDT 6-dec
+    }
+
     // Cost of Revenue: yield paid to wsrUSD + srUSD holders
     const [wsrSupply, srSupply] = await Promise.all([
       options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
@@ -411,6 +527,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   } else if (options.chain === CHAIN.ARBITRUM) {
     const y = computeErc4626Yield(ARB_VAULT_POSITIONS, arbBalances, arbRatesFrom, arbRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
+    const merklY = await collectMerklStableYield(options, MERKL_STABLES_ARB);
+    if (merklY > 0n) dailyFees.add(RUSD, merklY, METRIC.ASSETS_YIELDS);
     try {
       const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
       const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
@@ -420,6 +538,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   } else if (options.chain === CHAIN.BASE) {
     const y = computeErc4626Yield(BASE_VAULT_POSITIONS, baseBalances, baseRatesFrom, baseRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
+    const merklY = await collectMerklStableYield(options, MERKL_STABLES_BASE);
+    if (merklY > 0n) dailyFees.add(RUSD, merklY, METRIC.ASSETS_YIELDS);
 
   } else if (options.chain === CHAIN.PLASMA) {
     const erc4626Y = computeErc4626Yield(PLASMA_VAULT_POSITIONS, plasmaBalances, plasmaRatesFrom, plasmaRatesTo);
@@ -451,9 +571,31 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   } else if (options.chain === CHAIN.OPTIMISM) {
     const y = computeErc4626Yield(OP_VAULT_POSITIONS, opBalances, opRatesFrom, opRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
+    const merklY = await collectMerklStableYield(options, MERKL_STABLES_OP);
+    if (merklY > 0n) dailyFees.add(RUSD, merklY, METRIC.ASSETS_YIELDS);
 
   } else if (options.chain === CHAIN.BSC) {
     const y = computeErc4626Yield(BSC_VAULT_POSITIONS, bscBalances, bscRatesFrom, bscRatesTo);
+    if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
+    // Uniswap V4 fee harvests on BNB (USDT/USDC pool; both 18-dec on BSC)
+    const v4LogsBsc = await options.getLogs({
+      target: UNI_V4_PM,
+      topics: [UNI_V4_HARVEST_TOPIC, null as any, padAddr(MONARCH_WALLET)],
+    });
+    for (const log of v4LogsBsc) {
+      const d = (log as any).data as string;
+      const fees0 = BigInt('0x' + d.slice(66, 130));
+      const fees1 = BigInt('0x' + d.slice(130, 194));
+      if (fees0 > 0n) dailyFees.add(RUSD, fees0, METRIC.ASSETS_YIELDS);
+      if (fees1 > 0n) dailyFees.add(RUSD, fees1, METRIC.ASSETS_YIELDS);
+    }
+
+  } else if (options.chain === CHAIN.BERACHAIN) {
+    const y = computeErc4626Yield(BERA_VAULT_POSITIONS, beraBalances, beraRatesFrom, beraRatesTo);
+    if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
+
+  } else if (options.chain === CHAIN.PLUME) {
+    const y = computeErc4626Yield(PLUME_VAULT_POSITIONS, plumeBalances, plumeRatesFrom, plumeRatesTo);
     if (y > 0n) dailyFees.add(RUSD, y, METRIC.ASSETS_YIELDS);
 
   } else {
@@ -510,6 +652,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.KATANA]:      { start: '2026-04-01' },
     [CHAIN.OPTIMISM]:    { start: '2026-01-01' },
     [CHAIN.BSC]:         { start: '2025-05-12' },
+    [CHAIN.BERACHAIN]:   { start: '2026-01-01' },
+    [CHAIN.PLUME]:       { start: '2026-01-01' },
   },
   allowNegativeValue: true,
   doublecounted: true,
