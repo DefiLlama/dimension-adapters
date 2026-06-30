@@ -2,9 +2,15 @@
  * On-chain LunarSweeperRouter volume (EVM only).
  */
 import { Interface } from "ethers";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions } from "../adapters/types";
 import { Balances } from "@defillama/sdk";
 
+/**
+ * LunarSweeperRouter deployments for on-chain sweeper volume.
+ * Source: Lunar Finance team — verified contract deployments.
+ * - `bsc.address`: LunarSweeperRouter on BNB Chain (BscScan: 0x2e54Bd8c811e1a8EC80D869b9750FE7e45dEE561)
+ * - `bsc.start`: First date with meaningful sweeper router traffic on BSC
+ */
 export const LUNAR_SWEEPER_ROUTER: Record<string, { address: string; start: string }> = {
   bsc: {
     address: "0x2e54Bd8c811e1a8EC80D869b9750FE7e45dEE561",

@@ -47,12 +47,12 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
   };
 
-  // Create balances object for all chains
   const dailyVolume = options.createBalances();
-  if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
+  const hasOnChainSweeper = !!LUNAR_SWEEPER_ROUTER[options.chain];
 
-  // BSC only: merge API USD with on-chain sweeper router token amounts
-  if (LUNAR_SWEEPER_ROUTER[options.chain]) {
+  if (hasOnChainSweeper) {
+    // DEX volume from API only; sweeper volume comes from on-chain router balances
+    if (dexUsd > 0) dailyVolume.addUSDValue(dexUsd);
     try {
       const onChain = await fetchSweeperOnChainVolume(options);
       for (const [token, amount] of Object.entries(onChain.getBalances())) {
@@ -60,19 +60,51 @@ const fetch = async (options: FetchOptions) => {
         dailyVolume.add(token, amount);
       }
     } catch (err) {
-      // Fallback: use API data only if on-chain fetch fails
       console.warn(
         `Failed to fetch on-chain sweeper data for ${options.chain}:`,
         err,
       );
+      if (sweeperApiUsd > 0) dailyVolume.addUSDValue(sweeperApiUsd);
     }
+  } else if (apiUsd > 0) {
+    dailyVolume.addUSDValue(apiUsd);
   }
 
   return { ...baseResult, dailyVolume };
 };
 
+const methodology = {
+  Volume:
+    "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the sweeper analytics API (non-EVM chains) or on-chain LunarSweeperRouter leg amounts where deployed (BSC).",
+  Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
+  Revenue: "Protocol fees retained by Lunar Finance.",
+  ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    "DEX aggregator volume":
+      "Meta-aggregator swap volume from the Lunar analytics API (dexs endpoint).",
+    "Sweeper volume (API)":
+      "Batch sweeper volume from the Lunar analytics API (sweeper endpoint) on chains without an on-chain router.",
+    "Sweeper volume (on-chain)":
+      "Token input amounts from LunarSweeperRouter sweep transactions where the router is deployed.",
+  },
+  Fees: {
+    "User fees":
+      "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
+  },
+  Revenue: {
+    "Protocol fees": "Protocol fees retained by Lunar Finance.",
+  },
+  ProtocolRevenue: {
+    "Treasury fees": "Fees collected by the Lunar Finance treasury.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(
     Object.keys(LUNAR_CHAIN_ID).map((chain) => [
       chain,
@@ -83,13 +115,8 @@ const adapter: SimpleAdapter = {
       },
     ]),
   ),
-  methodology: {
-    Volume:
-      "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the s[...]",
-    Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
-    Revenue: "Protocol fees retained by Lunar Finance.",
-    ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
