@@ -1204,6 +1204,9 @@ const feesConfigs: Record<string, Record<string, any>> = {
   "velox": {
     [CHAIN.BASE]: { factory: "0xa28dBAE4D926067F4c343aA8071e833b04C8b99E", fees: 0.0001, start: "2026-03-08" }
   },
+  "hyperlynx": {
+    [CHAIN.HYPERLIQUID]: { factory: "0x11cD396F814Bd31eBa7969c1B27a7C347785951f", start: "2026-06-22" }
+  },
 }
 
 const feesMethodologyMap: Record<string, any> = {

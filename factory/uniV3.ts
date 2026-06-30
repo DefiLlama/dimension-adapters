@@ -370,6 +370,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "intrinsic": {
     [CHAIN.ROOTSTOCK]: { factory: '0x82dF0a279767021734EcE752979B34b3959C25D8', start: '2025-12-05', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "hyperlynx-v3": {
+    [CHAIN.HYPERLIQUID]: { factory: '0x418CB4e449869e97DB45586EBD9350E1d0424f95', start: '2026-06-19', userFeesRatio: 1, revenueRatio: 0.1429, protocolRevenueRatio: 0.1429 },
   }
 }
 
