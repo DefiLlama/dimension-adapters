@@ -101,6 +101,32 @@ export const LUNAR_CHAIN_ID: Record<string, string> = {
 
 export const LUNAR_SUPPORTED_CHAINS = Object.keys(LUNAR_CHAIN_ID);
 
+/**
+ * Chains with Lunar Finance activity (from analytics API metadata).
+ * The API currently returns protocol-wide totals per request regardless of `chain`
+ * filter, so adapters attribute API metrics on LUNAR_PRIMARY_CHAIN only.
+ */
+export const LUNAR_ADAPTER_CHAINS = [
+  "solana",
+  "ethereum",
+  "arbitrum",
+  "polygon",
+  "bsc",
+  "base",
+  "optimism",
+  "avax",
+  "sui",
+  "aptos",
+  "ton",
+  "tron",
+  "near",
+  "starknet",
+  "cardano",
+] as const;
+
+/** Chain that receives protocol-wide API totals until per-chain filtering is available. */
+export const LUNAR_PRIMARY_CHAIN = "ethereum";
+
 export const LUNAR_DEFAULT_START = "2024-01-01";
 
 type BalanceField = { usd?: string | number } | undefined;
@@ -119,6 +145,23 @@ export function parseLunarUsdWei(field: BalanceField): number {
   return n / 1e18;
 }
 
+/** Enforce Fees = Revenue + SupplySideRevenue; throws on upstream imbalance. */
+export function deriveLunarSupplySideRevenue(
+  dailyFees: number,
+  dailyRevenue: number,
+  context: string,
+): number {
+  if (dailyRevenue > dailyFees) {
+    throw new Error(`${context}: revenue exceeds fees`);
+  }
+  return dailyFees - dailyRevenue;
+}
+
+/**
+ * Fetch Lunar analytics for `dexs`, `bridge`, or `sweeper` over the adapter time window.
+ * Uses `options.startTimestamp` / `options.endTimestamp` and optional chain filter.
+ * @throws When the API envelope has `success: false` or missing `data`.
+ */
 export async function fetchLunarAnalytics(
   path: "dexs" | "bridge" | "sweeper",
   options: FetchOptions,

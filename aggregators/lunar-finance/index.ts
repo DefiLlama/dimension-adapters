@@ -8,9 +8,11 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import {
+  deriveLunarSupplySideRevenue,
   fetchLunarAnalytics,
-  LUNAR_CHAIN_ID,
+  LUNAR_ADAPTER_CHAINS,
   LUNAR_DEFAULT_START,
+  LUNAR_PRIMARY_CHAIN,
   parseLunarUsdWei,
 } from "../../helpers/lunarFinance";
 import {
@@ -18,41 +20,65 @@ import {
   LUNAR_SWEEPER_ROUTER,
 } from "../../helpers/lunarSweeperOnChain";
 
+const emptyFees = {
+  dailyFees: 0,
+  dailyRevenue: 0,
+  dailyProtocolRevenue: 0,
+  dailyUserFees: 0,
+  dailySupplySideRevenue: 0,
+};
+
 const fetch = async (options: FetchOptions) => {
-  const [dexRes, sweeperRes] = await Promise.all([
-    fetchLunarAnalytics("dexs", options),
-    fetchLunarAnalytics("sweeper", options).catch(() => ({ data: {} })),
-  ]);
-
-  const dexPayload = dexRes.data ?? {};
-  const sweeperPayload = sweeperRes.data ?? {};
-
-  const dexUsd = parseLunarUsdWei(
-    dexPayload.dailySwapVolume ?? dexPayload.dailyVolume,
-  );
-  const sweeperApiUsd = parseLunarUsdWei(
-    sweeperPayload.dailySwapVolume ?? sweeperPayload.dailyVolume,
-  );
-  const apiUsd = dexUsd + sweeperApiUsd;
-
-  const dailyFees = parseLunarUsdWei(dexPayload.dailyFees);
-  const dailyRevenue = parseLunarUsdWei(
-    dexPayload.dailyProtocolRevenue ?? dexPayload.dailyRevenue,
-  );
-
-  const baseResult = {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyUserFees: dailyFees,
-  };
-
   const dailyVolume = options.createBalances();
   const hasOnChainSweeper = !!LUNAR_SWEEPER_ROUTER[options.chain];
+  const isPrimaryChain = options.chain === LUNAR_PRIMARY_CHAIN;
+
+  if (!isPrimaryChain && !hasOnChainSweeper) {
+    return { ...emptyFees, dailyVolume };
+  }
+
+  let dexUsd = 0;
+  let sweeperApiUsd = 0;
+  let baseResult = { ...emptyFees };
+
+  if (isPrimaryChain) {
+    const [dexRes, sweeperRes] = await Promise.all([
+      fetchLunarAnalytics("dexs", options),
+      fetchLunarAnalytics("sweeper", options).catch(() => ({ data: {} })),
+    ]);
+
+    const dexPayload = dexRes.data ?? {};
+    const sweeperPayload = sweeperRes.data ?? {};
+
+    dexUsd = parseLunarUsdWei(
+      dexPayload.dailySwapVolume ?? dexPayload.dailyVolume,
+    );
+    sweeperApiUsd = parseLunarUsdWei(
+      sweeperPayload.dailySwapVolume ?? sweeperPayload.dailyVolume,
+    );
+
+    const dailyFees = parseLunarUsdWei(dexPayload.dailyFees);
+    const dailyRevenue = parseLunarUsdWei(
+      dexPayload.dailyProtocolRevenue ?? dexPayload.dailyRevenue,
+    );
+    const dailySupplySideRevenue =
+      parseLunarUsdWei(dexPayload.dailySupplySideRevenue) ||
+      deriveLunarSupplySideRevenue(
+        dailyFees,
+        dailyRevenue,
+        `Lunar Finance dexs (${options.chain})`,
+      );
+
+    baseResult = {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailyUserFees: dailyFees,
+      dailySupplySideRevenue,
+    };
+  }
 
   if (hasOnChainSweeper) {
-    // DEX volume from API only; sweeper volume comes from on-chain router balances
-    if (dexUsd > 0) dailyVolume.addUSDValue(dexUsd);
     try {
       const onChain = await fetchSweeperOnChainVolume(options);
       for (const [token, amount] of Object.entries(onChain.getBalances())) {
@@ -64,10 +90,10 @@ const fetch = async (options: FetchOptions) => {
         `Failed to fetch on-chain sweeper data for ${options.chain}:`,
         err,
       );
-      if (sweeperApiUsd > 0) dailyVolume.addUSDValue(sweeperApiUsd);
     }
-  } else if (apiUsd > 0) {
-    dailyVolume.addUSDValue(apiUsd);
+  } else if (isPrimaryChain) {
+    const apiUsd = dexUsd + sweeperApiUsd;
+    if (apiUsd > 0) dailyVolume.addUSDValue(apiUsd);
   }
 
   return { ...baseResult, dailyVolume };
@@ -75,10 +101,12 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the sweeper analytics API (non-EVM chains) or on-chain LunarSweeperRouter leg amounts where deployed (BSC).",
+    "USD value of tokens swapped through Lunar Finance, including meta-aggregator routes (Jupiter, LiFi, 0x, Relay, Orca, etc.) from the Lunar analytics API, plus batch sweeper volume from the sweeper analytics API (non-EVM chains) or on-chain LunarSweeperRouter leg amounts where deployed (BSC). Protocol-wide API totals are attributed to Ethereum until the analytics API exposes per-chain breakdown.",
   Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
   Revenue: "Protocol fees retained by Lunar Finance.",
   ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
+  SupplySideRevenue:
+    "Fees paid to underlying DEX liquidity providers (total fees minus Lunar protocol revenue).",
 };
 
 const breakdownMethodology = {
@@ -100,13 +128,17 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     "Treasury fees": "Fees collected by the Lunar Finance treasury.",
   },
+  SupplySideRevenue: {
+    "LP fees":
+      "Fees paid to underlying DEX liquidity providers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: Object.fromEntries(
-    Object.keys(LUNAR_CHAIN_ID).map((chain) => [
+    LUNAR_ADAPTER_CHAINS.map((chain) => [
       chain,
       {
         fetch,

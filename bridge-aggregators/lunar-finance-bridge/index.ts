@@ -6,13 +6,28 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import {
+  deriveLunarSupplySideRevenue,
   fetchLunarAnalytics,
-  LUNAR_CHAIN_ID,
+  LUNAR_ADAPTER_CHAINS,
   LUNAR_DEFAULT_START,
+  LUNAR_PRIMARY_CHAIN,
   parseLunarUsdWei,
 } from "../../helpers/lunarFinance";
 
+const emptyResult = {
+  dailyBridgeVolume: 0,
+  dailyFees: 0,
+  dailyRevenue: 0,
+  dailyProtocolRevenue: 0,
+  dailyUserFees: 0,
+  dailySupplySideRevenue: 0,
+};
+
 const fetch = async (options: FetchOptions) => {
+  if (options.chain !== LUNAR_PRIMARY_CHAIN) {
+    return emptyResult;
+  }
+
   const res = await fetchLunarAnalytics("bridge", options);
   const payload = res.data ?? {};
 
@@ -23,7 +38,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = parseLunarUsdWei(
     payload.dailyProtocolRevenue ?? payload.dailyRevenue,
   );
-  const dailySupplySideRevenue = Math.max(0, dailyFees - dailyRevenue);
+  const dailySupplySideRevenue =
+    parseLunarUsdWei(payload.dailySupplySideRevenue) ||
+    deriveLunarSupplySideRevenue(
+      dailyFees,
+      dailyRevenue,
+      `Lunar Finance bridge (${options.chain})`,
+    );
 
   return {
     dailyBridgeVolume,
@@ -37,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   BridgeVolume:
-    "USD value of assets bridged cross-chain through Lunar Finance. Routes use LiFi, Relay, Hyperlane, Stargate, Mayan, and other bridge providers. Data from Lunar analytics API (confirmed transactions via lunarfinance.io).",
+    "USD value of assets bridged cross-chain through Lunar Finance. Routes use LiFi, Relay, Hyperlane, Stargate, Mayan, and other bridge providers. Data from Lunar analytics API (confirmed transactions via lunarfinance.io). Protocol-wide API totals are attributed to Ethereum until the analytics API exposes per-chain breakdown.",
   Fees: "User-paid bridge fees including underlying provider fees.",
   Revenue: "Protocol fees retained by Lunar Finance.",
   ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
@@ -70,7 +91,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: Object.fromEntries(
-    Object.keys(LUNAR_CHAIN_ID).map((chain) => [
+    LUNAR_ADAPTER_CHAINS.map((chain) => [
       chain,
       { fetch, start: LUNAR_DEFAULT_START },
     ]),

@@ -47,6 +47,11 @@ function decodeLegs(tx: { input?: string; data?: string }): Leg[] {
   }
 }
 
+/**
+ * Sum token input amounts from successful LunarSweeperRouter transactions in the
+ * adapter block range for chains with a deployed router.
+ * @returns Balances of swept token inputs (native/ERC-20 addresses as keys).
+ */
 export async function fetchSweeperOnChainVolume(
   options: FetchOptions,
 ): Promise<Balances> {
