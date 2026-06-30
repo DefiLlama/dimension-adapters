@@ -1,10 +1,11 @@
 import {Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {queryDuneSql} from "../../helpers/dune";
+import {queryAllium} from "../../helpers/allium";
 import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
-import {getBlock} from "../../helpers/getBlock";
 import {httpGet} from "../../utils/fetchURL";
+import * as sdk from "@defillama/sdk";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -89,6 +90,19 @@ const EVM_CONTRACTS: Record<string, any> = {
 const SECONDS_PER_DAY = 24 * 60 * 60;
 const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
 
+// A yield drip mints a tiny fraction of a holder's balance (~the daily T-bill
+// rate, e.g. 0.0086%/day); new subscriptions/principal mint a large fraction.
+// Classifying each on-chain Issue event by mintValue/recipientBalance cleanly
+// separates the two. Being purely on-chain, it has full history (no 30-day feed
+// limit) and needs no distribution-time window.
+// Validation: against the Securitize issuer ledger (token_transactions, the
+// labelled issuance_drip vs issuance_fiat subtypes) with real wallet balances,
+// on all three chain types — drips land on the published daily rate
+// (~0.0086-0.0097%/day), subscriptions sit >=0.5%; a 0.5% cut keeps ~97.6% of
+// yield by value and leaks 0% of principal. Daily rates cross-checked against
+// Securitize's published per-chain BUIDL rate sheet.
+const YIELD_RATIO_THRESHOLD = 0.005;
+
 const getPeriodFraction = (options: FetchOptions, denominator: number) =>
   (options.toTimestamp - options.fromTimestamp) / denominator;
 
@@ -114,61 +128,102 @@ const getRedstoneDailyAccrual = async (symbol: string, options: FetchOptions) =>
   return prices[0].value;
 }
 
-const isWeekend = (timestampSeconds: number) =>
-  [0, 6].includes(
-    new Date(timestampSeconds * 1000).getUTCDay()
-  );
-
-
 const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
+  const fromBlock = await options.getFromBlock()
+  const toBlock = await options.getToBlock()
+
   for (const contract of EVM_CONTRACTS[options.chain].contracts as EvmContract[]) {
+    const bps = contract.bps ?? EVM_CONTRACTS[options.chain].bps;
 
-
-    // estimate management fee
+    // Management fee on AUM (token supply), prorated for the period.
     const totalSupply = await options.fromApi.call({
       target: contract.address,
       abi: EVM_ABI.totalSupply,
       permitFailure: true,
     })
-    
-    // contract was not deployed yet
-    if (!totalSupply) continue;
-    
-    const mngmtFee = estimateManagementFee(totalSupply, contract.bps ?? EVM_CONTRACTS[options.chain].bps, options);
+
+    // No supply: either not deployed yet, or a transient read failure (permitFailure).
+    // Log so a recoverable RPC failure isn't silently dropped as "not deployed".
+    if (!totalSupply) {
+      console.error(`securitize: no totalSupply for ${contract.address} on ${options.chain} — skipping (not deployed yet or RPC failure)`)
+      continue;
+    }
+
+    const mngmtFee = estimateManagementFee(totalSupply, bps, options);
     dailyFees.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
     dailyRevenue.addUSDValue(mngmtFee, METRIC.ManagementFeesBuidl)
 
+    // Share classes with their own RedStone accrual feed (BUIDL-I) use it directly.
     if (contract.dailyAccrualFeed) {
       const dailyAccrual = await getRedstoneDailyAccrual(contract.dailyAccrualFeed, options);
-      // The RedStone feed is queried for this adapter's bounded v1 window and is treated as the period's published accrual.
       const yieldForPeriod = getSupplyInUsd(totalSupply) * dailyAccrual * getPeriodFraction(options, SECONDS_PER_DAY);
       dailyFees.addUSDValue(yieldForPeriod, METRIC.AssetYields)
       dailySupplySideRevenue.addUSDValue(yieldForPeriod, METRIC.AssetYieldsToLP)
       continue;
     }
 
-    // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
-    if (isWeekend(options.endTimestamp)) {
-      continue
-    }
-    const [startTs, endTs]= getYieldDistributionHours(options)
-    const getFromBlock = await getBlock(startTs, options.chain)
-    const getToBlock =  await getBlock(endTs, options.chain)
-    const issueEvents: Array<any> = await options.getLogs({
+    // Yield is distributed by minting to holders. Capture every Issue (mint) over
+    // the whole period and keep only the ones that are a small fraction of the
+    // recipient's balance (a yield drip), discarding large mints (new principal /
+    // subscriptions). See YIELD_RATIO_THRESHOLD. Each mint is classified against the
+    // recipient's balance at the block BEFORE the mint (prior balance), so a holder
+    // who subscribes and is dripped in the same period is rated correctly.
+    const logs: Array<any> = await options.getLogs({
       target: contract.address,
       eventAbi: EVM_ABI.issue,
-      fromBlock: getFromBlock,
-      toBlock: getToBlock,
+      fromBlock,
+      toBlock,
+      entireLog: true,
+      parseLog: true,
     })
-    issueEvents.forEach(e => {
-      dailyFees.addToken(contract.address, e.value, METRIC.AssetYields)
-      dailySupplySideRevenue.addToken(contract.address, e.value, METRIC.AssetYieldsToLP)
-    })
+    if (!logs.length) continue;
 
+    const events = logs.map((log: any) => ({
+      to: log.parsedLog.args.to,
+      value: log.parsedLog.args.value,
+      block: Number(log.blockNumber),
+    }))
+
+    // Group recipients by mint block; one multiCall per block reads every
+    // recipient's balance at block-1 (their balance just before that mint).
+    const recipientsByBlock = new Map<number, Set<string>>();
+    for (const e of events) {
+      if (!recipientsByBlock.has(e.block)) recipientsByBlock.set(e.block, new Set());
+      recipientsByBlock.get(e.block)!.add(e.to);
+    }
+    const priorBalance: Record<string, number> = {}; // key `${block}:${to}`
+    for (const [block, recipientSet] of recipientsByBlock) {
+      const recipients = [...recipientSet];
+      const api = new sdk.ChainApi({ chain: options.chain, block: block - 1 });
+      const balances = await api.multiCall({
+        abi: 'erc20:balanceOf',
+        target: contract.address,
+        calls: recipients,
+        permitFailure: true,
+      })
+      recipients.forEach((r, i) => {
+        // permitFailure makes a failed read look like 0 (→ ratio Infinity → mint
+        // dropped as principal). Log it so a transient failure doesn't silently
+        // undercount yield instead of being mistaken for a genuine zero balance.
+        if (balances[i] == null) {
+          console.error(`securitize: balanceOf failed for ${r} at block ${block - 1} on ${options.chain} — yield for that mint may be undercounted`)
+        }
+        priorBalance[`${block}:${r}`] = Number(balances[i] ?? 0);
+      });
+    }
+
+    for (const e of events) {
+      const bal = priorBalance[`${e.block}:${e.to}`] ?? 0;
+      const ratio = bal > 0 ? Number(e.value) / bal : Infinity;
+      if (ratio < YIELD_RATIO_THRESHOLD) {
+        dailyFees.addToken(contract.address, e.value, METRIC.AssetYields)
+        dailySupplySideRevenue.addToken(contract.address, e.value, METRIC.AssetYieldsToLP)
+      }
+    }
   }
 
   return {
@@ -182,41 +237,60 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
 interface IData {
   total_yield: number;
 }
-// Limited official docs; based on third-party sources and on-chain patterns:
-// Accrual: Daily at 8:00 PM UTC (off-chain) - https://kitchen.steakhouse.financial/p/blackrock-buidl
-// Distribution: Next business day ~3:00 PM UTC (on-chain) - https://www.marketsmedia.com/securitize-adds-features-for-blackrock-tokenized-treasury-fund/
-// Older sources mentioning the distribution happens monthly. but it has changed to daily -  https://x.com/Securitize/status/1940064769320382487
-const getYieldDistributionHours = (options: FetchOptions)=> {
-  const distributionDayStart = options.endTimestamp >= options.startOfDay + 16 * 3600
-    ? options.startOfDay
-    : options.startOfDay - SECONDS_PER_DAY;
-  const startTs = distributionDayStart + 15 * 3600; // 15:00:00 UTC
-  const endTs = distributionDayStart + 16 * 3600; // 16:00:00 UTC
-  return [startTs, endTs]
-}
+
+// Reconstruct each wallet's prior balance from its net transfer flow, then keep
+// only mints that are a small fraction of that balance (a yield drip), discarding
+// large mints (new principal / subscriptions). Same classifier as the EVM path,
+// run warehouse-side because Aptos/Solana lack cheap historical per-account
+// balance reads. Validated against labelled data on both chains: drips land on
+// the daily rate (~0.0097%/day), subscriptions sit well above the threshold.
 const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const [startTs, endTs]= getYieldDistributionHours(options)
+  // BUIDL fungible-asset object on Aptos (symbol BUIDL, 6 decimals); the FA object
+  // is owned by the ds_token deployment 0x4de5876d…e808a.
   const APTOS_BUIDL_CONTRACT = '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'
   const APTOS_GRAPHQL_ENDPOINT = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
+  // 20 bps management fee. Source: static.primary_market_listing (BUIDL / aptos).
   const APTOS_BPS = 20
-  const sql = `
-      SELECT SUM(CAST(json_value(data, 'lax $.value') AS DOUBLE)) AS total_yield
-      FROM aptos.events
-      WHERE event_type = '0x4de5876d8a8e2be7af6af9f3ca94d9e4fafb24b5f4a5848078d8eb08f08e808a::ds_token::Issue'
-        AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
-  `
 
-  // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
-  if (!isWeekend(options.endTimestamp)) {
-    const yiedData = await await queryDuneSql(options, sql) as IData[];
-    if (yiedData[0]?.total_yield) {
-      dailyFees.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield, METRIC.AssetYields)
-      dailySupplySideRevenue.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield, METRIC.AssetYieldsToLP)
-    }
+  // Mints are reconstructed transfers with NULL from_address. block_timestamp alone
+  // is not a unique order (Allium rebuilds Aptos transfers from deposit/withdraw
+  // events, many can share a timestamp), so the running-balance window is ordered by
+  // (block_timestamp, transaction_version, event_index) for a deterministic bal_before.
+  const sql = `
+      WITH t AS (
+        SELECT block_timestamp, transaction_version, event_index, from_address, to_address, raw_amount AS amt
+        FROM aptos.assets.fungible_transfers
+        WHERE fa_address = '${APTOS_BUIDL_CONTRACT}'
+          AND block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
+      ),
+      deltas AS (
+        SELECT block_timestamp, transaction_version, event_index, to_address AS wallet, amt AS delta, (from_address IS NULL) AS is_mint
+          FROM t WHERE to_address IS NOT NULL
+        UNION ALL
+        SELECT block_timestamp, transaction_version, event_index, from_address AS wallet, -amt AS delta, FALSE AS is_mint
+          FROM t WHERE from_address IS NOT NULL
+      ),
+      seq AS (
+        SELECT wallet, block_timestamp, delta, is_mint,
+          SUM(delta) OVER (PARTITION BY wallet ORDER BY block_timestamp, transaction_version, event_index
+                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS bal_before
+        FROM deltas
+      )
+      SELECT COALESCE(SUM(delta), 0) AS total_yield
+      FROM seq
+      WHERE is_mint
+        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.fromTimestamp}) AND TO_TIMESTAMP_NTZ(${options.toTimestamp})
+        AND bal_before > 0
+        AND delta / bal_before < ${YIELD_RATIO_THRESHOLD}
+  `
+  const yieldData = await queryAllium(sql) as IData[];
+  if (yieldData[0]?.total_yield) {
+    dailyFees.addToken(APTOS_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYields)
+    dailySupplySideRevenue.addToken(APTOS_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYieldsToLP)
   }
 
 
@@ -250,24 +324,44 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const [startTs, endTs]= getYieldDistributionHours(options)
-
   const SOLANA_BUIDL_CONTRACT = 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr'
+  // 20 bps management fee. Source: static.primary_market_listing (BUIDL / solana).
   const SOLANA_BPS = 20
+
+  // tokens_solana.transfers uses to_owner/from_owner for the wallet addresses, and
+  // marks SPL mints in `action`. Accept both 'mint' and 'mintTo' (Dune's curated
+  // value has been seen as either). Ordered by block_time for the running-balance
+  // window — one drip per wallet per day, so second-level granularity suffices.
   const sql = `
-      SELECT SUM(amount) AS total_yield
-      FROM tokens_solana.transfers
-      WHERE token_mint_address = '${SOLANA_BUIDL_CONTRACT}'
-        AND action = 'mint'
-        AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
+      WITH t AS (
+        SELECT block_time, action, CAST(amount AS double) AS amt,
+               to_owner AS to_w, from_owner AS from_w
+        FROM tokens_solana.transfers
+        WHERE token_mint_address = '${SOLANA_BUIDL_CONTRACT}'
+          AND block_time <= FROM_UNIXTIME(${options.toTimestamp})
+      ),
+      deltas AS (
+        SELECT block_time, to_w AS wallet, amt AS delta, action FROM t WHERE to_w IS NOT NULL
+        UNION ALL
+        SELECT block_time, from_w AS wallet, -amt AS delta, CAST(NULL AS varchar) AS action FROM t WHERE from_w IS NOT NULL
+      ),
+      seq AS (
+        SELECT wallet, block_time, delta, action,
+          SUM(delta) OVER (PARTITION BY wallet ORDER BY block_time
+                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS bal_before
+        FROM deltas
+      )
+      SELECT COALESCE(SUM(delta), 0) AS total_yield
+      FROM seq
+      WHERE action IN ('mint', 'mintTo')
+        AND block_time BETWEEN FROM_UNIXTIME(${options.fromTimestamp}) AND FROM_UNIXTIME(${options.toTimestamp})
+        AND bal_before > 0
+        AND delta / bal_before < ${YIELD_RATIO_THRESHOLD}
   `
-  // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
-  if (!isWeekend(options.endTimestamp)) {
-    const yieldData = await await queryDuneSql(options, sql) as IData[];
-    if (yieldData[0]?.total_yield) {
-      dailyFees.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYields)
-      dailySupplySideRevenue.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYieldsToLP)
-    }
+  const yieldData = await queryDuneSql(options, sql) as IData[];
+  if (yieldData[0]?.total_yield) {
+    dailyFees.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYields)
+    dailySupplySideRevenue.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield, METRIC.AssetYieldsToLP)
   }
 
 
@@ -288,7 +382,7 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
 
 const adapters: SimpleAdapter = {
   version: 1,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   adapter: {
     ...Object.fromEntries(
       Object.entries(EVM_CONTRACTS).map(([chain, config]) => [
