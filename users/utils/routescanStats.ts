@@ -14,13 +14,17 @@ type RouteScanRow = [string, string];
 const BASE_URL = "https://cdn.routescan.io/api/evm/all/aggregations";
 
 const routescanStatsChains: Record<string, ChainConfig> = {
+  avalanche: { chain: CHAIN.AVAX, chainId: 43114, start: "2020-09-27" },
   dfk: { chain: CHAIN.DFK, chainId: 53935, start: "2022-03-16" },
   dexalot: { chain: CHAIN.DEXALOT, chainId: 432204, start: "2022-12-04" },
   step: { chain: CHAIN.STEP, chainId: 1234, start: "2022-08-12" },
   numbers: { chain: CHAIN.NUMBERS, chainId: 10507, start: "2022-10-12" },
   metis: { chain: CHAIN.METIS, chainId: 1088, start: "2021-11-18" },
   chz: { chain: CHAIN.CHILIZ, chainId: 88888, start: "2023-02-08" },
+  blast: { chain: CHAIN.BLAST, chainId: 81457, start: "2024-02-24" },
+  mantle: { chain: CHAIN.MANTLE, chainId: 5000, start: "2023-07-02" },
   nibiru: { chain: CHAIN.NIBIRU, chainId: 6900, start: "2025-02-11" },
+  plasma: { chain: CHAIN.PLASMA, chainId: 9745, start: "2025-09-03" },
   btnx: { chain: CHAIN.BOTANIX, chainId: 3637, start: "2025-05-22" },
   beam: { chain: CHAIN.BEAM, chainId: 4337, start: "2023-08-14" },
 };
