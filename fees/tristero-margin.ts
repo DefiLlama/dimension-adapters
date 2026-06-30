@@ -555,7 +555,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const [startLoanValues, endLoanValues, closeRepayments, reductions] = await Promise.all([
             readV3LoanValuesByPositionBlock(options, startPositionBlocks),
             readV3LoanValuesAtBlock(options, openV3Positions, toBlock),
-            getV3CloseSettlements(options, closedV3Positions, "tristero-v3-margin-close-fees"),
+            getV3CloseSettlements(options, closedV3Positions),
             getTristeroV3MarginReductions(options, v3Escrows, fromBlock, toBlock),
         ]);
         const reductionRepayments = getV3ReductionRepayments(reductions, startBlockByPosition, toBlock);
