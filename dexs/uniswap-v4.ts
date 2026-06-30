@@ -174,17 +174,23 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
     start: '2026-01-07'
   },
-  [CHAIN.TEMPO]: {
-    poolManager: '0x33620f62c5b9b2086dd6b62f4a297a9f30347029',
+  [CHAIN.CELO]: {
+    poolManager: '0x288dc841a52fca2707c6947b3a777c5e56cd87bc',
     source: 'LOGS',
-    positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
-    start: '2026-02-26'
+    positionManager: '0xf7965f3981e4d5bc383bfbcb61501763e9068ca9',
+    start: '2025-08-22',
   },
   [CHAIN.MEGAETH]: {
     poolManager: '0xacb7e78fa05d562e0a5d3089ec896d57d057d38e',
     source: 'LOGS',
     positionManager: '0x9ae0921e981aaa7308f176f8d4f9129b9247c89d',
-    start: '2026-01-31'
+    start: '2026-01-30',
+  },
+  [CHAIN.TEMPO]: {
+    poolManager: '0x33620f62c5b9b2086dd6b62f4a297a9f30347029',
+    source: 'LOGS',
+    positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
+    start: '2026-02-24',
   }
 }
 
@@ -257,7 +263,7 @@ async function fetch(options: FetchOptions) {
     });
 
     if (events.length > 0) {
-      const pools: {[key: string]: IPool | null} = {}
+      const pools: { [key: string]: IPool | null } = {}
       for (const event of events) {
         if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id.toLowerCase())) {
           // ignore blacklist pools
@@ -295,7 +301,7 @@ async function fetch(options: FetchOptions) {
           }
         }
       }
-      
+
       for (const event of events) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
@@ -308,7 +314,7 @@ async function fetch(options: FetchOptions) {
           dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
           dailyVolume.add(token, Math.abs(Number(event.amount0)))
         }
-      }      
+      }
     }
   }
 
