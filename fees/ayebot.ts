@@ -30,9 +30,6 @@ const BSC_TREASURY = "0xb49230598A51770Ccd5281B83e2CaF01086E61eA";
 // treasury and used as an internal-sender filter to net out the surplus sweep:
 //  https://bscscan.com/address/0x59cB774c3462D11C36F56E3a4007379Ea77299d3
 const BSC_FEE_WALLET = "0x59cB774c3462D11C36F56E3a4007379Ea77299d3";
-// Canonical Wrapped BNB (WBNB) on BSC:
-//  https://bscscan.com/token/0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
-const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
 const BSC_SINKS = [BSC_TREASURY, BSC_FEE_WALLET];
 
@@ -63,7 +60,7 @@ async function fetchBsc(options: FetchOptions) {
   await getETHReceived({ options, balances: dailyFees, targets: BSC_SINKS, notFromSenders: BSC_SINKS });
   // Inline KyberSwap platform fees arrive as WBNB (ERC-20). No internal sweep
   // moves WBNB, so no sender filter is needed.
-  await addTokensReceived({ options, balances: dailyFees, targets: BSC_SINKS, tokens: [WBNB] });
+  await addTokensReceived({ options, balances: dailyFees, targets: BSC_SINKS, tokens: [ADDRESSES.bsc.WBNB] });
   return dailyFees;
 }
 
@@ -76,7 +73,8 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(
     Object.entries(chainConfig).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
   ),
