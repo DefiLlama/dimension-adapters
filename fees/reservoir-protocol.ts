@@ -515,10 +515,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
 
     // Cost of Revenue: yield paid to wsrUSD + srUSD holders
-    const [wsrSupply, srSupply] = await Promise.all([
-      options.api.call({ target: WSRUSD, abi: 'uint256:totalSupply' }),
-      options.api.call({ target: SRUSD,  abi: 'uint256:totalSupply' }),
-    ]);
+    const [wsrSupply, srSupply] = await options.api.multiCall({
+      abi: 'uint256:totalSupply',
+      calls: [{ target: WSRUSD }, { target: SRUSD }],
+    });
     const wsrTotalYield = BigInt(wsrSupply) * wsrRateDelta / WAD;
     const srYield       = BigInt(srSupply)  * srPriceDelta / PRICE_SCALE;
     if (wsrTotalYield !== 0n) dailySupplySideRevenue.add(RUSD, wsrTotalYield, METRIC.ASSETS_YIELDS);
@@ -533,7 +533,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
       const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
       if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
-    } catch (_) {}
+    } catch (e) {
+      console.error(`[reservoir-protocol] WSRUSD_OFT.totalSupply failed on ${options.chain}:`, e);
+    }
 
   } else if (options.chain === CHAIN.BASE) {
     const y = computeErc4626Yield(BASE_VAULT_POSITIONS, baseBalances, baseRatesFrom, baseRatesTo);
@@ -558,7 +560,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       const oftSupply = await options.api.call({ target: WSRUSD_OFT, abi: 'uint256:totalSupply' });
       const oftYield  = BigInt(oftSupply) * wsrRateDelta / WAD;
       if (oftYield !== 0n) dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
-    } catch (_) {}
+    } catch (e) {
+      console.error(`[reservoir-protocol] WSRUSD_OFT.totalSupply failed on ${options.chain}:`, e);
+    }
 
   } else if (options.chain === CHAIN.HYPERLIQUID) {
     const y = computeErc4626Yield(HYPEREVM_VAULT_POSITIONS, hyperevmBalances, hyperevmRatesFrom, hyperevmRatesTo);
@@ -607,7 +611,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(RUSD, oftYield, METRIC.ASSETS_YIELDS);
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error(`[reservoir-protocol] WSRUSD_OFT.totalSupply failed on ${options.chain}:`, e);
+    }
   }
 
   return { dailyFees, dailySupplySideRevenue };
