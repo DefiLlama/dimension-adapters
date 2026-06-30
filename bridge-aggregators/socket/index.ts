@@ -82,39 +82,48 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
 const buildQuery = (options: FetchOptions): string => {
   const start = options.startTimestamp;
   const end = options.endTimestamp;
+  const chains = Object.values(chainConfig).map(cfg => `'${cfg.dune}'`).join(", ");
 
   const native = Object.values(chainConfig).map(cfg => `
     SELECT '${cfg.dune}' AS chain, t.hash AS tx_hash, t.block_time AS block_time,
            ${cfg.wrapped} AS price_address, TRY_CAST(t.value AS double) / 1e18 AS amount
-    FROM ${cfg.dune}.transactions t CROSS JOIN routers r
-    WHERE (t.to = r.ah OR t.to = r.openrouter) AND t.value > UINT256 '0' AND t.success
+    FROM ${cfg.dune}.transactions t
+    WHERE t.to IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER}) AND t.value > UINT256 '0' AND t.success
       AND t.block_time >= from_unixtime(${start}) AND t.block_time < from_unixtime(${end})`).join("\n    UNION ALL");
 
   const erc20 = Object.values(chainConfig).filter(cfg => !cfg.noErc20).map(cfg => `
     SELECT '${cfg.dune}' AS chain, tr.evt_tx_hash AS tx_hash, tr.evt_block_time AS block_time,
            tr.contract_address AS price_address,
            TRY_CAST(tr.value AS double) / POWER(10, COALESCE(tok.decimals, 18)) AS amount
-    FROM erc20_${cfg.dune}.evt_Transfer tr CROSS JOIN routers r
+    FROM erc20_${cfg.dune}.evt_Transfer tr
     LEFT JOIN tokens.erc20 tok ON tok.contract_address = tr.contract_address AND tok.blockchain = '${cfg.dune}'
-    WHERE (tr.to = r.ah OR tr.to = r.openrouter) AND tr."from" NOT IN (r.ah, r.openrouter)
+    WHERE tr.to IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER}) AND tr."from" NOT IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER})
       AND tr.evt_block_time >= from_unixtime(${start}) AND tr.evt_block_time < from_unixtime(${end})`).join("\n    UNION ALL");
 
   return `
-  WITH routers(ah, openrouter) AS (VALUES (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER})),
+  WITH
   native_raw AS (${native}),
   erc20_raw AS (${erc20}),
   all_raw AS (SELECT * FROM native_raw UNION ALL SELECT * FROM erc20_raw),
   refined AS (
-    SELECT chain, tx_hash, block_time, price_address, amount
+    SELECT chain, date_trunc('day', block_time) AS block_day, price_address, amount
     FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY chain, tx_hash ORDER BY amount DESC) AS rnk FROM all_raw)
     WHERE rnk = 1
+  ),
+  -- pre-filter prices to queried days/chains to prune partitions, not scan all history
+  px AS (
+    SELECT pr.blockchain, pr.contract_address, pr.timestamp AS price_day, pr.price
+    FROM prices.day pr
+    WHERE pr.timestamp >= date_trunc('day', from_unixtime(${start}))
+      AND pr.timestamp <  from_unixtime(${end})
+      AND pr.blockchain IN (${chains})
   )
   SELECT r.chain AS chain, SUM(COALESCE(p.price * r.amount, 0)) AS vol_usd
   FROM refined r
-  LEFT JOIN prices.day p
+  LEFT JOIN px p
     ON p.blockchain = r.chain
    AND p.contract_address = r.price_address
-   AND DATE_TRUNC('day', p.timestamp) = DATE_TRUNC('day', r.block_time)
+   AND p.price_day = r.block_day
   GROUP BY 1`;
 };
 
