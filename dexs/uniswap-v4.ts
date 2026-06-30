@@ -173,6 +173,18 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
     start: '2026-01-07'
+  },
+  [CHAIN.TEMPO]: {
+    poolManager: '0x33620f62c5b9b2086dd6b62f4a297a9f30347029',
+    source: 'LOGS',
+    positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
+    start: '2026-02-26'
+  },
+  [CHAIN.MEGAETH]: {
+    poolManager: '0xacb7e78fa05d562e0a5d3089ec896d57d057d38e',
+    source: 'LOGS',
+    positionManager: '0x9ae0921e981aaa7308f176f8d4f9129b9247c89d',
+    start: '2026-01-31'
   }
 }
 
