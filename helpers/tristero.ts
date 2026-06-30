@@ -1002,7 +1002,7 @@ async function getV3CloseReceipt(chain: string, txHash: string): Promise<any | n
 export async function getV3CloseSettlements(
   options: FetchOptions,
   closedPositions: TristeroV3MarginPosition[],
-  cacheKey: string,
+  _cacheKey: string,
 ): Promise<Map<string, bigint>> {
   const settlementByPosition = new Map<string, bigint>();
   const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
