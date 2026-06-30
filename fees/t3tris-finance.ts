@@ -1,5 +1,6 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 /**
  * T3tris Finance — Fees & Revenue Adapter
@@ -30,31 +31,22 @@ import { CHAIN } from "../helpers/chains";
  *   third-party curator, NOT the t3tris protocol. They are counted in dailyFees
  *   and dailySupplySideRevenue, but NOT in dailyRevenue/dailyProtocolRevenue.
  *
- * Vaults are discovered fully on-chain from the T3tris protocol contract (the
- * vault factory/registry, deployed at a deterministic CREATE3 address that is
- * identical on every EVM chain). Every vault ever deployed is enumerated via
- * getDeployedVaultsCount() + getDeployedVaults(fromIndex, toIndex); there is no
- * off-chain dependency and no curation filter — fees/revenue are tracked for
- * every vault. (The `verified`/`blacklisted` flags exposed by the t3tris UI are
- * a purely off-chain curation concern; on-chain every vault moves real assets
- * and the t3treasury still receives its T3trisProfit transfers, so all vaults
- * must be counted to report fees & revenue accurately.)
+ * Vaults are sourced from the T3tris ecosystem API
+ * (https://ecosystem.t3tris.finance/vaults), keeping only `verified` and
+ * non-`blacklisted` vaults — the same curation gate as the TVL adapter, so
+ * fees/revenue cover exactly the same vault set as TVL. Unverified/test vaults
+ * (which can carry non-production TVL and fee config on mainnet) are excluded.
  *
  * Landing: https://t3tris.finance/   App: https://app.t3tris.finance/
  */
 
-// T3tris protocol contract (vault factory/registry). Deterministic CREATE3
-// proxy address — identical on every EVM chain T3tris is deployed to.
-// Verify (Arbitrum): https://arbiscan.io/address/0x0000000000CC53b5Fd649b80f08b05405779cC71
-// Deployment record: t3tris-finance/T3tris-Vault → T3TRIS_PROTOCOL_V1 in
-// script/deployment/production/Utils/Constants.sol.
-const T3TRIS = "0x0000000000CC53b5Fd649b80f08b05405779cC71";
+// T3tris ecosystem API — authoritative list of vaults with curation flags.
+// Only `verified`, non-`blacklisted` vaults are counted (same gate as the TVL
+// adapter), so fees & TVL cover the same set and unverified/test vaults are
+// excluded.
+const VAULTS_API = "https://ecosystem.t3tris.finance/vaults";
 
 const ABI = {
-  // Factory/registry: enumerate every deployed vault on-chain.
-  getDeployedVaultsCount: "uint256:getDeployedVaultsCount",
-  getDeployedVaults:
-    "function getDeployedVaults(uint256 fromIndex, uint256 toIndex) view returns (address[])",
   asset: "address:asset",
   decimals: "uint8:decimals",
   totalAssets: "uint256:totalAssets",
@@ -78,17 +70,25 @@ const EVENT_ABI = {
   t3trisProfit: "event T3trisProfit(uint256 profit)",
 };
 
-// Supported chains: DefiLlama chain -> { start }. T3tris is live on Arbitrum
-// only for now (same deterministic CREATE3 address on every EVM chain); add a
-// chain here once the protocol contract is deployed and enumerates vaults on it.
-// `start` is a conservative lower bound that predates the first vault
-// deployment (no vaults/events exist before it); verify against the contract's
-// creation tx on Arbiscan (link above) if a tighter bound is needed.
-const chainConfig: Record<string, { start: string }> = {
-  [CHAIN.ARBITRUM]: { start: "2025-01-01" },
+// Supported chains: DefiLlama chain -> { ecosystem-API chainId, start }. T3tris
+// is live on Arbitrum only for now (same deterministic CREATE3 address on every
+// EVM chain); add a chain here once the API returns verified vaults for it.
+// `start` is a conservative lower bound that predates the first vault deployment
+// (no vaults/events exist before it).
+const chainConfig: Record<string, { chainId: number; start: string }> = {
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2025-01-01" },
 };
 
 const SECONDS_PER_DAY = 86400;
+const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
+// Max plausible annualised price-per-share growth for a single slot, as a
+// fraction (10 = 1000%). Matches the APY adapter's cap. A stale/glitched
+// convertToAssets read at a slot boundary (too-low start or too-high end PPS)
+// can imply an absurd jump and inject a phantom yield that dominates once a
+// single vault is the only one reporting; readings above this bound are treated
+// as unreliable and contribute no yield. Real yield — even a lumpy oracle update
+// concentrating a day into one slot — stays well under it.
+const MAX_PLAUSIBLE_GROWTH_APY = 10;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
@@ -96,44 +96,30 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // 1. Discover all vaults for this chain on-chain from the T3tris protocol
-  //    contract (vault factory/registry). Every vault ever deployed is
-  //    enumerated via getDeployedVaultsCount() + getDeployedVaults(from, to);
-  //    no off-chain dependency and no curation filter — fees/revenue are
-  //    tracked for every vault regardless of UI verified/blacklisted status.
+  // 1. Discover vaults for this chain from the T3tris ecosystem API, keeping
+  //    only `verified`, non-`blacklisted` entries (same curation gate as the
+  //    TVL adapter). Unverified/test vaults are intentionally excluded so fees
+  //    & revenue reflect the same vault set as TVL. Records are external data,
+  //    so a usable address + asset is required before trusting them on-chain.
   let vaults: string[];
   try {
-    const count = Number(
-      await options.api.call({
-        target: T3TRIS,
-        abi: ABI.getDeployedVaultsCount,
-      }),
-    );
-    if (!count) return {};
-
-    // getDeployedVaults(fromIndex, toIndex) is inclusive on both ends; page it
-    // to stay within multicall/return-size limits for large registries.
-    const PAGE = 200;
-    const pageCalls: { target: string; params: [number, number] }[] = [];
-    for (let from = 0; from < count; from += PAGE) {
-      pageCalls.push({
-        target: T3TRIS,
-        params: [from, Math.min(from + PAGE - 1, count - 1)],
-      });
-    }
-    // Fail loudly on any failed page: permitFailure defaults to false, so a
-    // missing page throws into the catch below rather than silently producing
-    // a partial vault list (which would under-report fees/revenue).
-    const pages = await options.api.multiCall({
-      abi: ABI.getDeployedVaults,
-      calls: pageCalls,
-    });
-    vaults = pages.flat();
+    const chainId = chainConfig[options.chain].chainId;
+    const all = await httpGet(VAULTS_API);
+    vaults = (all || [])
+      .filter(
+        (v: any) =>
+          v?.verified &&
+          !v?.blacklisted &&
+          Number(v?.chainId) === chainId &&
+          typeof v?.address === "string" &&
+          v.address &&
+          typeof v?.asset === "string" &&
+          v.asset,
+      )
+      .map((v: any) => v.address);
   } catch (e) {
-    // Protocol not deployed on this chain, or a registry page failed to read —
-    // report nothing for this run rather than continuing with incomplete vault
-    // discovery, so other chains continue.
-    console.error(`T3tris: failed to enumerate vaults for ${options.chain}:`, e);
+    // API unreachable — log and report nothing for this run so other chains continue.
+    console.error(`T3tris: failed to fetch vaults for ${options.chain}:`, e);
     return {};
   }
 
@@ -271,7 +257,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     // Net yield to shareholders = avgSupply × delta(PPS) / unit
     // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
-    const netYield = (avgSupply * rateGrowth) / unit;
+    //
+    // Guard against spurious PPS readings first: a stale/glitched convertToAssets
+    // value at a slot boundary (too-low start or too-high end PPS) implies an
+    // absurd per-slot jump and would inject a phantom yield — which dominates the
+    // daily total once a single vault is the only one reporting. Require a
+    // positive baseline PPS and bound the implied annualised growth; otherwise
+    // book no PPS-derived yield for this slot (management fee, based on TVL ×
+    // time, is independent of PPS and still accrues below).
+    const ppsGrowthFrac =
+      Number(rateBefore) > 0 ? rateGrowth / Number(rateBefore) : Infinity;
+    const impliedApy =
+      timespan > 0 ? ppsGrowthFrac * (SECONDS_PER_YEAR / timespan) : Infinity;
+    const ppsReliable =
+      Number(rateBefore) > 0 && impliedApy <= MAX_PLAUSIBLE_GROWTH_APY;
+    if (!ppsReliable && rateGrowth > 0) {
+      console.error(
+        `T3tris: ignoring implausible PPS growth for vault ${vaults[i]} on ${options.chain} ` +
+          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
+      );
+    }
+
+    const netYield = ppsReliable ? (avgSupply * rateGrowth) / unit : 0;
 
     // Depositor yield and performance fees only accrue on positive yield;
     // management fees are charged on TVL × time and accrue regardless (see
@@ -290,7 +297,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const perfBasisStart = Math.max(Number(rateBefore), hwmRate);
     const perfRateGrowth = Number(rateAfter) - perfBasisStart;
     const perfYield =
-      perfRateGrowth > 0 ? (avgSupply * perfRateGrowth) / unit : 0;
+      ppsReliable && perfRateGrowth > 0
+        ? (avgSupply * perfRateGrowth) / unit
+        : 0;
 
     // Performance fee (WAD, 1e18 = 100%): perfFeeAmount = perfYield × f / (1 - f)
     const perfFeeFrac = perfFees[i] ? Number(perfFees[i]) / 1e18 : 0;
