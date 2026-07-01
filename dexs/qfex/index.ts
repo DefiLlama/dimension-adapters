@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 const BASE_URL = "https://api.qfex.com";
 
@@ -17,7 +18,7 @@ async function fetch(options: FetchOptions) {
   const fromISO = new Date(options.startTimestamp * 1000).toISOString();
   const toISO = new Date(options.endTimestamp * 1000).toISOString();
 
-  const refdataRes = await httpGet(`${BASE_URL}/refdata`);
+  const refdataRes = await fetchURL(`${BASE_URL}/refdata`);
   const symbols: string[] = (refdataRes.data ?? [])
     .filter((s: any) => s.status === "ACTIVE")
     .map((s: any) => s.symbol);
@@ -25,13 +26,14 @@ async function fetch(options: FetchOptions) {
   let dailyVolumeUSD = 0;
   let openInterestAtEndUSD = 0;
 
+  // allow catching of errors because symbols active today might not have data for the previous day
   for (const symbol of symbols) {
     const encoded = encodeURIComponent(symbol);
     const [volRes, oiRes] = await Promise.all([
-      httpGet(`${BASE_URL}/taker-volume/${encoded}?intervalMinutes=1440&fromISO=${fromISO}&toISO=${toISO}`)
+      fetchURL(`${BASE_URL}/taker-volume/${encoded}?intervalMinutes=1440&fromISO=${fromISO}&toISO=${toISO}`)
         .then((r) => (r.data ?? []) as TakerVolumePoint[])
         .catch(() => [] as TakerVolumePoint[]),
-      httpGet(`${BASE_URL}/open-interest/${encoded}?intervalMinutes=1440&fromISO=${fromISO}&toISO=${toISO}`)
+      fetchURL(`${BASE_URL}/open-interest/${encoded}?intervalMinutes=1440&fromISO=${fromISO}&toISO=${toISO}`)
         .then((r) => (r.data ?? []) as OIPoint[])
         .catch(() => [] as OIPoint[]),
     ]);
@@ -44,6 +46,8 @@ async function fetch(options: FetchOptions) {
       const last = oiRes[oiRes.length - 1];
       if (last.openInterest != null) openInterestAtEndUSD += last.openInterest;
     }
+
+    await sleep(500);
   }
 
   const dailyVolume = options.createBalances();
@@ -63,9 +67,9 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
-  chains: [CHAIN.ARBITRUM],
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-02-26",
   methodology,
 };
