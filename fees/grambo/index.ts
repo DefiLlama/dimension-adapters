@@ -18,16 +18,21 @@ const fetchFees = async (options: FetchOptions) => {
   ]
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(referralNanoTon + platformNanoTon + creatorNanoTon);
+  dailyFees.addGasToken(referralNanoTon, 'Referral Fees');
+  dailyFees.addGasToken(platformNanoTon, 'Platform Fees');
+  dailyFees.addGasToken(creatorNanoTon, 'Creator Fees');
+
+  const dailyUserFees = dailyFees.clone(1);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addGasToken(referralNanoTon + creatorNanoTon);
+  dailySupplySideRevenue.addGasToken(referralNanoTon, 'Referral Fees To Referrer');
+  dailySupplySideRevenue.addGasToken(creatorNanoTon, 'Platform Fees To Creator');
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addGasToken(platformNanoTon);
+  dailyRevenue.addGasToken(platformNanoTon, 'Platform Fees To Protocol');
 
   return {
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
@@ -36,10 +41,22 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   methodology: {
-    Fees: "User pays fee on each swap. Fees go to the protocol, token creator and optinally to the referral address.",
-    UserFees: "User pays fee on each swap. Fees go to the protocol, token creator and optinally to the referral address.",
+    Fees: "User pays fee on each swap. Fees go to the protocol, token creator and optionally to the referral address.",
+    UserFees: "User pays fee on each swap. Fees go to the protocol, token creator and optionally to the referral address.",
     Revenue: "Protocol receives 60% of fees paid by users (not including referral fees).",
     SupplySideRevenue: "40% of user fees are distributed among token creator and referral fees.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Referral Fees': 'Fee routed to referral address on each swap.',
+      'Platform Fees': 'Fee retained by the protocol on each swap.',
+      'Creator Fees': 'Fee paid to token creator on each swap.',
+    },
+    Revenue: { 'Platform Fees To Protocol': '60% of user fees kept by the protocol.' },
+    SupplySideRevenue: {
+      'Referral Fees To Referrer': 'Referral share of user fees.',
+      'Platform Fees To Creator': 'Creator share of user fees.',
+    },
   },
   version: 2,
   adapter: {
@@ -48,5 +65,6 @@ const adapter: SimpleAdapter = {
       fetch: fetchFees,
     },
   },
+  pullHourly: true,
 };
 export default adapter;

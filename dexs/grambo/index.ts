@@ -1,7 +1,7 @@
 import { parseUnits } from "ethers";
 import fetchURL from "../../utils/fetchURL"
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const endpoint = "https://api.grambo.fun/api/stats/defi?"
 
@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.TON]: {
@@ -27,6 +27,7 @@ const adapter: any = {
       start: '2026-06-26',
     },
   },
+  pullHourly: true,
 };
 
 export default adapter;
