@@ -26,7 +26,7 @@ const fetchFees = async (options: FetchOptions) => {
 
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.addGasToken(referralNanoTon, 'Referral Fees To Referrer');
-  dailySupplySideRevenue.addGasToken(creatorNanoTon, 'Platform Fees To Creator');
+  dailySupplySideRevenue.addGasToken(creatorNanoTon, 'Creator Fees To Creator');
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addGasToken(platformNanoTon, 'Platform Fees To Protocol');
@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
     Revenue: { 'Platform Fees To Protocol': '60% of user fees kept by the protocol.' },
     SupplySideRevenue: {
       'Referral Fees To Referrer': 'Referral share of user fees.',
-      'Platform Fees To Creator': 'Creator share of user fees.',
+      'Creator Fees To Creator': 'Creator share of user fees.',
     },
   },
   version: 2,
