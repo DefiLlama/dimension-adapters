@@ -11,9 +11,14 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume: derivativeRes.total_volume_usd };
 };
 
+const methodology = {
+  Volume: "Notional volume of all trades on Truecurrent interface (built on Injective DEX)",
+}
+
 export default {
-  doublecounted: true,
+  doublecounted: true, //injective perps
   fetch,
   start: "2026-05-15",
   chains: [CHAIN.INJECTIVE],
+  methodology,
 };
