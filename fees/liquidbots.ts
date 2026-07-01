@@ -24,24 +24,19 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // The endpoint returns the full daily series; pick the UTC day being measured.
-  const day = new Date(options.startTimestamp * 1000).toISOString().slice(0, 10);
   const res = await httpGet(STATS_URL);
-  const row: FeeDay | undefined = (res?.daily || []).find((d: FeeDay) => d.date === day);
+  const row: FeeDay | undefined = (res?.daily || []).find((d: FeeDay) => d.date === options.dateString);
 
-  if (row) {
-    const fees = Number(row.fees);
-    const payouts = Number(row.payouts);
-    if (Number.isFinite(fees) && fees > 0) {
-      // Referrer rebates are the supply-side share; clamp to fees so revenue stays >= 0
-      // and the identity Fees = Revenue + SupplySideRevenue holds.
-      const rebates = Number.isFinite(payouts) ? Math.max(0, Math.min(payouts, fees)) : 0;
-      dailyFees.addUSDValue(fees, "Trading Fees");
-      dailySupplySideRevenue.addUSDValue(rebates, "Referrer Rebates");
-      dailyRevenue.addUSDValue(fees - rebates, "Trading Fees To Protocol");
-      dailyProtocolRevenue.addUSDValue(fees - rebates, "Trading Fees To Protocol");
-    }
-  }
+  if (!row || !Number.isFinite(Number(row.fees))) throw new Error(`No data found for date: ${options.dateString}`);
+
+  const fees = Number(row.fees);
+  const payouts = Number(row.payouts);
+
+  const rebates = Number.isFinite(payouts) ? payouts : 0;
+  dailyFees.addUSDValue(fees, "Trading Fees");
+  dailySupplySideRevenue.addUSDValue(rebates, "Referrer Rebates");
+  dailyRevenue.addUSDValue(fees - rebates, "Trading Fees To Protocol");
+  dailyProtocolRevenue.addUSDValue(fees - rebates, "Trading Fees To Protocol");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
@@ -49,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Gross trading fees collected from users, from the LiquidBots public stats endpoint (api.liquidbots.xyz/api/v1/stats/fees), which sums confirmed per-user fee batches.",
   Revenue: "Trading fees retained by the protocol after referrer rebates (gross fees minus rebates).",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "Trading fees retained by the protocol after referrer rebates (gross fees minus rebates).",
   SupplySideRevenue: "Referrer rebates paid back out of collected fees to referrers.",
 };
 
@@ -69,13 +64,13 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
-  pullHourly: false, // the stats endpoint is daily
+  version: 1,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2026-02-10', // first fee day reported by /stats/fees
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // some days referrer rebates maybe greater than fees when rebates are paid in cumulative
 };
 
 export default adapter;
