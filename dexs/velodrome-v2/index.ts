@@ -59,25 +59,28 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
       cacheInCloud: true,
     }))
     const bribes_contract: string[] = logs_gauge_created.map((e: any) => e.bribeVotingReward.toLowerCase());
-
-    let logs = await getLogs({
-      targets: bribes_contract,
-      eventAbi: event_notify_reward_op,
-    })
-    logs.map((e: any) => {
-      dailyBribes.add(e.reward, e.amount)
-    })
+    if (bribes_contract.length > 0) {
+      let logs = await getLogs({
+        targets: bribes_contract,
+        eventAbi: event_notify_reward_op,
+      })
+      logs.map((e: any) => {
+        dailyBribes.add(e.reward, e.amount)
+      })
+    }
   }
   // handle Superchain beta "staking rewards" bribes on Mode and Bob
   if (chain in config) {
     const { stakingRewards, rewardToken, } = config[chain]
     const pairs = Object.keys(filteredPairs)
     const gauges = await api.multiCall({ target: stakingRewards, abi: 'function gauges(address) view returns (address)', calls: pairs })
-    let logs = await getLogs({ targets: gauges, eventAbi: notifyRewardEvent })
-
-    logs.forEach((log: any) => {
-      dailyBribes.add(rewardToken, log.amount)
-    })
+    if (gauges.length > 0) {
+      let logs = await getLogs({ targets: gauges, eventAbi: notifyRewardEvent })
+  
+      logs.forEach((log: any) => {
+        dailyBribes.add(rewardToken, log.amount)
+      })
+    }
   }
 
   // handle Superchain 1.0 L2 bribes
@@ -90,14 +93,15 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
       cacheInCloud: true,
     }))
     const incentive_contracts: string[] = leaf_gauge_logs.map((e: any) => e.incentiveVotingReward.toLowerCase());
-
-    let logs = await getLogs({
-      targets: incentive_contracts,
-      eventAbi: event_notify_reward_op,
-    })
-    logs.map((e: any) => {
-      dailyBribes.add(e.reward, e.amount)
-    })
+    if (incentive_contracts.length > 0) {
+      let logs = await getLogs({
+        targets: incentive_contracts,
+        eventAbi: event_notify_reward_op,
+      })
+      logs.map((e: any) => {
+        dailyBribes.add(e.reward, e.amount)
+      })
+    }
   }
 
   const totalFees = createBalances()
