@@ -1,9 +1,10 @@
 import { Balances } from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const GEMINT_CORE = "0x2d656a263E3fa1f1309260c9bfdA55D2C97FA598";
-const BNB_USDT = "0x55d398326f99059ff775485246999027b3197955";
+const BNB_USDT = ADDRESSES[CHAIN.BSC].USDT;
 
 const eventAbis = {
   drawPurchased: "event DrawPurchased(string indexed purchaseId, address payer, uint32 packId, uint32 quantity, uint256 paymentAmount)",
@@ -15,11 +16,12 @@ const addPaidVolume = (
   dailyVolume: Balances,
   dailyFees: Balances,
   dailyRevenue: Balances,
+  feeType: string,
 ): void => {
   const estimatedFee = paymentAmount * 6n / 100n;
   dailyVolume.add(BNB_USDT, paymentAmount);
-  dailyFees.add(BNB_USDT, estimatedFee);
-  dailyRevenue.add(BNB_USDT, estimatedFee);
+  dailyFees.add(BNB_USDT, estimatedFee, feeType);
+  dailyRevenue.add(BNB_USDT, estimatedFee, feeType);
 };
 
 const getGachaPurchases = async (
@@ -34,7 +36,7 @@ const getGachaPurchases = async (
   });
 
   logs.forEach(({ paymentAmount }) => {
-    addPaidVolume(paymentAmount, dailyVolume, dailyFees, dailyRevenue);
+    addPaidVolume(paymentAmount, dailyVolume, dailyFees, dailyRevenue, "Gacha Fees");
   });
 };
 
@@ -50,20 +52,14 @@ const getBattlePayments = async (
   });
 
   logs.forEach(({ paymentAmount }) => {
-    addPaidVolume(paymentAmount, dailyVolume, dailyFees, dailyRevenue);
+    addPaidVolume(paymentAmount, dailyVolume, dailyFees, dailyRevenue, "Battle Fees");
   });
 };
 
-const fetch = async (options: FetchOptions): Promise<{
-  dailyVolume: Balances;
-  dailyFees: Balances;
-  dailyRevenue: Balances;
-  dailyUserFees: Balances;
-  dailyProtocolRevenue: Balances;
-}> => {
-  const dailyVolume = new Balances({ chain: CHAIN.BSC });
-  const dailyFees = new Balances({ chain: CHAIN.BSC });
-  const dailyRevenue = new Balances({ chain: CHAIN.BSC });
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   await getGachaPurchases(options, dailyVolume, dailyFees, dailyRevenue);
   await getBattlePayments(options, dailyVolume, dailyFees, dailyRevenue);
@@ -81,8 +77,23 @@ const methodology = {
   Volume: "Volume from Gacha purchases and Battle payments.",
   Fees: "Estimated fees from Gacha purchases and Battle payments, calculated as 6% of paid volume.",
   Revenue: "Estimated revenue from Gacha purchases and Battle payments, calculated as 6% of paid volume.",
-  UserFees: "Same as Fees.",
-  ProtocolRevenue: "Same as Revenue.",
+  UserFees: "Estimated user fees from Gacha purchases and Battle payments, calculated as 6% of paid volume.",
+  ProtocolRevenue: "Estimated protocol revenue from Gacha purchases and Battle payments, calculated as 6% of paid volume.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Gacha Fees": "Estimated fees from Gacha purchases, calculated as 6% of paid volume.",
+    "Battle Fees": "Estimated fees from Battle payments, calculated as 6% of paid volume.",
+  },
+  Revenue: {
+    "Gacha Fees": "Estimated revenue from Gacha purchases, calculated as 6% of paid volume.",
+    "Battle Fees": "Estimated revenue from Battle payments, calculated as 6% of paid volume.",
+  },
+  ProtocolRevenue: {
+    "Gacha Fees": "Estimated revenue from Gacha purchases, calculated as 6% of paid volume.",
+    "Battle Fees": "Estimated revenue from Battle payments, calculated as 6% of paid volume.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -92,6 +103,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BSC],
   start: "2026-06-08",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
