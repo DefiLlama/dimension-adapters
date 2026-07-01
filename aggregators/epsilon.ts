@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getTransactions } from "../helpers/getTxReceipts";
 
 const ROUTER = "0x303ca5c65AabCb1CE242DF93F478c41E0E4D2580";
 
@@ -21,44 +22,52 @@ const TOKEN_IN_END = 266;
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
 
   // 1) Direct swaps — value the input leg straight from the event.
-  const swaps = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED, fromBlock, toBlock });
+  const swaps = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED });
   for (const s of swaps) dailyVolume.add(s.tokenIn, s.amountIn);
 
   // 2) Order fills — amountIn is the filled slice (from the event); tokenIn is
   //    recovered from the fill-tx calldata. Fetch each unique fill-tx once.
-  const fills: any[] = await options.getLogs({ target: ROUTER, eventAbi: ORDER_FILLED, entireLog: true, fromBlock, toBlock });
+  const fills: any[] = await options.getLogs({ target: ROUTER, eventAbi: ORDER_FILLED, entireLog: true, parseLog: true });
   if (fills.length) {
-    const provider = (options.api as any).provider;
     const txHashes = [...new Set(fills.map((l) => l.transactionHash))];
-    const txs = await Promise.all(txHashes.map((h) => provider.getTransaction(h)));
-    const inputByTx: Record<string, string> = Object.fromEntries(
-      txHashes.map((h, i) => [h, txs[i]?.data ?? "0x"]),
-    );
+    const txs = await getTransactions(options.chain, txHashes);
+    const inputByTx: Record<string, string> = {};
+    for (let i = 0; i < txHashes.length; i++) {
+      const hash = txHashes[i].toLowerCase();
+      const tx = txs[i];
+      if (!tx?.hash) throw new Error(`Missing transaction for OrderFilled tx ${hash}`);
+      const input = tx.data ?? "0x";
+      if (input.length < TOKEN_IN_END) {
+        throw new Error(`Unexpected calldata for OrderFilled tx ${hash}`);
+      }
+      inputByTx[hash] = input;
+    }
 
     for (const log of fills) {
-      const input = inputByTx[log.transactionHash];
-      if (!input || input.length < TOKEN_IN_END) continue; // not an Order-first call
+      const txHash = log.transactionHash.toLowerCase();
+      const input = inputByTx[txHash];
+      if (!input) throw new Error(`Missing calldata for OrderFilled log in tx ${txHash}`);
       const tokenIn = "0x" + input.slice(TOKEN_IN_START, TOKEN_IN_END);
-      const amountIn = BigInt(log.data.slice(0, 66)); // first non-indexed word
-      dailyVolume.add(tokenIn, amountIn);
+      dailyVolume.add(tokenIn, log.args.amountIn);
     }
   }
 
   return { dailyVolume };
 };
 
+const methodology = {
+  Volume: "Sum of swap volumes and order fill volumes routed through the alpha base epsilon protocol router",
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2026-05-19",
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.BASE],
+  fetch,
+  start: "2026-05-19",
+  methodology,
 };
 
 export default adapter;
