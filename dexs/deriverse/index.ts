@@ -2,6 +2,7 @@ import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
+// Program ID : https://solscan.io/account/DRVSpZ2YUYYKgZP8XtLhAGtT1zYSCKzeHfb4DgRnrgqD
 const API_URL = "https://vol.mainnet.deriverse.io/volumes";
 const MARKET = "spot";
 const HOUR_SECONDS = 60 * 60;
@@ -101,11 +102,9 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  // The hourly runner gates slots by start <= endTimestamp - 1 day; this makes 2026-04-27 the first loaded UTC day.
-  start: "2026-04-26T01:00:00.000Z",
+  start: "2026-04-26",
   methodology: {
-    Volume:
-      "Deriverse spot volume.",
+  Volume: "Volume of all swaps on the Deriverse platform.",
   },
 };
 
