@@ -244,14 +244,6 @@ okuChains.forEach(chain => {
   },
 };
 
-(adapter.adapter as BaseAdapter)[CHAIN.OG] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
 (adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
   fetch: async (options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
