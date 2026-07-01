@@ -131,6 +131,7 @@ const protocolChainMap: Record<string, string> = {
   "b3": CHAIN.B3,
   "degen": CHAIN.DEGEN,
   "bsquared": CHAIN.BSQUARED,
+  "robinhoodchain": CHAIN.ROBINHOOD,
 }
 
 const deadFromMap: Record<string, string> = {
