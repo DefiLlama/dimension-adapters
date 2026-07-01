@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 import { METRIC } from "../../helpers/metrics";
 
 // --- Solana ---
@@ -19,17 +19,18 @@ const fetchSolana = async (options: FetchOptions) => {
 
     const query = `
         SELECT
-            COALESCE(SUM(amount_display), 0) AS total_minted
-        FROM tokens_solana.transfers
+            COALESCE(SUM(amount), 0) AS total_minted
+        FROM solana.assets.transfers
         WHERE
-            token_mint_address = '${WYLDS_MINT}'
-            AND action = 'mint'
-            AND to_token_account = '${VAULT_STAKE_WYLDS_ACCOUNT}'
-            AND to_owner = '${VAULT_STAKE_OWNER}'
-            AND TIME_RANGE
+            mint = '${WYLDS_MINT}'
+            AND type IN ('mintTo', 'mintToChecked')
+            AND token_acc_to = '${VAULT_STAKE_WYLDS_ACCOUNT}'
+            AND to_address = '${VAULT_STAKE_OWNER}'
+            AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+            AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
 
-    const result = await queryDuneSql(options, query);
+    const result = await queryAllium(query);
     const dailyYields = result[0].total_minted;
 
     dailyFees.addUSDValue(dailyYields, METRIC.ASSETS_YIELDS);
@@ -76,15 +77,16 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     adapter: {
       [CHAIN.SOLANA]: { start: '2025-11-21', fetch: fetchSolana},
       [CHAIN.ETHEREUM]: { start: '2026-04-17', fetch: fetchEthereum},
     },
     isExpensiveAdapter: true,
-    dependencies: [Dependencies.DUNE],
+    dependencies: [Dependencies.ALLIUM],
     methodology,
     breakdownMethodology,
+    pullHourly: true,
 };
 
 export default adapter;

@@ -73,7 +73,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.CHAIN_GLOBAL], // data from all chains but stored on BNB Chain
-  start: "2025-10-31",
+  start: "2025-12-02",
   fetch,
   methodology,
 };

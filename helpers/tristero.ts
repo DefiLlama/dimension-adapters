@@ -39,6 +39,19 @@ type TristeroV3RouterConfig = {
   router: string;
 };
 
+type TristeroV3DelegatedSendTargetConfig = {
+  start: string;
+  end?: string;
+  target: string;
+};
+
+type DecodedV3SendOrder = {
+  orderType: string;
+  srcToken: string;
+  srcQuantity: bigint;
+  customData: string;
+};
+
 const MULTICALL_FALLBACK_BATCH_SIZE = 5;
 
 type PermitFailureMultiCallParams = {
@@ -291,6 +304,23 @@ const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
   ],
 };
 
+// Some v3 fills are submitted through EIP-7702/ERC-7579 delegated accounts. Those
+// transactions call execute(bytes32,bytes) on the taker account and carry one or
+// more inner router.send() calls targeted at the Tristero send executor.
+const TRISTERO_V3_DELEGATED_SEND_TARGET = "0xD4c2Ce98CbE2B02bE9449606fdfF75DD700B836F";
+const TRISTERO_V3_DELEGATED_SEND_TARGET_CONFIGS: Record<string, TristeroV3DelegatedSendTargetConfig[]> = {
+  [CHAIN.ARBITRUM]: [
+    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
+  ],
+  [CHAIN.BASE]: [
+    // https://basescan.org/tx/0x3a80afb7ea134650a7906ae05a68a59318967e543d905b3ede4b49db7c151f98
+    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
+  ],
+  [CHAIN.ETHEREUM]: [
+    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
+  ],
+};
+
 const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
   base: ["https://mainnet.base.org"],
 };
@@ -312,8 +342,12 @@ const ORDER_ROUTER_INTERFACE = new Interface([
 const ESCROW_INTERFACE = new Interface([
   "function close((uint128 positionId, uint256 sharesToClose, uint256 minOut, uint256 deadline, uint256 permit2Nonce) order, bytes signature, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb)"
 ]);
+const DELEGATED_EXECUTE_INTERFACE = new Interface([
+  "function execute(bytes32 mode, bytes executionCalldata)"
+]);
 const ABI_CODER = AbiCoder.defaultAbiCoder();
 const ORDER_ROUTER_SEND_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction("send")?.selector.toLowerCase();
+const DELEGATED_EXECUTE_SELECTOR = DELEGATED_EXECUTE_INTERFACE.getFunction("execute")?.selector.toLowerCase();
 
 export function getActiveRouters(date: string): string[] {
   return TRISTERO_ROUTER_SCHEDULE
@@ -346,6 +380,11 @@ export function getActiveTristeroV3MarginEscrows(chain: string, date: string): T
 
 export function getActiveTristeroV3Routers(chain: string, date: string): TristeroV3RouterConfig[] {
   return (TRISTERO_V3_ROUTER_CONFIGS[chain] ?? [])
+    .filter(({ start, end }) => date >= start && (!end || date <= end));
+}
+
+function getActiveTristeroV3DelegatedSendTargets(chain: string, date: string): TristeroV3DelegatedSendTargetConfig[] {
+  return (TRISTERO_V3_DELEGATED_SEND_TARGET_CONFIGS[chain] ?? [])
     .filter(({ start, end }) => date >= start && (!end || date <= end));
 }
 
@@ -969,7 +1008,7 @@ export async function getV3CloseSettlements(
   const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
   if (!txHashes.length) return settlementByPosition;
 
-  const receipts = await getTxReceipts(options.chain, txHashes, { cacheKey });
+  const receipts = await getTxReceipts(options.chain, txHashes);
   const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
 
   closedPositions.forEach((position) => {
@@ -1024,7 +1063,7 @@ function normalizeVolumeToken(chain: string, tokenAddress?: string | null): stri
   return normalized;
 }
 
-function decodeV3SendOrder(data?: string) {
+function decodeV3SendOrder(data?: string): DecodedV3SendOrder | null {
   if (!data || !ORDER_ROUTER_SEND_SELECTOR || !data.toLowerCase().startsWith(ORDER_ROUTER_SEND_SELECTOR)) return null;
 
   try {
@@ -1043,6 +1082,45 @@ function decodeV3SendOrder(data?: string) {
     sdk.log(`Unable to decode Tristero v3 router.send calldata ${calldataContext}: ${(error as Error).message}`);
     throw error;
   }
+}
+
+function isDelegatedBatchExecuteMode(mode: unknown): boolean {
+  const normalized = String(mode).toLowerCase();
+  return normalized.length === 66 && normalized.startsWith("0x01");
+}
+
+function decodeV3DelegatedBatchSendOrders(data: string | undefined, delegatedSendTargets: Set<string>): DecodedV3SendOrder[] {
+  if (!data || !DELEGATED_EXECUTE_SELECTOR || !data.toLowerCase().startsWith(DELEGATED_EXECUTE_SELECTOR)) return [];
+
+  let parsed;
+  try {
+    parsed = DELEGATED_EXECUTE_INTERFACE.parseTransaction({ data });
+  } catch (error) {
+    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to parse Tristero delegated execute calldata ${calldataContext}: ${(error as Error).message}`);
+    return [];
+  }
+
+  if (!parsed || parsed.name !== "execute" || !isDelegatedBatchExecuteMode(parsed.args.mode)) return [];
+
+  let executions: Array<{ target: string; callData: string }>;
+  try {
+    [executions] = ABI_CODER.decode(
+      ["tuple(address target,uint256 value,bytes callData)[]"],
+      parsed.args.executionCalldata,
+    ) as unknown as [Array<{ target: string; callData: string }>];
+  } catch (error) {
+    const executionCalldata = String(parsed.args.executionCalldata);
+    const calldataContext = `${executionCalldata.slice(0, 74)}${executionCalldata.length > 74 ? "..." : ""}`;
+    sdk.log(`Unable to decode Tristero delegated execution calldata ${calldataContext}: ${(error as Error).message}`);
+    return [];
+  }
+
+  return executions.flatMap((execution) => {
+    if (!delegatedSendTargets.has(normalizeAddress(execution.target))) return [];
+    const decodedOrder = decodeV3SendOrder(String(execution.callData));
+    return decodedOrder ? [decodedOrder] : [];
+  });
 }
 
 function decodeV3CloseOrder(data?: string): boolean {
@@ -1066,6 +1144,23 @@ function decodeMarginLoan(order: { orderType: string; customData: string }) {
     return { token: String(loanAsset), quantity: BigInt(loanQuantity) };
   } catch (error) {
     throw new Error(`Unable to decode Tristero v3 MARGIN customData: ${(error as Error).message}`);
+  }
+}
+
+function addDecodedV3SendOrderVolume(
+  options: FetchOptions,
+  dailyVolume: Balances,
+  decodedOrder: DecodedV3SendOrder,
+  txHash: string,
+) {
+  const srcTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
+  if (srcTokenAddress) dailyVolume.add(srcTokenAddress, decodedOrder.srcQuantity);
+
+  const marginLoan = decodeMarginLoan(decodedOrder);
+  if (marginLoan?.quantity) {
+    const loanToken = normalizeVolumeToken(options.chain, marginLoan.token);
+    if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token in tx ${txHash}`);
+    dailyVolume.add(loanToken, marginLoan.quantity);
   }
 }
 
@@ -1100,8 +1195,8 @@ async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balanc
   );
 
   const [closeTransactions, closeReceipts] = await Promise.all([
-    getTransactions(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
-    getTxReceipts(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
+    getTransactions(options.chain, closeTxHashes),
+    getTxReceipts(options.chain, closeTxHashes),
   ]);
 
   const txByHash = new Map(closeTransactions.filter((tx) => tx?.hash).map((tx) => [normalizeAddress(tx!.hash!), tx]));
@@ -1159,17 +1254,42 @@ async function addV3RouterOpenVolume(options: FetchOptions, dailyVolume: Balance
     const decodedOrder = decodeV3SendOrder(String(row.input));
     if (!decodedOrder) continue;
 
-    const tokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
-    if (!tokenAddress) continue;
+    addDecodedV3SendOrderVolume(options, dailyVolume, decodedOrder, row.hash);
+  }
+}
 
-    dailyVolume.add(tokenAddress, decodedOrder.srcQuantity);
+async function addV3DelegatedSendOpenVolume(options: FetchOptions, dailyVolume: Balances) {
+  const activeDelegatedSendTargets = getActiveTristeroV3DelegatedSendTargets(options.chain, options.dateString);
+  if (!activeDelegatedSendTargets.length || !DELEGATED_EXECUTE_SELECTOR) return;
 
-    const marginLoan = decodeMarginLoan(decodedOrder);
-    if (marginLoan?.quantity) {
-      const loanToken = normalizeVolumeToken(options.chain, marginLoan.token);
-      if (!loanToken) throw new Error(`Unsupported Tristero v3 loan token in tx ${row.hash}`);
-      dailyVolume.add(loanToken, marginLoan.quantity);
-    }
+  const delegatedSendTargets = new Set(activeDelegatedSendTargets.map(({ target }) => normalizeAddress(target)));
+  const txRows = (
+    await Promise.all(activeDelegatedSendTargets.map(({ target }) => queryClickhouse<Row & { hash: string; input: string }>(`
+      SELECT hash, input
+      FROM evm_indexer.transactions
+      WHERE chain = {chain:UInt64}
+        AND startsWith(input, {selector:String})
+        AND input LIKE {targetPattern:String}
+        AND status = 'success'
+        AND timestamp >= toDateTime({fromTs:UInt32})
+        AND timestamp < toDateTime({toTs:UInt32})
+    `, {
+      chain: Number(options.api.chainId),
+      selector: DELEGATED_EXECUTE_SELECTOR,
+      targetPattern: `%${normalizeAddress(target).slice(2)}%`,
+      fromTs: options.fromTimestamp,
+      toTs: options.toTimestamp,
+    })))
+  ).flat();
+
+  const seenTxHashes = new Set<string>();
+  for (const row of txRows) {
+    const txHash = normalizeAddress(row.hash);
+    if (seenTxHashes.has(txHash)) continue;
+    seenTxHashes.add(txHash);
+
+    const decodedOrders = decodeV3DelegatedBatchSendOrders(String(row.input), delegatedSendTargets);
+    decodedOrders.forEach((decodedOrder) => addDecodedV3SendOrderVolume(options, dailyVolume, decodedOrder, row.hash));
   }
 }
 
@@ -1192,6 +1312,7 @@ export async function fetchDailyVolume(options: FetchOptions): Promise<Balances>
 
   await Promise.all([
     addV3RouterOpenVolume(options, dailyVolume),
+    addV3DelegatedSendOpenVolume(options, dailyVolume),
     addV3MarginCloseVolume(options, dailyVolume),
   ]);
 

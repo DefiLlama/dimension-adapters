@@ -53,6 +53,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV3',
     'uniSubgraph',
     'blockscout',
+    'routescan',
     'hyperliquid:validatorFees',
     'hyperliquid',
     'symmio',

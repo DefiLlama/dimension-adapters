@@ -23,6 +23,7 @@ export enum CHAIN {
   BSC = "bsc",
   BIFROST = "bifrost",
   BOTANIX = "btnx",
+  BEAM = "beam",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
@@ -385,4 +386,6 @@ export enum CHAIN {
   B3 = "b3",
   DEGEN = "degen",
   AELF = "aelf",
+  RUBIN = "rubin",
+  AFX = "afx"
 }

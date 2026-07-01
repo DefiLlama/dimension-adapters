@@ -1,6 +1,7 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
+import { getEnv } from "../../helpers/env";
 const plimit = require('p-limit');
 const limits = plimit(1);
 
@@ -33,20 +34,19 @@ async function fetchTransactionPage(params: {
         limit: CONFIG.PAGE_LIMIT.toString(),
         direction: "2",
         reverse: "false",
-        start_timestamp: params.fromTimestamp.toString(),
-        end_timestamp: params.endTimestamp.toString(),
+        // FetchOptions timestamps are in seconds; Tronscan expects milliseconds.
+        start_timestamp: (params.fromTimestamp * 1000).toString(),
+        end_timestamp: (params.endTimestamp * 1000).toString(),
     };
 
     Object.entries(queryParams).forEach(([key, value]) =>
         url.searchParams.append(key, value)
     );
 
-    try {
-        return await limits(() => fetchURL(url.toString()));
-    } catch (error) {
-        console.error(`Failed to fetch Tron transactions: ${error}`);
-        throw error;
-    }
+    const apiKey = getEnv("TRONSCAN_API_KEY");
+    if (!apiKey) throw new Error("TRONSCAN_API_KEY is not set");
+    const headers = { "TRON-PRO-API-KEY": apiKey };
+    return limits(() => httpGet(url.toString(), { headers }));
 }
 
 async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promise<number> {
@@ -104,4 +104,5 @@ export default {
     fetch,
     chains: [CHAIN.TRON],
     start: CONFIG.START_TIMESTAMP,
+    pullHourly: true,
 };

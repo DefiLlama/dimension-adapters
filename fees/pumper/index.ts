@@ -112,6 +112,7 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
   },
   isExpensiveAdapter: true,
+  deadFrom: "2025-12-31", //operations shut down
 };
 
 export default adapter;

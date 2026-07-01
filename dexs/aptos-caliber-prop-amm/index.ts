@@ -22,6 +22,8 @@ const SWAP_EVENT_V3 =
 const USDC_TOKEN =
   "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
 
+const VOLUME_THRESHOLD = 100_000_000;
+
 const fetch = async (options: FetchOptions) => {
   const query = `
     WITH raw AS (
@@ -52,8 +54,14 @@ const fetch = async (options: FetchOptions) => {
   `
   const data = await queryDuneSql(options, query)
 
+  const dailyVolume = data[0]?.daily_volume ?? 0;
+
+  if (dailyVolume > VOLUME_THRESHOLD) {
+    throw new Error('Daily volume is inflated');
+  }
+
   return {
-    dailyVolume: data[0]?.daily_volume ?? 0,
+    dailyVolume,
   }
 }
 

@@ -20,7 +20,7 @@
 
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { queryDuneSql } from '../helpers/dune'
+import { queryAllium } from '../helpers/allium'
 
 const FEE_WALLET = '4K3a2ucXiGvuMJMPNneRDyzmNp6i4RdzXJmBdWwGwPEh';
 const HAWKFI_MEV = 'HAWK3BVnwptKRFYfVoVGhBc2TYxpyG9jmAbkHeW9tyKE'
@@ -30,16 +30,16 @@ const fetch = async (options: FetchOptions) => {
 
  // Track all transfers to HawkFi fee wallet (8% performance fee from all DEX sources)
   const query = `
-    SELECT token_mint_address AS token, SUM(amount) AS amount
-    FROM tokens_solana.transfers
-    WHERE to_owner = '${FEE_WALLET}'
-      AND tx_signer = '${HAWKFI_MEV}'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+    SELECT mint AS token, SUM(raw_amount) AS amount
+    FROM solana.assets.transfers
+    WHERE to_address = '${FEE_WALLET}'
+      AND signer = '${HAWKFI_MEV}'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY 1
   `
 
-  const rows: any[] = await queryDuneSql(options, query, { extraUIDKey: 'hawkfi-fees' })
+  const rows: any[] = await queryAllium(query)
   rows.forEach((row) => dailyProtocolRevenue.add(row.token, row.amount))
 
   // Total fees = protocol revenue / 0.08 (HawkFi takes 8% of LP yield)
@@ -64,12 +64,13 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2024-02-05',
+  pullHourly: true,
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   methodology,
 }
 

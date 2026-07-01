@@ -83,7 +83,8 @@ const adapters: SimpleAdapter = {
     Fees: "Tokens trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",
     ProtocolRevenue: "All revenue collected by protocol.",
-  }
+  },
+  deadFrom: "2026-01-18"
 }
 
 export default adapters

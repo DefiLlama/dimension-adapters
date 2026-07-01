@@ -1,64 +1,128 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
-import { CHAIN } from "../helpers/chains"
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-const NFT_CONTRACT = '0x133CAEecA096cA54889db71956c7f75862Ead7A0'
-const SPEND_CONTRACT = '0xe2e3B88B9893e18D0867c08f9cA93f8aB5935b14'
-const SPEND_EVENT= 'event Authorized (string authorizationToken, uint256 indexed tokenId, address indexed sender, string cardId, address cardCurrency, uint256 paidAmount)'
-const TRANSFER_EVENT= 'event Transfer (address indexed from, address indexed to, uint256 indexed tokenId)'
-const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-const ZERO_TOPIC = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const MINT_START_BLOCK = 298189162
+const SPEND_CONTRACT = "0xe2e3B88B9893e18D0867c08f9cA93f8aB5935b14";
+const NFT_CONTRACT = "0x133CAEecA096cA54889db71956c7f75862Ead7A0";
+const ANCHOR_CONTRACT = "0x22043fDdF353308B4F2e7dA2e5284E4D087449e1";
+const BITGET_ANCHOR = "0x0302a72409b88da559693a3ca51978f136f46a08";
+const MINT_START_BLOCK = 298189162;
 
-const CURRENCY_RATES: Record<string, number> = {
-  '0x2c5d06f591d0d8cd43ac232c2b654475a142c7da': 1.1722, // EUR
-  '0xbe00f3db78688d9704bcb4e0a827aea3a9cc0d62': 1,      // USD
-  '0xd41f1f0cf89fd239ca4c1f8e8ada46345c86b0a4': 1.25,   // CHF
-  '0x7288ac74d211735374a23707d1518dcbbc0144fd': 0.14,    // CNY
-}
+const SPEND_EVENT = "event Authorized (string authorizationToken, uint256 indexed tokenId, address indexed sender, string cardId, address cardCurrency, uint256 paidAmount)";
+const APPROVAL_EVENT = "event Approval(address indexed owner, address indexed spender, uint256 value)";
+const TRANSFER_EVENT = "event Transfer (address indexed from, address indexed to, uint256 indexed tokenId)";
+const APPROVAL_TOPIC = "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925";
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const ZERO_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const CURRENT_DECIMALS = 2;
+
+const FIAT24_CURRENCIES = new Set([
+  "0xbe00f3db78688d9704bcb4e0a827aea3a9cc0d62", //USD
+  "0x2c5d06f591d0d8cd43ac232c2b654475a142c7da", //EUR
+  "0xd41f1f0cf89fd239ca4c1f8e8ada46345c86b0a4", //CHF
+  "0x7288ac74d211735374a23707d1518dcbbc0144fd", //CNH
+]);
+
+const topic = (address: string) =>
+  "0x000000000000000000000000" + address.slice(2).toLowerCase();
+
+const chainConfig: Record<string, { start: string; rateContract: string; usd24: string; rateDivisor: number }> = {
+  [CHAIN.ARBITRUM]: {
+    start: "2025-01-21",
+    rateContract: "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+    usd24: "0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62",
+    rateDivisor: 1e4,
+  },
+};
+
+const getBitgetWallets = async (options: FetchOptions) => {
+  const toBlock = await options.getToBlock();
+  const [anchorLogs, mintLogs] = await Promise.all([
+    options.getLogs({
+      target: ANCHOR_CONTRACT,
+      eventAbi: APPROVAL_EVENT,
+      topics: [APPROVAL_TOPIC, topic(BITGET_ANCHOR)],
+      fromBlock: MINT_START_BLOCK,
+      toBlock,
+      cacheInCloud: true,
+      onlyArgs: false,
+    }),
+    options.getLogs({
+      target: NFT_CONTRACT,
+      eventAbi: TRANSFER_EVENT,
+      topics: [TRANSFER_TOPIC, ZERO_TOPIC],
+      fromBlock: MINT_START_BLOCK,
+      toBlock,
+      cacheInCloud: true,
+      onlyArgs: false,
+    }),
+  ]);
+
+  const anchorTxHashes = new Set(
+    anchorLogs.map((log: any) => log.transactionHash.toLowerCase()),
+  );
+
+  const bitgetWallets = new Set<string>();
+  for (const log of mintLogs) {
+    const txHash = log.transactionHash?.toLowerCase();
+    if (!txHash || !anchorTxHashes.has(txHash)) continue;
+
+    const wallet = (log.args?.to ?? log.to)?.toLowerCase();
+    if (wallet) bitgetWallets.add(wallet);
+  }
+
+  return bitgetWallets;
+};
 
 const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const { rateContract, usd24, rateDivisor } = chainConfig[options.chain];
+
   const spendLogs = await options.getLogs({
     target: SPEND_CONTRACT,
     eventAbi: SPEND_EVENT,
-  })
+  });
 
-  if (spendLogs.length === 0) return { dailyVolume: 0 }
-
-  // Fetch all mint events and filter wallets
-  const mintLogs = await options.getLogs({
-    target: NFT_CONTRACT,
-    eventAbi: TRANSFER_EVENT,
-    topics: [TRANSFER_TOPIC, ZERO_TOPIC],
-    fromBlock: MINT_START_BLOCK,
-    cacheInCloud: true,
-  })
-
-  const mintWallets = new Set(
-    mintLogs.map((log: any) => log.to.toLowerCase())
-  )
-
-  let totalVolume = 0
+  const bitgetWallets = await getBitgetWallets(options);
+  const currencyMap = new Map<string, number>();
 
   for (const log of spendLogs) {
-    const walletAddress = log.sender.toLowerCase()
-    if (!mintWallets.has(walletAddress)) continue
+    const wallet = log.sender.toLowerCase();
+    if (!bitgetWallets.has(wallet)) continue;
 
-    const currencyContract = log.cardCurrency.toLowerCase()
-    const spendAmount = Number(log.paidAmount) / 1e2
+    const currency = log.cardCurrency.toLowerCase();
+    if (!FIAT24_CURRENCIES.has(currency)) continue;
 
-    const rate = CURRENCY_RATES[currencyContract]
-    if (rate) {
-      totalVolume += spendAmount * rate
-    }
+    const amount = Number(log.paidAmount) / 10 ** CURRENT_DECIMALS;
+    currencyMap.set(currency, (currencyMap.get(currency) ?? 0) + amount);
   }
 
-  return { dailyVolume: totalVolume };
+  if (currencyMap.size === 0) return { dailyVolume };
+
+  const currencies = Array.from(currencyMap.keys());
+  const rates = await options.api.multiCall({
+    target: rateContract,
+    abi: "function getExchangeRate(address inputToken, address outputToken) view returns (uint256)",
+    calls: currencies.map((currency) => ({ params: [usd24, currency] })),
+  });
+
+  currencies.forEach((currency, i) => {
+    const rate = Number(rates[i]);
+    if (rate) dailyVolume.addUSDValue(currencyMap.get(currency)! * rateDivisor / rate);
+  });
+
+  return { dailyVolume };
+};
+
+const methodology = {
+  Volume: "Total USD value spent by Bitget Wallet card holders via Fiat24 issuer.",
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  start: '2025-01-21',
-  chains: [CHAIN.ARBITRUM],
+  adapter: chainConfig,
+  methodology,
 };
 
 export default adapter;
