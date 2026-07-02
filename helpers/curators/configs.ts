@@ -198,6 +198,14 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.ROBINHOOD]: {
+    vaultV2Factories: [
+      {
+        address: '0x0FBad98595b0186dA120E41f77C102beb49f803c',
+        fromBlock: 286,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {

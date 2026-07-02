@@ -90,6 +90,7 @@ export const ENV_KEYS = new Set([
   'PEARL_BLOCKBOOK_API',
   'OKLINK_API_KEY',
   'TRONSCAN_API_KEY',
+  'ROBINHOOD_RPC'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
