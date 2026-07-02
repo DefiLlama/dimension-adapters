@@ -58,19 +58,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const performanceFeeRate = Number(state.performanceFee) / 1e4;
 
-  // only positive growth generates fees (no fee is charged on losses)
-  const rateGrowth = Number(rateAfter) > Number(rateBefore) ? (Number(rateAfter) - Number(rateBefore)) / 1e18 : 0;
+  const rateGrowth = (Number(rateAfter) - Number(rateBefore)) / 1e18;
   const yieldAfterFees = (Number(totalSupply) / 1e18) * rateGrowth;
 
-  if (yieldAfterFees > 0) {
-    const yieldTotal = yieldAfterFees / (1 - performanceFeeRate);
-    const performanceFees = yieldTotal - yieldAfterFees;
+  const yieldTotal = yieldAfterFees / (1 - performanceFeeRate);
+  const performanceFees = yieldTotal - yieldAfterFees;
 
-    dailyFees.addCGToken("hyperliquid", yieldTotal, METRICS.VaultYield);
-    dailyRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
-    dailyProtocolRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
-    dailySupplySideRevenue.addCGToken("hyperliquid", yieldAfterFees, METRICS.VaultYieldToDepositors);
-  }
+  dailyFees.addCGToken("hyperliquid", yieldTotal, METRICS.VaultYield);
+  dailyRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
+  dailyProtocolRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
+  dailySupplySideRevenue.addCGToken("hyperliquid", yieldAfterFees, METRICS.VaultYieldToDepositors);
 
   return {
     dailyFees,
@@ -91,6 +88,7 @@ const adapter: Adapter = {
   },
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // Yield can be negative, though performance fees is charged on profits, we still consider them on negative yields as cumulative would be correct
 };
 
 export default adapter;
