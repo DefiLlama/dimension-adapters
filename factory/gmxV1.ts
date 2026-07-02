@@ -13,10 +13,10 @@ const ktxMethodology = {
 
 export const gmxV1Configs: Record<string, any> = {
   "alpacafinance-gmx": {
-    [CHAIN.BSC]: { vault: "0x18A15bF2Aa1E514dc660Cc4B08d05f9f6f0FdC4e", start: "2023-03-03" },
+    [CHAIN.BSC]: { vault: "0x18A15bF2Aa1E514dc660Cc4B08d05f9f6f0FdC4e", start: "2023-03-03", deadFrom: '2025-06-10' },
   },
   "kinetix-v1": {
-    [CHAIN.KAVA]: { vault: "0xa721f9f61CECf902B2BCBDDbd83E71c191dEcd8b", start: "2023-12-12" },
+    [CHAIN.KAVA]: { vault: "0xa721f9f61CECf902B2BCBDDbd83E71c191dEcd8b", start: "2023-12-12", deadFrom: '2025-07-10' },
   },
   "ktx": {
     [CHAIN.ARBITRUM]: { vault: "0xc657A1440d266dD21ec3c299A8B9098065f663Bb", start: "2024-01-14", ProtocolRevenue: 0, SupplySideRevenue: 70, HoldersRevenue: 30, methodology: ktxMethodology, deadFrom: '2026-02-28' },
@@ -27,13 +27,13 @@ export const gmxV1Configs: Record<string, any> = {
     [CHAIN.PULSECHAIN]: { vault: "0x3dC4033fF5c04FdE3369937434961ca47AC7cA26", start: "2023-09-16" },
   },
   "sobax-io": {
-    [CHAIN.POLYGON]: { vault: "0x0e1D69B5888a0411Fe0A05a5A4d2ACED4305f67c", start: "2023-06-26" },
+    [CHAIN.POLYGON]: { vault: "0x0e1D69B5888a0411Fe0A05a5A4d2ACED4305f67c", start: "2023-06-26", deadFrom: '2025-07-11' },
   },
   "tsunami-fi": {
-    [CHAIN.MANTLE]: { vault: "0x73a540Bec4350cD2bB3b9e09EBB6976a3C562c55", start: "2023-12-12" },
+    [CHAIN.MANTLE]: { vault: "0x73a540Bec4350cD2bB3b9e09EBB6976a3C562c55", start: "2023-12-12", deadFrom: '2025-09-12' },
   },
   "loxodrome-perp": {
-    [CHAIN.IOTEX]: { vault: "0x13904291B7d3e87d23070d22Bc34FA514F99Db18", start: "2024-11-02" },
+    [CHAIN.IOTEX]: { vault: "0x13904291B7d3e87d23070d22Bc34FA514F99Db18", start: "2024-11-02", deadFrom: '2026-03-02' },
   },
   "fxdx": {
     [CHAIN.BASE]: { vault: "0x1ce0EBd2b95221b924765456fdE017B076E79dbe", start: '2023-08-22', deadFrom: '2025-11-01' },
