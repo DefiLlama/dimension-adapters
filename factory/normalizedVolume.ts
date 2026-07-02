@@ -196,7 +196,7 @@ const protocols = {
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
     start: '2026-01-20',
-    minContracts: 60
+    minContracts: 40
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
