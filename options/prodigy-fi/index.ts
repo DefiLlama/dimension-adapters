@@ -1,8 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const WAD = 10n ** 18n;
-
 const vaultParams = "tuple(address owner,address vaultBatchManager,address linkedToken,address investmentToken,address aggregator,bytes32 priceFeed,uint256 expiry,uint256 linkedPrice,int256 linkedOraclePrice,uint256 yieldValue,bool isBuyLow,uint256 quantity,uint256 depositDeadline,uint64 minConfidenceRatio,address collateralPool,uint256 tradingFeeRate,address feeReceiver,int256 oraclePriceAtCreation,address signer)";
 const legacyVaultParams = "tuple(address owner,address vaultBatchManager,address linkedToken,address investmentToken,address aggregator,bytes32 priceFeed,uint256 expiry,uint256 linkedPrice,int256 linkedOraclePrice,uint256 yieldValue,bool isBuyLow,uint256 quantity,uint256 depositDeadline,uint64 minConfidenceRatio,address collateralPool,uint256 tradingFeeRate,address feeReceiver,int256 oraclePriceAtCreation)";
 
@@ -63,7 +61,11 @@ type BlockRange = { fromBlock: number; toBlock: number };
 
 type VaultMetadata = {
   investmentToken: string;
-  yieldValue: bigint;
+  creatorCollateral: bigint;
+  creationBlock: number;
+  isBuyLow: boolean;
+  strike: bigint;
+  oraclePriceAtCreation: bigint;
 };
 
 function intersectRange(
@@ -87,15 +89,39 @@ function toBigInt(value: any): bigint {
 function addVaultMetadata(
   vaults: Map<string, VaultMetadata>,
   vaultAddress: string,
-  investmentToken: string,
-  yieldValue: any,
+  data: {
+    investmentToken: string;
+    creatorCollateral: any;
+    creationBlock: number;
+    isBuyLow: any;
+    strike: any;
+    oraclePriceAtCreation: any;
+  },
 ) {
-  if (!vaultAddress || !investmentToken || yieldValue === null || yieldValue === undefined) return;
+  if (!vaultAddress || !data.investmentToken || data.creatorCollateral === null || data.creatorCollateral === undefined) return;
 
   vaults.set(vaultAddress.toLowerCase(), {
-    investmentToken,
-    yieldValue: toBigInt(yieldValue),
+    investmentToken: data.investmentToken,
+    creatorCollateral: toBigInt(data.creatorCollateral),
+    creationBlock: data.creationBlock,
+    isBuyLow: !!data.isBuyLow,
+    strike: toBigInt(data.strike ?? 0),
+    oraclePriceAtCreation: toBigInt(data.oraclePriceAtCreation ?? 0),
   });
+}
+
+// Notional is the underlying (base-asset) exposure of a contract. For buy-low vaults the
+// investment token (quote) is converted to the base asset at the vault linked price (strike)
+// valued at the spot price; for sell-high vaults the investment token already is the base asset,
+// so notional equals the principal. linkedPrice and the oracle prices share decimals (the contract
+// compares them directly), so the spot/strike ratio is decimal-safe.
+// A buy-low vault must have a positive strike and spot price; missing/zero pricing is a data error
+// and fails loud rather than falling back to principal, which would misclassify notional as premium.
+function toNotional(metadata: VaultMetadata, principal: bigint, spotPrice: bigint): bigint {
+  if (!metadata.isBuyLow) return principal;
+  if (metadata.strike <= 0n || spotPrice <= 0n)
+    throw new Error(`Prodigy.Fi buy-low notional has invalid pricing (investmentToken=${metadata.investmentToken}, strike=${metadata.strike}, spot=${spotPrice})`);
+  return principal * spotPrice / metadata.strike;
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -113,6 +139,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (vaultAddresses.length === 0) {
     return { dailyNotionalVolume, dailyPremiumVolume };
   }
+
+  // Creator side: every vault is its own options contract with the vault as the counterparty.
+  // Premium is the full creator collateral; notional is its underlying-asset exposure.
+  vaultMetadata.forEach((metadata) => {
+    if (metadata.creationBlock < fetchFromBlock || metadata.creationBlock > fetchToBlock) return;
+    dailyPremiumVolume.add(metadata.investmentToken, metadata.creatorCollateral);
+    dailyNotionalVolume.add(metadata.investmentToken, toNotional(metadata, metadata.creatorCollateral, metadata.oraclePriceAtCreation));
+  });
 
   let combinedDepositLogs: any[] = [];
 
@@ -135,13 +169,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     combinedDepositLogs.push(...legacyDepositLogs)
   }
 
+  // Subscriber side: each deposit is a separate options contract bought from the vault.
+  // Premium is the full deposit; notional is its underlying-asset exposure at the deposit-time price.
   combinedDepositLogs.forEach(log => {
     const metadata = vaultMetadata.get(log.address.toLowerCase())
     if (!metadata) return;
-    const yieldValue = log.args.yieldValue ?? metadata.yieldValue;
-    const premiumAmount = BigInt(log.args.depositAmount) * yieldValue / WAD;
-    dailyNotionalVolume.add(metadata.investmentToken, log.args.depositAmount);
-    dailyPremiumVolume.add(metadata.investmentToken, premiumAmount);
+    const principal = toBigInt(log.args.depositAmount);
+    const spotPrice = toBigInt(log.args.oraclePriceAtDeposit);
+    dailyPremiumVolume.add(metadata.investmentToken, principal);
+    dailyNotionalVolume.add(metadata.investmentToken, toNotional(metadata, principal, spotPrice));
   })
 
   return {
@@ -217,6 +253,8 @@ async function fetchVaultMetadataRange(
         target: chainConfig.factory,
         eventAbi: eventAbis.vaultCreated,
         fromBlock: currentRange.fromBlock,
+        entireLog: true,
+        parseLog: true,
         cacheInCloud: true,
       }),
     });
@@ -230,6 +268,8 @@ async function fetchVaultMetadataRange(
         eventAbi: eventAbis.legacyVaultCreatedWithParams,
         fromBlock: legacyWithParamsRange.fromBlock,
         toBlock: legacyWithParamsRange.toBlock,
+        entireLog: true,
+        parseLog: true,
         cacheInCloud: true,
       }),
     });
@@ -243,6 +283,8 @@ async function fetchVaultMetadataRange(
         eventAbi: eventAbis.legacyVaultCreated,
         fromBlock: legacyRange.fromBlock,
         toBlock: legacyRange.toBlock,
+        entireLog: true,
+        parseLog: true,
         cacheInCloud: true,
       }),
     });
@@ -254,12 +296,27 @@ async function fetchVaultMetadataRange(
     const kind = queries[idx].kind;
     if (kind === "current" || kind === "legacyWithParams") {
       logs.forEach((log: any) => {
-        addVaultMetadata(vaults, log.vaultAddress, log.vaultParams.investmentToken, log.vaultParams.yieldValue);
+        const params = log.args.vaultParams;
+        addVaultMetadata(vaults, log.args.vaultAddress, {
+          investmentToken: params.investmentToken,
+          creatorCollateral: params.quantity,
+          creationBlock: log.blockNumber,
+          isBuyLow: params.isBuyLow,
+          strike: params.linkedPrice,
+          oraclePriceAtCreation: params.oraclePriceAtCreation,
+        });
       });
     } else {
       logs.forEach((log: any) => {
-        const investmentToken = log.isBuyLow ? log.quoteToken : log.baseToken;
-        addVaultMetadata(vaults, log.vaultAddress, investmentToken, log.yieldValue);
+        const investmentToken = log.args.isBuyLow ? log.args.quoteToken : log.args.baseToken;
+        addVaultMetadata(vaults, log.args.vaultAddress, {
+          investmentToken,
+          creatorCollateral: log.args.quantity,
+          creationBlock: log.blockNumber,
+          isBuyLow: log.args.isBuyLow,
+          strike: log.args.linkedPrice,
+          oraclePriceAtCreation: log.args.oraclePriceAtCreation,
+        });
       });
     }
   });
@@ -273,8 +330,8 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: config,
   methodology: {
-    NotionalVolume: "Notional volume is the principal deposited into Prodigy.Fi DCI vaults, counted in each vault's investment token when the on-chain Deposit event is emitted.",
-    PremiumVolume: "Premium volume is computed from each on-chain Deposit event as deposited principal multiplied by the vault yieldValue, denominated in the same investment token.",
+    NotionalVolume: "Notional is the underlying base-asset exposure of each Prodigy.Fi DCI options contract (the creator collateral at vault creation, plus every subscriber deposit). For buy-low vaults the investment token is converted to the base asset at the vault's linked price and valued at the spot price; for sell-high vaults the investment token already is the base asset, so notional equals the principal.",
+    PremiumVolume: "Premium counts both sides of every Prodigy.Fi DCI vault at full value, treating each as a separate options contract with the vault as counterparty: the creator collateral committed at vault creation, plus each subscriber deposit, denominated in the vault's investment token.",
   },
 };
 
