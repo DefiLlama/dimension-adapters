@@ -33,9 +33,6 @@ const CHAIN_MAP: Record<string, string> = {
   'Solana': CHAIN.SOLANA,
 }
 
-// Kamino-listed Sentora vaults that are NOT kvault-program vaults (Kamino's
-// /kvaults endpoints return an error for them). Skipped until the team
-// clarifies which product they belong to.
 const KAMINO_VAULT_BLOCKLIST = new Set([
   '2tmMcVv2Ene7wFGebPivhwYhAZyjaJoibMz1GYVaXsB1', // Sentora JitoSOL
 ])
@@ -157,16 +154,17 @@ async function accrueMorpho(options: FetchOptions, balances: Balances, vaults: s
   const rates = await readVaultRates(options, vaults)
   if (!rates.length) return
 
-  // V1 and V2 emit different AccrueInterest signatures — try both per vault.
-  const eventLogs = await Promise.all(rates.map(v => Promise.all([
-    options.getLogs({ eventAbi: ABIS.morphoV1Accrue, target: v.vault, cacheInCloud: true }),
-    options.getLogs({ eventAbi: ABIS.morphoV2Accrue, target: v.vault, cacheInCloud: true }),
-  ])))
+  const targets = rates.map(v => v.vault)
+  const [v1LogsPerVault, v2LogsPerVault] = await Promise.all([
+    options.getLogs({ eventAbi: ABIS.morphoV1Accrue, targets, cacheInCloud: true, flatten: false }),
+    options.getLogs({ eventAbi: ABIS.morphoV2Accrue, targets, cacheInCloud: true, flatten: false }),
+  ])
 
   const perfShares: { vault: string; shares: number }[] = []
   const mgmtShares: { vault: string; shares: number }[] = []
   for (let i = 0; i < rates.length; i++) {
-    const [v1Logs, v2Logs] = eventLogs[i]
+    const v1Logs = v1LogsPerVault[i] ?? []
+    const v2Logs = v2LogsPerVault[i] ?? []
     const perf = sumLogs(v1Logs, 'feeShares') + sumLogs(v2Logs, 'performanceFeeShares')
     const mgmt = sumLogs(v2Logs, 'managementFeeShares')
     perfShares.push({ vault: rates[i].vault, shares: perf })
@@ -273,10 +271,19 @@ async function accrueKamino(options: FetchOptions, balances: Balances, vaults: s
 
   const startDate = new Date((options.fromTimestamp - 86400) * 1000).toISOString().split('T')[0]
   const endDate = new Date((options.toTimestamp + 86400) * 1000).toISOString().split('T')[0]
+  const elapsed = options.toTimestamp - options.fromTimestamp
 
-  for (const vault of vaults) {
-    const config = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`)
-    const history = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`)
+  // Parallel fetch — Kamino's HTTP API (not RPC) tolerates concurrent calls
+  // for a bounded vault list; per-vault config+history requests also run in parallel.
+  const perVault = await Promise.all(vaults.map(async vault => {
+    const [config, history] = await Promise.all([
+      fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`),
+      fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`),
+    ])
+    return { config, history }
+  }))
+
+  for (const { config, history } of perVault) {
     const state = config?.state
     if (!state?.tokenMint) continue
 
@@ -297,7 +304,6 @@ async function accrueKamino(options: FetchOptions, balances: Balances, vaults: s
       if (delta > 0) grossInterest = delta * 10 ** decimals
     }
 
-    const elapsed = options.toTimestamp - options.fromTimestamp
     const perfFee = grossInterest * perfFeeRate
     const mgmtFee = toNum(state.prevAum) * mgmtFeeRate * elapsed / YEAR_SECS
 
@@ -348,7 +354,6 @@ const methodology = {
 
 const feesBreakdown = {
   [L.morphoYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Morpho vaults.',
-  [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient.',
   [L.eulerYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Euler v2 vaults.',
   [L.boringYields]: 'Sentora-attributed flow (supplier yield + Sentora perf share) from Veda BoringVaults.',
   [L.upshiftYields]: 'Interest yields from Sentora-curated Upshift vaults.',
