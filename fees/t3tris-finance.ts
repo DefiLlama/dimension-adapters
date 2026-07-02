@@ -1,6 +1,6 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import { getConfig } from "../helpers/cache";
 
 /**
  * T3tris Finance — Fees & Revenue Adapter
@@ -70,13 +70,8 @@ const EVENT_ABI = {
   t3trisProfit: "event T3trisProfit(uint256 profit)",
 };
 
-// Supported chains: DefiLlama chain -> { ecosystem-API chainId, start }. T3tris
-// is live on Arbitrum only for now (same deterministic CREATE3 address on every
-// EVM chain); add a chain here once the API returns verified vaults for it.
-// `start` is a conservative lower bound that predates the first vault deployment
-// (no vaults/events exist before it).
 const chainConfig: Record<string, { chainId: number; start: string }> = {
-  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2025-01-01" },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2026-06-14" },
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -102,52 +97,46 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    & revenue reflect the same vault set as TVL. Records are external data,
   //    so a usable address + asset is required before trusting them on-chain.
   let vaults: string[];
-  try {
-    const chainId = chainConfig[options.chain].chainId;
-    const all = await httpGet(VAULTS_API);
-    vaults = (all || [])
-      .filter(
-        (v: any) =>
-          v?.verified &&
-          !v?.blacklisted &&
-          Number(v?.chainId) === chainId &&
-          typeof v?.address === "string" &&
-          v.address &&
-          typeof v?.asset === "string" &&
-          v.asset,
-      )
-      .map((v: any) => v.address);
-  } catch (e) {
-    // API unreachable — log and report nothing for this run so other chains continue.
-    console.error(`T3tris: failed to fetch vaults for ${options.chain}:`, e);
-    return {};
+  const chainId = chainConfig[options.chain].chainId;
+  const all = await getConfig("t3tris/vaults", VAULTS_API);
+  vaults = (all || [])
+    .filter(
+      (v: any) =>
+        v?.verified &&
+        !v?.blacklisted &&
+        Number(v?.chainId) === chainId &&
+        typeof v?.address === "string" &&
+        v.address &&
+        typeof v?.asset === "string" &&
+        v.asset,
+    )
+    .map((v: any) => v.address);
+
+  if (!vaults || vaults.length === 0) {
+    throw new Error(`T3tris: no vaults found for ${options.chain}`);
   }
 
-  if (!vaults || vaults.length === 0) return {};
-
   // 2. Fetch vault metadata
-  const [assets, decimals, totalSupplies, totalAssets] = await Promise.all([
-    options.api.multiCall({
-      abi: ABI.asset,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: ABI.decimals,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: ABI.totalSupply,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: ABI.totalAssets,
-      calls: vaults,
-      permitFailure: true,
-    }),
-  ]);
+  const assets = await options.api.multiCall({
+    abi: ABI.asset,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const decimals = await options.api.multiCall({
+    abi: ABI.decimals,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const totalSupplies = await options.api.multiCall({
+    abi: ABI.totalSupply,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const totalAssets = await options.api.multiCall({
+    abi: ABI.totalAssets,
+    calls: vaults,
+    permitFailure: true,
+  });
 
   // 3. Build rate conversion calls (1 full share → assets)
   //    Build the unit with BigInt so the uint256 param is always a plain
@@ -159,54 +148,48 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }));
 
   // 4. Get share price at start and end of period
-  const [ratesBefore, ratesAfter] = await Promise.all([
-    options.fromApi.multiCall({
-      abi: ABI.convertToAssets,
-      calls: convertCalls,
-      permitFailure: true,
-    }),
-    options.toApi.multiCall({
-      abi: ABI.convertToAssets,
-      calls: convertCalls,
-      permitFailure: true,
-    }),
-  ]);
+  const ratesBefore = await options.fromApi.multiCall({
+    abi: ABI.convertToAssets,
+    calls: convertCalls,
+    permitFailure: true,
+  });
+  const ratesAfter = await options.toApi.multiCall({
+    abi: ABI.convertToAssets,
+    calls: convertCalls,
+    permitFailure: true,
+  });
 
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
   //     a time-weighted (trapezoidal) estimate over the window, so intra-period
   //     deposits/redeems don't skew the 24h depositor yield or management fees.
-  const [suppliesBefore, tvlBefore] = await Promise.all([
-    options.fromApi.multiCall({
-      abi: ABI.totalSupply,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.fromApi.multiCall({
-      abi: ABI.totalAssets,
-      calls: vaults,
-      permitFailure: true,
-    }),
-  ]);
+  const suppliesBefore = await options.fromApi.multiCall({
+    abi: ABI.totalSupply,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const tvlBefore = await options.fromApi.multiCall({
+    abi: ABI.totalAssets,
+    calls: vaults,
+    permitFailure: true,
+  });
 
   // 5. Get fee configuration + high-water mark for each vault
-  const [perfFees, mgmtFees, hwms] = await Promise.all([
-    options.api.multiCall({
-      abi: ABI.getPerformanceFee,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: ABI.getManagementFee,
-      calls: vaults,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: ABI.getPpsHighWaterMark,
-      calls: vaults,
-      permitFailure: true,
-    }),
-  ]);
+  const perfFees = await options.api.multiCall({
+    abi: ABI.getPerformanceFee,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const mgmtFees = await options.api.multiCall({
+    abi: ABI.getManagementFee,
+    calls: vaults,
+    permitFailure: true,
+  });
+  const hwms = await options.api.multiCall({
+    abi: ABI.getPpsHighWaterMark,
+    calls: vaults,
+    permitFailure: true,
+  });
 
   // 6. Calculate daily yield and fee splits
   //    Vault fees (perf/mgmt) → feeRecipient (vault manager)
@@ -274,16 +257,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!ppsReliable && rateGrowth > 0) {
       console.error(
         `T3tris: ignoring implausible PPS growth for vault ${vaults[i]} on ${options.chain} ` +
-          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
+        `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
       );
     }
 
     const netYield = ppsReliable ? (avgSupply * rateGrowth) / unit : 0;
-
-    // Depositor yield and performance fees only accrue on positive yield;
-    // management fees are charged on TVL × time and accrue regardless (see
-    // below), so we no longer skip the whole vault on a flat/negative period.
-    const depositorYield = netYield > 0 ? netYield : 0;
 
     // Performance fees are only charged on price-per-share gains ABOVE the
     // vault's high-water mark (HWM). Inferring them from any positive PPS
@@ -321,19 +299,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Nothing to record for this vault if there is neither yield nor a fee.
-    if (depositorYield <= 0 && performanceFees <= 0 && managementFees <= 0)
-      continue;
-
     // Gross vault yield = everything the strategies produced this period
     // (depositor yield + curator performance/management fees). It is split
     // below between depositors and the vault curator, both supply-side.
-    dailyFees.add(token, depositorYield + performanceFees + managementFees, "Vault Yield");
+    dailyFees.add(token, netYield + performanceFees + managementFees, "Vault Yield");
 
     // Supply side = net yield to depositors + curator fees. The curator is a
     // third-party vault manager (NOT the t3tris protocol), so its performance
     // and management fees are a supply-side cost, not protocol revenue.
-    dailySupplySideRevenue.add(token, depositorYield, "Depositor Yield");
+    dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
     dailySupplySideRevenue.add(token, performanceFees, "Curator Performance Fees");
     dailySupplySideRevenue.add(token, managementFees, "Curator Management Fees");
   }
@@ -464,18 +438,11 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.keys(chainConfig).reduce(
-    (acc, chain) => ({
-      ...acc,
-      [chain]: {
-        fetch,
-        start: chainConfig[chain].start,
-      },
-    }),
-    {},
-  ),
+  adapter: chainConfig,
+  fetch,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // ERC 4626 vault prices can go down
 };
 
 export default adapter;
