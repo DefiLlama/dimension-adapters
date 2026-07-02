@@ -50,7 +50,19 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
       vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
       accountantAbiVersion: 2,
     },
-  ]
+  ],
+  [CHAIN.BASE]: [
+    {
+      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
+      accountantAbiVersion: 2,
+    },
+  ],
+  [CHAIN.BSC]: [
+    {
+      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
+      accountantAbiVersion: 2,
+    },
+  ],
 }
 
 const BoringVaultAbis = {
@@ -215,8 +227,11 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.ETHEREUM],
-  start: '2024-07-22',
+  chains: [
+    [CHAIN.ETHEREUM, { start: '2024-07-22' }],
+    [CHAIN.BASE, { start: '2024-11-20' }],
+    [CHAIN.BSC, { start: '2024-11-20' }],
+  ],
   methodology,
   breakdownMethodology,
 }
