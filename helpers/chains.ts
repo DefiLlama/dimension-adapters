@@ -388,5 +388,5 @@ export enum CHAIN {
   AELF = "aelf",
   RUBIN = "rubin",
   AFX = "afx",
-  ROBINHOOD = "robinhoodchain"
+  ROBINHOOD = "robinhood"
 }
