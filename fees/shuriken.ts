@@ -1,67 +1,31 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-// source: https://dune.com/queries/4043813/6866844
-
 import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { getSolanaReceived } from "../helpers/token";
+
+const FEE_WALLETS = [
+  '9cSuF94JWPb1HQzWMcifJzkoggwAtfjsojcUqny5XuJy',
+  'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5',
+  'shrknHaCuVXmahvxLER4Qm9vooBzhbYsMP7HnAAS9Hn',
+]
 
 const fetch = async (): Promise<FetchResultFees> => {
   return {} // stop using indexa db
 }
 
 const fetchSolana = async (options: FetchOptions) => {
-  throw new Error('This returns empty, no point running it')
-  const dailyFees = options.createBalances();
-
-  const query = `
-    WITH
-    allFeePayments AS (
-      SELECT
-        tx_id,
-        balance_change AS fee_token_amount
-      FROM
-        solana.account_activity
-      WHERE
-        TIME_RANGE
-        AND address IN (
-          '9cSuF94JWPb1HQzWMcifJzkoggwAtfjsojcUqny5XuJy',
-          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5',
-          'shrknHaCuVXmahvxLER4Qm9vooBzhbYsMP7HnAAS9Hn'
-        )
-        AND tx_success
-        AND balance_change > 0 
-    ),
-    botTrades AS (
-      SELECT
-        trades.tx_id,
-        MAX(fee_token_amount) AS fee
-      FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-      WHERE
-        TIME_RANGE
-        AND trades.trader_id not IN (
-          '9cSuF94JWPb1HQzWMcifJzkoggwAtfjsojcUqny5XuJy',
-          'shuvodtwMMFFB6KmqCDYaiAe1hRokCVwr4LkT1pLAL5',
-          'shrknHaCuVXmahvxLER4Qm9vooBzhbYsMP7HnAAS9Hn'
-        )
-      GROUP BY trades.tx_id
-    )
-    SELECT
-      SUM(fee) AS fee
-    FROM
-      botTrades
-  `;
-
-  const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  const dailyFees = await getSolanaReceived({
+    options,
+    targets: FEE_WALLETS,
+    blacklists: FEE_WALLETS,
+    blacklist_signers: FEE_WALLETS,
+  })
 
   return { dailyFees, dailyRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
@@ -72,7 +36,6 @@ const adapter: SimpleAdapter = {
       start: '2024-01-14',
     },
   },
-  isExpensiveAdapter: true,
   methodology: {
     Fees: "Trading fees paid by users while using Shuriken bot.",
     Revenue: "All fees are collected by Shuriken protocol.",
