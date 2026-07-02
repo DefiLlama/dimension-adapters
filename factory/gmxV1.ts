@@ -1,4 +1,4 @@
-import { gmxV1Exports } from "../helpers/gmx";
+import { gmxV1Exports, gmxV1LiquidationsExports } from "../helpers/gmx";
 import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
@@ -11,7 +11,7 @@ const ktxMethodology = {
   ProtocolRevenue: "Treasury has no revenue",
 };
 
-const feesConfigs: Record<string, any> = {
+export const gmxV1Configs: Record<string, any> = {
   "alpacafinance-gmx": {
     [CHAIN.BSC]: { vault: "0x18A15bF2Aa1E514dc660Cc4B08d05f9f6f0FdC4e", start: "2023-03-03" },
   },
@@ -42,9 +42,16 @@ const feesConfigs: Record<string, any> = {
 
 
 const feesProtocols: Record<string, any> = {};
-for (const [name, config] of Object.entries(feesConfigs)) {
+for (const [name, config] of Object.entries(gmxV1Configs)) {
   feesProtocols[name] = gmxV1Exports(config);
 }
 
 
 export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
+
+const liquidationProtocols: Record<string, any> = {};
+for (const [name, config] of Object.entries(gmxV1Configs)) {
+  liquidationProtocols[name] = gmxV1LiquidationsExports(config);
+}
+
+export const liquidations = createFactoryExports(liquidationProtocols);
