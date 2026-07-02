@@ -55,6 +55,18 @@ const CONTRACTS: Record<string, string[]> = {
     ],
 };
 
+const breakdownMethodology = {
+    Fees: {
+        "Swap Surplus": "Difference between actual swap output and the user's minimum accepted amount across Aave collateral/debt swaps.",
+    },
+    Revenue: {
+        "Swap Surplus To Treasury": "Portion of surplus retained by the DashsWallet treasury after deducting cashback.",
+    },
+    SupplySideRevenue: {
+        "Swap Surplus Cashback To User": "Portion of surplus returned to the swap-initiating user as cashback.",
+    },
+};
+
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -66,8 +78,8 @@ const fetch = async (options: FetchOptions) => {
     });
 
     for (const log of logs) {
-        dailyFees.add(log.srcToken, log.surplus);
-        dailyRevenue.add(log.srcToken, log.protocolFee);
+        dailyFees.add(log.srcToken, log.surplus, "Swap Surplus");
+        dailyRevenue.add(log.srcToken, log.protocolFee, "Swap Surplus To Treasury");
     }
 
     return { dailyFees, dailyRevenue };
@@ -80,9 +92,10 @@ const adapter: SimpleAdapter = {
     chains: Object.keys(CONTRACTS),
     start: "2026-06-27",
     methodology: {
-        Fees: "Total surplus captured on Aave collateral/debt swaps — difference between actual swap output and the user's minimum accepted amount, split between protocol treasury and optional cashback to the user.",
-        Revenue: "Portion of surplus retained by the DashsWallet treasury after deducting cashback, tracked via protocolFee in SwapExecuted events.",
+        Fees: "Total surplus captured on Aave collateral/debt swaps — difference between actual swap output and the user's minimum accepted amount.",
+        Revenue: "Portion of surplus retained by the DashsWallet treasury after deducting cashback.",
     },
+    breakdownMethodology,
 };
 
 export default adapter;
