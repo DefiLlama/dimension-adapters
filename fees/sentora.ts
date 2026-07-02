@@ -8,10 +8,13 @@ import fetchURL from "../utils/fetchURL"
 const SENTORA_API = 'https://services.vaults.sentora.com/vaults'
 const KAMINO_API = 'https://api.kamino.finance'
 
-// Sentora's share of the Veda BoringVault performance fee (the rest is Veda's).
+// Sentora's share of the Veda BoringVault performance fee (per Sentora team:
+// they take 20% of the 25% perf fee on Kraken Earn vaults; the remaining 80%
+// accrues to Veda and is counted in fees/veda.ts).
 const SENTORA_BORING_PERF_SHARE = 0.20
 
-// Sentora's performance fee on Euler v2 vaults (uniform across all Euler positions).
+// Sentora's performance fee on Euler v2 vaults (uniform 10% across positions,
+// per Sentora's public vault dashboard at vaults.sentora.com).
 const SENTORA_EULER_PERF_RATE = 0.10
 
 const ONE_SHARE = String(1e18)
@@ -29,6 +32,13 @@ const CHAIN_MAP: Record<string, string> = {
   '1': CHAIN.ETHEREUM,
   'Solana': CHAIN.SOLANA,
 }
+
+// Kamino-listed Sentora vaults that are NOT kvault-program vaults (Kamino's
+// /kvaults endpoints return an error for them). Skipped until the team
+// clarifies which product they belong to.
+const KAMINO_VAULT_BLOCKLIST = new Set([
+  '2tmMcVv2Ene7wFGebPivhwYhAZyjaJoibMz1GYVaXsB1', // Sentora JitoSOL
+])
 
 // Veda BoringVaults curated by Sentora — not exposed in the Sentora API.
 const BORING_VAULTS: Record<string, string[]> = {
@@ -51,20 +61,19 @@ const BORING_VAULTS: Record<string, string[]> = {
 
 const L = {
   morphoYields: 'Morpho Yields',
-  morphoSupply: 'Morpho Yields Distributed To Supliers',
+  morphoSupply: 'Morpho Yields Distributed To Suppliers',
   morphoPerf: 'Morpho Performance Fees',
   morphoMgmt: 'Morpho Management Fees',
   eulerYields: 'Euler Yields',
-  eulerSupply: 'Euler Yields Distributed To Supliers',
+  eulerSupply: 'Euler Yields Distributed To Suppliers',
   eulerPerf: 'Euler Performance Fees',
   boringYields: 'BoringVault Yields',
-  boringSupply: 'BoringVault Yields Distributed To Supliers',
+  boringSupply: 'BoringVault Yields Distributed To Suppliers',
   boringPerf: 'BoringVault Performance Fees',
-  boringPlatform: 'BoringVault Platform Fees',
   upshiftYields: 'Upshift Yields',
-  upshiftSupply: 'Upshift Yields Distributed To Supliers',
+  upshiftSupply: 'Upshift Yields Distributed To Suppliers',
   kaminoYields: 'Kamino Yields',
-  kaminoSupply: 'Kamino Yields Distributed To Supliers',
+  kaminoSupply: 'Kamino Yields Distributed To Suppliers',
   kaminoPerf: 'Kamino Performance Fees',
   kaminoMgmt: 'Kamino Management Fees',
 }
@@ -150,8 +159,8 @@ async function accrueMorpho(options: FetchOptions, balances: Balances, vaults: s
 
   // V1 and V2 emit different AccrueInterest signatures — try both per vault.
   const eventLogs = await Promise.all(rates.map(v => Promise.all([
-    options.getLogs({ eventAbi: ABIS.morphoV1Accrue, target: v.vault, cacheInCloud: true }).catch(() => []),
-    options.getLogs({ eventAbi: ABIS.morphoV2Accrue, target: v.vault, cacheInCloud: true }).catch(() => []),
+    options.getLogs({ eventAbi: ABIS.morphoV1Accrue, target: v.vault, cacheInCloud: true }),
+    options.getLogs({ eventAbi: ABIS.morphoV2Accrue, target: v.vault, cacheInCloud: true }),
   ])))
 
   const perfShares: { vault: string; shares: number }[] = []
@@ -171,14 +180,16 @@ async function accrueMorpho(options: FetchOptions, balances: Balances, vaults: s
 
   for (let i = 0; i < rates.length; i++) {
     const v = rates[i]
-    const gross = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    // Share-price growth is already net of curator fees (fee shares dilute the
+    // share price). Total vault yield = supplier yield + perf + mgmt.
+    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
     const perf = perfAssets[i]
     const mgmt = mgmtAssets[i]
-    balances.dailyFees.add(v.asset, gross, L.morphoYields)
-    if (mgmt > 0) balances.dailyFees.add(v.asset, mgmt, L.morphoMgmt)
+    const grossYield = netYield + perf + mgmt
+    balances.dailyFees.add(v.asset, grossYield, L.morphoYields)
     if (perf > 0) balances.dailyRevenue.add(v.asset, perf, L.morphoPerf)
     if (mgmt > 0) balances.dailyRevenue.add(v.asset, mgmt, L.morphoMgmt)
-    balances.dailySupplySideRevenue.add(v.asset, gross - perf, L.morphoSupply)
+    balances.dailySupplySideRevenue.add(v.asset, netYield, L.morphoSupply)
   }
 }
 
@@ -186,12 +197,16 @@ async function accrueEuler(options: FetchOptions, balances: Balances, vaults: st
   const rates = await readVaultRates(options, vaults)
   if (!rates.length) return
 
+  // Rate-based: ConvertFees events are lumpy (governor-triggered) and don't
+  // reflect daily accrual. Share-price growth is already net of the 10% perf
+  // fee, so gross-up before splitting curator revenue from supplier yield.
   for (const v of rates) {
-    const gross = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
-    const perf = gross * SENTORA_EULER_PERF_RATE
-    balances.dailyFees.add(v.asset, gross, L.eulerYields)
+    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    const grossYield = netYield / (1 - SENTORA_EULER_PERF_RATE)
+    const perf = grossYield - netYield
+    balances.dailyFees.add(v.asset, grossYield, L.eulerYields)
     if (perf > 0) balances.dailyRevenue.add(v.asset, perf, L.eulerPerf)
-    balances.dailySupplySideRevenue.add(v.asset, gross - perf, L.eulerSupply)
+    balances.dailySupplySideRevenue.add(v.asset, netYield, L.eulerSupply)
   }
 }
 
@@ -222,8 +237,6 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     options.toApi.multiCall({ abi: ABIS.boringRate, calls: accountantTargets }),
   ])
 
-  const elapsed = options.toTimestamp - options.fromTimestamp
-
   for (let i = 0; i < valid.length; i++) {
     const state = decodeBoringState(statesV1[i], statesV2[i])
     if (!state) continue
@@ -233,20 +246,18 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     const rateBase = 10 ** toNum(decimals[i])
     const rateBefore = toNum(ratesFrom[i])
     const rateAfter = toNum(ratesTo[i])
-    const totalDeposited = supply * state.exchangeRate / rateBase
+    if (rateAfter <= rateBefore) continue
 
-    if (rateAfter > rateBefore) {
-      // Share-price growth is net of perf fee — gross-up to recover total yield.
-      const netYield = supply * (rateAfter - rateBefore) / rateBase
-      const grossYield = state.perfFeeRate < 1 ? netYield / (1 - state.perfFeeRate) : netYield
-      const sentoraPerf = (grossYield - netYield) * SENTORA_BORING_PERF_SHARE
-      balances.dailyFees.add(asset, grossYield, L.boringYields)
-      balances.dailyRevenue.add(asset, sentoraPerf, L.boringPerf)
-      balances.dailySupplySideRevenue.add(asset, netYield, L.boringSupply)
-    }
-    // Platform fee accrues 100% to Veda; tracked in gross flow only.
-    const platformFee = totalDeposited * state.platformFeeRate * elapsed / YEAR_SECS
-    if (platformFee > 0) balances.dailyFees.add(asset, platformFee, L.boringPlatform)
+    // Share-price growth is net of perf fee — gross-up to recover total yield.
+    const netYield = supply * (rateAfter - rateBefore) / rateBase
+    const grossYield = state.perfFeeRate < 1 ? netYield / (1 - state.perfFeeRate) : netYield
+    const sentoraPerf = (grossYield - netYield) * SENTORA_BORING_PERF_SHARE
+
+    // Only Sentora's slice of the flow is attributed here — Veda's 80% of perf
+    // and the platform fee are counted in fees/veda.ts.
+    balances.dailyFees.add(asset, netYield + sentoraPerf, L.boringYields)
+    balances.dailyRevenue.add(asset, sentoraPerf, L.boringPerf)
+    balances.dailySupplySideRevenue.add(asset, netYield, L.boringSupply)
   }
 }
 
@@ -264,8 +275,8 @@ async function accrueKamino(options: FetchOptions, balances: Balances, vaults: s
   const endDate = new Date((options.toTimestamp + 86400) * 1000).toISOString().split('T')[0]
 
   for (const vault of vaults) {
-    const config = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`).catch(() => null)
-    const history = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`).catch(() => null)
+    const config = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`)
+    const history = await fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`)
     const state = config?.state
     if (!state?.tokenMint) continue
 
@@ -318,7 +329,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   await accrueEuler(options, balances, byProtocol('eulerv2', 'erc4626'))
   await accrueUpshift(options, balances, byProtocol('sentora', 'upshift_financial'))
   await accrueBoring(options, balances, BORING_VAULTS[options.chain])
-  await accrueKamino(options, balances, byProtocol('kamino'))
+  await accrueKamino(options, balances, byProtocol('kamino').filter(a => !KAMINO_VAULT_BLOCKLIST.has(a)))
 
   return {
     dailyFees,
@@ -335,25 +346,29 @@ const methodology = {
   SupplySideRevenue: 'Yields distributed to depositors after curator fees.',
 }
 
+const feesBreakdown = {
+  [L.morphoYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Morpho vaults.',
+  [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient.',
+  [L.eulerYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Euler v2 vaults.',
+  [L.boringYields]: 'Sentora-attributed flow (supplier yield + Sentora perf share) from Veda BoringVaults.',
+  [L.upshiftYields]: 'Interest yields from Sentora-curated Upshift vaults.',
+  [L.kaminoYields]: 'Interest yields from Sentora-curated Kamino kvaults (Solana).',
+  [L.kaminoMgmt]: 'Per-second management fees on Kamino kvault TVL.',
+}
+
+const revenueBreakdown = {
+  [L.morphoPerf]: 'Performance fee shares minted to the Morpho performance fee recipient (AccrueInterest events).',
+  [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient (AccrueInterest events).',
+  [L.eulerPerf]: 'Sentora 10% performance fee on Euler v2 vault yields.',
+  [L.boringPerf]: 'Sentora 20% share of the Veda BoringVault performance fee.',
+  [L.kaminoPerf]: 'Performance fees on interest earned by Kamino kvaults.',
+  [L.kaminoMgmt]: 'Management fees on Kamino kvault TVL.',
+}
+
 const breakdownMethodology = {
-  Fees: {
-    [L.morphoYields]: 'Interest yields from deposited assets in Sentora-curated Morpho vaults.',
-    [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient.',
-    [L.eulerYields]: 'Interest yields from deposited assets in Sentora-curated Euler v2 vaults.',
-    [L.boringYields]: 'Interest yields from Sentora-curated Veda BoringVaults (Kraken, Lombard, Sentora Advanced Yields).',
-    [L.boringPlatform]: 'Annual platform fee on BoringVault TVL (accrues to Veda).',
-    [L.upshiftYields]: 'Interest yields from Sentora-curated Upshift vaults.',
-    [L.kaminoYields]: 'Interest yields from Sentora-curated Kamino kvaults (Solana).',
-    [L.kaminoMgmt]: 'Per-second management fees on Kamino kvault TVL.',
-  },
-  Revenue: {
-    [L.morphoPerf]: 'Performance fee shares minted to the Morpho performance fee recipient (AccrueInterest events).',
-    [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient (AccrueInterest events).',
-    [L.eulerPerf]: 'Sentora 10% performance fee on Euler v2 vault yields.',
-    [L.boringPerf]: 'Sentora 20% share of the Veda BoringVault performance fee.',
-    [L.kaminoPerf]: 'Performance fees on interest earned by Kamino kvaults.',
-    [L.kaminoMgmt]: 'Management fees on Kamino kvault TVL.',
-  },
+  Fees: feesBreakdown,
+  Revenue: revenueBreakdown,
+  ProtocolRevenue: revenueBreakdown,
   SupplySideRevenue: {
     [L.morphoSupply]: 'Net yield distributed to Morpho vault depositors.',
     [L.eulerSupply]: 'Net yield distributed to Euler v2 vault depositors.',
