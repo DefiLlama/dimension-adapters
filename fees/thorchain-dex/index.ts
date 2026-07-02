@@ -95,12 +95,13 @@ const fetch: any = async (options: FetchOptions) => {
   await sleep(2000);
   const volumeByChain = await fetchCacheURL(volumeByChainUrl);
 
-  // Only fetch affiliate earnings for THOR chain
-  let affiliateEarnings: any | null = null;
+  // Affiliate (interface/wallet) fees only apply to the THOR native chain. Sourced from raynalytics
+  // daily-affiliate-fees: full daily history back to 2021 whose UTC day labels align with our startOfDay.
+  // The Midgard affiliate endpoint returns 0 before ~2025 (it would drop ~$22M of 2021-2024 affiliate fees);
+  // for 2025+ the two sources match ~1:1.
+  let affiliateByDay: any[] | null = null;
   if (chainShortName === 'THOR') {
-    const affiliateUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/affiliate?from=${options.startTimestamp}&to=${options.endTimestamp}`;
-    affiliateEarnings = await fetchCacheURL(affiliateUrl);
-    await sleep(2000);
+    affiliateByDay = await fetchCacheURL(`https://raynalytics.net/api/daily-affiliate-fees`);
   }
 
   const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
@@ -140,9 +141,11 @@ const fetch: any = async (options: FetchOptions) => {
   const swapFees = poolsByChainEarnings.reduce((acc, pool) => acc + toUSD(pool.totalLiquidityFeesRune), 0);
 
   // Affiliate fees charged by interfaces/wallets (pass-through to integrators, so they are also supply-side).
-  // Network-level, attributed to the THORChain native chain; already reported in USD (cents).
-  const affiliateFees = (chainShortName === 'THOR' && affiliateEarnings?.intervals?.length > 0)
-    ? Number(affiliateEarnings.intervals[0].volumeUSD || 0) / 1e2
+  // Network-level, attributed to the THORChain native chain. Summed across all affiliates for the day (USD).
+  const affiliateFees = (chainShortName === 'THOR' && affiliateByDay)
+    ? affiliateByDay
+        .filter((r: any) => r.DAY.slice(0, 10) === dateStr)
+        .reduce((acc: number, r: any) => acc + Number(r.AFFILIATE_FEE_USD || 0), 0)
     : 0;
 
   // THORChain governance carve-outs from swap fees (RUNE block-reward emissions are ~0 and excluded). Fixed
@@ -211,10 +214,10 @@ const fetch: any = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools, the protocol's net outbound (network) fee, and affiliate fees charged by interfaces/wallets (affiliate fees are attributed to the THORChain native chain). RUNE block-reward emissions are excluded.",
   UserFees: "All swap, outbound and affiliate fees paid by users when swapping through THORChain.",
-  Revenue: "The 5% RUNE burn (value to all RUNE holders) plus protocol-kept income (net outbound network fee, developer fund and marketing fund). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
-  ProtocolRevenue: "Income kept by the protocol: net outbound network fee plus the 5% developer fund and 5% marketing fund taken from system income.",
-  HoldersRevenue: "Value to RUNE holders: the 5% of system income burned (RUNE permanently removed from supply), the only component that accrues to every RUNE holder.",
-  SupplySideRevenue: "Value paid to suppliers: the node-operator (RUNE bonder) share of swap fees set by the Incentive Pendulum (a security cost), the liquidity-provider share of swap fees (LP side of the Incentive Pendulum), affiliate fees passed through to integrators, and the 10% of system income paid to TCY stakers.",
+  Revenue: "The 5% of swap fees burned as RUNE (value to all RUNE holders) plus protocol-kept income (net outbound network fee, developer fund and marketing fund). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
+  ProtocolRevenue: "Income kept by the protocol: the net outbound network fee plus the 5% developer fund and 5% marketing fund taken from swap fees.",
+  HoldersRevenue: "Value to RUNE holders: the 5% of swap fees burned as RUNE (permanently removed from supply), the only component that accrues to every RUNE holder.",
+  SupplySideRevenue: "Value paid to suppliers: the node-operator (RUNE bonder) share of swap fees set by the Incentive Pendulum (a security cost), the liquidity-provider share of swap fees (LP side of the Incentive Pendulum), affiliate fees passed through to integrators, and the 10% of swap fees paid to TCY stakers.",
 };
 
 const breakdownMethodology = {
@@ -229,24 +232,24 @@ const breakdownMethodology = {
     'Affiliate Fees': "Fees charged by the interface or wallet that built the swap (attributed to the THORChain native chain).",
   },
   Revenue: {
-    'RUNE Burn': "5% of system income burned, permanently removing RUNE from supply (since 2024-09-16).",
+    'RUNE Burn': "5% of swap fees burned, permanently removing RUNE from supply (since 2024-09-16).",
     'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol.",
-    'Developer Fund': "5% of system income allocated to the developer fund (since 2024-09-16).",
-    'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
+    'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
+    'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
   },
   ProtocolRevenue: {
     'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, a network-level figure split across chains by each chain's share of daily swap volume.",
-    'Developer Fund': "5% of system income allocated to the developer fund (since 2024-09-16).",
-    'Marketing Fund': "5% of system income allocated to the marketing fund (since 2025-11-04).",
+    'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
+    'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
   },
   HoldersRevenue: {
-    'RUNE Burn': "5% of system income burned, permanently removing RUNE from supply and accruing value to RUNE holders (since 2024-09-16).",
+    'RUNE Burn': "5% of swap fees burned, permanently removing RUNE from supply and accruing value to RUNE holders (since 2024-09-16).",
   },
   SupplySideRevenue: {
     'Swap Fees To RUNE Bonders': "Node operators' (RUNE bonders') share of swap fees, set network-wide by the Incentive Pendulum - a security cost paid to the nodes that bond RUNE to secure the network.",
     'Swap Fees To LPs': "Liquidity providers' share of swap fees (the LP side of the Incentive Pendulum).",
     'Affiliate Fees To Integrators': "Affiliate fees passed through to the integrator that built the swap.",
-    'TCY Staker Rewards': "10% of system income paid in RUNE to TCY stakers (since 2025-05-01).",
+    'TCY Staker Rewards': "10% of swap fees paid in RUNE to TCY stakers (since 2025-05-01).",
   },
 };
 
