@@ -15,6 +15,14 @@ const config: any = {
   [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390, start: '2025-11-28' },
 }
 
+const METRIC = {
+  TAKER_FEES: "Taker Fees",
+  MAKER_FEES: "Maker Fees",
+  PASSIVE_ORDER_PAYOUT: "Passive Order Payout",
+  MARKETMAKER_COMMISSION: "Marketmaker Commission",
+  ADMINISTRATOR_COMMISSION: "Administrator Commission",
+};
+
 const getScalingFactorExponent = (scalingFactor: bigint): number => {
   let exponent = 0;
   while (scalingFactor > 1n) {
@@ -145,19 +153,54 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     const marketmakerShare = lobInfo.marketmakerIsExternal
       ? commission.times(BigNumber(1).minus(lobInfo.adminRate))
       : BigNumber(0)
-    const supplySide = lpPayout.plus(marketmakerShare)
     const protocolFee = commission.minus(marketmakerShare)
-    const totalFee = aggressiveFee.plus(passiveFee)
 
     dailyVolume.add(tokenXAddress, parseUnits(tradeAmount, tokenXDecimals))
-    dailyFees.add(tokenYAddress, parseUnits(totalFee.toFixed(tokenYDecimals), tokenYDecimals))
-    dailyRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals))
-    dailyProtocolRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals))
-    dailySupplySideRevenue.add(tokenYAddress, parseUnits(supplySide.toFixed(tokenYDecimals), tokenYDecimals))
-    dailyUserFees.add(tokenYAddress, parseUnits(totalFee.toFixed(tokenYDecimals), tokenYDecimals))
+    dailyFees.add(tokenYAddress, parseUnits(aggressiveFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.TAKER_FEES)
+    dailyFees.add(tokenYAddress, parseUnits(passiveFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.MAKER_FEES)
+    dailyUserFees.add(tokenYAddress, parseUnits(aggressiveFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.TAKER_FEES)
+    dailyUserFees.add(tokenYAddress, parseUnits(passiveFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.MAKER_FEES)
+    dailyRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.ADMINISTRATOR_COMMISSION)
+    dailyProtocolRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals), METRIC.ADMINISTRATOR_COMMISSION)
+    if (lpPayout.gt(0)) {
+      dailySupplySideRevenue.add(tokenYAddress, parseUnits(lpPayout.toFixed(tokenYDecimals), tokenYDecimals), METRIC.PASSIVE_ORDER_PAYOUT)
+    }
+    if (marketmakerShare.gt(0)) {
+      dailySupplySideRevenue.add(tokenYAddress, parseUnits(marketmakerShare.toFixed(tokenYDecimals), tokenYDecimals), METRIC.MARKETMAKER_COMMISSION)
+    }
   })
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyUserFees }
+}
+
+const methodology = {
+  Volume: "Taker volume in tokenX at the time each order is matched",
+  Fees: "Taker fee on aggressive orders plus maker commission on resting orders, in tokenY",
+  UserFees: "Same as Fees — all commissions are paid by the trader placing the order",
+  SupplySideRevenue: "passive_order_payout slice of taker fees routed to filled makers, plus the marketmaker's commission share when the marketmaker is a distinct LP contract. Zero today: all markets have payout disabled and the marketmaker is the administrator itself",
+  ProtocolRevenue: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
+  Revenue: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TAKER_FEES]: "aggressive_fee charged on the taker side of each matched order, in tokenY",
+    [METRIC.MAKER_FEES]: "passive_fee charged on resting maker orders, in tokenY",
+  },
+  UserFees: {
+    [METRIC.TAKER_FEES]: "aggressive_fee charged on the taker side of each matched order, in tokenY",
+    [METRIC.MAKER_FEES]: "passive_fee charged on resting maker orders, in tokenY",
+  },
+  SupplySideRevenue: {
+    [METRIC.PASSIVE_ORDER_PAYOUT]: "passive_order_payout_rate slice of aggressive_fee routed to filled passive makers",
+    [METRIC.MARKETMAKER_COMMISSION]: "marketmaker's share of commission when the marketmaker is a distinct LP contract (1 - admin_commission_rate of commission)",
+  },
+  ProtocolRevenue: {
+    [METRIC.ADMINISTRATOR_COMMISSION]: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
+  },
+  Revenue: {
+    [METRIC.ADMINISTRATOR_COMMISSION]: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -165,14 +208,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: config,
-  methodology: {
-    Volume: "Taker volume in tokenX at the time each order is matched",
-    Fees: "Taker fee on aggressive orders plus maker commission on resting orders, in tokenY",
-    UserFees: "Same as Fees — all commissions are paid by the trader placing the order",
-    SupplySideRevenue: "passive_order_payout slice of taker fees routed to filled makers, plus the marketmaker's commission share when the marketmaker is a distinct LP contract. Zero today: all markets have payout disabled and the marketmaker is the administrator itself",
-    ProtocolRevenue: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
-    Revenue: "Same as ProtocolRevenue",
-  },
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter
