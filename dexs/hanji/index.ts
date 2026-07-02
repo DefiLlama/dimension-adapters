@@ -1,5 +1,5 @@
 import BigNumber from "bignumber.js";
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { formatUnits, parseUnits } from "ethers";
 
@@ -10,9 +10,9 @@ const getConfigAbi = "function getConfig() view returns (uint256 _scaling_factor
 
 
 const config: any = {
-  [CHAIN.BASE]: { clobFactoryV1: [], clobFactoryV2: ['0xC7264dB7c78Dd418632B73A415595c7930A9EEA4'], fromBlock: 37860153, start: '2025-11-08', adminCommissionRate: 1 },
-  [CHAIN.ETHERLINK]: { clobFactoryV1: ['0xfb2Ab9f52804DB8Ed602B95Adf0996aeC55ad6Df', '0x8f9949CF3B79bBc35842110892242737Ae11488F'], clobFactoryV2: ['0x6d420082D455BAb7B71EE3f00502882C27c77eB7'], fromBlock: 6610800, start: '2025-02-21', adminCommissionRate: 1 },
-  [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390, start: '2025-11-28', adminCommissionRate: 1 },
+  [CHAIN.BASE]: { clobFactoryV1: [], clobFactoryV2: ['0xC7264dB7c78Dd418632B73A415595c7930A9EEA4'], fromBlock: 37860153, start: '2025-11-08' },
+  [CHAIN.ETHERLINK]: { clobFactoryV1: ['0xfb2Ab9f52804DB8Ed602B95Adf0996aeC55ad6Df', '0x8f9949CF3B79bBc35842110892242737Ae11488F'], clobFactoryV2: ['0x6d420082D455BAb7B71EE3f00502882C27c77eB7'], fromBlock: 6610800, start: '2025-02-21' },
+  [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390, start: '2025-11-28' },
 }
 
 const getScalingFactorExponent = (scalingFactor: bigint): number => {
@@ -28,6 +28,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const dailyUserFees = createBalances()
 
   const { clobFactoryV1, clobFactoryV2, fromBlock } = config[chain]
@@ -49,7 +51,12 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     tokenYAddress: string,
     tokenYDecimals: number,
     tokenYScalingFactor: number,
-    adminCommissionRate: number
+    // 1e18-scale rates from getConfig(): admin gets adminRate of commission, marketmaker gets the rest.
+    adminRate: string,
+    aggressiveRate: string,
+    payoutRate: string,
+    // marketmaker's share is supply-side only if it's a distinct LP contract, not the administrator itself.
+    marketmakerIsExternal: boolean,
   }> = {}
 
   const lobConfigs = await api.multiCall({
@@ -73,7 +80,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     const tokenXDecimal = Number(tokenXDecimals[i])
     const tokenYDecimal = Number(tokenYDecimals[i])
 
-    const { OnchainCLOB, tokenXAddress, scaling_token_x, tokenYAddress, scaling_token_y } = lobCreatedLogs[i].args
+    const { OnchainCLOB, tokenXAddress, scaling_token_x, tokenYAddress, scaling_token_y, administrator, marketmaker } = lobCreatedLogs[i].args
 
     lobMap[OnchainCLOB.toLowerCase()] = {
       isV2: clobFactoryV2.map((address: string) => address.toLowerCase()).includes(lobCreatedLogs[i].address.toLowerCase()),
@@ -83,7 +90,10 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
       tokenYAddress,
       tokenYDecimals: Number(tokenYDecimal),
       tokenYScalingFactor: Number(tokenYDecimal) - getScalingFactorExponent(scaling_token_y),
-      adminCommissionRate: Number(formatUnits(lobConfig._admin_commission_rate))
+      adminRate: formatUnits(lobConfig._admin_commission_rate),
+      aggressiveRate: lobConfig._total_aggressive_commission_rate.toString(),
+      payoutRate: lobConfig._passive_order_payout_rate.toString(),
+      marketmakerIsExternal: administrator.toLowerCase() !== marketmaker.toLowerCase(),
     }
   }
 
@@ -121,18 +131,33 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     const { aggressive_shares, aggressive_fee, passive_fee } = log.args
 
     const tradeAmount = formatUnits(aggressive_shares, tokenXScalingFactor)
-    const orderFee = formatUnits(aggressive_fee + passive_fee, tokenYScalingFactor)
-    const adminCommissionRate = config[chain].adminCommissionRate ?? lobInfo.adminCommissionRate
-    const adminFee = BigNumber(orderFee).times(adminCommissionRate).toFixed(tokenYDecimals)
-    const userFee = BigNumber(orderFee).minus(adminFee).toFixed(tokenYDecimals)
+    // aggressive_fee bundles a payout slice for filled passive orders; passive_fee is a maker commission.
+    const aggressiveFee = BigNumber(formatUnits(aggressive_fee, tokenYScalingFactor))
+    const passiveFee = BigNumber(formatUnits(passive_fee, tokenYScalingFactor))
+
+    // Split aggressive_fee by its on-chain rate composition to isolate the LP payout.
+    const rateDenom = BigNumber(lobInfo.aggressiveRate).plus(lobInfo.payoutRate)
+    const lpPayout = rateDenom.gt(0)
+      ? aggressiveFee.times(lobInfo.payoutRate).div(rateDenom)
+      : BigNumber(0)
+
+    const commission = aggressiveFee.minus(lpPayout).plus(passiveFee)
+    const marketmakerShare = lobInfo.marketmakerIsExternal
+      ? commission.times(BigNumber(1).minus(lobInfo.adminRate))
+      : BigNumber(0)
+    const supplySide = lpPayout.plus(marketmakerShare)
+    const protocolFee = commission.minus(marketmakerShare)
+    const totalFee = aggressiveFee.plus(passiveFee)
 
     dailyVolume.add(tokenXAddress, parseUnits(tradeAmount, tokenXDecimals))
-    dailyFees.add(tokenYAddress, parseUnits(orderFee.toString(), tokenYDecimals))
-    dailyRevenue.add(tokenYAddress, parseUnits(adminFee.toString(), tokenYDecimals))
-    dailyUserFees.add(tokenYAddress, parseUnits(userFee.toString(), tokenYDecimals))
+    dailyFees.add(tokenYAddress, parseUnits(totalFee.toFixed(tokenYDecimals), tokenYDecimals))
+    dailyRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals))
+    dailyProtocolRevenue.add(tokenYAddress, parseUnits(protocolFee.toFixed(tokenYDecimals), tokenYDecimals))
+    dailySupplySideRevenue.add(tokenYAddress, parseUnits(supplySide.toFixed(tokenYDecimals), tokenYDecimals))
+    dailyUserFees.add(tokenYAddress, parseUnits(totalFee.toFixed(tokenYDecimals), tokenYDecimals))
   })
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyUserFees }
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyUserFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -140,6 +165,14 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: config,
+  methodology: {
+    Volume: "Taker volume in tokenX at the time each order is matched",
+    Fees: "Taker fee on aggressive orders plus maker commission on resting orders, in tokenY",
+    UserFees: "Same as Fees — all commissions are paid by the trader placing the order",
+    SupplySideRevenue: "passive_order_payout slice of taker fees routed to filled makers, plus the marketmaker's commission share when the marketmaker is a distinct LP contract. Zero today: all markets have payout disabled and the marketmaker is the administrator itself",
+    ProtocolRevenue: "admin_commission_rate share of commission, plus the marketmaker's share when the marketmaker equals the administrator",
+    Revenue: "Same as ProtocolRevenue",
+  },
 }
 
 export default adapter
