@@ -150,6 +150,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
   [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', allStatsApi: 'https://b3.calderaexplorer.xyz/stats', start: '2024-07-30' },
   [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
+  [CHAIN.ROBINHOOD]: { explorer: 'https://robinhoodchain.blockscout.com', CGToken: 'ethereum', allStatsApi: 'https://robinhoodchain.blockscout.com/stats-service', start: '2026-04-30' },
 }
 
 function getTimeString(timestamp: number) {
