@@ -16,12 +16,24 @@ type MetricsResponse = {
       predictionMarketVolumeUsd: string;
       totalVolumeUsd: string;
     };
+    fees: {
+      flatFeesUsd: string;
+      profitShareFeesUsd: string;
+      eventContractsFeesUsd: string;
+      footballContractsFeesUsd: string;
+      totalFeesUsd: string;
+    };
   };
 };
 
 export type TurboFlowMetrics = {
   perpVolumeUsd: number;
   predictionMarketVolumeUsd: number;
+  // Perp fees: flat trading fee + profit-share fee. Prediction-market fees:
+  // event-contract + football-contract fees. The four sum to the API's totalFeesUsd,
+  // so splitting them this way mirrors the perp/prediction volume split with no gaps.
+  perpFeesUsd: number;
+  predictionMarketFeesUsd: number;
 };
 
 export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<TurboFlowMetrics> {
@@ -31,6 +43,7 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
   }
 
   const volume = response.data.volume;
+  const fees = response.data.fees;
 
   return {
     perpVolumeUsd: parseRequiredNumber(volume.perpVolumeUsd, "volume.perpVolumeUsd"),
@@ -38,6 +51,12 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
       volume.predictionMarketVolumeUsd,
       "volume.predictionMarketVolumeUsd",
     ),
+    perpFeesUsd:
+      parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd") +
+      parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd"),
+    predictionMarketFeesUsd:
+      parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd") +
+      parseRequiredNumber(fees.footballContractsFeesUsd, "fees.footballContractsFeesUsd"),
   };
 }
 
