@@ -67,9 +67,11 @@ const breakdownMethodology = {
     },
 };
 
+
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const logs = await options.getLogs({
         targets: CONTRACTS[options.chain],
@@ -80,9 +82,10 @@ const fetch = async (options: FetchOptions) => {
     for (const log of logs) {
         dailyFees.add(log.srcToken, log.surplus, "Swap Surplus");
         dailyRevenue.add(log.srcToken, log.protocolFee, "Swap Surplus To Treasury");
+        dailySupplySideRevenue.add(log.srcToken, log.cashback, "Swap Surplus Cashback To User");
     }
 
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
