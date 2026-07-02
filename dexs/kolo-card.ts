@@ -9,27 +9,27 @@ const topic = (address: string) =>
 
 const chainConfig: Record<string, { start: string; rain: string; collateralProxy: string }> = {
   [CHAIN.POLYGON]: {
-    start: "2025-07-04",
+    start: "2024-10-03",
     rain: "0x5d5Cef756412045617415FC78D510003238EAfFd",
     collateralProxy: "0x9d983bfF3CB688270e7b85BCFDbEBe69f7952751",
   },
   [CHAIN.ARBITRUM]: {
-    start: "2025-07-04",
+    start: "2024-06-14",
     rain: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
     collateralProxy: "0x98965FBce47dCFD11cA61Ec007c994beE4ed2246",
   },
   [CHAIN.OPTIMISM]: {
-    start: "2025-07-04",
+    start: "2024-06-14",
     rain: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
     collateralProxy: "0x733DDAaB8341AFfEf7d625462cD0A363Cd8A3207",
   },
   [CHAIN.BASE]: {
-    start: "2025-07-04",
+    start: "2024-06-14",
     rain: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
     collateralProxy: "0x37920D57bfD3A67dB111dD692Cdd6857C8a0D32C",
   },
   [CHAIN.ETHEREUM]: {
-    start: "2025-07-04",
+    start: "2024-06-14",
     rain: "0xE5D3d7da4b24bc9D2FDA0e206680CD8A00C0FeBD",
     collateralProxy: "0x386D3D6216f89B6b22Aab7caA04e65053C7e1966",
   },
