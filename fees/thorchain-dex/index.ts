@@ -124,11 +124,11 @@ const fetch: any = async (options: FetchOptions) => {
   const trackedSymbols = new Set(Object.values(chainConfig).map((c: any) => c.symbol));
   const dayVolumeRows = volumeByChain.filter((r: any) => r.DATE.slice(0, 10) === dateStr && trackedSymbols.has(r.CHAIN));
   const totalVolume = sumVolume(dayVolumeRows);
-  // The outbound fee can only be attributed via swap-volume share. If there is a positive outbound fee but no
-  // volume data for the day, fail loudly instead of silently dropping it (a swap-volume feed gap / mismatch).
-  if (netOutboundRune > 0 && totalVolume === 0)
-    throw new Error(`thorchain-dex: outbound fee present (${netOutboundRune} RUNE base units) on ${dateStr} but no swap-volume data to attribute it across chains`);
-  const volumeShare = totalVolume ? sumVolume(dayVolumeRows.filter((r: any) => r.CHAIN === chainShortName)) / totalVolume : 0;
+  // Outbound fee is split by swap-volume share. When there is no volume (e.g. exchange halt 2026-05-16..2026-06-21,
+  // or raynalytics feed gap) fall back to 0 rather than attributing across chains.
+  const volumeShare = totalVolume
+    ? sumVolume(dayVolumeRows.filter((r: any) => r.CHAIN === chainShortName)) / totalVolume
+    : 0;
 
   const outboundFee = Math.max(0, toUSD(netOutboundRune) * volumeShare);
 
