@@ -25,18 +25,23 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD || "0";
 
-  const result = {
-    dailyVolume,
-    dailyFees: (Number(dailyVolume) * v2Fees).toString(),
-  };
+  const dailyFees = (Number(dailyVolume) * v2Fees).toString();
 
-  return result;
+  return {
+    dailyVolume,
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+  };
 };
 
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.MORPH],
   start: '2024-10-27',
+  methodology: {
+    Fees: "0.35% of each swap, charged to traders",
+    SupplySideRevenue: "All swap fees go to liquidity providers; no protocol fee is active",
+  },
 };
 
 export default adapter;
