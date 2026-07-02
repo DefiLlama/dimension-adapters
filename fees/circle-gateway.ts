@@ -23,7 +23,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Includes tranfer fees, gas fees and transaction fees, exact breakdown isnt available onchain",
+  Fees: `Includes transfer fees, gas fees and transaction fees, exact breakdown isn't available onchain`,
 }
 
 const breakdownMethodology = {
@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
-  skipBreakdownValidation: true, //skipping because exact breakdown isnt available onchain
+  skipBreakdownValidation: true, //skipping because exact breakdown isn't available onchain
 }
 
 export default adapter;
