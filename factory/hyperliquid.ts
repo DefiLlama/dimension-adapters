@@ -712,12 +712,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  
-
-
-
-
-
+  "trasia-perps": {
+    addresses: ["0xa9300365e8f6d0112a756c98f9acfc3543b295c0"],
+    start: "2026-06-03",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Trasia Perps.",
+      Revenue: "Builder code fees collected by Trasia Perps from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Trasia Perps from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
 };
 
 
