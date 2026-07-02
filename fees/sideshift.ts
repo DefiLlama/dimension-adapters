@@ -25,9 +25,11 @@ const fetchFees = async (options: FetchOptions) => {
 const adapters: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  deadFrom: '2026-06-03', // https://sideshift.ghost.io/staking-rewards-update
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
+      start: '2024-06-24',
     }
   },
   methodology: {
