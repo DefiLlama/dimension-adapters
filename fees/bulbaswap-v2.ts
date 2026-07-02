@@ -39,7 +39,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.MORPH],
   start: '2024-10-27',
   methodology: {
-    Fees: "0.35% of each swap, charged to traders",
+    Volume: "Daily swap volume",
+    Fees: "0.35% of swap volume",
     SupplySideRevenue: "All swap fees go to liquidity providers; no protocol fee is active",
   },
 };
