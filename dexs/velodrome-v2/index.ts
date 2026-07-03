@@ -120,10 +120,10 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
 export default {
   ...uniV2Exports({
     [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent, voter: '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c', maxPairSize: 500, customLogic, start: '2023-06-23' },
-    [CHAIN.MODE]: { factory: leaf_pool_factory, customLogic, start: '2024-05-08' },
-    [CHAIN.BOB]: { factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-05-18' },
-    [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic, start: '2024-11-13' },
-    [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic, start: '2024-11-20' },
+    [CHAIN.MODE]: { factory: leaf_pool_factory, customLogic, start: '2024-12-11' },
+    [CHAIN.BOB]: { factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-12-11' },
+    [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic, start: '2024-12-11' },
+    [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic, start: '2024-12-11' },
     [CHAIN.INK]: {factory: leaf_pool_factory, customLogic, start: '2025-01-15' },
     [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic, start: '2025-01-15' },
     [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic, start: '2025-02-22' },
