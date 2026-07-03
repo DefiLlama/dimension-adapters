@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from "../helpers/allium";
 
 // Fee share constants (source: https://pokeliquid.xyz/docs)
 const TRADING_INSURANCE_SHARE = 0.25; // 25% of trading fees → insurance
@@ -22,15 +22,16 @@ const fetch = async (options: FetchOptions) => {
 
   const query = `
     SELECT
-      COALESCE(SUM(amount / 1e6), 0) AS insurance_in
-    FROM tokens_solana.transfers
-    WHERE token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' -- USDC mint: https://explorer.solana.com/address/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-      AND to_token_account = '266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9'   -- Insurance fund: https://explorer.solana.com/address/266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9
-      AND from_token_account = 'BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt' -- Fee vault: https://explorer.solana.com/address/BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt
-      AND TIME_RANGE
+      COALESCE(SUM(raw_amount / 1e6), 0) AS insurance_in
+    FROM solana.assets.transfers
+    WHERE mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' -- USDC mint: https://explorer.solana.com/address/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+      AND token_acc_to = '266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9'   -- Insurance fund: https://explorer.solana.com/address/266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9
+      AND token_acc_from = 'BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt' -- Fee vault: https://explorer.solana.com/address/BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
 
-  const result = await queryDuneSql(options, query);
+  const result = await queryAllium(query);
   const row = result[0];
 
   const insuranceIn = Number(row.insurance_in);
@@ -81,14 +82,15 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-06-07",
   methodology,
   breakdownMethodology,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
+  pullHourly: true,
 };
 
 export default adapter;

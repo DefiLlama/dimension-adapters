@@ -28,7 +28,6 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
 
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
-    const dailyBribesRevenue = createBalances()
 
     let lpTokens = await api.fetchList({ lengthAbi: ABIs.allPairsLength, itemAbi: ABIs.allPairs, target: FACTORY_ADDRESS });
 
@@ -60,11 +59,14 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
     bribeAndFeeLogs.forEach((e: any, idx: number) => {
       const voterGauge = voterGauges[idx].toLowerCase()
       e.forEach((l: any) => {
-        if (l.from.toLowerCase() !== voterGauge)
-          dailyBribesRevenue.add(l.reward, l.amount, "Bribes from other protocols")
-        else
+        if (l.from.toLowerCase() !== voterGauge) {
+          dailyFees.add(l.reward, l.amount, "Bribes from other protocols")
+          dailyRevenue.add(l.reward, l.amount, "Bribes from other protocols")
+        }
+        else {
+          dailyFees.add(l.reward, l.amount, "Gauge emissions")
           dailyRevenue.add(l.reward, l.amount, "Gauge emissions")
-
+        }
       })
     })
 
@@ -78,7 +80,7 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
         })
     });
 
-    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, };
   }
 }
 

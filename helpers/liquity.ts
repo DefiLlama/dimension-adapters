@@ -514,6 +514,16 @@ const v1Entries: Record<string, any> = {
       ProtocolRevenue: 'No revenue for Powercity Flex Protocol.',
     },
   },
+  'money-protocol': {
+    chainConfig: {
+      [CHAIN.ROOTSTOCK]: {
+        troveManager: '0xb6A3E678219D9119Ae3B65AC501638b986b5038b',
+        stableCoin: '0x1fe2F558E2120C4BdF4217248d2940043a8E1208',
+        holderRevenuePercentage: 100,
+      },
+    },
+    start: '2025-12-13',
+  },
   "sable-finance": {
     chainConfig: {
       [CHAIN.BSC]: {

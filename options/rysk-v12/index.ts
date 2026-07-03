@@ -34,7 +34,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     });
 
     const uniqueTxHashes = Array.from(new Set(premiumReceivedLogs.map((log: any) => log.transactionHash.toLowerCase())))
-    const txs = await getTransactions(options.chain, uniqueTxHashes, { cacheKey: 'rysk-v12' })
+    const txs = await getTransactions(options.chain, uniqueTxHashes)
     const txByHash = new Map<string, any>()
     uniqueTxHashes.forEach((hash, idx) => {
         if (txs[idx]) txByHash.set(hash, txs[idx])

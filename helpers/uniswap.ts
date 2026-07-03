@@ -149,7 +149,9 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
         dailyBribesRevenue.add(e.reward, e.amount)
       })
 
-      return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyBribesRevenue }
+      dailyFees.add(dailyBribesRevenue, 'Bribes Rewards')
+
+      return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
     }
 
     const response: any = { dailyVolume, dailyFees }

@@ -62,21 +62,21 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-	Fees: 'USD value of HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned. The buyback program was discontinued on 2026-01-02.',
-	Revenue: 'Same as fees: the value of HNT bought back and burned.',
-	ProtocolRevenue: 'Protocol revenue is 0 (the buyback accrues entirely to HNT holders).',
-	HoldersRevenue: 'HNT bought on the open market and burned, accruing value to HNT holders through supply reduction.',
+	Fees: 'HNT that Helium Mobile bought on the open market (via Jupiter DCA) and burned, funded by subscriber revenue. On 2026-01-02 Helium paused these buybacks and redirected the revenue to network growth, so this is 0 from then on - the subscriber revenue still exists but no longer flows through an on-chain buyback we can measure. We do not count the HNT burned to mint Data Credits for network usage: it is priced at the $0.50/GB protocol peg while carriers actually pay ~$0.10/GB (HIP-149), and that HNT comes from Coinbase treasury wallets rather than open-market buys, so it is neither real revenue nor a genuine buy-and-burn.',
+	Revenue: 'Same as Fees.',
+	ProtocolRevenue: '0 - the buyback accrued entirely to HNT holders.',
+	HoldersRevenue: 'Same as Fees: the buy-and-burn reduces HNT supply, accruing value to holders.',
 };
 
 const breakdownMethodology = {
 	Fees: {
-		'HNT Buyback': 'HNT bought on the open market by Helium Mobile and burned. Discontinued 2026-01-02.',
+		'HNT Buyback': 'Open-market HNT buy-and-burn by Helium Mobile. Paused 2026-01-02, so 0 from then on.',
 	},
 	Revenue: {
-		'HNT Buyback': 'HNT bought and burned. Discontinued 2026-01-02.',
+		'HNT Buyback': 'Open-market HNT buy-and-burn. Paused 2026-01-02, so 0 from then on.',
 	},
 	HoldersRevenue: {
-		'HNT Buyback': 'Open-market HNT buy-and-burn, accruing value to HNT holders through supply reduction. Discontinued 2026-01-02.',
+		'HNT Buyback': 'Open-market HNT buy-and-burn; reduces supply for holders. Paused 2026-01-02, so 0 from then on.',
 	},
 };
 

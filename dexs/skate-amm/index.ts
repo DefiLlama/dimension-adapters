@@ -18,7 +18,10 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' }
 }
 
-const skateDataApi = "https://api.skatechain.org/amm-data/pools/stats";
+const skateDataApis = [
+    "https://api.skatechain.org/amm-data/pools/stats",    // AMM v1
+    "https://api.skatechain.org/amm-data-v2/pools/stats", // AMM v2
+];
 
 const fetch = async (options: FetchOptions) => {
 
@@ -32,12 +35,18 @@ const fetch = async (options: FetchOptions) => {
             endTime: options.endTimestamp,
         }
     }
-    const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
-
-    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
-      for (const tokenInfo of tokenVolumeInfo.data) {
-          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    // v1 winding down (its stats endpoint now returns empty); v2 carries live
+    // data. Sum both so historical v1 volume and current v2 volume both count.
+    for (const skateDataApi of skateDataApis) {
+      const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
+      if(!tokenVolumeInfo.success) {
+        throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
+      }
+      if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+        for (const tokenInfo of tokenVolumeInfo.data) {
+            dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+            dailyFees.add(tokenInfo.token, tokenInfo.fees);
+        }
       }
     }
 
@@ -57,6 +66,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     adapter: chainConfig,
+    pullHourly: true,
 }
 
 export default adapter;
