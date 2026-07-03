@@ -3,8 +3,12 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { addTokensReceived } from "../../helpers/token";
 
+// PumpBox checkout contract on Base:
+// https://basescan.org/address/0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68
 const CHECKOUT_CONTRACT = "0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68";
 const USDC_BASE = ADDRESSES.base.USDC;
+// PumpBox treasury / PumpDaily subscription receiver on Base:
+// https://basescan.org/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
 const PUMPDAILY_SUBSCRIPTION_RECEIVER = "0x646308ef20fb48101662dda0fb2dc7c677bc1b59";
 
 const OPEN_BOX_REQUESTED =
@@ -12,7 +16,8 @@ const OPEN_BOX_REQUESTED =
 
 const BUYBACK_EXECUTED = "event BuybackExecuted(address indexed seller, uint256 indexed tokenId, uint256 buybackPrice)";
 
-const isSubscriptionFee = (log: any) => (log.from_address ?? "").toLowerCase() !== CHECKOUT_CONTRACT.toLowerCase();
+const isSubscriptionFee = (log: any) =>
+  (log.from_address ?? log.from ?? "").toLowerCase() !== CHECKOUT_CONTRACT.toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
@@ -61,9 +66,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "All USDC payments made by users when opening blind boxes. Each box has a fixed USDC price; users pay price × quantity.",
-  Fees: "USDC paid by users to request blind box openings, net of buyback spends plus PumpDaily subscriptions.",
-  Revenue: "USDC paid by users to request blind box openings, net of buyback spends plus PumpDaily subscriptions.",
-  ProtocolRevenue: "USDC paid by users to request blind box openings, net of buyback spends plus PumpDaily subscriptions.",
+  Fees: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
+  Revenue: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
+  ProtocolRevenue: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
 };
 
 const breakdownMethodology = {
