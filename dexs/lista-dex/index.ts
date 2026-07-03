@@ -25,6 +25,7 @@ interface PoolInfo {
 }
 
 interface SwapEventArgs {
+    txhash: string; // for debug
     swap0to1: boolean;
     amountIn: bigint;
     amountOut: bigint;
@@ -80,18 +81,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         targets,
         eventAbi: abi.tokenExchange,
         flatten: false,
+        onlyArgs: false,
     });
 
     const allSwapEvents: SwapEventArgs[] = [];
     pools.forEach((pool, idx) => {
         const logs = logsByTarget[idx] || [];
         logs.forEach((log: any) => {
-            allSwapEvents.push({
-                swap0to1: BigInt(log.swap0to1) === 1n,
-                amountIn: BigInt(log.amountIn),
-                amountOut: BigInt(log.amountOut),
-                fee: BigInt(log.fee),
-                revenueCut: BigInt(log.revenueCut),
+          allSwapEvents.push({
+                txhash: log.transaction_hash,
+                swap0to1: BigInt(log.args.swap0to1) === 1n,
+                amountIn: BigInt(log.args.amountIn),
+                amountOut: BigInt(log.args.amountOut),
+                fee: BigInt(log.args.fee),
+                revenueCut: BigInt(log.args.revenueCut),
                 pool: pool.pool,
                 token0: pool.token0,
                 token1: pool.token1,
@@ -99,9 +102,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         });
     });
 
-    allSwapEvents.forEach(({ swap0to1, amountIn, token0, token1, fee, revenueCut }) => {
+    allSwapEvents.forEach(({ txhash, swap0to1, amountIn, token0, token1, fee, revenueCut }) => {
         const token = swap0to1 ? token0 : token1;
         if (!token) return;
+        // there is a bug in log data in this transaction on ethereum
+        if (token === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' && txhash === '0xeb8aa6ecdd347f839a422c84b1c21ec3cc796a66cc00e3e6b7d743aa4134a6bc') return;
         dailyVolume.add(token, amountIn);
         dailyFees.add(token, fee, METRIC.SWAP_FEES);
         dailyRevenue.add(token, revenueCut, METRIC.SWAP_FEES);
