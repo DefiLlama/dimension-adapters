@@ -44,7 +44,7 @@ const superchainConfig: Record<string, any> = {
 }
 
 
-const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => {
+const customLogic = async ({ dailyVolume, dailyFees, fetchOptions, filteredPairs, }: any) => {
   const { createBalances, getLogs, chain, api, getToBlock, } = fetchOptions
   const dailyBribes = createBalances()
 
@@ -114,7 +114,7 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
   totalHoldersRevenue.add(dailyFees, 'Swap Fees To Voters')
   totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
 
-  return { dailyFees: totalFees, dailyRevenue: totalHoldersRevenue, dailyHoldersRevenue: totalHoldersRevenue } as any
+  return { dailyVolume, dailyFees: totalFees, dailyRevenue: totalHoldersRevenue, dailyHoldersRevenue: totalHoldersRevenue } as any
 }
 
 export default {
