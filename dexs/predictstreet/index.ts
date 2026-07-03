@@ -4,6 +4,10 @@ import { CHAIN } from "../../helpers/chains";
 // Both exchanges emit the same OrderFilled. In a fill, `taker` == the exchange's
 // own address only on the taker (aggregate) fill of a match; maker fills carry the
 // taker's vault address there.
+// CTFExchange (binary markets) / NegRiskCtfExchange (multi-outcome markets) — the
+// same deployments exchange-service verifies EIP712 signatures against
+// (EXCHANGE_CONTRACT_ADDRESS / EXCHANGE_CONTRACT_ADDRESS_NEG_RISK) and chain-watcher
+// indexes OrderFilled from (CTF_EXCHANGE_ADDRESS / PREDICTSTREET_NEGRISK_CTF_EXCHANGE_ADDRESS).
 const CTF = "0x90EA87493E208A14011EC700Ac9cbAf4d064acc0";
 const NEGRISK = "0x79ACbb874dd01044FA38a89c1478E60FaAB40D00";
 const EXCHANGES = [CTF, NEGRISK];
@@ -32,8 +36,13 @@ const fetch = async (options: FetchOptions) => {
     const lg = legs(a);
     const key = `${log.transactionHash}|${a.batchPosition}`;
     const m = matches[key] || (matches[key] = { taker: null, makerOutcomes: new Set<string>() });
-    if (EXCHANGE_SET.has(a.taker.toLowerCase())) m.taker = lg; // taker (aggregate) fill
-    else if (lg) m.makerOutcomes.add(lg.outcome);
+    if (EXCHANGE_SET.has(a.taker.toLowerCase())) {
+      // Neither leg was USDC.e — an unexpected fill shape (bug or future exchange
+      // upgrade). Log it: silently dropping the whole match would understate volume
+      // with no trace of why.
+      if (!lg) console.error(`predictstreet: unexpected OrderFilled leg shape at ${log.transactionHash}:${a.batchPosition}`);
+      m.taker = lg; // taker (aggregate) fill
+    } else if (lg) m.makerOutcomes.add(lg.outcome);
   }
 
   for (const m of Object.values(matches)) {
@@ -53,12 +62,12 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  chains: [CHAIN.ADI],
+  start: "2026-05-30",
+  fetch,
   methodology: {
     Volume:
       "Reproduces PredictStreet's settlement volume formula on-chain from OrderFilled events on the CTFExchange and NegRiskCtfExchange. Normal trades count the USDC.e the taker paid (price × quantity); MINT/BURN crosses (complementary YES/NO buys or sells that mint/merge a full pair) count the full collateral of the pair (quantity). Only settled (on-chain) trades are counted.",
-  },
-  adapter: {
-    [CHAIN.ADI]: { fetch, start: "2026-05-30" },
   },
 };
 
