@@ -45,18 +45,32 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
   const volume = response.data.volume;
   const fees = response.data.fees;
 
+  const perpFeesUsd =
+    parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd") +
+    parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd");
+  const predictionMarketFeesUsd =
+    parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd") +
+    parseRequiredNumber(fees.footballContractsFeesUsd, "fees.footballContractsFeesUsd");
+
+  // Reconcile the perp/prediction split against the API's own total so a new fee
+  // category added upstream surfaces as an error instead of silently under-counting.
+  const totalFeesUsd = parseRequiredNumber(fees.totalFeesUsd, "fees.totalFeesUsd");
+  const tolerance = Math.max(1, totalFeesUsd * 1e-4);
+  if (Math.abs(perpFeesUsd + predictionMarketFeesUsd - totalFeesUsd) > tolerance) {
+    throw new Error(
+      `TurboFlow fee split (perp ${perpFeesUsd} + prediction ${predictionMarketFeesUsd}) ` +
+        `does not reconcile to totalFeesUsd ${totalFeesUsd} for ${options.dateString}`,
+    );
+  }
+
   return {
     perpVolumeUsd: parseRequiredNumber(volume.perpVolumeUsd, "volume.perpVolumeUsd"),
     predictionMarketVolumeUsd: parseRequiredNumber(
       volume.predictionMarketVolumeUsd,
       "volume.predictionMarketVolumeUsd",
     ),
-    perpFeesUsd:
-      parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd") +
-      parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd"),
-    predictionMarketFeesUsd:
-      parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd") +
-      parseRequiredNumber(fees.footballContractsFeesUsd, "fees.footballContractsFeesUsd"),
+    perpFeesUsd,
+    predictionMarketFeesUsd,
   };
 }
 
