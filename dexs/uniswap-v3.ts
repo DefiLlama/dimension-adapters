@@ -276,6 +276,15 @@ okuChains.forEach(chain => {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.ROBINHOOD] = {
+  fetch: async (options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+  start: '2026-01-01',
+};
+
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
 
