@@ -53,7 +53,9 @@ const fetch = async (options: FetchOptions) => {
     const cross = [...m.makerOutcomes].some((o) => o !== m.taker!.outcome);
     const amount = cross ? m.taker.qty : m.taker.usdc;
     // USDC.e is a $1 stablecoin on a brand-new chain DefiLlama can't auto-price.
-    dailyVolume.addCGToken("usd-coin", Number(amount) / 1e6);
+    // Divide the bigint before converting so a very large amount can't lose
+    // precision crossing Number.MAX_SAFE_INTEGER.
+    dailyVolume.addCGToken("usd-coin", Number(amount / 1_000_000n) + Number(amount % 1_000_000n) / 1e6);
   }
 
   return { dailyVolume };
