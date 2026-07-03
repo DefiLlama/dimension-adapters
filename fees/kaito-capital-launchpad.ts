@@ -66,7 +66,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // The API exposes only per-sale totals, no intraday granularity, 
+  // and hourly polling of the Kaito API triggers rate-limiting (HTTP 429).
+  pullHourly: false,
   fetch,
   chains: [CHAIN.BASE],
   start: '2025-07-25', 
