@@ -113,21 +113,21 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-03-19",
   },
-  "retro": {
-    graphUrls: {
-      [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('DZyDuvUHNThtJJQAEbYGr32xYc93BZAdfqatpYUNMZbe'),
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 10,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 90,
-      Revenue: 10,
-    },
-    start: "2023-07-02",
-  },
+  // "retro": {
+  //   graphUrls: {
+  //     [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('DZyDuvUHNThtJJQAEbYGr32xYc93BZAdfqatpYUNMZbe'),
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 10,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 90,
+  //     Revenue: 10,
+  //   },
+  //   start: "2023-07-02",
+  // },
   "winnieswap": {
     graphUrls: {
       [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap/0.0.1/gn",
