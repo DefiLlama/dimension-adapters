@@ -11,9 +11,6 @@ const TokenCreatedEvent =
   "event TokenCreated(address token, uint256 tokenPrice, uint256 ethPriceUSD, uint32 sig, uint256 date)";
 const TokenLaunchedEvent = "event TokenLaunched(address token, uint256 date)";
 
-const CREATE_TOKEN_FEE = 1000000000000000n; // 0.001 ETH per token creation
-const GRADUATION_FEE = 100000000000000000n; // 0.1 ETH platform fee per graduation to Uniswap
-
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -23,13 +20,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const createdLogs = await options.getLogs({ target: ARROWPAD, eventAbi: TokenCreatedEvent });
   const launchedLogs = await options.getLogs({ target: ARROWPAD, eventAbi: TokenLaunchedEvent });
 
+  // flat fees are owner-configurable, read them from the contract
+  const createFee = await options.api.call({ target: ARROWPAD, abi: "uint256:CREATE_TOKEN_FEE_AMOUNT" });
+  const graduationFee = await options.api.call({ target: ARROWPAD, abi: "uint256:platformLPFee" });
+
   for (const log of [...buyLogs, ...sellLogs]) {
     dailyVolume.addGasToken(log.ethAmount);
     // ethAmount is emitted net of the 1% platform fee: fee = net / 99
     dailyFees.addGasToken(log.ethAmount / 99n);
   }
-  dailyFees.addGasToken(CREATE_TOKEN_FEE * BigInt(createdLogs.length));
-  dailyFees.addGasToken(GRADUATION_FEE * BigInt(launchedLogs.length));
+  dailyFees.addGasToken(BigInt(createFee) * BigInt(createdLogs.length));
+  dailyFees.addGasToken(BigInt(graduationFee) * BigInt(launchedLogs.length));
 
   return {
     dailyVolume,
@@ -41,7 +42,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const methodology = {
   Volume: "ETH value of all bonding-curve buys and sells (BuyTokens/SellTokens events).",
-  Fees: "1% platform fee on every buy and sell, plus 0.001 ETH per token creation and 0.1 ETH per graduation to Uniswap.",
+  Fees: "1% platform fee on every buy and sell, plus flat token-creation and graduation fees read from the contract (currently 0 and 0.1 ETH).",
   Revenue: "All fees go to the ArrowPad protocol fee address.",
   ProtocolRevenue: "Same as Revenue — there is currently no token-owner fee share.",
 };
