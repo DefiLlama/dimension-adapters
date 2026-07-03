@@ -222,12 +222,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   chains: [
     [CHAIN.ETHEREUM, { start: '2024-07-22' }],
-    [CHAIN.BASE, { start: '2024-11-20' }],
-    [CHAIN.BSC, { start: '2024-11-20' }],
+    // [CHAIN.BASE, { start: '2024-11-20' }],
+    // [CHAIN.BSC, { start: '2024-11-20' }],
   ],
   methodology,
   breakdownMethodology,
