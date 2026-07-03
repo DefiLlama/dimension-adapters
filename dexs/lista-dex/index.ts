@@ -95,10 +95,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const logs = logsByTarget[idx] || [];
         logs.forEach((log: any) => {
             allSwapEvents.push({
-              soldId: log.sold_id,
-              tokensSold: log.tokens_sold,
-              swapFee: log.swap_fee,
-              adminFee: log.admin_fee,
+              soldId: log.args.sold_id,
+              tokensSold: log.args.tokens_sold,
+              swapFee: log.args.swap_fee,
+              adminFee: log.args.admin_fee,
               token0: pool.token0,
               token1: pool.token1,
             });
