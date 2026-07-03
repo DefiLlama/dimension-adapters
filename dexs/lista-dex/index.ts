@@ -26,13 +26,10 @@ interface PoolInfo {
 }
 
 interface SwapEventArgs {
-    txhash: string; // for debug
-    swap0to1: boolean;
-    amountIn: bigint;
-    amountOut: bigint;
-    fee: bigint;
-    revenueCut: bigint;
-    pool: string;
+    soldId: bigint;
+    tokensSold: bigint;
+    swapFee: bigint;
+    adminFee: bigint;
     token0: string;
     token1: string;
 }
@@ -54,26 +51,34 @@ const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
         return await getConfig(`lsita-dex-marketList-${chain}-${market.marketId}`, `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`).then((res) => res.data);
     });
 
-    return marketDetails.results.filter((marketDetail: any) => marketDetail.smartCollateralConfig).map((marketDetail: any) => ({
-        pool: marketDetail.smartCollateralConfig.swapPool,
-        token0: marketDetail.smartCollateralConfig.token0,
-        token1: marketDetail.smartCollateralConfig.token1,
-    }));
+    const poolsByAddress = new Map<string, PoolInfo>();
+    for (const marketDetail of marketDetails.results) {
+        if (!marketDetail.smartCollateralConfig) continue;
+        const pool = marketDetail.smartCollateralConfig.swapPool.toLowerCase();
+        if (poolsByAddress.has(pool)) continue;
+        poolsByAddress.set(pool, {
+            pool: marketDetail.smartCollateralConfig.swapPool,
+            token0: marketDetail.smartCollateralConfig.token0,
+            token1: marketDetail.smartCollateralConfig.token1,
+        });
+    }
+    return Array.from(poolsByAddress.values());
 };
 
 const abi = {
     tokenExchange:
-        "event TokenExchange(address indexed user, uint256 param0, uint256 amountIn, uint256 swap0to1, uint256 amountOut, uint256 fee, uint256 revenueCut)",
+        "event TokenExchange (address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 swap_fee, uint256 admin_fee)",
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const pools = await getSwapPools(options);
     if (pools.length === 0) {
-        return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue };
+        return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue };
     }
 
     const targets = pools.map((p) => p.pool);
@@ -89,32 +94,26 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     pools.forEach((pool, idx) => {
         const logs = logsByTarget[idx] || [];
         logs.forEach((log: any) => {
-          allSwapEvents.push({
-                txhash: log.transaction_hash,
-                swap0to1: BigInt(log.args.swap0to1) === 1n,
-                amountIn: BigInt(log.args.amountIn),
-                amountOut: BigInt(log.args.amountOut),
-                fee: BigInt(log.args.fee),
-                revenueCut: BigInt(log.args.revenueCut),
-                pool: pool.pool,
-                token0: pool.token0,
-                token1: pool.token1,
+            allSwapEvents.push({
+              soldId: log.sold_id,
+              tokensSold: log.tokens_sold,
+              swapFee: log.swap_fee,
+              adminFee: log.admin_fee,
+              token0: pool.token0,
+              token1: pool.token1,
             });
         });
     });
 
-    allSwapEvents.forEach(({ txhash, swap0to1, amountIn, token0, token1, fee, revenueCut }) => {
-        const token = swap0to1 ? token0 : token1;
-        if (!token) return;
-        // there is a bug in log data in this transaction on ethereum
-        if (token === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' && txhash === '0xeb8aa6ecdd347f839a422c84b1c21ec3cc796a66cc00e3e6b7d743aa4134a6bc') return;
-        dailyVolume.add(token, amountIn);
-        dailyFees.add(token, fee, METRIC.SWAP_FEES);
-        dailyRevenue.add(token, revenueCut, METRIC.SWAP_FEES);
+    allSwapEvents.forEach(({ soldId, tokensSold, swapFee, adminFee, token0, token1 }) => {
+        const tokenSold = soldId === 0n ? token0 : token1;
+        const tokenBought = soldId === 0n ? token1 : token0;
+        if (!tokenSold || !tokenBought) return;
+        dailyVolume.add(tokenSold, tokensSold);
+        dailyFees.add(tokenBought, swapFee, METRIC.SWAP_FEES);
+        dailyRevenue.add(tokenBought, adminFee, METRIC.SWAP_FEES);
+        dailySupplySideRevenue.add(tokenBought, swapFee - adminFee, METRIC.SWAP_FEES);
     });
-
-    const dailySupplySideRevenue = dailyFees.clone(1, METRIC.SWAP_FEES);
-    dailySupplySideRevenue.subtract(dailyRevenue, METRIC.SWAP_FEES);
 
     return {
         dailyVolume,
