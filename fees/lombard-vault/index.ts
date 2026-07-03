@@ -152,20 +152,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const growthRate = Number(endRate - startRate)
 
       // Check if vault is paused - ignore paused vaults in yield calculation
-      const getAccountantState = await sdk.api2.abi.call({
+      const getAccountantState = await options.api.call({
         abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
         target: accountant,
-        block: firstEvent.blockNumber,
       })
       const isPaused = getAccountantState[8]
 
       if (!isPaused) {
-        const totalSupplyAtUpdated = await sdk.api2.abi.call({
+        const totalSupplyAtUpdated = await options.api.call({
           abi: BoringVaultAbis.totalSupply,
           target: vault.vault,
-          block: firstEvent.blockNumber,
         })
-
         let exchangeRate = vaultRateBase
         let performanceFeeRate = 0
         if (vault.accountantAbiVersion === 2) {
