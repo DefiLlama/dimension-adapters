@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const ARROWPAD = "0x5d2391CF88cd48BB6B9Ec12b38BC8119562F9012";
 
@@ -27,10 +28,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   for (const log of [...buyLogs, ...sellLogs]) {
     dailyVolume.addGasToken(log.ethAmount);
     // ethAmount is emitted net of the 1% platform fee: fee = net / 99
-    dailyFees.addGasToken(log.ethAmount / 99n);
+    dailyFees.addGasToken(log.ethAmount / 99n, METRIC.TRADING_FEES);
   }
-  dailyFees.addGasToken(BigInt(createFee) * BigInt(createdLogs.length));
-  dailyFees.addGasToken(BigInt(graduationFee) * BigInt(launchedLogs.length));
+  dailyFees.addGasToken(BigInt(createFee) * BigInt(createdLogs.length), "Token Creation Fees");
+  dailyFees.addGasToken(BigInt(graduationFee) * BigInt(launchedLogs.length), "Graduation Fees");
 
   return {
     dailyVolume,
@@ -47,12 +48,27 @@ const methodology = {
   ProtocolRevenue: "Same as Revenue — there is currently no token-owner fee share.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "1% platform fee taken from every bonding-curve buy and sell.",
+    "Token Creation Fees": "Flat fee charged per token creation, read from the contract (currently 0).",
+    "Graduation Fees": "Flat fee charged when a token graduates to Uniswap, read from the contract (currently 0.1 ETH).",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "All trading fees accrue to the protocol fee address.",
+    "Token Creation Fees": "All creation fees accrue to the protocol fee address.",
+    "Graduation Fees": "All graduation fees accrue to the protocol fee address.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-03",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
