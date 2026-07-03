@@ -268,6 +268,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
     },
   },
+  "stratium": {
+    addresses: ["0xcbd0ab1f5872dba6667c23765613de93453e3320"],
+    start: "2026-05-08",
+    market: "hip4",
+  },
+  "liquidiction": {
+    addresses: ["0x2e10360cbfb68080b72c17f35633700e75fe461b"],
+    start: "2026-05-13",
+    market: "hip4",
+  },
   "pear-interface": {
     addresses: ["0xa47d4d99191db54a4829cdf3de2417e527c3b042"],
     start: "2025-07-08",

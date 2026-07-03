@@ -191,7 +191,13 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
     start: '2026-02-24',
-  }
+  },
+  [CHAIN.ROBINHOOD]: {
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
+    positionManager: '0x58daec3116aae6d93017baaea7749052e8a04fa7',
+    source: 'LOGS',
+    start: '2026-01-01',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {

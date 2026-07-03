@@ -208,7 +208,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     // platform fees charged per year of total assets in vault
     // 365 * 24 * 60 * 60 = seconds in a year (used to convert annual fee rate to time period)
     const yearInSecs = 365 * 24 * 60 * 60
-    const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+    const timespan = options.toTimestamp - options.fromTimestamp
     const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
     dailyFees.add(token, platformFee, METRIC.MANAGEMENT_FEES)

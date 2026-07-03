@@ -4,6 +4,7 @@ import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 import { sleep } from "../../utils/utils";
+import { getConfig } from "../../helpers/cache";
 
 interface MarketResponse {
     code: string;
@@ -34,7 +35,7 @@ interface SwapEventArgs {
 }
 
 async function prefetch(_options: FetchOptions) {
-    return await fetchURL(`https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000`);
+    return await getConfig('lsita-dex-marketList', `https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000`);
 }
 
 const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
@@ -47,7 +48,7 @@ const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
 
     const marketDetails: any = await PromisePool.withConcurrency(1).for(smartLendingMarkets).process(async (market: any) => {
         await sleep(1000);
-        return await fetchURL(`https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`).then((res) => res.data);
+        return await getConfig(`lsita-dex-marketList-${chain}-${market.marketId}`, `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`).then((res) => res.data);
     });
 
     const poolsByAddress = new Map<string, PoolInfo>();
@@ -86,6 +87,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         targets,
         eventAbi: abi.tokenExchange,
         flatten: false,
+        onlyArgs: false,
     });
 
     const allSwapEvents: SwapEventArgs[] = [];

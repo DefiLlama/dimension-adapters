@@ -16,6 +16,11 @@ const chainMapper: Record<string, { name: string, start: string, primaryCGToken:
     [CHAIN.SUI]: { name: "sui", start: "2025-08-14", primaryCGToken: 'sui' },
     [CHAIN.SOLANA]: { name: "solana", start: "2025-08-07", primaryCGToken: 'solana' },
     [CHAIN.MONAD]: { name: "monad", start: "2025-11-24", primaryCGToken: 'monad' },
+    [CHAIN.BOTANIX]: { name: "botanix", start: "2025-06-24", primaryCGToken: 'bitcoin' },
+    [CHAIN.CITREA]: { name: "citrea", start: "2026-01-20", primaryCGToken: 'bitcoin' },
+    [CHAIN.MEGAETH]: { name: "megaeth", start: "2026-02-06", primaryCGToken: 'ethereum' },
+    [CHAIN.TRON]: { name: "tron", start: "2026-01-10", primaryCGToken: 'tron' },
+    [CHAIN.LITECOIN]: { name: "litecoin", start: "2026-01-10", primaryCGToken: 'litecoin' },
 };
 
 // Decimals for each asset key (chain:token)
@@ -38,6 +43,7 @@ const assetDecimals: Record<string, number> = {
     "hyperliquid:ubtc": 8,
     "bnbchain:btcb": 18,
     "starknet:wbtc": 8,
+    "starknet:strkbtc": 8,
     "solana:sol": 9,
     "solana:cbbtc": 8,
     "solana:usdc": 6,
