@@ -388,21 +388,15 @@ type UniV3Config = {
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
   const exportObject: BaseAdapter = {}
-  const exportObjectV1: BaseAdapter = {}
 
 
   Object.entries(config).map(([chain, chainConfig]) => {
-    const fetch: any = getUniV2LogAdapter(chainConfig)
-    exportObject[chain] = { fetch }
-    exportObjectV1[chain] = {
-      fetch: async (options: FetchOptions) => fetch(options),
-      start: chainConfig.start,
-    }
+    exportObject[chain] = { fetch: getUniV2LogAdapter(chainConfig), start: chainConfig.start }
   })
 
 
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1, } as SimpleAdapter
+    return { adapter: exportObject, version: 1, } as SimpleAdapter
 
 
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
@@ -415,23 +409,16 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
   [key: string]: any
 } = {}) {
   const exportObject: BaseAdapter = {}
-  const exportObjectV1: BaseAdapter = {}
-
 
   Object.entries(config).map(([chain, chainConfig]) => {
     if (swapEvent) chainConfig.swapEvent = swapEvent
     const fetch: any = getUniV3LogAdapter(chainConfig)
     exportObject[chain] = { fetch, start: chainConfig.start }
     if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
-    exportObjectV1[chain] = {
-      fetch: async (options: FetchOptions) => fetch(options),
-      start: chainConfig.start,
-    }
-    if (chainConfig.deadFrom) exportObjectV1[chain].deadFrom = chainConfig.deadFrom
   })
 
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
+    return { adapter: exportObject, version: 1 } as SimpleAdapter
 
 
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
