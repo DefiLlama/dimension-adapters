@@ -20,7 +20,7 @@ const fetchSolana = async (options: FetchOptions) => {
     blacklist_signers: FEE_WALLETS,
   })
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -37,8 +37,9 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Trading fees paid by users while using Shuriken bot.",
-    Revenue: "All fees are collected by Shuriken protocol.",
+    Fees: "Trading fees paid by users trading through the Shuriken bot (1% per swap, 0.9% via a referral link), collected in SOL by Shuriken's on-chain fee wallets.",
+    Revenue: "Collected fees are swept in full from the fee wallets to Shuriken's treasury and retained by the protocol.",
+    ProtocolRevenue: "All collected fees are retained by the Shuriken treasury.",
   }
 };
 
