@@ -1,6 +1,10 @@
 import { polymarketBuilderExports, polymarketV2BuilderFeesExports } from "../helpers/polymarket";
 import { createFactoryExports } from "./registry";
 
+// builderCode values sourced from https://data-api.polymarket.com/v1/builders/volume
+// (each row includes builder + builderCode). The 6 codes that also appear in feesConfigs
+// below match that dump. PolyHelper.io is absent from the dump, so it has no builderCode
+// and keeps its previous notional-only behavior.
 const dexsConfigs: Record<string, { builder: string; start: string; builderCode?: string }> = {
   "based-predict": { builder: "Based", start: "2025-11-18", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf" },
   "betmoar-fun": { builder: "betmoar", start: "2025-10-17", builderCode: "0xceebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1" },
