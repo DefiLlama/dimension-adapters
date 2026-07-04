@@ -38,13 +38,13 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.STELLAR, CHAIN.STARKNET, "zigchain"],
+  chains: [CHAIN.ETHEREUM, CHAIN.STELLAR, CHAIN.STARKNET, "zigchain"],
   start: "2026-07-04",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Volume:
-      "Daily USDC inflow (capital raised) into DeFa invoice-backed pools, read from the on-chain TVL loggers (Stellar, ZigChain, Starknet) snapshotted daily to Dune. Reported as the day-over-day increase in cumulative raised; the accumulated total equals total capital raised and is monotonic (never decreases).",
+      "Daily USDC inflow (capital deployed) into DeFa's real-world-credit pools: invoice financing on Stellar, ZigChain and Starknet (from on-chain TVL loggers), plus PSP/PayFi lending on Ethereum (USDC inflow into the DeFa Safe). Snapshotted daily to Dune (dune.defa_im.raised_daily) and reported as the day-over-day increase in cumulative inflow; the accumulated total equals total capital deployed and is monotonic (never decreases).",
   },
 };
 
