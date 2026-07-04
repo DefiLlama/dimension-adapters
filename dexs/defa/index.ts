@@ -27,6 +27,7 @@ const fetch = async (options: FetchOptions) => {
     )
     SELECT COALESCE(SUM(daily_raised), 0) AS daily_raised
     FROM delta
+    -- 'date' is a unix-seconds bigint (not a SQL DATE), so compare directly to the unix bounds
     WHERE date >= ${options.startTimestamp} AND date < ${options.endTimestamp}
   `;
   const rows: { daily_raised: number }[] = await queryDuneSql(options, query);
