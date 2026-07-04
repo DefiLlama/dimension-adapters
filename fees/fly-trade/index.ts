@@ -12,6 +12,18 @@ const ROUTER_B = "0xf5f3b8faf45023fd92c0c88fedf73fb0529fc1cd"; // polygon_zkevm,
 const ROUTER_C = "0xc5b20203b6807e742853c96ce7dcfb1e7b201c0a"; // zksync era
 const ROUTER_D = "0xf702814d2e1290f3d5f3202565df46272e1b1b92"; // metis, fantom, pharos
 
+
+const FLY_FEE_RECEIVERS = new Set(
+  [
+    ROUTER_A,
+    ROUTER_B,
+    ROUTER_C,
+    ROUTER_D,
+    "0xcD6b980029E6E6e0733ac8eC3E02be9410D09799", // fee collector
+    LEGACY_FEE_COLLECTOR,
+  ].map((a) => a.toLowerCase())
+);
+
 const chainConfig: Record<string, { router: string; start: string }> = {
   [CHAIN.ETHEREUM]: { router: ROUTER_A, start: "2025-08-18" },
   [CHAIN.ARBITRUM]: { router: ROUTER_A, start: "2025-08-18" },
@@ -52,37 +64,73 @@ const swapEvent =
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const { router } = chainConfig[options.chain];
 
   if (options.startTimestamp < MIGRATION_TS) {
+    // Pre-migration fees were collected directly by fly's fee wallet, so all of it is fly revenue.
     await addTokensReceived({ options, balances: dailyFees, targets: [LEGACY_FEE_COLLECTOR] });
+    dailyRevenue.addBalances(dailyFees, "Swap Fees");
   } else {
     const logs = await options.getLogs({ target: router, eventAbi: swapEvent });
     for (const log of logs) {
-      for (let i = 0; i < log.swapFeeAmounts.length; i++) {
-        dailyFees.add(log.swapFeeAssetAddresses[i], log.swapFeeAmounts[i], "Swap Fees");
+      const { fromAssetAddress, toAssetAddress, amountInSurplus, amountOutSurplus, swapFeeAssetAddresses, swapFeeReceivers, swapFeeAmounts } = log;
+      for (let i = 0; i < swapFeeAmounts.length; i++) {
+        const token = swapFeeAssetAddresses[i];
+        const amount = swapFeeAmounts[i];
+        if (FLY_FEE_RECEIVERS.has(swapFeeReceivers[i].toLowerCase())) {
+          dailyFees.add(token, amount, "Swap Fees");
+          dailyRevenue.add(token, amount, "Swap Fees");
+        } else {
+          // fee routed to an affiliate / integrator address
+          dailyFees.add(token, amount, "Affiliate Fees");
+          dailySupplySideRevenue.add(token, amount, "Affiliate Fees");
+        }
+      }
+      // Positive slippage (surplus) retained by fly's router — capped at maxRetentionBps, fly revenue.
+      if (amountOutSurplus) {
+        dailyFees.add(toAssetAddress, amountOutSurplus, "Surplus");
+        dailyRevenue.add(toAssetAddress, amountOutSurplus, "Surplus");
+      }
+      if (amountInSurplus) {
+        dailyFees.add(fromAssetAddress, amountInSurplus, "Surplus");
+        dailyRevenue.add(fromAssetAddress, amountInSurplus, "Surplus");
       }
     }
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
-  Fees: "Protocol swap fees charged by fly.trade — a conditional 0.01%-0.1% fee on long-tail assets and specific pairs. Since the 2026-05-03 router migration these are summed from the swapFeeAmounts of each DexAggregator Swap event; earlier fees are taken from the legacy fee collector.",
-  Revenue: "All fly.trade swap fees are retained by the protocol.",
-  ProtocolRevenue: "All fly.trade swap fees are retained by the protocol.",
+  Fees: "Swap fees charged by fly.trade's DexAggregator (a conditional 0.01%-0.1% fee on long-tail assets and specific pairs) plus positive slippage (surplus) retained by the router, taken from each Swap event. Pre-2026-05-03 (router migration) fees are taken from the legacy fee collector.",
+  Revenue: "Swap fees routed to fly.trade's own fee collector, plus the retained positive slippage (surplus).",
+  ProtocolRevenue: "Swap fees and retained surplus kept by fly.trade.",
+  SupplySideRevenue: "Swap fees routed to affiliate / integrator addresses (the referral cut).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Conditional 0.01%-0.1% protocol fee on long-tail assets / specific pairs, summed from the swapFeeAmounts of each DexAggregator Swap event.",
+    "Swap Fees": "Protocol fee routed to fly.trade's fee collector.",
+    "Affiliate Fees": "Fee routed to affiliate / integrator addresses.",
+    "Surplus": "Positive slippage retained by fly.trade's router (capped at maxRetentionBps).",
   },
   Revenue: {
-    "Swap Fees": "All fly.trade swap fees are retained by the protocol.",
+    "Swap Fees": "Fees retained by fly.trade.",
+    "Surplus": "Positive slippage retained by fly.trade.",
   },
   ProtocolRevenue: {
-    "Swap Fees": "All fly.trade swap fees are retained by the protocol.",
+    "Swap Fees": "Fees retained by fly.trade.",
+    "Surplus": "Positive slippage retained by fly.trade.",
+  },
+  SupplySideRevenue: {
+    "Affiliate Fees": "Fees paid out to affiliates / integrators.",
   },
 };
 
