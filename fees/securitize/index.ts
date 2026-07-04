@@ -1,6 +1,5 @@
 import {FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
-import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
 import {httpGet} from "../../utils/fetchURL";
 
@@ -190,23 +189,13 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
 
   // BUIDL fungible-asset object on Aptos (symbol BUIDL, 6 decimals).
   const APTOS_BUIDL_CONTRACT = '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'
-  const APTOS_GRAPHQL_ENDPOINT = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
   // 20 bps management fee. Source: static.primary_market_listing (BUIDL / aptos).
   const APTOS_BPS = 20
 
-  const graphQuery = gql`query BUIDLTotalSupply {
-  total_supply: current_fungible_asset_balances_aggregate(
-    where: { asset_type: { _eq: "${APTOS_BUIDL_CONTRACT}" } }
-  ) {
-    amount: aggregate {
-      sum {
-        value: amount
-      }
-    }
-  }
-}`
-  const totalSupplyData = await new GraphQLClient(APTOS_GRAPHQL_ENDPOINT).request(graphQuery);
-  const totalSupply = BigInt(totalSupplyData.total_supply.amount.sum.value);
+  // Read FA total supply from the fullnode REST (ConcurrentSupply), not the indexer
+  // GraphQL (which is flaky/500s). Raw value in 6-decimal units. Same approach as acred.
+  const res = await httpGet(`https://api.mainnet.aptoslabs.com/v1/accounts/${APTOS_BUIDL_CONTRACT}/resource/0x1::fungible_asset::ConcurrentSupply`)
+  const totalSupply = Number(res.data.current.value);
 
   await addFeesAndYield(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, totalSupply, APTOS_BPS);
 
