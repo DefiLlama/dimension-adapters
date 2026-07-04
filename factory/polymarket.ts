@@ -35,8 +35,6 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "metamask": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
   "based-predict": { builderName: "Based", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf", start: "2026-04-28" },
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
-  "rainbow-predictions": { builderName: "Rainbow", builderCode: "0xabce5abdc189cba6fb85edb9170e3e6e41607e946b06d112b7f87e2f2977020c", start: "2026-04-28" },
-  "frenflow": { builderName: "FrenFlow", builderCode: "0x1a907452bfffcc46534332a0882c2fb78e289fec946ea88f603f5767e080fcd5", start: "2026-04-28" },
 }
 
 const dexsProtocols: Record<string, any> = {};
