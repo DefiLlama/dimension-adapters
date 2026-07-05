@@ -47,19 +47,21 @@ const fetch = async (options: FetchOptions) => {
   // 3. Only fetch token pair + fees for pools that traded in this window
   const activeIndexes = swapLogs.map((logs: any[], i: number) => (logs.length ? i : -1)).filter((i: number) => i >= 0);
   const activePools = activeIndexes.map((i: number) => pools[i]);
+  // These pools all came from the factory's own creation events, so token0/token1/globalState
+  // must resolve. Don't permit failures here: a failed call is a transient RPC error, and
+  // silently zeroing it would undercount volume/fees for a pool that definitely traded.
   const [token0s, token1s, globalStates] = await Promise.all([
-    options.api.multiCall({ abi: "address:token0", calls: activePools, permitFailure: true }),
-    options.api.multiCall({ abi: "address:token1", calls: activePools, permitFailure: true }),
-    options.api.multiCall({ abi: GLOBAL_STATE, calls: activePools, permitFailure: true }),
+    options.api.multiCall({ abi: "address:token0", calls: activePools }),
+    options.api.multiCall({ abi: "address:token1", calls: activePools }),
+    options.api.multiCall({ abi: GLOBAL_STATE, calls: activePools }),
   ]);
 
   activeIndexes.forEach((poolIndex: number, k: number) => {
     const token0 = token0s[k];
     const token1 = token1s[k];
-    if (!token0 || !token1) return;
     const gs = globalStates[k];
-    const communityFee = gs ? Number(gs.communityFee) : 0; // 0..1000
-    const staticFee = gs ? Number(gs.lastFee) : 0; // fallback for pools without a dynamic fee
+    const communityFee = Number(gs.communityFee); // 0..1000
+    const staticFee = Number(gs.lastFee); // fallback for pools without a dynamic fee
     const poolSwaps = swapLogs[poolIndex];
     const poolSwapFees = swapFeeLogs[poolIndex] || [];
 
