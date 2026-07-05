@@ -32,7 +32,7 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "preddy-trade": { builderName: "Preddy.trade", builderCode: "0x25d56a25be81b183908e80ccc522e72d4187480a4aa29fa7e4dd1112546fabef", start: "2026-04-28" },
   "polytrader-app": { builderName: "Polytrader.app", builderCode: "0x6f5dfb79b61e701021143a9426b4188bda94da794068dec5454a0ac2ec82bc64", start: "2026-04-28" },
   "kiyotaka": { builderName: "Kiyotaka", builderCode: "0x2096c1dd5e4d0c660ce764ab20a3a95853d11e27724b3c73cad543352da1555f", start: "2026-04-28" },
-  "metamask": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
+  "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
   "based-predict": { builderName: "Based", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf", start: "2026-04-28" },
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
 }
