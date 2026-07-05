@@ -52,7 +52,7 @@ const chainConfig: Record<string, { router: string; start: string }> = {
   [CHAIN.STABLE]: { router: ROUTER_A, start: "2026-05-03" },
   [CHAIN.OG]: { router: ROUTER_A, start: "2026-05-03" },
   [CHAIN.TEMPO]: { router: ROUTER_A, start: "2026-05-03" },
-  [CHAIN.POLYGON_ZKEVM]: { router: ROUTER_B, start: "2026-05-03" },
+  // [CHAIN.POLYGON_ZKEVM]: { router: ROUTER_B, start: "2026-05-03" }, // public RPC chronically stale
   [CHAIN.TELOS]: { router: ROUTER_B, start: "2026-05-03" },
   [CHAIN.ERA]: { router: ROUTER_C, start: "2026-05-03" },
   [CHAIN.PHAROS]: { router: ROUTER_D, start: "2026-05-03" },
