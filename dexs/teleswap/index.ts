@@ -101,9 +101,14 @@ function recordFees(
   const lockerFee = fees[FEE_INDICES.LOCKER_FEE];
   const protocolFee = fees[FEE_INDICES.PROTOCOL_FEE];
   const thirdPartyFee = fees[FEE_INDICES.THIRD_PARTY_FEE];
-  acc.dailyFees.add(teleBTC, lockerFee + protocolFee + thirdPartyFee);
-  acc.dailySupplySideRevenue.add(teleBTC, lockerFee + thirdPartyFee);
-  acc.dailyProtocolRevenue.add(teleBTC, protocolFee);
+  acc.dailyFees.add(teleBTC, lockerFee, "Locker Fees");
+  acc.dailyFees.add(teleBTC, protocolFee, "Protocol Fees");
+  acc.dailyFees.add(teleBTC, thirdPartyFee, "Third Party Fees");
+
+  acc.dailyProtocolRevenue.add(teleBTC, protocolFee, "Protocol Fees");
+  
+  acc.dailySupplySideRevenue.add(teleBTC, lockerFee, "Locker Fees");
+  acc.dailySupplySideRevenue.add(teleBTC, thirdPartyFee, "Third Party Fees");
 }
 
 async function processUnwrapEvents(
@@ -211,10 +216,29 @@ const methodology = {
   ProtocolRevenue: "The protocol fee, which goes to the TeleSwap treasury.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    "Locker Fees": "Fees Paid to the Locker that custodies the BTC and mints teleBTC",
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+    "Third Party Fees": "Fee for an integrating third party (referrer/frontend), sent to that party's address",
+  },
+  Revenue: {
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+  },
+  ProtocolRevenue: {
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+  },
+  SupplySideRevenue: {
+    "Locker Fees": "Fees Paid to the Locker that custodies the BTC and mints teleBTC",
+    "Third Party Fees": "Fee for an integrating third party (referrer/frontend), sent to that party's address",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
+  breakdownMethodology,
   adapter: {}
 };
 
