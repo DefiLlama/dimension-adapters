@@ -36,16 +36,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees.clone(),
-    dailyProtocolRevenue: dailyFees.clone(),
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
   };
 };
 
 const methodology = {
   Volume: "ETH value of all bonding-curve buys and sells (BuyTokens/SellTokens events).",
   Fees: "1% platform fee on every buy and sell, plus flat token-creation and graduation fees read from the contract (currently 0 and 0.1 ETH).",
-  Revenue: "All fees go to the ArrowPad protocol fee address.",
-  ProtocolRevenue: "Same as Revenue — there is currently no token-owner fee share.",
+  Revenue: "1% platform fee on every buy and sell, plus flat token-creation and graduation fees read from the contract (currently 0 and 0.1 ETH).",
+  ProtocolRevenue: "1% platform fee on every buy and sell, plus flat token-creation and graduation fees read from the contract (currently 0 and 0.1 ETH).",
+  SupplySideRevenue: "0 — there is currently no supply-side revenue.",
 };
 
 const breakdownMethodology = {
@@ -55,9 +57,14 @@ const breakdownMethodology = {
     "Graduation Fees": "Flat fee charged when a token graduates to Uniswap, read from the contract (currently 0.1 ETH).",
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: "All trading fees accrue to the protocol fee address.",
-    "Token Creation Fees": "All creation fees accrue to the protocol fee address.",
-    "Graduation Fees": "All graduation fees accrue to the protocol fee address.",
+    [METRIC.TRADING_FEES]: "1% platform fee on every buy and sell.",
+    "Token Creation Fees": "Flat fee charged per token creation, read from the contract (currently 0).",
+    "Graduation Fees": "Flat fee charged when a token graduates to Uniswap, read from the contract (currently 0.1 ETH).",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "1% platform fee on every buy and sell.",
+    "Token Creation Fees": "Flat fee charged per token creation, read from the contract (currently 0).",
+    "Graduation Fees": "Flat fee charged when a token graduates to Uniswap, read from the contract (currently 0.1 ETH).",
   },
 };
 
