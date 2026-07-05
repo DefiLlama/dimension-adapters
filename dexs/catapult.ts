@@ -36,10 +36,15 @@ async function getMetrics(): Promise<Metrics> {
   return data;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async ({ dateString }: FetchOptions) => {
   const metrics = await getMetrics();
-  const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10); // the UTC day being queried
-  const valueOn = (series: DailyPoint[]) => series.find((p) => p.date === day)?.value ?? 0;
+  // Use the precomputed UTC day; throw (don't fall back to 0) when a day is absent, so the infra
+  // marks it missing instead of persisting a wrong zero into the historical chart.
+  const valueOn = (series: DailyPoint[]) => {
+    const point = series.find((p) => p.date === dateString);
+    if (!point) throw new Error(`No Catapult metrics data for ${dateString}`);
+    return point.value;
+  };
   return {
     dailyVolume: valueOn(metrics.volume),
     dailyFees: valueOn(metrics.fees),
