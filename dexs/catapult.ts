@@ -25,8 +25,19 @@ interface Metrics {
   revenue: DailyPoint[];
 }
 
+// The endpoint returns the FULL daily series, so a backfill would otherwise re-download it once per
+// day. Memoize the payload for a short window → one fetch serves a whole backfill run.
+let cache: { at: number; data: Metrics } | undefined;
+const CACHE_MS = 5 * 60 * 1000;
+async function getMetrics(): Promise<Metrics> {
+  if (cache && Date.now() - cache.at < CACHE_MS) return cache.data;
+  const data: Metrics = await fetchURL(METRICS_URL); // fetchURL returns the parsed JSON body
+  cache = { at: Date.now(), data };
+  return data;
+}
+
 const fetch = async (options: FetchOptions) => {
-  const metrics: Metrics = await fetchURL(METRICS_URL); // fetchURL returns the parsed JSON body
+  const metrics = await getMetrics();
   const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10); // the UTC day being queried
   const valueOn = (series: DailyPoint[]) => series.find((p) => p.date === day)?.value ?? 0;
   return {
