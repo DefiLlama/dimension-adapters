@@ -335,9 +335,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Nothing to record if all components are zero.
-    if (netYield <= 0 && performanceFees <= 0 && managementFees <= 0) continue;
-
     // Gross vault yield = everything the strategies produced this period
     // (depositor yield + curator performance/management fees). It is split
     // below between depositors and the vault curator, both supply-side.
