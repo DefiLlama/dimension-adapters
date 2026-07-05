@@ -19,7 +19,6 @@ const FLY_FEE_RECEIVERS = new Set(
     ROUTER_B,
     ROUTER_C,
     ROUTER_D,
-    "0xcD6b980029E6E6e0733ac8eC3E02be9410D09799", // fee collector
     LEGACY_FEE_COLLECTOR,
   ].map((a) => a.toLowerCase())
 );
