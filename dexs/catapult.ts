@@ -23,7 +23,7 @@ interface Metrics {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const metrics: Metrics = (await fetchURL(METRICS_URL)).data;
+  const metrics: Metrics = await fetchURL(METRICS_URL); // fetchURL returns the parsed JSON body
   const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10); // the UTC day being queried
   const valueOn = (series: DailyPoint[]) => series.find((p) => p.date === day)?.value ?? 0;
   return {
