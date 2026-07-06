@@ -49,10 +49,21 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addGasToken(BigInt(tx.baseCost) + BigInt(tx.premium), REGISTRATION)
   );
 
-  // Renewals: 4-field event on controllers 1-4, 5-field (referrer) event on controller 5.
-  const renewals = await options.getLogs({ targets: [...controllers_cost, controller_premium], eventAbi: renewed });
+  // Renewals. Unit quirk: the 2023 controller (0x253553) emits NameRenewed.cost in USD
+  // (attoUSD, 1e18 = $1), NOT ETH wei - a known bug in that controller version. Its
+  // registration events are still ETH, and the 2019/2020 controllers and the current controller
+  // (0x59e16f) emit renewal cost in ETH. ENS's own analytics work around this with a dedicated
+  // conversion table; here we add the 2023 controller's renewals as a USD value and the rest as
+  // the gas token. Verified on-chain: a 0x253553 renewal tx sending 0.22 ETH emits cost summing
+  // to ~257 (=$257), while a 0x59e16f renewal of 0.0065 ETH emits cost 0.0064 (ETH).
+  const renewalsEth = await options.getLogs({ targets: controllers_cost, eventAbi: renewed });
+  renewalsEth.forEach((tx: any) => dailyFees.addGasToken(tx.cost, RENEWAL));
+
   const referrerRenewals = await options.getLogs({ target: controller_referrer, eventAbi: renewed_referrer });
-  [...renewals, ...referrerRenewals].forEach((tx: any) => dailyFees.addGasToken(tx.cost, RENEWAL));
+  referrerRenewals.forEach((tx: any) => dailyFees.addGasToken(tx.cost, RENEWAL));
+
+  const renewalsUsd = await options.getLogs({ target: controller_premium, eventAbi: renewed });
+  renewalsUsd.forEach((tx: any) => dailyFees.addUSDValue(Number(tx.cost) / 1e18, RENEWAL));
 
   return {
     dailyFees,
