@@ -19,6 +19,7 @@ const fetch = async (options: FetchOptions) => {
   const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
   const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -42,10 +43,14 @@ const fetch = async (options: FetchOptions) => {
       throw new Error(`Total fees ${totalFees} ETH very high for ethereum. Protocol: ${protocolFee}, Partner(Partner): ${partnerFeePartner}, Partner(COW): ${partnerFeeCow}, MEV: ${mevBlockerFee}`);
     }
 
-    dailyFees.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
-    dailyFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
-    dailyFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
-    dailyFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
+    // User-paid trade fees
+    dailyUserFees.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyUserFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
+    dailyUserFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
+    dailyUserFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
+
+    // Total fees = user fees + stake-sale proceeds (the sale is not a user fee, so it stays out of dailyUserFees)
+    dailyFees.addBalances(dailyUserFees);
     dailyFees.addUSDValue(mevBlockerSaleUsd, 'MEV Blocker Sale');
 
     dailySupplySideRevenue.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
@@ -63,7 +68,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
@@ -93,7 +98,6 @@ const breakdownMethodology = {
     'Partner Fees for CoW': 'Service fee from partner integrations (~25% on average). Converted to WETH.',
     'Partner Fees for Partners': 'Fees paid to widget/API integrators.',
     'MEV Blocker Fees': 'Per-block fees from block builders. Split 50/50 with Beaver Build.',
-    'MEV Blocker Sale': 'MEV Blocker stake sale (CIP-73): quarterly installments through Oct 2028, tracked on-chain. Split 50/50 with Beaver Build.',
   },
   Revenue: {
     'CoW Protocol Fees': '50% of user surplus and 2bps on volume.',
