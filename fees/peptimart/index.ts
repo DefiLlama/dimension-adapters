@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const FEES_API = "https://peptimart.xyz/api/defillama/fees";
+// Solana mint: https://pump.fun/coin/61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump
 const PEPTI_MINT = "61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump";
 
 type FeesPayload = {
@@ -20,19 +21,25 @@ type ApiResponse = {
 };
 
 const methodology = {
-  Fees: "Gross revenue from paid merchandise sales at PEPTI MART.",
+  Fees: "Gross revenue from paid merchandise sales at PEPTIDES.",
+  SupplySideRevenue:
+    "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
   Revenue:
     "Net protocol revenue from store sales after the ten percent buyback allocation.",
   HoldersRevenue:
     "On-chain $PEPTI permanently burned during the day. This is supply reduction, not protocol revenue.",
   ProtocolRevenue:
-    "Net revenue retained for PEPTI MART operations after the buyback allocation.",
+    "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Merchandise Sales":
-      "Total paid checkout value at PEPTI MART for the calendar day (UTC).",
+      "Total paid checkout value at PEPTIDES for the calendar day (UTC).",
+  },
+  SupplySideRevenue: {
+    "Buyback Allocation":
+      "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
   },
   HoldersRevenue: {
     "Token Burns":
@@ -44,7 +51,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     "Store Operations":
-      "Net revenue supporting PEPTI MART operations and catalog.",
+      "Net revenue supporting PEPTIDES operations and catalog.",
   },
 };
 
@@ -54,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
   )) as ApiResponse;
 
   if (!response?.ok || !response.data) {
-    throw new Error(`Invalid response from PEPTI MART fees API for ${options.dateString}`);
+    throw new Error(`Invalid response from PEPTIDES fees API for ${options.dateString}`);
   }
 
   const data = response.data;
@@ -62,14 +69,17 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   dailyFees.addUSDValue(data.purchasesUsd, "Merchandise Sales");
+  dailySupplySideRevenue.addUSDValue(data.buybackUsd, "Buyback Allocation");
   dailyProtocolRevenue.addUSDValue(storeOperationsUsd, "Store Operations");
   dailyRevenue.addUSDValue(storeOperationsUsd, "Store Operations");
 
   if (data.peptiBurned > 0) {
+    // Pump.fun SPL tokens use 6 decimal places
     const raw = Math.round(data.peptiBurned * 1e6).toString();
     dailyHoldersRevenue.add(PEPTI_MINT, raw, "Token Burns");
   }
@@ -77,6 +87,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
   };
@@ -84,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: false, // peptimart.xyz API returns one UTC daily aggregate per date param
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-05-27",
