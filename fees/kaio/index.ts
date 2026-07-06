@@ -12,9 +12,11 @@ const MANAGEMENT_FEE_RATES: Record<string, number> = {
     MACROx: 0.005, // https://app.rwa.xyz/assets/MACROx
     SCOPEx: 0.005, // https://app.rwa.xyz/assets/SCOPEx
     CASHx: 0.0015, // https://app.rwa.xyz/assets/CASHx
+    "MCAS-TD": 0.0075, //https://app.rwa.xyz/assets/MCAS-TD
+    "MCAS-TA": 0.0055, //https://app.rwa.xyz/assets/MCAS-TA
 };
 
-const chainConfig = {
+const chainConfig:any  = {
     [CHAIN.ETHEREUM]: "",
     [CHAIN.POLYGON]: "Polygon",
     [CHAIN.AVAX]: "Avalanche",

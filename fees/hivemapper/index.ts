@@ -6,7 +6,7 @@ const HONEY_TOKEN = "4vMsoUT2BWatFweudnQM1xedRLfJgJ7hswhcpz4xgBTy";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
   const query = `SELECT
-      SUM(amount / 1e9) AS honey_burns
+      COALESCE(SUM(amount / 1e9),0) AS honey_burns
   FROM spl_token_solana.spl_token_call_burn
   WHERE call_block_time >= from_unixtime(${options.fromTimestamp})
     AND call_block_time < from_unixtime(${options.toTimestamp})
