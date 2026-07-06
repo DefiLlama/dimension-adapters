@@ -140,7 +140,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   prefetch,
   adapter: Object.keys(chainConfig).reduce((acc, chain) => ({
