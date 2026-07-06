@@ -19,6 +19,14 @@ const FACTORY_FROM_BLOCK = 23181592; // block of the first pool creation on Plum
 const FEE_DENOMINATOR = 1e6; // Algebra Constants.FEE_DENOMINATOR (fee in hundredths of a bip)
 const COMMUNITY_FEE_DENOMINATOR = 1e3; // Algebra Constants.COMMUNITY_FEE_DENOMINATOR (communityFee in thousandths)
 
+const LABELS = {
+  SWAP_FEES: "Swap Fees",
+  PLUGIN_FEES: "Plugin Fees",
+  SWAP_FEES_TO_PROTOCOL: "Swap Fees to Protocol",
+  PLUGIN_FEES_TO_PROTOCOL: "Plugin Fees to Protocol",
+  SWAP_FEES_TO_LPS: "Swap Fees to LPs",
+};
+
 const POOL_CREATED = "event Pool(address indexed token0, address indexed token1, address pool)";
 const CUSTOM_POOL_CREATED = "event CustomPool(address indexed deployer, address indexed token0, address indexed token1, address pool)";
 const SWAP = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)";
@@ -32,17 +40,13 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances(); // LP share
 
   // 1. Discover all pools (standard + custom) from the factory
-  const [poolLogs, customPoolLogs] = await Promise.all([
-    options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: POOL_CREATED, cacheInCloud: true }),
-    options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: CUSTOM_POOL_CREATED, cacheInCloud: true }),
-  ]);
+  const poolLogs = await options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: POOL_CREATED, cacheInCloud: true });
+  const customPoolLogs = await options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: CUSTOM_POOL_CREATED, cacheInCloud: true });
   const pools: string[] = [...new Set([...poolLogs, ...customPoolLogs].map((log: any) => log.pool))];
 
   // 2. Per-pool Swap logs (volume) and SwapFee logs (per-swap fee rate), index-aligned 1:1 with `pools`
-  const [swapLogs, swapFeeLogs] = await Promise.all([
-    options.getLogs({ targets: pools, eventAbi: SWAP, flatten: false }),
-    options.getLogs({ targets: pools, eventAbi: SWAP_FEE, flatten: false }),
-  ]);
+  const swapLogs = await options.getLogs({ targets: pools, eventAbi: SWAP, flatten: false });
+  const swapFeeLogs = await options.getLogs({ targets: pools, eventAbi: SWAP_FEE, flatten: false });
 
   // 3. Only fetch token pair + fees for pools that traded in this window
   const activeIndexes = swapLogs.map((logs: any[], i: number) => (logs.length ? i : -1)).filter((i: number) => i >= 0);
@@ -50,11 +54,9 @@ const fetch = async (options: FetchOptions) => {
   // These pools all came from the factory's own creation events, so token0/token1/globalState
   // must resolve. Don't permit failures here: a failed call is a transient RPC error, and
   // silently zeroing it would undercount volume/fees for a pool that definitely traded.
-  const [token0s, token1s, globalStates] = await Promise.all([
-    options.api.multiCall({ abi: "address:token0", calls: activePools }),
-    options.api.multiCall({ abi: "address:token1", calls: activePools }),
-    options.api.multiCall({ abi: GLOBAL_STATE, calls: activePools }),
-  ]);
+  const token0s = await options.api.multiCall({ abi: "address:token0", calls: activePools });
+  const token1s = await options.api.multiCall({ abi: "address:token1", calls: activePools });
+  const globalStates = await options.api.multiCall({ abi: GLOBAL_STATE, calls: activePools });
 
   activeIndexes.forEach((poolIndex: number, k: number) => {
     const token0 = token0s[k];
@@ -81,14 +83,17 @@ const fetch = async (options: FetchOptions) => {
 
       const swapFeeAmount = (inputAmount * BigInt(feeRate)) / BigInt(FEE_DENOMINATOR);
       const pluginFeeAmount = (inputAmount * BigInt(pluginFee)) / BigInt(FEE_DENOMINATOR);
-      // protocol cut = communityFee share of the swap fee + the whole plugin fee
-      const protocolAmount = (swapFeeAmount * BigInt(communityFee)) / BigInt(COMMUNITY_FEE_DENOMINATOR) + pluginFeeAmount;
-      const supplyAmount = swapFeeAmount + pluginFeeAmount - protocolAmount; // = LP share of the swap fee
+      const swapProtocolAmount = (swapFeeAmount * BigInt(communityFee)) / BigInt(COMMUNITY_FEE_DENOMINATOR);
+      const supplyAmount = swapFeeAmount - swapProtocolAmount; // LP share of the swap fee
 
       dailyVolume.add(inputToken, inputAmount);
-      dailyFees.add(inputToken, swapFeeAmount + pluginFeeAmount);
-      dailyRevenue.add(inputToken, protocolAmount);
-      dailySupplySideRevenue.add(inputToken, supplyAmount);
+      dailyFees.add(inputToken, swapFeeAmount, LABELS.SWAP_FEES);
+      dailyFees.add(inputToken, pluginFeeAmount, LABELS.PLUGIN_FEES);
+
+      dailyRevenue.add(inputToken, swapProtocolAmount, LABELS.SWAP_FEES_TO_PROTOCOL);
+      dailyRevenue.add(inputToken, pluginFeeAmount, LABELS.PLUGIN_FEES_TO_PROTOCOL);
+
+      dailySupplySideRevenue.add(inputToken, supplyAmount, LABELS.SWAP_FEES_TO_LPS);
     });
   });
 
@@ -109,6 +114,24 @@ const methodology = {
   SupplySideRevenue: "Share of swap fees retained by liquidity providers (swap fees minus the communityFee share).",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [LABELS.SWAP_FEES]: "Swap fees paid by traders, computed per swap from the pool's overrideFee or static fee.",
+    [LABELS.PLUGIN_FEES]: "Extra plugin fees charged on swaps by Algebra Integral pool plugins.",
+  },
+  Revenue: {
+    [LABELS.SWAP_FEES_TO_PROTOCOL]: "Protocol share of swap fees, determined by each pool's on-chain communityFee.",
+    [LABELS.PLUGIN_FEES_TO_PROTOCOL]: "Full plugin fee routed to the protocol.",
+  },
+  ProtocolRevenue: {
+    [LABELS.SWAP_FEES_TO_PROTOCOL]: "Protocol share of swap fees, determined by each pool's on-chain communityFee.",
+    [LABELS.PLUGIN_FEES_TO_PROTOCOL]: "Full plugin fee routed to the protocol.",
+  },
+  SupplySideRevenue: {
+    [LABELS.SWAP_FEES_TO_LPS]: "LP share of swap fees (swap fees minus the protocol share).",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -116,6 +139,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.PLUME],
   start: "2025-08-23",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
