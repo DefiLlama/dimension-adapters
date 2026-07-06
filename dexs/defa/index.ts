@@ -13,8 +13,11 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const prefetch = async (options: FetchOptions) => {
   // Dune needs DUNE_API_KEYS, which fork-PR CI doesn't provide; skip there so the
-  // test doesn't false-fail (production always has the key).
-  if (!process.env.DUNE_API_KEYS) return [];
+  // test doesn't false-fail (production always has the key). Logged so it's not silent.
+  if (!process.env.DUNE_API_KEYS) {
+    console.error("DeFa volume: DUNE_API_KEYS not set — skipping Dune query (expected only in fork-PR CI; production has the key)");
+    return [];
+  }
   const query = `
     WITH daily AS (
       SELECT chain, date, MAX(raised_usd) AS raised_usd     -- dedup re-runs: latest per day
