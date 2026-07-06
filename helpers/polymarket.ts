@@ -3,7 +3,7 @@ import fetchURL from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 import { CHAIN } from './chains';
 
-export const fetchPolymarketBuilderVolume = async ({ options, builder }: { options: FetchOptions, builder: string }) => {
+export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
 
   const data = await fetchURL('https://data-api.polymarket.com/v1/builders/volume?timePeriod=DAY')
   const dateString = (new Date(options.startOfDay * 1000).toISOString()).replace('.000Z', 'Z' )
@@ -13,14 +13,33 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder }: { optio
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
   }
 
-  return { dailyNotionalVolume: volume.volume };
+  const result: FetchResult = { dailyNotionalVolume: volume.volume };
+
+  // USD (cash) volume: sum sizeUsdc across the builder's attributed trades,
+  // paging the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
+  if (builderCode) {
+    const dailyVolume = options.createBalances();
+    let cursor: string | undefined;
+    do {
+      const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
+      const tradesData = await fetchURL(url);
+      for (const trade of tradesData.data) {
+        dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
+      }
+      cursor = tradesData.next_cursor;
+      await sleep(500);
+    } while (cursor && cursor !== 'LTE=');
+    result.dailyVolume = dailyVolume;
+  }
+
+  return result;
 };
 
 
-export function polymarketBuilderExports({ builder, start }: { builder: string, start: string }) {
+export function polymarketBuilderExports({ builder, start, builderCode }: { builder: string, start: string, builderCode?: string }) {
 
   const fetch = async (options: FetchOptions) => {
-    return await fetchPolymarketBuilderVolume({ options, builder });
+    return await fetchPolymarketBuilderVolume({ options, builder, builderCode });
   }
 
   const adapter: SimpleAdapter = {

@@ -181,7 +181,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     // platform fees changred by Solid Yield per year of total assets in vault
     const yearInSecs = 365 * 24 * 60 * 60
-    const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+    const timespan = options.toTimestamp && options.fromTimestamp ? Number(options.toTimestamp) - Number(options.fromTimestamp) : 3600
     const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
     dailyFees.add(token, platformFee)

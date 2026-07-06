@@ -33,8 +33,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
 
   logs.forEach((log: any) => {
     addOneToken({ chain, balances: dailyVolume, token0: log.outputToken, amount0: log.amountOut, token1: log.inputToken, amount1: log.grossAmountIn });
-    dailyVolume.add(log.outputToken, log.amountOut);
-    dailyFees.add(log.feeTo, log.feeAmount, SWAP_FEE_LABEL);
+    dailyFees.add(log.inputToken, log.feeAmount, SWAP_FEE_LABEL);
   });
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, };

@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.0
         version: 1.15.0
       '@defillama/sdk':
-        specifier: 5.0.217
-        version: 5.0.217(typescript@5.9.3)
+        specifier: 5.0.218
+        version: 5.0.218(typescript@5.9.3)
       '@supercharge/promise-pool':
         specifier: ^3.1.0
         version: 3.2.0
@@ -332,8 +332,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.217':
-    resolution: {integrity: sha512-SVioG3DBi4evlCG6HcgEv5C6z3/s2uO+xIMsNEa/PwGBUfAWjV5VLEWUPAPa8Mg9hDTvadu1mPyyZq+yGlru2g==}
+  '@defillama/sdk@5.0.218':
+    resolution: {integrity: sha512-agR+jUsrzaok/ZpYdcIbYrB5GHLWeJKSu8Csc6PwtXDwpST0vgUWh5+sw4fOs1NuANpyWXJUr1cxlg7Cf94obA==}
 
   '@elastic/elasticsearch@8.19.1':
     resolution: {integrity: sha512-+1j9NnQVOX+lbWB8LhCM7IkUmjU05Y4+BmSLfusq0msCsQb1Va+OUKFCoOXjCJqQrcgdRdQCjYYyolQ/npQALQ==}
@@ -2115,7 +2115,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.217(typescript@5.9.3)':
+  '@defillama/sdk@5.0.218(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
       '@elastic/elasticsearch': 8.19.1

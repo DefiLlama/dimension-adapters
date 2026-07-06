@@ -32,6 +32,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): Promise<
 
 const adapter: Adapter = {
   fetch,
+  deadFrom: "2024-04-21",
   adapter: {
     [CHAIN.OPTIMISM]: {
       start: '2023-02-03',

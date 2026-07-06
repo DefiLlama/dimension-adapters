@@ -379,6 +379,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "tradegpt": {
     [CHAIN.OG]: {factory: '0x6F3945Ab27296D1D66D8EEb042ff1B4fb2E0CE70', start: "2025-09-19", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "retro": {
+    [CHAIN.POLYGON]: { factory: '0x91e1B99072f238352f59e58de875691e20Dc19c1', start: "2023-07-02", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0 },
   }
 
 }

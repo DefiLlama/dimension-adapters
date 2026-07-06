@@ -464,6 +464,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     blacklistedPools: [
     ],
   },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-05',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+    ],
+  },
 
   // [CHAIN.TAC]: {
   //   start: '2025-06-25',
