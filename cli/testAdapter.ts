@@ -112,6 +112,17 @@ let usedHelper: string | null | undefined = null;
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)
 
+  const chainDeadFroms = Object.values(module.adapter ?? {}).map((c: any) => c.deadFrom)
+  const adapterDeadFrom = module.deadFrom
+    ?? (chainDeadFroms.length && chainDeadFroms.every(Boolean) ? chainDeadFroms.sort().pop() : undefined)
+  if (adapterDeadFrom) {
+    const deadFromTimestamp = Math.round(new Date(adapterDeadFrom).getTime() / 1e3)
+    if (deadFromTimestamp < cleanDayTimestamp) {
+      console.info(`🦙 ${moduleArg.toUpperCase()} is dead (deadFrom ${adapterDeadFrom}); skipping run.\n`)
+      process.exit(0)
+    }
+  }
+
   const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
 
   function mergeAggregated(target: any, source: any) {
@@ -204,6 +215,14 @@ let usedHelper: string | null | undefined = null;
   process.exit(0)
 
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
+
+    const windowEnd = dayStart + (lastHour + 1) * 3600
+    Object.entries(module.adapter ?? {}).forEach(([chain, chainConfig]: [string, any]) => {
+      if (!chainConfig?.deadFrom) return
+      const deadFromTimestamp = Math.round(new Date(chainConfig.deadFrom).getTime() / 1e3)
+      if (deadFromTimestamp < windowEnd - 24 * 60 * 60)
+        console.info(`Skipping ${chain} because the adapter ended at ${new Date(deadFromTimestamp * 1e3).toUTCString()}`)
+    })
 
     const dailyByChain: Record<string, Record<string, number>> = {}
     const aggregatedDaily: any = {}
