@@ -186,6 +186,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x6C505C31714f14e8af2A03633EB2Cdfb4959138F',
     },
   ],
+  [CHAIN.MONAD]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef',
+      dataProvider: '0xB65A68B98274ef7D9a60E0C0747dD1BEc3D32fad',
+    },
+  ]
 }
 
 const methodology = {
