@@ -76,6 +76,15 @@ const chainConfig: Record<string, { chainId: number; start: string }> = {
 
 const SECONDS_PER_DAY = 86400;
 const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
+
+// Settlement-cycle detection thresholds. A settlement mints shares for pending
+// depositors, causing totalSupply to jump while oracle.totalAssets() is stale.
+// Supply growth above this ratio (1.1 = +10%) in a single slot signals a
+// settlement occurred; PPS readings in that slot are unreliable.
+const SETTLEMENT_SUPPLY_GROWTH_RATIO = 1.1;
+// If supply grew AND PPS jumped by more than this fraction (0.1 = 10%) in the
+// same slot, it's the recovery after a settlement drop (not real yield).
+const SETTLEMENT_PPS_JUMP_RATIO = 0.1;
 // Max plausible annualised price-per-share growth for a single slot, as a
 // fraction (10 = 1000%). Matches the APY adapter's cap. A stale/glitched
 // convertToAssets read at a slot boundary (too-low start or too-high end PPS)
@@ -225,11 +234,37 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const unit = 10 ** decimal;
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
 
+    // Settlement-cycle guard: T3tris vaults have an async settlement where
+    // totalSupply increases (shares minted for depositors) BEFORE the oracle
+    // updates totalAssets. This makes convertToAssets drop artificially (e.g.
+    // 1.004 → 0.514). When we detect a settlement artifact, zero out the
+    // PPS-derived yield (netYield/perfYield) but still let management fees
+    // accrue (they are TVL × time, independent of PPS).
+    const supplyStart = suppliesBefore[i];
+    const supplyGrew =
+      supplyStart != null && Number(supplyStart) > 0
+        ? Number(supply) / Number(supplyStart) > SETTLEMENT_SUPPLY_GROWTH_RATIO
+        : false;
+    const isSettlementDrop = supplyGrew && rateGrowth < 0;
+    const isSettlementRecovery =
+      supplyGrew &&
+      rateGrowth > 0 &&
+      Number(rateBefore) > 0 &&
+      rateGrowth / Number(rateBefore) > SETTLEMENT_PPS_JUMP_RATIO;
+    const settlementArtifact = isSettlementDrop || isSettlementRecovery;
+    if (settlementArtifact) {
+      console.error(
+        `T3tris: settlement artifact for vault ${vaults[i]} on ${options.chain} ` +
+          `(supplyGrowth=${(Number(supply) / Number(supplyStart!)).toFixed(2)}x, ` +
+          `rateGrowth=${rateGrowth > 0 ? "+" : ""}${((rateGrowth / Number(rateBefore)) * 100).toFixed(1)}%) ` +
+          `— zeroing PPS-derived yield, management fees still accrue`,
+      );
+    }
+
     // Time-weighted (trapezoidal) supply & TVL: average the start and end
     // snapshots instead of using the end-only value, so the 24h fees are far
     // less sensitive to intra-period deposits/redeems. Fall back to the end
     // snapshot when the start read is unavailable (e.g. a failed multicall).
-    const supplyStart = suppliesBefore[i];
     const avgSupply =
       supplyStart != null
         ? (Number(supplyStart) + Number(supply)) / 2
@@ -253,11 +288,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const impliedApy =
       timespan > 0 ? ppsGrowthFrac * (SECONDS_PER_YEAR / timespan) : Infinity;
     const ppsReliable =
-      Number(rateBefore) > 0 && impliedApy <= MAX_PLAUSIBLE_GROWTH_APY;
-    if (!ppsReliable && rateGrowth > 0) {
+      !settlementArtifact &&
+      Number(rateBefore) > 0 &&
+      impliedApy <= MAX_PLAUSIBLE_GROWTH_APY;
+    if (!ppsReliable && rateGrowth > 0 && !settlementArtifact) {
       console.error(
         `T3tris: ignoring implausible PPS growth for vault ${vaults[i]} on ${options.chain} ` +
-        `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
+          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
       );
     }
 
@@ -294,22 +331,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const mgmtFeeDays = Number(mgmtFees[i].managementFeeDays || 365);
       if (mgmtFeeFrac > 0 && mgmtFeeDays > 0) {
         managementFees =
-          (avgTvl * mgmtFeeFrac * timespan) /
-          (mgmtFeeDays * SECONDS_PER_DAY);
+          (avgTvl * mgmtFeeFrac * timespan) / (mgmtFeeDays * SECONDS_PER_DAY);
       }
     }
 
     // Gross vault yield = everything the strategies produced this period
     // (depositor yield + curator performance/management fees). It is split
     // below between depositors and the vault curator, both supply-side.
-    dailyFees.add(token, netYield + performanceFees + managementFees, "Vault Yield");
+    dailyFees.add(
+      token,
+      netYield + performanceFees + managementFees,
+      "Vault Yield",
+    );
 
     // Supply side = net yield to depositors + curator fees. The curator is a
     // third-party vault manager (NOT the t3tris protocol), so its performance
     // and management fees are a supply-side cost, not protocol revenue.
     dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
-    dailySupplySideRevenue.add(token, performanceFees, "Curator Performance Fees");
-    dailySupplySideRevenue.add(token, managementFees, "Curator Management Fees");
+    dailySupplySideRevenue.add(
+      token,
+      performanceFees,
+      "Curator Performance Fees",
+    );
+    dailySupplySideRevenue.add(
+      token,
+      managementFees,
+      "Curator Management Fees",
+    );
   }
 
   // 7. Track entry fees from DepositsSettled events → feeRecipient
@@ -389,19 +437,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
-  Fees: "All value generated by the vaults: gross strategy yield (depositor yield + curator performance/management fees) + entry/exit fees + T3trisProfit (assets sent to the t3treasury).",
+  Fees: "Total yield generated by vault strategies, including depositor yield, curator fees and T3tris treasury profit.",
   SupplySideRevenue:
     "Value flowing to capital providers and the third-party vault curator: net depositor yield + curator performance, management, entry and exit fees. The curator is not t3tris.",
   Revenue:
-    "T3tris protocol revenue — only assets transferred to the t3treasury (T3trisProfit). Curator fees (perf/mgmt/entry/exit) are NOT t3tris revenue. Off-chain payments for third-party services are also t3tris revenue but are not observable on-chain.",
+    "Earnings sent to the T3tris treasury. Third-party services are also T3tris revenue but are not observable on-chain.",
   ProtocolRevenue:
-    "Same as Revenue. T3trisProfit(uint256 profit) events — assets sent to the t3treasury.",
-  HoldersRevenue: "No direct revenue share to token holders.",
+    "Earnings sent to the T3tris treasury. Third-party services are also T3tris revenue but are not observable on-chain.",
 };
 
 const breakdownMethodology = {

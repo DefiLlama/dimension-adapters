@@ -30,6 +30,7 @@ const CHAINS: TChain = {
   [CHAIN.HYPERLIQUID]: 999,
   [CHAIN.ABSTRACT]: 2741,
   [CHAIN.TEMPO]: 4217,
+  [CHAIN.ROBINHOOD]: 4663,
 };
 
 const inflatedVolume: Record<string, Array<string>> = {
