@@ -69,8 +69,9 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.startTimestamp < MIGRATION_TS) {
     // Pre-migration fees were collected directly by fly's fee wallet, so all of it is fly revenue.
-    await addTokensReceived({ options, balances: dailyFees, targets: [LEGACY_FEE_COLLECTOR] });
-    dailyRevenue.addBalances(dailyFees, "Swap Fees");
+    const received = await addTokensReceived({ options, targets: [LEGACY_FEE_COLLECTOR] });
+    dailyFees.addBalances(received, "Swap Fees");
+    dailyRevenue.addBalances(received, "Swap Fees");
   } else {
     const logs = await options.getLogs({ target: router, eventAbi: swapEvent });
     for (const log of logs) {
