@@ -5,9 +5,9 @@ import { getConfig } from "../helpers/cache";
 /**
  * T3tris Finance — Fees & Revenue Adapter
  *
- * Revenue model:
- *   1. **Vault fees** (→ feeRecipient per vault, i.e. vault manager):
- *      - Performance fees: % of profit above high-water mark (share dilution)
+ * Revenue model — fees ACTUALLY CHARGED (depositor yield is NOT a fee):
+ *   1. **Curator fees** (→ feeRecipient per vault, a third-party manager):
+ *      - Performance fees: % of profit above the high-water mark (share dilution)
  *      - Management fees:  annual % of TVL, prorated (share dilution)
  *      - Entry fees:       bps on deposits (from DepositsSettled events)
  *      - Exit fees:        bps on withdrawals (from RedemptionsSettled events)
@@ -20,16 +20,18 @@ import { getConfig } from "../helpers/cache";
  *      We do NOT index silo contracts or silo PNL events directly.
  *
  * DefiLlama mapping:
- *   - dailyFees              = gross yield (depositor yield + curator perf/mgmt
- *                              fees) + entry/exit fees + T3trisProfit
- *   - dailySupplySideRevenue = net depositor yield + curator performance,
- *                              management, entry and exit fees
+ *   - dailyFees              = all fees charged = curator (performance +
+ *                              management + entry + exit) + T3trisProfit.
+ *                              Depositor yield is the depositors' own P&L, not a
+ *                              fee, so it is NOT counted (fees therefore never go
+ *                              negative on a down day).
+ *   - dailySupplySideRevenue = curator fees (performance + management + entry +
+ *                              exit) — paid to the third-party manager, not t3tris
  *   - dailyRevenue           = T3trisProfit only (assets sent to t3treasury)
  *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue)
  *
- *   Vault fees (perf/mgmt/entry/exit) go to each vault's feeRecipient — a
- *   third-party curator, NOT the t3tris protocol. They are counted in dailyFees
- *   and dailySupplySideRevenue, but NOT in dailyRevenue/dailyProtocolRevenue.
+ *   Revenue = Fees − SupplySideRevenue = T3trisProfit. Curator fees are a
+ *   supply-side cost (third-party manager), never t3tris protocol revenue.
  *
  * Vaults are sourced from the T3tris ecosystem API
  * (https://ecosystem.t3tris.finance/vaults), keeping only `verified` and
@@ -147,13 +149,52 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     permitFailure: true,
   });
 
-  // 3. Build rate conversion calls (1 full share → assets)
-  //    Build the unit with BigInt so the uint256 param is always a plain
-  //    integer string. Number/** stringifies to exponential form (e.g.
-  //    "1e+21") for high-decimal vaults, which convertToAssets cannot parse.
+  // Asset-token decimals. A vault's own decimals() reports its SHARE scale,
+  // which can differ from the asset's — needed below to place the WAD
+  // high-water mark on the same scale as convertToAssets for the perf fee.
+  const assetDecimals = await options.api.multiCall({
+    abi: ABI.decimals,
+    calls: assets.map((asset: string, i: number) => asset || vaults[i]),
+    permitFailure: true,
+  });
+
+  // Robust share-scale detection. Some vaults mint shares at a different scale
+  // than their reported decimals() (e.g. 1e18-scaled shares while decimals()
+  // returns the asset's 6 decimals). Using 10**decimals() as the per-share unit
+  // then makes convertToAssets(unit) round down to 0, and the vault would be
+  // silently dropped — missing ALL of its fees. Probe convertToAssets at a large
+  // fixed unit and infer the whole-share exponent from the (linear)
+  // assets-per-raw-share, assuming a whole share is worth on the order of one
+  // asset unit (vaults launch at ~1:1 price-per-share).
+  const SCALE_PROBE = (10n ** 27n).toString();
+  const scaleProbe = await options.api.multiCall({
+    abi: ABI.convertToAssets,
+    calls: vaults.map((vault: string) => ({
+      target: vault,
+      params: [SCALE_PROBE],
+    })),
+    permitFailure: true,
+  });
+  const shareDecimals = scaleProbe.map((probeVal: any, i: number) => {
+    const assetDec = Number(assetDecimals[i] ?? decimals[i] ?? 6);
+    const fallback = Number(decimals[i] ?? 18);
+    const probe = probeVal != null ? Number(probeVal) : 0;
+    if (probe > 0) {
+      const ppsRaw = probe / 1e27; // assets(raw) per share(raw)
+      const inferred = Math.round(assetDec - Math.log10(ppsRaw));
+      if (Number.isFinite(inferred) && inferred >= 0 && inferred <= 36)
+        return inferred;
+    }
+    return fallback;
+  });
+
+  // 3. Build rate conversion calls (1 full share → assets), using the detected
+  //    share scale. BigInt keeps the uint256 param a plain integer string
+  //    (Number/** would stringify high scales as "1e+21", which the call cannot
+  //    parse).
   const convertCalls = vaults.map((vault: string, index: number) => ({
     target: vault,
-    params: [(10n ** BigInt(Number(decimals[index] || 18))).toString()],
+    params: [(10n ** BigInt(shareDecimals[index])).toString()],
   }));
 
   // 4. Get share price at start and end of period
@@ -171,7 +212,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
   //     a time-weighted (trapezoidal) estimate over the window, so intra-period
-  //     deposits/redeems don't skew the 24h depositor yield or management fees.
+  //     deposits/redeems don't skew the 24h performance and management fees.
   const suppliesBefore = await options.fromApi.multiCall({
     abi: ABI.totalSupply,
     calls: vaults,
@@ -200,20 +241,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     permitFailure: true,
   });
 
-  // 6. Calculate daily yield and fee splits
-  //    Vault fees (perf/mgmt) → feeRecipient (vault manager)
-  //    Net yield → depositors (supply side)
+  // 6. Compute curator performance & management fees per vault.
+  //    Performance fee: inferred from PPS growth above the high-water mark.
+  //    Management fee:  annual % of TVL, prorated over the period.
+  //    Depositor yield is NOT a fee and is intentionally not counted here.
   const timespan = options.endTimestamp - options.startTimestamp;
 
   for (let i = 0; i < vaults.length; i++) {
     const token = assets[i];
-    const decimal = Number(decimals[i] || 18);
+    const decimal = shareDecimals[i];
     const supply = totalSupplies[i];
     const tvl = totalAssets[i];
     const rateBefore = ratesBefore[i];
     const rateAfter = ratesAfter[i];
 
-    // Required reads for the yield computation. A vault missing any of these
+    // Required reads for the fee computation. A vault missing any of these
     // (e.g. a failed multicall) is skipped — log it with the vault address and
     // the missing fields so the gap is visible rather than silently swallowed.
     if (!token || !supply || !rateBefore || !rateAfter) {
@@ -232,14 +274,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 
     const unit = 10 ** decimal;
+    const assetDec = Number(assetDecimals[i] ?? 6);
+    const assetUnit = 10 ** assetDec;
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
 
     // Settlement-cycle guard: T3tris vaults have an async settlement where
     // totalSupply increases (shares minted for depositors) BEFORE the oracle
     // updates totalAssets. This makes convertToAssets drop artificially (e.g.
     // 1.004 → 0.514). When we detect a settlement artifact, zero out the
-    // PPS-derived yield (netYield/perfYield) but still let management fees
-    // accrue (they are TVL × time, independent of PPS).
+    // PPS-derived performance fee but still let the management fee accrue
+    // (it is TVL × time, independent of PPS).
     const supplyStart = suppliesBefore[i];
     const supplyGrew =
       supplyStart != null && Number(supplyStart) > 0
@@ -257,7 +301,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         `T3tris: settlement artifact for vault ${vaults[i]} on ${options.chain} ` +
           `(supplyGrowth=${(Number(supply) / Number(supplyStart!)).toFixed(2)}x, ` +
           `rateGrowth=${rateGrowth > 0 ? "+" : ""}${((rateGrowth / Number(rateBefore)) * 100).toFixed(1)}%) ` +
-          `— zeroing PPS-derived yield, management fees still accrue`,
+          `— zeroing PPS-derived performance fee, management fee still accrues`,
       );
     }
 
@@ -273,16 +317,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const avgTvl =
       tvlStart != null ? (Number(tvlStart) + Number(tvl)) / 2 : Number(tvl);
 
-    // Net yield to shareholders = avgSupply × delta(PPS) / unit
-    // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
-    //
-    // Guard against spurious PPS readings first: a stale/glitched convertToAssets
-    // value at a slot boundary (too-low start or too-high end PPS) implies an
-    // absurd per-slot jump and would inject a phantom yield — which dominates the
-    // daily total once a single vault is the only one reporting. Require a
-    // positive baseline PPS and bound the implied annualised growth; otherwise
-    // book no PPS-derived yield for this slot (management fee, based on TVL ×
-    // time, is independent of PPS and still accrues below).
+    // Guard against spurious PPS readings used for the performance fee: a
+    // stale/glitched convertToAssets value at a slot boundary (too-low start or
+    // too-high end PPS) implies an absurd per-slot jump and would inject a
+    // phantom performance fee. Require a positive baseline PPS and bound the
+    // implied annualised growth; otherwise book no performance fee for this slot
+    // (the management fee, based on TVL × time, is independent of PPS and still
+    // accrues below).
     const ppsGrowthFrac =
       Number(rateBefore) > 0 ? rateGrowth / Number(rateBefore) : Infinity;
     const impliedApy =
@@ -294,21 +335,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!ppsReliable && rateGrowth > 0 && !settlementArtifact) {
       console.error(
         `T3tris: ignoring implausible PPS growth for vault ${vaults[i]} on ${options.chain} ` +
-          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
+          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no performance fee this slot`,
       );
     }
-
-    const netYield = ppsReliable ? (avgSupply * rateGrowth) / unit : 0;
 
     // Performance fees are only charged on price-per-share gains ABOVE the
     // vault's high-water mark (HWM). Inferring them from any positive PPS
     // growth overcounts while the vault is still below its HWM (PPS rose but
     // hasn't recovered past its prior peak, so no fee is actually taken). Use
     // only the growth above max(startPPS, HWM) as the fee basis. HWM is
-    // WAD-scaled PPS; convert to the rate scale (assets per `unit` shares) used
-    // by rateBefore/rateAfter. Missing HWM → fall back to 0 (no gate), keeping
-    // the prior behaviour for any vault without the getter.
-    const hwmRate = hwms[i] != null ? (Number(hwms[i]) / 1e18) * unit : 0;
+    // WAD-scaled price-per-WHOLE-share; convert it to the same raw-asset scale
+    // as convertToAssets by multiplying by the ASSET unit (not the share unit,
+    // which may differ from the asset's decimals). Missing HWM → fall back to 0
+    // (no gate), keeping the prior behaviour for any vault without the getter.
+    const hwmRate = hwms[i] != null ? (Number(hwms[i]) / 1e18) * assetUnit : 0;
     const perfBasisStart = Math.max(Number(rateBefore), hwmRate);
     const perfRateGrowth = Number(rateAfter) - perfBasisStart;
     const perfYield =
@@ -335,19 +375,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Gross vault yield = everything the strategies produced this period
-    // (depositor yield + curator performance/management fees). It is split
-    // below between depositors and the vault curator, both supply-side.
-    dailyFees.add(
-      token,
-      netYield + performanceFees + managementFees,
-      "Vault Yield",
-    );
+    // Nothing to record if no fee accrued this period.
+    if (performanceFees <= 0 && managementFees <= 0) continue;
 
-    // Supply side = net yield to depositors + curator fees. The curator is a
-    // third-party vault manager (NOT the t3tris protocol), so its performance
-    // and management fees are a supply-side cost, not protocol revenue.
-    dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
+    // Fees charged by the curator this period. Both go to the vault's
+    // feeRecipient (a third-party manager, NOT t3tris), so they are counted in
+    // dailyFees and mirrored to supply side — never protocol revenue.
+    dailyFees.add(token, performanceFees, "Performance Fees");
+    dailyFees.add(token, managementFees, "Management Fees");
     dailySupplySideRevenue.add(
       token,
       performanceFees,
@@ -360,15 +395,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     );
   }
 
-  // 7. Track entry fees from DepositsSettled events → feeRecipient
+  // 7. Track entry fees from DepositsSettled events → feeRecipient.
+  //    onlyArgs:false so each log keeps its `address` (to map back to the vault)
+  //    alongside the decoded `args`. The default (onlyArgs:true) returns only
+  //    the args and drops the address, leaving every event unattributed
+  //    (vaultIndex = -1) and silently ignored.
   const depositLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.depositsSettled,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of depositLogs) {
-    const entryFeeAssets = Number(log.entryFees);
+    const entryFeeAssets = Number(log.args.entryFees);
     if (entryFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
@@ -383,15 +423,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  // 8. Track exit fees from RedemptionsSettled events → feeRecipient
+  // 8. Track exit fees from RedemptionsSettled events → feeRecipient.
+  //    onlyArgs:false to keep each log's `address` for vault attribution.
   const redeemLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.redemptionsSettled,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of redeemLogs) {
-    const exitFeeAssets = Number(log.exitFeeAssets);
+    const exitFeeAssets = Number(log.args.exitFeeAssets);
     if (exitFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
@@ -410,14 +452,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    This is the sole source of protocol revenue. We do NOT index silo
   //    contracts or silo PNL events directly; T3trisProfit captures the exact
   //    amount sent to the treasury regardless of origin.
+  //    onlyArgs:false to keep each log's `address` for vault attribution.
   const profitLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.t3trisProfit,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of profitLogs) {
-    const profit = Number(log.profit);
+    const profit = Number(log.args.profit);
     if (profit > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
@@ -441,9 +485,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Total yield generated by vault strategies, including depositor yield, curator fees and T3tris treasury profit.",
+  Fees: "All fees charged by the vaults: curator performance, management, entry and exit fees, plus assets sent to the T3tris treasury. Depositor yield is the depositors' own P&L, not a fee, so it is not counted.",
   SupplySideRevenue:
-    "Value flowing to capital providers and the third-party vault curator: net depositor yield + curator performance, management, entry and exit fees. The curator is not t3tris.",
+    "Fees paid to the third-party vault curators: performance, management, entry and exit fees. The curator is not t3tris.",
   Revenue:
     "Earnings sent to the T3tris treasury. Third-party services are also T3tris revenue but are not observable on-chain.",
   ProtocolRevenue:
@@ -452,16 +496,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Vault Yield":
-      "Gross yield from vault strategies (depositor yield plus curator performance and management fees).",
+    "Performance Fees":
+      "Curator performance fees, charged on vault profit above the high-water mark.",
+    "Management Fees":
+      "Curator management fees, an annual % of TVL prorated over the period.",
     "Entry Fees": "Fees charged on deposits, collected by the vault curator.",
     "Exit Fees": "Fees charged on withdrawals, collected by the vault curator.",
     "T3tris Treasury Profit":
       "Assets transferred to the t3treasury (T3trisProfit events).",
   },
   SupplySideRevenue: {
-    "Depositor Yield":
-      "Net yield earned by vault depositors after all fees are deducted.",
     "Curator Performance Fees":
       "Performance fees paid to the third-party vault curator (feeRecipient).",
     "Curator Management Fees":
@@ -488,7 +532,6 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
-  allowNegativeValue: true, // ERC 4626 vault prices can go down
 };
 
 export default adapter;
