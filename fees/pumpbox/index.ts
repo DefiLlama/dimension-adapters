@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
 
   const subscriptionFees = await addTokensReceived({
     options,
-    token: USDC_BASE,
+    tokens: [USDC_BASE],
     target: PUMPDAILY_SUBSCRIPTION_RECEIVER,
     logFilter: isSubscriptionFee,
   });
