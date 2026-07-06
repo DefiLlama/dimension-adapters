@@ -28,7 +28,16 @@ const fetch = async () => {
   return { dailyVolume }
 }
 
+const methodology = {
+  Volume: 'Trading volume across all Torch stableswap pools on TON.',
+}
+
 const adapter: SimpleAdapter = {
+  version: 2,
+  // The Torch API only exposes current 24h rolling metrics (no hourly/historical query),
+  // so data is pulled once at the current time rather than hourly.
+  pullHourly: false,
+  methodology,
   adapter: {
     [CHAIN.TON]: {
       fetch,
