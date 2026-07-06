@@ -11,32 +11,41 @@ import { queryDuneSql } from "../../helpers/dune";
 // First tracked day has no prior row, so it reports the full cumulative-to-date, making
 // the accumulated total equal actual total raised.
 
-const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+const prefetch = async (options: FetchOptions) => {
   const query = `
     WITH daily AS (
-      SELECT date, MAX(raised_usd) AS raised_usd            -- dedup re-runs: latest per day
+      SELECT chain, date, MAX(raised_usd) AS raised_usd     -- dedup re-runs: latest per day
       FROM dune.defa_im.raised_daily
-      WHERE chain = '${options.chain}'
-      GROUP BY date
+      GROUP BY chain, date
     ),
     delta AS (
-      SELECT date,
-             COALESCE(raised_usd - LAG(raised_usd) OVER (ORDER BY date), raised_usd) AS daily_raised
+      SELECT chain, date,
+             COALESCE(raised_usd - LAG(raised_usd) OVER (PARTITION BY chain ORDER BY date), raised_usd) AS daily_raised
       FROM daily
     )
-    SELECT COALESCE(SUM(daily_raised), 0) AS daily_raised
+    SELECT chain, COALESCE(SUM(daily_raised), 0) AS daily_raised
     FROM delta
     -- 'date' is a unix-seconds bigint (not a SQL DATE), so compare directly to the unix bounds
     WHERE date >= ${options.startTimestamp} AND date < ${options.endTimestamp}
+    GROUP BY chain
   `;
-  const rows: { daily_raised: number }[] = await queryDuneSql(options, query);
-  dailyVolume.addUSDValue(Number(rows?.[0]?.daily_raised || 0));
+  return queryDuneSql(options, query);
+};
+
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const rows: { chain: string; daily_raised: number }[] = options.preFetchedResults || [];
+  const row = rows.find((r) => r.chain === options.chain);
+  if(!row) {
+    throw new Error(`No row found for chain ${options.chain}`);
+  }
+  dailyVolume.addUSDValue(Number(row.daily_raised));
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  prefetch,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.STELLAR, CHAIN.STARKNET, "zigchain"],
   start: "2026-07-04",
