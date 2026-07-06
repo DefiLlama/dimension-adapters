@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
   const premiumRegs = await options.getLogs({ target: controller_premium, eventAbi: registered_premium });
   const referrerRegs = await options.getLogs({ target: controller_referrer, eventAbi: registered_referrer });
   [...premiumRegs, ...referrerRegs].forEach((tx: any) =>
-    dailyFees.addGasToken(Number(tx.baseCost) + Number(tx.premium), REGISTRATION)
+    dailyFees.addGasToken(BigInt(tx.baseCost) + BigInt(tx.premium), REGISTRATION)
   );
 
   // Renewals: 4-field event on controllers 1-4, 5-field (referrer) event on controller 5.
