@@ -1,4 +1,4 @@
-import { SimpleAdapter } from '../../adapters/types'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import request, { gql } from 'graphql-request'
 
@@ -18,12 +18,13 @@ interface IPool {
   metrics: { volume24h: string } | null
 }
 
-const fetch = async () => {
+const fetch = async (options: FetchOptions) => {
   const { pools }: { pools: IPool[] } = await request(endpoint, query)
-  const dailyVolume = pools.reduce(
-    (sum, pool) => sum + Number(pool.metrics?.volume24h ?? 0),
-    0,
-  )
+
+  const dailyVolume = options.createBalances()
+  for (const pool of pools) {
+    dailyVolume.addUSDValue(Number(pool.metrics?.volume24h ?? 0), 'Swap Volume')
+  }
 
   return { dailyVolume }
 }
@@ -32,12 +33,17 @@ const methodology = {
   Volume: 'Trading volume across all Torch stableswap pools on TON.',
 }
 
+const breakdownMethodology = {
+  Volume: { 'Swap Volume': 'Swap volume across all Torch pools.' },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   // The Torch API only exposes current 24h rolling metrics (no hourly/historical query),
   // so data is pulled once at the current time rather than hourly.
   pullHourly: false,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.TON]: {
       fetch,
