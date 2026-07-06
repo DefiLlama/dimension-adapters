@@ -7,6 +7,7 @@ const endpoint = 'https://api.torch.finance/graphql'
 const query = gql`
   query {
     pools {
+      address
       metrics {
         volume24h
       }
@@ -15,15 +16,19 @@ const query = gql`
 `
 
 interface IPool {
+  address: string
   metrics: { volume24h: string } | null
 }
 
 const fetch = async (options: FetchOptions) => {
   const { pools }: { pools: IPool[] } = await request(endpoint, query)
+  if (!pools?.length) throw new Error('Torch: GraphQL API returned no pools')
 
   const dailyVolume = options.createBalances()
   for (const pool of pools) {
-    dailyVolume.addUSDValue(Number(pool.metrics?.volume24h ?? 0), 'Swap Volume')
+    const volume = Number(pool.metrics?.volume24h)
+    if (!Number.isFinite(volume)) throw new Error(`Torch: missing/non-finite volume24h for pool ${pool.address}`)
+    dailyVolume.addUSDValue(volume, 'Swap Volume')
   }
 
   return { dailyVolume }
@@ -38,19 +43,14 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  // The Torch API only exposes current 24h rolling metrics (no hourly/historical query),
-  // so data is pulled once at the current time rather than hourly.
-  pullHourly: false,
+  // v1: the Torch API only exposes a current 24h rolling aggregate (no hourly/historical query).
+  version: 1,
+  fetch,
+  chains: [CHAIN.TON],
+  runAtCurrTime: true,
+  start: '2024-09-02',
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.TON]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2024-09-02',
-    },
-  },
 }
 
 export default adapter
