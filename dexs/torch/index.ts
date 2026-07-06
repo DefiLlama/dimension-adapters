@@ -1,15 +1,31 @@
-import fetchURL from '../../utils/fetchURL'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
+import request, { gql } from 'graphql-request'
+
+const endpoint = 'https://api.torch.finance/graphql'
+
+const query = gql`
+  query {
+    pools {
+      metrics {
+        volume24h
+      }
+    }
+  }
+`
+
+interface IPool {
+  metrics: { volume24h: string } | null
+}
 
 const fetch = async () => {
-  const dailyVolumeResult = await fetchURL(
-    'https://api.torch.finance/stats/daily-volume',
+  const { pools }: { pools: IPool[] } = await request(endpoint, query)
+  const dailyVolume = pools.reduce(
+    (sum, pool) => sum + Number(pool.metrics?.volume24h ?? 0),
+    0,
   )
 
-  return {
-    dailyVolume: dailyVolumeResult.dailyVolume,
-  }
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
