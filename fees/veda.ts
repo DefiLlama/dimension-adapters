@@ -313,7 +313,8 @@ const adapter: Adapter = {
     [CHAIN.BOB]: {
       start: '2025-02-12'
     },
-  }
+  },
+  doublecounted: true,
 }
 
 export default adapter

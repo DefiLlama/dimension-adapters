@@ -370,7 +370,20 @@ const configs: Record<string, Record<string, any>> = {
   },
   "intrinsic": {
     [CHAIN.ROOTSTOCK]: { factory: '0x82dF0a279767021734EcE752979B34b3959C25D8', start: '2025-12-05', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "bond": {
+    [CHAIN.OG]: {factory: '0xBDDB3aCF0A90029a1e7ebC3F82C7D9391C429A75', start: "2026-05-09", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "jaine": {
+    [CHAIN.OG]: {factory: '0x9bdcA5798E52e592A08e3b34d3F18EeF76Af7ef4', start: "2025-09-20", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "tradegpt": {
+    [CHAIN.OG]: {factory: '0x6F3945Ab27296D1D66D8EEb042ff1B4fb2E0CE70', start: "2025-09-19", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "retro": {
+    [CHAIN.POLYGON]: { factory: '0x91e1B99072f238352f59e58de875691e20Dc19c1', start: "2023-07-02", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0 },
   }
+
 }
 
 const optionsMap: Record<string, any> = {

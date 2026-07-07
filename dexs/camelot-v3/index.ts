@@ -4,9 +4,11 @@ import { getUniV3LogAdapter } from '../../helpers/uniswap';
 
 // Camelot V3 uses Algebra (Uniswap V3-style concentrated liquidity)
 // Fees are pool-specific and read on-chain from the Algebra pool configuration
-// Fee distribution (V3):
-// - ~80% to Liquidity Providers
-// - ~20% to protocol-controlled revenue (xGRAIL + treasury)
+// 85% for Liquidity Providers in LP tokens
+// 7% redistributed to xGRAIL holders through Real Yield Staking plugin
+// 3.5% dedicated to GRAIL buyback and burn
+// 3% to the Operating expenses
+// 1.5% to Algebra for licensing V3 AMM
 // Source: https://docs.camelot.exchange/tokenomics/protocol-earnings
 // Architecture: https://docs.camelot.exchange/protocol/amm-v3
 
@@ -14,11 +16,12 @@ const methodology = {
   Fees: 'Trading fees charged on swaps. Camelot V3 uses Algebra with dynamic fees.',
   UserFees: 'Users pay dynamic fees on each swap (typically 0.05% to 1%).',
   Revenue:
-    'Portion of trading fees that goes to the protocol (3%) and xGRAIL holders (17%), totaling 20% of swap fees.',
-  ProtocolRevenue: '3% of trading fees go to the protocol.',
+    'Portion of trading fees not paid to liquidity providers, totaling 15% of swap fees (10.5% to xGRAIL holders + buyback&burn, 4.5% to treasury and Algebra licensing).',
+  ProtocolRevenue:
+    '4.5% of trading fees go to the protocol (3% operating expenses + 1.5% Algebra V3 licensing).',
   HoldersRevenue:
-    '17% of trading fees go to xGRAIL holders via Real Yield Staking.',
-  SupplySideRevenue: '80% of trading fees go to liquidity providers.',
+    '10.5% of trading fees go to GRAIL/xGRAIL holders (7% via xGRAIL Real Yield Staking + 3.5% via GRAIL buyback & burn).',
+  SupplySideRevenue: '85% of trading fees go to liquidity providers.',
 };
 
 const breakdownMethodology = {
@@ -29,30 +32,46 @@ const breakdownMethodology = {
     'Trading fees': 'Total trading fees collected from all swaps on Camelot V3 pools using Algebra\'s dynamic fee model',
   },
   Revenue: {
-    'Protocol fees': 'Combined protocol-controlled revenue (20% of trading fees) split between protocol treasury (3%) and xGRAIL holders (17%)',
+    'Protocol fees': 'Combined protocol-controlled revenue (15% of trading fees) not paid to liquidity providers',
   },
   ProtocolRevenue: {
-    'Protocol fees': 'Portion of trading fees allocated to the protocol treasury, equal to 3% of total swap fees',
+    'Protocol fees': 'Portion of trading fees allocated to the protocol, equal to 4.5% of total swap fees (3% operating expenses + 1.5% Algebra V3 AMM licensing)',
   },
   HoldersRevenue: {
-    'Tokenholder fees': 'Portion of trading fees distributed to xGRAIL holders through Real Yield Staking, equal to 17% of total swap fees',
+    'Tokenholder fees': 'Portion of trading fees returned to GRAIL/xGRAIL holders, equal to 10.5% of total swap fees (7% via xGRAIL Real Yield Staking + 3.5% via GRAIL buyback & burn)',
   },
   SupplySideRevenue: {
-    'LP fees': 'Portion of trading fees distributed to liquidity providers who supply capital to the pools, equal to 80% of total swap fees',
+    'LP fees': 'Portion of trading fees distributed to liquidity providers who supply capital to the pools, equal to 85% of total swap fees',
   },
 };
 
-// Fee split ratios
-const REVENUE_RATIO = 0.2; // 20% total protocol-controlled
+const REVENUE_RATIO = 0.15; // 15% total protocol-controlled 
 const USER_FEES_RATIO = 1; // Users pay 100% of fees
-const PROTOCOL_REVENUE_RATIO = 0.03; // 3% protocol
-const HOLDERS_REVENUE_RATIO = 0.17; // 17% xGRAIL holders
+const PROTOCOL_REVENUE_RATIO = 0.045; // 4.5% protocol: 3% operating expenses + 1.5% Algebra licensing
+const HOLDERS_REVENUE_RATIO = 0.105; // 10.5% holders: 7% xGRAIL Real Yield Staking + 3.5% GRAIL buyback & burn
 
-const adapterConfig = {
+const algebraPoolCreatedEvent =
+  'event Pool (address indexed token0, address indexed token1, address pool)';
+
+// Shared fee split
+const baseConfig = {
   userFeesRatio: USER_FEES_RATIO,
   revenueRatio: REVENUE_RATIO,
   protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
   holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+};
+
+// Most Camelot deployments use the original Algebra (v1.x) pools, where the
+// swap fee is exposed via globalState() and the pool has no fee() method.
+const adapterConfig = {
+  ...baseConfig,
+  isAlgebraV2: true,
+  poolCreatedEvent: algebraPoolCreatedEvent,
+};
+
+// Plume runs newer Algebra Integral pools that expose the fee via fee().
+const adapterConfigV3 = {
+  ...baseConfig,
   isAlgebraV3: true,
 };
 
@@ -123,6 +142,20 @@ const adapter: SimpleAdapter = {
         ...adapterConfig,
       }),
       start: '2024-06-20',
+    },
+    [CHAIN.PLUME]: {
+      fetch: getUniV3LogAdapter({
+        factory: '0x1eb9822d5176c88b1d4eec353fa956c896d77df9',
+        ...adapterConfigV3,
+      }),
+      start: '2025-08-16',
+    },
+    [CHAIN.SUPERPOSITION]: {
+      fetch: getUniV3LogAdapter({
+        factory: '0xCf4062Ee235BbeB4C7c0336ada689ed1c17547b6',
+        ...adapterConfig,
+      }),
+      start: '2025-01-14',
     },
     // [CHAIN.SANKO]: {
     //   fetch: getUniV3LogAdapter({

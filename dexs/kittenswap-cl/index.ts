@@ -118,7 +118,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: 0,
   };
+};
+
+const methodology = {
+  Fees: "All swap fees paid by traders across kittenswap concentrated-liquidity pools.",
+  UserFees: "All swap fees paid by traders.",
+  Revenue: "100% of swap fees — the protocol retains the full fee to redistribute to voters.",
+  ProtocolRevenue: "Zero. Under ve(3,3) the treasury takes no cut of swap fees.",
+  HoldersRevenue: "100% of swap fees are distributed weekly to veKITTEN voters/holders.",
+  SupplySideRevenue: "Zero. Liquidity providers are rewarded with KITTEN emissions (incentives), not swap fees.",
 };
 
 const adapters: SimpleAdapter = {
@@ -126,5 +140,6 @@ const adapters: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2025-04-04",
+  methodology,
 };
 export default adapters;

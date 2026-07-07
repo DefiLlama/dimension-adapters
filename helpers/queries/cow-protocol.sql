@@ -15,23 +15,32 @@ day_selector as (
     group by 1
 )
 , mevblocker_sale as (
-    select *
-    from (
-        values
-        (timestamp '2025-11-04', 0.5*6908146.85, 0.5*6908146.85/3212.33)
-        ,(timestamp '2026-01-21', 0.5*44132.69, 0.5*14.9)
-        ,(timestamp '2026-02-17', 0.5*169597.29, 0.5*82.7705679057619)
-    ) as t(date, mev_blocker_sale_usd, mev_blocker_sale_eth)
+    -- CoW/Beaver MEV Blocker stake sale (CIP-73): quarterly installments through Oct 2028, paid from
+    -- 3 payer wallets into the CoW DAO recipient. On-chain total = full sale; adapter splits 50/50 CoW/Beaver.
+    select
+        date(block_time) as date
+        , sum(amount_usd) as mev_blocker_sale_usd
+    from tokens_ethereum.transfers
+    where to = 0x616dE58c011F8736fa20c7Ae5352F7f6FB9F0669
+        and "from" in (
+            0xb57f9836bb1d5754c7a1a0c8b05832462ef10761
+            , 0xcd531ae9efcce479654c4926dec5f6209531ca7b
+            , 0xda12b368a93007ef2446717765917933cebc6080
+        )
+        and amount_usd > 1000 -- skip ~0.1 ETH test transfers; real installments are $44k+
+        and block_time >= (select start_date from day_selector)
+        and block_time < date_add('day', 1, (select start_date from day_selector))
+    group by 1
 )
 , mevblocker as (
     select
-        coalesce(a.date, date(b.date)) as date
+        coalesce(a.date, b.date) as date
         , a.mev_blocker_fee
-        , b.mev_blocker_sale_eth as mev_blocker_sale
+        , b.mev_blocker_sale_usd as mev_blocker_sale_usd
     from mevblocker_eth as a
     full outer join mevblocker_sale as b
-        on a.date = date(b.date)
-    where coalesce(a.date, date(b.date)) = (select start_date from day_selector)
+        on a.date = b.date
+    where coalesce(a.date, b.date) = (select start_date from day_selector)
 )
 , fees_per_chain as (
     select
@@ -72,9 +81,9 @@ select
         else 0
     end as mev_blocker_fee,
     case
-        when f.chain = 'ethereum' then coalesce(m.mev_blocker_sale, 0)
+        when f.chain = 'ethereum' then coalesce(m.mev_blocker_sale_usd, 0)
         else 0
-    end as mev_blocker_sale
+    end as mev_blocker_sale_usd
 from
     fees_all_chains f
     left join mevblocker m on f.date = m.date and f.chain = 'ethereum'

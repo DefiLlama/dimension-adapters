@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
-const API = "https://pokeliquid.xyz/api/keeper";
+const API = "https://www.pokeliquid.xyz/api/keeper";
 
 // https://www.pokeliquid.xyz/docs#fees
 // Fee distribution rates (from on-chain program):

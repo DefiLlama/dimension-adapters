@@ -32,6 +32,7 @@ const contract: IContract = {
   [CHAIN.FUSE]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.CRONOS]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
   [CHAIN.GRAVITY]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  [CHAIN.ROBINHOOD]: '0xB477751B76CF82d00a686A1232f5fCD772414Af3',
 }
 
 const fetch = async ({ chain, getLogs, createBalances, }: FetchOptions) => {

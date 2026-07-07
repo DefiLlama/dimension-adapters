@@ -2,11 +2,14 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
-// HypurrQuant — non-custodial DeFi terminal / swap & LP aggregator on HyperEVM.
-// It routes user swaps through underlying aggregators (LiquidSwap, HyperBloom,
-// Relay, deBridge), passing its own fee recipient + fee bps so those routers pay
-// HypurrQuant a 0.05% integrator fee. We derive HypurrQuant's routed volume from
-// that integrator fee, so the underlying DEX volume is NOT double-counted.
+// HypurrQuant is a self-custodial crypto wealth management app on HyperEVM (the
+// Hyperliquid ecosystem): users grow and manage an on-chain portfolio across
+// liquidity provision, swaps, perps and yield, while keeping custody of their
+// assets via account abstraction. This adapter tracks the swap-routing feature:
+// HypurrQuant routes user swaps through underlying aggregators (LiquidSwap,
+// HyperBloom, Relay, deBridge), passing its own fee recipient + fee bps so those
+// routers pay HypurrQuant a 0.05% integrator fee. We derive HypurrQuant's routed
+// volume from that integrator fee, so the underlying DEX volume is NOT double-counted.
 //
 // Source — public app config, exposed in the client bundle (not a secret):
 //   FEE_RECIPIENT  = NEXT_PUBLIC_ROUTING_FEE_RECIPIENT

@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-import request, { gql } from "graphql-request";
+import request from "graphql-request";
 
 const URL = "https://backend.swop.fi/pools"
 

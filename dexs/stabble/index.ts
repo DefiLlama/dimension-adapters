@@ -18,8 +18,16 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume: stats.volume,
     dailyFees: stats.fees,
-    dailyRevenue: stats.revenue
+    dailyRevenue: stats.revenue,
+    dailySupplySideRevenue: stats.fees - stats.revenue,
   };
+};
+
+const methodology = {
+  Volume: "Trading volume across stabble's stable and weighted AMM pools.",
+  Fees: "Total swap fees paid by traders.",
+  Revenue: "The protocol's cut of swap fees (treasury / $STB staking pool).",
+  SupplySideRevenue: "The portion of swap fees distributed to liquidity providers.",
 };
 
 const adapter: SimpleAdapter = {
@@ -27,6 +35,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2024-06-05',
+  methodology,
 };
 
 export default adapter;

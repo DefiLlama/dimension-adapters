@@ -20,6 +20,7 @@ type DataResponse<T> = {
 };
 
 type AfxDailyStats = {
+  dataStatus: 'READY' | 'PENDING' | 'FAILED';
   timestamp: number;
   date: string;
   dailyVolumeUsd?: string | null;
@@ -39,11 +40,12 @@ async function get<T>(url: string): Promise<T> {
 }
 
 async function fetchAfxDailyStats(options: FetchOptions): Promise<AfxDailyStats> {
-  const start = options.startOfDay;
+  const start = options.startOfDay
   const end = start + 86_400; // window end, +1 day in seconds
   const { data } = await get<DataResponse<AfxDailyStats[]>>(`${API}/protocol/daily?start=${start}&end=${end}`);
+  options.api.log(`afx: fetched daily stats for ${options.dateString} (${data?.length ?? 0} rows)`, data);
   const row = (data ?? []).find((r) => r.timestamp === start || r.date === options.dateString);
-  if (!row) throw new Error(`afx: missing daily stats for ${options.dateString}`);
+  if (!row || row.dataStatus !== 'READY') throw new Error(`afx: missing daily stats for ${options.dateString}`);
   return row;
 }
 

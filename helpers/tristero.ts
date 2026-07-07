@@ -1002,13 +1002,13 @@ async function getV3CloseReceipt(chain: string, txHash: string): Promise<any | n
 export async function getV3CloseSettlements(
   options: FetchOptions,
   closedPositions: TristeroV3MarginPosition[],
-  cacheKey: string,
+  _cacheKey: string,
 ): Promise<Map<string, bigint>> {
   const settlementByPosition = new Map<string, bigint>();
   const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
   if (!txHashes.length) return settlementByPosition;
 
-  const receipts = await getTxReceipts(options.chain, txHashes, { cacheKey });
+  const receipts = await getTxReceipts(options.chain, txHashes);
   const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
 
   closedPositions.forEach((position) => {
@@ -1195,8 +1195,8 @@ async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balanc
   );
 
   const [closeTransactions, closeReceipts] = await Promise.all([
-    getTransactions(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
-    getTxReceipts(options.chain, closeTxHashes, { cacheKey: "tristero-v3-escrow-close" }),
+    getTransactions(options.chain, closeTxHashes),
+    getTxReceipts(options.chain, closeTxHashes),
   ]);
 
   const txByHash = new Map(closeTransactions.filter((tx) => tx?.hash).map((tx) => [normalizeAddress(tx!.hash!), tx]));
