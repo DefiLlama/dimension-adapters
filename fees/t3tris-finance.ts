@@ -28,13 +28,11 @@ import { getConfig } from "../helpers/cache";
  *   - dailySupplySideRevenue = curator fees (performance + management + entry +
  *                              exit) — paid to the third-party manager, not t3tris
  *   - dailyRevenue           = T3trisProfit only (assets sent to t3treasury)
+ *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue; all t3tris
+ *                              revenue is treasury revenue, none to token holders)
  *
  *   Revenue = Fees − SupplySideRevenue = T3trisProfit. Curator fees are a
  *   supply-side cost (third-party manager), never t3tris protocol revenue.
- *   We report ONLY dailyRevenue (all t3tris revenue is treasury revenue) and
- *   deliberately OMIT dailyProtocolRevenue: reporting both makes DefiLlama
- *   derive HoldersRevenue = Revenue − ProtocolRevenue = 0 and surface a
- *   spurious "Holders Revenue" line, even though t3tris has no token holders.
  *
  * Vaults are sourced from the T3tris ecosystem API
  * (https://ecosystem.t3tris.finance/vaults), keeping only `verified` and
@@ -103,6 +101,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   // 1. Discover vaults for this chain from the T3tris ecosystem API, keeping
   //    only `verified`, non-`blacklisted` entries (same curation gate as the
@@ -472,7 +471,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
         dailyFees.add(token, profit, "T3tris Treasury Profit");
-        dailyRevenue.add(token, profit, "T3tris Treasury Profit"); // ONLY T3trisProfit is t3tris revenue
+        dailyRevenue.add(token, profit, "T3tris Treasury Profit");
+        dailyProtocolRevenue.add(token, profit, "T3tris Treasury Profit"); // ONLY T3trisProfit is t3tris revenue
       }
     }
   }
@@ -481,16 +481,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
-// Revenue is still computed (dailyRevenue) but intentionally has NO methodology
-// entry: per T3tris's request, the Revenue and Holders Revenue metrics are
-// hidden from the DefiLlama listing, so they are not documented here.
 const methodology = {
   Fees: "All fees charged by the vaults: curator performance, management, entry and exit fees, plus assets sent to the T3tris treasury.",
   SupplySideRevenue:
     "Fees paid to the third-party vault curators: performance, management, entry and exit fees. The curator is not t3tris.",
+  Revenue:
+    "Third-party services are also T3tris revenue but are not observable on-chain.",
+  ProtocolRevenue:
+    "Third-party services are also T3tris revenue but are not observable on-chain.",
 };
 
 const breakdownMethodology = {
@@ -513,6 +515,14 @@ const breakdownMethodology = {
       "Entry fees paid to the third-party vault curator (feeRecipient).",
     "Curator Exit Fees":
       "Exit fees paid to the third-party vault curator (feeRecipient).",
+  },
+  Revenue: {
+    "T3tris Treasury Profit":
+      "Assets transferred to the t3treasury (T3trisProfit events).",
+  },
+  ProtocolRevenue: {
+    "T3tris Treasury Profit":
+      "Assets transferred to the t3treasury (T3trisProfit events).",
   },
 };
 
