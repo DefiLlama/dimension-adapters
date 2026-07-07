@@ -80,9 +80,9 @@ const fetch = async (options: FetchOptions) => {
     });
 
     for (const log of logs) {
-        dailyFees.add(log.srcToken, log.surplus, "Swap Surplus");
-        dailyRevenue.add(log.srcToken, log.protocolFee, "Swap Surplus To Treasury");
-        dailySupplySideRevenue.add(log.srcToken, log.cashback, "Swap Surplus Cashback To User");
+        dailyFees.add(log.destToken, log.surplus, "Swap Surplus");
+        dailyRevenue.add(log.destToken, log.protocolFee, "Swap Surplus To Treasury");
+        dailySupplySideRevenue.add(log.destToken, log.cashback, "Swap Surplus Cashback To User");
     }
 
     return { dailyFees, dailyRevenue, dailySupplySideRevenue };
