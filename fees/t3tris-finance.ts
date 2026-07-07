@@ -97,6 +97,36 @@ const SETTLEMENT_PPS_JUMP_RATIO = 0.1;
 // concentrating a day into one slot — stays well under it.
 const MAX_PLAUSIBLE_GROWTH_APY = 10;
 
+// Resilient wrapper around `api.multiCall`. Even with `permitFailure: true`,
+// @defillama/sdk can still THROW "Cannot read properties of undefined (reading
+// 'success')": when a whole multicall *chunk* fails at the RPC level the SDK
+// stores `undefined` for that chunk and then dereferences it in
+// `flatResults.filter(r => !r.success)`, which aborts the entire hourly slice
+// (and, since this adapter is pullHourly, the whole day). Every caller below
+// already treats a missing entry as "skip this vault", so retry a transient
+// failure and, only if it keeps failing, degrade to an all-null array (the same
+// shape `permitFailure` yields on success) instead of crashing the run.
+async function safeMultiCall(
+  api: FetchOptions["api"],
+  params: { abi: any; calls: any[] },
+): Promise<any[]> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await api.multiCall({ ...params, permitFailure: true });
+    } catch (e) {
+      if (attempt === 3) {
+        console.error(
+          `T3tris: multiCall(${params.abi}) failed after ${attempt} attempts ` +
+            `(${(e as Error)?.message}) — treating its ${params.calls.length} ` +
+            `results as unavailable for this slice`,
+        );
+        return new Array(params.calls.length).fill(null);
+      }
+    }
+  }
+  return new Array(params.calls.length).fill(null);
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -129,34 +159,29 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 
   // 2. Fetch vault metadata
-  const assets = await options.api.multiCall({
+  const assets = await safeMultiCall(options.api, {
     abi: ABI.asset,
     calls: vaults,
-    permitFailure: true,
   });
-  const decimals = await options.api.multiCall({
+  const decimals = await safeMultiCall(options.api, {
     abi: ABI.decimals,
     calls: vaults,
-    permitFailure: true,
   });
-  const totalSupplies = await options.api.multiCall({
+  const totalSupplies = await safeMultiCall(options.api, {
     abi: ABI.totalSupply,
     calls: vaults,
-    permitFailure: true,
   });
-  const totalAssets = await options.api.multiCall({
+  const totalAssets = await safeMultiCall(options.api, {
     abi: ABI.totalAssets,
     calls: vaults,
-    permitFailure: true,
   });
 
   // Asset-token decimals. A vault's own decimals() reports its SHARE scale,
   // which can differ from the asset's — needed below to place the WAD
   // high-water mark on the same scale as convertToAssets for the perf fee.
-  const assetDecimals = await options.api.multiCall({
+  const assetDecimals = await safeMultiCall(options.api, {
     abi: ABI.decimals,
     calls: assets.map((asset: string, i: number) => asset || vaults[i]),
-    permitFailure: true,
   });
 
   // Robust share-scale detection. Some vaults mint shares at a different scale
@@ -168,13 +193,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // assets-per-raw-share, assuming a whole share is worth on the order of one
   // asset unit (vaults launch at ~1:1 price-per-share).
   const SCALE_PROBE = (10n ** 27n).toString();
-  const scaleProbe = await options.api.multiCall({
+  const scaleProbe = await safeMultiCall(options.api, {
     abi: ABI.convertToAssets,
     calls: vaults.map((vault: string) => ({
       target: vault,
       params: [SCALE_PROBE],
     })),
-    permitFailure: true,
   });
   const shareDecimals = scaleProbe.map((probeVal: any, i: number) => {
     const assetDec = Number(assetDecimals[i] ?? decimals[i] ?? 6);
@@ -199,47 +223,40 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }));
 
   // 4. Get share price at start and end of period
-  const ratesBefore = await options.fromApi.multiCall({
+  const ratesBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.convertToAssets,
     calls: convertCalls,
-    permitFailure: true,
   });
-  const ratesAfter = await options.toApi.multiCall({
+  const ratesAfter = await safeMultiCall(options.toApi, {
     abi: ABI.convertToAssets,
     calls: convertCalls,
-    permitFailure: true,
   });
 
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
   //     a time-weighted (trapezoidal) estimate over the window, so intra-period
   //     deposits/redeems don't skew the 24h performance and management fees.
-  const suppliesBefore = await options.fromApi.multiCall({
+  const suppliesBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.totalSupply,
     calls: vaults,
-    permitFailure: true,
   });
-  const tvlBefore = await options.fromApi.multiCall({
+  const tvlBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.totalAssets,
     calls: vaults,
-    permitFailure: true,
   });
 
   // 5. Get fee configuration + high-water mark for each vault
-  const perfFees = await options.api.multiCall({
+  const perfFees = await safeMultiCall(options.api, {
     abi: ABI.getPerformanceFee,
     calls: vaults,
-    permitFailure: true,
   });
-  const mgmtFees = await options.api.multiCall({
+  const mgmtFees = await safeMultiCall(options.api, {
     abi: ABI.getManagementFee,
     calls: vaults,
-    permitFailure: true,
   });
-  const hwms = await options.api.multiCall({
+  const hwms = await safeMultiCall(options.api, {
     abi: ABI.getPpsHighWaterMark,
     calls: vaults,
-    permitFailure: true,
   });
 
   // 6. Compute curator performance & management fees per vault.
