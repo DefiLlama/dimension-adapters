@@ -410,16 +410,16 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     ],
     customPools: {},
   },
-  [CHAIN.MANTLE]: {
-    start: '2023-12-13',
-    factory_stable_ng: [
-      '0x5eeE3091f747E60a045a2E715a4c71e600e31F6E',
-    ],
-    factory_twocrypto: [
-      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
-    ],
-    customPools: {},
-  },
+  // [CHAIN.MANTLE]: {
+  //   start: '2023-12-13',
+  //   factory_stable_ng: [
+  //     '0x5eeE3091f747E60a045a2E715a4c71e600e31F6E',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+  //   ],
+  //   customPools: {},
+  // },
   [CHAIN.UNICHAIN]: {
     start: '2025-11-06',
     factory_stable_ng: [
