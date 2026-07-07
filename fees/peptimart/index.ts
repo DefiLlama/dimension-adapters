@@ -20,14 +20,9 @@ type ApiResponse = {
 
 const methodology = {
   Fees: "Gross revenue from paid merchandise sales at PEPTIDES.",
-  SupplySideRevenue:
-    "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
-  Revenue:
-    "Net protocol revenue from store sales after the ten percent buyback allocation.",
-  HoldersRevenue:
-    "On-chain $PEPTI permanently burned during the day. This is supply reduction, not protocol revenue.",
-  ProtocolRevenue:
-    "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
+  Revenue: "Includes 90% of revenue retained for PEPTIDES store and 10% allocated to the $PEPTI buyback program.",
+  HoldersRevenue: "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
+  ProtocolRevenue: "90% of revenue retained for PEPTIDES store operations.",
 };
 
 const breakdownMethodology = {
@@ -37,17 +32,14 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     "Merchandise Sales to Buybacks":
-      "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
+      "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
   },
   ProtocolRevenue: {
-    "Merchandise Sales to Store Operations":
-      "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
+    "Merchandise Sales to Store Operations": "90% of revenue retained for PEPTIDES store operations.",
   },
   Revenue: {
-    "Merchandise Sales to Buybacks":
-      "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
-    "Merchandise Sales to Store Operations":
-      "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
+    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
+    "Merchandise Sales to Store Operations": "90% of revenue retained for PEPTIDES store operations.",
   },
 };
 
