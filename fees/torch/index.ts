@@ -68,8 +68,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  // v1: the Torch API only exposes a current 24h rolling aggregate (no hourly/historical query).
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.TON],
   runAtCurrTime: true,
