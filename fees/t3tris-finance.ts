@@ -105,7 +105,10 @@ const MAX_PLAUSIBLE_GROWTH_APY = 10;
 // (and, since this adapter is pullHourly, the whole day). Every caller below
 // already treats a missing entry as "skip this vault", so retry a transient
 // failure and, only if it keeps failing, degrade to an all-null array (the same
-// shape `permitFailure` yields on success) instead of crashing the run.
+// shape `permitFailure` yields on success) instead of crashing the run. A
+// SUSTAINED outage of the vault-gating reads (asset/totalSupply/price-per-share)
+// is caught by an explicit all-null guard after the reads, which fails loudly
+// rather than letting every vault be skipped and reporting a phantom 0 fees.
 async function safeMultiCall(
   api: FetchOptions["api"],
   params: { abi: any; calls: any[] },
@@ -231,6 +234,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     abi: ABI.convertToAssets,
     calls: convertCalls,
   });
+
+  // Distinguish a sustained RPC outage from a genuine zero-fee day. The reads
+  // that gate every vault below (asset, totalSupply, and price-per-share at both
+  // period bounds) drive the `!token || !supply || !rateBefore || !rateAfter`
+  // skip. If safeMultiCall exhausted its retries and degraded one of these to an
+  // all-null batch, EVERY vault would be skipped and the slice would silently
+  // record 0 fees — indistinguishable from a real zero day. Fail loudly instead
+  // so the outage is visible rather than mistaken for data. (A real zero-fee day
+  // still has populated, non-null reads, so this never trips on legitimate data.)
+  const allUnavailable = (arr: any[]) =>
+    arr.length > 0 && arr.every((v) => v == null);
+  if (
+    allUnavailable(assets) ||
+    allUnavailable(totalSupplies) ||
+    allUnavailable(ratesBefore) ||
+    allUnavailable(ratesAfter)
+  ) {
+    throw new Error(
+      `T3tris: core vault metadata unavailable on ${options.chain} this slice ` +
+        `(sustained RPC failure after retries) — refusing to report 0 fees`,
+    );
+  }
 
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
