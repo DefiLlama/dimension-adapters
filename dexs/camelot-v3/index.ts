@@ -2,58 +2,58 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getUniV3LogAdapter } from '../../helpers/uniswap';
 
-// Camelot V3 uses Algebra (Uniswap V3-style concentrated liquidity)
-// Fees are pool-specific and read on-chain from the Algebra pool configuration
-// Fee distribution (V3):
-// - ~80% to Liquidity Providers
-// - ~20% to protocol-controlled revenue (xGRAIL + treasury)
+// Camelot V3 uses Algebra (Uniswap V3-style concentrated liquidity) with a dynamic,
+// per-swap-direction fee. Each pool's fee is read live from globalState() (fee() reverts).
+// Fee distribution: 85% to liquidity providers, 15% protocol fee (on-chain community fee),
+// with the 15% split 7% xGRAIL stakers + 3.5% GRAIL buyback&burn + 3% operating expenses + 1.5% Algebra licensing.
 // Source: https://docs.camelot.exchange/tokenomics/protocol-earnings
 // Architecture: https://docs.camelot.exchange/protocol/amm-v3
 
 const methodology = {
-  Fees: 'Trading fees charged on swaps. Camelot V3 uses Algebra with dynamic fees.',
-  UserFees: 'Users pay dynamic fees on each swap (typically 0.05% to 1%).',
+  Fees: 'Dynamic swap fees paid by traders on every Camelot V3 pool. Each pool\'s fee adjusts with volatility and is read live from the pool.',
+  UserFees: 'Traders pay the full dynamic swap fee on each trade (roughly 0.01% on stable pairs up to a few percent on volatile pairs).',
   Revenue:
-    'Portion of trading fees that goes to the protocol (3%) and xGRAIL holders (17%), totaling 20% of swap fees.',
-  ProtocolRevenue: '3% of trading fees go to the protocol.',
+    '15% of every swap fee is taken as a protocol fee; the other 85% stays with liquidity providers. Of the 15%: 7% goes to xGRAIL stakers, 3.5% to GRAIL buyback & burn, 3% to operating expenses, and 1.5% to Algebra for V3 AMM licensing.',
+  ProtocolRevenue: '3% of swap fees fund Camelot\'s operating expenses (treasury).',
   HoldersRevenue:
-    '17% of trading fees go to xGRAIL holders via Real Yield Staking.',
-  SupplySideRevenue: '80% of trading fees go to liquidity providers.',
+    '10.5% of swap fees benefit GRAIL holders: 7% to xGRAIL stakers via Real Yield Staking and 3.5% to buy back and burn GRAIL.',
+  SupplySideRevenue: '85% of swap fees go to liquidity providers.',
 };
 
 const breakdownMethodology = {
   UserFees: {
-    'Trading fees': 'Dynamic fees paid by users on each swap, typically ranging from 0.05% to 1% of trade volume depending on market conditions',
+    'Trading fees': 'Dynamic swap fee paid by traders on each swap, varying per pool with market volatility',
   },
   Fees: {
-    'Trading fees': 'Total trading fees collected from all swaps on Camelot V3 pools using Algebra\'s dynamic fee model',
+    'Token Swap Fees': 'Total swap fees collected across all Camelot V3 pools using Algebra\'s dynamic fee',
   },
   Revenue: {
-    'Protocol fees': 'Combined protocol-controlled revenue (20% of trading fees) split between protocol treasury (3%) and xGRAIL holders (17%)',
+    'Protocol fees': 'Protocol fee taken from swaps, equal to the 15% on-chain community fee',
   },
   ProtocolRevenue: {
-    'Protocol fees': 'Portion of trading fees allocated to the protocol treasury, equal to 3% of total swap fees',
+    'Protocol fees': '3% of swap fees routed to Camelot operating expenses (treasury)',
   },
   HoldersRevenue: {
-    'Tokenholder fees': 'Portion of trading fees distributed to xGRAIL holders through Real Yield Staking, equal to 17% of total swap fees',
+    'Tokenholder fees': '10.5% of swap fees benefiting GRAIL holders (7% to xGRAIL Real Yield Staking + 3.5% GRAIL buyback & burn)',
   },
   SupplySideRevenue: {
-    'LP fees': 'Portion of trading fees distributed to liquidity providers who supply capital to the pools, equal to 80% of total swap fees',
+    'LP fees': '85% of swap fees distributed to liquidity providers',
   },
 };
 
-// Fee split ratios
-const REVENUE_RATIO = 0.2; // 20% total protocol-controlled
+// Fee split ratios (on-chain community fee = 150/1000 = 15%)
+const REVENUE_RATIO = 0.15; // 15% protocol-controlled (community fee), 85% to LPs
 const USER_FEES_RATIO = 1; // Users pay 100% of fees
-const PROTOCOL_REVENUE_RATIO = 0.03; // 3% protocol
-const HOLDERS_REVENUE_RATIO = 0.17; // 17% xGRAIL holders
+const PROTOCOL_REVENUE_RATIO = 0.03; // 3% operating expenses (treasury)
+const HOLDERS_REVENUE_RATIO = 0.105; // 7% xGRAIL stakers + 3.5% GRAIL buyback & burn
 
 const adapterConfig = {
   userFeesRatio: USER_FEES_RATIO,
   revenueRatio: REVENUE_RATIO,
   protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
   holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-  isAlgebraV3: true,
+  poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
+  isAlgebraV2: true,
 };
 
 const adapter: SimpleAdapter = {
