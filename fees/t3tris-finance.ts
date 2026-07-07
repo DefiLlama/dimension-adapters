@@ -485,14 +485,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   };
 };
 
+// dailyRevenue and dailyProtocolRevenue are still COMPUTED (= T3trisProfit) so the
+// data is available, but they are intentionally left out of `methodology` and
+// `breakdownMethodology`: per T3tris's request the Revenue / Protocol Revenue /
+// Holders Revenue metrics are kept off the listing (they don't render there anyway).
 const methodology = {
   Fees: "All fees charged by the vaults: curator performance, management, entry and exit fees, plus assets sent to the T3tris treasury.",
   SupplySideRevenue:
     "Fees paid to the third-party vault curators: performance, management, entry and exit fees. The curator is not t3tris.",
-  Revenue:
-    "Third-party services are also T3tris revenue but are not observable on-chain.",
-  ProtocolRevenue:
-    "Third-party services are also T3tris revenue but are not observable on-chain.",
 };
 
 const breakdownMethodology = {
@@ -515,14 +515,6 @@ const breakdownMethodology = {
       "Entry fees paid to the third-party vault curator (feeRecipient).",
     "Curator Exit Fees":
       "Exit fees paid to the third-party vault curator (feeRecipient).",
-  },
-  Revenue: {
-    "T3tris Treasury Profit":
-      "Assets transferred to the t3treasury (T3trisProfit events).",
-  },
-  ProtocolRevenue: {
-    "T3tris Treasury Profit":
-      "Assets transferred to the t3treasury (T3trisProfit events).",
   },
 };
 
