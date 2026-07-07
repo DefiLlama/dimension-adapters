@@ -16,12 +16,24 @@ type MetricsResponse = {
       predictionMarketVolumeUsd: string;
       totalVolumeUsd: string;
     };
+    fees: {
+      flatFeesUsd: string;
+      profitShareFeesUsd: string;
+      eventContractsFeesUsd: string;
+      footballContractsFeesUsd: string;
+      totalFeesUsd: string;
+    };
   };
 };
 
 export type TurboFlowMetrics = {
   perpVolumeUsd: number;
   predictionMarketVolumeUsd: number;
+  // Perp fees: flat trading fee + profit-share fee. Prediction-market fees:
+  // event-contract + football-contract fees. The four sum to the API's totalFeesUsd,
+  // so splitting them this way mirrors the perp/prediction volume split with no gaps.
+  perpFeesUsd: number;
+  predictionMarketFeesUsd: number;
 };
 
 export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<TurboFlowMetrics> {
@@ -31,6 +43,25 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
   }
 
   const volume = response.data.volume;
+  const fees = response.data.fees;
+
+  const perpFeesUsd =
+    parseRequiredNumber(fees.flatFeesUsd, "fees.flatFeesUsd") +
+    parseRequiredNumber(fees.profitShareFeesUsd, "fees.profitShareFeesUsd");
+  const predictionMarketFeesUsd =
+    parseRequiredNumber(fees.eventContractsFeesUsd, "fees.eventContractsFeesUsd") +
+    parseRequiredNumber(fees.footballContractsFeesUsd, "fees.footballContractsFeesUsd");
+
+  // Reconcile the perp/prediction split against the API's own total so a new fee
+  // category added upstream surfaces as an error instead of silently under-counting.
+  const totalFeesUsd = parseRequiredNumber(fees.totalFeesUsd, "fees.totalFeesUsd");
+  const tolerance = Math.max(1, totalFeesUsd * 1e-4);
+  if (Math.abs(perpFeesUsd + predictionMarketFeesUsd - totalFeesUsd) > tolerance) {
+    throw new Error(
+      `TurboFlow fee split (perp ${perpFeesUsd} + prediction ${predictionMarketFeesUsd}) ` +
+        `does not reconcile to totalFeesUsd ${totalFeesUsd} for ${options.dateString}`,
+    );
+  }
 
   return {
     perpVolumeUsd: parseRequiredNumber(volume.perpVolumeUsd, "volume.perpVolumeUsd"),
@@ -38,6 +69,8 @@ export async function fetchTurboFlowMetrics(options: FetchOptions): Promise<Turb
       volume.predictionMarketVolumeUsd,
       "volume.predictionMarketVolumeUsd",
     ),
+    perpFeesUsd,
+    predictionMarketFeesUsd,
   };
 }
 
