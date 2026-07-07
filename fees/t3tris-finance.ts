@@ -5,9 +5,9 @@ import { getConfig } from "../helpers/cache";
 /**
  * T3tris Finance — Fees & Revenue Adapter
  *
- * Revenue model — fees ACTUALLY CHARGED (depositor yield is NOT a fee):
- *   1. **Curator fees** (→ feeRecipient per vault, a third-party manager):
- *      - Performance fees: % of profit above the high-water mark (share dilution)
+ * Revenue model:
+ *   1. **Vault fees** (→ feeRecipient per vault, i.e. vault manager):
+ *      - Performance fees: % of profit above high-water mark (share dilution)
  *      - Management fees:  annual % of TVL, prorated (share dilution)
  *      - Entry fees:       bps on deposits (from DepositsSettled events)
  *      - Exit fees:        bps on withdrawals (from RedemptionsSettled events)
@@ -20,19 +20,16 @@ import { getConfig } from "../helpers/cache";
  *      We do NOT index silo contracts or silo PNL events directly.
  *
  * DefiLlama mapping:
- *   - dailyFees              = all fees charged = curator (performance +
- *                              management + entry + exit) + T3trisProfit.
- *                              Depositor yield is the depositors' own P&L, not a
- *                              fee, so it is NOT counted (fees therefore never go
- *                              negative on a down day).
- *   - dailySupplySideRevenue = curator fees (performance + management + entry +
- *                              exit) — paid to the third-party manager, not t3tris
+ *   - dailyFees              = gross yield (depositor yield + curator perf/mgmt
+ *                              fees) + entry/exit fees + T3trisProfit
+ *   - dailySupplySideRevenue = net depositor yield + curator performance,
+ *                              management, entry and exit fees
  *   - dailyRevenue           = T3trisProfit only (assets sent to t3treasury)
- *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue; all t3tris
- *                              revenue is treasury revenue, none to token holders)
+ *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue)
  *
- *   Revenue = Fees − SupplySideRevenue = T3trisProfit. Curator fees are a
- *   supply-side cost (third-party manager), never t3tris protocol revenue.
+ *   Vault fees (perf/mgmt/entry/exit) go to each vault's feeRecipient — a
+ *   third-party curator, NOT the t3tris protocol. They are counted in dailyFees
+ *   and dailySupplySideRevenue, but NOT in dailyRevenue/dailyProtocolRevenue.
  *
  * Vaults are sourced from the T3tris ecosystem API
  * (https://ecosystem.t3tris.finance/vaults), keeping only `verified` and
@@ -260,7 +257,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
   //     a time-weighted (trapezoidal) estimate over the window, so intra-period
-  //     deposits/redeems don't skew the 24h performance and management fees.
+  //     deposits/redeems don't skew the 24h depositor yield or management fees.
   const suppliesBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.totalSupply,
     calls: vaults,
@@ -284,10 +281,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     calls: vaults,
   });
 
-  // 6. Compute curator performance & management fees per vault.
-  //    Performance fee: inferred from PPS growth above the high-water mark.
-  //    Management fee:  annual % of TVL, prorated over the period.
-  //    Depositor yield is NOT a fee and is intentionally not counted here.
+  // 6. Calculate daily yield and fee splits
+  //    Vault fees (perf/mgmt) → feeRecipient (vault manager)
+  //    Net yield → depositors (supply side)
   const timespan = options.endTimestamp - options.startTimestamp;
 
   for (let i = 0; i < vaults.length; i++) {
@@ -298,7 +294,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const rateBefore = ratesBefore[i];
     const rateAfter = ratesAfter[i];
 
-    // Required reads for the fee computation. A vault missing any of these
+    // Required reads for the yield computation. A vault missing any of these
     // (e.g. a failed multicall) is skipped — log it with the vault address and
     // the missing fields so the gap is visible rather than silently swallowed.
     if (!token || !supply || !rateBefore || !rateAfter) {
@@ -325,8 +321,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // totalSupply increases (shares minted for depositors) BEFORE the oracle
     // updates totalAssets. This makes convertToAssets drop artificially (e.g.
     // 1.004 → 0.514). When we detect a settlement artifact, zero out the
-    // PPS-derived performance fee but still let the management fee accrue
-    // (it is TVL × time, independent of PPS).
+    // PPS-derived yield (netYield/perfYield) but still let management fees
+    // accrue (they are TVL × time, independent of PPS).
     const supplyStart = suppliesBefore[i];
     const supplyGrew =
       supplyStart != null && Number(supplyStart) > 0
@@ -344,7 +340,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         `T3tris: settlement artifact for vault ${vaults[i]} on ${options.chain} ` +
           `(supplyGrowth=${(Number(supply) / Number(supplyStart!)).toFixed(2)}x, ` +
           `rateGrowth=${rateGrowth > 0 ? "+" : ""}${((rateGrowth / Number(rateBefore)) * 100).toFixed(1)}%) ` +
-          `— zeroing PPS-derived performance fee, management fee still accrues`,
+          `— zeroing PPS-derived yield, management fees still accrue`,
       );
     }
 
@@ -360,13 +356,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const avgTvl =
       tvlStart != null ? (Number(tvlStart) + Number(tvl)) / 2 : Number(tvl);
 
-    // Guard against spurious PPS readings used for the performance fee: a
-    // stale/glitched convertToAssets value at a slot boundary (too-low start or
-    // too-high end PPS) implies an absurd per-slot jump and would inject a
-    // phantom performance fee. Require a positive baseline PPS and bound the
-    // implied annualised growth; otherwise book no performance fee for this slot
-    // (the management fee, based on TVL × time, is independent of PPS and still
-    // accrues below).
+    // Net yield to shareholders = avgSupply × delta(PPS) / unit
+    // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
+    //
+    // Guard against spurious PPS readings first: a stale/glitched convertToAssets
+    // value at a slot boundary (too-low start or too-high end PPS) implies an
+    // absurd per-slot jump and would inject a phantom yield — which dominates the
+    // daily total once a single vault is the only one reporting. Require a
+    // positive baseline PPS and bound the implied annualised growth; otherwise
+    // book no PPS-derived yield for this slot (management fee, based on TVL ×
+    // time, is independent of PPS and still accrues below).
     const ppsGrowthFrac =
       Number(rateBefore) > 0 ? rateGrowth / Number(rateBefore) : Infinity;
     const impliedApy =
@@ -378,9 +377,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!ppsReliable && rateGrowth > 0 && !settlementArtifact) {
       console.error(
         `T3tris: ignoring implausible PPS growth for vault ${vaults[i]} on ${options.chain} ` +
-          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no performance fee this slot`,
+          `(start=${rateBefore}, end=${rateAfter}, ~${(impliedApy * 100).toFixed(0)}% APY) — booking no yield this slot`,
       );
     }
+
+    const netYield = ppsReliable ? (avgSupply * rateGrowth) / unit : 0;
 
     // Performance fees are only charged on price-per-share gains ABOVE the
     // vault's high-water mark (HWM). Inferring them from any positive PPS
@@ -418,14 +419,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Nothing to record if no fee accrued this period.
-    if (performanceFees <= 0 && managementFees <= 0) continue;
+    // Gross vault yield = everything the strategies produced this period
+    // (depositor yield + curator performance/management fees). It is split
+    // below between depositors and the vault curator, both supply-side.
+    dailyFees.add(
+      token,
+      netYield + performanceFees + managementFees,
+      "Vault Yield",
+    );
 
-    // Fees charged by the curator this period. Both go to the vault's
-    // feeRecipient (a third-party manager, NOT t3tris), so they are counted in
-    // dailyFees and mirrored to supply side — never protocol revenue.
-    dailyFees.add(token, performanceFees, "Performance Fees");
-    dailyFees.add(token, managementFees, "Management Fees");
+    // Supply side = net yield to depositors + curator fees. The curator is a
+    // third-party vault manager (NOT the t3tris protocol), so its performance
+    // and management fees are a supply-side cost, not protocol revenue.
+    dailySupplySideRevenue.add(token, netYield, "Depositor Yield");
     dailySupplySideRevenue.add(
       token,
       performanceFees,
@@ -527,28 +533,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   };
 };
 
-// dailyRevenue and dailyProtocolRevenue are still COMPUTED (= T3trisProfit) so the
-// data is available, but they are intentionally left out of `methodology` and
-// `breakdownMethodology`: per T3tris's request the Revenue / Protocol Revenue /
-// Holders Revenue metrics are kept off the listing (they don't render there anyway).
 const methodology = {
-  Fees: "All fees charged by the vaults: curator performance, management, entry and exit fees, plus assets sent to the T3tris treasury.",
+  Fees: "Total yield generated by vault strategies, including depositor yield, curator fees and T3tris treasury profit.",
   SupplySideRevenue:
-    "Fees paid to the third-party vault curators: performance, management, entry and exit fees. The curator is not t3tris.",
+    "Value flowing to capital providers and the third-party vault curator: net depositor yield + curator performance, management, entry and exit fees. The curator is not t3tris.",
+  Revenue:
+    "Earnings sent to the T3tris treasury. Third-party services are also T3tris revenue but are not observable on-chain.",
+  ProtocolRevenue:
+    "Earnings sent to the T3tris treasury. Third-party services are also T3tris revenue but are not observable on-chain.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Performance Fees":
-      "Curator performance fees, charged on vault profit above the high-water mark.",
-    "Management Fees":
-      "Curator management fees, an annual % of TVL prorated over the period.",
+    "Vault Yield":
+      "Gross yield from vault strategies (depositor yield plus curator performance and management fees).",
     "Entry Fees": "Fees charged on deposits, collected by the vault curator.",
     "Exit Fees": "Fees charged on withdrawals, collected by the vault curator.",
     "T3tris Treasury Profit":
       "Assets transferred to the t3treasury (T3trisProfit events).",
   },
   SupplySideRevenue: {
+    "Depositor Yield":
+      "Net yield earned by vault depositors after all fees are deducted.",
     "Curator Performance Fees":
       "Performance fees paid to the third-party vault curator (feeRecipient).",
     "Curator Management Fees":
@@ -557,6 +563,14 @@ const breakdownMethodology = {
       "Entry fees paid to the third-party vault curator (feeRecipient).",
     "Curator Exit Fees":
       "Exit fees paid to the third-party vault curator (feeRecipient).",
+  },
+  Revenue: {
+    "T3tris Treasury Profit":
+      "Assets transferred to the t3treasury (T3trisProfit events).",
+  },
+  ProtocolRevenue: {
+    "T3tris Treasury Profit":
+      "Assets transferred to the t3treasury (T3trisProfit events).",
   },
 };
 
@@ -567,6 +581,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // ERC 4626 vault prices can go down
 };
 
 export default adapter;
