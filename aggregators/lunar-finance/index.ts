@@ -40,9 +40,21 @@ const fetch = async (options: FetchOptions) => {
   );
 
   // Enso/batch-sweeper swaps are exposed on a separate, additive endpoint.
-  // Best-effort: if it is unavailable we still report the regular swap volume.
+  // Only the fetch is best-effort: a network/endpoint failure should not drop
+  // the regular swap volume. Parsing and fee/revenue reconciliation run outside
+  // the catch so a genuine data-integrity mismatch (fees != revenue + supply
+  // side) propagates instead of being masked as an "unavailable" endpoint.
+  let sweeperRes;
   try {
-    const sweeperRes = await fetchLunarAnalytics("sweeper", options);
+    sweeperRes = await fetchLunarAnalytics("sweeper", options);
+  } catch (err) {
+    console.warn(
+      `Lunar Finance sweeper analytics unavailable for ${options.chain}:`,
+      err,
+    );
+  }
+
+  if (sweeperRes) {
     const sweeper = sweeperRes.data ?? {};
 
     const sweeperVolume = parseLunarUsdWei(
@@ -64,11 +76,6 @@ const fetch = async (options: FetchOptions) => {
     dailyFees += sweeperFees;
     dailyRevenue += sweeperRevenue;
     dailySupplySideRevenue += sweeperSupplySide;
-  } catch (err) {
-    console.warn(
-      `Lunar Finance sweeper analytics unavailable for ${options.chain}:`,
-      err,
-    );
   }
 
   return {
