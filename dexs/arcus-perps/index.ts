@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-07-03",
+  start: "2026-07-01",
   methodology,
 };
 
