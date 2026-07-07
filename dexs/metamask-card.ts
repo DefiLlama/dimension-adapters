@@ -6,6 +6,7 @@ import { sleep } from "../utils/utils";
 import { getSolanaReceived } from "../helpers/token";
 import coreAssets from "../helpers/coreAssets.json";
 
+//https://github.com/MetaMask/metamask-mobile/blob/main/app/selectors/featureFlagController/card/index.ts
 const configs: Record<string, { withdrawContracts: Array<string>, start: string, getTrasnactionLimit: number }> = {
   [CHAIN.LINEA]: {
     start: '2024-11-13',
@@ -23,11 +24,7 @@ const configs: Record<string, { withdrawContracts: Array<string>, start: string,
     getTrasnactionLimit: 10000,
   },
   [CHAIN.MONAD]: {
-    // FoxConnect (MetaMask Card) contracts on Monad (eip155:143), sourced from
-    // MetaMask's own app config: metamask-mobile app/selectors/featureFlagController/card/index.ts
-    // Both are ERC1967 proxies to the same card implementation (0x716bf8c5...df5518),
-    // matching the Linea/Base architecture. Deployed at block 80727203 (2026-06-12).
-    start: '2026-06-12',
+    start: '2026-03-10',
     withdrawContracts: [
       '0x40a695a16c213afef1c87fd471fb73157b948f3f', // global
       '0x144c1ce815bd1eb71678978fe8641cc4e3fd59e6', // US
