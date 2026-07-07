@@ -109,7 +109,7 @@ const adapter: SimpleAdapter = {
   adapter: config,
   methodology,
   breakdownMethodology,
-  allowNegativeValue: true,
+  allowNegativeValue: true, //payouts can exceed premiums
 }
 
 export default adapter
