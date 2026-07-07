@@ -102,43 +102,64 @@ export const LUNAR_CHAIN_ID: Record<string, string> = {
 export const LUNAR_SUPPORTED_CHAINS = Object.keys(LUNAR_CHAIN_ID);
 
 /**
- * DefiLlama chains registered on Lunar adapters (~50 supported chains).
- * Source: Lunar backend chain-ID mapping; excludes dead/niche chains not supported in-app.
- * The API currently returns protocol-wide totals per request regardless of `chain`
- * filter, so adapters attribute API metrics on LUNAR_PRIMARY_CHAIN only.
+ * DefiLlama chains registered on the Lunar adapters.
+ * Source: Lunar backend analytics API `metadata.chains` — the chains Lunar's
+ * meta-aggregator has provider integrations for (53 as of this writing). The
+ * backend filters each request by `source_chain_id`, so every registered chain
+ * reports its own per-chain, windowed volume/fees (returning zero when a chain
+ * is inactive). Kept in sync with `metadata.chains`; every entry maps to a
+ * `LUNAR_CHAIN_ID`.
  */
-const LUNAR_ADAPTER_CHAIN_EXCLUDE = new Set([
-  "canto",
-  "corn",
-  "cronos",
-  "etlk",
-  "flare",
-  "fuse",
-  "harmony",
-  "injective",
-  "kroma",
-  "klaytn",
-  "merlin",
+export const LUNAR_ADAPTER_CHAINS = [
+  "ethereum",
+  "arbitrum",
+  "optimism",
+  "polygon",
+  "base",
+  "bsc",
+  "avax",
+  "linea",
+  "scroll",
+  "mantle",
+  "blast",
+  "mode",
+  "era",
+  "celo",
+  "xdai",
   "metis",
-  "moonriver",
-  "neutron",
-  "okexchain",
-  "osmosis",
-  "rsk",
-  "sty",
-  "telos",
   "boba",
-  "bouncebit",
-  "btr",
-  "celestia",
-]);
-
-export const LUNAR_ADAPTER_CHAINS = Object.keys(LUNAR_CHAIN_ID).filter(
-  (chain) => !LUNAR_ADAPTER_CHAIN_EXCLUDE.has(chain),
-);
-
-/** Chain that receives protocol-wide API totals until per-chain filtering is available. */
-export const LUNAR_PRIMARY_CHAIN = "ethereum";
+  "moonbeam",
+  "cronos",
+  "op_bnb",
+  "berachain",
+  "sonic",
+  "hyperliquid",
+  "unichain",
+  "monad",
+  "megaeth",
+  "plasma",
+  "ink",
+  "gravity",
+  "lisk",
+  "abstract",
+  "etlk",
+  "xlayer",
+  "bob",
+  "hemi",
+  "rsk",
+  "telos",
+  "solana",
+  "eclipse",
+  "sui",
+  "aptos",
+  "ton",
+  "tron",
+  "near",
+  "starknet",
+  "cardano",
+  "bitcoin",
+  "sei",
+].filter((chain) => chain in LUNAR_CHAIN_ID);
 
 export const LUNAR_DEFAULT_START = "2024-01-01";
 

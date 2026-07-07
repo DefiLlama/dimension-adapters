@@ -9,25 +9,11 @@ import {
   fetchLunarAnalytics,
   LUNAR_ADAPTER_CHAINS,
   LUNAR_DEFAULT_START,
-  LUNAR_PRIMARY_CHAIN,
   parseLunarUsdWei,
   resolveLunarSupplySideRevenue,
 } from "../../helpers/lunarFinance";
 
-const emptyResult = {
-  dailyBridgeVolume: 0,
-  dailyFees: 0,
-  dailyRevenue: 0,
-  dailyProtocolRevenue: 0,
-  dailyUserFees: 0,
-  dailySupplySideRevenue: 0,
-};
-
 const fetch = async (options: FetchOptions) => {
-  if (options.chain !== LUNAR_PRIMARY_CHAIN) {
-    return emptyResult;
-  }
-
   const res = await fetchLunarAnalytics("bridge", options);
   const payload = res.data ?? {};
 
@@ -57,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   BridgeVolume:
-    "USD value of assets bridged cross-chain through Lunar Finance. Routes use LiFi, Relay, Hyperlane, Stargate, Mayan, and other bridge providers. Data from Lunar analytics API (confirmed transactions via lunarfinance.io). Protocol-wide API totals are attributed to Ethereum until the analytics API exposes per-chain breakdown.",
+    "USD value of assets bridged cross-chain through Lunar Finance, attributed to the source chain. Routes use LiFi, Relay, Hyperlane, Stargate, Mayan, and other bridge providers. Data from the Lunar analytics API (confirmed transactions via lunarfinance.io), filtered per source chain and time window.",
   Fees: "User-paid bridge fees including underlying provider fees.",
   Revenue: "Protocol fees retained by Lunar Finance.",
   ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
