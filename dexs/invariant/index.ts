@@ -1,11 +1,13 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
-import { FetchResult } from "../../adapters/types";
 const solanaStatsApiEndpoint =
   "https://stats.invariant.app/solana/intervals/solana-mainnet?interval=daily";
 const eclipseStatsApiEndpoint =
   "https://stats.invariant.app/eclipse/intervals/eclipse-mainnet?interval=daily";
+
+// create pool hardcodes protocol_fee onchain
+const PROTOCOL_FEE_RATIO = 0.01;
 
 type StatsApiResponse = {
   data: {
@@ -14,26 +16,26 @@ type StatsApiResponse = {
   };
 };
 
-const fetch = async (
-  timestamp: number,
-  fullSnapEndpoint: string
-): Promise<FetchResult> => {
+const fetch = async (fullSnapEndpoint: string): Promise<FetchResult> => {
   const fullSnapResponse = await axios.get<any, StatsApiResponse>(
     fullSnapEndpoint
   );
+  const dailyFees = fullSnapResponse.data.fees24.value;
   return {
     dailyVolume: fullSnapResponse.data.volume24.value,
-    dailyFees: fullSnapResponse.data.fees24.value,
-    timestamp,
+    dailyFees,
+    dailySupplySideRevenue: dailyFees * (1 - PROTOCOL_FEE_RATIO),
+    dailyRevenue: dailyFees * PROTOCOL_FEE_RATIO,
+    dailyProtocolRevenue: dailyFees * PROTOCOL_FEE_RATIO,
   };
 };
 
-const fetchSolana = async (options: FetchOptions) => {
-  return fetch(options.toTimestamp, solanaStatsApiEndpoint);
+const fetchSolana = async (_options: FetchOptions) => {
+  return fetch(solanaStatsApiEndpoint);
 };
 
-const fetchEclipse = async (options: FetchOptions) => {
-  return fetch(options.toTimestamp, eclipseStatsApiEndpoint);
+const fetchEclipse = async (_options: FetchOptions) => {
+  return fetch(eclipseStatsApiEndpoint);
 };
 
 const adapter: SimpleAdapter = {

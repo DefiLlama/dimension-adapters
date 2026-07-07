@@ -45,7 +45,7 @@ export const chainConfigMap: any = {
   [CHAIN.SEI]: { explorer: 'https://sei.blockscout.com', CGToken: 'sei-network' },
   [CHAIN.UNICHAIN]: { explorer: 'https://unichain.blockscout.com', CGToken: 'ethereum', allStatsApi: 'https://stats-uniswap-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.LISK]: { explorer: 'https://blockscout.lisk.com', CGToken: 'ethereum', allStatsApi: 'https://stats-lisk-mainnet.k8s.blockscout.com' },
-  [CHAIN.STORY]: { explorer: 'https://www.storyscan.io', CGToken: 'story-2', allStatsApi: 'https://stats-story-mainnet.k8s-prod-3.blockscout.com', },
+  [CHAIN.STORY]: { explorer: 'https://www.datanetscan.io', CGToken: 'story-2',start: '2025-01-26', },
   [CHAIN.APECHAIN]: { explorer: 'https://apechain.calderaexplorer.xyz', CGToken: 'apecoin' },
   [CHAIN.HEMI]: { explorer: 'https://explorer.hemi.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer.hemi.xyz' },
   // [CHAIN.ZKFAIR]: { explorer: 'https://scan.zkfair.io', CGToken: 'ethereum' },
@@ -150,6 +150,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
   [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', allStatsApi: 'https://b3.calderaexplorer.xyz/stats', start: '2024-07-30' },
   [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
+  [CHAIN.ROBINHOOD]: { explorer: 'https://robinhoodchain.blockscout.com', CGToken: 'ethereum', allStatsApi: 'https://robinhoodchain.blockscout.com/stats-service', start: '2026-04-30' },
 }
 
 function getTimeString(timestamp: number) {

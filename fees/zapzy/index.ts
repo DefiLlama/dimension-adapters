@@ -124,6 +124,7 @@ const adapter: SimpleAdapter = {
     Revenue: "50% of fees go to the protocol.",
     SupplySideRevenue: "50% of fees are distributed to coin creators.",
   },
+  deadFrom: "2026-05-14",
 };
 
 export default adapter;

@@ -30,6 +30,16 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "ohayo-perps": {
+    addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
+    start: "2026-03-15",
+    methodology: {
+      Fees: "Builder code fees paid by users on perpetual trades routed to Hyperliquid through OHAYO.",
+      Revenue: "Builder code revenue collected by OHAYO from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code revenue collected by OHAYO from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "bloxwap-perps": {
     addresses: ["0x71b09a08257078a4d642f7dd7315e656c837329a"],
     start: "2026-04-25",
@@ -257,6 +267,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
       ProtocolRevenue: "Builder code fees collected by Omni Terminal from Hyperliquid perps trades.",
     },
+  },
+  "stratium": {
+    addresses: ["0xcbd0ab1f5872dba6667c23765613de93453e3320"],
+    start: "2026-05-08",
+    market: "hip4",
+  },
+  "liquidiction": {
+    addresses: ["0x2e10360cbfb68080b72c17f35633700e75fe461b"],
+    start: "2026-05-13",
+    market: "hip4",
   },
   "pear-interface": {
     addresses: ["0xa47d4d99191db54a4829cdf3de2417e527c3b042"],
@@ -702,12 +722,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  
-
-
-
-
-
+  "trasia-perps": {
+    addresses: ["0xa9300365e8f6d0112a756c98f9acfc3543b295c0"],
+    start: "2026-06-03",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades routed through Trasia Perps.",
+      Revenue: "Builder code fees collected by Trasia Perps from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Trasia Perps from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
 };
 
 

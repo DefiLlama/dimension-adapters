@@ -38,6 +38,17 @@ const adapter: SimpleAdapter = {
 							swapCount
 						}
 					}`));
+        
+        if (graphData.dailies.length === 0) {
+          return {
+            dailyVolume: 0,
+            dailyFees: createBalances(),
+            dailyUserFees: createBalances(),
+            dailyRevenue: createBalances(),
+            dailyProtocolRevenue: createBalances(),
+            dailySupplySideRevenue: createBalances(),
+          }
+        }
 
 				const swap_fee_usd = Number(graphData.dailies[0].feesUSD);
 				const rev_usd = Number(graphData.dailies[0].swapCount) * 0.5;

@@ -212,11 +212,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: '2022-08-05' },
     [CHAIN.OPTIMISM]: { start: '2022-06-29' },
     [CHAIN.ARBITRUM]: { start: '2023-08-02' },
-     [CHAIN.POLYGON]: { start: '2022-04-20' },
+    [CHAIN.POLYGON]: { start: '2022-04-20' },
     [CHAIN.MOONBEAM]: { start: '2022-08-05' },
     [CHAIN.BASE]: { start: '2024-03-16' },
     [CHAIN.MANTLE]: { start: '2023-09-07' },
-    [CHAIN.POLYGON_ZKEVM]: { start: '2024-08-22' },
+    //[CHAIN.POLYGON_ZKEVM]: { start: '2024-08-22' },
   }
 }
 

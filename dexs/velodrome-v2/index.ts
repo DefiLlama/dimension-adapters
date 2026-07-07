@@ -44,7 +44,7 @@ const superchainConfig: Record<string, any> = {
 }
 
 
-const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => {
+const customLogic = async ({ dailyVolume, dailyFees, fetchOptions, filteredPairs, }: any) => {
   const { createBalances, getLogs, chain, api, getToBlock, } = fetchOptions
   const dailyBribes = createBalances()
 
@@ -59,25 +59,28 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
       cacheInCloud: true,
     }))
     const bribes_contract: string[] = logs_gauge_created.map((e: any) => e.bribeVotingReward.toLowerCase());
-
-    let logs = await getLogs({
-      targets: bribes_contract,
-      eventAbi: event_notify_reward_op,
-    })
-    logs.map((e: any) => {
-      dailyBribes.add(e.reward, e.amount)
-    })
+    if (bribes_contract.length > 0) {
+      let logs = await getLogs({
+        targets: bribes_contract,
+        eventAbi: event_notify_reward_op,
+      })
+      logs.map((e: any) => {
+        dailyBribes.add(e.reward, e.amount)
+      })
+    }
   }
   // handle Superchain beta "staking rewards" bribes on Mode and Bob
   if (chain in config) {
     const { stakingRewards, rewardToken, } = config[chain]
     const pairs = Object.keys(filteredPairs)
     const gauges = await api.multiCall({ target: stakingRewards, abi: 'function gauges(address) view returns (address)', calls: pairs })
-    let logs = await getLogs({ targets: gauges, eventAbi: notifyRewardEvent })
-
-    logs.forEach((log: any) => {
-      dailyBribes.add(rewardToken, log.amount)
-    })
+    if (gauges.length > 0) {
+      let logs = await getLogs({ targets: gauges, eventAbi: notifyRewardEvent })
+  
+      logs.forEach((log: any) => {
+        dailyBribes.add(rewardToken, log.amount)
+      })
+    }
   }
 
   // handle Superchain 1.0 L2 bribes
@@ -90,15 +93,18 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
       cacheInCloud: true,
     }))
     const incentive_contracts: string[] = leaf_gauge_logs.map((e: any) => e.incentiveVotingReward.toLowerCase());
-
-    let logs = await getLogs({
-      targets: incentive_contracts,
-      eventAbi: event_notify_reward_op,
-    })
-    logs.map((e: any) => {
-      dailyBribes.add(e.reward, e.amount)
-    })
+    if (incentive_contracts.length > 0) {
+      let logs = await getLogs({
+        targets: incentive_contracts,
+        eventAbi: event_notify_reward_op,
+      })
+      logs.map((e: any) => {
+        dailyBribes.add(e.reward, e.amount)
+      })
+    }
   }
+
+  dailyBribes.removeTokenBalance('0x95177295A394f2b9B04545FFf58f4aF0673E839d'); // bad token on Mode
 
   const totalFees = createBalances()
   const totalHoldersRevenue = createBalances()
@@ -108,20 +114,20 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
   totalHoldersRevenue.add(dailyFees, 'Swap Fees To Voters')
   totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
 
-  return { dailyFees: totalFees, dailyRevenue: totalHoldersRevenue, dailyHoldersRevenue: totalHoldersRevenue } as any
+  return { dailyVolume, dailyFees: totalFees, dailyRevenue: totalHoldersRevenue, dailyHoldersRevenue: totalHoldersRevenue } as any
 }
 
 export default {
   ...uniV2Exports({
-    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent, voter: '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c', maxPairSize: 500, customLogic, },
-    [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', customLogic },
-    [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, customLogic, },
-    [CHAIN.LISK]: {factory: leaf_pool_factory, customLogic},
-    [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, customLogic},
-    [CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
-    [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
-    [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic},
-    [CHAIN.SWELLCHAIN]: {factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,}
+    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent, voter: '0x41c914ee0c7e1a5edcd0295623e6dc557b5abf3c', maxPairSize: 500, customLogic, start: '2023-06-23' },
+    [CHAIN.MODE]: { factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-12-11' },
+    [CHAIN.BOB]: { factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-12-11' },
+    [CHAIN.LISK]: {factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-12-11' },
+    [CHAIN.FRAXTAL]: {factory: leaf_pool_factory, swapEvent, customLogic, start: '2024-12-11' },
+    [CHAIN.INK]: {factory: leaf_pool_factory, swapEvent, customLogic, start: '2025-01-15' },
+    [CHAIN.SONEIUM]: {factory: leaf_pool_factory, swapEvent, customLogic, start: '2025-01-15' },
+    [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, swapEvent, customLogic, start: '2025-02-22' },
+    // [CHAIN.SWELLCHAIN]: {factory: leaf_pool_factory, swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,} // dead chain
   }),
   version: 2,
   pullHourly: true,

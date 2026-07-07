@@ -204,11 +204,11 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
       if (isAlgebraV3) {
         let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+        _fees.forEach((fee: any, i: number) => { if (fee != null) fees[logs[i].pool] = fee / 1e6 })
       }
       if (isAlgebraV2) {
         let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _states.filter(state => state !== null).forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
+        _states.forEach((state: any, i: number) => { if (state != null) fees[logs[i].pool] = Number(state.fee) / 1e6 })
       }
     } else if (Array.isArray(pools)) {
 
@@ -292,12 +292,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           protocolFeeRatioToken0: dynamicProtocolFees ? protocolFeeRatios[pair]?.token0 : undefined,
           protocolFeeRatioToken1: dynamicProtocolFees ? protocolFeeRatios[pair]?.token1 : undefined,
         })
-        
+
         if (!pairRevenueRatio) pairRevenueRatio = _revenueRatio;
         if (!pairProtocolRevenueRatio && _protocolRevenueRatio) pairProtocolRevenueRatio = _protocolRevenueRatio;
-        if (!pairHoldersRevenueRatio && _holdersRevenueRatio) pairHoldersRevenueRatio = _holdersRevenueRatio; 
+        if (!pairHoldersRevenueRatio && _holdersRevenueRatio) pairHoldersRevenueRatio = _holdersRevenueRatio;
       }
-      
+
       logs.forEach((log: any) => {
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
         const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * feeTier, amount1: log.amount1.toString() * feeTier })
@@ -321,7 +321,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     if (customLogic) {
       return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
     }
-  
+
     const dailyFees = swapFees.clone(1, 'Token Swap Fees')
     const response: any = { dailyVolume, dailyFees }
 
@@ -388,21 +388,15 @@ type UniV3Config = {
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
   const exportObject: BaseAdapter = {}
-  const exportObjectV1: BaseAdapter = {}
 
 
   Object.entries(config).map(([chain, chainConfig]) => {
-    const fetch: any = getUniV2LogAdapter(chainConfig)
-    exportObject[chain] = { fetch }
-    exportObjectV1[chain] = {
-      fetch: async (options: FetchOptions) => fetch(options),
-      start: chainConfig.start,
-    }
+    exportObject[chain] = { fetch: getUniV2LogAdapter(chainConfig), start: chainConfig.start }
   })
 
 
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1, } as SimpleAdapter
+    return { adapter: exportObject, version: 1, } as SimpleAdapter
 
 
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
@@ -415,23 +409,16 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
   [key: string]: any
 } = {}) {
   const exportObject: BaseAdapter = {}
-  const exportObjectV1: BaseAdapter = {}
-
 
   Object.entries(config).map(([chain, chainConfig]) => {
     if (swapEvent) chainConfig.swapEvent = swapEvent
     const fetch: any = getUniV3LogAdapter(chainConfig)
     exportObject[chain] = { fetch, start: chainConfig.start }
     if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
-    exportObjectV1[chain] = {
-      fetch: async (options: FetchOptions) => fetch(options),
-      start: chainConfig.start,
-    }
-    if (chainConfig.deadFrom) exportObjectV1[chain].deadFrom = chainConfig.deadFrom
   })
 
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
+    return { adapter: exportObject, version: 1 } as SimpleAdapter
 
 
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter

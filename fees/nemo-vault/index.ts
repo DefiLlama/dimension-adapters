@@ -34,6 +34,7 @@ const adapter: Adapter = {
   chains: [CHAIN.SUI],
   methodology,
   start: '2025-08-20',
+  deadFrom: '2026-02-11',
 };
 
 export default adapter;

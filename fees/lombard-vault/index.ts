@@ -50,7 +50,19 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
       vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
       accountantAbiVersion: 2,
     },
-  ]
+  ],
+  [CHAIN.BASE]: [
+    {
+      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
+      accountantAbiVersion: 2,
+    },
+  ],
+  [CHAIN.BSC]: [
+    {
+      vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
+      accountantAbiVersion: 2,
+    },
+  ],
 }
 
 const BoringVaultAbis = {
@@ -140,20 +152,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const growthRate = Number(endRate - startRate)
 
       // Check if vault is paused - ignore paused vaults in yield calculation
-      const getAccountantState = await sdk.api2.abi.call({
+      const getAccountantState = await options.api.call({
         abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
         target: accountant,
-        block: firstEvent.blockNumber,
       })
       const isPaused = getAccountantState[8]
 
       if (!isPaused) {
-        const totalSupplyAtUpdated = await sdk.api2.abi.call({
+        const totalSupplyAtUpdated = await options.api.call({
           abi: BoringVaultAbis.totalSupply,
           target: vault.vault,
-          block: firstEvent.blockNumber,
         })
-
         let exchangeRate = vaultRateBase
         let performanceFeeRate = 0
         if (vault.accountantAbiVersion === 2) {
@@ -196,7 +205,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     // platform fees charged per year of total assets in vault
     // 365 * 24 * 60 * 60 = seconds in a year (used to convert annual fee rate to time period)
     const yearInSecs = 365 * 24 * 60 * 60
-    const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+    const timespan = options.toTimestamp - options.fromTimestamp
     const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
     dailyFees.add(token, platformFee, METRIC.MANAGEMENT_FEES)
@@ -215,8 +224,11 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.ETHEREUM],
-  start: '2024-07-22',
+  chains: [
+    [CHAIN.ETHEREUM, { start: '2024-07-22' }],
+    [CHAIN.BASE, { start: '2024-11-20' }],
+    [CHAIN.BSC, { start: '2024-11-20' }],
+  ],
   methodology,
   breakdownMethodology,
 }

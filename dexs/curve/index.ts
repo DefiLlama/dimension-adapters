@@ -410,16 +410,16 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     ],
     customPools: {},
   },
-  [CHAIN.MANTLE]: {
-    start: '2023-12-13',
-    factory_stable_ng: [
-      '0x5eeE3091f747E60a045a2E715a4c71e600e31F6E',
-    ],
-    factory_twocrypto: [
-      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
-    ],
-    customPools: {},
-  },
+  // [CHAIN.MANTLE]: {
+  //   start: '2023-12-13',
+  //   factory_stable_ng: [
+  //     '0x5eeE3091f747E60a045a2E715a4c71e600e31F6E',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+  //   ],
+  //   customPools: {},
+  // },
   [CHAIN.UNICHAIN]: {
     start: '2025-11-06',
     factory_stable_ng: [
@@ -451,6 +451,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   },
   [CHAIN.STABLE]: {
     start: '2025-12-08',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+    ],
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-05',
     factory_stable_ng: [
       '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
     ],
