@@ -3,8 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const FEES_API = "https://peptimart.xyz/api/defillama/fees";
-// Solana mint: https://pump.fun/coin/61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump
-const PEPTI_MINT = "61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump";
 
 type FeesPayload = {
   date: string;
@@ -37,21 +35,19 @@ const breakdownMethodology = {
     "Merchandise Sales":
       "Total paid checkout value at PEPTIDES for the calendar day (UTC).",
   },
-  SupplySideRevenue: {
-    "Buyback Allocation":
+  HoldersRevenue: {
+    "Merchandise Sales to Buybacks":
       "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
   },
-  HoldersRevenue: {
-    "Token Burns":
-      "Total $PEPTI permanently burned on Solana during the calendar day (UTC). Not counted as protocol revenue.",
-  },
   ProtocolRevenue: {
-    "Store Operations":
-      "Gross merchandise sales less the ten percent buyback allocation.",
+    "Merchandise Sales to Store Operations":
+      "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
   },
   Revenue: {
-    "Store Operations":
-      "Net revenue supporting PEPTIDES operations and catalog.",
+    "Merchandise Sales to Buybacks":
+      "Ten percent of gross merchandise sales allocated to the $PEPTI buyback program.",
+    "Merchandise Sales to Store Operations":
+      "Net revenue retained for PEPTIDES store operations after the buyback allocation.",
   },
 };
 
@@ -69,33 +65,25 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   dailyFees.addUSDValue(data.purchasesUsd, "Merchandise Sales");
-  dailySupplySideRevenue.addUSDValue(data.buybackUsd, "Buyback Allocation");
-  dailyProtocolRevenue.addUSDValue(storeOperationsUsd, "Store Operations");
-  dailyRevenue.addUSDValue(storeOperationsUsd, "Store Operations");
-
-  if (data.peptiBurned > 0) {
-    // Pump.fun SPL tokens use 6 decimal places
-    const raw = Math.round(data.peptiBurned * 1e6).toString();
-    dailyHoldersRevenue.add(PEPTI_MINT, raw, "Token Burns");
-  }
+  dailyProtocolRevenue.addUSDValue(storeOperationsUsd, "Merchandise Sales to Store Operations");
+  dailyRevenue.addUSDValue(storeOperationsUsd, "Merchandise Sales to Store Operations");
+  dailyRevenue.addUSDValue(data.buybackUsd, "Merchandise Sales to Buybacks");
+  dailyHoldersRevenue.addUSDValue(data.buybackUsd, "Merchandise Sales to Buybacks");
 
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: false, // peptimart.xyz API returns one UTC daily aggregate per date param
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-05-27",
