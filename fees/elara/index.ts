@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
+// Elara Finance Vault proxy: https://etherscan.io/address/0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef
 const VAULT = "0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef";
 
 const ABI = {
@@ -17,17 +18,6 @@ const COLLATERAL_TOKENS = new Set([
   ADDRESSES.ethereum.USDe.toLowerCase(),
 ]);
 
-const addFee = (
-  options: FetchOptions,
-  balances: ReturnType<FetchOptions["createBalances"]>,
-  log: { token: string; fee: string | bigint | number },
-  label: string,
-) => {
-  const token = log.token.toLowerCase();
-  if (!COLLATERAL_TOKENS.has(token)) throw new Error(`Unsupported Elara fee token: ${log.token}`);
-  balances.add(log.token, log.fee, label);
-};
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -40,10 +30,16 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   mintLogs.concat(redeemSettledLogs).forEach((log) => {
-    addFee(options, dailyFees, log, METRIC.MINT_REDEEM_FEES);
-    addFee(options, dailyUserFees, log, METRIC.MINT_REDEEM_FEES);
-    addFee(options, dailyRevenue, log, REVENUE_LABEL);
-    addFee(options, dailyProtocolRevenue, log, REVENUE_LABEL);
+    const token = log.token.toLowerCase();
+    if (!COLLATERAL_TOKENS.has(token)) {
+      console.warn(`Elara: skipping unsupported fee token ${log.token}`);
+      return;
+    }
+
+    dailyFees.add(log.token, log.fee, METRIC.MINT_REDEEM_FEES);
+    dailyUserFees.add(log.token, log.fee, METRIC.MINT_REDEEM_FEES);
+    dailyRevenue.add(log.token, log.fee, REVENUE_LABEL);
+    dailyProtocolRevenue.add(log.token, log.fee, REVENUE_LABEL);
   });
 
   return {
@@ -62,7 +58,6 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: "Fees paid by users when minting elUSD with supported collateral or redeeming elUSD for collateral.",
-    UserFees: "Mint and redeem fees paid by users.",
     Revenue: "All mint and settled redeem fees are kept by the protocol treasury.",
     ProtocolRevenue: "All mint and settled redeem fees are allocated to the protocol treasury.",
   },
