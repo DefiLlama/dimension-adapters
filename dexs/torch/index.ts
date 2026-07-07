@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
   for (const pool of pools) {
     const volume = Number(pool.metrics?.volume24h)
     if (!Number.isFinite(volume)) throw new Error(`Torch: missing/non-finite volume24h for pool ${pool.address}`)
-    dailyVolume.addUSDValue(volume, 'Swap Volume')
+    dailyVolume.addUSDValue(volume)
   }
 
   return { dailyVolume }
@@ -36,10 +36,6 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Trading volume across all Torch stableswap pools on TON.',
-}
-
-const breakdownMethodology = {
-  Volume: { 'Swap Volume': 'Swap volume across all Torch pools.' },
 }
 
 const adapter: SimpleAdapter = {
@@ -50,7 +46,6 @@ const adapter: SimpleAdapter = {
   runAtCurrTime: true,
   start: '2024-09-02',
   methodology,
-  breakdownMethodology,
 }
 
 export default adapter
