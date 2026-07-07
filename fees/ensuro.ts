@@ -50,17 +50,17 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(token, policy.jrCoc, 'Insurance Premium')
     dailyFees.add(token, policy.srCoc, 'Insurance Premium')
 
-    // Revenue: pure premium retained as claim reserves + Ensuro's protocol commission
-    dailyRevenue.add(token, policy.purePremium, 'Pure Premium')
+    // Revenue: Ensuro's protocol commission
     dailyRevenue.add(token, policy.ensuroCommission, 'Protocol Commission')
 
     // ProtocolRevenue: Ensuro's commission goes to the treasury
     dailyProtocolRevenue.add(token, policy.ensuroCommission, 'Protocol Commission')
 
-    // SupplySideRevenue: cost of capital to LPs + commission to the distributing partner
+    // SupplySideRevenue: cost of capital to LPs + commission to the distributing partner + pure premium
     dailySupplySideRevenue.add(token, policy.jrCoc, 'Junior LP Cost of Capital')
     dailySupplySideRevenue.add(token, policy.srCoc, 'Senior LP Cost of Capital')
     dailySupplySideRevenue.add(token, policy.partnerCommission, 'Partner Commission')
+    dailySupplySideRevenue.add(token, policy.purePremium, 'Pure Premium')
   }
 
   // Claims paid to policyholders
@@ -69,7 +69,7 @@ const fetch = async (options: FetchOptions) => {
     const payout = BigInt(log.payout)
     if (payout === 0n) continue
     dailyFees.add(token, -payout, 'Claims Paid')
-    dailyRevenue.add(token, -payout, 'Claims Paid')
+    dailySupplySideRevenue.add(token, -payout, 'Claims Paid')
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
@@ -77,20 +77,18 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Insurance premiums paid by policyholders when buying coverage (pure premium + cost of capital + Ensuro commission + partner commission), net of insurance claims paid out during the period.',
-  Revenue: 'Pure premium retained to cover claims plus the Ensuro protocol commission, net of claims paid out to policyholders.',
+  Revenue: 'Ensuro protocol commission retained by the Ensuro treasury.',
   ProtocolRevenue: 'Ensuro protocol commission retained by the Ensuro treasury.',
-  SupplySideRevenue: 'Cost of capital paid to senior and junior eToken liquidity providers, plus commissions paid to risk partners (the risk modules that originate policies).',
+  SupplySideRevenue: 'Cost of capital paid to senior and junior eToken liquidity providers, plus commissions paid to risk partners (the risk modules that originate policies) plus pure premium net of claims paid out.',
 }
 
 const breakdownMethodology = {
   Fees: {
     'Insurance Premium': 'Total premium paid by policyholders when buying coverage (purePremium + jrCoc + srCoc + ensuroCommission + partnerCommission).',
-    'Claims Paid': 'Insurance claim payouts to policyholders during the period (PolicyResolved events), deducted from premiums.',
+    'Claims Paid': 'Insurance claim payouts to policyholders during the period (PolicyResolved events), deducted from pure premium -> Junior LP -> Senior LP.',
   },
   Revenue: {
-    'Pure Premium': 'Pure premium retained in the protocol insurance pool (PremiumsAccount) as reserves to cover expected claims.',
     'Protocol Commission': 'Ensuro protocol commission charged on each policy.',
-    'Claims Paid': 'Insurance claim payouts to policyholders during the period (PolicyResolved events), deducted from premiums.',
   },
   ProtocolRevenue: {
     'Protocol Commission': 'Ensuro protocol commission allocated to the Ensuro treasury.',
@@ -99,20 +97,19 @@ const breakdownMethodology = {
     'Junior LP Cost of Capital': 'Cost of capital paid to junior eToken liquidity providers for locking junior solvency capital.',
     'Senior LP Cost of Capital': 'Cost of capital paid to senior eToken liquidity providers for locking senior solvency capital.',
     'Partner Commission': 'Commission paid to the risk partner / risk module that originated the policy.',
+    'Pure Premium': 'Pure premium retained in the protocol insurance pool (PremiumsAccount) as reserves to cover expected claims.',
+    'Claims Paid': 'Insurance claim payouts to policyholders during the period (PolicyResolved events), deducted from pure premium -> Junior LP -> Senior LP.',
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.POLYGON]: { fetch, start: config[CHAIN.POLYGON].start },
-    [CHAIN.ETHEREUM]: { fetch, start: config[CHAIN.ETHEREUM].start },
-  },
+  fetch,
+  adapter: config,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true,
 }
 
 export default adapter
-
