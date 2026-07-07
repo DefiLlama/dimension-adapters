@@ -23,7 +23,6 @@ const fetch = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
-  const dailySupplySideRevenue = createBalances();
   const dailyVolume = createBalances();
 
   const boxOpenedLogs = await getLogs({
@@ -50,34 +49,33 @@ const fetch = async (options: FetchOptions) => {
   }
 
   for (const log of buybackLogs) {
-    dailySupplySideRevenue.add(USDC_BASE, log.buybackPrice, "Buyback Spends");
+    dailyFees.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
+    dailyRevenue.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
   }
 
   dailyFees.addBalances(subscriptionFees, "Subscription Fees");
   dailyRevenue.addBalances(subscriptionFees, "Subscription Fees");
-  dailyRevenue.subtract(dailySupplySideRevenue, "Buyback Spends");
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Volume: "All USDC payments made by users when opening blind boxes. Each box has a fixed USDC price; users pay price × quantity.",
-  Fees: "USDC paid by users to request blind box openings plus PumpDaily subscriptions.",
+  Fees: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
   Revenue: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
   ProtocolRevenue: "USDC paid by users to request blind box openings plus PumpDaily subscriptions, net of buyback spends.",
-  SupplySideRevenue: "USDC spent by the protocol on box buybacks.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Box Opening Fees": "USDC paid by users to request blind box openings. The checkout contract escrows USDC and transfers it to the payment receiver upon fulfillment.",
     "Subscription Fees": "USDC paid by users for PumpDaily subscriptions via direct transfers to the protocol treasury.",
+    "Buyback Spends": "USDC spent by the protocol on box buybacks.",
   },
   Revenue: {
     "Box Opening Fees": "USDC paid by users to request blind box openings.",
@@ -87,9 +85,6 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     "Box Opening Fees": "USDC paid by users to request blind box openings.",
     "Subscription Fees": "USDC paid by users for PumpDaily subscriptions.",
-    "Buyback Spends": "USDC spent by the protocol on box buybacks.",
-  },
-  SupplySideRevenue: {
     "Buyback Spends": "USDC spent by the protocol on box buybacks.",
   },
 };
