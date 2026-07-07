@@ -1,8 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const FEES_API = "https://peptimart.xyz/api/defillama/fees";
+/** Origin fallback when Cloudflare bot protection blocks datacenter IPs (e.g. GitHub Actions CI). */
+const FEES_API_ORIGIN_FALLBACK =
+  "https://pepti-mart-production.up.railway.app/api/defillama/fees";
 
 type FeesPayload = {
   date: string;
@@ -43,10 +46,43 @@ const breakdownMethodology = {
   },
 };
 
+function feesRequestHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent": "defillama-dimension-adapters/1.0",
+  };
+  const apiKey = process.env.PEPTIMART_FEES_API_KEY?.trim();
+  if (apiKey) headers["x-defillama-api-key"] = apiKey;
+  return headers;
+}
+
+function isForbiddenError(error: unknown): boolean {
+  const status =
+    (error as { response?: { status?: number } })?.response?.status ??
+    (error as { status?: number })?.status;
+  return status === 403;
+}
+
+async function fetchFeesPayload(dateString: string): Promise<ApiResponse> {
+  const query = `?date=${dateString}`;
+  const headers = feesRequestHeaders();
+  const urls = [`${FEES_API}${query}`, `${FEES_API_ORIGIN_FALLBACK}${query}`];
+
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      return (await httpGet(url, { headers })) as ApiResponse;
+    } catch (error) {
+      lastError = error;
+      if (!isForbiddenError(error)) throw error;
+    }
+  }
+
+  throw lastError;
+}
+
 const fetch = async (options: FetchOptions) => {
-  const response = (await fetchURL(
-    `${FEES_API}?date=${options.dateString}`,
-  )) as ApiResponse;
+  const response = await fetchFeesPayload(options.dateString);
 
   if (!response?.ok || !response.data) {
     throw new Error(`Invalid response from PEPTIDES fees API for ${options.dateString}`);
