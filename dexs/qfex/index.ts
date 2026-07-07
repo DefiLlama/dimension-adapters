@@ -77,7 +77,7 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Volume: "Taker notional volume across all perpetual futures markets on QFEX (buy-side + sell-side taker notional, no double-counting of maker volume).",
-  OpenInterest: "Open interest is reported in contracts and converted to USD using the matching QFEX candle close for the requested hourly or daily window.",
+  OpenInterest: "Open interest is reported in contracts and converted to USD using the matching QFEX candle close for the requested daily window.",
 };
 
 const adapter: SimpleAdapter = {
