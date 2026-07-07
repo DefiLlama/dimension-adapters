@@ -5,12 +5,9 @@ import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 const BASE_URL = "https://api.qfex.com";
-// QFEX historical endpoints aggregate by minute interval; DefiLlama pulls this v2 adapter hourly and daily.
 const MINUTES_PER_DAY = 1440;
 const DAILY_CANDLE_RESOLUTION = "1DAY";
-const HOURLY_CANDLE_RESOLUTION = "1HOUR";
 const QFEX_API_CONCURRENCY = 2;
-// Keep a small per-worker delay between symbol requests to avoid bursting the QFEX public API.
 const QFEX_SYMBOL_THROTTLE_MS = 500;
 
 interface TakerVolumePoint {
@@ -31,22 +28,21 @@ interface CandlePoint {
 async function fetch(options: FetchOptions) {
   const fromISO = new Date(options.startTimestamp * 1000).toISOString();
   const toISO = new Date(options.endTimestamp * 1000).toISOString();
-  const intervalMinutes = Math.max(1, Math.round((options.endTimestamp - options.startTimestamp) / 60));
-  const candleResolution = intervalMinutes >= MINUTES_PER_DAY ? DAILY_CANDLE_RESOLUTION : HOURLY_CANDLE_RESOLUTION;
 
   const refdataRes = await fetchURL(`${BASE_URL}/refdata`);
   const symbols: string[] = (refdataRes.data ?? [])
     .filter((s: any) => s.status === "ACTIVE")
     .map((s: any) => s.symbol);
 
-  const { results, errors } = await PromisePool.withConcurrency(QFEX_API_CONCURRENCY).for(symbols).process(async (symbol) => {
+  // no need to handle errors as symbols active today may not be active yesterday
+  const { results } = await PromisePool.withConcurrency(QFEX_API_CONCURRENCY).for(symbols).process(async (symbol) => {
     const encoded = encodeURIComponent(symbol);
     const [volRes, oiRes, candleRes] = await Promise.all([
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/taker-volume/${encoded}?intervalMinutes=${intervalMinutes}&fromISO=${fromISO}&toISO=${toISO}`)
+      fetchURLAutoHandleRateLimit(`${BASE_URL}/taker-volume/${encoded}?intervalMinutes=${MINUTES_PER_DAY}&fromISO=${fromISO}&toISO=${toISO}`)
         .then((r) => (r.data ?? []) as TakerVolumePoint[]),
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/open-interest/${encoded}?intervalMinutes=${intervalMinutes}&fromISO=${fromISO}&toISO=${toISO}`)
+      fetchURLAutoHandleRateLimit(`${BASE_URL}/open-interest/${encoded}?intervalMinutes=${MINUTES_PER_DAY}&fromISO=${fromISO}&toISO=${toISO}`)
         .then((r) => (r.data ?? []) as OIPoint[]),
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/candles/${encoded}?resolution=${candleResolution}&fromISO=${fromISO}&toISO=${toISO}`)
+      fetchURLAutoHandleRateLimit(`${BASE_URL}/candles/${encoded}?resolution=${DAILY_CANDLE_RESOLUTION}&fromISO=${fromISO}&toISO=${toISO}`)
         .then((r) => (r.candles ?? []) as CandlePoint[]),
     ]);
 
@@ -67,8 +63,6 @@ async function fetch(options: FetchOptions) {
     return { dailyVolumeUSD, openInterestAtEndUSD };
   });
 
-  if (errors.length > 0) throw errors[0];
-
   const dailyVolume = options.createBalances();
   dailyVolume.addUSDValue(results.reduce((sum, result) => sum + result.dailyVolumeUSD, 0));
 
@@ -87,11 +81,10 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-02-26",
-  pullHourly: true,
   methodology,
 };
 
