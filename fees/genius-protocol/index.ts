@@ -42,31 +42,20 @@ const SOLANA_FEE_COLLECTORS = [
 const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  for (const addr of EVM_FEE_COLLECTORS) {
-    try {
-      await addTokensReceived({
-        options,
-        target: addr,
-        balances: dailyFees,
-        skipIndexer: true,
-        logFilter: (log: any) => !EVM_COLLECTORS_SET.has(log.from?.toLowerCase()),
-      });
-    } catch (e) {
-      console.warn(`[genius-protocol] token inflows skipped (${options.chain}, ${addr}): ${(e as Error).message}`);
-    }
+  await addTokensReceived({
+    options,
+    targets: EVM_FEE_COLLECTORS,
+    balances: dailyFees,
+    logFilter: (log) => !EVM_COLLECTORS_SET.has(String(log.from ?? log.fromAddress ?? '').toLowerCase()),
+  });
 
-    if (options.chain !== CHAIN.HYPERLIQUID) {
-      try {
-        await getETHReceived({
-          options,
-          balances: dailyFees,
-          target: addr,
-          notFromSenders: EVM_FEE_COLLECTORS.filter(a => a !== addr),
-        });
-      } catch (e) {
-        console.warn(`[genius-protocol] native inflows skipped (${options.chain}, ${addr}): ${(e as Error).message}`);
-      }
-    }
+  if (options.chain !== CHAIN.HYPERLIQUID) {
+    await getETHReceived({
+      options,
+      balances: dailyFees,
+      targets: EVM_FEE_COLLECTORS,
+      notFromSenders: EVM_FEE_COLLECTORS,
+    });
   }
 
   return {
@@ -78,18 +67,12 @@ const fetchEVM = async (options: FetchOptions) => {
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  for (const addr of SOLANA_FEE_COLLECTORS) {
-    try {
-      await getSolanaReceived({
-        options,
-        balances: dailyFees,
-        target: addr,
-        blacklists: SOLANA_FEE_COLLECTORS.filter(a => a !== addr),
-      });
-    } catch (e) {
-      console.warn(`[genius-protocol] inflows skipped (solana, ${addr}): ${(e as Error).message}`);
-    }
-  }
+  await getSolanaReceived({
+    options,
+    balances: dailyFees,
+    targets: SOLANA_FEE_COLLECTORS,
+    blacklists: SOLANA_FEE_COLLECTORS,
+  });
 
   return {
     dailyFees,
