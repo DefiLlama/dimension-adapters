@@ -3,15 +3,24 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet, fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 
-
-const API = "https://mainnet.zklighter.elliot.ai/api/v1";
+const chainConfig: Record<string, { api: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: {
+    api: "https://mainnet.zklighter.elliot.ai/api/v1",
+    start: "2025-01-17",
+  },
+  [CHAIN.ROBINHOOD]: {
+    api: "https://api.rh.lighter.xyz/api/v1",
+    start: "2026-06-26",
+  },
+};
 
 const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0;
   const start = options.startOfDay;
+  const { api } = chainConfig[options.chain];
 
   // Get all markets
-  const markets = await httpGet(`${API}/orderBooks?market_id=255`);
+  const markets = await httpGet(`${api}/orderBooks?market_id=255`);
   options.api.log('Lighter markets #', markets?.order_books?.length || 0);
 
   // Filter markets to only include those with market_id < 2048
@@ -28,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
         end_timestamp: start + 1,
         count_back: 1,
       }
-      const url = `${API}/candles?${new URLSearchParams(params as any).toString()}`;
+      const url = `${api}/candles?${new URLSearchParams(params as any).toString()}`;
       const data = await fetchURLAutoHandleRateLimit(url);
 
       const candle = data?.c?.[0];
@@ -47,8 +56,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.ZK_LIGHTER],
-  start: "2025-01-17",       // earliest candlestick data available
+  adapter: chainConfig,
   methodology,
 };
 
