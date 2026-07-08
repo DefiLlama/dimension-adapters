@@ -7,8 +7,15 @@ import { METRIC } from "../../helpers/metrics";
 // EasyA Kickstart is a Solana memecoin launchpad built on top of Meteora's
 // Dynamic Bonding Curve (DBC) program. Every token launched via Kickstart is
 // a DBC VirtualPool whose `config` field points at one of EasyA's eight
-// PoolConfig accounts (all share the same fee_claimer EfgbywXHbDn...).
-// All configs use WSOL as the quote asset.
+// production PoolConfig accounts (all share the same fee_claimer
+// 1kRMrKuuZhFW26Jt2woYreCKFu54atpaNuQ1wP3CXry). All configs use WSOL as the
+// quote asset.
+//
+// Deliberately excluded (per the EasyA team): three pre-launch dev/testing
+// configs (Ad8F8KfT..., 2rDu7vM4..., APoF1UjW..., ~0.64 SOL lifetime fees
+// combined - not product usage), and one config created by an unrelated
+// third-party deployer that merely names EasyA's wallet as fee_claimer
+// (2SX1yP1p..., routes 100% of fees to the token creator).
 //
 // Fee splits are immutable PoolConfig constants, hardcoded here because the
 // on-chain values are what the programs enforce:
