@@ -36,6 +36,27 @@ const BOUGHT =
 const SOLD =
   "event Sold(address indexed seller, uint256 tokensIn, uint256 ethOut, uint256 fee, uint128 reserveEth, uint128 reserveToken)";
 
+// Module-level curve cache so hourly runs don't re-scan TokenCreated from the deploy block every time:
+// each run only scans the blocks added since the last one. The list is append-only (curves are never
+// deleted on-chain), so serving a superset to an out-of-order/backfill window is still correct — curves
+// created later simply have no Bought/Sold events inside that window.
+const curveCache = { curves: [] as string[], toBlock: 0 };
+
+async function getCurves(options: FetchOptions): Promise<string[]> {
+  const toBlock: number = await options.getToBlock();
+  if (toBlock > curveCache.toBlock) {
+    const created = await options.getLogs({
+      target: FACTORY,
+      eventAbi: TOKEN_CREATED,
+      fromBlock: curveCache.toBlock ? curveCache.toBlock + 1 : FROM_BLOCK,
+      toBlock,
+    });
+    for (const l of created) if (!curveCache.curves.includes(l.curve)) curveCache.curves.push(l.curve);
+    curveCache.toBlock = toBlock;
+  }
+  return curveCache.curves;
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -47,7 +68,7 @@ const fetch = async (options: FetchOptions) => {
   for (const d of deposits) {
     if (d.from.toLowerCase() === FACTORY.toLowerCase()) {
       dailyFees.addGasToken(d.amount, "Token Creation Fees");
-      dailyRevenue.addGasToken(d.amount, "Token Creation Fees");
+      dailyRevenue.addGasToken(d.amount, "Token Creation Fees To Treasury");
     }
   }
 
@@ -55,13 +76,12 @@ const fetch = async (options: FetchOptions) => {
   const collected = await options.getLogs({ target: FEE_MANAGER, eventAbi: FEES_COLLECTED });
   for (const c of collected) {
     dailyFees.addGasToken(c.totalFee, METRIC.TRADING_FEES);
-    dailyRevenue.addGasToken(c.protocolFee, METRIC.TRADING_FEES);
-    dailySupplySideRevenue.addGasToken(c.creatorFee, "Creator Fees"); // 0 while creator fees are disabled
+    dailyRevenue.addGasToken(c.protocolFee, "Trade Fees To Protocol");
+    dailySupplySideRevenue.addGasToken(c.creatorFee, "Trade Fees To Creators"); // 0 while creator fees are disabled
   }
 
-  // (3) volume — Bought/Sold on every curve (curves enumerated from the factory since deployment)
-  const created = await options.getLogs({ target: FACTORY, eventAbi: TOKEN_CREATED, fromBlock: FROM_BLOCK });
-  const curves = created.map((l: any) => l.curve);
+  // (3) volume — Bought/Sold on every curve (incrementally cached enumeration)
+  const curves = await getCurves(options);
   if (curves.length) {
     const buys = await options.getLogs({ targets: curves, eventAbi: BOUGHT });
     const sells = await options.getLogs({ targets: curves, eventAbi: SOLD });
@@ -89,11 +109,11 @@ const adapter: Adapter = {
       [METRIC.TRADING_FEES]: "Bonding-curve trade fee (inclusive, capped at 2%) on the ETH leg of every buy and sell.",
     },
     Revenue: {
-      "Token Creation Fees": "The full creation fee is protocol revenue (kept by the Treasury).",
-      [METRIC.TRADING_FEES]: "Protocol slice of the bonding-curve trade fee.",
+      "Token Creation Fees To Treasury": "The full creation fee is protocol revenue (kept by the Treasury).",
+      "Trade Fees To Protocol": "Protocol slice of the bonding-curve trade fee.",
     },
     SupplySideRevenue: {
-      "Creator Fees": "Creator slice of the bonding-curve trade fee (currently disabled, so 0).",
+      "Trade Fees To Creators": "Creator slice of the bonding-curve trade fee (currently disabled, so 0).",
     },
   },
   adapter: {
