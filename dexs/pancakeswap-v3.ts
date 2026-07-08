@@ -62,10 +62,10 @@ const factories: {[key: string]: Ifactory} = {
     start: '2025-11-23',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
   },
-  [CHAIN.ROBINHOOD]: {
-    start: '2026-06-30',
-    address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
-  }
+  // [CHAIN.ROBINHOOD]: {
+  //   start: '2026-06-30',
+  //   address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
+  // }
 }
 
 export const PANCAKESWAP_V3_QUERY_SOLANA = (fromTime: number, toTime: number) => {
