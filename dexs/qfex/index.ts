@@ -1,73 +1,39 @@
-import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
-import { sleep } from "../../utils/utils";
+import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL = "https://api.qfex.com";
-const MINUTES_PER_DAY = 1440;
-const DAILY_CANDLE_RESOLUTION = "1DAY";
-const QFEX_API_CONCURRENCY = 2;
-const QFEX_SYMBOL_THROTTLE_MS = 500;
 
-interface TakerVolumePoint {
-  takerBuyNotional: number;
-  takerSellNotional: number;
-}
-
-interface OIPoint {
+interface DefillamaMetricsPoint {
   windowStart: string;
-  openInterest: number | null;
-}
-
-interface CandlePoint {
-  startedAt: string;
-  close: string;
+  dailyVolumeUSD: number;
+  openInterestAtEndUSD: number;
 }
 
 async function fetch(options: FetchOptions) {
   const fromISO = new Date(options.startTimestamp * 1000).toISOString();
   const toISO = new Date(options.endTimestamp * 1000).toISOString();
+  const intervalMinutes = Math.max(1, Math.round((options.endTimestamp - options.startTimestamp) / 60));
+  const windowStart = new Date(options.startTimestamp * 1000).toISOString().replace(".000Z", "Z");
 
-  const refdataRes = await fetchURL(`${BASE_URL}/refdata`);
-  const symbols: string[] = (refdataRes.data ?? [])
-    .filter((s: any) => s.status === "ACTIVE")
-    .map((s: any) => s.symbol);
+  const res = await fetchURL(
+    `${BASE_URL}/defillama/metrics?intervalMinutes=${intervalMinutes}&fromISO=${fromISO}&toISO=${toISO}`,
+  );
+  const points = (res.data ?? []) as DefillamaMetricsPoint[];
+  const point = points.find((p) => p.windowStart === windowStart) ?? points[points.length - 1];
 
-  // no need to handle errors as symbols active today may not be active yesterday
-  const { results } = await PromisePool.withConcurrency(QFEX_API_CONCURRENCY).for(symbols).process(async (symbol) => {
-    const encoded = encodeURIComponent(symbol);
-    const [volRes, oiRes, candleRes] = await Promise.all([
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/taker-volume/${encoded}?intervalMinutes=${MINUTES_PER_DAY}&fromISO=${fromISO}&toISO=${toISO}`)
-        .then((r) => (r.data ?? []) as TakerVolumePoint[]),
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/open-interest/${encoded}?intervalMinutes=${MINUTES_PER_DAY}&fromISO=${fromISO}&toISO=${toISO}`)
-        .then((r) => (r.data ?? []) as OIPoint[]),
-      fetchURLAutoHandleRateLimit(`${BASE_URL}/candles/${encoded}?resolution=${DAILY_CANDLE_RESOLUTION}&fromISO=${fromISO}&toISO=${toISO}`)
-        .then((r) => (r.candles ?? []) as CandlePoint[]),
-    ]);
+  if (!point) throw new Error(`Missing QFEX DefiLlama metrics for ${windowStart}`);
 
-    const dailyVolumeUSD = volRes.reduce((sum, p) => sum + (p.takerBuyNotional ?? 0) + (p.takerSellNotional ?? 0), 0);
-    let openInterestAtEndUSD = 0;
-
-    if (oiRes.length > 0) {
-      const last = oiRes[oiRes.length - 1];
-      const closePrice = Number(candleRes.find((c) => c.startedAt === last.windowStart)?.close);
-      const openInterest = Number(last.openInterest);
-      if (Number.isFinite(openInterest)) {
-        if (!Number.isFinite(closePrice)) throw new Error(`Missing close price for ${symbol}`);
-        openInterestAtEndUSD = openInterest * closePrice;
-      }
-    }
-
-    await sleep(QFEX_SYMBOL_THROTTLE_MS);
-    return { dailyVolumeUSD, openInterestAtEndUSD };
-  });
+  const dailyVolumeUSD = Number(point.dailyVolumeUSD);
+  const openInterestAtEndUSD = Number(point.openInterestAtEndUSD);
+  if (!Number.isFinite(dailyVolumeUSD)) throw new Error(`Invalid QFEX dailyVolumeUSD for ${windowStart}`);
+  if (!Number.isFinite(openInterestAtEndUSD)) throw new Error(`Invalid QFEX openInterestAtEndUSD for ${windowStart}`);
 
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(results.reduce((sum, result) => sum + result.dailyVolumeUSD, 0));
+  dailyVolume.addUSDValue(dailyVolumeUSD);
 
   const openInterestAtEnd = options.createBalances();
-  openInterestAtEnd.addUSDValue(results.reduce((sum, result) => sum + result.openInterestAtEndUSD, 0));
+  openInterestAtEnd.addUSDValue(openInterestAtEndUSD);
 
   return {
     dailyVolume,
@@ -77,14 +43,15 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Volume: "Taker notional volume across all perpetual futures markets on QFEX (buy-side + sell-side taker notional, no double-counting of maker volume).",
-  OpenInterest: "Open interest is reported in contracts and converted to USD using the matching QFEX candle close for the requested daily window.",
+  OpenInterest: "Open interest is converted from contracts to USD using the matching QFEX window price.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-02-26",
+  pullHourly: true,
   methodology,
 };
 
