@@ -21,6 +21,11 @@ const adapter: SimpleAdapter = uniV2Exports({
     start: '2025-06-04',
     ...feeConfig,
   },
+  // [CHAIN.DOGECHAIN]: {
+  //   factory: '0xC3550497E591Ac6ed7a7E03ffC711CfB7412E57F',
+  //   start: '2023-04-11',
+  //   ...feeConfig,
+  // }
 }, { runAsV1: true });
 
 adapter.methodology = {
