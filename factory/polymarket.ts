@@ -27,6 +27,7 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "traderline": { builder: "traderline", start: "2025-12-01", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984" },
   "metamask": { builder: "MetaMask", start: "2025-11-10", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883" },
   "wager-up-pilot": { builder: "WagerUpPilot", start: "2026-04-07", builderCode: "0xbc37cc54237a06aa0d380814fadf2f5b6d20483300833f381e4727f1066845fb" },
+  "yeno": { builder: "yeno-markets", start: "2026-06-26", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string }> = {
@@ -39,6 +40,7 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
   "based-predict": { builderName: "Based", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf", start: "2026-04-28" },
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
+  "yeno": { builderName: "yeno-markets", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f", start: "2026-06-26" },
 }
 
 const dexsProtocols: Record<string, any> = {};
