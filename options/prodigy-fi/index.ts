@@ -37,12 +37,14 @@ function addVaultMetadata(
   quantity: any,
   yieldValue: any,
 ) {
-  if (!vaultAddress || !investmentToken || quantity === null || quantity === undefined) return;
+  if (!vaultAddress || !investmentToken || quantity === null || quantity === undefined || yieldValue === null || yieldValue === undefined) {
+    throw new Error(`Incomplete VaultCreated metadata for vault ${vaultAddress ?? "<missing>"}`);
+  }
 
   vaults.set(vaultAddress.toLowerCase(), {
     token: investmentToken.toLowerCase(),
     quantity: toBigInt(quantity),
-    yieldValue: toBigInt(yieldValue ?? 0),
+    yieldValue: toBigInt(yieldValue),
   });
 }
 
