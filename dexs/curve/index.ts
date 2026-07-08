@@ -240,6 +240,44 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       }
     }
   },
+  [CHAIN.BSC]: {
+    start: '2023-12-19',
+    stable_factory: [
+      '0xEfDE221f306152971D8e9f181bFe998447975810',
+    ],
+    factory_crypto: [
+      '0xBd5fBd2FA58cB15228a9Abdac9ec994f79E3483C',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0x38f8D93406fA2d9924DcFcB67dB5B0521Fb20F7D',
+    ],
+    factory_stable_ng: [
+      '0xd7E72f3615aa65b92A4DBdC211E296a35512988B',
+    ],
+    customPools: {},
+  },
+  [CHAIN.FANTOM]: {
+    start: '2021-02-20',
+    stable_factory: [
+      '0x686d67265703d1f124c45e33d47d794c566889ba',
+    ],
+    factory_crypto: [
+      '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
+    ],
+    factory_stable_ng: [
+      '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
+    ],
+    customPools: {},
+  },
   [CHAIN.POLYGON]: {
     start: '2021-10-05',
     stable_factory: [
