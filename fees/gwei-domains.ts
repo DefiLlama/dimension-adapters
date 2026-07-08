@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
   if (delta > 0n) dailyFees.addGasToken(delta, METRIC.SERVICE_FEES);
 
   // All fees are locked in the contract forever, so they are revenue that is fully burned.
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  return { dailyFees, };
 };
 
 const adapter: SimpleAdapter = {
@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2026-06-26",
-  isExpensiveAdapter: true,
+  pullHourly: true,
   methodology: {
     Fees: "ETH paid by users to register and renew .gwei names, measured as the daily increase of the NameNFT contract's ETH balance.",
     Revenue: "All fees are permanently locked in the ownerless contract (no owner, no withdraw), so 100% of fees are burned.",
