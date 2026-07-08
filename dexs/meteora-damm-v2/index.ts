@@ -7,8 +7,7 @@ import { sleep } from '../../utils/utils';
 // Min pool fee is 0.25% so wash trading is not economically viable
 
 async function fetch() {
-  const baseUrl = 'https://damm-v2.datapi.meteora.ag/pools/groups';
-  const allPoolsUrl = 'https://damm-v2.datapi.meteora.ag/pools';
+  const baseUrl = 'https://damm-v2.datapi.meteora.ag/pools';
 
   const nonBlacklistedPools = new Set();
 
@@ -53,7 +52,7 @@ async function fetch() {
     const lpFeeRatio = 0.8;
 
     while (true) {
-      const response = await httpGet(`${allPoolsUrl}?is_blacklisted=false&tvl>=10000&page=${page}&page_size=${page_size}`);
+      const response = await httpGet(`${baseUrl}?is_blacklisted=false&tvl>=10000&page=${page}&page_size=${page_size}`);
       
       const pools = response.data || [];
       if (pools.length === 0) break;
