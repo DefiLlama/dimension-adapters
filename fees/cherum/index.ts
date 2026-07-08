@@ -6,7 +6,9 @@ import {
 } from "../../helpers/aggregators/cherum";
 
 const ProtocolFee = "Cherum protocol fee";
+const ProtocolFeeToProtocol = "Cherum Protocol Fee To Protocol";
 const IntegratorFee = "Integrator fee";
+const IntegratorFeeToIntegrators = "Integrator Fee To Integrators";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -22,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   });
   protocolLogs.forEach((log: any) => {
     dailyFees.add(log.token, log.amount, ProtocolFee);
-    dailyRevenue.add(log.token, log.amount, ProtocolFee);
+    dailyRevenue.add(log.token, log.amount, ProtocolFeeToProtocol);
   });
 
   const integratorLogs: any[] = await options.getLogs({
@@ -32,7 +34,7 @@ const fetch = async (options: FetchOptions) => {
   });
   integratorLogs.forEach((log: any) => {
     dailyFees.add(log.token, log.amount, IntegratorFee);
-    dailySupplySideRevenue.add(log.token, log.amount, IntegratorFee);
+    dailySupplySideRevenue.add(log.token, log.amount, IntegratorFeeToIntegrators);
   });
 
   return {
@@ -65,13 +67,13 @@ const adapter: SimpleAdapter = {
       [IntegratorFee]: "Markup paid to third-party integrators (IntegratorFeeCollected events).",
     },
     Revenue: {
-      [ProtocolFee]: "Fee retained by the Cherum protocol.",
+      [ProtocolFeeToProtocol]: "Fee retained by the Cherum protocol.",
     },
     ProtocolRevenue: {
-      [ProtocolFee]: "Fee retained by the Cherum protocol.",
+      [ProtocolFeeToProtocol]: "Fee retained by the Cherum protocol.",
     },
     SupplySideRevenue: {
-      [IntegratorFee]: "Markup paid to third-party integrators.",
+      [IntegratorFeeToIntegrators]: "Markup paid to third-party integrators.",
     },
   },
 };

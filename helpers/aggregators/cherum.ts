@@ -1,6 +1,7 @@
 import { CHAIN } from "../chains";
 
-// Cherum V2 routers (deployed 2026-06-26; HyperEVM 2026-07-05).
+// Cherum V2 routers (deployed 2026-06-26).
+// Source: https://docs.cherum.io/contracts (canonical per-chain addresses).
 // router  = CherumRouter (same-chain batch swaps)
 // fanout  = CherumFanOutRouter (cross-chain fan-out source side)
 // Note: the same address can play a different role on different chains
