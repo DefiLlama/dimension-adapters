@@ -1,20 +1,17 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { ABI } from "../helpers/curators/configs"
-import { getERC4626VaultsYield } from "../helpers/erc4626"
 import { getConfig } from "../helpers/cache"
 import fetchURL from "../utils/fetchURL"
 
 const SENTORA_API = 'https://services.vaults.sentora.com/vaults'
 const KAMINO_API = 'https://api.kamino.finance'
+const UPSHIFT_API = 'https://api.upshift.finance/v1/tokenized_vaults'
 
-// Sentora's share of the Veda BoringVault performance fee (per Sentora team:
-// they take 20% of the 25% perf fee on Kraken Earn vaults; the remaining 80%
-// accrues to Veda and is counted in fees/veda.ts).
+// Sentora takes 20% of the Veda BoringVault perf fee; the remaining 80% is counted in fees/veda.ts.
 const SENTORA_BORING_PERF_SHARE = 0.20
 
-// Sentora's performance fee on Euler v2 vaults (uniform 10% across positions,
-// per Sentora's public vault dashboard at vaults.sentora.com).
+// Uniform 10% Sentora perf fee on Euler v2 vaults (per Sentora dashboard).
 const SENTORA_EULER_PERF_RATE = 0.10
 
 const ONE_SHARE = String(1e18)
@@ -69,10 +66,17 @@ const L = {
   boringPerf: 'BoringVault Performance Fees',
   upshiftYields: 'Upshift Yields',
   upshiftSupply: 'Upshift Yields Distributed To Suppliers',
+  upshiftPerf: 'Upshift Performance Fees',
   kaminoYields: 'Kamino Yields',
   kaminoSupply: 'Kamino Yields Distributed To Suppliers',
   kaminoPerf: 'Kamino Performance Fees',
   kaminoMgmt: 'Kamino Management Fees',
+}
+
+const waivedByDate = (until: any, nowSeconds: number): boolean => {
+  if (!until) return false
+  const ts = Date.parse(until) / 1000
+  return !isNaN(ts) && ts > nowSeconds
 }
 
 const ABIS = {
@@ -82,7 +86,7 @@ const ABIS = {
   boringAccountant: 'address:accountant',
   boringBase: 'address:base',
   boringRate: 'uint256:getRate',
-  // Different AccountantWithRateProviders versions expose different layouts.
+  // V1 accountantState has no perf fee slot; V2 exposes perfFeeRate at index 11.
   boringStateV1: 'function accountantState() view returns(address,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint32,uint16)',
   boringStateV2: 'function accountantState() view returns(address,uint96,uint128,uint128,uint96,uint16,uint16,uint64,bool,uint24,uint16,uint16)',
 }
@@ -131,22 +135,9 @@ async function convertSharesToAssets(options: FetchOptions, items: { vault: stri
   return assets.map(toNum)
 }
 
-type BoringState = { exchangeRate: number; perfFeeRate: number; platformFeeRate: number }
-
-// Resolves the BoringVault accountant state into named fields. The accountant
-// has two possible layouts (v1 has no perf fee, v2 has both); the SDK returns
-// null for whichever ABI didn't decode.
-function decodeBoringState(stateV1: any, stateV2: any): BoringState | null {
-  if (stateV2) return {
-    exchangeRate: toNum(stateV2[4]),
-    platformFeeRate: toNum(stateV2[10]) / FEE_BASE_4,
-    perfFeeRate: toNum(stateV2[11]) / FEE_BASE_4,
-  }
-  if (stateV1) return {
-    exchangeRate: toNum(stateV1[3]),
-    platformFeeRate: toNum(stateV1[9]) / FEE_BASE_4,
-    perfFeeRate: 0,
-  }
+function boringPerfFeeRate(stateV1: any, stateV2: any): number | null {
+  if (stateV2) return toNum(stateV2[11]) / FEE_BASE_4
+  if (stateV1) return 0
   return null
 }
 
@@ -178,8 +169,7 @@ async function accrueMorpho(options: FetchOptions, balances: Balances, vaults: s
 
   for (let i = 0; i < rates.length; i++) {
     const v = rates[i]
-    // Share-price growth is already net of curator fees (fee shares dilute the
-    // share price). Total vault yield = supplier yield + perf + mgmt.
+    // Share-price growth is net of curator fees (fee shares dilute price) → gross = supplier + perf + mgmt.
     const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
     const perf = perfAssets[i]
     const mgmt = mgmtAssets[i]
@@ -195,9 +185,7 @@ async function accrueEuler(options: FetchOptions, balances: Balances, vaults: st
   const rates = await readVaultRates(options, vaults)
   if (!rates.length) return
 
-  // Rate-based: ConvertFees events are lumpy (governor-triggered) and don't
-  // reflect daily accrual. Share-price growth is already net of the 10% perf
-  // fee, so gross-up before splitting curator revenue from supplier yield.
+  // Share-price growth is net of the 10% perf fee → gross-up, then split curator revenue from supplier yield.
   for (const v of rates) {
     const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
     const grossYield = netYield / (1 - SENTORA_EULER_PERF_RATE)
@@ -236,8 +224,8 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
   ])
 
   for (let i = 0; i < valid.length; i++) {
-    const state = decodeBoringState(statesV1[i], statesV2[i])
-    if (!state) continue
+    const perfFeeRate = boringPerfFeeRate(statesV1[i], statesV2[i])
+    if (perfFeeRate === null) continue
 
     const asset = assets[i]
     const supply = toNum(supplies[i])
@@ -246,24 +234,74 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     const rateAfter = toNum(ratesTo[i])
     if (rateAfter <= rateBefore) continue
 
-    // Share-price growth is net of perf fee — gross-up to recover total yield.
+    // Share-price growth is net of perf fee — gross-up, then keep only Sentora's 20% slice.
     const netYield = supply * (rateAfter - rateBefore) / rateBase
-    const grossYield = state.perfFeeRate < 1 ? netYield / (1 - state.perfFeeRate) : netYield
+    const grossYield = perfFeeRate < 1 ? netYield / (1 - perfFeeRate) : netYield
     const sentoraPerf = (grossYield - netYield) * SENTORA_BORING_PERF_SHARE
 
-    // Only Sentora's slice of the flow is attributed here — Veda's 80% of perf
-    // and the platform fee are counted in fees/veda.ts.
     balances.dailyFees.add(asset, netYield + sentoraPerf, L.boringYields)
     balances.dailyRevenue.add(asset, sentoraPerf, L.boringPerf)
     balances.dailySupplySideRevenue.add(asset, netYield, L.boringSupply)
   }
 }
 
+function snapshotAt(snapshots: any[], timestamp: number): any | undefined {
+  let best: any
+  let bestTs = -Infinity
+  for (const s of snapshots) {
+    const ts = Date.parse(String(s.snapshot_datetime).split('.')[0] + 'Z') / 1000
+    if (ts <= timestamp && ts > bestTs) { bestTs = ts; best = s }
+  }
+  return best
+}
+
 async function accrueUpshift(options: FetchOptions, balances: Balances, vaults: string[]) {
   if (!vaults.length) return
-  const yields = await getERC4626VaultsYield({ options, vaults })
-  balances.dailyFees.add(yields, L.upshiftYields)
-  balances.dailySupplySideRevenue.add(yields, L.upshiftSupply)
+
+  const upshiftVaults: any[] = await getConfig('upshift-vaults', UPSHIFT_API)
+  const byAddress = new Map<string, any>(upshiftVaults.map(v => [String(v.address).toLowerCase(), v]))
+
+  const perfFeeOf = (info: any): number =>
+    info && !waivedByDate(info.performance_fee_waived_until_date, options.toTimestamp)
+      ? toNum(info.weekly_performance_fee_bps) / 100
+      : 0
+
+  // multiAssetVault contracts have no ERC4626 reads on-chain — NAV comes from Upshift API snapshots.
+  const erc4626Vaults: string[] = []
+  const multiAsset: any[] = []
+  for (const vault of vaults) {
+    const info = byAddress.get(vault.toLowerCase())
+    if (info?.internal_type === 'multiAssetVault') multiAsset.push(info)
+    else erc4626Vaults.push(vault)
+  }
+
+  const rates = await readVaultRates(options, erc4626Vaults)
+  for (const v of rates) {
+    const perfFee = perfFeeOf(byAddress.get(v.vault.toLowerCase()))
+    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    const grossYield = perfFee > 0 && perfFee < 1 ? netYield / (1 - perfFee) : netYield
+    const perf = grossYield - netYield
+    balances.dailyFees.add(v.asset, grossYield, L.upshiftYields)
+    if (perf > 0) balances.dailyRevenue.add(v.asset, perf, L.upshiftPerf)
+    balances.dailySupplySideRevenue.add(v.asset, netYield, L.upshiftSupply)
+  }
+
+  for (const info of multiAsset) {
+    const snapshots: any[] = info.historical_snapshots ?? []
+    const before = snapshotAt(snapshots, options.fromTimestamp)
+    const after = snapshotAt(snapshots, options.toTimestamp)
+    if (!before || !after || after === before) continue
+
+    const netYieldUsd = (toNum(after.asset_share_ratio) - toNum(before.asset_share_ratio)) * toNum(after.total_shares) * toNum(after.underlying_price)
+    if (netYieldUsd <= 0) continue
+
+    const perfFee = perfFeeOf(info)
+    const grossYieldUsd = perfFee > 0 && perfFee < 1 ? netYieldUsd / (1 - perfFee) : netYieldUsd
+    const perf = grossYieldUsd - netYieldUsd
+    balances.dailyFees.addUSDValue(grossYieldUsd, L.upshiftYields)
+    if (perf > 0) balances.dailyRevenue.addUSDValue(perf, L.upshiftPerf)
+    balances.dailySupplySideRevenue.addUSDValue(netYieldUsd, L.upshiftSupply)
+  }
 }
 
 async function accrueKamino(options: FetchOptions, balances: Balances, vaults: string[]) {
@@ -273,8 +311,6 @@ async function accrueKamino(options: FetchOptions, balances: Balances, vaults: s
   const endDate = new Date((options.toTimestamp + 86400) * 1000).toISOString().split('T')[0]
   const elapsed = options.toTimestamp - options.fromTimestamp
 
-  // Parallel fetch — Kamino's HTTP API (not RPC) tolerates concurrent calls
-  // for a bounded vault list; per-vault config+history requests also run in parallel.
   const perVault = await Promise.all(vaults.map(async vault => {
     const [config, history] = await Promise.all([
       fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`),
@@ -366,6 +402,7 @@ const revenueBreakdown = {
   [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient (AccrueInterest events).',
   [L.eulerPerf]: 'Sentora 10% performance fee on Euler v2 vault yields.',
   [L.boringPerf]: 'Sentora 20% share of the Veda BoringVault performance fee.',
+  [L.upshiftPerf]: 'Sentora performance fee on Upshift vault yields (rate and waiver state driven by the Upshift API).',
   [L.kaminoPerf]: 'Performance fees on interest earned by Kamino kvaults.',
   [L.kaminoMgmt]: 'Management fees on Kamino kvault TVL.',
 }
