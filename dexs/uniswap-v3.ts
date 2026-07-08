@@ -1,44 +1,34 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { BaseAdapter, Dependencies, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
-import { filterPools, getUniV3LogAdapter } from "../helpers/uniswap";
+import { filterPools } from "../helpers/uniswap";
 import { addOneToken } from "../helpers/prices";
 import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
-import { queryDune } from "../helpers/dune";
 import { formatAddress } from "../utils/utils";
+import { ethers } from "ethers";
+import { cache } from "@defillama/sdk";
+import { queryClickhouse } from "../helpers/indexer";
+import { Row } from "@clickhouse/client";
 
-const v3Endpoints = {
-  // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
-  // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
-  // [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
-  // [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3V7ZY6muhxaQL5qvntX1CFXJ32W7BxXZTGTwmpH5J4t3'),
-  // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
-  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
-  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
-  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
-  // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX'),
-  //[CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
+const methodology = {
+  Fees: "Swap fees from paid by users.",
+  UserFees: "User pays fees on each swap.",
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  methodology,
+  adapter: {},
+
+  // revenue calculated here is combination of v2 & v3, supply side revenue can be negative when v2+v3 revenue > v3 ssr 
+  // which is already compensated by v2 ssr, so cumulative holds correct
+  allowNegativeValue: true,
 };
-
-type TStartTime = {
-  [key: string]: string;
-}
-const startTimeV3: TStartTime = {
-  [CHAIN.ETHEREUM]: '2021-05-05',
-  [CHAIN.OPTIMISM]: '2021-11-12',
-  [CHAIN.ARBITRUM]: '2021-08-31',
-  [CHAIN.POLYGON]: '2021-12-21',
-  [CHAIN.CELO]: '2022-07-09',
-  [CHAIN.BSC]: '2023-03-13',
-  [CHAIN.AVAX]: '2023-07-11',
-  [CHAIN.BASE]: '2023-08-06',
-  [CHAIN.ERA]: '2023-08-31',
-  [CHAIN.XLAYER]: '2026-01-05',
-}
 
 const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.ETHEREUM]: "2025-12-29",
@@ -51,6 +41,100 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.XLAYER]: "2026-03-08",
   [CHAIN.BSC]: "2026-06-02",
   [CHAIN.POLYGON]: "2026-06-02",
+}
+
+interface IFactoryConfig {
+  factory: string;
+  start: string;
+  fromBlock?: number;
+  usingIndexerToGetPools?: boolean;
+}
+
+const FACTORIES: Record<string, IFactoryConfig> = {
+  // use on-chain events
+  // [CHAIN.ZORA]: {
+  //   factory: '0x7145F8aeef1f6510E92164038E1B6F8cB2c42Cbb',
+  //   start: '2024-08-02',
+  //   fromBlock: 10320368,
+  // },
+  [CHAIN.CELO]: {
+    factory: '0xAfE208a311B21f13EF87E33A90049fC17A7acDEc',
+    start: '2022-07-08',
+    fromBlock: 13916355,
+  },
+
+  // query clickhouse indexer
+  [CHAIN.ETHEREUM]: {
+    factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+    start: '2021-05-05',
+    fromBlock: 12369621,
+    usingIndexerToGetPools: true,
+  },
+  [CHAIN.ARBITRUM]: {
+    factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+    start: '2021-06-02',
+    fromBlock: 165,
+    usingIndexerToGetPools: true,
+  },
+  [CHAIN.BSC]: {
+    factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
+    start: '2023-03-10',
+    fromBlock: 26324014,
+    usingIndexerToGetPools: true,
+  },
+  [CHAIN.BASE]: {
+    factory: '0x33128a8fC17869897dcE68Ed026d694621f6FDfD',
+    start: '2023-07-17',
+    usingIndexerToGetPools: true,
+  },
+  [CHAIN.OPTIMISM]: {
+    factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+    start: '2021-11-16',
+    usingIndexerToGetPools: true,
+  },
+  [CHAIN.XLAYER]: {
+    factory: '0x4B2ab38DBF28D31D467aA8993f6c2585981D6804',
+    start: '2025-12-06',
+    usingIndexerToGetPools: true,
+  },
+  
+  // using cache
+  [CHAIN.UNICHAIN]: {
+    factory: '0x1f98400000000000000000000000000000000003',
+    start: '2024-11-06',
+  },
+  [CHAIN.AVAX]: {
+    factory: '0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD',
+    start: '2023-07-11',
+  },
+  [CHAIN.PLASMA]: {
+    factory: '0xcb2436774C3e191c85056d248EF4260ce5f27A9D',
+    start: '2025-09-09',
+  },
+  [CHAIN.BLAST]: {
+    factory: '0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd',
+    start: '2024-03-06',
+  },
+  [CHAIN.NIBIRU]: {
+    factory: '0x346239972d1fa486FC4a521031BC81bFB7D6e8a4',
+    start: '2025-05-27',
+  },
+  [CHAIN.TEMPO]: {
+    factory: '0x24a3d4757e330890a8b8978028c9e58e04611fd6',
+    start: '2026-02-26',
+  },
+  [CHAIN.MEGAETH]: {
+    factory: '0x3a5f0cd7d62452b7f899b2a5758bfa57be0de478',
+    start: '2026-02-01',
+  },
+  [CHAIN.ROBINHOOD]: {
+    factory: '0x1f7d7550B1b028f7571E69A784071F0205FD2EfA',
+    start: '2026-05-24',
+  },
+  [CHAIN.WC]: {
+    factory: '0x7a5028BDa40e7B173C278C5342087826455ea25a',
+    start: '2024-08-02',
+  },
 }
 
 const FIREPIT : Record<string, string> = {
@@ -89,29 +173,7 @@ async function fetchHoldersRevenue(options: FetchOptions) {
   return dailyHoldersRevenue
 }
 
-const v3Graphs = getGraphDimensions2({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
-  }
-});
-
-const uniLogAdapterConfig = {
-  userFeesRatio: 1,
-  revenueRatio: 0,
-  protocolRevenueRatio: 0,
-  holdersRevenueRatio: 0,
-}
-
+// use Oku api
 interface IOkuResponse {
   volume: number;
   fees: number;
@@ -157,28 +219,6 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.MONAD) return "monad"
   return chain
 }
-
-const methodology = {
-  Fees: "Swap fees from paid by users.",
-  UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
-  ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
-}
-
-const adapter: SimpleAdapter = {
-  version: 1,
-  methodology,
-  dependencies: [Dependencies.DUNE],
-  adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
-    acc[chain] = {
-      fetch: async (options: FetchOptions) => v3Graphs(options),
-      start: startTimeV3[chain],
-    }
-    return acc
-  }, {} as BaseAdapter)
-};
 
 const okuChains = [
   //CHAIN.OPTIMISM,
@@ -228,89 +268,107 @@ okuChains.forEach(chain => {
 });
 
 
-(adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.TEMPO] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x24a3d4757e330890a8b8978028c9e58e04611fd6", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.MEGAETH] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x3a5f0cd7d62452b7f899b2a5758bfa57be0de478", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.ROBINHOOD] = {
-  fetch: async (options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-  start: '2026-01-01',
-};
+// build a custom getLog helper
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
+
+// --- ClickHouse (evm_indexer) pool discovery ---
+// keccak256("PoolCreated(address,address,uint24,int24,address)")
+const POOL_CREATED_TOPIC0 = '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118';
+const POOL_CREATED_SHORT_TOPIC0 = '0x783cca1c';
+const chShortAddr = (a: string) => a.substring(0, 10).toLowerCase();
+const chUnpadTopic = (t: string) => '0x' + String(t).slice(-40).toLowerCase();
+
+interface PoolCreatedRow extends Row {
+  token0_padded: string;
+  token1_padded: string;
+  fee_padded: string;
+  pool: string;
+}
+
+// PoolCreated(token0, token1, uint24 fee, int24 tickSpacing, address pool):
+//  - token0/token1 are indexed -> topic1/topic2 (32-byte padded)
+//  - fee is indexed uint24     -> topic3 (decoded from hex in JS)
+//  - data = tickSpacing (slot 0) + pool address (slot 1, right-aligned),
+//    so the pool address is hex chars 91..130 of the data string.
+// PREWHERE order matches the `logs_fast_lookup` projection
+// (chain, short_address, short_topic0). No time bound: a pool created before
+// the query window still trades within it, so all of the factory's pools are
+// discovered (mirrors the on-chain PoolCreated scan / cache).
+const buildDiscoverPoolsSql = (chainId: number, factory: string): string => `
+  SELECT
+    topic1 AS token0_padded,
+    topic2 AS token1_padded,
+    topic3 AS fee_padded,
+    concat('0x', substring(data, 91, 40)) AS pool
+  FROM evm_indexer.logs
+  PREWHERE chain = ${chainId}
+    AND short_address = '${chShortAddr(factory)}'
+    AND short_topic0 = '${POOL_CREATED_SHORT_TOPIC0}'
+    AND address = '${factory.toLowerCase()}'
+    AND topic0 = '${POOL_CREATED_TOPIC0}'
+`;
 
 async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number, options: FetchOptions) => number, onlyWhitelisedTokens?: boolean }) {
   const { options, factory, fromBlock, getRevenueShare, onlyWhitelisedTokens } = props;
   
   const whitelistedTokens: Array<string> | undefined = onlyWhitelisedTokens ? await getDefaultDexTokensWhitelisted({ chain: options.chain }) : undefined;
-  const poolCreatedLogs = await props.options.getLogs({
-    target: factory,
-    eventAbi: poolCreatedEvent,
-    fromBlock: fromBlock,
-    cacheInCloud: true,
-  })
   
   const pairObject: IJSON<string[]> = {}
   const fees: any = {}
   const revenueShares: any = {}
 
-  poolCreatedLogs.forEach((log: any) => {
-    // filter out pools without whitelisted tokens
-    if (whitelistedTokens && (!whitelistedTokens.includes(formatAddress(log.token0)) || !whitelistedTokens.includes(formatAddress(log.token1)))) return;
-    
-    pairObject[log.pool] = [log.token0, log.token1]
-    fees[log.pool] = (log.fee?.toString() || 0) / 1e6
-    revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6, options) : 0
-  })
+  // try to get from cache first
+  const cacheKey = `tvl-adapter-cache/cache/logs/${options.chain}/${factory.toLowerCase()}.json`
+  const iface = new ethers.Interface([poolCreatedEvent])
+  let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
+  if (logs && logs.length > 0) {
+    // bad rpcs return bad log with undefined format, filter them out
+    logs = logs.map((log: any) => iface.parseLog(log)?.args).filter((log: any) => !!log)
+  
+    logs.forEach((log: any) => {
+      pairObject[log.pool] = [log.token0, log.token1]
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
+      revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6, options) : 0
+    })
+  } else {
+    if (FACTORIES[options.chain].usingIndexerToGetPools) {
+      // query pools from the clickhouse indexer (evm_indexer.logs PoolCreated)
+      const poolRows = await queryClickhouse<PoolCreatedRow>(
+        buildDiscoverPoolsSql(Number(options.api.chainId), factory.toLowerCase()),
+      )
+      poolRows.forEach((row) => {
+        const token0 = chUnpadTopic(row.token0_padded)
+        const token1 = chUnpadTopic(row.token1_padded)
+        // filter out pools without whitelisted tokens (same as the on-chain path)
+        if (whitelistedTokens && (!whitelistedTokens.includes(formatAddress(token0)) || !whitelistedTokens.includes(formatAddress(token1)))) return;
+
+        const pool = String(row.pool).toLowerCase()
+        const fee = (parseInt(String(row.fee_padded), 16) || 0) / 1e6
+        pairObject[pool] = [token0, token1]
+        fees[pool] = fee
+        revenueShares[pool] = getRevenueShare ? getRevenueShare(fee, options) : 0
+      })
+    } else {
+      // query on-chain
+      if (!FACTORIES[options.chain].fromBlock) throw Error(`gettting pools from factory PoolCreated events but missing fromBlock config chain ${options.chain} factory ${factory}`)
+      const poolCreatedLogs = await props.options.getLogs({
+        target: factory,
+        eventAbi: poolCreatedEvent,
+        fromBlock: fromBlock,
+        cacheInCloud: true,
+      })
+      poolCreatedLogs.forEach((log: any) => {
+        // filter out pools without whitelisted tokens
+        if (whitelistedTokens && (!whitelistedTokens.includes(formatAddress(log.token0)) || !whitelistedTokens.includes(formatAddress(log.token1)))) return;
+        
+        pairObject[log.pool] = [log.token0, log.token1]
+        fees[log.pool] = (log.fee?.toString() || 0) / 1e6
+        revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6, options) : 0
+      })
+    }
+  }
   
   const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
   
@@ -345,135 +403,124 @@ function getRevenueShare(fee: number, options: FetchOptions): number {
   return 0;
 }
 
-(adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
-  fetch: async (options: FetchOptions) => {
-    return await customUniswapGetLogsAdapter({
-      options,
-      factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-      fromBlock: 12369621,
-      getRevenueShare,
-    })
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.BSC] = {
-  fetch: async (options: FetchOptions) => {
-    return await customUniswapGetLogsAdapter({
-      options,
-      factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
-      fromBlock: 26324014,
-      onlyWhitelisedTokens: true,
-      getRevenueShare
-    })
-  },
-};
-
-export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
-  const tokens = await getDefaultDexTokensWhitelisted({ chain: options.chain });
-  const cleanVolumeExpr = tokens.length === 0
-    ? 'amount_usd'
-    : `CASE 
-              WHEN token_sold_address IN (${tokens.toString()})
-              AND token_bought_address IN (${tokens.toString()})
-              THEN amount_usd
-              ELSE 0
-          END`;
-  return `
-    SELECT
-        project_contract_address AS pool
-        , SUM(${cleanVolumeExpr}) AS clean_volume_usd
-        , SUM(amount_usd) AS total_volume_usd 
-    FROM dex.trades
-    WHERE blockchain = '${options.chain}'
-      AND project = 'uniswap'
-      AND version = '3'
-      AND block_time >= FROM_UNIXTIME(${options.fromTimestamp})
-      AND block_time <= FROM_UNIXTIME(${options.toTimestamp})
-    GROUP BY
-      project_contract_address
-  `;
+// use getUniV3LogAdapter
+for (const [chain, factory] of Object.entries(FACTORIES)) {
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch: async (options: FetchOptions) => {
+      return await customUniswapGetLogsAdapter({
+        options,
+        factory: factory.factory,
+        fromBlock: factory.fromBlock as number,
+        getRevenueShare,
+      })
+    },
+    start: factory.start,
+  };
 }
 
-async function fetchDune(options: FetchOptions) {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
+// export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
+//   const tokens = await getDefaultDexTokensWhitelisted({ chain: options.chain });
+//   const cleanVolumeExpr = tokens.length === 0
+//     ? 'amount_usd'
+//     : `CASE 
+//               WHEN token_sold_address IN (${tokens.toString()})
+//               AND token_bought_address IN (${tokens.toString()})
+//               THEN amount_usd
+//               ELSE 0
+//           END`;
+//   return `
+//     SELECT
+//         project_contract_address AS pool
+//         , SUM(${cleanVolumeExpr}) AS clean_volume_usd
+//         , SUM(amount_usd) AS total_volume_usd 
+//     FROM dex.trades
+//     WHERE blockchain = '${options.chain}'
+//       AND project = 'uniswap'
+//       AND version = '3'
+//       AND block_time >= FROM_UNIXTIME(${options.fromTimestamp})
+//       AND block_time <= FROM_UNIXTIME(${options.toTimestamp})
+//     GROUP BY
+//       project_contract_address
+//   `;
+// }
 
-  const poolsAndVolumes = await queryDune('3996608', {
-    fullQuery: await UNISWAP_V3_QUERY(options),
-  }, options);
-  const poolFees = await options.api.multiCall({
-    abi: 'uint256:fee',
-    calls: poolsAndVolumes.map((item: any) => item.pool),
-    permitFailure: true,
-  })
-  for (let i = 0; i < poolsAndVolumes.length; i++) {
-    if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
-      const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
-      const revenueRatio = getRevenueShare(fee, options)
-      // add clean volume, exclude blacklist token
-      dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
-      dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
-    }
-  }
+// async function fetchDune(options: FetchOptions) {
+//   const dailyVolume = options.createBalances();
+//   const dailyFees = options.createBalances();
 
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options)
+//   const poolsAndVolumes = await queryDune('3996608', {
+//     fullQuery: await UNISWAP_V3_QUERY(options),
+//   }, options);
+//   const poolFees = await options.api.multiCall({
+//     abi: 'uint256:fee',
+//     calls: poolsAndVolumes.map((item: any) => item.pool),
+//     permitFailure: true,
+//   })
+//   for (let i = 0; i < poolsAndVolumes.length; i++) {
+//     if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
+//       const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
+//       // const revenueRatio = getRevenueShare(fee, options)
+//       // add clean volume, exclude blacklist token
+//       dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
+//       dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
+//     }
+//   }
 
-  const dailySupplySideRevenue = dailyFees.clone()
-  dailySupplySideRevenue.subtract(dailyHoldersRevenue)
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
-  }
-}
+//   const dailyHoldersRevenue = await fetchHoldersRevenue(options)
 
-(adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+//   const dailySupplySideRevenue = dailyFees.clone()
+//   dailySupplySideRevenue.subtract(dailyHoldersRevenue)
+//   return {
+//     dailyVolume,
+//     dailyFees,
+//     dailyUserFees: dailyFees,
+//     dailySupplySideRevenue,
+//     dailyRevenue: dailyHoldersRevenue,
+//     dailyProtocolRevenue: 0,
+//     dailyHoldersRevenue,
+//   }
+// }
 
-(adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-(adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-(adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.WC] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-(adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-(adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
-  fetch: async (options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+// (adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
-adapter.allowNegativeValue = true; // revenue calculated here is combination of v2 & v3, supply side revenue can be negative when v2+v3 revenue > v3 ssr 
-                                   // which is already compensated by v2 ssr, so cumulative holds correct
+// (adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
+//   fetch: async (options: FetchOptions) => {
+//     return await fetchDune(options);
+//   },
+// };
 
 export default adapter;
