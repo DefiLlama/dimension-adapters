@@ -5,6 +5,7 @@ import * as sdk from '@defillama/sdk';
 import { AdapterType, SimpleAdapter, } from '../adapters/types';
 import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
+import { deadChainsSet } from '../helpers/deadChains';
 import { camelCaseToSpaces, checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
 import { importAdapter } from '../adapters/utils/importAdapter';
 
@@ -201,6 +202,7 @@ let usedHelper: string | null | undefined = null;
     endTimestamp,
     withMetadata: debugBreakdownFees,
     isTest: true,
+    deadChains: deadChainsSet,
     name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
   })
 
@@ -241,7 +243,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60 }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60, deadChains: deadChainsSet }))
       )
 
       results.forEach((res: any, idx) => {

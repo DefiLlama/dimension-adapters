@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const abi_event = {
@@ -35,8 +35,9 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
-const adapter: Adapter = {
-  version: 1,
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.BASE]: { start: '2025-07-01' },
@@ -66,6 +67,7 @@ const adapter: Adapter = {
     [CHAIN.MODE]: { start: '2025-07-01' },
     [CHAIN.POLYGON]: { start: '2025-07-01' },
     [CHAIN.SCROLL]: { start: '2025-07-01' },
+    [CHAIN.CAMP]: { start: '2025-08-27' },
     [CHAIN.SHAPE]: { start: '2025-07-01' },
     [CHAIN.TAIKO]: { start: '2025-07-01' },
     [CHAIN.ZORA]: { start: '2025-07-01' },
@@ -76,7 +78,6 @@ const adapter: Adapter = {
     [CHAIN.MANTLE]: { start: '2025-07-01' },
     [CHAIN.RARI]: { start: '2025-07-01' },
     [CHAIN.RONIN]: { start: '2025-07-01' },
-    [CHAIN.CAMP]: { start: '2025-08-27' },
     [CHAIN.BOTANIX]: { start: '2025-07-14' },
     [CHAIN.PLASMA]: { start: '2025-10-03' },
     [CHAIN.GATE_LAYER]: { start: '2025-10-03' },
