@@ -25,6 +25,8 @@ interface CandlePoint {
   close: string;
 }
 
+// use https://api.qfex.com/defillama/metrics?intervalMinutes=1440&fromISO=2026-07-07T11:50:25.000Z&toISO=2026-07-08T11:50:26.000Z 
+// if rate the adapter gives wrong data or frequently rate limited
 async function fetch(options: FetchOptions) {
   const fromISO = new Date(options.startTimestamp * 1000).toISOString();
   const toISO = new Date(options.endTimestamp * 1000).toISOString();
