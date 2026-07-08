@@ -50,17 +50,15 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology: {
+    Fees: "All fees paid by users: the flat token-creation fee plus the bonding-curve trade fee (an inclusive fee capped at 2%, charged on the ETH leg of every buy and sell).",
+    Revenue:
+      "Protocol revenue: the full creation fee plus the protocol slice of trade fees. Creator fees are currently disabled, so the protocol keeps 100% of the trade fee.",
+  },
   adapter: {
     [CHAIN.ROBINHOOD]: {
       fetch,
       start: "2026-07-07",
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users: the flat token-creation fee plus the bonding-curve trade fee (an inclusive fee capped at 2%, charged on the ETH leg of every buy and sell).",
-          Revenue:
-            "Protocol revenue: the full creation fee plus the protocol slice of trade fees. Creator fees are currently disabled, so the protocol keeps 100% of the trade fee.",
-        },
-      },
     },
   },
 };
