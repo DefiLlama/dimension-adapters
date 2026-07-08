@@ -17,7 +17,6 @@ const DEFAULTS: any = {
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
   VELAS_RPC: 'https://evmexplorer.velas.com/api/eth-rpc',
   HARMONY_RPC: 'https://explorer.harmony.one/api/eth-rpc',
-  ROBINHOOD_RPC: 'https://robinhoodchain.blockscout.com/api/eth-rpc,https://rpc.mainnet.chain.robinhood.com',
   SMARTBCH_RPC: 'https://smartscout.cash//api/eth-rpc',
   HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
   FUSE_RPC: 'https://explorer.fuse.io/api/eth-rpc',
@@ -92,6 +91,7 @@ export const ENV_KEYS = new Set([
   'PEARL_BLOCKBOOK_API',
   'OKLINK_API_KEY',
   'TRONSCAN_API_KEY',
+  'ROBINHOOD_RPC'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
