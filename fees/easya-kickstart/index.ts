@@ -50,6 +50,10 @@ interface IData {
 }
 
 const fetch = async (options: FetchOptions) => {
+    const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
+    if ((options.toTimestamp * 1000) > tenHoursAgo) {
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+    }
     const configs = EASYA_PARTNER_CONFIGS.map(c => `'${c.config}'`).join(',');
     const configShareRows = EASYA_PARTNER_CONFIGS
         .map(c => `('${c.config}', ${c.creatorTradingPct}, ${c.creatorLpPct})`)
