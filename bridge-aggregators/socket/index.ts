@@ -76,6 +76,11 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
   [CHAIN.BERACHAIN]: { dune: "berachain", wrapped: "0x6969696969696969696969696969696969696969" },
   [CHAIN.SEI]: { dune: "sei", wrapped: "0xE30feDd158A2e3b13e9badaeABaFc5516e95e8C7" },
   [CHAIN.HYPERLIQUID]: { dune: "hyperevm", wrapped: "0x5555555555555555555555555555555555555555" },
+  [CHAIN.MEGAETH]: { dune: "megaeth", wrapped: "0x4200000000000000000000000000000000000006" },
+  [CHAIN.MONAD]: { dune: "monad", wrapped: "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A" },
+  [CHAIN.PLASMA]: { dune: "plasma", wrapped: "0x6100e367285b01f48d07953803a2d8dca5d19873" },
+  [CHAIN.KATANA]: { dune: "katana", wrapped: "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62" },
+  [CHAIN.PLUME]: { dune: "plume", wrapped: "0xEa237441c92CAe6FC17Caaf9a7acB3f953be4bd1" },
 };
 
 // Native and ERC20 flows, dedupe largest per tx, priced via prices.day
