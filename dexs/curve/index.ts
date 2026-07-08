@@ -240,6 +240,25 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       }
     }
   },
+  [CHAIN.BSC]: {
+    start: '2023-12-19',
+    stable_factory: [
+      '0xEfDE221f306152971D8e9f181bFe998447975810',
+    ],
+    factory_crypto: [
+      '0xBd5fBd2FA58cB15228a9Abdac9ec994f79E3483C',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0x38f8D93406fA2d9924DcFcB67dB5B0521Fb20F7D',
+    ],
+    factory_stable_ng: [
+      '0xd7E72f3615aa65b92A4DBdC211E296a35512988B',
+    ],
+    customPools: {},
+  },
   [CHAIN.POLYGON]: {
     start: '2021-10-05',
     stable_factory: [
