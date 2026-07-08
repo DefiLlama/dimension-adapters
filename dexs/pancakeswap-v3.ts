@@ -21,6 +21,7 @@ interface Ifactory {
   address: string;
   start: string;
   blacklistTokens?: Array<string>;
+  deadFrom?: string;
 }
 
 const factories: {[key: string]: Ifactory} = {
@@ -35,6 +36,7 @@ const factories: {[key: string]: Ifactory} = {
   [CHAIN.POLYGON_ZKEVM]: {
     start: '2023-06-29',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+    deadFrom: "2026-07-02"
   },
   [CHAIN.ERA]: {
     start: '2024-01-01',
@@ -378,12 +380,16 @@ async function fetch(options: FetchOptions) {
 
   dailyVolume.add(v2Stats.dailyVolume);
   dailyFees.add(v2Stats.dailyFees, METRIC.SWAP_FEES);
-  dailyUserFees.add(v2Stats.dailyUserFees, METRIC.SWAP_FEES);
-  dailyRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
-  dailyRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.HOLDERS_REVENUE);
-  dailyProtocolRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
-  dailySupplySideRevenue.add(v2Stats.dailySupplySideRevenue, METRIC.LP_REVENUE);
-  dailyHoldersRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.BUY_BACK_AND_BURN);
+  if (v2Stats.dailyUserFees) dailyUserFees.add(v2Stats.dailyUserFees, METRIC.SWAP_FEES);
+  if (v2Stats.dailyProtocolRevenue) {
+    dailyRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
+    dailyProtocolRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
+  }
+  if (v2Stats.dailyHoldersRevenue) {
+    dailyRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.HOLDERS_REVENUE);
+    dailyHoldersRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.BUY_BACK_AND_BURN);
+  }
+  if (v2Stats.dailySupplySideRevenue) dailySupplySideRevenue.add(v2Stats.dailySupplySideRevenue, METRIC.LP_REVENUE);
   
   return {
     dailyVolume,
@@ -442,6 +448,7 @@ for (const [chain, config] of Object.entries(factories)) {
     fetch,
     start: config.start,
   }
+  if (config.deadFrom) (adapter.adapter as BaseAdapter)[chain].deadFrom = config.deadFrom
 }
 
 export default adapter;
