@@ -5,9 +5,13 @@ import { METRIC } from "../../helpers/metrics";
 
 // Elara Finance Vault proxy: https://etherscan.io/address/0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef
 const VAULT = "0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef";
+// elUSD token proxy: https://etherscan.io/address/0x65Fb0f9b196d524De0C4F3BAF572F0a79eb21194
 const ELUSD = "0x65Fb0f9b196d524De0C4F3BAF572F0a79eb21194";
+// Elara staking proxy: https://etherscan.io/address/0xda34688c14ae164E75D902A962e6C45cD9564448
 const STAKING = "0xda34688c14ae164E75D902A962e6C45cD9564448";
+// Elara token registry proxy: https://etherscan.io/address/0xB25a9d4eAAF0D257f8C1e6F567C357639394dba1
 const TOKEN_REGISTRY = "0xB25a9d4eAAF0D257f8C1e6F567C357639394dba1";
+// Elara price oracle proxy: https://etherscan.io/address/0x0A3DA6265439b4585c942856d7Ee22B7b2C973F2
 const PRICE_ORACLE = "0x0A3DA6265439b4585c942856d7Ee22B7b2C973F2";
 
 const ABI = {
@@ -68,6 +72,7 @@ const calculateGrossRedeemAmount = async (options: FetchOptions, log: any) => {
     options.api.call({ target: PRICE_ORACLE, abi: ABI.getPrice, params: [log.token], block: log.blockNumber }),
   ]);
 
+  // Match Vault redemption math: sub-$1 collateral prices are floored at $1 to protect protocol solvency.
   const price = toBigInt(rawPrice) < ONE_DOLLAR ? ONE_DOLLAR : toBigInt(rawPrice);
   const normalizedAmount = (toBigInt(log.elUSDAmountIn) * ONE_DOLLAR) / price;
   return fromElUSD(normalizedAmount, getTokenDecimals(config));
