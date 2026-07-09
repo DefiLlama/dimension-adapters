@@ -20,6 +20,16 @@ const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 const toTopic = "0x000000000000000000000000" + DEFA_ETH.slice(2).toLowerCase();
 
 // Stellar / ZigChain / Starknet — one Dune query for all Dune-backed chains.
+//
+// Fallback reference (in case Dune is ever unavailable): each chain's cumulative "raised"
+// comes from an on-chain TVL logger contract that our snapshotter reads daily into Dune.
+// The raw on-chain values can be read directly from these, no Dune needed:
+//   Stellar (Soroban) : CDVVH3KWXWLVUO5OLLBBZSCZICV46PDKYA2G2HYBTWH4A6EJWTBRIXRK
+//                       fn get_tvl() -> raised_in_overall_pools, 7 decimals
+//   ZigChain (CosmWasm): zig19pp9rxhqktgpf2yqkwwx6yekmgvnu3hvj0c4e5rlpw88l0shh3qs9qcdyg
+//                       query {tvl:{}} -> raised_in_overall_pools, 6 decimals
+//   Starknet (Cairo)  : 0x0595a45952ef488d49342cd4fdf062482ab51c0718fcd8c11ff6614034b0939d
+//                       fn get_tvl_snapshot() -> total_deposited (1st field), 6 decimals
 const prefetch = async (options: FetchOptions) => {
   // Dune needs DUNE_API_KEYS, absent in fork-PR CI; skip there so the test doesn't
   // false-fail (production always has the key). Logged so it's not silent.
