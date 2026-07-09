@@ -13,9 +13,10 @@ const METRIC = {
 }
 
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
+// Both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together as part of Infinity.
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
-  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
+  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
+  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
   pullHourly: true,
@@ -48,19 +49,18 @@ const adapter: SimpleAdapter = {
   }
 }
 
-async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
-  const { clPoolManager, fromBlock, blacklistTokens } = config[chain]
-  const getFromBlock = Number(fromApi.block)
-  const getToBlock = Number(toApi.block)
-  const dailyVolume = createBalances()
-  const swapFees = createBalances()
-  const revenue = createBalances()
-
+// CLPoolManager and BinPoolManager share the same Swap semantics (id, amount0, amount1, fee, protocolFee,
+// both denominated in hundredths of a bip) — only the Initialize/Swap ABI differs (sqrtPriceX96+tick vs activeId).
+async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBlock, getToBlock, initializeAbi, swapAbi, blacklistTokens, dailyVolume, swapFees, revenue }: {
+  getLogs: FetchOptions['getLogs'], chain: string, target: string, fromBlock: number, getFromBlock: number, getToBlock: number,
+  initializeAbi: string, swapAbi: string, blacklistTokens?: string[],
+  dailyVolume: ReturnType<FetchOptions['createBalances']>, swapFees: ReturnType<FetchOptions['createBalances']>, revenue: ReturnType<FetchOptions['createBalances']>,
+}) {
   const logs = await getLogs({
-    target: clPoolManager,
+    target,
     fromBlock,
     cacheInCloud: true,
-    eventAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint160 sqrtPriceX96, int24 tick)',
+    eventAbi: initializeAbi,
   })
 
   const poolMap: Record<string, { currency0: string, currency1: string }> = {}
@@ -73,8 +73,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
 
   await sdk.indexer.getLogs({
     chain,
-    target: clPoolManager,
-    eventAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
+    target,
+    eventAbi: swapAbi,
     fromBlock: getFromBlock,
     toBlock: getToBlock,
     onlyArgs: true,
@@ -94,7 +94,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
         if (
           blacklistTokens &&
           (blacklistTokens.includes(currency0.toLowerCase()) ||
-           blacklistTokens.includes(currency1.toLowerCase()))
+            blacklistTokens.includes(currency1.toLowerCase()))
         ) {
           return
         }
@@ -110,6 +110,32 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
       })
     },
   })
+}
+
+async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
+  const { clPoolManager, binPoolManager, fromBlock, blacklistTokens } = config[chain]
+  const getFromBlock = Number(fromApi.block)
+  const getToBlock = Number(toApi.block)
+  const dailyVolume = createBalances()
+  const swapFees = createBalances()
+  const revenue = createBalances()
+
+  await Promise.all([
+    trackPoolManager({
+      getLogs, chain, fromBlock, getFromBlock, getToBlock, blacklistTokens,
+      target: clPoolManager,
+      initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint160 sqrtPriceX96, int24 tick)',
+      swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
+      dailyVolume, swapFees, revenue,
+    }),
+    trackPoolManager({
+      getLogs, chain, fromBlock, getFromBlock, getToBlock, blacklistTokens,
+      target: binPoolManager,
+      initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint24 activeId)',
+      swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint24 activeId, uint24 fee, uint16 protocolFee)',
+      dailyVolume, swapFees, revenue,
+    }),
+  ])
 
   const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES);
   const dailyRevenue = createBalances()
