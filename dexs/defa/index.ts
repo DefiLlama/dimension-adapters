@@ -63,13 +63,12 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Stellar / ZigChain / Starknet: from the daily Dune snapshot (prefetched).
+  // A day with no snapshot row = no recorded inflow that day = 0 volume (not an error).
+  // The delta is a LAG over whichever days exist, so a later snapshot still captures any
+  // inflow from a skipped day — cumulative volume stays correct with no gaps in the series.
   const rows: { chain: string; daily_raised: number }[] = options.preFetchedResults || [];
   const row = rows.find((r) => r.chain === options.chain);
-  if (!row) {
-    if (!process.env.DUNE_API_KEYS) return { dailyVolume }; // no Dune key in fork CI → skip
-    throw new Error(`No row found for chain ${options.chain}`);
-  }
-  dailyVolume.addUSDValue(Number(row.daily_raised));
+  if (row) dailyVolume.addUSDValue(Number(row.daily_raised));
   return { dailyVolume };
 };
 
