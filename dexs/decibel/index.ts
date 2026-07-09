@@ -23,6 +23,8 @@ const fetch = async (options: FetchOptions) => {
     dailyFees: data.daily_fees,
     dailyUserFees: data.daily_fees,
     dailyRevenue: data.daily_revenue,
+    dailyProtocolRevenue: data.daily_revenue,
+    dailySupplySideRevenue: data.daily_fees - data.daily_revenue,
     openInterestAtEnd: data.open_interest,
   };
 };
@@ -30,7 +32,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Sum of notional value of all taker fills across perpetual futures markets.",
   Fees: "Trading fees collected from takers on all perpetual futures markets.",
-  Revenue: "Net protocol revenue after maker rebates.",
+  Revenue: "Trading fees kept by the protocol after paying maker rebates.",
+  ProtocolRevenue: "Trading fees kept by the protocol treasury. Decibel has no live token yet, so none is distributed to token holders.",
+  SupplySideRevenue: "Maker rebates paid back to liquidity-providing makers out of the trading fees.",
 };
 
 const adapter: SimpleAdapter = {
