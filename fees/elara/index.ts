@@ -66,9 +66,19 @@ const fromElUSD = (amount: bigint, tokenDecimals: number) => {
 
 const getTokenDecimals = (config: any) => Number(config.decimals ?? config[0]);
 
-const calculateGrossRedeemAmount = async (options: FetchOptions, log: any) => {
+const getCachedTokenConfig = (options: FetchOptions, tokenConfigCache: Map<string, Promise<any>>, token: string, block: number) => {
+  const cacheKey = token.toLowerCase();
+  const cachedConfig = tokenConfigCache.get(cacheKey);
+  if (cachedConfig) return cachedConfig;
+
+  const config = options.api.call({ target: TOKEN_REGISTRY, abi: ABI.getTokenConfig, params: [token], block });
+  tokenConfigCache.set(cacheKey, config);
+  return config;
+};
+
+const calculateGrossRedeemAmount = async (options: FetchOptions, log: any, tokenConfigCache: Map<string, Promise<any>>) => {
   const [config, rawPrice] = await Promise.all([
-    options.api.call({ target: TOKEN_REGISTRY, abi: ABI.getTokenConfig, params: [log.token], block: log.blockNumber }),
+    getCachedTokenConfig(options, tokenConfigCache, log.token, log.blockNumber),
     options.api.call({ target: PRICE_ORACLE, abi: ABI.getPrice, params: [log.token], block: log.blockNumber }),
   ]);
 
@@ -112,6 +122,7 @@ const fetch = async (options: FetchOptions) => {
   const redemptionFeeUpdates = redemptionFeeUpdateLogs
     .map((log) => ({ ...log, newFee: toBigInt(log.newFee) }))
     .sort(sortByLogPosition);
+  const tokenConfigCache = new Map<string, Promise<any>>();
   let redemptionFeeUpdateIndex = 0;
   let redemptionFee = toBigInt(startingRedemptionFee);
 
@@ -131,7 +142,7 @@ const fetch = async (options: FetchOptions) => {
     }
 
     const netTokenAmount = toBigInt(log.tokenAmountOut);
-    const grossTokenAmount = await calculateGrossRedeemAmount(options, log);
+    const grossTokenAmount = await calculateGrossRedeemAmount(options, log, tokenConfigCache);
     const exactFee = (grossTokenAmount * redemptionFee) / BPS_DENOMINATOR;
     const fee = grossTokenAmount - exactFee === netTokenAmount ? exactFee : deriveRedeemFee(netTokenAmount, redemptionFee);
 
