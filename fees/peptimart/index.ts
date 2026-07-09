@@ -1,25 +1,52 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
 
-const FEES_API = "https://peptimart.xyz/api/defillama/fees";
+const PEPTIDES_CG_ID = "peptides-2";
+const PEPTIDES_MINT = "61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump";
+const BURN_WALLET = "6TfZee8VA7FKGKxrt56z3YnffrSS3aBX1kKJNiDh5a3N";
+const BURN_FEE_RATE = 0.1;
+const PEPTIDES_DECIMALS = 6;
 
-type FeesPayload = {
-  date: string;
-  purchasesUsd: number;
-  buybackUsd: number;
-  orderCount: number;
-  burnsCount: number;
-  peptiBurned: number;
-};
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
-type ApiResponse = {
-  ok: boolean;
-  data: FeesPayload;
+  const query = `
+    SELECT
+      COALESCE(SUM(raw_amount) / 1e${PEPTIDES_DECIMALS}, 0) AS peptides_burnt
+    FROM solana.assets.transfers
+    WHERE mint = '${PEPTIDES_MINT}'
+      AND from_address = '${BURN_WALLET}'
+      AND type IN ('burn', 'burnChecked')
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
+  const data = await queryAllium(query);
+
+  const peptidesBurnt = data[0].peptides_burnt;
+  if (peptidesBurnt > 0) {
+    const grossSales = peptidesBurnt * (1 / (BURN_FEE_RATE));
+    const ProtocolRevenue = grossSales - peptidesBurnt;
+    dailyFees.addCGToken(PEPTIDES_CG_ID, grossSales, "Merchandise Sales");
+    dailyHoldersRevenue.addCGToken(PEPTIDES_CG_ID, peptidesBurnt, "Merchandise Sales to Buybacks");
+    dailyProtocolRevenue.addCGToken(PEPTIDES_CG_ID, ProtocolRevenue, "Merchandise Sales to Protocol Operations");
+  }
+
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.add(dailyProtocolRevenue);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
+  };
 };
 
 const methodology = {
-  Fees: "Gross revenue from paid merchandise sales at PEPTIDES.",
+  Fees: "Gross revenue from paid merchandise sales at PEPTIDES (tracked as 10 times of $PEPTIDES burnt using burn wallet).",
   Revenue: "Includes 90% of revenue retained for PEPTIDES store and 10% allocated to the $PEPTI buyback program.",
   HoldersRevenue: "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
   ProtocolRevenue: "90% of revenue retained for PEPTIDES store operations.",
@@ -27,12 +54,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Merchandise Sales":
-      "Total paid checkout value at PEPTIDES for the calendar day (UTC).",
+    "Merchandise Sales": "Daily gross revenue from paid merchandise sales at PEPTIDES (tracked as 10 times of $PEPTIDES burnt using burn wallet).",
   },
   HoldersRevenue: {
-    "Merchandise Sales to Buybacks":
-      "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
+    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTI buyback and burn program.",
   },
   ProtocolRevenue: {
     "Merchandise Sales to Store Operations": "90% of revenue retained for PEPTIDES store operations.",
@@ -43,54 +68,16 @@ const breakdownMethodology = {
   },
 };
 
-function feesRequestHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "User-Agent": "defillama-dimension-adapters/1.0",
-  };
-  const apiKey = process.env.PEPTIMART_FEES_API_KEY?.trim();
-  if (apiKey) headers["x-defillama-api-key"] = apiKey;
-  return headers;
-}
-
-const fetch = async (options: FetchOptions) => {
-  const response = (await httpGet(`${FEES_API}?date=${options.dateString}`, {
-    headers: feesRequestHeaders(),
-  })) as ApiResponse;
-
-  if (!response?.ok || !response.data) {
-    throw new Error(`Invalid response from PEPTIDES fees API for ${options.dateString}`);
-  }
-
-  const data = response.data;
-  const storeOperationsUsd = data.purchasesUsd - data.buybackUsd;
-
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-
-  dailyFees.addUSDValue(data.purchasesUsd, "Merchandise Sales");
-  dailyProtocolRevenue.addUSDValue(storeOperationsUsd, "Merchandise Sales to Store Operations");
-  dailyRevenue.addUSDValue(storeOperationsUsd, "Merchandise Sales to Store Operations");
-  dailyRevenue.addUSDValue(data.buybackUsd, "Merchandise Sales to Buybacks");
-  dailyHoldersRevenue.addUSDValue(data.buybackUsd, "Merchandise Sales to Buybacks");
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
-    dailyProtocolRevenue,
-  };
-};
-
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-05-27",
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
