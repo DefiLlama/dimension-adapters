@@ -123,9 +123,7 @@ const adapter: Adapter = {
       [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain L2 transaction gas fees paid by users.",
     },
     Revenue: {
-      [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain L2 transaction gas fees paid by users, minus the 10% Arbitrum Expansion Program share of net revenue.",
-      [L1_EXECUTION_COSTS]: "Ethereum execution gas paid by the Robinhood Chain batch poster and validators for L1 batch posting and rollup assertion transactions.",
-      [L1_BLOB_COSTS]: "Ethereum blob fees paid for Robinhood Chain blob-carrying batch posting transactions.",
+      [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain transaction gas fees net of Ethereum L1 batch posting (calldata and blobs) and rollup assertion costs, minus the 10% Arbitrum Expansion Program share of net revenue paid to the Arbitrum DAO and developer fund.",
     },
     SupplySideRevenue: {
       [L1_EXECUTION_COSTS]: "Ethereum execution gas paid by the Robinhood Chain batch poster and validators for L1 batch posting and rollup assertion transactions.",
