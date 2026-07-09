@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
   if (delta > 0n) dailyFees.addGasToken(delta, METRIC.SERVICE_FEES);
 
   // All fees are locked in the contract forever, so they are revenue that is fully burned.
-  return { dailyFees, };
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
