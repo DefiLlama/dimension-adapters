@@ -218,37 +218,37 @@ const mappingChain = (chain: string) => {
 }
 
 const okuChains = [
-  //CHAIN.OPTIMISM,
   CHAIN.POLYGON,
-  // CHAIN.ERA,
-  // CHAIN.SEI,
-  // CHAIN.UNICHAIN,
-  // CHAIN.TAIKO,
-  // CHAIN.SCROLL,
-  // CHAIN.ROOTSTOCK,
-  // CHAIN.FILECOIN,
-  // CHAIN.BOBA,
-  // CHAIN.MANTLE,
-  // CHAIN.LINEA,
-  // CHAIN.XDAI,
-  // CHAIN.BOB,
-  // CHAIN.CORN,
-  // CHAIN.GOAT,
-  // CHAIN.HEMI,
-  // CHAIN.XDC,
-  // CHAIN.LIGHTLINK_PHOENIX,
-  // CHAIN.TELOS,
-  // //CHAIN.CELO,
-  // CHAIN.NIBIRU,
-  // CHAIN.MONAD,
-  // CHAIN.SONIC,
-  // CHAIN.ETHERLINK,
-  // CHAIN.SAGA,
-  // CHAIN.LENS,
+  CHAIN.ERA,
+  CHAIN.SEI,
+  CHAIN.UNICHAIN,
+  CHAIN.TAIKO,
+  CHAIN.SCROLL,
+  CHAIN.ROOTSTOCK,
+  CHAIN.FILECOIN,
+  CHAIN.BOBA,
+  CHAIN.MANTLE,
+  CHAIN.LINEA,
+  CHAIN.XDAI,
+  CHAIN.BOB,
+  CHAIN.CORN,
+  CHAIN.GOAT,
+  CHAIN.HEMI,
+  CHAIN.XDC,
+  CHAIN.LIGHTLINK_PHOENIX,
+  CHAIN.TELOS,
+  CHAIN.NIBIRU,
+  CHAIN.MONAD,
+  CHAIN.SONIC,
+  CHAIN.ETHERLINK,
+  CHAIN.SAGA,
+  CHAIN.LENS,
   
+  //CHAIN.CELO,
   // CHAIN.ETHEREUM,
   // CHAIN.BSC,
 
+  // CHAIN.OPTIMISM,
   // CHAIN.BLAST,
   // CHAIN.LISK,
   // CHAIN.MOONBEAM,
@@ -373,19 +373,21 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
-  allLogs.map((logs: any, index) => {
-    if (!logs.length) return;
-    const pair = Object.keys(filteredPairs)[index]
-    const [token0, token1] = pairObject[pair]
-    const fee = fees[pair]
-    const revenueRatio = revenueShares[pair]
-    logs.forEach((log: any) => {
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
-      addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
+  if (Object.keys(filteredPairs).length > 0) {
+    const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
+    allLogs.map((logs: any, index) => {
+      if (!logs.length) return;
+      const pair = Object.keys(filteredPairs)[index]
+      const [token0, token1] = pairObject[pair]
+      const fee = fees[pair]
+      const revenueRatio = revenueShares[pair]
+      logs.forEach((log: any) => {
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
+        addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
+        addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
+      })
     })
-  })
+  }
 
   const dailyHoldersRevenue = await fetchHoldersRevenue(options)
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue : dailyHoldersRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue }
