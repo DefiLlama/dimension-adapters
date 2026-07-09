@@ -54,7 +54,7 @@ const fetchVaultVolume = async (options: FetchOptions) => {
 const ALLOWANCE_HOLDER = "0x50c4E75a512F2A14A7b304787Adf79C4531A5909";
 const OPEN_ROUTER = "0x50cFe7c1938dB66A1a6D2e86D36F39FBef3d5c4a";
 
-// repo chain => Dune blockchain name + wrapped-native (for pricing). noErc20 = no decoded erc20 table on Dune
+// repo chain => Dune blockchain name + wrapped-native token address. noErc20 = no decoded erc20 table on Dune
 const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boolean }> = {
   [CHAIN.ETHEREUM]: { dune: "ethereum", wrapped: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" },
   [CHAIN.OPTIMISM]: { dune: "optimism", wrapped: "0x4200000000000000000000000000000000000006" },
@@ -83,23 +83,22 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
   [CHAIN.PLUME]: { dune: "plume", wrapped: "0xEa237441c92CAe6FC17Caaf9a7acB3f953be4bd1" },
 };
 
-// Native and ERC20 flows, dedupe largest per tx, priced via prices.day
+// Native and ERC20 flows, dedupe largest per tx, group by chain + token for DefiLlama pricing
 const buildQuery = (options: FetchOptions): string => {
   const start = options.startTimestamp;
   const end = options.endTimestamp;
-  const chains = Object.values(chainConfig).map(cfg => `'${cfg.dune}'`).join(", ");
 
-  const native = Object.values(chainConfig).map(cfg => `
-    SELECT '${cfg.dune}' AS chain, t.hash AS tx_hash, t.block_time AS block_time,
-           ${cfg.wrapped} AS price_address, TRY_CAST(t.value AS double) / 1e18 AS amount
+  const native = Object.entries(chainConfig).map(([chain, cfg]) => `
+    SELECT '${chain}' AS chain, t.hash AS tx_hash,
+           ${cfg.wrapped} AS token_address, TRY_CAST(t.value AS double) AS amount
     FROM ${cfg.dune}.transactions t
     WHERE t.to IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER}) AND t.value > UINT256 '0' AND t.success
       AND t.block_time >= from_unixtime(${start}) AND t.block_time < from_unixtime(${end})`).join("\n    UNION ALL");
 
-  const erc20 = Object.values(chainConfig).filter(cfg => !cfg.noErc20).map(cfg => `
-    SELECT '${cfg.dune}' AS chain, tr.evt_tx_hash AS tx_hash, tr.evt_block_time AS block_time,
-           tr.contract_address AS price_address,
-           TRY_CAST(tr.value AS double) / POWER(10, COALESCE(tok.decimals, 18)) AS amount
+  const erc20 = Object.entries(chainConfig).filter(([, cfg]) => !cfg.noErc20).map(([chain, cfg]) => `
+    SELECT '${chain}' AS chain, tr.evt_tx_hash AS tx_hash,
+           tr.contract_address AS token_address,
+           TRY_CAST(tr.value AS double) AS amount
     FROM erc20_${cfg.dune}.evt_Transfer tr
     LEFT JOIN tokens.erc20 tok ON tok.contract_address = tr.contract_address AND tok.blockchain = '${cfg.dune}'
     WHERE tr.to IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER}) AND tr."from" NOT IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER})
@@ -111,25 +110,13 @@ const buildQuery = (options: FetchOptions): string => {
   erc20_raw AS (${erc20}),
   all_raw AS (SELECT * FROM native_raw UNION ALL SELECT * FROM erc20_raw),
   refined AS (
-    SELECT chain, date_trunc('day', block_time) AS block_day, price_address, amount
+    SELECT chain, token_address, amount
     FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY chain, tx_hash ORDER BY amount DESC) AS rnk FROM all_raw)
     WHERE rnk = 1
-  ),
-  -- pre-filter prices to queried days/chains to prune partitions, not scan all history
-  px AS (
-    SELECT pr.blockchain, pr.contract_address, pr.timestamp AS price_day, pr.price
-    FROM prices.day pr
-    WHERE pr.timestamp >= date_trunc('day', from_unixtime(${start}))
-      AND pr.timestamp <  from_unixtime(${end})
-      AND pr.blockchain IN (${chains})
   )
-  SELECT r.chain AS chain, SUM(COALESCE(p.price * r.amount, 0)) AS vol_usd
-  FROM refined r
-  LEFT JOIN px p
-    ON p.blockchain = r.chain
-   AND p.contract_address = r.price_address
-   AND p.price_day = r.block_day
-  GROUP BY 1`;
+  SELECT chain, token_address AS token, SUM(amount) AS amount
+  FROM refined
+  GROUP BY 1, 2`;
 };
 
 // Dune only for post-cutover and use vault logs before cutover
@@ -139,9 +126,12 @@ const prefetch = async (options: FetchOptions) =>
 const fetch = async (options: FetchOptions) => {
   if (options.endTimestamp <= CUTOVER) return fetchVaultVolume(options);
 
-  const { dune } = chainConfig[options.chain];
-  const row = options.preFetchedResults.find((r: any) => r.chain === dune);
-  return { dailyBridgeVolume: row ? Number(row.vol_usd) : 0 };
+  const dailyBridgeVolume = options.createBalances();
+  for (const row of options.preFetchedResults ?? []) {
+    if (row.chain !== options.chain || !row.token || !row.amount) continue;
+    dailyBridgeVolume.addToken(row.token, row.amount);
+  }
+  return { dailyBridgeVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -155,7 +145,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    BridgeVolume: "From 2026-06-11 (router launch): token inflows into Socket Protocol's OpenRouter and AllowanceHolder routers — native value plus ERC20 transfers in, taking the single largest token per transaction as the routed amount, priced in USD; mirrors the socketprotocol/socket-data dashboard and counts both bridge and swap routing. Before 2026-06-11: deposits and withdrawals through the Socket Liquidity Layer SuperToken vaults, summed from on-chain vault events.",
+    BridgeVolume: "From 2026-06-11 (router launch): token inflows into Socket Protocol's OpenRouter and AllowanceHolder routers — native value plus ERC20 transfers in, taking the single largest token per transaction as the routed amount; mirrors the socketprotocol/socket-data dashboard and counts both bridge and swap routing. Before 2026-06-11: deposits and withdrawals through the Socket Liquidity Layer SuperToken vaults, summed from on-chain vault events.",
   },
 };
 
