@@ -47,8 +47,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Gross revenue from paid merchandise sales at PEPTIDES (tracked as 10 times of $PEPTIDES burnt using burn wallet).",
-  Revenue: "Includes 90% of revenue retained for PEPTIDES store and 10% allocated to the $PEPTI buyback program.",
-  HoldersRevenue: "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
+  Revenue: "Includes 90% of revenue retained for PEPTIDES store and 10% allocated to the $PEPTIDES buyback program.",
+  HoldersRevenue: "10% of gross merchandise sales allocated to the $PEPTIDES buyback program.",
   ProtocolRevenue: "90% of revenue retained for PEPTIDES store operations.",
 };
 
@@ -57,13 +57,13 @@ const breakdownMethodology = {
     "Merchandise Sales": "Daily gross revenue from paid merchandise sales at PEPTIDES (tracked as 10 times of $PEPTIDES burnt using burn wallet).",
   },
   HoldersRevenue: {
-    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTI buyback and burn program.",
+    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTIDES buyback and burn program.",
   },
   ProtocolRevenue: {
     "Merchandise Sales to Store Operations": "90% of revenue retained for PEPTIDES store operations.",
   },
   Revenue: {
-    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTI buyback program.",
+    "Merchandise Sales to Buybacks": "10% of gross merchandise sales allocated to the $PEPTIDES buyback program.",
     "Merchandise Sales to Store Operations": "90% of revenue retained for PEPTIDES store operations.",
   },
 };
