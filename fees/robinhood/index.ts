@@ -5,6 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const L1_EXECUTION_COSTS = "Ethereum L1 Execution Gas Costs";
 const L1_BLOB_COSTS = "Ethereum L1 Blob Data Costs";
+const AEP_FEE_SHARE = "Arbitrum Expansion Program Fee Share";
 
 // https://docs.robinhood.com/chain/protocol-contracts
 const ROBINHOOD_ROLLUP_CONTRACTS = [
@@ -86,6 +87,17 @@ const fetch = async (options: FetchOptions) => {
   dailyL1Costs.addGasToken(l1BlobCosts, L1_BLOB_COSTS);
   dailyRevenue.subtract(dailyL1Costs);
 
+  // Arbitrum Expansion Program: 10% of net revenue (fees minus L1 settlement
+  // costs) is remitted to the Arbitrum DAO (8%) and developer fund (2%).
+  // https://docs.arbitrum.io/launch-arbitrum-chain/overview/license
+  // https://x.com/sgoldfed/status/2074924352659755217
+  const netRevenue = l2Fees - l1ExecutionCosts - l1BlobCosts;
+  if (netRevenue > 0n) {
+    const aepFee = netRevenue / 10n;
+    dailyRevenue.addGasToken(-aepFee, METRIC.TRANSACTION_GAS_FEES);
+    dailySupplySideRevenue.addGasToken(aepFee, AEP_FEE_SHARE);
+  }
+
   return {
     dailyFees,
     dailyRevenue,
@@ -103,21 +115,22 @@ const adapter: Adapter = {
   allowNegativeValue: true,
   methodology: {
     Fees: "Transaction gas fees paid by users on Robinhood Chain (ETH), covering both L2 execution and the L1 data fee component.",
-    Revenue: "Robinhood Chain transaction gas fees net of Ethereum L1 batch posting (calldata and blobs) and rollup assertion costs.",
-    SupplySideRevenue: "Ethereum L1 execution gas and blob fees paid for Robinhood Chain batch posting and rollup assertion transactions.",
+    Revenue: "Robinhood Chain transaction gas fees net of Ethereum L1 batch posting (calldata and blobs) and rollup assertion costs, minus the 10% Arbitrum Expansion Program share of net revenue paid to the Arbitrum DAO and developer fund.",
+    SupplySideRevenue: "Ethereum L1 execution gas and blob fees paid for Robinhood Chain batch posting and rollup assertion transactions, plus the 10% Arbitrum Expansion Program share of net revenue paid to the Arbitrum DAO and developer fund.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain L2 transaction gas fees paid by users.",
     },
     Revenue: {
-      [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain L2 transaction gas fees paid by users.",
+      [METRIC.TRANSACTION_GAS_FEES]: "Robinhood Chain L2 transaction gas fees paid by users, minus the 10% Arbitrum Expansion Program share of net revenue.",
       [L1_EXECUTION_COSTS]: "Ethereum execution gas paid by the Robinhood Chain batch poster and validators for L1 batch posting and rollup assertion transactions.",
       [L1_BLOB_COSTS]: "Ethereum blob fees paid for Robinhood Chain blob-carrying batch posting transactions.",
     },
     SupplySideRevenue: {
       [L1_EXECUTION_COSTS]: "Ethereum execution gas paid by the Robinhood Chain batch poster and validators for L1 batch posting and rollup assertion transactions.",
       [L1_BLOB_COSTS]: "Ethereum blob fees paid for Robinhood Chain blob-carrying batch posting transactions.",
+      [AEP_FEE_SHARE]: "10% of net revenue (fees minus L1 settlement costs) remitted under the Arbitrum Expansion Program: 8% to the Arbitrum DAO treasury and 2% to the developer fund.",
     },
   },
 };
