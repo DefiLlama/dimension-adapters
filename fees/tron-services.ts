@@ -10,9 +10,6 @@ import fetchURL from "../utils/fetchURL";
  *     - revenue    = platform margin (each provider's fee % applied to their sales)
  *     - supplySide = distributed to the energy/bandwidth providers
  * Amounts are TRX; reported as the native token so DefiLlama prices to USD.
- *
- * Destination in the fork of DefiLlama/dimension-adapters:  fees/tron-services.ts
- * Test:  npm test fees tron-services 2026-07-08   (verified passing)
  */
 const API = "https://tron-services.xyz/api/defillama/fees";
 
@@ -21,15 +18,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const data = await fetchURL(API); // fetchURL devuelve el body JSON directo
+  const data = await fetchURL(API); // fetchURL returns the JSON body directly
   const day = (data?.series || []).find((x: any) => x.date === options.dateString);
   if (day) {
-    dailyFees.addCGToken("tron", Number(day.fees) || 0, "Energy & bandwidth fees");
-    dailyRevenue.addCGToken("tron", Number(day.revenue) || 0, "Platform revenue");
-    dailySupplySideRevenue.addCGToken("tron", Number(day.supplySide) || 0, "Provider payouts");
+    dailyFees.addCGToken("tron", Number(day.fees) || 0, "Energy & bandwidth rental fees");
+    dailyRevenue.addCGToken("tron", Number(day.revenue) || 0, "Rental Fees To Protocol");
+    dailySupplySideRevenue.addCGToken("tron", Number(day.supplySide) || 0, "Rental Fees To Providers");
   }
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  // Protocol revenue = the platform margin (no governance token, so all revenue goes to the protocol).
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {
@@ -40,12 +38,14 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Total paid by clients for energy and bandwidth rentals (the full order price).",
     Revenue: "Platform margin kept after paying providers — each provider's fee % applied to their own sales.",
+    ProtocolRevenue: "Same as revenue: the platform margin. There is no governance token, so all revenue goes to the protocol.",
     SupplySideRevenue: "Value distributed to the energy/bandwidth providers who fulfilled the orders.",
   },
   breakdownMethodology: {
-    Fees: { "Energy & bandwidth fees": "Full price paid by clients for energy and bandwidth rentals." },
-    Revenue: { "Platform revenue": "Portion kept by Tron Services (the provider fee %)." },
-    SupplySideRevenue: { "Provider payouts": "Portion paid out to the energy/bandwidth providers." },
+    Fees: { "Energy & bandwidth rental fees": "Full price paid by clients for energy and bandwidth rentals." },
+    Revenue: { "Rental Fees To Protocol": "Portion of rental fees kept by Tron Services (the provider fee %)." },
+    ProtocolRevenue: { "Rental Fees To Protocol": "Portion of rental fees kept by Tron Services (the provider fee %)." },
+    SupplySideRevenue: { "Rental Fees To Providers": "Portion of rental fees paid out to the energy/bandwidth providers." },
   },
 };
 
