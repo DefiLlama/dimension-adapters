@@ -2,10 +2,15 @@ import { PromisePool } from "@supercharge/promise-pool";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { sleep } from "../../utils/utils";
 
 const API_BASE = "https://api.sunperp.com";
 
 const fetch = async (options: FetchOptions) => {
+  const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
+  if ((options.toTimestamp * 1000) > sixHoursAgo) {
+    throw new Error("End timestamp is less than 6 hours ago, skipping due to API limitations");
+  }
   const { data } = await fetchURL(`${API_BASE}/sapi/v1/public/contract_info?business_type=swap`);
   const contracts = data.filter(({ contract_status }: any) => contract_status === 1);
   // Avoid Error Handling, Contract list is current; some markets may not have klines for older dates.
@@ -15,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
       const { data = [] } = await fetchURLAutoHandleRateLimit(
         `${API_BASE}/sapi/v1/market/history/kline?contract_code=${encodeURIComponent(contract_code)}&period=1day&from=${options.startOfDay}&to=${options.endTimestamp}`
       );
+      await sleep(500);
       return data.reduce(
         (sum: number, { id, trade_turnover }: any) =>
           id >= options.startOfDay && id < options.endTimestamp ? sum + Number(trade_turnover || 0) : sum,
