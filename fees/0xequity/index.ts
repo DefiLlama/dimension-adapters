@@ -21,11 +21,11 @@ import { CHAIN } from "../../helpers/chains";
 // proven monthly rental income; emits FullyProven on finalize.
 const REGISTRY = "0xa67edcec210147b85b589313b05e04c680fdef02";
 
-const FULLY_PROVEN_EVENT =
-  "event FullyProven(address indexed token, uint256 indexed periodId, uint256 totalMinor)";
+const FULLY_PROVEN_EVENT = "event FullyProven(address indexed token, uint256 indexed periodId, uint256 totalMinor)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   // Each FullyProven log = one property/month of proven gross rental income.
   const logs = await options.getLogs({
@@ -35,16 +35,14 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     // totalMinor is USD cents -> USD
-    dailyFees.addUSDValue(Number(log.totalMinor) / 100);
+    dailyFees.addUSDValue(Number(log.totalMinor) / 100, "Rental Yield");
+    dailySupplySideRevenue.addUSDValue(Number(log.totalMinor) / 100, "Rental Yield to Property Holders");
   }
-
-  // All proven rental income accrues to property-token holders (supply side).
-  const dailySupplySideRevenue = dailyFees.clone();
 
   // Protocol-retained cut (management fee) not yet quantified on-chain -> 0.
   const dailyRevenue = options.createBalances();
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
@@ -53,12 +51,23 @@ const methodology = {
   Revenue: "Protocol-retained management fee. Not yet quantified on-chain; reported as 0 until confirmed.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Rental Yield": "Gross rental income earned by 0xEquity's tokenized real-estate properties, as proven on-chain in the IncomeAttestationRegistry. A month is counted only when it is fully proven by two independent paths (a threshold-signed attestation and a Reclaim zkTLS proof of the same bank statement) that agree on the amount.",
+  },
+  SupplySideRevenue: {
+    "Rental Yield to Property Holders": "All proven rental income, which is distributed to the property-token holders (the suppliers of capital) as yield.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
-  start: "2024-07-01", // first proven rental month (Jul 2024); on-chain events are backfilled
+  start: "2026-06-18",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
