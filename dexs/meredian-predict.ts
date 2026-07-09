@@ -21,7 +21,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
 
   for (const log of predictionLogs) {
-    dailyVolume.add(TOKEN, log.predictorCollateral);
+    dailyVolume.add(TOKEN, log.predictorCollateral / 2n);
+    dailyVolume.add(TOKEN, log.counterpartyCollateral / 2n);
   }
 
   const tradeLogs = await options.getLogs({
@@ -38,7 +39,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Volume:
-    "Daily volume is the total predictor collateral committed in PredictionCreated events on the Meredian Predict contract, plus the trade price of secondary-market TradeExecuted events, on the Robinhood chain.",
+    "Daily volume is calculated as the sum of predictor and counterparty collateral (each divided by two, then summed) from PredictionCreated events on the Meredian Predict contract, and the price values from TradeExecuted events on the secondary market contract. All volumes are measured in the underlying token on the Robinhood chain.",
   Fees: "Fees are set to 0 at the moment.",
 };
 
