@@ -762,6 +762,19 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },
     //No bsc pools yet
     //[CHAIN.BSC]: { factory: "0x5105989c863e801fC610396529BE9f2A6B95bF0A", start: '2026-05-20', fees: 0.003, revenueRatio: 0, }
+  },
+  "noxa-fi": {
+    [CHAIN.ABSTRACT]: { factory: "0xE1e98623082f662BCA1009a05382758f86F133b3", start: "2025-01-22", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.MEGAETH]: { factory: "0xd6a8198307a51Ae8d33695BDee2F82E48925B445", start: "2025-11-13", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.MONAD]: { factory: "0x8361060eD5F4E8789F1442FB4284eca9b4305985", start: "2025-11-20", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.BERACHAIN]: { factory: "0xec4a56061d86955d0df883efb2e5791d99ea71f2", start: "2025-02-04", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.SONIC]: { factory: "0xfDE31CCAf95b8bF65a0D3805CD1668969787992c", start: "2025-02-21", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.SOMNIA]: { factory: "0xeC4a56061d86955D0Df883efb2E5791d99Ea71f2", start: "2025-09-03", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.OG]: { factory: "0xD9eC2db5f3D1b236843925949fe5bd8a3836FCcB", start: "2025-09-22", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.PLASMA]: { factory: "0x630957Cf4582baDa8B583B5A9476a7108cFdE0A4", start: "2025-09-25", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.STABLE]: { factory: "0xf306fEdB206ac1Baff1dB8BB63A14151Cb72ee7B", start: "2025-11-27", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.KATANA]: { factory: "0xeC4a56061d86955D0Df883efb2E5791d99Ea71f2", start: "2025-06-17", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.HYPERLIQUID]: { factory: "0xec4a56061d86955d0df883efb2e5791d99ea71f2", start: "2025-02-18", fees: 0.003, revenueRatio: 0, },
   }
 }
 
