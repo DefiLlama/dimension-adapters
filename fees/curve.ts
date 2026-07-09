@@ -77,7 +77,7 @@ const fetch = async (options: FetchOptions) => {
 // https://resources.curve.finance/pools/overview/#pool-fees
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true, // curve api doesn't support hourly pull
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
     all[chain] = {
       fetch,
