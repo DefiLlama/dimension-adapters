@@ -732,6 +732,20 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "profunding": {
+    // ProFunding (https://profunding.pro) builder code on Hyperliquid,
+    // lowercased to match HL's builder_fills files.
+    addresses: ["0x0078f290838ee72228944a716145aad0f2a384d5"],
+    // First day the ProFunding app attached its HL builder code
+    // (mandatory approval at login shipped 2026-02-22).
+    start: "2026-02-22",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through ProFunding's funding-rate arbitrage terminal (manual delta-neutral trades, TWAP execution, and autopilot).",
+      Revenue: "Builder code fees collected by ProFunding from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by ProFunding from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
 };
 
 
