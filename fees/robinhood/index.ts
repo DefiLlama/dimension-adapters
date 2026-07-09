@@ -85,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addGasToken(l1BlobCosts, L1_BLOB_COSTS);
   dailyL1Costs.addGasToken(l1ExecutionCosts, L1_EXECUTION_COSTS);
   dailyL1Costs.addGasToken(l1BlobCosts, L1_BLOB_COSTS);
-  dailyRevenue.subtract(dailyL1Costs);
+  dailyRevenue.subtract(dailyL1Costs, METRIC.TRANSACTION_GAS_FEES);
 
   // Arbitrum Expansion Program: 10% of net revenue (fees minus L1 settlement
   // costs) is remitted to the Arbitrum DAO (8%) and developer fund (2%).
