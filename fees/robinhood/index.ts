@@ -83,11 +83,11 @@ const fetch = async (options: FetchOptions) => {
   // costs) is remitted to the Arbitrum DAO (8%) and developer fund (2%).
   // https://docs.arbitrum.io/launch-arbitrum-chain/overview/license
   // https://x.com/sgoldfed/status/2074924352659755217
-  const netRevenue = l2Fees - l1ExecutionCosts - l1BlobCosts;
-  const aepFee = netRevenue > 0n ? netRevenue / 10n : 0n;
+  const netFees = l2Fees - l1ExecutionCosts - l1BlobCosts;
+  const aepFee = netFees > 0n ? netFees / 10n : 0n;
 
   dailyFees.addGasToken(l2Fees, METRIC.TRANSACTION_GAS_FEES);
-  dailySupplySideRevenue.addGasToken(netRevenue - aepFee, VALIDATOR_FEES);
+  dailySupplySideRevenue.addGasToken(netFees - aepFee, VALIDATOR_FEES);
   dailySupplySideRevenue.addGasToken(l1ExecutionCosts, L1_EXECUTION_COSTS);
   dailySupplySideRevenue.addGasToken(l1BlobCosts, L1_BLOB_COSTS);
   dailySupplySideRevenue.addGasToken(aepFee, AEP_FEE_SHARE);
