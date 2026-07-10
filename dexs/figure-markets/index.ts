@@ -67,8 +67,8 @@ async function fetch(options: FetchOptions) {
 const methodology = {
   Volume: "Sum of each market's 24h traded notional across all Figure Markets order books — spot crypto, tokenized securities, tokenized RWA loans (Figure Connect) and the YLDS fund.",
   Fees: "Maker + taker trading fees. Spot crypto pairs charge up to 0.1% per side (stablecoin pairs are free) and tokenized-securities pairs charge 0.03% per side; tokenized RWA loan trades and YLDS fund transactions have no trading fee, so they add nothing even though they are most of the volume.",
-  Revenue: "Equal to fees. Figure keeps all trading fees — this is an order-book exchange with no liquidity providers to pay.",
-  ProtocolRevenue: "All trading fees go to Figure.",
+  Revenue: "Maker + taker trading fees. Figure keeps all trading fees — this is an order-book exchange with no liquidity providers to pay.",
+  ProtocolRevenue: "Maker + taker trading fees. Figure keeps all trading fees — this is an order-book exchange with no liquidity providers to pay.",
 };
 
 const adapter: SimpleAdapter = {
