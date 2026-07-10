@@ -49,7 +49,8 @@ const BORING_VAULTS: Record<string, string[]> = {
     '0xcaae49fb7f74ccfbe8a05e6104b01c097a78789f', // Balanced USDC
     '0x13cc1b39cb259ba10cd174eae42012e698ed7c51', // Lombard
     '0x63d124cf1afc22f0ccea376168200508d2a0868e', // Kraken beHolder USD
-    '0xf15351a0d66743e09457c45eae88df34fcee8cb7', // Sentora Advanced Yields ETH
+    '0xf15351a0d66743e09457c45eae88df34fcee8cb7', // Kraken beHolder ETH (Sentora Advanced Yields ETH)
+    '0x69d210d3b60e939bfa6e87cccc4fab7e8f44c16b', // Ether.fi Liquid Katana ETH
   ],
   [CHAIN.INK]: [
     '0x9761ddf8e79930b334f1be1bd93abe3695061cca',
