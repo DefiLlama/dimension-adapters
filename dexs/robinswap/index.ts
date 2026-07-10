@@ -8,15 +8,28 @@ const V2_FACTORY = '0xa95DA9b9fCef09A07F99444fE9304457d6ECdccA'
 const V3_FACTORY = '0xea561e058313b96011e5070ca7d0f027a44e3748'
 // RobinSwap V2 uses a 25 bps swap fee; V3 fee tiers are emitted by each pool.
 const V2_FEE = 0.0025
+const V2_FACTORY_START_BLOCK = 6027468
 const V3_FACTORY_START_BLOCK = 6027468
+const PAIR_CREATED_EVENT = 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)'
 const POOL_CREATED_EVENT = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 
 const fetch = async (options: FetchOptions) => {
-  const v2 = await getUniV2LogAdapter({
-    factory: V2_FACTORY,
-    fees: V2_FEE,
-    userFeesRatio: 1,
-  })(options)
+  // Discover pools directly so this adapter is independent of the shared TVL
+  // cache and can return zero cleanly before the first pair is created.
+  const pairLogs = await options.getLogs({
+    target: V2_FACTORY,
+    eventAbi: PAIR_CREATED_EVENT,
+    fromBlock: V2_FACTORY_START_BLOCK,
+    cacheInCloud: true,
+  })
+  const v2 = pairLogs.length
+    ? await getUniV2LogAdapter({
+      factory: V2_FACTORY,
+      fees: V2_FEE,
+      userFeesRatio: 1,
+      allowReadPairs: true,
+    })(options)
+    : undefined
 
   // Read this factory directly instead of relying on the shared V3 TVL cache:
   // the dimensions adapter can therefore run before the TVL adapter is merged.
@@ -33,8 +46,10 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
-  dailyVolume.add(v2.dailyVolume)
-  dailyFees.add(v2.dailyFees)
+  if (v2) {
+    dailyVolume.add(v2.dailyVolume)
+    dailyFees.add(v2.dailyFees)
+  }
   if (v3) {
     dailyVolume.add(v3.dailyVolume)
     dailyFees.add(v3.dailyFees)
