@@ -78,15 +78,10 @@ const config: {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(config).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-      },
-    };
-  }, {}),
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: Object.keys(config),
   methodology: {
     Fees: 'Total interest paid to users by borrowing FRAX.',
     Revenue: 'Amount of interest collected by Frax Finance.',

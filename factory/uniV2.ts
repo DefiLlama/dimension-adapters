@@ -757,6 +757,15 @@ const configs: Record<string, Record<string, any>> = {
   "qie-dex": {
     [CHAIN.QIEV3]: { factory: "0x8E23128a5511223bE6c0d64106e2D4508C08398C", start: '2025-08-05', fees: 0.003, revenueRatio: 0, }
   },
+  // migrated off deleted Goldsky subgraph to on-chain logs; factory (same on every chain) from
+  // DefiLlama-Adapters registries/uniswapV2.js. bsc omitted: one of its pairs returns a malformed
+  // multicall result that trips a @defillama/sdk crash (abi/index.js filter on undefined).
+  "omni-exchange-v2": {
+    [CHAIN.BASE]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.ARBITRUM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.AVAX]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.OPTIMISM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+  },
   "wswap": {
     [CHAIN.WCHAIN]: { factory: "0x2A44f013aD7D6a1083d8F499605Cf1148fbaCE31", start: '2025-06-19', fees: 0.003, revenueRatio: 0, },
     [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },

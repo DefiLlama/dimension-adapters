@@ -48,15 +48,13 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.BASE]: {
-      start: '2024-01-13',
-    },
-    [CHAIN.ARBITRUM]: {
-      start: '2024-08-15',
-    },
-  },
+  chains: [
+    [CHAIN.BASE, { start: '2024-01-13' }],
+    [CHAIN.ARBITRUM, { start: '2024-08-15' }],
+  ],
   methodology,
 }
 export default adapters
