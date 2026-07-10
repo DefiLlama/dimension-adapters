@@ -63,27 +63,50 @@ async function fetchHoldersRevenue(options: FetchOptions) {
   return dailyHoldersRevenue
 }
 
-// raw per-pool, per-token traded amount from dex.trades. Each swap moves both
-// pool tokens, so summing the bought + sold legs per token gives each token's
-// total traded amount; addOneToken later counts one (priceable) side as volume.
-// No token whitelist: DefiLlama pricing (+ <$10k-TVL rule) does the filtering.
-function buildQuery(blockchain: string, options: FetchOptions): string {
-  const where = `blockchain = '${blockchain}'
+// raw per-pool, per-token traded amount from dex.trades, for one or more Dune
+// blockchains. UNNEST explodes each swap's bought + sold legs into one row each,
+// so SUM per token gives that token's total traded amount; addOneToken later
+// counts one (priceable) side as volume. No token whitelist: DefiLlama pricing
+// (+ <$10k-TVL rule) does the filtering.
+function buildQuery(blockchains: string[], options: FetchOptions): string {
+  const inList = blockchains.map((b) => `'${b}'`).join(',');
+  return `
+    SELECT blockchain, project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
+    FROM dex.trades
+    CROSS JOIN UNNEST(
+      ARRAY[token_bought_address, token_sold_address],
+      ARRAY[token_bought_amount_raw, token_sold_amount_raw]
+    ) AS t (token, amount)
+    WHERE blockchain IN (${inList})
       AND project = 'uniswap'
       AND version = '3'
       AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})`;
-  const leg = (amountCol: string, tokenCol: string) => `
-    SELECT project_contract_address AS pool, ${tokenCol} AS token, ${amountCol} AS amount_raw
-    FROM dex.trades WHERE ${where}`;
-  return `
-    SELECT pool, token, CAST(SUM(amount_raw) AS VARCHAR) AS amount
-    FROM (
-      ${leg('token_bought_amount_raw', 'token_bought_address')}
-      UNION ALL
-      ${leg('token_sold_amount_raw', 'token_sold_address')}
-    )
-    GROUP BY pool, token`;
+      AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY blockchain, project_contract_address, t.token`;
+}
+
+// queryDune fetches at most this many rows; a combined query at/over the cap is
+// probably truncated, so we bail and let each chain query its own slice.
+const DUNE_ROW_LIMIT = 100000;
+
+// Pull every Dune chain in one query so a run makes a single Dune call instead
+// of ~24. Result is grouped per chain and handed to each fetch via
+// options.preFetchedResults. Returns null (→ per-chain fallback) if truncated.
+const prefetch: any = async (options: FetchOptions) => {
+  const blockchains = Object.values(chainConfig)
+    .filter((c) => c.fetch === fetchFromDune)
+    .map((c) => c.blockchain);
+  const rows: any[] = await queryDune('3996608', { fullQuery: buildQuery(blockchains, options) }, options);
+  if (rows.length >= DUNE_ROW_LIMIT) {
+    console.error(`uniswap-v3: prefetch returned ${rows.length} rows (>= ${DUNE_ROW_LIMIT} cap), falling back to per-chain queries`);
+    return null;
+  }
+  const byChain: Record<string, any[]> = {};
+  for (const r of rows) {
+    if (!r.blockchain) continue;
+    (byChain[r.blockchain] ??= []).push(r);
+  }
+  return { byChain };
 }
 
 async function fetchFromDune(options: FetchOptions) {
@@ -91,7 +114,11 @@ async function fetchFromDune(options: FetchOptions) {
   const dailyFees = options.createBalances();
 
   const { blockchain } = chainConfig[options.chain];
-  const rows: any[] = await queryDune('3996608', { fullQuery: buildQuery(blockchain, options) }, options);
+  // use the prefetched all-chains result when present, else query just this chain
+  const byChain = options.preFetchedResults?.byChain;
+  const rows: any[] = byChain
+    ? (byChain[blockchain] ?? [])
+    : await queryDune('3996608', { fullQuery: buildQuery([blockchain], options) }, options);
 
   // group by pool -> its (up to 2) tokens and their summed raw amounts
   const byPool: Record<string, { tokens: string[]; amounts: string[] }> = {};
@@ -224,6 +251,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology,
   adapter: chainConfig,
+  prefetch,
   // supply side can be negative on days revenue (v2+v3 buyback) exceeds v3 fees
   allowNegativeValue: true,
 }
