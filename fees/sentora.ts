@@ -193,7 +193,8 @@ async function accrueMorpho(options: FetchOptions, balances: Balances, vaults: s
   for (let i = 0; i < rates.length; i++) {
     const v = rates[i]
     // Share-price growth is net of curator fees (fee shares dilute price) → gross = supplier + perf + mgmt.
-    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    // Losses (negative growth) are booked as negative yield rather than clamped to zero.
+    const netYield = v.totalAssets * v.growthRatio
     const perf = perfAssets[i]
     const mgmt = mgmtAssets[i]
     const grossYield = netYield + perf + mgmt
@@ -209,12 +210,14 @@ async function accrueEuler(options: FetchOptions, balances: Balances, vaults: st
   if (!rates.length) return
 
   // Share-price growth is net of the 10% perf fee → gross-up, then split curator revenue from supplier yield.
+  // Applied symmetrically on losses (negative perf) — we accrue daily with no high-water mark, so a
+  // dip-and-recover would otherwise double-charge the perf fee on the way back to breakeven.
   for (const v of rates) {
-    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    const netYield = v.totalAssets * v.growthRatio
     const grossYield = netYield / (1 - SENTORA_EULER_PERF_RATE)
     const perf = grossYield - netYield
     balances.dailyFees.add(v.asset, grossYield, L.eulerYields)
-    if (perf > 0) balances.dailyRevenue.add(v.asset, perf, L.eulerPerf)
+    balances.dailyRevenue.add(v.asset, perf, L.eulerPerf)
     balances.dailySupplySideRevenue.add(v.asset, netYield, L.eulerSupply)
   }
 }
@@ -255,9 +258,10 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     const rateBase = 10 ** toNum(decimals[i])
     const rateBefore = toNum(ratesFrom[i])
     const rateAfter = toNum(ratesTo[i])
-    if (rateAfter <= rateBefore) continue
+    if (rateAfter === rateBefore) continue
 
     // Share-price growth is net of perf fee — gross-up, then keep only Sentora's 20% slice.
+    // Gross-up applies symmetrically on losses (negative perf) to avoid double-charging on recovery.
     const netYield = supply * (rateAfter - rateBefore) / rateBase
     const grossYield = perfFeeRate < 1 ? netYield / (1 - perfFeeRate) : netYield
     const sentoraPerf = (grossYield - netYield) * SENTORA_BORING_PERF_SHARE
@@ -285,8 +289,9 @@ async function accrueSupervisedLoans(options: FetchOptions, balances: Balances, 
   ])
 
   // weETH rate is ETH per weETH (1e18); its growth over the window is the restaking yield per weETH.
+  // A rate drop (slashing) is booked as negative yield and negative perf, symmetric with gains.
   const growth = (toNum(rateTo) - toNum(rateFrom)) / 1e18
-  if (growth <= 0) return
+  if (!growth) return
 
   for (let i = 0; i < loanManagers.length; i++) {
     const collateral = toNum(supplied[i]) // weETH collateral (18 decimals)
@@ -332,11 +337,11 @@ async function accrueUpshift(options: FetchOptions, balances: Balances, vaults: 
   const rates = await readVaultRates(options, erc4626Vaults)
   for (const v of rates) {
     const perfFee = perfFeeOf(byAddress.get(v.vault.toLowerCase()))
-    const netYield = v.growthRatio > 0 ? v.totalAssets * v.growthRatio : 0
+    const netYield = v.totalAssets * v.growthRatio
     const grossYield = perfFee > 0 && perfFee < 1 ? netYield / (1 - perfFee) : netYield
     const perf = grossYield - netYield
     balances.dailyFees.add(v.asset, grossYield, L.upshiftYields)
-    if (perf > 0) balances.dailyRevenue.add(v.asset, perf, L.upshiftPerf)
+    if (perf) balances.dailyRevenue.add(v.asset, perf, L.upshiftPerf)
     balances.dailySupplySideRevenue.add(v.asset, netYield, L.upshiftSupply)
   }
 
@@ -347,13 +352,13 @@ async function accrueUpshift(options: FetchOptions, balances: Balances, vaults: 
     if (!before || !after || after === before) continue
 
     const netYieldUsd = (toNum(after.asset_share_ratio) - toNum(before.asset_share_ratio)) * toNum(after.total_shares) * toNum(after.underlying_price)
-    if (netYieldUsd <= 0) continue
+    if (!netYieldUsd) continue
 
     const perfFee = perfFeeOf(info)
     const grossYieldUsd = perfFee > 0 && perfFee < 1 ? netYieldUsd / (1 - perfFee) : netYieldUsd
     const perf = grossYieldUsd - netYieldUsd
     balances.dailyFees.addUSDValue(grossYieldUsd, L.upshiftYields)
-    if (perf > 0) balances.dailyRevenue.addUSDValue(perf, L.upshiftPerf)
+    if (perf) balances.dailyRevenue.addUSDValue(perf, L.upshiftPerf)
     balances.dailySupplySideRevenue.addUSDValue(netYieldUsd, L.upshiftSupply)
   }
 }
@@ -480,13 +485,14 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-09-25' },
     [CHAIN.INK]: { fetch, start: '2025-09-15' },
     [CHAIN.SOLANA]: { fetch, start: '2025-11-01' },
   },
+  // Losses and negative perf accruals are recorded; without this a net-negative day would
+  // error out and record nothing, hiding the loss instead of booking it.
   allowNegativeValue: true,
   methodology,
   breakdownMethodology,
