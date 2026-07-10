@@ -30,10 +30,19 @@ const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
-async function fetchSolana(options: FetchOptions) {
+// Dune lags ~10h; skip days whose end is too recent to avoid undercounting.
+const assertIndexed = (options: FetchOptions) => {
+  const tenHoursAgo = Date.now() - 10 * 60 * 60 * 1000;
+  if (options.toTimestamp * 1000 > tenHoursAgo) {
+    throw new Error('End timestamp is less than 10 hours ago, skipping due to dune indexing delay');
+  }
+};
+
+const prefetch = async (options: FetchOptions) => {
+  assertIndexed(options);
   const formattedFeeWallets = formatAddresses(feeWallets);
 
-  const result = await queryDuneSql(options, `
+  return queryDuneSql(options, `
     WITH axiom_txs AS (
       SELECT tx_id
       FROM solana.account_activity
@@ -66,44 +75,34 @@ async function fetchSolana(options: FetchOptions) {
           OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
         )
     )
-    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
+    SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
-  `);
-
-  return { dailyVolume: result[0].total_volume };
-}
-
-async function fetchBsc(options: FetchOptions) {
-  const result = await queryDuneSql(options, `
-    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
+    UNION ALL
+    SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM dex.trades
     WHERE blockchain = 'bnb'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+      AND TIME_RANGE
       AND tx_to = ${bscTradeContract}
   `);
-
-  return { dailyVolume: result[0].total_volume };
-}
+};
 
 const fetch: any = async (options: FetchOptions) => {
-  const now = Date.now()
-  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
-  }
+  assertIndexed(options);
 
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
-  return fetchBsc(options);
+  const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
+  const row = (options.preFetchedResults || []).find((r: any) => r.chain === target);
+
+  return { dailyVolume: row.total_volume };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
   fetch,
+  prefetch,
   methodology: {
-    Volume: 'Total USD trading volume of spot swaps routed through Axiom.',
+    Volume: "Total USD volume of spot swaps made through Axiom. On Solana it counts trades whose transaction paid a fee to Axiom, and on BSC trades routed through Axiom's trading contract.",
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },
