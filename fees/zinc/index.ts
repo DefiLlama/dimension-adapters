@@ -1,120 +1,108 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryAllium } from "../../helpers/allium";
+import { queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const TREASURY = "4Ucw8BNkLWBu6gxkQsw3BRG2qRtw5WrG1UxiKpQjScH5";
+const VOLUME_ENDPOINT = "https://zinc.cash/api/volume/daily";
 const BUYBACK_SOL_VAULT = "8nEo7GArDc3aVDuHoiDYJoVUNLtzgYaVmGGNvxELCZJc";
-const STOCKPILE_SOL_VAULT = "8RxMJD7BtdzxuZkmDqcxhR6gWvegLJ1GNf9NFrPkCmwf";
-const MeteoraPoolAuthority = "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC";
+const DEPLOY_FEE_BPS = 1_000n;
+const BPS_DENOMINATOR = 10_000n;
 
-const BURN_SPLIT_FROM_BUYBACKS = 0.9;
-const STAKING_SPLIT_FROM_BUYBACKS = 0.1;
+const toLamports = (value: unknown) => {
+  if (typeof value === "bigint") return value > 0n ? value : 0n;
+  if (typeof value === "number") return BigInt(Math.max(0, Math.trunc(value)));
+
+  const wholeLamports = String(value ?? "0").trim().split(".")[0];
+  if (!/^-?\d+$/.test(wholeLamports)) return 0n;
+
+  const amount = BigInt(wholeLamports);
+  return amount > 0n ? amount : 0n;
+};
+const bps = (amount: bigint, basisPoints: bigint) => (amount * basisPoints) / BPS_DENOMINATOR;
+
+const fetchGrossRoundVolume = async (options: FetchOptions) => {
+  const rows = await queryDuneSql(
+    options,
+    `
+      WITH response AS (
+        SELECT http_get('${VOLUME_ENDPOINT}') AS body
+      )
+      SELECT
+        json_extract_scalar(day_item, '$.gross_lamports') AS gross_lamports
+      FROM response
+      CROSS JOIN UNNEST(CAST(json_extract(body, '$.daily') AS array(json))) AS t(day_item)
+      WHERE json_extract_scalar(day_item, '$.day') = '${options.dateString}'
+    `,
+    { extraUIDKey: "zinc-volume" },
+  );
+
+  if (!rows.length) throw new Error(`No Zinc gross round volume found for ${options.dateString}`);
+  return toLamports(rows[0].gross_lamports);
+};
+
+const fetchBuybackVaultInflow = async (options: FetchOptions) => {
+  const rows = await queryDuneSql(
+    options,
+    `
+      SELECT
+        CAST(COALESCE(
+          SUM(CASE WHEN post_balance > pre_balance THEN post_balance - pre_balance ELSE 0 END),
+          0
+        ) AS varchar) AS buyback_lamports
+      FROM solana.account_activity
+      WHERE address = '${BUYBACK_SOL_VAULT}'
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
+        AND token_mint_address IS NULL
+        AND tx_success = true
+    `,
+    { extraUIDKey: "zinc-buyback-vault" },
+  );
+
+  return toLamports(rows[0]?.buyback_lamports);
+};
 
 const fetch = async (options: FetchOptions) => {
-  const vaults = [TREASURY, STOCKPILE_SOL_VAULT];
-  const rows = await queryAllium(`
-    SELECT
-      to_address,
-      SUM(
-        CASE
-          WHEN to_address = '${TREASURY}' THEN raw_amount
-          WHEN from_address != '${TREASURY}' THEN raw_amount
-          ELSE 0
-        END
-      ) AS amount
-    FROM solana.assets.transfers
-    WHERE to_address IN (${vaults.map((a) => `'${a}'`).join(", ")})
-      AND mint = '${ADDRESSES.solana.SOL}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    GROUP BY to_address
-  `);
-  
-  // count buy back buy SOL were sent to MeteoraPoolAuthority from TREASURY
-  const buybacks = await queryAllium(`
-    SELECT
-      SUM(raw_amount) AS amount
-    FROM solana.assets.transfers
-    WHERE
-      to_address = '${MeteoraPoolAuthority}'
-      AND from_address = '${TREASURY}'
-      AND mint = '${ADDRESSES.solana.SOL}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  `);
+  const [grossRoundVolume, buybackVaultInflow] = await Promise.all([
+    fetchGrossRoundVolume(options),
+    fetchBuybackVaultInflow(options),
+  ]);
 
-  const treasuryFlows = options.createBalances();
-  const buybackFlows = options.createBalances();
-  const stockpileFlows = options.createBalances();
-  const flowsByVault: Record<string, typeof treasuryFlows> = {
-    [TREASURY]: treasuryFlows,
-    [BUYBACK_SOL_VAULT]: buybackFlows,
-    [STOCKPILE_SOL_VAULT]: stockpileFlows,
-  };
-  rows.forEach((row: { to_address: string; amount: number }) => {
-    flowsByVault[row.to_address]?.add(ADDRESSES.solana.SOL, row.amount);
-  });
-  flowsByVault[BUYBACK_SOL_VAULT].add(ADDRESSES.solana.SOL, buybacks[0].amount)
+  const fees = bps(grossRoundVolume, DEPLOY_FEE_BPS);
 
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(treasuryFlows, "Mining Fees");
-  dailyFees.addBalances(buybackFlows, "Mining Fees");
-  dailyFees.addBalances(stockpileFlows, "Mining Fees");
-
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(treasuryFlows, "Mining Fees to Protocol");
-  dailyRevenue.addBalances(buybackFlows.clone(BURN_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Burn");
-  dailyRevenue.addBalances(buybackFlows.clone(STAKING_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Stakers");
-
-  const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addBalances(treasuryFlows, "Mining Fees to Protocol");
+  dailyFees.add(ADDRESSES.solana.SOL, fees.toString(), "Mining Fees");
 
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addBalances(buybackFlows.clone(BURN_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Burn");
-  dailyHoldersRevenue.addBalances(buybackFlows.clone(STAKING_SPLIT_FROM_BUYBACKS), "Mining Fees to $ZINC Stakers");
-
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(stockpileFlows, "Mining Fees to Stockpile Prize Pool");
+  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, buybackVaultInflow.toString(), "Buyback Vault Inflow");
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue,
-    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "SOL paid by players when participating in ZINC rounds.",
-  UserFees: "SOL paid by players when participating in ZINC rounds.",
-  Revenue: "SOL retained by the ZINC treasury and buyback vault.",
-  ProtocolRevenue: "SOL retained by the ZINC treasury.",
-  HoldersRevenue: "SOL accumulated in the buyback vault, later converted to ZINC and distributed to stakers/burned, on a 10/90 ratio.",
-  SupplySideRevenue: "SOL accumulated in the stockpile vault and paid out to stockpile winners.",
+  Fees: "The 10% deploy fee paid in SOL on gross SOL deployed in ZINC mining rounds.",
+  UserFees: "The 10% deploy fee paid in SOL on gross SOL deployed in ZINC mining rounds.",
+  Revenue: "All deploy fees are counted as revenue.",
+  HoldersRevenue: "SOL flowing into the ZINC buyback vault.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Mining Fees": "Mining fees paid by players when participating in ZINC rounds.",
+    "Mining Fees": "The 10% deploy fee paid in SOL on gross SOL deployed in ZINC mining rounds.",
   },
   UserFees: {
-    "Mining Fees": "Mining fees paid by players when participating in ZINC rounds.",
+    "Mining Fees": "The 10% deploy fee paid in SOL on gross SOL deployed in ZINC mining rounds.",
   },
   Revenue: {
-    "Mining Fees to Protocol": "Mining fees retained by the ZINC treasury.",
-    "Mining Fees to $ZINC Burn": "Mining fees converted to $ZINC and burned.",
-    "Mining Fees to $ZINC Stakers": "Mining fees converted to $ZINC and distributed to stakers.",
-  },
-  ProtocolRevenue: {
-    "Mining Fees to Protocol": "Mining fees retained by the ZINC treasury.",
+    "Mining Fees": "All deploy fees are counted as revenue.",
   },
   HoldersRevenue: {
-    "Mining Fees to $ZINC Burn": "Mining fees converted to $ZINC and burned (90% of buyback fees).",
-    "Mining Fees to $ZINC Stakers": "Mining fees converted to $ZINC and distributed to stakers (10% of buyback fees).",
-  },
-  SupplySideRevenue: {
-    "Mining Fees to Stockpile Prize Pool": "Mining fees paid to the stockpile prize pool.",
+    "Buyback Vault Inflow": "SOL flowing into the ZINC buyback vault.",
   },
 };
 
@@ -122,11 +110,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.DUNE],
   start: "2026-05-26",
   methodology,
   breakdownMethodology,
-  pullHourly: true,
 };
 
 export default adapter;
