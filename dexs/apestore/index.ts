@@ -19,9 +19,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
-					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
+					dailyVolume: volumeData.dailyVolume
 				};
 			},
 			start: 1712265900,
@@ -35,9 +33,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
-					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
+					dailyVolume: volumeData.dailyVolume
 				};
 			},
 			start: 1712265900,
@@ -51,9 +47,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
-					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
+					dailyVolume: volumeData.dailyVolume
 				};
 			},
 			start: 1712265900,
