@@ -45,7 +45,7 @@ const TOKEN_LAUNCHED_EVENT = 'event TokenLaunched(address indexed token, address
 const POOL_FEE_FUNCTION = 'function poolFee() external view returns (uint24)'
 const UNI_V3_SWAP_EVENT = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const BPS = 10000;
-const MIN_TVL = 5000;
+const MIN_TVL = 1000;
 
 function buildDuneQuery(blockchain: string, options: FetchOptions): string {
   return `
