@@ -1,7 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
-
+import { addTokensReceived } from "../../helpers/token";
+import ADDRESSES from "../../helpers/coreAssets.json";
 // DeFa — daily USDC inflow (capital deployed) into DeFa's real-world-credit pools.
 //
 // - Invoice financing on Stellar / ZigChain / Starknet: the on-chain TVL loggers expose a
@@ -14,10 +15,6 @@ import { queryDuneSql } from "../../helpers/dune";
 // DefiLlama accumulates the dailies into cumulative volume (monotonic).
 
 const DEFA_ETH = "0x182D16434faa044B9216A490CF0955B04AE16904";
-const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const toTopic = "0x000000000000000000000000" + DEFA_ETH.slice(2).toLowerCase();
 
 // Stellar / ZigChain / Starknet — one Dune query for all Dune-backed chains.
 //
@@ -31,12 +28,6 @@ const toTopic = "0x000000000000000000000000" + DEFA_ETH.slice(2).toLowerCase();
 //   Starknet (Cairo)  : 0x0595a45952ef488d49342cd4fdf062482ab51c0718fcd8c11ff6614034b0939d
 //                       fn get_tvl_snapshot() -> total_deposited (1st field), 6 decimals
 const prefetch = async (options: FetchOptions) => {
-  // Dune needs DUNE_API_KEYS, absent in fork-PR CI; skip there so the test doesn't
-  // false-fail (production always has the key). Logged so it's not silent.
-  if (!process.env.DUNE_API_KEYS) {
-    console.error("DeFa volume: DUNE_API_KEYS not set — skipping Dune query (expected only in fork-PR CI; production has the key)");
-    return [];
-  }
   const query = `
     WITH daily AS (
       SELECT chain, date, MAX(raised_usd) AS raised_usd     -- dedup re-runs: latest per day
@@ -63,12 +54,12 @@ const fetch = async (options: FetchOptions) => {
 
   // Ethereum (PSP/PayFi): daily USDC inflow from on-chain Transfer logs into the DeFa address.
   if (options.chain === CHAIN.ETHEREUM) {
-    const logs = await options.getLogs({
-      target: USDC,
-      eventAbi: TRANSFER,
-      topics: [TRANSFER_TOPIC, null as any, toTopic],
+    await addTokensReceived({
+      target: DEFA_ETH,
+      options,
+      token: ADDRESSES[CHAIN.ETHEREUM].USDC,
+      balances: dailyVolume,
     });
-    for (const log of logs) dailyVolume.add(USDC, log.value);
     return { dailyVolume };
   }
 
@@ -93,11 +84,12 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2026-04-11" }, // first PSP inflow — backfills full history
-    [CHAIN.STELLAR]: { fetch, start: "2026-07-04" },
-    [CHAIN.STARKNET]: { fetch, start: "2026-07-04" },
-    zigchain: { fetch, start: "2026-07-04" },
+    [CHAIN.ETHEREUM]: { start: "2026-04-11" }, // first PSP inflow — backfills full history
+    [CHAIN.STELLAR]: { start: "2026-07-04" },
+    [CHAIN.STARKNET]: { start: "2026-07-04" },
+    zigchain: { start: "2026-07-04" },
   },
 };
 
