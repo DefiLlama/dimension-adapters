@@ -14,6 +14,12 @@ const SENTORA_BORING_PERF_SHARE = 0.20
 // Uniform 10% Sentora perf fee on Euler v2 vaults (per Sentora dashboard).
 const SENTORA_EULER_PERF_RATE = 0.10
 
+// Sentora charges 10% performance on the EtherFi supervised-loan (leveraged weETH) strategies.
+const SENTORA_SUPERVISED_PERF_RATE = 0.10
+
+const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+const WEETH = '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee'
+
 const ONE_SHARE = String(1e18)
 const FEE_BASE_4 = 1e4
 const YEAR_SECS = 365 * 24 * 60 * 60
@@ -53,6 +59,17 @@ const BORING_VAULTS: Record<string, string[]> = {
   ],
 }
 
+// EtherFi supervised-loan Loan Managers (weETH collateral on Morpho, borrowing PYUSD/RLUSD).
+// Not exposed in the Sentora API; addresses provided by Sentora. Kraken supervised loans are
+// already captured via their BoringVault accountant above.
+const SUPERVISED_LOAN_MANAGERS: Record<string, string[]> = {
+  [CHAIN.ETHEREUM]: [
+    '0x64423e2f6b35d24f35e3fa3938d9b896004776b1',
+    '0x268e5e8ee954016964e59c093d8deaee0245424c',
+    '0xc936e848688c9f035fa0e7a0e4dbcf26a01245f3',
+  ],
+}
+
 const L = {
   morphoYields: 'Morpho Yields',
   morphoSupply: 'Morpho Yields Distributed To Suppliers',
@@ -71,6 +88,9 @@ const L = {
   kaminoSupply: 'Kamino Yields Distributed To Suppliers',
   kaminoPerf: 'Kamino Performance Fees',
   kaminoMgmt: 'Kamino Management Fees',
+  supervisedYields: 'Supervised Loan Yields',
+  supervisedSupply: 'Supervised Loan Yields Distributed To Suppliers',
+  supervisedPerf: 'Supervised Loan Performance Fees',
 }
 
 const waivedByDate = (until: any, nowSeconds: number): boolean => {
@@ -107,11 +127,13 @@ type VaultRate = {
 async function readVaultRates(options: FetchOptions, vaults: string[]): Promise<VaultRate[]> {
   if (!vaults.length) return []
   const rateCalls = vaults.map(target => ({ target, params: [ONE_SHARE] }))
+  // permitFailure: vaults are enumerated from the current API, so on historical dates some
+  // did not exist yet — let those reads fail softly and the guard below skips them.
   const [assets, totalAssets, ratesFrom, ratesTo] = await Promise.all([
-    options.fromApi.multiCall({ abi: ABI.ERC4626.asset, calls: vaults }),
-    options.fromApi.multiCall({ abi: ABI.ERC4626.totalAssets, calls: vaults }),
-    options.fromApi.multiCall({ abi: ABI.ERC4626.converttoAssets, calls: rateCalls }),
-    options.toApi.multiCall({ abi: ABI.ERC4626.converttoAssets, calls: rateCalls }),
+    options.fromApi.multiCall({ abi: ABI.ERC4626.asset, calls: vaults, permitFailure: true }),
+    options.fromApi.multiCall({ abi: ABI.ERC4626.totalAssets, calls: vaults, permitFailure: true }),
+    options.fromApi.multiCall({ abi: ABI.ERC4626.converttoAssets, calls: rateCalls, permitFailure: true }),
+    options.toApi.multiCall({ abi: ABI.ERC4626.converttoAssets, calls: rateCalls, permitFailure: true }),
   ])
   const result: VaultRate[] = []
   for (let i = 0; i < vaults.length; i++) {
@@ -245,6 +267,37 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
   }
 }
 
+// Sentora EtherFi supervised loans: leveraged weETH positions on Morpho (weETH collateral, borrowing
+// stables), on which Sentora charges a 10% performance fee. We book the weETH restaking yield on the
+// collateral (collateral x weETH exchange-rate growth) — priced off the rate, not the token price, so
+// it carries no ETH-price noise, and it isn't counted anywhere else.
+// ponytail: restaking leg only. The borrow/redeploy spread can't be isolated on-chain without the
+// deploy destination and partly flows through the lending vaults already counted above, so this is a
+// conservative floor on the supervised-loan fee.
+async function accrueSupervisedLoans(options: FetchOptions, balances: Balances, loanManagers?: string[]) {
+  if (!loanManagers?.length) return
+
+  const [supplied, rateFrom, rateTo] = await Promise.all([
+    options.fromApi.multiCall({ abi: 'uint256:getSupply', calls: loanManagers, permitFailure: true }),
+    options.fromApi.call({ abi: 'uint256:getRate', target: WEETH }),
+    options.toApi.call({ abi: 'uint256:getRate', target: WEETH }),
+  ])
+
+  // weETH rate is ETH per weETH (1e18); its growth over the window is the restaking yield per weETH.
+  const growth = (toNum(rateTo) - toNum(rateFrom)) / 1e18
+  if (growth <= 0) return
+
+  for (let i = 0; i < loanManagers.length; i++) {
+    const collateral = toNum(supplied[i]) // weETH collateral (18 decimals)
+    if (!collateral) continue
+    const grossYield = collateral * growth // ETH-denominated appreciation of the collateral
+    const perf = grossYield * SENTORA_SUPERVISED_PERF_RATE
+    balances.dailyFees.add(WETH, grossYield, L.supervisedYields)
+    balances.dailyRevenue.add(WETH, perf, L.supervisedPerf)
+    balances.dailySupplySideRevenue.add(WETH, grossYield - perf, L.supervisedSupply)
+  }
+}
+
 function snapshotAt(snapshots: any[], timestamp: number): any | undefined {
   let best: any
   let bestTs = -Infinity
@@ -371,6 +424,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   await accrueEuler(options, balances, byProtocol('eulerv2', 'erc4626'))
   await accrueUpshift(options, balances, byProtocol('sentora', 'upshift_financial'))
   await accrueBoring(options, balances, BORING_VAULTS[options.chain])
+  await accrueSupervisedLoans(options, balances, SUPERVISED_LOAN_MANAGERS[options.chain])
   await accrueKamino(options, balances, byProtocol('kamino').filter(a => !KAMINO_VAULT_BLOCKLIST.has(a)))
 
   return {
@@ -382,8 +436,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-  Fees: 'Total yields generated by all assets deposited in Sentora-curated vaults (Morpho, Euler, Veda BoringVault, Upshift, Kamino).',
-  Revenue: 'Performance and management fees retained by Sentora as the curator. For Veda BoringVaults, only Sentora\'s 20% share of the performance fee is counted (the remaining 80% accrues to Veda).',
+  Fees: 'Total yields generated by all assets deposited in Sentora-curated vaults (Morpho, Euler, Veda BoringVault, Upshift, Kamino) plus the weETH restaking yield of the EtherFi supervised-loan strategies.',
+  Revenue: 'Performance and management fees retained by Sentora as the curator. For Veda BoringVaults, only Sentora\'s 20% share of the performance fee is counted (the remaining 80% accrues to Veda). For EtherFi supervised loans, Sentora\'s 10% performance fee on the weETH restaking yield (the borrow/redeploy spread is not included).',
   ProtocolRevenue: 'Performance and management fees retained by Sentora as the curator.',
   SupplySideRevenue: 'Yields distributed to depositors after curator fees.',
 }
@@ -395,6 +449,7 @@ const feesBreakdown = {
   [L.upshiftYields]: 'Interest yields from Sentora-curated Upshift vaults.',
   [L.kaminoYields]: 'Interest yields from Sentora-curated Kamino kvaults (Solana).',
   [L.kaminoMgmt]: 'Per-second management fees on Kamino kvault TVL.',
+  [L.supervisedYields]: 'weETH restaking yield on the collateral of the EtherFi supervised-loan strategies (leveraged weETH positions on Morpho).',
 }
 
 const revenueBreakdown = {
@@ -405,6 +460,7 @@ const revenueBreakdown = {
   [L.upshiftPerf]: 'Sentora performance fee on Upshift vault yields (rate and waiver state driven by the Upshift API).',
   [L.kaminoPerf]: 'Performance fees on interest earned by Kamino kvaults.',
   [L.kaminoMgmt]: 'Management fees on Kamino kvault TVL.',
+  [L.supervisedPerf]: 'Sentora 10% performance fee on the weETH restaking yield of the EtherFi supervised-loan strategies.',
 }
 
 const breakdownMethodology = {
@@ -417,18 +473,20 @@ const breakdownMethodology = {
     [L.boringSupply]: 'Net yield distributed to Veda BoringVault depositors.',
     [L.upshiftSupply]: 'Net yield distributed to Upshift vault depositors.',
     [L.kaminoSupply]: 'Net yield distributed to Kamino kvault depositors.',
+    [L.supervisedSupply]: 'weETH restaking yield distributed to EtherFi supervised-loan depositors after Sentora\'s fee.',
   },
 }
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-09-25' },
     [CHAIN.INK]: { fetch, start: '2025-09-15' },
     [CHAIN.SOLANA]: { fetch, start: '2025-11-01' },
   },
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
 }
