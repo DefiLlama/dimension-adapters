@@ -8,41 +8,35 @@ const limit = plimit(1);
 /**
  * Tron Services — energy & bandwidth rental marketplace on TRON.
  *
- * Fully on-chain: we read the platform wallet's TRX transfers from Tronscan.
- *   incoming TRX   = fees paid by clients for energy & bandwidth rentals
- *   outgoing TRX   = payouts distributed to the providers (supply side)
- *   incoming - out = protocol revenue (the platform margin kept)
+ * Fees are read on-chain: every TRX transfer received by the platform wallet is
+ * a client paying for an energy or bandwidth rental. We sum those incoming
+ * transfers from Tronscan (same data source TronSave uses).
  *
- * Providers are paid once per day at market close (00:00 UTC) from this same
- * wallet, so daily fees are exact and the revenue / supply-side split is exact
- * on a cumulative basis. On a single day the payout can exceed that day's fees
- * (it settles the previous day), which is why revenue can be negative for a day
- * — allowNegativeValue keeps the income-statement identity fees = revenue + supply.
+ * Tron Services is a marketplace: most of each fee is paid out to the provider
+ * that supplies the resource, and the platform keeps a 15% fee.
+ *   revenue    = fees * PROTOCOL_FEE_RATE
+ *   supplySide = fees * (1 - PROTOCOL_FEE_RATE)
+ * Both are derived from the on-chain fee total, so the income-statement identity
+ * fees = revenue + supplySide always holds and neither can go negative.
  */
 
-// Public platform wallet — deposit + payouts hot wallet. Verifiable on Tronscan:
+// Public platform wallet that receives all rental payments. Verifiable on Tronscan:
 // https://tronscan.org/#/address/TEU6avyp6qTHy4JjuetZi9eAPT4VSmD19b
 const WALLET = "TEU6avyp6qTHy4JjuetZi9eAPT4VSmD19b";
-// Tronscan public transfers endpoint (same data source TronSave uses).
+// Tronscan public transfers endpoint.
 const API = "https://apilist.tronscanapi.com/api/transfer/trx";
 const PAGE_LIMIT = 50;
+// Tronscan "direction" code: "2" = transfers received by the wallet (same convention TronSave uses).
+const INCOMING = "2";
+// Platform fee rate on rentals: the 15% margin kept; the rest is paid out to providers.
+const PROTOCOL_FEE_RATE = 0.15;
 
-// Tronscan's own "direction" codes on /transfer/trx (same convention TronSave uses):
-//   IN  = transfers received by the wallet -> client rental payments (fees)
-//   OUT = transfers sent by the wallet     -> payouts to providers (supply side)
-const IN = "2";
-const OUT = "1";
-
-// Labels used both on the balance lines and in breakdownMethodology.
 const FEES_LABEL = "Energy & bandwidth rental fees";
 const REVENUE_LABEL = "Rental Fees To Protocol";
 const SUPPLY_LABEL = "Rental Fees To Providers";
 
-async function sumTransfersTrx(
-  direction: string,
-  fromTimestamp: number,
-  endTimestamp: number,
-): Promise<number> {
+// Sum every TRX transfer received by WALLET in [fromTimestamp, endTimestamp), in TRX.
+async function sumIncomingTrx(fromTimestamp: number, endTimestamp: number): Promise<number> {
   const apiKey = getEnv("TRONSCAN_API_KEY");
   const headers = apiKey ? { "TRON-PRO-API-KEY": apiKey } : {};
   let start = 0;
@@ -54,7 +48,7 @@ async function sumTransfersTrx(
       address: WALLET,
       start: String(start),
       limit: String(PAGE_LIMIT),
-      direction,
+      direction: INCOMING,
       reverse: "false",
       // FetchOptions timestamps are in seconds; Tronscan expects milliseconds.
       start_timestamp: String(fromTimestamp * 1000),
@@ -77,17 +71,17 @@ async function sumTransfersTrx(
 const fetch = async (options: FetchOptions) => {
   const { createBalances, fromTimestamp, endTimestamp } = options;
 
-  const feesTrx = await sumTransfersTrx(IN, fromTimestamp, endTimestamp); // paid in by clients
-  const supplyTrx = await sumTransfersTrx(OUT, fromTimestamp, endTimestamp); // paid out to providers
+  const feesTrx = await sumIncomingTrx(fromTimestamp, endTimestamp);
+  const revenueTrx = feesTrx * PROTOCOL_FEE_RATE;
+  const supplyTrx = feesTrx - revenueTrx;
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
   dailyFees.addCGToken("tron", feesTrx, FEES_LABEL);
+  dailyRevenue.addCGToken("tron", revenueTrx, REVENUE_LABEL);
   dailySupplySideRevenue.addCGToken("tron", supplyTrx, SUPPLY_LABEL);
-  // fees = revenue + supplySide  (no clamp, so the identity always holds).
-  dailyRevenue.addCGToken("tron", feesTrx - supplyTrx, REVENUE_LABEL);
 
   return {
     dailyFees,
@@ -98,30 +92,28 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "TRX paid by clients for energy & bandwidth rentals — incoming transfers to the Tron Services wallet, read on-chain from Tronscan.",
-  Revenue: "Platform margin kept: incoming client payments minus the TRX paid out to providers.",
+  Fees: "TRX paid by clients for energy & bandwidth rentals, read on-chain as incoming transfers to the platform wallet on Tronscan.",
+  Revenue: "The margin the platform keeps — 15% of the rental fees.",
   ProtocolRevenue: "Same as revenue; there is no governance token, so all revenue goes to the protocol.",
-  SupplySideRevenue: "TRX paid out to the energy & bandwidth providers who fulfil the rentals (settled daily at 00:00 UTC).",
+  SupplySideRevenue: "The portion of each fee paid out to the energy & bandwidth providers that supply the resource.",
 };
 
 const breakdownMethodology = {
   Fees: { [FEES_LABEL]: "Full price paid by clients for energy & bandwidth rentals (incoming TRX)." },
-  Revenue: { [REVENUE_LABEL]: "Client payments minus the TRX paid out to providers." },
-  ProtocolRevenue: { [REVENUE_LABEL]: "Client payments minus the TRX paid out to providers." },
-  SupplySideRevenue: { [SUPPLY_LABEL]: "TRX paid out to the energy & bandwidth providers." },
+  Revenue: { [REVENUE_LABEL]: "Platform margin kept (15% of fees)." },
+  ProtocolRevenue: { [REVENUE_LABEL]: "Platform margin kept (15% of fees)." },
+  SupplySideRevenue: { [SUPPLY_LABEL]: "Paid out to the energy & bandwidth providers (85% of fees)." },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.TRON],
-  start: "2026-07-01", // TODO: set to the wallet-split day (energy/bandwidth-only) before shipping
+  start: "2026-06-14", // platform launch — first on-chain rental payments
   methodology,
   breakdownMethodology,
-  // Providers are settled once per day (00:00 UTC), so daily granularity keeps the split exact.
+  // Fees are read per time range from Tronscan; daily granularity is sufficient and keeps API usage low.
   pullHourly: false,
-  // Net revenue (fees − payouts) can be negative on days the daily payout exceeds that day's fees.
-  allowNegativeValue: true,
 };
 
 export default adapter;
