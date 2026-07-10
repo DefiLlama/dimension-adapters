@@ -16,6 +16,16 @@ const chainConfig: Record<string, { factory: string, pairConfig: string, start: 
     pairConfig: "0x1Fcd5D79A1AFdF2456947B3476A1f61096AD7771",
     start: '2026-06-09',
   },
+  [CHAIN.ARBITRUM]: {
+    factory: "0xe49805412EDFDF4C458B297e7C1534588Fa3F1F0",
+    pairConfig: "0x13D71a45b5C3C240c5D7b502446baa9598b0cA09",
+    start: '2026-06-22',
+  },
+  [CHAIN.LINEA]: {
+    factory: "0xD9a702839510ee2859bCE697F51Aae49bF8949d7",
+    pairConfig: "0xEf83E21b3C45e75cC29ae6aC493dB3821eD87B83",
+    start: '2026-06-22',
+  },
 };
 
 const brownfiV3SwapEvent = "event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,uint amount0OutRequested,uint amount1OutRequested,uint pythPrice0,uint pythPrice1,uint ammPrice,uint adjPrice,uint sPrice0,uint sPrice1,address indexed to)"
