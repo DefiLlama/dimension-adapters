@@ -87,7 +87,7 @@ function buildQuery(blockchains: string[], options: FetchOptions): string {
 
 // queryDune fetches at most this many rows; a combined query at/over the cap is
 // probably truncated, so we bail and let each chain query its own slice.
-const DUNE_ROW_LIMIT = 100000;
+const DUNE_ROW_LIMIT = 32000;
 
 // Pull every Dune chain in one query so a run makes a single Dune call instead
 // of ~24. Result is grouped per chain and handed to each fetch via
