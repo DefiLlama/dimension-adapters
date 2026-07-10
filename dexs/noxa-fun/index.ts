@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDune } from "../../helpers/dune";
+import { filterPools } from "../../helpers/uniswap";
 import { addOneToken } from "../../helpers/prices";
 
 const chainConfig: Record<string, { factory: string, start: string, fromBlock: number }> = {
@@ -35,7 +37,7 @@ const chainConfig: Record<string, { factory: string, start: string, fromBlock: n
   [CHAIN.ROBINHOOD]: {
     factory: '0xD9eC2db5f3D1b236843925949fe5bd8a3836FCcB',
     start: '2026-06-16',
-    fromBlock: 61688
+    fromBlock: 61688,
   }
 }
 
@@ -43,11 +45,26 @@ const TOKEN_LAUNCHED_EVENT = 'event TokenLaunched(address indexed token, address
 const POOL_FEE_FUNCTION = 'function poolFee() external view returns (uint24)'
 const UNI_V3_SWAP_EVENT = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const BPS = 10000;
+const MIN_TVL = 5000;
 
-async function fetch(options: FetchOptions) {
+function buildDuneQuery(blockchain: string, options: FetchOptions): string {
+  return `
+    SELECT project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
+    FROM dex.trades
+    CROSS JOIN UNNEST(
+      ARRAY[token_bought_address, token_sold_address],
+      ARRAY[token_bought_amount_raw, token_sold_amount_raw]
+    ) AS t (token, amount)
+    WHERE blockchain = '${blockchain}'
+      AND project = 'uniswap'
+      AND version = '3'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY project_contract_address, t.token`;
+}
+
+async function loadFilteredLaunches(options: FetchOptions) {
   const { factory, fromBlock } = chainConfig[options.chain]
-  const creatorFees = options.createBalances()
-
   const tokenLaunchedLogs = await options.getLogs({
     target: factory,
     eventAbi: TOKEN_LAUNCHED_EVENT,
@@ -55,14 +72,106 @@ async function fetch(options: FetchOptions) {
     cacheInCloud: true,
   })
 
-  const liquidityPools = tokenLaunchedLogs.map(log => log.pool)
-  const tokens = tokenLaunchedLogs.map(log => log.token)
+  const pairObject: IJSON<string[]> = {}
+  const poolToLaunch = new Map<string, typeof tokenLaunchedLogs[number]>()
+  for (const log of tokenLaunchedLogs) {
+    const token = log.token.toLowerCase()
+    const pairToken = log.pairToken.toLowerCase()
+    const [token0, token1] = token < pairToken ? [token, pairToken] : [pairToken, token]
+    const pool = log.pool.toLowerCase()
+    pairObject[pool] = [token0, token1]
+    poolToLaunch.set(pool, log)
+  }
+  const filteredPairs = await filterPools({
+    api: options.api,
+    pairs: pairObject,
+    createBalances: options.createBalances,
+    minUSDValue: MIN_TVL,
+    maxPairSize: 1_000_000,
+  })
+
+  const filteredPoolToLaunch = new Map<string, typeof tokenLaunchedLogs[number]>()
+  for (const pool of Object.keys(filteredPairs)) {
+    filteredPoolToLaunch.set(pool, poolToLaunch.get(pool)!)
+  }
+
+  return filteredPoolToLaunch
+}
+
+function addCreatorFeesFromAmounts(
+  options: FetchOptions,
+  creatorFees: ReturnType<FetchOptions['createBalances']>,
+  feeBps: number,
+  tradeTokens: string[],
+  amounts: string[],
+) {
+  const token0 = tradeTokens[0]
+  const token1 = tradeTokens[1] ?? tradeTokens[0]
+  const amount0 = amounts[0]
+  const amount1 = amounts[1] ?? '0'
+  const feesInPercentage = feeBps / BPS
+  addOneToken({
+    balances: creatorFees,
+    chain: options.chain,
+    token0,
+    token1,
+    amount0: Number(amount0) * feesInPercentage / 100,
+    amount1: Number(amount1) * feesInPercentage / 100,
+  })
+}
+
+async function fetchFromDune(options: FetchOptions) {
+  const creatorFees = options.createBalances()
+  const poolToLaunch = await loadFilteredLaunches(options)
+
+  const rows: any[] = await queryDune('3996608', { fullQuery: buildDuneQuery('robinhood', options) }, options)
+
+  const byPool: Record<string, { tokens: string[]; amounts: string[] }> = {}
+  for (const row of rows) {
+    if (!row.pool || !row.token || !row.amount) continue
+    const pool = row.pool.toLowerCase()
+    if (!poolToLaunch.has(pool)) continue
+    const entry = (byPool[pool] ??= { tokens: [], amounts: [] })
+    entry.tokens.push(row.token)
+    entry.amounts.push(row.amount)
+  }
+
+  const pools = Object.keys(byPool)
+  if (pools.length) {
+    const poolFees = await options.api.multiCall({
+      calls: pools.map((pool) => poolToLaunch.get(pool)!.token),
+      abi: POOL_FEE_FUNCTION,
+      permitFailure: true,
+    })
+
+    pools.forEach((pool, i) => {
+      if (!poolFees[i]) return
+      addCreatorFeesFromAmounts(
+        options,
+        creatorFees,
+        Number(poolFees[i]),
+        byPool[pool].tokens,
+        byPool[pool].amounts,
+      )
+    })
+  }
+
+  return buildResult(creatorFees)
+}
+
+async function fetchFromLogs(options: FetchOptions) {
+  const creatorFees = options.createBalances()
+  const poolToLaunch = await loadFilteredLaunches(options)
+  const liquidityPools = [...poolToLaunch.keys()]
+  const tokens = liquidityPools.map((pool) => poolToLaunch.get(pool)!.token)
 
   const poolFees = await options.api.multiCall({
     calls: tokens,
     abi: POOL_FEE_FUNCTION,
     permitFailure: true,
   })
+
+  if (!liquidityPools.length) return buildResult(creatorFees)
 
   const tokenSwaps = await options.getLogs({
     targets: liquidityPools,
@@ -72,17 +181,22 @@ async function fetch(options: FetchOptions) {
 
   for (const [index, logs] of tokenSwaps.entries()) {
     if (!poolFees[index]) continue
-    const feesInPercentage = poolFees[index] / BPS;
-    const token = tokenLaunchedLogs[index].token.toLowerCase()
-    const pairToken = tokenLaunchedLogs[index].pairToken.toLowerCase()
+    const launch = poolToLaunch.get(liquidityPools[index])!
+    const feesInPercentage = poolFees[index] / BPS
+    const token = launch.token.toLowerCase()
+    const pairToken = launch.pairToken.toLowerCase()
     const [token0, token1] = token < pairToken ? [token, pairToken] : [pairToken, token]
     for (const log of logs) {
-      const amount0 = Number(log.amount0) * feesInPercentage / 100;
-      const amount1 = Number(log.amount1) * feesInPercentage / 100;
+      const amount0 = Number(log.amount0) * feesInPercentage / 100
+      const amount1 = Number(log.amount1) * feesInPercentage / 100
       await addOneToken({ balances: creatorFees, chain: options.chain, token0, amount0, token1, amount1 })
     }
   }
 
+  return buildResult(creatorFees)
+}
+
+function buildResult(creatorFees: ReturnType<FetchOptions['createBalances']>) {
   const dailyFees = creatorFees.clone(1, "Swap Fees")
   const dailySupplySideRevenue = creatorFees.clone(1, "Swap Fees to Creator")
 
@@ -91,6 +205,11 @@ async function fetch(options: FetchOptions) {
     dailyRevenue: 0, // disabled for now
     dailySupplySideRevenue,
   }
+}
+
+async function fetch(options: FetchOptions) {
+  if (options.chain === CHAIN.ROBINHOOD) return fetchFromDune(options)
+  return fetchFromLogs(options)
 }
 
 const methodology = {
@@ -105,13 +224,14 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   adapter: chainConfig,
+  dependencies: [Dependencies.DUNE],
   doublecounted: true, //uniswap
   methodology,
   breakdownMethodology,
+  isExpensiveAdapter: true,
 }
 
 export default adapter;
