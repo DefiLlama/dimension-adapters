@@ -4,9 +4,10 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import BigNumber from "bignumber.js";
 
-const chainConfig: Record<string, { start: string, chainId: String }> = {
+const chainConfig: Record<string, { start: string, chainId: string }> = {
   [CHAIN.STARKNET]: { start: '2023-09-19', chainId: "23448594291968334" },
-  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" }
+  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" },
+  [CHAIN.ROBINHOOD]: { start: '2026-07-02', chainId: "4663" },
 }
 
 function toAddress(numberString: string): string {
@@ -44,7 +45,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue: options.chain === CHAIN.STARKNET ? dailyRevenue : undefined,
-    dailyProtocolRevenue: options.chain === CHAIN.ETHEREUM ? dailyRevenue : undefined,
+    dailyProtocolRevenue: options.chain !== CHAIN.STARKNET ? dailyRevenue : undefined,
   };
 }
 
@@ -53,7 +54,7 @@ const methodology = {
   Revenue: 'A partition of swap fees and withdrawal fees charged by Ekubo.',
   SupplySideRevenue: 'Amount of fees distributed to liquidity providers.',
   HoldersRevenue: 'Amount of fees used to buy back and burn EKUBO tokens on Starknet.',
-  ProtocolRevenue: 'Ekubo protocol collects revenue on Ethereum.',
+  ProtocolRevenue: 'Ekubo protocol collects revenue on EVM chains.',
 }
 
 const adapter: Adapter = {
