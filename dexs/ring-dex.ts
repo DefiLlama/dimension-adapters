@@ -32,6 +32,7 @@ const RingDexConfigs: Record<string, IRingDexConfig> = {
 }
 
 const methodology = {
+  Volume: 'Swap volume is measured on the well-known token side of each pair.',
   Fees: 'User pays 0.3% fees on each swap.',
   Revenue: 'Protocol has no revenue.',
   SupplySideRevenue: 'All fees are distributed to LPs.',
@@ -87,15 +88,16 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of swapLogs) {
     const tokens = pairs[formatAddress(log.address)];
-    if (tokens) {
-      // so many scam token pairs in ringdex, so adding non core assets to dailyVolume
-      if (isCoreAsset(options.chain, tokens[0])) {
-        dailyVolume.add(tokens[1], Math.abs(Number(log.args.amount1In)))
-        dailyVolume.add(tokens[1], Math.abs(Number(log.args.amount1Out)))
-      } else {
-        dailyVolume.add(tokens[0], Math.abs(Number(log.args.amount0In)))
-        dailyVolume.add(tokens[0], Math.abs(Number(log.args.amount0Out)))
-      }
+    if (!tokens) continue;
+    const [token0, token1] = tokens;
+    // price each swap on its core-asset side; the non-core side is often a scam token
+    // with a manipulated price, so pairs with no core asset are skipped entirely
+    if (isCoreAsset(options.chain, token0)) {
+      dailyVolume.add(token0, Math.abs(Number(log.args.amount0In)))
+      dailyVolume.add(token0, Math.abs(Number(log.args.amount0Out)))
+    } else if (isCoreAsset(options.chain, token1)) {
+      dailyVolume.add(token1, Math.abs(Number(log.args.amount1In)))
+      dailyVolume.add(token1, Math.abs(Number(log.args.amount1Out)))
     }
   }
 
