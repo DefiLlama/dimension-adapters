@@ -18,13 +18,25 @@ const fetch = async (options: FetchOptions) => {
     headers: { Authorization: `Bearer ${getEnv("DECIBEL_API_KEY")}` },
   });
 
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(data.daily_fees, 'Taker Trading Fees');
+
+  dailyRevenue.addUSDValue(data.daily_revenue, 'Taker Trading Fees To Protocol');
+  dailyProtocolRevenue.addUSDValue(data.daily_revenue, 'Taker Trading Fees To Protocol');
+
+  dailySupplySideRevenue.addUSDValue(data.daily_fees - data.daily_revenue, 'Maker Rebates');
+
   return {
     dailyVolume: data.daily_volume,
-    dailyFees: data.daily_fees,
-    dailyUserFees: data.daily_fees,
-    dailyRevenue: data.daily_revenue,
-    dailyProtocolRevenue: data.daily_revenue,
-    dailySupplySideRevenue: data.daily_fees - data.daily_revenue,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
     openInterestAtEnd: data.open_interest,
   };
 };
@@ -46,6 +58,20 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'Taker Trading Fees': 'Trading fees collected from takers on all perpetual futures markets.',
+    },
+    Revenue: {
+      'Taker Trading Fees To Protocol': 'Trading fees kept by the protocol treasury after paying maker rebates.',
+    },
+    ProtocolRevenue: {
+      'Taker Trading Fees To Protocol': 'Trading fees kept by the protocol treasury. Decibel has no live token yet, so none is distributed to token holders.',
+    },
+    SupplySideRevenue: {
+      'Maker Rebates': 'Maker rebates paid back to liquidity-providing makers out of the trading fees.',
+    },
+  },
 };
 
 export default adapter;
