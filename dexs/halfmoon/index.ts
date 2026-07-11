@@ -14,21 +14,33 @@ let statsByDate: Promise<Record<string, DailyStat>> | undefined;
 
 const fetch = async ({ dateString }: FetchOptions) => {
   if (!statsByDate) {
-    statsByDate = httpGet(STATS_URL).then((rows: DailyStat[]) => {
-      const map: Record<string, DailyStat> = {};
-      rows.forEach((row) => {
-        map[row.date.slice(0, 10)] = row;
+    statsByDate = httpGet(STATS_URL)
+      .then((rows: DailyStat[]) => {
+        const map: Record<string, DailyStat> = {};
+        rows.forEach((row) => {
+          map[row.date.slice(0, 10)] = row;
+        });
+        return map;
+      })
+      .catch((e) => {
+        statsByDate = undefined;
+        throw e;
       });
-      return map;
-    });
   }
 
   const day = (await statsByDate)[dateString];
   if (!day) {
-    return { dailyVolume: 0 };
+    throw new Error(`No daily stats found for ${dateString} from HalfMoon API`);
   }
 
-  return { dailyVolume: Number(day.takerVolume) || 0 };
+  const volume = Number(day.takerVolume);
+  if (isNaN(volume)) {
+    throw new Error(
+      `Invalid takerVolume from HalfMoon API for ${dateString}: ${day.takerVolume}`,
+    );
+  }
+
+  return { dailyVolume: volume };
 };
 
 const methodology = {
