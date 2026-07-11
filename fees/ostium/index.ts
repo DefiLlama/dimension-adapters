@@ -178,7 +178,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   dependencies: [Dependencies.DUNE],
-  allowNegativeValue: true, // rollover fees can be negative, leading to losses for OLP vault LPs
+  allowNegativeValue: true, // rollover fees can be negative
 }
 
 export default adapter;
