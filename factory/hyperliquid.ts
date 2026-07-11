@@ -34,11 +34,11 @@ const builderConfigs: Record<string, BuilderConfig> = {
     addresses: ["0x860343ba897f44a9a87353d93795f417b9a22226"],
     start: "2026-07-01",
     methodology: {
+      Volume: "Total volume from users trading Hyperliquid perps through hypeRank.",
       Fees: "Builder code fees paid by users on Hyperliquid perpetual trades executed through hypeRank.",
       Revenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
       ProtocolRevenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
     },
-    breakdownFees: true,
   },
   "ohayo-perps": {
     addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
