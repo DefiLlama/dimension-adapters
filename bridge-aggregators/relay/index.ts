@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
 
@@ -82,3 +82,33 @@ const prefetch = async (options: FetchOptions) => {
   `;
   return await queryDune("3996608", { fullQuery: sql }, options);
 };
+
+const fetch = async (options: FetchOptions) => {
+  const { duneName } = chainConfig[options.chain];
+  const dailyBridgeVolume = options.createBalances();
+
+  const rows = (options.preFetchedResults || []).filter((r: any) => r.blockchain === duneName);
+  for (const row of rows) {
+    if (row.token === "native") dailyBridgeVolume.addGasToken(row.amount);
+    else dailyBridgeVolume.add(row.token, row.amount);
+  }
+
+  return { dailyBridgeVolume };
+};
+
+const methodology = {
+  BridgeVolume:
+    "The total value users bridge out of each chain through Relay. When you bridge with Relay you deposit funds on the chain you're leaving, we add up all of those deposits — both the chain's own coin (like ETH) and any tokens. Each bridge is counted once, on the chain it starts from, so the funds delivered on the destination chain are not counted again.",
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  prefetch,
+  adapter: chainConfig,
+  dependencies: [Dependencies.DUNE],
+  methodology,
+  isExpensiveAdapter: true,
+};
+
+export default adapter;
