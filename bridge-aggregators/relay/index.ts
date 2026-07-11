@@ -1,4 +1,6 @@
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDune } from "../../helpers/dune";
 
 // Relay (relay.link) cross-chain intent bridge. Users deposit funds into the
 // RelayDepository on the origin chain; a solver fills on the destination chain.
@@ -55,3 +57,28 @@ const chainConfig: Record<string, { duneName: string; start: string }> = {
 };
 
 const duneNames = Object.values(chainConfig).map((c) => `'${c.duneName}'`).join(", ");
+
+// One cross-chain query for every chain's deposits in the day. Native deposits are
+// tagged 'native' (priced via the gas token); ERC-20 deposits return the token address.
+// Byte offsets: native data = [from, amount, id]; erc20 data = [from, token, amount, id].
+const prefetch = async (options: FetchOptions) => {
+  const sql = `
+    SELECT
+      blockchain,
+      CASE WHEN topic0 = ${NATIVE_DEPOSIT} THEN 'native'
+           ELSE '0x' || lower(to_hex(bytearray_substring(data, 45, 20))) END AS token,
+      CAST(SUM(
+        CASE WHEN topic0 = ${NATIVE_DEPOSIT}
+             THEN bytearray_to_uint256(bytearray_substring(data, 33, 32))
+             ELSE bytearray_to_uint256(bytearray_substring(data, 65, 32)) END
+      ) AS VARCHAR) AS amount
+    FROM evms.logs
+    WHERE contract_address = ${RELAY_DEPOSITORY}
+      AND blockchain IN (${duneNames})
+      AND topic0 IN (${NATIVE_DEPOSIT}, ${ERC20_DEPOSIT})
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY 1, 2
+  `;
+  return await queryDune("3996608", { fullQuery: sql }, options);
+};
