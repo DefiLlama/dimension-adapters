@@ -1,4 +1,3 @@
-import { Interface } from "ethers";
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -59,17 +58,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const accountantInterface = new Interface([exchangeRateUpdatedAbi]);
   const events: ExchangeRateUpdatedEvent[] = (await options.getLogs({
     target: ACCOUNTANT,
     eventAbi: exchangeRateUpdatedAbi,
     entireLog: true,
+    parseLog: true,
   })).map((log) => {
-    const decoded = accountantInterface.parseLog(log)!;
     return {
       blockNumber: Number(log.blockNumber),
-      oldRate: decoded.args.oldRate,
-      newRate: decoded.args.newRate,
+      oldRate: log.args.oldRate,
+      newRate: log.args.newRate,
     };
   });
 
