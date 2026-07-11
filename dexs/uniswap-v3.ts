@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 // Hybrid variant of old dexs/uniswap-v3.ts.
 // Each chain is described once in chainConfig { blockchain, start, fetch }:
@@ -192,6 +193,39 @@ async function fetchFromOku(options: FetchOptions) {
   }
 }
 
+const factoryConfig: Record<string, string> ={
+  [CHAIN.OG]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+}
+
+async function fetchFromLogs(options: FetchOptions) {
+  const factory = factoryConfig[options.chain];
+  if (!factory) {
+    throw new Error(`uniswap-v3: factory not found for chain ${options.chain}`);
+  }
+
+  const { dailyVolume, dailyFees, dailyUserFees } = await getUniV3LogAdapter({
+    factory,
+    userFeesRatio: 1,
+    revenueRatio: 0,
+    protocolRevenueRatio: 0,
+  })(options);
+
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+  const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(feesToLps, "LP fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
+}
+
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
 // or Oku slug). start = first uni-v3 data on that source:
 //  - Dune rows: MIN(block_time) in dex.trades
@@ -235,6 +269,9 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+
+  // On-chain logs (no Dune dex.trades or Oku API coverage)
+  [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
 }
 
 const methodology = {
