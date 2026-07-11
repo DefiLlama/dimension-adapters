@@ -113,9 +113,12 @@ async function getTonBlock(unixTS: number) {
   return data.result.seqno
 }
 
+/**
+ * Resolves a unix timestamp to the nearest Chia block height via the spacescan API.
+ * Retries with backoff to ride out the free-tier rate limit (5 req/min).
+ */
 async function getChiaBlock(unixTS: number) {
   // spacescan returns the nearest block to the timestamp (number is a string).
-  // Backoff retry rides out the free-tier rate limit (5 req/min ~= 1 per 12s).
   const res = await retry(
     () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`),
     { retries: 3, minTimeout: 6000 }

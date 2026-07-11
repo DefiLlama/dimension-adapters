@@ -9,6 +9,11 @@ const API = "https://api.coinset.org";
 const MOJO_PER_XCH = 1e12;
 const PAGE = 1000; // coinset caps get_block_records at 1000 blocks/call
 
+/**
+ * Fetches Chia block records in the height range `[start, end)` from the coinset node API.
+ * Each record carries `fees` (transaction fees in mojo) and `timestamp`; non-transaction
+ * blocks have both null. Throws if the request fails or the records array is missing.
+ */
 const getBlockRecords = async (start: number, end: number): Promise<any[]> => {
   const res = await httpPost(`${API}/get_block_records`, { start, end });
   if (!res?.success) throw new Error(`Chia: get_block_records(${start}, ${end}) failed`);
@@ -16,6 +21,10 @@ const getBlockRecords = async (start: number, end: number): Promise<any[]> => {
   return res.block_records;
 };
 
+/**
+ * Sums Chia transaction fees over the day's block range and classifies them under the
+ * chain fee model: fees are paid to farmers (supply-side revenue)  Prices the total in XCH via CoinGecko.
+ */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
