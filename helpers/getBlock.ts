@@ -2,6 +2,7 @@ import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
 import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
@@ -119,8 +120,11 @@ async function getTonBlock(unixTS: number) {
  */
 async function getChiaBlock(unixTS: number) {
   // spacescan returns the nearest block to the timestamp (number is a string).
+  // Retry with backoff as insurance against rate-limit bursts during backfill.
   const res = await retry(
-    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`),
+    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`, {
+      headers: { "x-api-key": getEnv("SPACESCAN_API_KEY") },
+    }),
     { retries: 3, minTimeout: 6000 }
   )
   const block = Number(res.data.number)
