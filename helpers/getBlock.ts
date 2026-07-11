@@ -83,6 +83,8 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 
     if (chain === CHAIN.TON)
       block = await getTonBlock(timestamp)
+    else if (chain === CHAIN.CHIA)
+      block = await getChiaBlock(timestamp)
     else
       block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
@@ -109,6 +111,16 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 async function getTonBlock(unixTS: number) {
   const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
   return data.result.seqno
+}
+
+async function getChiaBlock(unixTS: number) {
+  // spacescan returns the nearest block to the timestamp (number is a string).
+  // Backoff retry rides out the free-tier rate limit (5 req/min ~= 1 per 12s).
+  const res = await retry(
+    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`),
+    { retries: 3, minTimeout: 6000 }
+  )
+  return Number(res.data.number)
 }
 
 async function getBlocks(chain: Chain, timestamps: number[]) {
