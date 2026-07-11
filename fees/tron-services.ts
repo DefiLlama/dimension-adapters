@@ -94,8 +94,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "TRX paid by clients for energy & bandwidth rentals, read on-chain as incoming transfers to the platform wallet on Tronscan.",
   Revenue: "The margin the platform keeps — 15% of the rental fees.",
-  ProtocolRevenue: "Same as revenue; there is no governance token, so all revenue goes to the protocol.",
-  SupplySideRevenue: "The portion of each fee paid out to the energy & bandwidth providers that supply the resource.",
+  ProtocolRevenue: "The margin the platform keeps — 15% of the rental fees.",
+  SupplySideRevenue: "The portion (85%) of energy & bandwidth rental fees paid out to the energy & bandwidth providers that supply the resource.",
 };
 
 const breakdownMethodology = {
