@@ -123,7 +123,9 @@ async function getChiaBlock(unixTS: number) {
     () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`),
     { retries: 3, minTimeout: 6000 }
   )
-  return Number(res.data.number)
+  const block = Number(res.data.number)
+  if (!Number.isFinite(block)) throw new Error(`Chia: invalid block for timestamp ${unixTS}`)
+  return block
 }
 
 async function getBlocks(chain: Chain, timestamps: number[]) {

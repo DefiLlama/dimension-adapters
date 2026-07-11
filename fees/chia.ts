@@ -31,7 +31,6 @@ const fetch = async (options: FetchOptions) => {
 
   const startHeight = await options.getFromBlock();
   const endHeight = await options.getToBlock();
-  if (startHeight == null || endHeight == null) throw new Error("Chia: start or end height is null");
 
   let feesMojo = 0;
   for (let h = startHeight; h <= endHeight; h += PAGE) {
