@@ -1,5 +1,6 @@
-import { CHAIN } from "../../helpers/chains";
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 // Kinetiq Earn — an automated kHYPE DeFi strategy vault powered by Veda (curated by Seven Seas).
 // https://kinetiq.xyz/docs/earn
@@ -42,6 +43,14 @@ const ACCOUNTANT = "0x74392Fa56405081d5C7D93882856c245387Cece2";
 
 const accountantStateAbi =
   "function accountantState() view returns(address payoutAddress,uint96 highwaterMark,uint128 feesOwedInBase,uint128 totalSharesLastUpdate,uint96 exchangeRate,uint16 allowedExchangeRateChangeUpper,uint16 allowedExchangeRateChangeLower,uint64 lastUpdateTimestamp,bool isPaused,uint24 minimumUpdateDelayInSeconds,uint16 platformFee,uint16 performanceFee)";
+const exchangeRateUpdatedAbi =
+  "event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)";
+
+interface ExchangeRateUpdatedEvent {
+  blockNumber: number;
+  oldRate: bigint;
+  newRate: bigint;
+}
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
@@ -49,25 +58,51 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const [rateBefore, rateAfter, totalSupply, state] = await Promise.all([
-    options.fromApi.call({ target: ACCOUNTANT, abi: "uint256:getRate" }),
-    options.toApi.call({ target: ACCOUNTANT, abi: "uint256:getRate" }),
-    options.api.call({ target: VAULT, abi: "uint256:totalSupply" }),
-    options.api.call({ target: ACCOUNTANT, abi: accountantStateAbi }),
-  ]);
+  const events: ExchangeRateUpdatedEvent[] = (await options.getLogs({
+    target: ACCOUNTANT,
+    eventAbi: exchangeRateUpdatedAbi,
+    entireLog: true,
+    parseLog: true,
+  })).map((log) => {
+    return {
+      blockNumber: Number(log.blockNumber),
+      oldRate: log.args.oldRate,
+      newRate: log.args.newRate,
+    };
+  });
 
-  const performanceFeeRate = Number(state.performanceFee) / 1e4;
+  for (const event of events) {
+    const [totalSupply, previousState] = await Promise.all([
+      sdk.api2.abi.call({
+        chain: options.chain,
+        target: VAULT,
+        abi: "uint256:totalSupply",
+        block: event.blockNumber,
+      }),
+      sdk.api2.abi.call({
+        chain: options.chain,
+        target: ACCOUNTANT,
+        abi: accountantStateAbi,
+        block: event.blockNumber - 1,
+      }),
+    ]);
 
-  const rateGrowth = (Number(rateAfter) - Number(rateBefore)) / 1e18;
-  const yieldAfterFees = (Number(totalSupply) / 1e18) * rateGrowth;
+    const highwaterMark = BigInt(previousState.highwaterMark);
+    const shareSupply = Math.min(Number(totalSupply), Number(previousState.totalSharesLastUpdate));
+    const grossYield = Number(event.newRate - event.oldRate) * shareSupply / 1e36;
 
-  const yieldTotal = yieldAfterFees / (1 - performanceFeeRate);
-  const performanceFees = yieldTotal - yieldAfterFees;
+    let performanceFees = 0;
+    if (event.newRate > highwaterMark) {
+      const yieldAboveHighwater = Number(event.newRate - highwaterMark) * shareSupply / 1e36;
+      performanceFees = yieldAboveHighwater * Number(previousState.performanceFee) / 1e4;
+    }
+    const depositorYield = grossYield - performanceFees;
 
-  dailyFees.addCGToken("hyperliquid", yieldTotal, METRICS.VaultYield);
-  dailyRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
-  dailyProtocolRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
-  dailySupplySideRevenue.addCGToken("hyperliquid", yieldAfterFees, METRICS.VaultYieldToDepositors);
+    dailyFees.addCGToken("hyperliquid", grossYield, METRICS.VaultYield);
+    dailyRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
+    dailyProtocolRevenue.addCGToken("hyperliquid", performanceFees, METRICS.PerformanceFees);
+    dailySupplySideRevenue.addCGToken("hyperliquid", depositorYield, METRICS.VaultYieldToDepositors);
+  }
 
   return {
     dailyFees,

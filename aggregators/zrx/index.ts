@@ -36,6 +36,7 @@ const CHAINS: TChain = {
 const inflatedVolume: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: ["2026-03-02", "2026-03-22"],
   [CHAIN.BASE]: ["2026-05-02"],
+  [CHAIN.BSC]: ["2026-07-09"],
 };
 
 const fetch = async (options: FetchOptions) => {

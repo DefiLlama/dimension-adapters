@@ -94,6 +94,39 @@ const SETTLEMENT_PPS_JUMP_RATIO = 0.1;
 // concentrating a day into one slot — stays well under it.
 const MAX_PLAUSIBLE_GROWTH_APY = 10;
 
+// Resilient wrapper around `api.multiCall`. Even with `permitFailure: true`,
+// @defillama/sdk can still THROW "Cannot read properties of undefined (reading
+// 'success')": when a whole multicall *chunk* fails at the RPC level the SDK
+// stores `undefined` for that chunk and then dereferences it in
+// `flatResults.filter(r => !r.success)`, which aborts the entire hourly slice
+// (and, since this adapter is pullHourly, the whole day). Every caller below
+// already treats a missing entry as "skip this vault", so retry a transient
+// failure and, only if it keeps failing, degrade to an all-null array (the same
+// shape `permitFailure` yields on success) instead of crashing the run. A
+// SUSTAINED outage of the vault-gating reads (asset/totalSupply/price-per-share)
+// is caught by an explicit all-null guard after the reads, which fails loudly
+// rather than letting every vault be skipped and reporting a phantom 0 fees.
+async function safeMultiCall(
+  api: FetchOptions["api"],
+  params: { abi: any; calls: any[] },
+): Promise<any[]> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await api.multiCall({ ...params, permitFailure: true });
+    } catch (e) {
+      if (attempt === 3) {
+        console.error(
+          `T3tris: multiCall(${params.abi}) failed after ${attempt} attempts ` +
+            `(${(e as Error)?.message}) — treating its ${params.calls.length} ` +
+            `results as unavailable for this slice`,
+        );
+        return new Array(params.calls.length).fill(null);
+      }
+    }
+  }
+  return new Array(params.calls.length).fill(null);
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -126,78 +159,126 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 
   // 2. Fetch vault metadata
-  const assets = await options.api.multiCall({
+  const assets = await safeMultiCall(options.api, {
     abi: ABI.asset,
     calls: vaults,
-    permitFailure: true,
   });
-  const decimals = await options.api.multiCall({
+  const decimals = await safeMultiCall(options.api, {
     abi: ABI.decimals,
     calls: vaults,
-    permitFailure: true,
   });
-  const totalSupplies = await options.api.multiCall({
+  const totalSupplies = await safeMultiCall(options.api, {
     abi: ABI.totalSupply,
     calls: vaults,
-    permitFailure: true,
   });
-  const totalAssets = await options.api.multiCall({
+  const totalAssets = await safeMultiCall(options.api, {
     abi: ABI.totalAssets,
     calls: vaults,
-    permitFailure: true,
   });
 
-  // 3. Build rate conversion calls (1 full share → assets)
-  //    Build the unit with BigInt so the uint256 param is always a plain
-  //    integer string. Number/** stringifies to exponential form (e.g.
-  //    "1e+21") for high-decimal vaults, which convertToAssets cannot parse.
+  // Asset-token decimals. A vault's own decimals() reports its SHARE scale,
+  // which can differ from the asset's — needed below to place the WAD
+  // high-water mark on the same scale as convertToAssets for the perf fee.
+  const assetDecimals = await safeMultiCall(options.api, {
+    abi: ABI.decimals,
+    calls: assets.map((asset: string, i: number) => asset || vaults[i]),
+  });
+
+  // Robust share-scale detection. Some vaults mint shares at a different scale
+  // than their reported decimals() (e.g. 1e18-scaled shares while decimals()
+  // returns the asset's 6 decimals). Using 10**decimals() as the per-share unit
+  // then makes convertToAssets(unit) round down to 0, and the vault would be
+  // silently dropped — missing ALL of its fees. Probe convertToAssets at a large
+  // fixed unit and infer the whole-share exponent from the (linear)
+  // assets-per-raw-share, assuming a whole share is worth on the order of one
+  // asset unit (vaults launch at ~1:1 price-per-share).
+  const SCALE_PROBE = (10n ** 27n).toString();
+  const scaleProbe = await safeMultiCall(options.api, {
+    abi: ABI.convertToAssets,
+    calls: vaults.map((vault: string) => ({
+      target: vault,
+      params: [SCALE_PROBE],
+    })),
+  });
+  const shareDecimals = scaleProbe.map((probeVal: any, i: number) => {
+    const assetDec = Number(assetDecimals[i] ?? decimals[i] ?? 6);
+    const fallback = Number(decimals[i] ?? 18);
+    const probe = probeVal != null ? Number(probeVal) : 0;
+    if (probe > 0) {
+      const ppsRaw = probe / 1e27; // assets(raw) per share(raw)
+      const inferred = Math.round(assetDec - Math.log10(ppsRaw));
+      if (Number.isFinite(inferred) && inferred >= 0 && inferred <= 36)
+        return inferred;
+    }
+    return fallback;
+  });
+
+  // 3. Build rate conversion calls (1 full share → assets), using the detected
+  //    share scale. BigInt keeps the uint256 param a plain integer string
+  //    (Number/** would stringify high scales as "1e+21", which the call cannot
+  //    parse).
   const convertCalls = vaults.map((vault: string, index: number) => ({
     target: vault,
-    params: [(10n ** BigInt(Number(decimals[index] || 18))).toString()],
+    params: [(10n ** BigInt(shareDecimals[index])).toString()],
   }));
 
   // 4. Get share price at start and end of period
-  const ratesBefore = await options.fromApi.multiCall({
+  const ratesBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.convertToAssets,
     calls: convertCalls,
-    permitFailure: true,
   });
-  const ratesAfter = await options.toApi.multiCall({
+  const ratesAfter = await safeMultiCall(options.toApi, {
     abi: ABI.convertToAssets,
     calls: convertCalls,
-    permitFailure: true,
   });
+
+  // Distinguish a sustained RPC outage from a genuine zero-fee day. The reads
+  // that gate every vault below (asset, totalSupply, and price-per-share at both
+  // period bounds) drive the `!token || !supply || !rateBefore || !rateAfter`
+  // skip. If safeMultiCall exhausted its retries and degraded one of these to an
+  // all-null batch, EVERY vault would be skipped and the slice would silently
+  // record 0 fees — indistinguishable from a real zero day. Fail loudly instead
+  // so the outage is visible rather than mistaken for data. (A real zero-fee day
+  // still has populated, non-null reads, so this never trips on legitimate data.)
+  const allUnavailable = (arr: any[]) =>
+    arr.length > 0 && arr.every((v) => v == null);
+  if (
+    allUnavailable(assets) ||
+    allUnavailable(totalSupplies) ||
+    allUnavailable(ratesBefore) ||
+    allUnavailable(ratesAfter)
+  ) {
+    throw new Error(
+      `T3tris: core vault metadata unavailable on ${options.chain} this slice ` +
+        `(sustained RPC failure after retries) — refusing to report 0 fees`,
+    );
+  }
 
   // 4b. Start-of-period supply & TVL (the end-of-period values are already in
   //     totalSupplies/totalAssets). Averaging the start and end snapshots gives
   //     a time-weighted (trapezoidal) estimate over the window, so intra-period
   //     deposits/redeems don't skew the 24h depositor yield or management fees.
-  const suppliesBefore = await options.fromApi.multiCall({
+  const suppliesBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.totalSupply,
     calls: vaults,
-    permitFailure: true,
   });
-  const tvlBefore = await options.fromApi.multiCall({
+  const tvlBefore = await safeMultiCall(options.fromApi, {
     abi: ABI.totalAssets,
     calls: vaults,
-    permitFailure: true,
   });
 
   // 5. Get fee configuration + high-water mark for each vault
-  const perfFees = await options.api.multiCall({
+  const perfFees = await safeMultiCall(options.api, {
     abi: ABI.getPerformanceFee,
     calls: vaults,
-    permitFailure: true,
   });
-  const mgmtFees = await options.api.multiCall({
+  const mgmtFees = await safeMultiCall(options.api, {
     abi: ABI.getManagementFee,
     calls: vaults,
-    permitFailure: true,
   });
-  const hwms = await options.api.multiCall({
+  const hwms = await safeMultiCall(options.api, {
     abi: ABI.getPpsHighWaterMark,
     calls: vaults,
-    permitFailure: true,
   });
 
   // 6. Calculate daily yield and fee splits
@@ -207,7 +288,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   for (let i = 0; i < vaults.length; i++) {
     const token = assets[i];
-    const decimal = Number(decimals[i] || 18);
+    const decimal = shareDecimals[i];
     const supply = totalSupplies[i];
     const tvl = totalAssets[i];
     const rateBefore = ratesBefore[i];
@@ -232,6 +313,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 
     const unit = 10 ** decimal;
+    const assetDec = Number(assetDecimals[i] ?? 6);
+    const assetUnit = 10 ** assetDec;
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
 
     // Settlement-cycle guard: T3tris vaults have an async settlement where
@@ -305,10 +388,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // growth overcounts while the vault is still below its HWM (PPS rose but
     // hasn't recovered past its prior peak, so no fee is actually taken). Use
     // only the growth above max(startPPS, HWM) as the fee basis. HWM is
-    // WAD-scaled PPS; convert to the rate scale (assets per `unit` shares) used
-    // by rateBefore/rateAfter. Missing HWM → fall back to 0 (no gate), keeping
-    // the prior behaviour for any vault without the getter.
-    const hwmRate = hwms[i] != null ? (Number(hwms[i]) / 1e18) * unit : 0;
+    // WAD-scaled price-per-WHOLE-share; convert it to the same raw-asset scale
+    // as convertToAssets by multiplying by the ASSET unit (not the share unit,
+    // which may differ from the asset's decimals). Missing HWM → fall back to 0
+    // (no gate), keeping the prior behaviour for any vault without the getter.
+    const hwmRate = hwms[i] != null ? (Number(hwms[i]) / 1e18) * assetUnit : 0;
     const perfBasisStart = Math.max(Number(rateBefore), hwmRate);
     const perfRateGrowth = Number(rateAfter) - perfBasisStart;
     const perfYield =
@@ -360,15 +444,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     );
   }
 
-  // 7. Track entry fees from DepositsSettled events → feeRecipient
+  // 7. Track entry fees from DepositsSettled events → feeRecipient.
+  //    onlyArgs:false so each log keeps its `address` (to map back to the vault)
+  //    alongside the decoded `args`. The default (onlyArgs:true) returns only
+  //    the args and drops the address, leaving every event unattributed
+  //    (vaultIndex = -1) and silently ignored.
   const depositLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.depositsSettled,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of depositLogs) {
-    const entryFeeAssets = Number(log.entryFees);
+    const entryFeeAssets = Number(log.args.entryFees);
     if (entryFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
@@ -383,15 +472,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  // 8. Track exit fees from RedemptionsSettled events → feeRecipient
+  // 8. Track exit fees from RedemptionsSettled events → feeRecipient.
+  //    onlyArgs:false to keep each log's `address` for vault attribution.
   const redeemLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.redemptionsSettled,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of redeemLogs) {
-    const exitFeeAssets = Number(log.exitFeeAssets);
+    const exitFeeAssets = Number(log.args.exitFeeAssets);
     if (exitFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
@@ -410,14 +501,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    This is the sole source of protocol revenue. We do NOT index silo
   //    contracts or silo PNL events directly; T3trisProfit captures the exact
   //    amount sent to the treasury regardless of origin.
+  //    onlyArgs:false to keep each log's `address` for vault attribution.
   const profitLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.t3trisProfit,
+    onlyArgs: false,
     flatten: true,
   });
 
   for (const log of profitLogs) {
-    const profit = Number(log.profit);
+    const profit = Number(log.args.profit);
     if (profit > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
