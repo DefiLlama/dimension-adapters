@@ -193,17 +193,38 @@ async function fetchFromOku(options: FetchOptions) {
   }
 }
 
-// On-chain fallback for chains that neither Dune (dex.trades) nor the Oku API
-// cover. Reads swaps from pool logs via the shared TVL-adapter pool-log cache,
-// same source the 0G uni-v3 forks (factory/uniV3.ts) use. Fees to LPs (revenue 0),
-// matching the rest of this adapter's convention.
-const fetchFromChain = getUniV3LogAdapter({
-  factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", // Oku's UniswapV3Factory on 0G
-  userFeesRatio: 1,
-  revenueRatio: 0,
-  protocolRevenueRatio: 0,
-  holdersRevenueRatio: 0,
-}) as FetchV2;
+const factoryConfig: Record<string, string> ={
+  [CHAIN.OG]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+}
+
+async function fetchFromLogs(options: FetchOptions) {
+  const factory = factoryConfig[options.chain];
+  if (!factory) {
+    throw new Error(`uniswap-v3: factory not found for chain ${options.chain}`);
+  }
+
+  const { dailyVolume, dailyFees, dailyUserFees } = await getUniV3LogAdapter({
+    factory,
+    userFeesRatio: 1,
+    revenueRatio: 0,
+    protocolRevenueRatio: 0,
+  })(options);
+
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+  const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(feesToLps, "LP fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
+}
 
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
 // or Oku slug). start = first uni-v3 data on that source:
@@ -250,7 +271,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
-  [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromChain },
+  [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
 }
 
 const methodology = {
