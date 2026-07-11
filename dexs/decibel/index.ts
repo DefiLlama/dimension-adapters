@@ -81,14 +81,25 @@ const fetch = async (options: FetchOptions) => {
     getTreasuryDepositsUsd(options.fromTimestamp, options.toTimestamp),
   ]);
 
-  const dailyFees = data.daily_fees + treasuryDepositsUsd;
-  const dailyRevenue = data.daily_revenue + treasuryDepositsUsd;
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(data.daily_fees, "Taker Trading Fees");
+  dailyFees.addUSDValue(treasuryDepositsUsd, "Treasury Deposits");
+
+  dailyRevenue.addUSDValue(data.daily_revenue, 'Taker Trading Fees To Protocol');
+  dailyRevenue.addUSDValue(treasuryDepositsUsd, "Treasury Deposits");
+
+  dailySupplySideRevenue.addUSDValue(data.daily_fees - data.daily_revenue, 'Maker Rebates');
 
   return {
     dailyVolume: data.daily_volume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     openInterestAtEnd: data.open_interest,
   };
 };
@@ -97,7 +108,26 @@ const methodology = {
   Volume: "Sum of notional value of all taker fills across perpetual futures markets.",
   Fees: "Trading fees collected from takers on all perpetual futures markets, plus USDC and USDCbl deposits to the protocol fee treasury.",
   Revenue: "Net protocol revenue after maker rebates, plus USDC and USDCbl deposits to the protocol fee treasury.",
+  SupplySideRevenue: "Maker rebates paid back to liquidity-providing makers out of the trading fees."
 };
+
+const breakdownMethodology = {
+  Fees: {
+    'Taker Trading Fees': 'Trading fees collected from takers on all perpetual futures markets.',
+    'Treasury Deposits': 'USDC and USDCbl deposits to the protocol fee treasury.',
+  },
+  Revenue: {
+    'Taker Trading Fees To Protocol': 'Trading fees kept by the protocol treasury after paying maker rebates.',
+    'Treasury Deposits': 'USDC and USDCbl deposits to the protocol fee treasury.',
+  },
+  ProtocolRevenue: {
+    'Taker Trading Fees To Protocol': 'Trading fees kept by the protocol treasury. Decibel has no live token yet, so none is distributed to token holders.',
+    'Treasury Deposits': 'USDC and USDCbl deposits to the protocol fee treasury.',
+  },
+  SupplySideRevenue: {
+    'Maker Rebates': 'Maker rebates paid back to liquidity-providing makers out of the trading fees.',
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -108,6 +138,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
