@@ -112,8 +112,7 @@ const adapter: SimpleAdapter = {
   start: "2026-06-14", // platform launch — first on-chain rental payments
   methodology,
   breakdownMethodology,
-  // Fees are read per time range from Tronscan; daily granularity is sufficient and keeps API usage low.
-  pullHourly: false,
+  pullHourly: true,
 };
 
 export default adapter;
