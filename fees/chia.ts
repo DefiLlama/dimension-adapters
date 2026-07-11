@@ -2,15 +2,15 @@ import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpPost } from "../utils/fetchURL";
 
-// Chia coin-set node RPC. get_block_records returns records in [start, end), each
+// Chia coin-set node API. get_block_records returns records in [start, end), each
 // with `fees` (transaction fees, in mojo) and `timestamp`. Non-transaction blocks
 // carry null fees/timestamp. 1 XCH = 1e12 mojo. 
-const RPC = "https://api.coinset.org";
+const API = "https://api.coinset.org";
 const MOJO_PER_XCH = 1e12;
 const PAGE = 1000; // coinset caps get_block_records at 1000 blocks/call
 
 const getBlockRecords = async (start: number, end: number): Promise<any[]> => {
-  const res = await httpPost(`${RPC}/get_block_records`, { start, end });
+  const res = await httpPost(`${API}/get_block_records`, { start, end });
   if (!res?.success) throw new Error(`Chia: get_block_records(${start}, ${end}) failed`);
   if (!Array.isArray(res.block_records)) throw new Error(`Chia: get_block_records(${start}, ${end}) returned no records`);
   return res.block_records;
@@ -62,7 +62,7 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 2,
   // pullHourly disabled: fees are paged per-block over the whole day; daily
-  // granularity keeps the coinset RPC load low.
+  // granularity keeps the coinset API load low.
   pullHourly: false,
   fetch,
   chains: [CHAIN.CHIA],
