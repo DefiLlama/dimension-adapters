@@ -22,6 +22,7 @@ const fetch = async (options: FetchOptions) => {
 
   const startHeight = await options.getFromBlock();
   const endHeight = await options.getToBlock();
+  if (startHeight == null || endHeight == null) throw new Error("Chia: start or end height is null");
 
   let feesMojo = 0;
   for (let h = startHeight; h <= endHeight; h += PAGE) {
@@ -61,9 +62,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly disabled: fees are paged per-block over the whole day; daily
-  // granularity keeps the coinset API load low.
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.CHIA],
   start: "2021-03-19", // Chia mainnet genesis
