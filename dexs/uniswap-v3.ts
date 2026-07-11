@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 // Hybrid variant of old dexs/uniswap-v3.ts.
 // Each chain is described once in chainConfig { blockchain, start, fetch }:
@@ -192,6 +193,18 @@ async function fetchFromOku(options: FetchOptions) {
   }
 }
 
+// On-chain fallback for chains that neither Dune (dex.trades) nor the Oku API
+// cover. Reads swaps from pool logs via the shared TVL-adapter pool-log cache,
+// same source the 0G uni-v3 forks (factory/uniV3.ts) use. Fees to LPs (revenue 0),
+// matching the rest of this adapter's convention.
+const fetchFromChain = getUniV3LogAdapter({
+  factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", // Oku's UniswapV3Factory on 0G
+  userFeesRatio: 1,
+  revenueRatio: 0,
+  protocolRevenueRatio: 0,
+  holdersRevenueRatio: 0,
+}) as FetchV2;
+
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
 // or Oku slug). start = first uni-v3 data on that source:
 //  - Dune rows: MIN(block_time) in dex.trades
@@ -235,6 +248,9 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+
+  // On-chain logs (no Dune dex.trades or Oku API coverage)
+  [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromChain },
 }
 
 const methodology = {
