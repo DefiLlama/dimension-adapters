@@ -92,7 +92,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-02-18',
