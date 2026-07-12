@@ -124,8 +124,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Fees: 'Users pay fees when they trade binary options on polymarket',
-    SupplySideRevenue: 'Maker rebates, liquidity and holding rewards',
-    Revenue: 'Fees going to protocol address post maker rebate, liquidity and holding rewards distribution',
+    SupplySideRevenue: 'Maker rebates, taker rebates, referral rewards, liquidity and holding rewards',
+    Revenue: 'Fees going to protocol address post maker rebate, taker rebate, referral reward, liquidity and holding rewards distribution',
     ProtocolRevenue: 'All the revenue goes to protocol',
   },
   breakdownMethodology: {
@@ -133,15 +133,15 @@ const adapter: SimpleAdapter = {
       'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
     },
     Revenue: {
-      'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
+      'Taker Fees': 'Taker fees minus maker rebate, taker rebate, referral reward, liquidity and holding rewards',
     },
     ProtocolRevenue: {
-      'Taker Fees': 'Taker fees minus rebates, liquidity and holding rewards',
+      'Taker Fees': 'Taker fees minus maker rebate, taker rebate, referral reward, liquidity and holding rewards',
     },
     SupplySideRevenue: {
       'Maker Rebates': 'Part of Fees charged on trades are distributed as maker rebates',
       'Liquidity Rewards': 'Liquidity incentives paid to users who place limit orders that help keep the market active and balanced',
-      'Holding Rewards': 'Polymarket pays a 4.00% annualized Holding Reward on certain markets',
+      'Holding Rewards': 'Polymarket pays a 3.25% annualized Holding Reward on certain markets',
       "Taker Rebates": "Rebates paid to takers based on 30 day weighted volume tiers",
       "Referral Rewards": "Referral rewards paid to users who refer others to trade on polymarket"
     }
