@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
+  deadFrom: "2026-02-01",
 };
 
 export default adapter;

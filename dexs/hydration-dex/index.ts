@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
     }
   `;
 
-  const queryResult = await request("https://orca-main-aggr-indx.indexer.hydration.cloud/graphql", query);
+  const queryResult = await request("https://orca-prod-pool-02.catfish.hydration.cloud/graphql", query);
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();

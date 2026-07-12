@@ -52,22 +52,6 @@ const configs: Record<string, SubgraphConfig> = {
     },
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
   },
-  "upheaval-v2": {
-    graphUrls: {
-      [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v2",
-    },
-    totalVolume: { factory: "pancakeFactories" },
-    feesPercent: {
-      type: "volume",
-      Fees: 0.3,
-      UserFees: 0.3,
-      ProtocolRevenue: 0.16 * 0.3,
-      HoldersRevenue: 0,
-      SupplySideRevenue: 0.84 * 0.3,
-      Revenue: 0.16 * 0.3,
-    },
-    start: "2025-07-26",
-  },
   // "sailfish": {
   //   graphUrls: {
   //     occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
