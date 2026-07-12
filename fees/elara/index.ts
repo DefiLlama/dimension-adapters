@@ -1,17 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-// Elara Finance Vault proxy: https://etherscan.io/address/0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef
 const VAULT = "0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef";
-// elUSD token proxy: https://etherscan.io/address/0x65Fb0f9b196d524De0C4F3BAF572F0a79eb21194
 const ELUSD = "0x65Fb0f9b196d524De0C4F3BAF572F0a79eb21194";
-// Elara staking proxy: https://etherscan.io/address/0xda34688c14ae164E75D902A962e6C45cD9564448
 const STAKING = "0xda34688c14ae164E75D902A962e6C45cD9564448";
-// Elara token registry proxy: https://etherscan.io/address/0xB25a9d4eAAF0D257f8C1e6F567C357639394dba1
 const TOKEN_REGISTRY = "0xB25a9d4eAAF0D257f8C1e6F567C357639394dba1";
-// Elara price oracle proxy: https://etherscan.io/address/0x0A3DA6265439b4585c942856d7Ee22B7b2C973F2
 const PRICE_ORACLE = "0x0A3DA6265439b4585c942856d7Ee22B7b2C973F2";
 
 const ABI = {
@@ -37,11 +31,6 @@ const USD_PRECISION = 1e18;
 const ONE_DOLLAR = 10n ** 18n;
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const ZERO_ADDRESS_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000";
-const COLLATERAL_TOKENS = new Set([
-  ADDRESSES.ethereum.USDC.toLowerCase(),
-  ADDRESSES.ethereum.USDT.toLowerCase(),
-  ADDRESSES.ethereum.USDe.toLowerCase(),
-]);
 
 const toBigInt = (value: bigint | number | string) => BigInt(value.toString());
 
@@ -95,29 +84,18 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [
-    redeemLogs,
-    redemptionFeeUpdateLogs,
-    managementFeeUpdateLogs,
-    managementFeeAccruedLogs,
-    feesCollectedLogs,
-    stakingYieldLogs,
-    startingRedemptionFee,
-    startingManagementFee,
-  ] = await Promise.all([
-    options.getLogs({ target: VAULT, eventAbi: ABI.redeemed }),
-    options.getLogs({ target: VAULT, eventAbi: ABI.redemptionFeeUpdated }),
-    options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeUpdated }),
-    options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeAccrued }),
-    options.getLogs({ target: VAULT, eventAbi: ABI.feesCollected }),
-    options.getLogs({
-      target: ELUSD,
-      eventAbi: ABI.transfer,
-      topics: [TRANSFER_TOPIC, ZERO_ADDRESS_TOPIC, topicAddress(STAKING)],
-    }),
-    options.fromApi.call({ target: VAULT, abi: ABI.redemptionFee }),
-    options.fromApi.call({ target: VAULT, abi: ABI.managementFeePercent }),
-  ]);
+  const redeemLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.redeemed });
+  const redemptionFeeUpdateLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.redemptionFeeUpdated });
+  const managementFeeUpdateLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeUpdated });
+  const managementFeeAccruedLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeAccrued });
+  const feesCollectedLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.feesCollected });
+  const stakingYieldLogs = await options.getLogs({
+    target: ELUSD,
+    eventAbi: ABI.transfer,
+    topics: [TRANSFER_TOPIC, ZERO_ADDRESS_TOPIC, topicAddress(STAKING)],
+  });
+  const startingRedemptionFee = await options.fromApi.call({ target: VAULT, abi: ABI.redemptionFee });
+  const startingManagementFee = await options.fromApi.call({ target: VAULT, abi: ABI.managementFeePercent });
 
   const redemptionFeeUpdates = redemptionFeeUpdateLogs
     .map((log) => ({ ...log, newFee: toBigInt(log.newFee) }))
@@ -133,12 +111,6 @@ const fetch = async (options: FetchOptions) => {
     ) {
       redemptionFee = redemptionFeeUpdates[redemptionFeeUpdateIndex].newFee;
       redemptionFeeUpdateIndex++;
-    }
-
-    const token = log.token.toLowerCase();
-    if (!COLLATERAL_TOKENS.has(token)) {
-      console.warn(`Elara: skipping unsupported fee token ${log.token}`);
-      continue;
     }
 
     const netTokenAmount = toBigInt(log.tokenAmountOut);
@@ -206,6 +178,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: "Redemption fees, management fees, performance fees, and elUSD yield distributed to stakers.",
+    UserFees: "Redemption fees, management fees, and performance fees paid by users.",
     Revenue: "Redemption fees retained by the treasury wallet, management fees accrued by the vault, and performance fees collected by the vault.",
     ProtocolRevenue: "Redemption, management, and performance fees allocated to the protocol.",
     SupplySideRevenue: "elUSD yield minted to the staking contract during NAV syncs.",
