@@ -1,8 +1,8 @@
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import { filterPools } from "../helpers/uniswap";
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
 
@@ -193,29 +193,8 @@ function toTopicAddress(address: string): string {
 async function getLogsInBlockChunks(
   options: FetchOptions,
   params: Parameters<FetchOptions["getLogs"]>[0],
-  blockStep = 10_000,
 ) {
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
-  const ranges: [number, number][] = [];
-
-  for (let startBlock = fromBlock; startBlock <= toBlock; startBlock += blockStep) {
-    ranges.push([startBlock, Math.min(startBlock + blockStep - 1, toBlock)]);
-  }
-
-  const allLogs: any[] = [];
-  await PromisePool.withConcurrency(5)
-    .for(ranges)
-    .process(async ([fromBlock, toBlock]) => {
-      const logs = await options.getLogs({
-        ...params,
-        fromBlock,
-        toBlock,
-      });
-      allLogs.push(...logs);
-    });
-
-  return allLogs;
+  return options.getLogs(params);
 }
 
 async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
@@ -388,6 +367,8 @@ async function getV2PairMetadata(options: FetchOptions) {
     }),
   ]);
 
+  const pairTokens: Record<string, string[]> = {};
+
   pairs.forEach((pair: string, index: number) => {
     const token0 = token0s[index] as string | undefined;
     const token1 = token1s[index] as string | undefined;
@@ -398,6 +379,8 @@ async function getV2PairMetadata(options: FetchOptions) {
       monEquivalentQuoteTokens.has(token.toLowerCase()),
     );
     const config = configs[index];
+
+    pairTokens[pair] = [token0, token1];
 
     pairMeta[pair] = {
       token0,
@@ -418,7 +401,20 @@ async function getV2PairMetadata(options: FetchOptions) {
     };
   });
 
-  return { pairs, pairMeta };
+  // Drop dust pairs: keep only those whose pooled token value clears the
+  // default filterPools threshold ($200), matching the uniswap-fork helpers.
+  const filteredPairs = await filterPools({
+    api: options.api,
+    pairs: pairTokens,
+    createBalances: options.createBalances,
+  });
+  const keptPairs = pairs.filter((pair: string) => filteredPairs[pair] !== undefined);
+  const keptPairMeta: Record<string, V2PairMeta> = {};
+  keptPairs.forEach((pair: string) => {
+    keptPairMeta[pair] = pairMeta[pair];
+  });
+
+  return { pairs: keptPairs, pairMeta: keptPairMeta };
 }
 
 async function getV2TokenQuoteMap(options: FetchOptions, tokens: string[]) {

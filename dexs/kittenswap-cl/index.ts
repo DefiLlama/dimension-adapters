@@ -1,9 +1,7 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 
 const CONFIG = {
   factory: "0x2E08F5Ff603E4343864B14599CAeDb19918BDCaF",
@@ -46,74 +44,40 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     poolInfoMap[pool] = { token0, token1, fee };
     kittenswapPoolSet.add(pool);
   });
-  const [toBlock, fromBlock] = await Promise.all([options.getToBlock(), options.getFromBlock()])
 
-  const blockStep = 1000;
-  let i = 0;
-  let startBlock = fromBlock;
-  let ranges: any = [];
   const iface = new ethers.Interface([eventAbis.event_swap]);
 
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock);
-    ranges.push([startBlock, endBlock]);
-    startBlock += blockStep;
-  }
-
-  let errorFound = false;
-
-  await PromisePool.withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await options.getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          entireLog: true,
-          skipCache: true,
-        });
-        sdk.log(
-          `Kittenswap slipstream got logs (${
-            logs.length
-          }) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`
-        );
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase();
-          if (!kittenswapPoolSet.has(pool)) return;
-          const { token0, token1, fee } = poolInfoMap[pool];
-          const parsedLog = iface.parseLog(log);
-          const amount0 = Number(parsedLog!.args.amount0);
-          const amount1 = Number(parsedLog!.args.amount1);
-          const fee0 = amount0 * fee;
-          const fee1 = amount1 * fee;
-          addOneToken({
-            chain: options.chain,
-            balances: dailyVolume,
-            token0,
-            token1,
-            amount0,
-            amount1,
-          });
-          addOneToken({
-            chain: options.chain,
-            balances: dailyFees,
-            token0,
-            token1,
-            amount0: fee0,
-            amount1: fee1,
-          });
-        });
-      } catch (e) {
-        console.log("Error", e);
-        errorFound = e as boolean;
-        throw e;
-      }
+  const logs = await options.getLogs({
+    noTarget: true,
+    eventAbi: eventAbis.event_swap,
+    entireLog: true,
+  });
+  logs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase();
+    if (!kittenswapPoolSet.has(pool)) return;
+    const { token0, token1, fee } = poolInfoMap[pool];
+    const parsedLog = iface.parseLog(log);
+    const amount0 = Number(parsedLog!.args.amount0);
+    const amount1 = Number(parsedLog!.args.amount1);
+    const fee0 = amount0 * fee;
+    const fee1 = amount1 * fee;
+    addOneToken({
+      chain: options.chain,
+      balances: dailyVolume,
+      token0,
+      token1,
+      amount0,
+      amount1,
     });
-
-  if (errorFound) throw errorFound;
+    addOneToken({
+      chain: options.chain,
+      balances: dailyFees,
+      token0,
+      token1,
+      amount0: fee0,
+      amount1: fee1,
+    });
+  });
 
   return {
     dailyVolume,
@@ -136,7 +100,8 @@ const methodology = {
 };
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2025-04-04",

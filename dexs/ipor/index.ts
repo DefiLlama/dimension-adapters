@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 
 interface IChainData {
-  startTimestamp: number;
+  start: string;
   iporProtocolRouter: string;
   stables: string[];
   stETHs: string[];
@@ -11,7 +11,7 @@ interface IChainData {
 
 const chainsData: { [key: string]: IChainData } = {
   [CHAIN.ETHEREUM]: {
-    startTimestamp: 1660662000,
+    start: '2022-08-16',
     iporProtocolRouter: '0x16d104009964e694761c0bf09d7be49b7e3c26fd',
     stables: Object.values({
       MiltonDai: '0xEd7d74AA7eB1f12F83dA36DFaC1de2257b4e7523',
@@ -21,13 +21,13 @@ const chainsData: { [key: string]: IChainData } = {
     stETHs: []
   },
   [CHAIN.ARBITRUM]: {
-    startTimestamp: 1708504270,
+    start: '2024-02-21',
     iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
     stables: [],
     stETHs: []
   },
   [CHAIN.BASE]: {
-    startTimestamp: 1731067807,
+    start: '2024-11-08',
     iporProtocolRouter: '0x21d337eBF86E584e614ecC18A2B1144D3C375918',
     stables: [],
     stETHs: []
@@ -66,17 +66,14 @@ const fetch: any = async ({ chain, getLogs, createBalances, }: FetchOptions) => 
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
-    },
-    [CHAIN.BASE]: {
-      fetch, start: chainsData[CHAIN.BASE].startTimestamp
-    }
-  }
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [
+    [CHAIN.ETHEREUM, { start: chainsData[CHAIN.ETHEREUM].start }],
+    [CHAIN.ARBITRUM, { start: chainsData[CHAIN.ARBITRUM].start }],
+    [CHAIN.BASE, { start: chainsData[CHAIN.BASE].start }],
+  ]
 }
 
 export default adapter;

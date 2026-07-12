@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBribes } from "./shadow-legacy";
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 import { addOneToken } from '../helpers/prices';
 import { filterPools } from '../helpers/uniswap';
 import * as sdk from '@defillama/sdk';
@@ -71,60 +70,32 @@ const fetch = async (options: FetchOptions) => {
     aeroPoolSet.add(pool)
   })
 
-  const blockStep = 1000;
-  let startBlock = fromBlock;
-  let ranges: any = []
-
-
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    ranges.push([startBlock, endBlock])
-    startBlock += blockStep
-  }
-
-  let errorFound = false
-
-
-  await PromisePool
-    .withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          entireLog: true,
-          skipCache: true,
-        })
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase()
-          if (!aeroPoolSet.has(pool)) return;
-          const { tokens, fee, hasGauge } = poolInfoMap[pool]
-          const [token0, token1] = tokens
-          const parsedLog = iface.parseLog(log)
-          const amount0 = Number(parsedLog!.args.amount0)
-          const amount1 = Number(parsedLog!.args.amount1)
-          const fee0 = amount0 * fee
-          const fee1 = amount1 * fee
-          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          if (hasGauge) {
-            addOneToken({ chain, balances: holdersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
-          }
-          else {
-            addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
-            addOneToken({ chain, balances: protocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
-          }
-        })
-      } catch (e) {
-        errorFound = true
-        throw e
-      }
-    })
-
-  if (errorFound) throw errorFound
+  const swapLogs = await getLogs({
+    noTarget: true,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.event_swap,
+    entireLog: true,
+  })
+  swapLogs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase()
+    if (!aeroPoolSet.has(pool)) return;
+    const { tokens, fee, hasGauge } = poolInfoMap[pool]
+    const [token0, token1] = tokens
+    const parsedLog = iface.parseLog(log)
+    const amount0 = Number(parsedLog!.args.amount0)
+    const amount1 = Number(parsedLog!.args.amount1)
+    const fee0 = amount0 * fee
+    const fee1 = amount1 * fee
+    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+    if (hasGauge) {
+      addOneToken({ chain, balances: holdersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
+    }
+    else {
+      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
+      addOneToken({ chain, balances: protocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
+    }
+  })
   const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
 
   const dailyFees = createBalances()

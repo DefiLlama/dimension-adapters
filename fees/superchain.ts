@@ -106,22 +106,16 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   methodology,
   fetch,
-  adapter: {
-    [CHAIN.BASE]: {
-      start: '2023-06-01',
-    },
-    [CHAIN.ETHEREUM]: {
-      start: '2022-04-01',
-    },
-    [CHAIN.UNICHAIN]: {
-      start: '2025-02-01',
-    },
-    [CHAIN.SONEIUM]: {
-      start: '2024-12-01',
-    },
-  }
+  chains: [
+    [CHAIN.BASE, { start: '2023-06-01' }],
+    [CHAIN.ETHEREUM, { start: '2022-04-01' }],
+    [CHAIN.UNICHAIN, { start: '2025-02-01' }],
+    [CHAIN.SONEIUM, { start: '2024-12-01' }],
+  ],
 }
 
 export default adapter

@@ -244,6 +244,13 @@ const configs: Record<string, Record<string, any>> = {
   "juiceswap": {
     [CHAIN.CITREA]: { factory: '0xd809b1285aDd8eeaF1B1566Bf31B2B4C4Bba8e82', start: "2026-01-29", userFeesRatio: 1, revenueRatio: 0 },
   },
+  // migrated off deleted Goldsky subgraphs to on-chain logs; factories from DefiLlama-Adapters registries/uniswapV3.js
+  "winnieswap": {
+    [CHAIN.BERACHAIN]: { factory: '0x76fD9D07d5e4D889CAbED96884F15f7ebdcd6B63', start: "2025-07-07", userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "fpex": {
+    [CHAIN.FLARE]: { factory: '0xb06df504137c3f393f0f089ebcad5ae7db592c6f', start: "2025-07-01", userFeesRatio: 1, revenueRatio: 0 },
+  },
   "koi-finance-cl": {
     [CHAIN.ERA]: { factory: '0x488A92576DA475f7429BC9dec9247045156144D3', start: 1679529600, userFeesRatio: 1 },
   },
