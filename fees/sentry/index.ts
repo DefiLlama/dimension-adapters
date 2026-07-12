@@ -1,6 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request, { gql } from "graphql-request";
+import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Sentry (sentry.trading): token launchpad + multi-venue swap frontend
 // on Robinhood Chain. Two fee streams, both indexed by the Sentry
@@ -13,10 +15,9 @@ import request, { gql } from "graphql-request";
 // 2. LP fees on Sentry-launched pools: every launch locks its
 //    liquidity in a Uniswap V3 1% pool; the factory splits collected
 //    LP fees 70% to the token creator / 30% to the Sentry treasury.
-const ENDPOINT =
-  "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.1.0/gn";
+const ENDPOINT = "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.1.0/gn";
 
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+const WETH = ADDRESSES.robinhood.WETH;
 const CREATOR_LP_SHARE = 0.7;
 
 const query = gql`
@@ -50,41 +51,58 @@ const fetch = async (options: FetchOptions) => {
     protocolDayId: `${day}`,
   });
 
+  // its ok to catch errors, as subgraph may not have data for some days and that doesnt mean the data is invalid, if subgraph is broken, it throws error before this line
   const routerFees = toWei(res.routerDayData?.feesWETH ?? "0");
   const referralPaid = toWei(res.routerDayData?.referralPaidWETH ?? "0");
   const lpFees = toWei(res.protocolDayData?.feesWETH ?? "0");
   const creatorShare = scaleWei(lpFees, CREATOR_LP_SHARE);
 
   const dailyFees = options.createBalances();
-  dailyFees.add(WETH, routerFees + lpFees);
+  dailyFees.add(WETH, routerFees + lpFees, METRIC.SWAP_FEES);
 
   // Protocol keeps the app fee (minus the on-chain referral share) and
   // the treasury's 30% of LP fees; creators' 70% is supply side.
   const dailyRevenue = options.createBalances();
-  dailyRevenue.add(WETH, routerFees - referralPaid + (lpFees - creatorShare));
+  dailyRevenue.add(WETH, routerFees - referralPaid + (lpFees - creatorShare), "Token Swap Fees to Protocol");
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.add(WETH, creatorShare + referralPaid);
+  dailySupplySideRevenue.add(WETH, creatorShare, "Token Swap Fees to Creators");
+  dailySupplySideRevenue.add(WETH, referralPaid, "Referral Payouts to Users");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-07-02",
-      meta: {
-        methodology: {
-          Fees: "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues), plus the 1% Uniswap V3 LP fee on Sentry-launched token pools.",
-          Revenue: "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
-          ProtocolRevenue: "Same as Revenue; all protocol revenue accrues to the Sentry treasury wallets.",
-          SupplySideRevenue: "Token creators' 70% split of LP fees on their launched pools, plus referral payouts to users.",
-        },
-      },
-    },
+const methodology = {
+  Fees: "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues), plus the 1% Uniswap V3 LP fee on Sentry-launched token pools.",
+  Revenue: "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+  ProtocolRevenue: "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+  SupplySideRevenue: "Token creators' 70% split of LP fees on their launched pools, plus referral payouts to users.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Token Swap Fees": "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues), plus the 1% Uniswap V3 LP fee on Sentry-launched token pools.",
   },
+  Revenue: {
+    "Token Swap Fees to Protocol": "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+  },
+  ProtocolRevenue: {
+    "Token Swap Fees to Protocol": "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees to Creators": "Token creators' 70% split of LP fees on their launched pools.",
+    "Referral Payouts to Users": "Referral payouts to users.",
+  },
+}
+
+const adapter: SimpleAdapter = {
+  version: 1, //graph accepts day
+  fetch,
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-07-02",
+  methodology,
+  doublecounted: true, // uniswap and pancakeswap
+  breakdownMethodology,
 };
 
 export default adapter;
