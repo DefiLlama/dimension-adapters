@@ -45,7 +45,8 @@ const adapter: SimpleAdapter = {
         Revenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
         ProtocolRevenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
         SupplySideRevenue: "LP's share of all interest accrued",
-    }
+    },
+    deadFrom: "2026-05-15",
 };
 
 export default adapter;
