@@ -8,8 +8,10 @@ const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql
 const SCALE = 1e20;
 
 // 50k rows per request covers the busiest day so far (129k events on 2026-06-01)
-// in three requests
+// in three requests. The cap is a stop so a subgraph that keeps returning full
+// pages cannot spin here forever; it is well clear of any real day.
 const PAGE = 50000;
+const MAX_EVENTS = 1_000_000;
 
 // Volume farming filter, see issue #7120.
 //
@@ -99,14 +101,14 @@ const fetch = async (options: FetchOptions) => {
   const to = new Date(options.endTimestamp * 1000).toISOString();
 
   const events: TradeEvent[] = [];
-  for (let offset = 0; ; offset += PAGE) {
+  for (let offset = 0; offset < MAX_EVENTS; offset += PAGE) {
     const res = await request(url, tradesQuery, { from, to, limit: PAGE, offset });
     const page: TradeEvent[] = res.tradeEvents;
     events.push(...page);
     if (page.length < PAGE) break;
   }
 
-  if (!events.length) throw new Error("Not found daily data!.");
+  if (!events.length) throw new Error("No trade events found for the day.");
 
   const wallets = new Map<string, Wallet>();
   for (const event of events) {
