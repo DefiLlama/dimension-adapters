@@ -58,16 +58,18 @@ const fetch = async (options: FetchOptions) => {
   const creatorShare = scaleWei(lpFees, CREATOR_LP_SHARE);
 
   const dailyFees = options.createBalances();
-  dailyFees.add(WETH, routerFees + lpFees, METRIC.SWAP_FEES);
+  dailyFees.add(WETH, lpFees, METRIC.SWAP_FEES);
+  dailyFees.add(WETH, routerFees, "Router Fees");
 
   // Protocol keeps the app fee (minus the on-chain referral share) and
   // the treasury's 30% of LP fees; creators' 70% is supply side.
   const dailyRevenue = options.createBalances();
-  dailyRevenue.add(WETH, routerFees - referralPaid + (lpFees - creatorShare), "Token Swap Fees to Protocol");
+  dailyRevenue.add(WETH, routerFees - referralPaid, "Router Fees to Protocol");
+  dailyRevenue.add(WETH, lpFees - creatorShare, "Token Swap Fees to Protocol");
 
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.add(WETH, creatorShare, "Token Swap Fees to Creators");
-  dailySupplySideRevenue.add(WETH, referralPaid, "Referral Payouts to Users");
+  dailySupplySideRevenue.add(WETH, referralPaid, "Router Fees to Referrers");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
@@ -81,17 +83,20 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Token Swap Fees": "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues), plus the 1% Uniswap V3 LP fee on Sentry-launched token pools.",
+    "Router Fees": "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues)",
+    [METRIC.SWAP_FEES]: "1% Uniswap V3 LP fee on Sentry-launched token pools.",
   },
   Revenue: {
-    "Token Swap Fees to Protocol": "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+    "Router Fees to Protocol": "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues) minus the on-chain referral share",
+    "Token Swap Fees to Protocol": "30% of 1% Uniswap V3 LP fee on Sentry-launched token pools",
   },
   ProtocolRevenue: {
-    "Token Swap Fees to Protocol": "The app fee minus the on-chain referral share, plus the treasury's 30% split of LP fees on Sentry-launched pools.",
+    "Router Fees to Protocol": "1% app fee on the ETH side of every swap routed through Sentry's fee-router contracts (Uniswap V3/V2/v4 and PancakeSwap V3 venues) minus the on-chain referral share",
+    "Token Swap Fees to Protocol": "30% of 1% Uniswap V3 LP fee on Sentry-launched token pools",
   },
   SupplySideRevenue: {
     "Token Swap Fees to Creators": "Token creators' 70% split of LP fees on their launched pools.",
-    "Referral Payouts to Users": "Referral payouts to users.",
+    "Router Fees to Referrers": "Referral payouts from router fees to users.",
   },
 }
 
