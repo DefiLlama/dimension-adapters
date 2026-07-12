@@ -395,7 +395,10 @@ const configs: Record<string, Record<string, any>> = {
     //[CHAIN.STABLE]: { factory: "0x8b051B804684A0914a62a22145206bE5AB022D8f", start: "2025-11-27", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
     [CHAIN.KATANA]: { factory: "0x0742D64925E4C78cb1bAFfce2fA1dceBa8Cf133c", start: "2025-06-17", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
     [CHAIN.HYPERLIQUID]: { factory: "0x0742d64925e4c78cb1baffce2fa1dceba8cf133c", start: "2025-02-18", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
-  }
+  },
+  "robinswap-v3": {
+    [CHAIN.ROBINHOOD]: { factory: "0xea561e058313b96011e5070ca7d0f027a44e3748", start: "2026-07-09", userFeesRatio: 1, revenueRatio: 1 / 7, protocolRevenueRatio: 1 / 7 },
+  },
 
 }
 
