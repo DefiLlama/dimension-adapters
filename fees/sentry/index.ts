@@ -15,7 +15,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // 2. LP fees on Sentry-launched pools: every launch locks its
 //    liquidity in a Uniswap V3 1% pool; the factory splits collected
 //    LP fees 70% to the token creator / 30% to the Sentry treasury.
-const ENDPOINT = "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.1.0/gn";
+const ENDPOINT = "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.2.0/gn";
 
 const WETH = ADDRESSES.robinhood.WETH;
 const CREATOR_LP_SHARE = 0.7;
