@@ -355,6 +355,10 @@ export const chainConfig: Record<string, any> = {
     pools: AaveMarkets[CHAIN.XLAYER],
     start: '2026-03-30',
   },
+  [CHAIN.MONAD]: {
+    pools: AaveMarkets[CHAIN.MONAD],
+    start: '2026-06-17',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {
