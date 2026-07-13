@@ -79,11 +79,11 @@ const fetchRobinhood = async (options: FetchOptions) => {
 }
 
 const fetchSolana = async (options: FetchOptions) => {
-	// const dailyFees = await getSolanaReceived({
-	// 	options,
-	// 	target: 'FEwxLZ64Wdh1VFP53jfA37yDVnD8gL3FgzsZNuQ6pCC9',
-	// })
-	const dailyVolume = options.createBalances() //dailyFees.clone(100 / 0.85)
+	const dailyFees = await getSolanaReceived({
+		options,
+		target: 'FEwxLZ64Wdh1VFP53jfA37yDVnD8gL3FgzsZNuQ6pCC9',
+	})
+	const dailyVolume = dailyFees.clone(100 / 0.85)
 
 	return {
 		dailyVolume,
