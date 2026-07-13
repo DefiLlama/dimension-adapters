@@ -19,6 +19,7 @@ const chainConfig: Record<string, any> = {
 	[CHAIN.UNICHAIN]: {dune_chain: 'unichain'},
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
     [CHAIN.MONAD]: {dune_chain: 'monad'},
+    [CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -31,23 +32,35 @@ const prefetch = async (options: FetchOptions) => {
                 AND tx.block_time <= FROM_UNIXTIME(${options.endTimestamp})
         ),
         dex_txs AS (
-            SELECT DISTINCT tx_hash
+            SELECT tx_hash, blockchain
             FROM dex_aggregator.trades
             WHERE block_time >= FROM_UNIXTIME(${options.startTimestamp})
+                AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+
+            UNION ALL
+
+            SELECT tx_hash, blockchain
+            FROM dex.trades
+            WHERE blockchain = 'robinhood'
+                AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
                 AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
         ),
         filtered_bridge_txs AS (
             SELECT os.hash, os.blockchain
             FROM opensea_txs os
             WHERE NOT EXISTS (
-                SELECT 1 FROM dex_txs dt WHERE dt.tx_hash = os.hash
+                SELECT 1
+                FROM dex_txs dt
+                WHERE dt.tx_hash = os.hash
+                    AND dt.blockchain = os.blockchain
             )
         )
         SELECT
             t.blockchain,
             SUM(t.amount_usd) as dailyBridgeVolume
         FROM tokens.transfers t
-        INNER JOIN filtered_bridge_txs fb ON t.tx_hash = fb.hash
+        INNER JOIN filtered_bridge_txs fb
+            ON t.tx_hash = fb.hash AND t.blockchain = fb.blockchain
         WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
             AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
         GROUP BY 1
