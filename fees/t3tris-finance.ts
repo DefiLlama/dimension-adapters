@@ -72,6 +72,8 @@ const EVENT_ABI = {
 
 const chainConfig: Record<string, { chainId: number; start: string }> = {
   [CHAIN.ARBITRUM]: { chainId: 42161, start: "2026-06-14" },
+  // Robinhood Chain: chainId 4663 per chainlist.org & @defillama/sdk
+  // providers.json ("robinhoodchain"); start = T3tris deployment date on Robinhood.
   [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-07-13" },
 };
 
@@ -142,11 +144,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   let vaults: string[];
   const chainId = chainConfig[options.chain].chainId;
   const all = await getConfig("t3tris/vaults", VAULTS_API);
-  // A failed/empty API response is a real error worth surfacing loudly. But a
-  // chain that simply has no verified vaults yet (e.g. a freshly-added chain
-  // before its first vault is live) is a legitimate zero-fee day, not an error.
+  // A failed/empty API response is a real error worth surfacing loudly.
   if (!Array.isArray(all) || all.length === 0) {
     throw new Error(`T3tris: vaults API returned no data`);
+  }
+  // Guard against a malformed/partial payload (e.g. `[null]`, `[{}]`) that would
+  // otherwise filter down to zero and masquerade as a legitimate "no verified
+  // vaults" day: require at least one structurally valid vault record (address +
+  // asset) before trusting the filtered result.
+  const isVaultRecord = (v: any) =>
+    v &&
+    typeof v.address === "string" &&
+    v.address &&
+    typeof v.asset === "string" &&
+    v.asset;
+  if (!all.some(isVaultRecord)) {
+    throw new Error(`T3tris: vaults API returned no valid vault records`);
   }
   vaults = all
     .filter(
@@ -161,6 +174,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     )
     .map((v: any) => v.address);
 
+  // Valid payload, but no verified vault for this chain yet (e.g. a freshly-added
+  // chain before its first vault is live): a legitimate zero-fee day, not an error.
   if (vaults.length === 0) {
     return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue };
   }
