@@ -72,6 +72,7 @@ const EVENT_ABI = {
 
 const chainConfig: Record<string, { chainId: number; start: string }> = {
   [CHAIN.ARBITRUM]: { chainId: 42161, start: "2026-06-14" },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-07-13" },
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -141,7 +142,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   let vaults: string[];
   const chainId = chainConfig[options.chain].chainId;
   const all = await getConfig("t3tris/vaults", VAULTS_API);
-  vaults = (all || [])
+  // A failed/empty API response is a real error worth surfacing loudly. But a
+  // chain that simply has no verified vaults yet (e.g. a freshly-added chain
+  // before its first vault is live) is a legitimate zero-fee day, not an error.
+  if (!Array.isArray(all) || all.length === 0) {
+    throw new Error(`T3tris: vaults API returned no data`);
+  }
+  vaults = all
     .filter(
       (v: any) =>
         v?.verified &&
@@ -154,8 +161,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     )
     .map((v: any) => v.address);
 
-  if (!vaults || vaults.length === 0) {
-    throw new Error(`T3tris: no vaults found for ${options.chain}`);
+  if (vaults.length === 0) {
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue };
   }
 
   // 2. Fetch vault metadata
