@@ -36,14 +36,20 @@ interface IVolumeByChainRecord {
 // https://dropswap.finance/api/defillama/volume-by-chain
 const API_URL = "https://dropswap.finance/api/defillama/volume-by-chain";
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const prefetch = async (_options: FetchOptions): Promise<any> => {
   const data: IVolumeByChainRecord[] = await fetchURL(API_URL);
+  return data;
+}
+
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const data: IVolumeByChainRecord[] =  options.preFetchedResults;
   const dayRecord = data.find((d) => d.date === options.dateString);
   const chainKey = chains[options.chain];
   const chainData = dayRecord?.chains?.[chainKey];
 
   return {
-    dailyVolume: (chainData?.volume ?? 0).toString(),
+    // 0 volume chains have no entry, so it's ok to return 0
+    dailyVolume: (chainData?.volume ?? 0),
   };
 };
 
@@ -51,6 +57,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   chains: Object.keys(chains),
   fetch,
+  prefetch,
   start: '2026-06-11',
   methodology: {
     Volume: "Daily swap volume is the sum of USD value of all successful swaps routed through DropSwap's backend (via LI.FI and Odos), recorded per chain in DropSwap's own database.",
