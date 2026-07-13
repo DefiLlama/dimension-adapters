@@ -2,13 +2,25 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
+// HoodPump Launchpad on Robinhood Chain; the explorer records its deployment.
+// https://robinhoodchain.blockscout.com/address/0x778F7b2d844B7C366b386d8Ce62110ceA301C777
 const LAUNCHPAD = "0x778F7b2d844B7C366b386d8Ce62110ceA301C777";
+// Canonical WETH used as token0 in every HoodPump pool on Robinhood Chain.
+// https://robinhoodchain.blockscout.com/address/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+// First block queried for logs from the deployed Launchpad.
 const LAUNCHPAD_DEPLOYMENT_BLOCK = 6990219;
 
+// Basis-point denominator used for the pool fee and revenue split calculations.
 const BPS = 10_000n;
+// HoodPump creates Uniswap V3 pools at the 1% fee tier (100 bps).
+// https://robinhoodchain.blockscout.com/address/0x778F7b2d844B7C366b386d8Ce62110ceA301C777
 const POOL_FEE_BPS = 100n;
+// Fee split source on Robinhood Chain:
+// https://robinhoodchain.blockscout.com/address/0x453D956057036bd9871D25B965795b883047481D
+// The platform receives 60% of collected swap fees.
 const PLATFORM_SHARE_BPS = 6_000n;
+// Community Treasuries receive 30%; the remaining 10% belongs to token creators.
 const COMMUNITY_SHARE_BPS = 3_000n;
 
 const LAUNCH_CREATED =
