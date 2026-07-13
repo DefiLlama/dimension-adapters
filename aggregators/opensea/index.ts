@@ -21,6 +21,7 @@ const chainConfig: any = {
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
 	[CHAIN.SOLANA]: { dune_chain: 'solana' },
 	[CHAIN.MONAD]: { dune_chain: 'monad' },
+	[CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -40,12 +41,49 @@ const prefetch = async (options: FetchOptions) => {
 	`);
 };
 
+const fetchRobinhood = async (options: FetchOptions) => {
+	const results = await queryDuneSql(options, `
+		WITH opensea_txs AS (
+			SELECT DISTINCT hash
+			FROM evms.transactions
+			WHERE blockchain = 'robinhood'
+				AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
+		),
+		robinhood_trades AS (
+			SELECT
+				t.tx_hash,
+				t.token_bought_address,
+				t.token_sold_address,
+				t.amount_usd
+			FROM dex.trades t
+			INNER JOIN opensea_txs os ON t.tx_hash = os.hash
+			WHERE t.blockchain = 'robinhood'
+				AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+				AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+		)
+		SELECT SUM(t.amount_usd) AS dailyVolume
+		FROM robinhood_trades t
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM robinhood_trades prior_leg
+			WHERE prior_leg.tx_hash = t.tx_hash
+				AND prior_leg.token_bought_address = t.token_sold_address
+		)
+	`);
+
+	return {
+		dailyVolume: results[0]?.dailyVolume || 0,
+	}
+}
+
 const fetchSolana = async (options: FetchOptions) => {
-	const dailyFees = await getSolanaReceived({
-		options,
-		target: 'FEwxLZ64Wdh1VFP53jfA37yDVnD8gL3FgzsZNuQ6pCC9',
-	})
-	const dailyVolume = dailyFees.clone(100 / 0.85)
+	// const dailyFees = await getSolanaReceived({
+	// 	options,
+	// 	target: 'FEwxLZ64Wdh1VFP53jfA37yDVnD8gL3FgzsZNuQ6pCC9',
+	// })
+	const dailyVolume = options.createBalances() //dailyFees.clone(100 / 0.85)
 
 	return {
 		dailyVolume,
@@ -55,6 +93,9 @@ const fetchSolana = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions) => {
 	if (options.chain === CHAIN.SOLANA) {
 		return await fetchSolana(options)
+	}
+	if (options.chain === CHAIN.ROBINHOOD) {
+		return await fetchRobinhood(options)
 	}
 	const results = options.preFetchedResults || [];
 	const chainData = results.find(
