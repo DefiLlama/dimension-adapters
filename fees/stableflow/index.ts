@@ -23,22 +23,78 @@ const CCTP_PROXY: Record<string, { proxy: string; usdc: string }> = {
 // data words = [user, originalAmount, chargedAmount, fee, destinationDomain]
 const CCTP_DEPOSIT_TOPIC = "0x42c0c9c66992c2a0a65fe5553915218cdf833f9d9544a2dabd00d2391d39470a";
 
+// fee PDA of their solana CCTP proxy program 8whUZNSbjJXC2UDRpo3PXo5MHzhptwVTTwpSYuTgQJNY -
+// receives the retained fee on every deposit (only fees flow to it)
+const SOLANA_FEE_OWNER = "coNkR1719kohnaxQrVPwvaGdVrqPTps6NFUZic3hGJb";
+
+// fees are paid in intents.near multi-token ids wrapping assets from other chains;
+// map them to their underlying token so the price server can resolve them
+const OMFT_CHAINS: Record<string, string> = { eth: "ethereum", arb: "arbitrum", base: "base", op: "optimism", gnosis: "xdai" };
+const HOT_CHAINS: Record<string, string> = { "56": "bsc", "137": "polygon" }; // omni.hot.tg chain ids
+// non-EVM omft ids are opaque hashes, mapped by observed metadata
+const FIXED_TOKENS: Record<string, { cgId: string; decimals: number }> = {
+    "nep141:tron-d28a265909efecdcee7c5028585214ea0b96f015.omft.near": { cgId: "tether", decimals: 6 },
+    "nep141:sol-c800a4bd850783ccb82c2b2c7e84175443606352.omft.near": { cgId: "usd-coin", decimals: 6 },
+};
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const base58ToAddress = (s: string) => "0x" + [...s].reduce((n, c) => n * 58n + BigInt(B58.indexOf(c)), 0n).toString(16).padStart(40, "0");
+
+// nep141:usdt.tether-token.near -> near:usdt.tether-token.near
+// nep141:eth-0xdac1....omft.near -> ethereum:0xdac1...
+// nep245:v2_1.omni.hot.tg:56_<base58 of address> -> bsc:0x...
+function toLlamaToken(id: string): string | undefined {
+    if (id.startsWith("nep141:")) {
+        const token = id.slice(7);
+        if (!token.endsWith(".omft.near")) return `near:${token}`;
+        const [prefix, address] = token.replace(".omft.near", "").split("-");
+        if (OMFT_CHAINS[prefix]) return `${OMFT_CHAINS[prefix]}:${address}`;
+    }
+    if (id.startsWith("nep245:v2_1.omni.hot.tg:")) {
+        const [chainId, encoded] = id.slice(24).split("_");
+        if (HOT_CHAINS[chainId]) return `${HOT_CHAINS[chainId]}:${base58ToAddress(encoded)}`;
+    }
+    return undefined;
+}
+
 async function fetchNear(options: FetchOptions) {
     const dailyFees = options.createBalances();
-    // fees accrue inside intents.near and are realized when withdrawn to reffer.near,
-    // same realization basis as the near-intents adapter revenue wallets
+    // app fees are credited to reffer.near inside intents.near at settlement,
+    // emitted as NEP-245 mt_transfer events in the contract logs
     const query = `
-        SELECT contract_account_id AS token, SUM(CAST(delta_amount AS DOUBLE)) AS amount
-        FROM near.ft_transfers
-        WHERE affected_account_id = '${APP_FEE_WALLET}'
-          AND involved_account_id = 'intents.near'
-          AND delta_amount > 0
-          AND block_date = DATE '${options.dateString}'
+        WITH events AS (
+            SELECT json_parse(substr(log, 12)) AS ev
+            FROM near.logs
+            WHERE executor_account_id = 'intents.near'
+              AND log LIKE 'EVENT_JSON:%'
+              AND log LIKE '%${APP_FEE_WALLET}%'
+              AND block_date = DATE '${options.dateString}'
+              AND json_extract_scalar(json_parse(substr(log, 12)), '$.event') = 'mt_transfer'
+        ),
+        transfers AS (
+            SELECT
+                json_extract_scalar(d, '$.new_owner_id') AS recipient,
+                CAST(json_extract(d, '$.token_ids') AS array(varchar)) AS token_ids,
+                CAST(json_extract(d, '$.amounts')   AS array(varchar)) AS amounts
+            FROM events
+            CROSS JOIN UNNEST(CAST(json_extract(ev, '$.data') AS array(json))) AS t(d)
+        )
+        SELECT tok AS token, SUM(CAST(amt AS DOUBLE)) AS amount
+        FROM transfers
+        CROSS JOIN UNNEST(token_ids, amounts) AS z(tok, amt)
+        WHERE recipient = '${APP_FEE_WALLET}'
         GROUP BY 1
     `;
     const rows = await queryDuneSql(options, query);
     for (const row of rows) {
-        dailyFees.add(row.token, row.amount, "App Fees");
+        const fixed = FIXED_TOKENS[row.token];
+        if (fixed) {
+            dailyFees.addCGToken(fixed.cgId, Number(row.amount) / 10 ** fixed.decimals, "App Fees");
+            continue;
+        }
+        const token = toLlamaToken(row.token);
+        if (!token) throw new Error(`stableflow: unmapped fee token ${row.token}`);
+        dailyFees.add(token, row.amount, "App Fees", { skipChain: true });
     }
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
@@ -58,8 +114,32 @@ async function fetchEvm(options: FetchOptions) {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
+async function fetchSolana(options: FetchOptions) {
+    const dailyFees = options.createBalances();
+    // deposits flow through the fee PDA's token account (deposit in, burn out, fee stays),
+    // so the retained fee is the per-transaction net inflow
+    const query = `
+        WITH per_tx AS (
+            SELECT tx_id, token_mint_address AS mint,
+                SUM(CASE WHEN to_owner = '${SOLANA_FEE_OWNER}' THEN CAST(amount AS DOUBLE) ELSE -CAST(amount AS DOUBLE) END) AS net
+            FROM tokens_solana.transfers
+            WHERE (to_owner = '${SOLANA_FEE_OWNER}' OR from_owner = '${SOLANA_FEE_OWNER}')
+              AND TIME_RANGE
+            GROUP BY 1, 2
+        )
+        SELECT mint, SUM(net) AS amount FROM per_tx WHERE net > 0 GROUP BY 1
+    `;
+    const rows = await queryDuneSql(options, query);
+    for (const row of rows) {
+        dailyFees.add(row.mint, row.amount, "CCTP Custom Fees");
+    }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+}
+
 const fetch = async (options: FetchOptions) => {
-    return options.chain === CHAIN.NEAR ? fetchNear(options) : fetchEvm(options);
+    if (options.chain === CHAIN.NEAR) return fetchNear(options);
+    if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
+    return fetchEvm(options);
 };
 
 const methodology = {
@@ -78,7 +158,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
     version: 1, // Dune
     fetch,
-    chains: [CHAIN.NEAR, ...Object.keys(CCTP_PROXY)],
+    chains: [CHAIN.NEAR, CHAIN.SOLANA, ...Object.keys(CCTP_PROXY)],
     start: "2025-10-10",
     dependencies: [Dependencies.DUNE],
     methodology,
