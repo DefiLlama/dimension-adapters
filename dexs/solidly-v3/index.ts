@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: configs,
   skipBreakdownValidation: true,
-  //pullHourly: true,
+  pullHourly: true,
 }
 
 export default adapter;
