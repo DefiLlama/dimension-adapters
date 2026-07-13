@@ -19,13 +19,15 @@ const fetch = async (options: FetchOptions) => {
   const dockedLogs = await options.getLogs({ target: AQUA_REGISTRY, eventAbi: DOCKED_ABI, entireLog: true });
 
   // Transactions that ship (deploy) or dock (revoke) a strategy move liquidity,
-  // not swap volume - Pulled/Pushed events they emit must not be counted
+  // not swap volume - Pulled/Pushed events they emit must not be counted.
+  // Hashes are lowercased because the three fetches may be served by different
+  // backends (indexer/RPC/cache) with no canonical casing guarantee
   const strategyLifecycleTxs = new Set<string>();
-  shippedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash));
-  dockedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash));
+  shippedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash.toLowerCase()));
+  dockedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash.toLowerCase()));
 
   pulledLogs.forEach((log: any) => {
-    if (strategyLifecycleTxs.has(log.transactionHash)) return;
+    if (strategyLifecycleTxs.has(log.transactionHash.toLowerCase())) return;
     dailyVolume.add(log.args.token, log.args.amount);
   });
 
