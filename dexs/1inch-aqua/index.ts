@@ -12,11 +12,14 @@ const DOCKED_ABI = "event Docked(address maker, address app, bytes32 strategyHas
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  // entireLog keeps transactionHash on the parsed logs so swap pulls can be
-  // separated from strategy lifecycle transactions below
-  const pulledLogs = await options.getLogs({ target: AQUA_REGISTRY, eventAbi: PULLED_ABI, entireLog: true });
-  const shippedLogs = await options.getLogs({ target: AQUA_REGISTRY, eventAbi: SHIPPED_ABI, entireLog: true });
-  const dockedLogs = await options.getLogs({ target: AQUA_REGISTRY, eventAbi: DOCKED_ABI, entireLog: true });
+  // entireLog keeps transactionHash on the logs so swap pulls can be separated
+  // from strategy lifecycle transactions below; parseLog must be explicit
+  // because the indexer path does not auto-enable it the way the RPC path does
+  const [pulledLogs, shippedLogs, dockedLogs] = await Promise.all([
+    options.getLogs({ target: AQUA_REGISTRY, eventAbi: PULLED_ABI, entireLog: true, parseLog: true }),
+    options.getLogs({ target: AQUA_REGISTRY, eventAbi: SHIPPED_ABI, entireLog: true, parseLog: true }),
+    options.getLogs({ target: AQUA_REGISTRY, eventAbi: DOCKED_ABI, entireLog: true, parseLog: true }),
+  ]);
 
   // Transactions that ship (deploy) or dock (revoke) a strategy move liquidity,
   // not swap volume - Pulled/Pushed events they emit must not be counted.
@@ -55,7 +58,7 @@ const adapter: SimpleAdapter = {
   start: "2025-11-17", // Aqua developer release: https://blog.1inch.com/aqua-developer-release/
   methodology: {
     Volume:
-      "Sum of tokens delivered to takers by Aqua strategies during swap execution, measured as Pulled events on the Aqua registry. Only the taker-received side of each swap is counted to avoid double counting. Pulled events emitted in transactions that also ship or dock a strategy are excluded, as those move liquidity rather than trade it.",
+      "Sum of tokens delivered to takers by Aqua strategies during swap execution, measured as Pulled events on the Aqua registry. Only the taker-received side of each swap is counted to avoid double counting. Pulled events emitted in transactions that also ship or dock a strategy are excluded, as those move liquidity rather than trade it. Liquidity withdrawals executed through the swap path are indistinguishable from swaps on-chain and are therefore included.",
   },
 };
 
