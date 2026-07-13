@@ -534,7 +534,7 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
 }
 
 async function fetchFromApi(options: FetchOptions) {
-  const apiResponse = await fetchCurveApiData(options.startTimestamp, options.endTimestamp);
+  const apiResponse = await fetchCurveApiData(options.startOfDay);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
   if (!chainData) {
