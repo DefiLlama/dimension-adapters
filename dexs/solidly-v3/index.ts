@@ -31,7 +31,9 @@ const configs: any = {
 
 const fetch = async (options:FetchOptions) => {
   return await getUniV3LogAdapter({
-    factory: configs[options.chain].factory
+    factory: configs[options.chain].factory,
+    revenueRatio: 0.2,
+    holdersRevenueRatio: 0.2,
   })(options);
 }
 
@@ -40,6 +42,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: configs,
   skipBreakdownValidation: true,
+  //pullHourly: true,
 }
 
 export default adapter;
