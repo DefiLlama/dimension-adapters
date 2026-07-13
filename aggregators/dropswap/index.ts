@@ -2,6 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// Maps DefiLlama chain identifiers to DropSwap's internal chain keys (used by its API)
 const chains: Record<string, string> = {
   [CHAIN.ARBITRUM]: 'arbitrum',
   [CHAIN.BASE]: 'base',
@@ -31,10 +32,13 @@ interface IVolumeByChainRecord {
   chains: Record<string, { volume: number; transactions: number }>;
 }
 
+// DropSwap's own public API, aggregating swap volume from its backend database, grouped by day and chain
+// https://dropswap.finance/api/defillama/volume-by-chain
+const API_URL = "https://dropswap.finance/api/defillama/volume-by-chain";
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const data: IVolumeByChainRecord[] = await fetchURL("https://dropswap.finance/api/defillama/volume-by-chain");
-  const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const dayRecord = data.find((d) => d.date === dateStr);
+  const data: IVolumeByChainRecord[] = await fetchURL(API_URL);
+  const dayRecord = data.find((d) => d.date === options.dateString);
   const chainKey = chains[options.chain];
   const chainData = dayRecord?.chains?.[chainKey];
 
@@ -45,16 +49,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    ...Object.entries(chains).reduce((acc, [key]) => {
-      return {
-        ...acc,
-        [key]: {
-          fetch,
-          start: '2026-06-11',
-        },
-      };
-    }, {}),
+  chains: Object.keys(chains),
+  fetch,
+  start: '2026-06-11',
+  methodology: {
+    Volume: "Daily swap volume is the sum of USD value of all successful swaps routed through DropSwap's backend (via LI.FI and Odos), recorded per chain in DropSwap's own database.",
   },
 };
 
