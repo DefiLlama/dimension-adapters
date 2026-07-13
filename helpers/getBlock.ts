@@ -2,6 +2,7 @@ import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
 import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
@@ -83,6 +84,8 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 
     if (chain === CHAIN.TON)
       block = await getTonBlock(timestamp)
+    else if (chain === CHAIN.CHIA)
+      block = await getChiaBlock(timestamp)
     else
       block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
@@ -109,6 +112,24 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 async function getTonBlock(unixTS: number) {
   const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
   return data.result.seqno
+}
+
+/**
+ * Resolves a unix timestamp to the nearest Chia block height via the spacescan API.
+ * Retries with backoff to ride out the free-tier rate limit (5 req/min).
+ */
+async function getChiaBlock(unixTS: number) {
+  // spacescan returns the nearest block to the timestamp (number is a string).
+  // Retry with backoff as insurance against rate-limit bursts during backfill.
+  const res = await retry(
+    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`, {
+      headers: { "x-api-key": getEnv("SPACESCAN_API_KEY") },
+    }),
+    { retries: 3, minTimeout: 6000 }
+  )
+  const block = Number(res.data.number)
+  if (!Number.isFinite(block)) throw new Error(`Chia: invalid block for timestamp ${unixTS}`)
+  return block
 }
 
 async function getBlocks(chain: Chain, timestamps: number[]) {
