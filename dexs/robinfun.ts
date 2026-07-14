@@ -15,12 +15,12 @@ const BUY_EVENT =
 const SELL_EVENT =
   "event Sell(address indexed token, address indexed seller, uint256 tokensIn, uint256 ethOut, uint256 newRealEth, uint256 newPriceWeiPerToken)";
 // Emitted by the factory on every bonding-curve trade with the full 1% fee, taken in ETH.
-const FEE_COLLECTED_EVENT =
-  "event FeeCollected(address indexed token, uint256 amount)";
+const FEE_COLLECTED_EVENT = "event FeeCollected(address indexed token, uint256 amount)";
 // Emitted by each graduated token contract when its accrued post-graduation Uniswap fee
 // 1% fee-on-transfer is auto-swapped to ETH and paid out 50/50 to creator and treasury.
 const FEE_SWAPPED_EVENT =
   "event FeeSwapped(uint256 tokensSold, uint256 ethToCreator, uint256 ethToTreasury)";
+const TOKEN_GRADUATED_EVENT = "event ReadyToGraduate(address indexed token, uint256 realEth)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
@@ -28,12 +28,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [buyLogs, sellLogs, feeLogs, feeSwappedLogs] = await Promise.all([
-    options.getLogs({ targets: FACTORIES, eventAbi: BUY_EVENT }),
-    options.getLogs({ targets: FACTORIES, eventAbi: SELL_EVENT }),
-    options.getLogs({ targets: FACTORIES, eventAbi: FEE_COLLECTED_EVENT }),
-    options.getLogs({ noTarget: true, eventAbi: FEE_SWAPPED_EVENT }),
-  ]);
+  const tokenGraduatedLogs = await options.getLogs({ targets: FACTORIES, eventAbi: TOKEN_GRADUATED_EVENT, fromBlock: 1116283, cacheInCloud: true })
+  const graduatedTokens = tokenGraduatedLogs.map((log) => log.token)
+
+  const buyLogs = await options.getLogs({ targets: FACTORIES, eventAbi: BUY_EVENT });
+  const sellLogs = await options.getLogs({ targets: FACTORIES, eventAbi: SELL_EVENT });
+  const feeLogs = await options.getLogs({ targets: FACTORIES, eventAbi: FEE_COLLECTED_EVENT });
+  const feeSwappedLogs = await options.getLogs({ targets: graduatedTokens, eventAbi: FEE_SWAPPED_EVENT });
 
   buyLogs.forEach((log) => dailyVolume.addGasToken(log.ethIn));
   sellLogs.forEach((log) => dailyVolume.addGasToken(log.ethOut));
@@ -41,15 +42,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // Bonding-curve fee: full 1% taken in ETH, split evenly creator / treasury.
   feeLogs.forEach((log) => {
     dailyFees.addGasToken(log.amount, "Bonding Curve Fees");
-    dailyRevenue.addGasToken(log.amount / 2n, "Bonding Curve Fees");
-    dailySupplySideRevenue.addGasToken(log.amount / 2n, "Bonding Curve Fees");
+    dailyRevenue.addGasToken(log.amount / 2n, "Bonding Curve Fees to Protocol");
+    dailySupplySideRevenue.addGasToken(log.amount / 2n, "Bonding Curve Fees to Creators");
   });
 
   // Post-graduation Uniswap fee: already split 50/50 into creator / treasury ETH.
   feeSwappedLogs.forEach((log) => {
     dailyFees.addGasToken(BigInt(log.ethToCreator) + BigInt(log.ethToTreasury), "Post-Graduation DEX Fees");
-    dailyRevenue.addGasToken(log.ethToTreasury, "Post-Graduation DEX Fees");
-    dailySupplySideRevenue.addGasToken(log.ethToCreator, "Post-Graduation DEX Fees");
+    dailyRevenue.addGasToken(log.ethToTreasury, "Post-Graduation DEX Fees to Protocol");
+    dailySupplySideRevenue.addGasToken(log.ethToCreator, "Post-Graduation DEX Fees to Creators");
   });
 
   return {
@@ -84,16 +85,16 @@ const adapter: Adapter = {
       "Post-Graduation DEX Fees": "1% post-graduation Uniswap fee accrued in each token and auto-swapped to ETH (FeeSwapped).",
     },
     Revenue: {
-      "Bonding Curve Fees": "0.5% protocol treasury share of the bonding-curve fee.",
-      "Post-Graduation DEX Fees": "0.5% protocol treasury share of the post-graduation DEX fee.",
+      "Bonding Curve Fees to Protocol": "0.5% protocol treasury share of the bonding-curve fee.",
+      "Post-Graduation DEX Fees to Protocol": "0.5% protocol treasury share of the post-graduation DEX fee.",
     },
     ProtocolRevenue: {
-      "Bonding Curve Fees": "0.5% protocol treasury share of the bonding-curve fee.",
-      "Post-Graduation DEX Fees": "0.5% protocol treasury share of the post-graduation DEX fee.",
+      "Bonding Curve Fees to Protocol": "0.5% protocol treasury share of the bonding-curve fee.",
+      "Post-Graduation DEX Fees to Protocol": "0.5% protocol treasury share of the post-graduation DEX fee.",
     },
     SupplySideRevenue: {
-      "Bonding Curve Fees": "0.5% creator share of the bonding-curve fee.",
-      "Post-Graduation DEX Fees": "0.5% creator share of the post-graduation DEX fee.",
+      "Bonding Curve Fees to Creators": "0.5% creator share of the bonding-curve fee.",
+      "Post-Graduation DEX Fees to Creators": "0.5% creator share of the post-graduation DEX fee.",
     },
   },
 };
