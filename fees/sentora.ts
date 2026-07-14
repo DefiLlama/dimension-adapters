@@ -8,9 +8,6 @@ const SENTORA_API = 'https://services.vaults.sentora.com/vaults'
 const KAMINO_API = 'https://api.kamino.finance'
 const UPSHIFT_API = 'https://api.upshift.finance/v1/tokenized_vaults'
 
-// Sentora takes 20% of the Veda BoringVault perf fee; the remaining 80% is counted in fees/veda.ts.
-const SENTORA_BORING_PERF_SHARE = 0.20
-
 // Uniform 10% Sentora perf fee on Euler v2 vaults (per Sentora dashboard).
 const SENTORA_EULER_PERF_RATE = 0.10
 
@@ -40,23 +37,23 @@ const KAMINO_VAULT_BLOCKLIST = new Set([
   '2tmMcVv2Ene7wFGebPivhwYhAZyjaJoibMz1GYVaXsB1', // Sentora JitoSOL
 ])
 
-// Veda BoringVaults curated by Sentora — not exposed in the Sentora API.
-const BORING_VAULTS: Record<string, string[]> = {
+// BoringVaults curated by Sentora — not exposed in the Sentora API. `share` is Sentora's cut of
+// each vault's performance fee: 15% on the Kraken Earn family, 100% where Sentora curates alone.
+const BORING_VAULTS: Record<string, { vault: string; share: number }[]> = {
   [CHAIN.ETHEREUM]: [
-    '0x9761ddf8e79930b334f1be1bd93abe3695061cca', // Kraken Earn USD
-    '0x7dee0120739b7ec048b469939efb178adbbb19b2', // Kraken Earn BTC
-    '0xdbd87325d7b1189dcc9255c4926076ff4a96a271', // Boosted USDC
-    '0xcaae49fb7f74ccfbe8a05e6104b01c097a78789f', // Balanced USDC
-    '0x13cc1b39cb259ba10cd174eae42012e698ed7c51', // Lombard
-    '0x63d124cf1afc22f0ccea376168200508d2a0868e', // Kraken beHolder USD
-    '0xf15351a0d66743e09457c45eae88df34fcee8cb7', // Kraken beHolder ETH (Sentora Advanced Yields ETH)
-    '0x69d210d3b60e939bfa6e87cccc4fab7e8f44c16b', // Ether.fi Liquid Katana ETH
+    { vault: '0x9761ddf8e79930b334f1be1bd93abe3695061cca', share: 0.15 }, // Kraken Earn USD
+    { vault: '0x7dee0120739b7ec048b469939efb178adbbb19b2', share: 0.15 }, // Kraken Earn BTC
+    { vault: '0xdbd87325d7b1189dcc9255c4926076ff4a96a271', share: 0.15 }, // Boosted USDC
+    { vault: '0xcaae49fb7f74ccfbe8a05e6104b01c097a78789f', share: 0.15 }, // Balanced USDC
+    { vault: '0x13cc1b39cb259ba10cd174eae42012e698ed7c51', share: 1 },    // Lombard (Sentora charges 10%, kept in full)
+    { vault: '0x63d124cf1afc22f0ccea376168200508d2a0868e', share: 0.15 }, // Kraken beHolder USD
+    { vault: '0xf15351a0d66743e09457c45eae88df34fcee8cb7', share: 0.15 }, // Kraken beHolder ETH
   ],
   [CHAIN.INK]: [
-    '0x9761ddf8e79930b334f1be1bd93abe3695061cca',
-    '0x7dee0120739b7ec048b469939efb178adbbb19b2',
-    '0xdbd87325d7b1189dcc9255c4926076ff4a96a271',
-    '0xcaae49fb7f74ccfbe8a05e6104b01c097a78789f',
+    { vault: '0x9761ddf8e79930b334f1be1bd93abe3695061cca', share: 0.15 },
+    { vault: '0x7dee0120739b7ec048b469939efb178adbbb19b2', share: 0.15 },
+    { vault: '0xdbd87325d7b1189dcc9255c4926076ff4a96a271', share: 0.15 },
+    { vault: '0xcaae49fb7f74ccfbe8a05e6104b01c097a78789f', share: 0.15 },
   ],
 }
 
@@ -222,13 +219,16 @@ async function accrueEuler(options: FetchOptions, balances: Balances, vaults: st
   }
 }
 
-async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: string[]) {
+async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: { vault: string; share: number }[]) {
   if (!vaults?.length) return
 
+  const shareOf = new Map(vaults.map(v => [v.vault.toLowerCase(), v.share]))
+  const addresses = vaults.map(v => v.vault)
+
   // BoringVault addresses are reused across chains and may not exist on all of them.
-  const hooks = await options.api.multiCall({ abi: ABIS.boringHook, calls: vaults, permitFailure: true })
+  const hooks = await options.api.multiCall({ abi: ABIS.boringHook, calls: addresses, permitFailure: true })
   const hookValid: { vault: string; hook: string }[] = []
-  for (let i = 0; i < vaults.length; i++) if (hooks[i]) hookValid.push({ vault: vaults[i], hook: hooks[i] })
+  for (let i = 0; i < addresses.length; i++) if (hooks[i]) hookValid.push({ vault: addresses[i], hook: hooks[i] })
   if (!hookValid.length) return
 
   const accountants = await options.api.multiCall({ abi: ABIS.boringAccountant, calls: hookValid.map(h => h.hook), permitFailure: true })
@@ -260,11 +260,11 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     const rateAfter = toNum(ratesTo[i])
     if (rateAfter === rateBefore) continue
 
-    // Share-price growth is net of perf fee — gross-up, then keep only Sentora's 20% slice.
+    // Share-price growth is net of perf fee — gross-up, then keep only Sentora's per-vault slice.
     // Gross-up applies symmetrically on losses (negative perf) to avoid double-charging on recovery.
     const netYield = supply * (rateAfter - rateBefore) / rateBase
     const grossYield = perfFeeRate < 1 ? netYield / (1 - perfFeeRate) : netYield
-    const sentoraPerf = (grossYield - netYield) * SENTORA_BORING_PERF_SHARE
+    const sentoraPerf = (grossYield - netYield) * (shareOf.get(valid[i].vault.toLowerCase()) ?? 0)
 
     balances.dailyFees.add(asset, netYield + sentoraPerf, L.boringYields)
     balances.dailyRevenue.add(asset, sentoraPerf, L.boringPerf)
@@ -442,8 +442,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-  Fees: 'Total yields generated by all assets deposited in Sentora-curated vaults (Morpho, Euler, Veda BoringVault, Upshift, Kamino) plus the weETH restaking yield of the EtherFi supervised-loan strategies.',
-  Revenue: 'Performance and management fees retained by Sentora as the curator. For Veda BoringVaults, only Sentora\'s 20% share of the performance fee is counted (the remaining 80% accrues to Veda). For EtherFi supervised loans, Sentora\'s 10% performance fee on the weETH restaking yield (the borrow/redeploy spread is not included).',
+  Fees: 'Total yields generated by all assets deposited in Sentora-curated vaults (Morpho, Euler, BoringVault, Upshift, Kamino) plus the weETH restaking yield of the EtherFi supervised-loan strategies.',
+  Revenue: 'Performance and management fees retained by Sentora as the curator. For BoringVaults, only Sentora\'s share of the vault performance fee is counted (15% on the Kraken Earn family, 100% where Sentora curates alone). For EtherFi supervised loans, Sentora\'s 10% performance fee on the weETH restaking yield (the borrow/redeploy spread is not included).',
   ProtocolRevenue: 'Performance and management fees retained by Sentora as the curator.',
   SupplySideRevenue: 'Yields distributed to depositors after curator fees.',
 }
@@ -451,7 +451,7 @@ const methodology = {
 const feesBreakdown = {
   [L.morphoYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Morpho vaults.',
   [L.eulerYields]: 'Total interest yields (supplier yield + curator fees) from Sentora-curated Euler v2 vaults.',
-  [L.boringYields]: 'Sentora-attributed flow (supplier yield + Sentora perf share) from Veda BoringVaults.',
+  [L.boringYields]: 'Sentora-attributed flow (supplier yield + Sentora perf share) from BoringVaults.',
   [L.upshiftYields]: 'Interest yields from Sentora-curated Upshift vaults.',
   [L.kaminoYields]: 'Interest yields from Sentora-curated Kamino kvaults (Solana).',
   [L.kaminoMgmt]: 'Per-second management fees on Kamino kvault TVL.',
@@ -462,7 +462,7 @@ const revenueBreakdown = {
   [L.morphoPerf]: 'Performance fee shares minted to the Morpho performance fee recipient (AccrueInterest events).',
   [L.morphoMgmt]: 'Management fee shares minted to the Morpho V2 management fee recipient (AccrueInterest events).',
   [L.eulerPerf]: 'Sentora 10% performance fee on Euler v2 vault yields.',
-  [L.boringPerf]: 'Sentora 20% share of the Veda BoringVault performance fee.',
+  [L.boringPerf]: 'Sentora\'s share of the BoringVault performance fee (15% Kraken Earn family, 100% Sentora-own).',
   [L.upshiftPerf]: 'Sentora performance fee on Upshift vault yields (rate and waiver state driven by the Upshift API).',
   [L.kaminoPerf]: 'Performance fees on interest earned by Kamino kvaults.',
   [L.kaminoMgmt]: 'Management fees on Kamino kvault TVL.',
@@ -476,7 +476,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [L.morphoSupply]: 'Net yield distributed to Morpho vault depositors.',
     [L.eulerSupply]: 'Net yield distributed to Euler v2 vault depositors.',
-    [L.boringSupply]: 'Net yield distributed to Veda BoringVault depositors.',
+    [L.boringSupply]: 'Net yield distributed to BoringVault depositors.',
     [L.upshiftSupply]: 'Net yield distributed to Upshift vault depositors.',
     [L.kaminoSupply]: 'Net yield distributed to Kamino kvault depositors.',
     [L.supervisedSupply]: 'weETH restaking yield distributed to EtherFi supervised-loan depositors after Sentora\'s fee.',
