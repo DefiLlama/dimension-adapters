@@ -18,12 +18,15 @@ const FEE_VAULT = "0x222Cfc7134E44b4e2ccDBB59C94933f491660B08";
 const fetch = async (options: FetchOptions) => {
   // Realized fees = USDW collected by the FeeVault. Counting inflows (not net balance)
   // keeps the figure correct even after the protocol later withdraws its fees.
-  const dailyFees = await addTokensReceived({
+  const tradingFees = await addTokensReceived({
     options,
     target: FEE_VAULT,
     tokens: [USDW],
     tokenTransform: () => USDC, // USDW valued 1:1 as USDC ($1, 6 decimals)
   });
+
+  const dailyFees = options.createBalances();
+  dailyFees.add(tradingFees, "Trading Fees");
 
   return {
     dailyFees,
@@ -31,6 +34,24 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue: dailyFees,
   };
 };
+
+const methodology = {
+  Fees: "Realized trading fees: USDW collateral collected by the Hermes FeeVault, valued 1:1 as USDC. Outcome-token fees are counted once redeemed to USDW at settlement, mirroring DefiLlama's Polymarket fees adapter.",
+  Revenue: "All realized fees are retained by the protocol.",
+  ProtocolRevenue: "All realized fees are retained by the protocol.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Trading Fees": "Trading fees paid by traders on prediction market trades.",
+  },
+  Revenue: {
+    "Trading Fees": "Trading fees paid by traders on prediction market trades.",
+  },
+  ProtocolRevenue: {
+    "Trading Fees": "Trading fees paid by traders on prediction market trades.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -41,11 +62,8 @@ const adapter: SimpleAdapter = {
       start: "2026-05-18",
     },
   },
-  methodology: {
-    Fees: "Realized trading fees: USDW collateral collected by the Hermes FeeVault, valued 1:1 as USDC. Outcome-token fees are counted once redeemed to USDW at settlement, mirroring DefiLlama's Polymarket fees adapter.",
-    Revenue: "All collected fees are retained by the protocol.",
-    ProtocolRevenue: "100% of collected fees are protocol revenue.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
