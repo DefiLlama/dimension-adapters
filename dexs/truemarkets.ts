@@ -1,11 +1,14 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import ADDRESSES from '../helpers/coreAssets.json'
+import { addTokensReceived } from '../helpers/token'
 import { filterPools2 } from '../helpers/uniswap'
 
 // TrueMarkets contract addresses on Base: https://github.com/truemarketsorg/true-contracts/blob/main/network_config.json
 const TRUTH_MARKET_MANAGER = '0x61A98Bef11867c69489B91f340fE545eEfc695d7'
 const FEE_COLLECTOR = '0x39339E149c2D916aa899Bf73D2Debb15F4755d9D'
+const LAUNCHPAD = '0xeD3ebc2e17a0CC20D22Ff7b7d13488F187fD1af6'
+const LAUNCHPAD_FEE_RECEIVER = '0x3F168219dadf4460dC6Ad93eaa3641340C1330D6'
 const UNISWAP_V4_POOL_MANAGER = '0x498581fF718922c3f8e6A244956aF099B2652b2b'
 const UNISWAP_V4_POSITION_MANAGER = '0x7c5f5a4bbd8fd63184577525326123b519429bdc'
 const TYD_TOKEN = '0xb13CF163d916917d9cD6E836905cA5f12a1dEF4B'.toLowerCase()
@@ -38,6 +41,17 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const feeTrackedLogs = await options.getLogs({
     target: FEE_COLLECTOR,
     eventAbi: ABI.PoolFeeTracked,
+  })
+
+  // Launchpad protocol fees: charged on proposal graduation (launch) and on
+  // Live-phase withdrawals, paid in TYD from the Launchpad to the fee receiver
+  await addTokensReceived({
+    options,
+    targets: [LAUNCHPAD_FEE_RECEIVER],
+    fromAddressFilter: LAUNCHPAD,
+    tokens: [TYD_TOKEN],
+    balances: dailyFees,
+    tokenTransform: (token: string) => (token.toLowerCase() === TYD_TOKEN ? USDC_TOKEN : token),
   })
 
   const v4PoolIdsFromFees = [...new Set(feeTrackedLogs.map((log: any) => log.poolId as string))]
@@ -167,7 +181,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 const methodology = {
   Volume:
     'Volume is calculated from Swap events on TrueMarkets prediction market pools. V1 markets use Uniswap V3 pools (USDC pairs), V2 markets use Uniswap V4 pools (TYD pairs). Only the stablecoin side of swaps is counted.',
-  Fees: 'Fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only).',
+  Fees: 'Trading fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only). Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.',
   Revenue: 'All collected fees are considered protocol revenue.',
   ProtocolRevenue: 'All collected fees are considered protocol revenue.',
 }
