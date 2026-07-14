@@ -53,6 +53,7 @@ const chainIdConfig: Record<string, number> = {
   [CHAIN.PLASMA]: 9745,
   [CHAIN.MONAD]: 143,
   [CHAIN.BSC]: 56,
+  [CHAIN.ROBINHOOD]: 4663,
 };
 
 const parseBridgeFeeUsd = (value?: string | null): number | undefined => {
@@ -196,6 +197,7 @@ const adapter: Adapter = {
     [CHAIN.PLASMA]: { start: "2025-09-23" },
     [CHAIN.MONAD]: { start: "2025-11-20" },
     [CHAIN.BSC]: { start: "2025-05-05" },
+    [CHAIN.ROBINHOOD]: { start: "2026-07-02" },
   },
   fetch,
   prefetch: prefetch as any,
