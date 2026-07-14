@@ -7,8 +7,6 @@ const LABELS = {
   TRADING_FEES_TO_REFERRERS: "Creator Key Trading Fees To Referrers",
 } as const;
 
-const TRADE_TOPIC = "0x7d26fca21642884249fe04718e734992f6e00b24a015ddfbd8018e2639417b56";
-
 const chainConfig: Record<string, { start: string; trading: string }> = {
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-11",
@@ -17,7 +15,7 @@ const chainConfig: Record<string, { start: string; trading: string }> = {
   },
 };
 
-const getWord = (data: string, index: number) => BigInt(`0x${data.slice(2 + index * 64, 66 + index * 64)}`);
+const TRADE_EVENT = "event TradeFractionalShares(address trader, address subject, bool isBuy, uint256 shareAmount, uint256 amount, uint256 protocolAmount, uint256 subjectAmount, uint256 referralAmount, uint256 fractionalSupply, uint256 buyPrice, uint256 myFractionalShares)"
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -29,16 +27,14 @@ const fetch = async (options: FetchOptions) => {
   const { trading } = chainConfig[options.chain];
   const logs = await options.getLogs({
     target: trading,
-    topics: [TRADE_TOPIC],
-    onlyArgs: false,
+    eventAbi: TRADE_EVENT,
   });
 
   for (const log of logs) {
-    // ABI is not verified; field order is confirmed from GreenTown API tx receipts.
-    const tradeAmount = getWord(log.data, 4);
-    const protocolFee = getWord(log.data, 5);
-    const creatorFee = getWord(log.data, 6);
-    const referrerFee = getWord(log.data, 7);
+    const tradeAmount = log.amount;
+    const protocolFee = log.protocolAmount;
+    const creatorFee = log.subjectAmount;
+    const referrerFee = log.referralAmount;
     const totalFee = protocolFee + creatorFee + referrerFee;
 
     dailyVolume.addGasToken(tradeAmount);
