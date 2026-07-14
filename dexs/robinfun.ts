@@ -34,7 +34,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const buyLogs = await options.getLogs({ targets: FACTORIES, eventAbi: BUY_EVENT });
   const sellLogs = await options.getLogs({ targets: FACTORIES, eventAbi: SELL_EVENT });
   const feeLogs = await options.getLogs({ targets: FACTORIES, eventAbi: FEE_COLLECTED_EVENT });
-  const feeSwappedLogs = await options.getLogs({ targets: graduatedTokens, eventAbi: FEE_SWAPPED_EVENT });
+  const feeSwappedLogs = graduatedTokens.length > 0 ? await options.getLogs({ targets: graduatedTokens, eventAbi: FEE_SWAPPED_EVENT }) : [];
 
   buyLogs.forEach((log) => dailyVolume.addGasToken(log.ethIn));
   sellLogs.forEach((log) => dailyVolume.addGasToken(log.ethOut));
