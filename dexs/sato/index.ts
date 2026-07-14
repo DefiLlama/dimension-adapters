@@ -1,4 +1,3 @@
-import * as sdk from '@defillama/sdk'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 
@@ -19,14 +18,9 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
 
-  const events = await sdk.getEventLogs({
-    chain: options.chain,
+  const events = await options.getLogs({
     target: POOL_MANAGER,
     eventAbi: SWAP_EVENT,
-    fromBlock: Number(options.fromApi.block),
-    toBlock: Number(options.toApi.block),
-    maxBlockRange: 10000,
-    onlyArgs: true,
   })
 
   const poolKeys = await options.api.multiCall({
@@ -35,10 +29,10 @@ async function fetch(options: FetchOptions) {
       target: POSITION_MANAGER,
       params: [getPoolKey(SATO_USDT_POOL)],
     }],
-    permitFailure: true,
   })
 
-  if (!poolKeys[0]) return { dailyVolume, dailyFees }
+  const poolKey = poolKeys[0]
+  if (!poolKey) throw new Error('Failed to fetch SATO/USDT pool key')
 
   for (const event of events) {
     if (String(event.id).toLowerCase() !== SATO_USDT_POOL.toLowerCase()) continue
@@ -46,8 +40,8 @@ async function fetch(options: FetchOptions) {
     // SATO is currency0 in the verified SATO/USDT pool. Use one side only
     // so the same swap is not counted twice.
     const amount0 = Math.abs(Number(event.amount0))
-    dailyVolume.add(poolKeys[0].currency0, amount0)
-    dailyFees.add(poolKeys[0].currency0, amount0 * (Number(event.fee) / 1e6))
+    dailyVolume.add(poolKey.currency0, amount0)
+    dailyFees.add(poolKey.currency0, amount0 * (Number(event.fee) / 1e6))
   }
 
   return {
