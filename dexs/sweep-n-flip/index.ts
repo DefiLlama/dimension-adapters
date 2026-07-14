@@ -23,7 +23,7 @@
  * NOTE: HyperEVM's DeFiLlama chain key is `hyperliquid`.
  */
 
-const { request, gql } = require('graphql-request')
+import { request, gql } from 'graphql-request'
 import { CHAIN } from "../../helpers/chains"
 import { FetchOptions } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
@@ -31,7 +31,7 @@ import { METRIC } from "../../helpers/metrics";
 // Per-chain start dates = first pool creation, UTC. Verified 2026-06-02 by querying each
 // subgraph for the earliest Pair.createdAtTimestamp. NOTE: Base + HyperEVM predate the 2026-04
 // redeploy wave (HyperEVM live since 2025-08, Base since 2025-10).
-const chainConfig = {
+const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-mainnet/1.1.0/gn',
     start: '2026-04-15'
@@ -89,7 +89,7 @@ const DAY_QUERY = gql`
   }
 `
 
-const fetch = async (options) => {
+const fetch = async (options: FetchOptions) => {
   const { chain, startOfDay } = options
   const url = chainConfig[chain].subgraph
 
@@ -158,11 +158,10 @@ const breakdownMethodology = {
   },
 }
 
-const adapter = {
+export default {
   fetch,
   adapter: chainConfig,
   methodology,
   breakdownMethodology,
 }
 
-module.exports = adapter
