@@ -43,7 +43,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
   const timestampISO = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
   const historical: IResponse = await fetchURL(config.endpoints.historicalVolume(timestampISO))
-  const dailyVolume = historical.data.reduce((a: number, b: IVolumeall) => a + Number(b.tradingVolume), 0) / 2
+  // tradingVolume is already one-sided (taker) per market
+  const dailyVolume = historical.data.reduce((a: number, b: IVolumeall) => a + Number(b.tradingVolume), 0)
   const res = (await fetchURL(config.endpoints.markets)).data
   const openInterestAtEnd = res.reduce((a: number, b: any) => a + Number(b.marketStats.openInterest || 0), 0)
 
