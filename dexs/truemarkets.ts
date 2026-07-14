@@ -37,6 +37,7 @@ const getPoolKey = (poolId: string) => poolId.slice(0, 52)
 async function fetch(options: FetchOptions): Promise<FetchResult> {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
+  const launchpadFees = options.createBalances()
 
   const feeTrackedLogs = await options.getLogs({
     target: FEE_COLLECTOR,
@@ -50,15 +51,17 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     targets: [LAUNCHPAD_FEE_RECEIVER],
     fromAddressFilter: LAUNCHPAD,
     tokens: [TYD_TOKEN],
-    balances: dailyFees,
+    balances: launchpadFees,
     tokenTransform: (token: string) => (token.toLowerCase() === TYD_TOKEN ? USDC_TOKEN : token),
   })
+
+  dailyFees.add(launchpadFees, "Launchpad Fees")
 
   const v4PoolIdsFromFees = [...new Set(feeTrackedLogs.map((log: any) => log.poolId as string))]
 
   feeTrackedLogs.forEach((log: any) => {
     const currency = log.currency.toLowerCase()
-    dailyFees.add(currency === TYD_TOKEN ? USDC_TOKEN : log.currency, log.amount)
+    dailyFees.add(currency === TYD_TOKEN ? USDC_TOKEN : log.currency, log.amount, "Trading Fees")
   })
 
   if (v4PoolIdsFromFees.length > 0) {
@@ -182,8 +185,23 @@ const methodology = {
   Volume:
     'Volume is calculated from Swap events on TrueMarkets prediction market pools. V1 markets use Uniswap V3 pools (USDC pairs), V2 markets use Uniswap V4 pools (TYD pairs). Only the stablecoin side of swaps is counted.',
   Fees: 'Trading fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only). Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.',
-  Revenue: 'All collected fees are considered protocol revenue.',
-  ProtocolRevenue: 'All collected fees are considered protocol revenue.',
+  Revenue: 'All the trading fees (v4 pools only) and launchpad fees are considered revenue.',
+  ProtocolRevenue: 'All the trading fees (v4 pools only) and launchpad fees are considered protocol revenue.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Trading Fees": "Trading fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only).",
+    "Launchpad Fees": "Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.",
+  },
+  Revenue: {
+    "Trading Fees": "Trading fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only).",
+    "Launchpad Fees": "Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.",
+  },
+  ProtocolRevenue: {
+    "Trading Fees": "Trading fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only).",
+    "Launchpad Fees": "Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.",
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -196,6 +214,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter
