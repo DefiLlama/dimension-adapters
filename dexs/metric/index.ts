@@ -1,47 +1,59 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
-import { getConfig } from "../../helpers/cache";
 
-// const API_BASE = "https://api.metric.xyz";
-const API_BASE = "http://54.199.103.16:8080";
-
-const chainConfig: Record<string, { name: string, start: string }> = {
-    [CHAIN.ETHEREUM]: { name: "ethereum", start: "2026-02-23" },
-    [CHAIN.BASE]: { name: "base", start: "2026-04-05" },
-    [CHAIN.ARBITRUM]: { name: "arbitrum", start: "2026-02-17" },
-    [CHAIN.BSC]: { name: "bsc", start: "2026-02-23" },
-    [CHAIN.AVAX]: { name: "avax", start: "2026-02-23" },
-    [CHAIN.POLYGON]: { name: "polygon", start: "2026-02-23" },
-    [CHAIN.MEGAETH]: { name: "megaeth", start: "2026-02-23" },
-    [CHAIN.HYPERLIQUID]: { name: "hyperevm", start: "2026-03-26" },
-    [CHAIN.MONAD]: { name: "monad", start: "2026-03-30" },
+const chainConfig: Record<string, { start: string }> = {
+    [CHAIN.ETHEREUM]: { start: "2026-02-23" },
+    [CHAIN.BASE]: { start: "2026-04-05" },
+    [CHAIN.ARBITRUM]: { start: "2026-02-17" },
+    [CHAIN.BSC]: { start: "2026-02-23" },
+    [CHAIN.AVAX]: { start: "2026-02-23" },
+    [CHAIN.POLYGON]: { start: "2026-02-23" },
+    [CHAIN.MEGAETH]: { start: "2026-02-23" },
+    [CHAIN.HYPERLIQUID]: { start: "2026-03-26" },
+    [CHAIN.MONAD]: { start: "2026-03-30" },
 };
+
+const InitializeTopic =
+    "0x84a943c81b92b2786bc7029e8331096d28689c016f71cbb66a5d7498a20674f1";
 
 const SwapEvent =
     "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)";
 
 const methodology = {
     Volume:
-        "Sum of all input token amounts from Swap events across every pool deployed by the Metric factory.",
+        "Sum of all input token amounts from Swap events across every pool created by Metric. Pools are discovered on-chain from each pool's Initialize event.",
 };
-
-interface PoolMeta {
-    poolAddress: string;
-    token0: string;
-    token1: string;
-}
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
-    const chainName = chainConfig[options.chain].name;
 
-    const pools: PoolMeta[] = await getConfig(`metric.xyz-pools-${chainName}`, `${API_BASE}/${chainName}/metadata`);
+    const startTimestamp = Math.floor(new Date(`${chainConfig[options.chain].start}T00:00:00Z`).getTime() / 1000);
+    const fromBlock = await sdk.blocks.getBlockNumber(options.chain, startTimestamp);
+    const toBlock = await options.getEndBlock();
 
-    if (!pools.length) return { dailyVolume };
+    const initLogs = await sdk.getEventLogs({
+        chain: options.chain,
+        noTarget: true,
+        topic: InitializeTopic,
+        entireLog: true,
+        fromBlock,
+        toBlock,
+        cacheInCloud: true,
+        maxBlockRange: 10000,
+    });
 
-    const poolAddresses = pools.map((p) => p.poolAddress);
-    const tokensByIndex = pools.map((p) => ({ token0: p.token0, token1: p.token1 }));
+    const tokensByPool: Record<string, { token0: string, token1: string }> = {};
+    for (const log of initLogs) {
+        tokensByPool[log.address.toLowerCase()] = {
+            token0: `0x${log.topics[1].slice(26)}`,
+            token1: `0x${log.topics[2].slice(26)}`,
+        };
+    }
+
+    const poolAddresses = Object.keys(tokensByPool);
+    if (!poolAddresses.length) return { dailyVolume };
 
     const allLogs = await options.getLogs({
         targets: poolAddresses,
@@ -51,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
 
     allLogs.forEach((logs: any[], index: number) => {
         if (!logs.length) return;
-        const { token0, token1 } = tokensByIndex[index];
+        const { token0, token1 } = tokensByPool[poolAddresses[index]];
         for (const log of logs) {
             const amount0 = BigInt(log.amount0Delta);
             const amount1 = BigInt(log.amount1Delta);
