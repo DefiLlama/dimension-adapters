@@ -4,7 +4,6 @@ import { CHAIN } from '../../helpers/chains'
 const POOL_MANAGER = '0x000000000004444c5dc75cB358380D2e3dE08A90'
 const POSITION_MANAGER = '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e'
 const SATO_USDT_POOL = '0x22160dfecfbacec253735e91ec2d8c1b26adb556df3c97409eff5a14819ca958'
-
 const SWAP_EVENT =
   'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)'
 const POOL_KEYS =
@@ -17,12 +16,10 @@ function getPoolKey(poolId: string): string {
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
-
   const events = await options.getLogs({
     target: POOL_MANAGER,
     eventAbi: SWAP_EVENT,
   })
-
   const poolKeys = await options.api.multiCall({
     abi: POOL_KEYS,
     calls: [{
@@ -30,7 +27,6 @@ async function fetch(options: FetchOptions) {
       params: [getPoolKey(SATO_USDT_POOL)],
     }],
   })
-
   const poolKey = poolKeys[0]
   if (!poolKey) throw new Error('Failed to fetch SATO/USDT pool key')
 
@@ -41,6 +37,7 @@ async function fetch(options: FetchOptions) {
     // so the same swap is not counted twice.
     const amount0 = Math.abs(Number(event.amount0))
     dailyVolume.add(poolKey.currency0, amount0)
+    // Uniswap v4 encodes fees in hundredths of a bip, using 1e6 as the denominator.
     dailyFees.add(poolKey.currency0, amount0 * (Number(event.fee) / 1e6))
   }
 
