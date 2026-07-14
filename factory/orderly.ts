@@ -145,6 +145,16 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
+  "primit": {
+    broker_id: "primit",
+    start: "2026-07-07",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Primit interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
 }
 
 const feesProtocols: Record<string, any> = {};
