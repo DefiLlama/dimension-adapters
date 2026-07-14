@@ -37,7 +37,8 @@ const fetch = async (options: FetchOptions) => {
     const referrerFee = log.referralAmount;
     const totalFee = protocolFee + creatorFee + referrerFee;
 
-    dailyVolume.addGasToken(tradeAmount);
+    // amount is the base price only; the fee is paid on top (verified on-chain: totalFee is exactly amount/10 across multiple real trades), so real volume is amount + totalFee
+    dailyVolume.addGasToken(tradeAmount + totalFee);
     dailyFees.addGasToken(totalFee, LABELS.TRADING_FEES);
     dailyUserFees.addGasToken(totalFee, LABELS.TRADING_FEES);
     dailyRevenue.addGasToken(protocolFee, LABELS.TRADING_FEES);
