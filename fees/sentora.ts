@@ -239,14 +239,16 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
   const accountantTargets = valid.map(v => v.accountant)
   const vaultTargets = valid.map(v => v.vault)
 
+  // permitFailure on the accountant reads: getRate reverts on a paused accountant (seen on Ink),
+  // which would otherwise fail the whole chain. Vaults with an unreadable rate are skipped below.
   const [assets, decimals, supplies, statesV2, statesV1, ratesFrom, ratesTo] = await Promise.all([
-    options.api.multiCall({ abi: ABIS.boringBase, calls: accountantTargets }),
-    options.api.multiCall({ abi: 'uint8:decimals', calls: vaultTargets }),
-    options.api.multiCall({ abi: 'uint256:totalSupply', calls: vaultTargets }),
+    options.api.multiCall({ abi: ABIS.boringBase, calls: accountantTargets, permitFailure: true }),
+    options.api.multiCall({ abi: 'uint8:decimals', calls: vaultTargets, permitFailure: true }),
+    options.api.multiCall({ abi: 'uint256:totalSupply', calls: vaultTargets, permitFailure: true }),
     options.api.multiCall({ abi: ABIS.boringStateV2, calls: accountantTargets, permitFailure: true }),
     options.api.multiCall({ abi: ABIS.boringStateV1, calls: accountantTargets, permitFailure: true }),
-    options.fromApi.multiCall({ abi: ABIS.boringRate, calls: accountantTargets }),
-    options.toApi.multiCall({ abi: ABIS.boringRate, calls: accountantTargets }),
+    options.fromApi.multiCall({ abi: ABIS.boringRate, calls: accountantTargets, permitFailure: true }),
+    options.toApi.multiCall({ abi: ABIS.boringRate, calls: accountantTargets, permitFailure: true }),
   ])
 
   for (let i = 0; i < valid.length; i++) {
@@ -258,7 +260,8 @@ async function accrueBoring(options: FetchOptions, balances: Balances, vaults?: 
     const rateBase = 10 ** toNum(decimals[i])
     const rateBefore = toNum(ratesFrom[i])
     const rateAfter = toNum(ratesTo[i])
-    if (rateAfter === rateBefore) continue
+    // skip when either rate read failed (a partial read would fabricate a huge fake yield)
+    if (!asset || !rateBefore || !rateAfter || rateAfter === rateBefore) continue
 
     // Share-price growth is net of perf fee — gross-up, then keep only Sentora's per-vault slice.
     // Gross-up applies symmetrically on losses (negative perf) to avoid double-charging on recovery.
