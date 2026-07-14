@@ -33,12 +33,18 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
     Fees: "Performance fees (10-40% of profits), management fees (up to 2% annual) and withdrawal fees charged by Vectis' vaults, recorded when withdrawn from the vaults (Drift Vaults and Voltr programs) to the Vectis fee wallet. Voltr's own protocol cut (0.5% management fee) is excluded.",
-    Revenue: "All Vectis fees are kept by the protocol.",
-    ProtocolRevenue: "All Vectis fees are kept by the protocol.",
+    Revenue: "All Vectis fees (Vault Performance, Management & Withdrawal Fees) are kept by the protocol.",
+    ProtocolRevenue: "All Vectis fees (Vault Performance, Management & Withdrawal Fees) are kept by the protocol.",
 };
 
 const breakdownMethodology = {
     Fees: {
+        "Vault Performance, Management & Withdrawal Fees": "The three fee types accrue inside each vault as one fee pool and are only distinguishable on-chain at accrual, not at collection, so they are reported under a single label when Vectis withdraws them to its fee wallet.",
+    },
+    Revenue: {
+        "Vault Performance, Management & Withdrawal Fees": "The three fee types accrue inside each vault as one fee pool and are only distinguishable on-chain at accrual, not at collection, so they are reported under a single label when Vectis withdraws them to its fee wallet.",
+    },
+    ProtocolRevenue: {
         "Vault Performance, Management & Withdrawal Fees": "The three fee types accrue inside each vault as one fee pool and are only distinguishable on-chain at accrual, not at collection, so they are reported under a single label when Vectis withdraws them to its fee wallet.",
     },
 };
@@ -51,6 +57,7 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE],
     methodology,
     breakdownMethodology,
+    isExpensiveAdapter: true,
 };
 
 export default adapter;
