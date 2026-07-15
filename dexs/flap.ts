@@ -107,7 +107,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
-  pullHourly: true,
+  //pullHourly: true,
 };
 
 export default adapter;
