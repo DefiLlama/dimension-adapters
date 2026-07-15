@@ -12,7 +12,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(dayData.revenueUsd, "Platform Fees");
+  dailyFees.addUSDValue(dayData.revenueUsd, "Launchpad Fees");
 
   return {
     dailyVolume: dayData.volumeUsd,
@@ -32,13 +32,13 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Platform Fees": "Users pay a platform fee of 1.5% on presales and memecoin transactions on Gunfun.",
+    "Launchpad Fees": "Users pay a platform fee of 1.5% on presales and memecoin transactions on Gunfun.",
   },
   Revenue: {
-    "Platform Fees": "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
+    "Launchpad Fees": "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
   },
   ProtocolRevenue: {
-    "Platform Fees": "All fee revenue is sent to the fee receiver wallet: DoX6NFeLnSgeQsCYKAtUVCPtXZo6xBsyJFCBaXW3crQK.",
+    "Launchpad Fees": "All fee revenue is sent to the fee receiver wallet: DoX6NFeLnSgeQsCYKAtUVCPtXZo6xBsyJFCBaXW3crQK.",
   }
 }
 
