@@ -68,6 +68,7 @@ export const DUNE_START_TIMESTAMP = 1782259200; // 2026-06-24, first day fully o
 export const ALLOWANCE_HOLDER = '0x50c4e75a512f2a14a7b304787adf79c4531a5909';
 export const OPEN_ROUTER = '0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a';
 export const REQUEST_EXECUTED_TOPIC = '0xe2a752598b97815acff854b1d0b6d5c7f33b848bcbb541df9b76038287282467';
+export const BIM_FEE_WALLET = '0x5c6bcf885453394ea71986bb8de596c34f9a19ee';
 export const BIM_FEE_WALLET_WORD = '0x0000000000000000000000005c6bcf885453394ea71986bb8de596c34f9a19ee';
 export const SWAP_SELECTOR = '0x1bb1a530'; // OpenRouter.swap
 export const BRIDGE_SELECTOR = '0xb18248d5'; // OpenRouter.bridge

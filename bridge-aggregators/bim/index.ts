@@ -1,12 +1,14 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Dependencies, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
 import {
   fetchBimChains,
   bimTxsCte,
+  duneChains,
   getDuneChain,
   DUNE_START_TIMESTAMP,
   ALLOWANCE_HOLDER,
+  BIM_FEE_WALLET,
   BRIDGE_SELECTOR,
   SWAP_AND_BRIDGE_SELECTOR,
   PERFORM_ACTIONS_SELECTOR,
@@ -45,14 +47,35 @@ const prefetch = async (options: FetchOptions) => {
         END AS amount
       FROM bim_txs
       WHERE fee_pos > 64
+    ),
+    fees AS (
+      SELECT
+        tt.blockchain,
+        tt.contract_address AS token,
+        SUM(tt.amount_raw) AS amount
+      FROM tokens.transfers tt
+      INNER JOIN bim_txs b ON tt.blockchain = b.blockchain AND tt.tx_hash = b.hash
+      WHERE tt.blockchain IN (${duneChains})
+        AND tt."to" = ${BIM_FEE_WALLET}
+        AND b.selector IN (${BRIDGE_SELECTOR}, ${SWAP_AND_BRIDGE_SELECTOR}, ${PERFORM_ACTIONS_SELECTOR})
+        AND TIME_RANGE
+      GROUP BY 1, 2
     )
     SELECT
       blockchain,
+      'volume' AS metric,
       token,
       CAST(SUM(amount) AS varchar) AS amount
     FROM bridge_inputs
     WHERE token IS NOT NULL
-    GROUP BY 1, 2
+    GROUP BY 1, 3
+    UNION ALL
+    SELECT
+      blockchain,
+      'fees' AS metric,
+      token,
+      CAST(amount AS varchar) AS amount
+    FROM fees
   `);
 };
 
@@ -68,7 +91,7 @@ const fetchStellarBridge = async (options: FetchOptions) => {
   return { dailyBridgeVolume, dailyFees };
 };
 
-const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   if (options.startTimestamp < DUNE_START_TIMESTAMP) {
     const { dailyBridgeVolume } = await fetchBungeeData(options, { bridgeVolume: true }, '2758')
     return {
@@ -76,13 +99,17 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     };
   }
   const dailyBridgeVolume = options.createBalances();
-  const rows = (options.preFetchedResults || []) as Array<{ blockchain: string, token: string, amount: string }>;
+  const dailyFees = options.createBalances();
+  const rows = (options.preFetchedResults || []) as Array<{ blockchain: string, metric: string, token: string | null, amount: string }>;
   rows.filter((row) => row.blockchain === getDuneChain(options.chain)).forEach((row) => {
-    const token = row.token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : row.token;
-    dailyBridgeVolume.add(token, row.amount);
+    // volume rows use 0xeeee... for native input, fee rows (tokens.transfers) use null
+    const token = !row.token || row.token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : row.token;
+    if (row.metric === 'volume') dailyBridgeVolume.add(token, row.amount);
+    else if (row.metric === 'fees') dailyFees.add(token, row.amount);
   });
   return {
     dailyBridgeVolume,
+    dailyFees,
   };
 };
 
