@@ -88,13 +88,18 @@ const fetch = async (options: FetchOptions) => {
   });
 
   borrowLogs.forEach((log: any) => {
-    // event amount already includes the opening fee: amount = principal * (1 + fee)
+    // contract: feeAmount = principal * fee / FEE_PRECISION, and LogBorrow emits
+    // (principal + feeAmount) = principal * (1 + fee/FEE_PRECISION), where fee is the
+    // raw BORROW_OPENING_FEE (e.g. 1000 = 1%). We only have that grossed-up amount,
+    // so recover the fee portion as: amount * fee / (FEE_PRECISION + fee)
     const fee = openingFeeByCauldron[log.address.toLowerCase()];
     borrowFees += (Number(log.args.amount) / 1e18) * fee / (FEE_PRECISION + fee);
   });
 
   liquidationLogs.forEach((log: any) => {
-    // liquidation penalty paid by the borrower: borrowAmount * (multiplier - 1)
+    // liquidation penalty paid by the borrower = collateral seized minus debt:
+    //   borrowAmount * (multiplier - LIQUIDATION_MULTIPLIER_PRECISION) / LIQUIDATION_MULTIPLIER_PRECISION
+    // where multiplier is the raw LIQUIDATION_MULTIPLIER (e.g. 105000 = 5% penalty).
     const multiplier = liquidationMultiplierByCauldron[log.address.toLowerCase()];
     liquidationFees += (Number(log.args.borrowAmount) / 1e18) * (multiplier - FEE_PRECISION) / FEE_PRECISION;
   });
