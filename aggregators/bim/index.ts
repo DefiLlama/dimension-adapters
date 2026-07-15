@@ -1,7 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
-import { fetchBimChains, bimTxsCte, duneChains, getDuneChain, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
+import { bimAdapterChains, bimTxsCte, duneChains, getDuneChain, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import fetchURL from "../../utils/fetchURL";
@@ -11,22 +11,26 @@ const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
 const prefetch = async (options: FetchOptions) => {
   if (options.endTimestamp <= DUNE_START_TIMESTAMP) return [];
 
-  // Same-chain swaps only (OpenRouter.swap): bridge/swapAndBridge/performActions
-  // are counted by the bridge-aggregators/bim adapter instead. Fees are transfers
-  // into bim's fee wallet within those txs - tokens.transfers also covers raw
-  // native transfers, which some routes use to pay the fee.
+  // Same-chain swaps only (OpenRouter.swap)
   return queryDuneSql(options, `
     WITH bim_txs AS (${bimTxsCte}),
     volume AS (
-      SELECT
-        d.blockchain,
-        SUM(d.amount_usd) AS value
-      FROM dex.trades d
-      INNER JOIN bim_txs b ON d.blockchain = b.blockchain AND d.tx_hash = b.hash
-      WHERE d.blockchain IN (${duneChains})
-        AND b.selector = ${SWAP_SELECTOR}
-        AND d.amount_usd IS NOT NULL
-        AND TIME_RANGE
+      SELECT blockchain, SUM(amount_usd) AS value
+      FROM (
+        -- one swap can fill through several hops/pools: take the largest
+        -- fill per tx instead of summing to avoid multi-hop double counting
+        SELECT
+          d.blockchain,
+          d.tx_hash,
+          MAX(d.amount_usd) AS amount_usd
+        FROM dex.trades d
+        INNER JOIN bim_txs b ON d.blockchain = b.blockchain AND d.tx_hash = b.hash
+        WHERE d.blockchain IN (${duneChains})
+          AND b.selector = ${SWAP_SELECTOR}
+          AND d.amount_usd IS NOT NULL
+          AND TIME_RANGE
+        GROUP BY 1, 2
+      )
       GROUP BY 1
     ),
     fees AS (
@@ -86,7 +90,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   prefetch,
   adapter: {
-    ...fetchBimChains().reduce((acc, chain) => {
+    ...bimAdapterChains.reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {

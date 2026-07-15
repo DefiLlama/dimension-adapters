@@ -2,7 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
 import {
-  fetchBimChains,
+  bimAdapterChains,
   bimTxsCte,
   duneChains,
   getDuneChain,
@@ -120,7 +120,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   prefetch,
   adapter: {
-    ...fetchBimChains().reduce((acc, chain) => {
+    ...bimAdapterChains.reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {

@@ -75,19 +75,35 @@ export const BRIDGE_SELECTOR = '0xb18248d5'; // OpenRouter.bridge
 export const SWAP_AND_BRIDGE_SELECTOR = '0x324012e2'; // OpenRouter.swapAndBridge
 export const PERFORM_ACTIONS_SELECTOR = '0x197aa51e'; // OpenRouter.performActions (batched cross-chain routes)
 
+// EVM chains supported by bim on the new API (swaps and bridges)
+export const BIM_NEW_API_CHAINS: Array<string> = [
+    CHAIN.ETHEREUM,
+    CHAIN.ARBITRUM,
+    CHAIN.BASE,
+    CHAIN.POLYGON,
+    CHAIN.OPTIMISM,
+    CHAIN.XDAI,
+    CHAIN.PLASMA,
+    CHAIN.HYPERLIQUID,
+    CHAIN.AVAX,
+];
+
+// legacy chains (for refills of pre-June-24 days) + new API chains
+export const bimAdapterChains: Array<string> = [...new Set([...fetchBimChains(), ...BIM_NEW_API_CHAINS])];
+
 const DUNE_CHAIN_MAP: { [key: string]: string } = {
     [CHAIN.BSC]: 'bnb',
     [CHAIN.XDAI]: 'gnosis',
+    [CHAIN.AVAX]: 'avalanche_c',
+    [CHAIN.HYPERLIQUID]: 'hyperevm',
 };
 
 export const getDuneChain = (chain: string) => DUNE_CHAIN_MAP[chain] ?? chain;
-export const duneChains = fetchBimChains().map((chain) => `'${getDuneChain(chain)}'`).join(', ');
+export const duneChains = BIM_NEW_API_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ');
 
 // All bim txs on the new API: emit RequestExecuted from OpenRouter, enter directly
 // or through AllowanceHolder.exec (inner calldata starts at byte 197), and carry
-// bim's fee wallet in calldata. fee_pos is the 1-indexed position of the fee wallet
-// word: for swap/bridge/swapAndBridge the input amount is the word right before it
-// and the input token the word before that.
+// bim's fee wallet in calldata.
 export const bimTxsCte = `
     SELECT
         t.blockchain,
