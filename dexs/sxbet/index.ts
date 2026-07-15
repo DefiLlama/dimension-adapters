@@ -29,7 +29,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     fetch,
     chains: [CHAIN.SXR],
     start: '2019-03-04',
