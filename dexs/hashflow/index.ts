@@ -1,6 +1,8 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// Their api endpoint supports only recent history
+//https://hashflow2.metabaseapp.com/api/public/dashboard/f4b12fd4-d28c-4f08-95b9-78b00b83cf17/dashcard/104/card/97?parameters=%5B%5D
 // RFQ DEX. Pools are factory-created, so enumerate them from the factory's CreatePool
 // events and read each pool's Trade / XChainTrade events.
 const TRADE_EVENT = "event Trade(address trader, address effectiveTrader, bytes32 txid, address baseToken, address quoteToken, uint256 baseTokenAmount, uint256 quoteTokenAmount)";
@@ -8,7 +10,7 @@ const XCHAIN_TRADE_EVENT = "event XChainTrade(uint16 dstChainId, bytes32 dstPool
 const CREATE_POOL_EVENT = "event CreatePool(address pool, address operations)";
 
 // factory address + block to start scanning for pools (just before the Sep-2023 deploy)
-const config = {
+const config: Record<string, { factory: string; fromBlock: number }> = {
   [CHAIN.ETHEREUM]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 17952252 },
   [CHAIN.ARBITRUM]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 123071231 },
   [CHAIN.OPTIMISM]: { factory: "0x6D551f4D999faC0984eb75B2B230ba7e7651BdE7", fromBlock: 108445412 },
@@ -26,7 +28,6 @@ const fetch = async (options: FetchOptions) => {
     target: factory,
     eventAbi: CREATE_POOL_EVENT,
     fromBlock,
-    toBlock: await options.getToBlock(),
     cacheInCloud: true,
   });
   const targets = poolLogs.map((log: any) => log.pool);
@@ -48,10 +49,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   methodology,
-  adapter: Object.fromEntries(
-    Object.keys(config).map((chain) => [chain, { fetch, start: "2023-09-01" }])
-  ),
+  start: "2023-09-01",
+  pullHourly: true,
+  chains: Object.keys(config).map((chain) => chain),
 };
 
 export default adapter;
