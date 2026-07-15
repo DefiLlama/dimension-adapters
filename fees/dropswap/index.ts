@@ -24,45 +24,90 @@ const chains: Record<string, string> = {
   [CHAIN.MANTLE]: 'mantle',
   [CHAIN.XDAI]: 'gnosis',
   [CHAIN.SONEIUM]: 'soneium',
+  [CHAIN.SOLANA]: 'solana',
+  [CHAIN.ABSTRACT]: 'abstract',
 };
 
 interface IFeesByChainRecord {
   date: string;
   timestamp: number;
-  chains: Record<string, { fees: number; revenue: number }>;
+  chains: Record<string, { fees: number; revenue: number; holdersRevenue: number; supplySideRevenue: number; protocolRevenue: number }>;
 }
 
 // DropSwap's own public API, aggregating the 0.25% integrator fee from its backend database, grouped by day and chain
 // https://dropswap.finance/api/defillama/fees-by-chain
-const API_URL = "https://dropswap.finance/api/defillama/fees-by-chain";
+const API_URL = "https://dropswap.finance/api/defillama/fees-detailed-by-chain";
+
+const prefetch = async (options: FetchOptions): Promise<any> => {
+  const data: IFeesByChainRecord[] = await fetchURL(API_URL);
+  return data;
+}
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const data: IFeesByChainRecord[] = await fetchURL(API_URL);
+  const data: IFeesByChainRecord[] = options.preFetchedResults;
   const dayRecord = data.find((d) => d.date === options.dateString);
   const chainKey = chains[options.chain];
   const chainData = dayRecord?.chains?.[chainKey];
 
-  const dailyFees = (chainData?.fees ?? 0).toString();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(chainData?.fees ?? 0, "Integrator Fees");
+
+  dailyRevenue.addUSDValue(chainData?.holdersRevenue ?? 0, "Integrator Fees to Token Buybacks");
+  dailyRevenue.addUSDValue(chainData?.protocolRevenue ?? 0, "Integrator Fees to Protocol");
+
+  dailyProtocolRevenue.addUSDValue(chainData?.protocolRevenue ?? 0, "Integrator Fees to Protocol");
+  dailyHoldersRevenue.addUSDValue(chainData?.holdersRevenue ?? 0, "Integrator Fees to Token Buybacks");
+  dailySupplySideRevenue.addUSDValue(chainData?.supplySideRevenue ?? 0, "Integrator Fees to Swap Campaigns");
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: "0",
-    dailySupplySideRevenue: "0",
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 
+const methodology = {
+  Fees: "A 0.25% integrator fee is charged on the input token of every swap routed through DropSwap, recorded per chain in DropSwap's own database.",
+  Revenue: "Includes part of integrator fees retained by the protocol and part of integrator fees used to fund $DROP buybacks and burns.",
+  ProtocolRevenue: "Part of integrator fees retained by the protocol.",
+  HoldersRevenue: "Part of integrator fees used to fund $DROP buybacks and burns.",
+  SupplySideRevenue: "Part of integrator fees used to fund swap campaigns.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Integrator Fees": "A 0.25% integrator fee is charged on the input token of every swap routed through DropSwap, recorded per chain in DropSwap's own database.",
+  },
+  Revenue: {
+    "Integrator Fees to Token Buybacks": "Part of integrator fees used to fund $DROP buybacks and burns.",
+    "Integrator Fees to Protocol": "Part of integrator fees retained by the protocol.",
+  },
+  ProtocolRevenue: {
+    "Integrator Fees to Protocol": "Part of integrator fees retained by the protocol.",
+  },
+  HoldersRevenue: {
+    "Integrator Fees to Token Buybacks": "Part of integrator fees used to fund $DROP buybacks and burns.",
+  },
+  SupplySideRevenue: {
+    "Integrator Fees to Swap Campaigns": "Part of integrator fees used to fund swap campaigns.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
+  prefetch,
   chains: Object.keys(chains),
   fetch,
   start: '2026-06-11',
-  methodology: {
-    Fees: "A 0.25% integrator fee is charged on the input token of every swap routed through DropSwap, recorded per chain in DropSwap's own database.",
-    Revenue: "All collected fees are used to fund the swap reward campaign and an automated DROP buyback-and-burn; DropSwap does not retain a separate treasury cut.",
-    ProtocolRevenue: "Same as Revenue — the full fee amount funds protocol-controlled mechanisms (rewards + burn), not third parties.",
-    SupplySideRevenue: "None — DropSwap does not operate its own liquidity pools; it routes through third-party DEXs and aggregators (LI.FI, Odos).",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
