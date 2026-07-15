@@ -19,39 +19,39 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: '2020-03-16',
+      start: '2026-01-01',
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: '2020-05-31',
+      start: '2026-01-01',
     },
     [CHAIN.BASE]: {
       fetch,
-      start: '2023-08-09',
+      start: '2026-01-01',
     },
     [CHAIN.SEI]: {
       fetch,
-      start: '2023-08-15',
+      start: '2026-01-01',
     },
     [CHAIN.APECHAIN]: {
       fetch,
-      start: '2024-10-20',
+      start: '2026-01-01',
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2021-08-31',
+      start: '2026-01-01',
     },
     [CHAIN.ABSTRACT]: {
       fetch,
-      start: '2025-01-28',
+      start: '2026-01-01',
     },
     [CHAIN.BSC]: {
       fetch,
-      start: '2020-08-31',
+      start: '2026-01-01',
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: '2015-07-30',
+      start: '2026-01-01',
     },
     [CHAIN.ROBINHOOD]: {
       fetch,
