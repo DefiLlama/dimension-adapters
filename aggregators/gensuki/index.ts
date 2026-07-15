@@ -1,6 +1,6 @@
-import fetchURL from "../utils/fetchURL";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions) => {
   const url = `https://app.gensuki.xyz/api/defillama/swap?chain=${options.chain}`;
@@ -21,43 +21,43 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: '2025-01-01',
+      start: '2020-03-16',
     },
     [CHAIN.POLYGON]: {
       fetch,
-      start: '2025-01-01',
+      start: '2020-05-31',
     },
     [CHAIN.BASE]: {
       fetch,
-      start: '2025-01-01',
+      start: '2023-08-09',
     },
     [CHAIN.SEI]: {
       fetch,
-      start: '2025-01-01',
+      start: '2023-08-15',
     },
     [CHAIN.APECHAIN]: {
       fetch,
-      start: '2025-01-01',
+      start: '2024-10-20',
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2025-01-01',
+      start: '2021-08-31',
     },
     [CHAIN.ABSTRACT]: {
       fetch,
-      start: '2025-01-01',
+      start: '2025-01-28',
     },
     [CHAIN.BSC]: {
       fetch,
-      start: '2025-01-01',
+      start: '2020-08-31',
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: '2025-01-01',
+      start: '2015-07-30',
     },
     [CHAIN.ROBINHOOD]: {
       fetch,
-      start: '2025-01-01',
+      start: '2026-07-01',
     },
   },
   methodology: {
