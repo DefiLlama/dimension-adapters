@@ -19,7 +19,6 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyTransactionsCount: dayData.txCount,
   };
 };
 
@@ -27,7 +26,7 @@ const methodology = {
   Volume: "Trading volume from presales and memecoin transactions on Gunfun.",
   Fees: "Users pay a platform fee of 1.5% on presales and memecoin transactions on Gunfun.",
   Revenue: "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
-  ProtocolRevenue: "All fee revenue is sent to the fee receiver wallet: DoX6NFeLnSgeQsCYKAtUVCPtXZo6xBsyJFCBaXW3crQK.",
+  ProtocolRevenue: "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
 }
 
 const breakdownMethodology = {
@@ -38,7 +37,7 @@ const breakdownMethodology = {
     "Launchpad Fees": "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
   },
   ProtocolRevenue: {
-    "Launchpad Fees": "All fee revenue is sent to the fee receiver wallet: DoX6NFeLnSgeQsCYKAtUVCPtXZo6xBsyJFCBaXW3crQK.",
+    "Launchpad Fees": "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
   }
 }
 
