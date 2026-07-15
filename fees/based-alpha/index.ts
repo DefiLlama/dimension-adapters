@@ -43,8 +43,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Gross ETH notional of every bonding-curve buy and sell on the launchpad.",
   Fees: "1.25% trade fee (0.95% protocol + 0.30% creator) on every curve trade, plus the flat migration fee skimmed when a token graduates to Based DEX.",
-  Revenue: "Protocol share of trade fees plus migration fees.",
-  ProtocolRevenue: "Same as Revenue — all protocol fees accrue to the fee recipient.",
+  Revenue: "Protocol share of trade fees (0.95% of each trade) plus migration fees.",
+  ProtocolRevenue: "Same as Revenue — all protocol fees(0.95% of each trade) and migration fees accrue to the protocol.",
   SupplySideRevenue: "Creator share of trade fees (0.30%), claimable by each token's creator.",
 };
 
@@ -59,7 +59,10 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     'Trading Fees to Creators': "Creator share of trade fees (0.30% of each trade)",
-  }
+  },
+  ProtocolRevenue: {
+    'Trading Fees to Protocol': "Protocol share of trade fees (0.95% of each trade)",
+    "Migration Fees to Protocol": "All the migration fees go to the protocol",
 }
 
 const adapter: SimpleAdapter = {
