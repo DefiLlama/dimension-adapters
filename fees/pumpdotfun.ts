@@ -323,7 +323,7 @@ const breakdownMethodology = {
     [LABEL.PumpFunGraduationFee]: 'Graduation fees kept by the protocol.',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'PUMP token buyback (sourced from the fees.pump.fun API; aggregates buybacks across all pump products).',
+    [METRIC.TOKEN_BUY_BACK]: 'PUMP token buyback (sourced from onchain burns; aggregates buybacks across all pump products).',
   },
   SupplySideRevenue: {
     [LABEL.PumpFunCreatorFee]: 'Creator fees paid out to coin creators.',
@@ -344,7 +344,7 @@ const adapter: SimpleAdapter = {
     Fees: "Bonding-curve trade fees paid by users (pump's slice + creator/cashback slice), graduation fees, and Mayhem-mode fees.",
     Revenue: "Pump's slice of the bonding-curve trade fee plus graduation fees and Mayhem-mode fees.",
     ProtocolRevenue: "Pump's slice kept by the protocol after the buyback share, plus 100% of graduation and Mayhem fees. Era-based split: 100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28.",
-    HoldersRevenue: "PUMP token buyback (sourced from the fees.pump.fun API; aggregates buybacks across all pump products, so it won't sum exactly with ProtocolRevenue here).",
+    HoldersRevenue: "PUMP token buyback (sourced from onchain burns; aggregates buybacks across all pump products, so it won't sum exactly with ProtocolRevenue here).",
     SupplySideRevenue: "Creator fees paid out to coin creators and cashback returned to traders/holders of the coin.",
   },
 }
