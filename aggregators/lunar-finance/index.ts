@@ -19,8 +19,19 @@ import {
   resolveLunarSupplySideRevenue,
 } from "../../helpers/lunarFinance";
 
+const LABELS = {
+  AGGREGATOR_FEES: "Aggregator Fees",
+  PROTOCOL_FEES: "Aggregator Fees to Protocol",
+  LP_FEES: "Aggregator Fees to Liquidity Providers",
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const dexRes = await fetchLunarAnalytics("dexs", options);
   const dex = dexRes.data ?? {};
@@ -28,16 +39,28 @@ const fetch = async (options: FetchOptions) => {
   const dexVolume = parseLunarUsdWei(dex.dailySwapVolume ?? dex.dailyVolume);
   if (dexVolume > 0) dailyVolume.addUSDValue(dexVolume);
 
-  let dailyFees = parseLunarUsdWei(dex.dailyFees);
-  let dailyRevenue = parseLunarUsdWei(
+  const dexFees = parseLunarUsdWei(dex.dailyFees);
+  const dexRevenue = parseLunarUsdWei(
     dex.dailyProtocolRevenue ?? dex.dailyRevenue,
   );
-  let dailySupplySideRevenue = resolveLunarSupplySideRevenue(
+  const dexSupplySideRevenue = resolveLunarSupplySideRevenue(
     dex.dailySupplySideRevenue,
-    dailyFees,
-    dailyRevenue,
+    dexFees,
+    dexRevenue,
     `Lunar Finance dexs (${options.chain})`,
   );
+
+  if (dexFees > 0) {
+    dailyFees.addUSDValue(dexFees, LABELS.AGGREGATOR_FEES);
+    dailyUserFees.addUSDValue(dexFees, LABELS.AGGREGATOR_FEES);
+  }
+  if (dexRevenue > 0) {
+    dailyRevenue.addUSDValue(dexRevenue, LABELS.PROTOCOL_FEES);
+    dailyProtocolRevenue.addUSDValue(dexRevenue, LABELS.PROTOCOL_FEES);
+  }
+  if (dexSupplySideRevenue > 0) {
+    dailySupplySideRevenue.addUSDValue(dexSupplySideRevenue, LABELS.LP_FEES);
+  }
 
   // Enso/batch-sweeper swaps are exposed on a separate, additive endpoint.
   // Only the fetch is best-effort: a network/endpoint failure should not drop
@@ -60,7 +83,9 @@ const fetch = async (options: FetchOptions) => {
     const sweeperVolume = parseLunarUsdWei(
       sweeper.dailySwapVolume ?? sweeper.dailyVolume,
     );
-    if (sweeperVolume > 0) dailyVolume.addUSDValue(sweeperVolume);
+    if (sweeperVolume > 0) {
+      dailyVolume.addUSDValue(sweeperVolume);
+    }
 
     const sweeperFees = parseLunarUsdWei(sweeper.dailyFees);
     const sweeperRevenue = parseLunarUsdWei(
@@ -73,17 +98,25 @@ const fetch = async (options: FetchOptions) => {
       `Lunar Finance sweeper (${options.chain})`,
     );
 
-    dailyFees += sweeperFees;
-    dailyRevenue += sweeperRevenue;
-    dailySupplySideRevenue += sweeperSupplySide;
+    if (sweeperFees > 0) {
+      dailyFees.addUSDValue(sweeperFees, LABELS.AGGREGATOR_FEES);
+      dailyUserFees.addUSDValue(sweeperFees, LABELS.AGGREGATOR_FEES);
+    }
+    if (sweeperRevenue > 0) {
+      dailyRevenue.addUSDValue(sweeperRevenue, LABELS.PROTOCOL_FEES);
+      dailyProtocolRevenue.addUSDValue(sweeperRevenue, LABELS.PROTOCOL_FEES);
+    }
+    if (sweeperSupplySide > 0) {
+      dailySupplySideRevenue.addUSDValue(sweeperSupplySide, LABELS.LP_FEES);
+    }
   }
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyUserFees: dailyFees,
+    dailyProtocolRevenue,
+    dailyUserFees,
     dailySupplySideRevenue,
   };
 };
@@ -94,41 +127,33 @@ const methodology = {
   Fees: "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
   Revenue: "Protocol fees retained by Lunar Finance.",
   ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
-  SupplySideRevenue:
-    "Fees paid to underlying DEX liquidity providers (total fees minus Lunar protocol revenue).",
+  SupplySideRevenue: "Fees paid to underlying DEX liquidity providers (total fees minus Lunar protocol revenue).",
 };
 
 const breakdownMethodology = {
-  Volume: {
-    "DEX aggregator volume":
-      "Meta-aggregator swap volume from the Lunar analytics API (dexs endpoint), per chain.",
-    "Sweeper volume":
-      "Enso/batch-sweeper swap volume from the Lunar analytics API (sweeper endpoint), per chain.",
-  },
   Fees: {
-    "User fees":
-      "User-paid fees on underlying DEX protocols plus Lunar platform fees where applicable.",
+    [LABELS.AGGREGATOR_FEES]:"Aggregator fees paid by users for the swaps.",
+  },
+  UserFees: {
+    [LABELS.AGGREGATOR_FEES]:"Aggregator fees paid by users for the swaps.",
   },
   Revenue: {
-    "Protocol fees": "Protocol fees retained by Lunar Finance.",
+    [LABELS.PROTOCOL_FEES]: "Part of the aggregator fees that is retained by the protocol.",
   },
   ProtocolRevenue: {
-    "Treasury fees": "Fees collected by the Lunar Finance treasury.",
+    [LABELS.PROTOCOL_FEES]: "Part of the aggregator fees that is retained by the protocol.",
   },
   SupplySideRevenue: {
-    "LP fees": "Fees paid to underlying DEX liquidity providers.",
+    [LABELS.LP_FEES]: "Part of the aggregator fees that is paid to the liquidity providers.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    LUNAR_ADAPTER_CHAINS.map((chain) => [
-      chain,
-      { fetch, start: LUNAR_DEFAULT_START },
-    ]),
-  ),
+  fetch,
+  start: LUNAR_DEFAULT_START,
+  chains: LUNAR_ADAPTER_CHAINS,
   methodology,
   breakdownMethodology,
 };

@@ -13,30 +13,58 @@ import {
   resolveLunarSupplySideRevenue,
 } from "../../helpers/lunarFinance";
 
+const LABELS = {
+  BRIDGE_FEES: "Bridge Fees",
+  PROTOCOL_FEES: "Bridge Fees to Protocol",
+  PROVIDER_FEES: "Bridge Fees to Providers",
+}
+
 const fetch = async (options: FetchOptions) => {
+  const dailyBridgeVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
   const res = await fetchLunarAnalytics("bridge", options);
   const payload = res.data ?? {};
 
-  const dailyBridgeVolume = parseLunarUsdWei(
+  const bridgeVolume = parseLunarUsdWei(
     payload.dailyBridgeVolume ?? payload.dailyVolume,
   );
-  const dailyFees = parseLunarUsdWei(payload.dailyFees);
-  const dailyRevenue = parseLunarUsdWei(
+  const fees = parseLunarUsdWei(payload.dailyFees);
+  const revenue = parseLunarUsdWei(
     payload.dailyProtocolRevenue ?? payload.dailyRevenue,
   );
-  const dailySupplySideRevenue = resolveLunarSupplySideRevenue(
+  const supplySideRevenue = resolveLunarSupplySideRevenue(
     payload.dailySupplySideRevenue,
-    dailyFees,
-    dailyRevenue,
+    fees,
+    revenue,
     `Lunar Finance bridge (${options.chain})`,
   );
+
+  if (bridgeVolume > 0) {
+    dailyBridgeVolume.addUSDValue(bridgeVolume);
+  }
+  if (fees > 0) {
+    dailyFees.addUSDValue(fees, LABELS.BRIDGE_FEES);
+    dailyUserFees.addUSDValue(fees, LABELS.BRIDGE_FEES);
+  }
+  if (revenue > 0) {
+    dailyRevenue.addUSDValue(revenue, LABELS.PROTOCOL_FEES);
+    dailyProtocolRevenue.addUSDValue(revenue, LABELS.PROTOCOL_FEES);
+  }
+  if (supplySideRevenue > 0) {
+    dailySupplySideRevenue.addUSDValue(supplySideRevenue, LABELS.PROVIDER_FEES);
+  }
 
   return {
     dailyBridgeVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyUserFees: dailyFees,
+    dailyProtocolRevenue,
+    dailyUserFees,
     dailySupplySideRevenue,
   };
 };
@@ -52,35 +80,29 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  BridgeVolume: {
-    "Cross-chain bridge volume":
-      "USD value of confirmed bridge transactions from the Lunar analytics API.",
-  },
   Fees: {
-    "Bridge fees":
-      "User-paid bridge fees including underlying provider fees.",
+    [LABELS.BRIDGE_FEES]: "User-paid bridge fees including underlying provider fees.",
+  },
+  UserFees: {
+    [LABELS.BRIDGE_FEES]: "User-paid bridge fees including underlying provider fees.",
   },
   Revenue: {
-    "Protocol fees": "Protocol fees retained by Lunar Finance.",
+    [LABELS.PROTOCOL_FEES]: "Protocol fees retained by Lunar Finance.",
   },
   ProtocolRevenue: {
-    "Treasury fees": "Fees collected by the Lunar Finance treasury.",
+    [LABELS.PROTOCOL_FEES]: "Protocol fees retained by Lunar Finance.",
   },
   SupplySideRevenue: {
-    "Provider fees":
-      "Fees paid to underlying bridge and relayer providers.",
+    [LABELS.PROVIDER_FEES]: "Fees paid to underlying bridge and relayer providers.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    LUNAR_ADAPTER_CHAINS.map((chain) => [
-      chain,
-      { fetch, start: LUNAR_DEFAULT_START },
-    ]),
-  ),
+  fetch,
+  start: LUNAR_DEFAULT_START,
+  chains: LUNAR_ADAPTER_CHAINS,
   methodology,
   breakdownMethodology,
 };
