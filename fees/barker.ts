@@ -23,8 +23,9 @@ const TOKENS: Record<string, { token: string; cg: string }> = {
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { token, cg } = TOKENS[options.chain];
-  // skipIndexer: X Layer isn't covered by the indexer; logs are cheap at this volume.
-  const received = await addTokensReceived({ options, tokens: [token], targets: [PAY_TO], skipIndexer: true });
+  // X Layer isn't covered by DefiLlama's indexer — fall back to logs there only;
+  // other chains use the indexer to keep RPC load down.
+  const received = await addTokensReceived({ options, tokens: [token], targets: [PAY_TO], skipIndexer: options.chain === CHAIN.XLAYER });
   const raw = Object.values(received.getBalances()).reduce((sum: number, v: any) => sum + Number(v), 0);
   const dailyFees = options.createBalances();
   dailyFees.addCGToken(cg, raw / 1e6, "x402 Call Fees");
@@ -33,6 +34,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.XLAYER, CHAIN.BASE, CHAIN.ETHEREUM, CHAIN.POLYGON, CHAIN.ARBITRUM],
   start: "2026-05-20",
