@@ -1,16 +1,6 @@
-// DefiLlama dimension adapter for Based Alpha — volume, fees, revenue.
-//
-// Destination: dimension-adapters/fees/based-alpha/index.ts
-// (optionally re-exported from dexs/based-alpha/index.ts so curve volume also
-// shows on the DEX/volume dashboards — see docs/defillama/README.md).
-// CHAIN.ROBINHOOD already exists in helpers/chains.ts.
-//
-// Every curve trade emits Trade(...) with the exact fee split, so all
-// dimensions come from a single getLogs pass; migration fees come from
-// Migrated(...). Verified against mainnet logs from deploy block 10227218.
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const LAUNCHPAD = "0x5640c62fe43a64f9ae0811114874e95a819db744";
 
@@ -25,21 +15,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const trades = await options.getLogs({ target: LAUNCHPAD, eventAbi: TRADE_EVENT });
-  for (const t of trades) {
+  const tradeLogs = await options.getLogs({ target: LAUNCHPAD, eventAbi: TRADE_EVENT });
+  for (const log of tradeLogs) {
     // ethAmount is the gross ETH side of the trade (fees included on buys,
     // pre-fee proceeds on sells) — the launchpad's notional curve volume.
-    dailyVolume.addGasToken(t.ethAmount);
-    dailyFees.addGasToken(t.protocolFee + t.creatorFee);
-    dailyRevenue.addGasToken(t.protocolFee);
-    // Creator fees accrue to the token creator (pump.fun-style) — supply side.
-    dailySupplySideRevenue.addGasToken(t.creatorFee);
+    dailyVolume.addGasToken(log.ethAmount);
+    dailyFees.addGasToken(log.protocolFee + log.creatorFee, METRIC.TRADING_FEES);
+    dailyRevenue.addGasToken(log.protocolFee, "Trading Fees to Protocol");
+    dailySupplySideRevenue.addGasToken(log.creatorFee, 'Trading Fees to Creators');
   }
 
-  const migrations = await options.getLogs({ target: LAUNCHPAD, eventAbi: MIGRATED_EVENT });
-  for (const m of migrations) {
-    dailyFees.addGasToken(m.migrationFee);
-    dailyRevenue.addGasToken(m.migrationFee);
+  const migrationLogs = await options.getLogs({ target: LAUNCHPAD, eventAbi: MIGRATED_EVENT });
+  for (const log of migrationLogs) {
+    dailyFees.addGasToken(log.migrationFee, 'Migration Fees');
+    dailyRevenue.addGasToken(log.migrationFee, 'Migration Fees to Protocol');
   }
 
   return {
@@ -59,15 +48,28 @@ const methodology = {
   SupplySideRevenue: "Creator share of trade fees (0.30%), claimable by each token's creator.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "1.25% trade fee (0.95% protocol + 0.30% creator) on every curve trade",
+    'Migration Fees': "Flat migration fee skimmed when a token graduates to Based DEX",
+  },
+  Revenue: {
+    'Trading Fees to Protocol': "Protocol share of trade fees (0.95% of each trade)",
+    "Migration Fees to Protocol": "All the migration fees go to the protocol",
+  },
+  SupplySideRevenue: {
+    'Trading Fees to Creators': "Creator share of trade fees (0.30% of each trade)",
+  }
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-07-15",
-      meta: { methodology },
-    },
-  },
+  pullHourly: true,
+  fetch,
+  start: "2026-07-14",
+  chains: [CHAIN.ROBINHOOD],
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
