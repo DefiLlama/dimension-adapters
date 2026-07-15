@@ -24,6 +24,7 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const logs = await options.getLogs({
     target: FLOWR_GARDEN,
@@ -49,8 +50,13 @@ async function fetch(options: FetchOptions) {
     }
 
     dailyVolume.addGasToken(price);
+    // Full takeover payment counts as fees: the 25% protocol envelope plus the 75% payout the
+    // protocol distributes to the replaced gardener (the game's supply side). This keeps the
+    // accounting identity dailyFees = dailyRevenue + dailySupplySideRevenue.
     dailyFees.addGasToken(envelope, "Protocol Envelope Fees");
+    dailyFees.addGasToken(payout, "Previous Gardener Payout");
     dailyRevenue.addGasToken(envelope, "Protocol Envelope Fees");
+    dailySupplySideRevenue.addGasToken(payout, "Previous Gardener Payout");
 
     dailyHoldersRevenue.addGasToken(toStakers, "Envelope Fees to $FLOWR Stakers");
     dailyHoldersRevenue.addGasToken(toBuybacks, "Envelope Fees to $FLOWR Buybacks");
@@ -64,20 +70,23 @@ async function fetch(options: FetchOptions) {
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 }
 
 const methodology = {
   Volume: "ETH paid into FlowrGarden to take over flower plots (Planted.price).",
-  Fees: "25% of each takeover, paid by players to the protocol envelope.",
+  Fees: "The full takeover payment (Planted.price): players pay it to perform the core game action, and the protocol splits it between the 75% previous-gardener payout (supply side) and the 25% protocol envelope.",
   Revenue: "The protocol envelope of each takeover — Planted.price minus the previous-gardener payout — which is 25% of the payment by construction.",
   ProtocolRevenue: "8.25% of each takeover goes to the protocol treasury.",
   HoldersRevenue: "Includes 10.5% of each takeover going to $FLOWR buybacks and the 6.25% staking distribution, live since 2026-07-11.",
+  SupplySideRevenue: "The previous-gardener payout: 75% of each takeover, paid on the spot to the gardener being replaced — plot holders are the game's supply side.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Protocol Envelope Fees": "25% of each takeover, paid by players to the protocol envelope.",
+    "Previous Gardener Payout": "75% of each takeover, distributed by the protocol to the gardener being replaced.",
   },
   Revenue: {
     "Protocol Envelope Fees": "25% of each takeover, paid by players to the protocol envelope.",
@@ -88,6 +97,9 @@ const breakdownMethodology = {
   HoldersRevenue: {
     "Envelope Fees to $FLOWR Stakers": "6.25% of each takeover, distributed to FLOWR stakers.",
     "Envelope Fees to $FLOWR Buybacks": "10.5% of each takeover, distributed to $FLOWR buybacks.",
+  },
+  SupplySideRevenue: {
+    "Previous Gardener Payout": "75% of each takeover, paid on the spot to the gardener being replaced.",
   },
 };
 
