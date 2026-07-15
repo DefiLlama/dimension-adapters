@@ -32,7 +32,10 @@ const fetch = async (options: FetchOptions) => {
     longOpenInterestAtEnd += longOI * markPrice;
     shortOpenInterestAtEnd += shortOI * markPrice;
   }
-  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+  // Perpl enforces longOpenInterestLNS == shortOpenInterestLNS on-chain
+  // (checkOpenInterestEquality), so open interest is one-sided; summing
+  // both sides double-counts it (~2x). Report a single side.
+  const openInterestAtEnd = longOpenInterestAtEnd;
 
   return { longOpenInterestAtEnd, shortOpenInterestAtEnd, openInterestAtEnd };
 };
