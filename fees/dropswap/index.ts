@@ -2,6 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// Recepient address : 0xa8538D928338790861bB39Fb9Ef71E8F56747b49
 // Maps DefiLlama chain identifiers to DropSwap's internal chain keys (used by its API)
 const chains: Record<string, string> = {
   [CHAIN.ARBITRUM]: 'arbitrum',
