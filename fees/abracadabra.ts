@@ -30,9 +30,14 @@ const EVENT = {
 
 // BORROW_OPENING_FEE_PRECISION / LIQUIDATION_MULTIPLIER_PRECISION in cauldron contracts
 // https://github.com/Abracadabra-money/abracadabra-money-contracts/blob/main/src/cauldrons/CauldronV4.sol
-// https://docs.abracadabra.money/learn/intro/cauldrons/liquidations
 const FEE_PRECISION = 1e5;
+// 10% of the liquidation penalty accrues to the protocol, 90% is the liquidator's incentive
+// https://docs.abracadabra.money/learn/intro/cauldrons/liquidations
 const LIQUIDATION_DISTRIBUTION_PART = 0.1;
+// protocol revenue is split 50% to SPELL buybacks / mSPELL stakers (holders)
+// and 50% to the treasury
+// https://docs.abracadabra.money/learn/tokens/tokenomics
+const REVENUE_TO_HOLDERS = 0.5;
 
 const getCauldrons = async (options: FetchOptions): Promise<Array<string>> => {
   return getConfig(`abracadabra/${options.chain}`, undefined, {
@@ -96,33 +101,27 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // 10% of the liquidation penalty is set aside for staked SPELL (sSPELL) holders,
-  // the remaining 90% is the liquidator's incentive
-  const liquidationHoldersFees = liquidationFees * LIQUIDATION_DISTRIBUTION_PART;
+  const liquidationProtocolFees = liquidationFees * LIQUIDATION_DISTRIBUTION_PART;
   const liquidationLiquidatorFees = liquidationFees * (1 - LIQUIDATION_DISTRIBUTION_PART);
 
   dailyFees.addCGToken(MIM, interestFees, METRIC.BORROW_INTEREST);
   dailyFees.addCGToken(MIM, borrowFees, BORROW_FEES);
   dailyFees.addCGToken(MIM, liquidationFees, METRIC.LIQUIDATION_FEES);
 
-  // MIM is minted (CDP), not supplied by lenders, so all interest and opening
-  // fees accrue to the protocol (accrueInfo.feesEarned)
+  // MIM is minted (CDP), not supplied by lenders, so all interest and opening fees,
+  // plus the protocol's 10% liquidation cut, accrue to the protocol (accrueInfo.feesEarned)
   dailyRevenue.addCGToken(MIM, interestFees, METRIC.BORROW_INTEREST);
   dailyRevenue.addCGToken(MIM, borrowFees, BORROW_FEES);
-  dailyRevenue.addCGToken(MIM, liquidationHoldersFees, METRIC.LIQUIDATION_FEES);
+  dailyRevenue.addCGToken(MIM, liquidationProtocolFees, METRIC.LIQUIDATION_FEES);
 
-  // interest and borrow/opening fees are retained by the protocol treasury
-  dailyProtocolRevenue.addCGToken(MIM, interestFees, METRIC.BORROW_INTEREST);
-  dailyProtocolRevenue.addCGToken(MIM, borrowFees, BORROW_FEES);
-
-  // 10% of the liquidation penalty is distributed to staked SPELL holders
-  dailyHoldersRevenue.addCGToken(MIM, liquidationHoldersFees, METRIC.LIQUIDATION_FEES);
-
+  // the other 90% of the liquidation penalty is kept by liquidators
   dailySupplySideRevenue.addCGToken(MIM, liquidationLiquidatorFees, METRIC.LIQUIDATION_FEES);
+
+  // AIP #10 splits all protocol revenue 50/50: buybacks + mSPELL stakers vs treasury
+  const dailyHoldersRevenue = dailyRevenue.clone(REVENUE_TO_HOLDERS);
+  const dailyProtocolRevenue = dailyRevenue.clone(1 - REVENUE_TO_HOLDERS);
 
   return {
     dailyFees,
@@ -135,9 +134,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Fees paid by MIM borrowers in Abracadabra Cauldrons: interest on outstanding debt, a one-time borrow/opening fee, and liquidation penalties. Tracked from on-chain cauldron events (LogAccrue, LogBorrow, LogLiquidation).",
-  Revenue: "All interest and borrow/opening fees accrue to the protocol (MIM is minted, there are no lenders), plus 10% of liquidation penalties.",
-  ProtocolRevenue: "All interest and borrow/opening fees retained by the protocol treasury.",
-  HoldersRevenue: "10% of liquidation penalties distributed to staked SPELL (sSPELL) holders.",
+  Revenue: "Protocol's share of Cauldron fees: all interest and borrow/opening fees (MIM is minted, there are no lenders) plus 10% of liquidation penalties.",
+  ProtocolRevenue: "50% of protocol revenue directed to the treasury (AIP #10).",
+  HoldersRevenue: "50% of protocol revenue used for SPELL buybacks and mSPELL staker rewards (AIP #10).",
   SupplySideRevenue: "90% of liquidation penalties kept by liquidators.",
 };
 
@@ -153,11 +152,14 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: "10% of liquidation penalties retained by the protocol.",
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "Interest on MIM debt retained by the protocol treasury.",
-    [BORROW_FEES]: "Borrow/opening fees retained by the protocol treasury.",
+    [METRIC.BORROW_INTEREST]: "50% of interest revenue directed to the treasury.",
+    [BORROW_FEES]: "50% of borrow/opening fee revenue directed to the treasury.",
+    [METRIC.LIQUIDATION_FEES]: "50% of the protocol's liquidation cut directed to the treasury.",
   },
   HoldersRevenue: {
-    [METRIC.LIQUIDATION_FEES]: "10% of liquidation penalties distributed to staked SPELL (sSPELL) holders.",
+    [METRIC.BORROW_INTEREST]: "50% of interest revenue used for SPELL buybacks and mSPELL stakers.",
+    [BORROW_FEES]: "50% of borrow/opening fee revenue used for SPELL buybacks and mSPELL stakers.",
+    [METRIC.LIQUIDATION_FEES]: "50% of the protocol's liquidation cut used for SPELL buybacks and mSPELL stakers.",
   },
   SupplySideRevenue: {
     [METRIC.LIQUIDATION_FEES]: "90% of liquidation penalties kept by liquidators.",
