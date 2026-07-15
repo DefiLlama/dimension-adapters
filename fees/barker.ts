@@ -22,13 +22,10 @@ const TOKENS: Record<string, { token: string; cg: string }> = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { token, cg } = TOKENS[options.chain];
-  // X Layer isn't covered by DefiLlama's indexer — fall back to logs there only;
-  // other chains use the indexer to keep RPC load down.
-  const received = await addTokensReceived({ options, tokens: [token], targets: [PAY_TO], skipIndexer: options.chain === CHAIN.XLAYER });
-  const raw = Object.values(received.getBalances()).reduce((sum: number, v: any) => sum + Number(v), 0);
+  const { token } = TOKENS[options.chain];
+  const x402Fees = await addTokensReceived({ options, token, target: PAY_TO });
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken(cg, raw / 1e6, "x402 Call Fees");
+  dailyFees.add( x402Fees, "x402 Call Fees");
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
@@ -40,13 +37,13 @@ const adapter: SimpleAdapter = {
   start: "2026-05-20",
   methodology: {
     Fees: "x402 pay-per-call fees paid by AI agents for Barker's MCP stablecoin-yield tools ($0.001–$0.05 per call), settled onchain in stablecoins to the protocol payment wallet.",
-    Revenue: "All call fees are kept by the protocol.",
-    ProtocolRevenue: "All call fees go to the protocol.",
+    Revenue: "All x402 call fees paid by AI agents are kept by the protocol.",
+    ProtocolRevenue: "All x402 call fees paid by AI agents are kept by the protocol.",
   },
   breakdownMethodology: {
     Fees: { "x402 Call Fees": "Per-call x402 payments by AI agents for MCP yield data, routing and execution-quote tools." },
-    Revenue: { "x402 Call Fees": "All call fees are kept by the protocol." },
-    ProtocolRevenue: { "x402 Call Fees": "All call fees go to the protocol." },
+    Revenue: { "x402 Call Fees": "All x402 call fees paid by AI agents are kept by the protocol." },
+    ProtocolRevenue: { "x402 Call Fees": "All x402 call fees paid by AI agents are kept by the protocol." },
   },
 };
 
