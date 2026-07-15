@@ -24,6 +24,8 @@ const chains: Record<string, string> = {
   [CHAIN.MANTLE]: 'mantle',
   [CHAIN.XDAI]: 'gnosis',
   [CHAIN.SONEIUM]: 'soneium',
+  [CHAIN.ABSTRACT]: 'abstract',
+  [CHAIN.SOLANA]: 'solana',
 };
 
 interface IVolumeByChainRecord {
