@@ -18,6 +18,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // API returns daily historical data, so we don't need to run hourly (prevents data inflation)
+  pullHourly: false,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

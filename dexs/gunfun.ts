@@ -6,18 +6,21 @@ const fetch = async (options: FetchOptions) => {
   const url = "https://app.gensuki.xyz/api/defillama/gunfun";
   const res = await fetchURL(url);
   const dayData = res.history?.find((h: any) => h.date === options.dateString);
+  if (!dayData) {
+    throw new Error(`Data not found for date: ${options.dateString}`);
+  }
 
   return {
-    dailyVolume: dayData ? dayData.volumeUsd : 0,
-    dailyFees: dayData ? dayData.revenueUsd : 0,
-    dailyRevenue: dayData ? dayData.revenueUsd : 0,
-    dailyProtocolRevenue: dayData ? dayData.revenueUsd : 0,
-    dailyTransactionsCount: dayData ? dayData.txCount : 0,
+    dailyVolume: dayData.volumeUsd,
+    dailyFees: dayData.revenueUsd,
+    dailyRevenue: dayData.revenueUsd,
+    dailyProtocolRevenue: dayData.revenueUsd,
+    dailyTransactionsCount: dayData.txCount,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

@@ -21,6 +21,7 @@ const adapter: Adapter = {
     },
   },
   isExpensiveAdapter: true,
+  pullHourly: true,
   methodology: {
     Fees: "Users pay a platform fee of 1.5% on presales and memecoin transactions on Gunfun.",
     Revenue: "Protocol collects a 1.5% fee on all presales and memecoin transactions.",
