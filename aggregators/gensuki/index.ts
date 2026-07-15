@@ -16,7 +16,6 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyTransactionsCount: dayData ? dayData.txCount : 0,
   };
 };
 
