@@ -87,7 +87,6 @@ const adapter: SimpleAdapter = {
   version: 1,
   doublecounted: true, //Bungee
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   prefetch,
   adapter: {
     ...bimAdapterChains.reduce((acc, chain) => {
