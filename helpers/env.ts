@@ -32,6 +32,7 @@ const DEFAULTS: any = {
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
+  NEAR_RPC: 'https://rpc.mainnet.near.org',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   NEAR_RPC: "https://free.rpc.fastnear.com,https://near.lava.build,https://rpc.mainnet.near.org",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
