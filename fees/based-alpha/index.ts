@@ -17,13 +17,9 @@ const fetch = async (options: FetchOptions) => {
 
   const tradeLogs = await options.getLogs({ target: LAUNCHPAD, eventAbi: TRADE_EVENT });
   for (const log of tradeLogs) {
-    // ethAmount is the net curve-side amount only. Verified on-chain via two
-    // buys and one sell: on a buy, tx.value = ethAmount + protocolFee + creatorFee
-    // (confirmed exactly, twice); on a sell, the trader's payout equals ethAmount
-    // exactly with no fee deducted from it. So the true gross notional on both
-    // sides is ethAmount + protocolFee + creatorFee, not ethAmount alone.
     const totalFee = log.protocolFee + log.creatorFee;
-    dailyVolume.addGasToken(log.ethAmount + totalFee);
+    const volume = log.isBuy ? log.ethAmount + totalFee : log.ethAmount;
+    dailyVolume.addGasToken(volume);
     dailyFees.addGasToken(totalFee, METRIC.TRADING_FEES);
     dailyRevenue.addGasToken(log.protocolFee, "Trading Fees to Protocol");
     dailySupplySideRevenue.addGasToken(log.creatorFee, 'Trading Fees to Creators');
@@ -45,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Gross ETH notional of every bonding-curve buy and sell on the launchpad, including fees.",
+  Volume: "Gross ETH notional of every bonding-curve buy and sell on the launchpad.",
   Fees: "1.25% trade fee (0.95% protocol + 0.30% creator) on every curve trade, plus the flat migration fee skimmed when a token graduates to Based DEX.",
   Revenue: "Protocol share of trade fees (0.95% of each trade) plus migration fees.",
   ProtocolRevenue: "Same as Revenue — all protocol fees(0.95% of each trade) and migration fees accrue to the protocol.",
