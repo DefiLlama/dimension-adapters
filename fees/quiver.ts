@@ -13,6 +13,7 @@
 //
 // Contracts (Robinhood Chain):
 //   factoryV3 (active):     0xaA8Af274bba2b9dE53119CB117C8AC6A39e6F5Aa  block 10113641 (2026-07-15)
+//                           FACTORY_V3_DEPLOY_BLOCK gates live teamFeeRecipient reads
 //   lpLockerV3:             0x38daBB90C96eea7B90613ABbf019ABCe0808CF12  block 10113611
 //   factory (legacy v4):    0x3eDDD33805652c933a981F59055ef561660c54D2  block 9787616  (2026-07-14)
 //   lpLocker (legacy v4):   0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98  block 9787616
@@ -44,10 +45,13 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
 const FACTORY_V3 = "0xaA8Af274bba2b9dE53119CB117C8AC6A39e6F5Aa";
+const FACTORY_V3_DEPLOY_BLOCK = 10113641;
 const LP_LOCKER_V3 = "0x38daBB90C96eea7B90613ABbf019ABCe0808CF12";
 const LP_LOCKER_V4 = "0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98";
 const FEE_LOCKER = "0xd1B13382fDa3E165658F1d3502d6616A31B62491";
-// Historical + current protocol fee recipient (factory.teamFeeRecipient / owner).
+// Known protocol fee recipient from on-chain factory.teamFeeRecipient / owner EOA
+// (0x9748…AE5a). Used for all ranges, and as the sole classifier before FACTORY_V3
+// exists so we never eth_call a contract that has not been deployed yet.
 const PROTOCOL_RECIPIENT = "0x9748D3fe02890f155489dc4F76e413Bdcd97AE5a";
 
 const BPS = 10_000n;
@@ -69,10 +73,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Prefer the live factory recipient when the v3 factory exists; fall back to the
-  // known protocol address so historical ranges before factoryV3 still work.
+  // Default to the known historical protocol recipient. Only read the live
+  // factory.teamFeeRecipient once the v3 factory deployment block is in range.
   let teamFeeRecipient = PROTOCOL_RECIPIENT;
-  try {
+  const toBlock = await options.getToBlock();
+  if (toBlock >= FACTORY_V3_DEPLOY_BLOCK) {
     const current: string = await options.api.call({
       target: FACTORY_V3,
       abi: "function teamFeeRecipient() view returns (address)",
@@ -80,8 +85,6 @@ const fetch = async (options: FetchOptions) => {
     if (current && current !== "0x0000000000000000000000000000000000000000") {
       teamFeeRecipient = current;
     }
-  } catch {
-    // factoryV3 not yet deployed in this block range
   }
 
   // --- Legacy Uniswap v4 path: fee shares stored by lpLocker into feeLocker ---
