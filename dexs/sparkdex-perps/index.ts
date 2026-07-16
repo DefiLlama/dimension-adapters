@@ -129,12 +129,26 @@ const assertGraphDayResponse = (
   }
 
   const record = response as Record<string, unknown>;
-  for (const key of ["volumeStats", "feeStats", "tradingStats"] as const) {
+  const keys = ["volumeStats", "feeStats", "tradingStats"] as const;
+  for (const key of keys) {
     if (!Array.isArray(record[key])) {
       throw new Error(
         `SparkDEX ${deployment}: missing ${key} for ${todaysTimestamp}`,
       );
     }
+  }
+
+  const volumeStats = record.volumeStats as unknown[];
+  const feeStats = record.feeStats as unknown[];
+  const tradingStats = record.tradingStats as unknown[];
+  if (
+    volumeStats.length === 0 &&
+    feeStats.length === 0 &&
+    tradingStats.length === 0
+  ) {
+    throw new Error(
+      `SparkDEX ${deployment}: missing daily stats for ${todaysTimestamp}`,
+    );
   }
 
   return response as GraphDayResponse;
