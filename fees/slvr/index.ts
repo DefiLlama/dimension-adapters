@@ -19,6 +19,9 @@ const fetch = async (options: FetchOptions) => {
   const stakerRewards = options.createBalances();
   rewards.forEach((log: any) => stakerRewards.addGasToken(log.amount, METRIC.STAKING_REWARDS));
   const jackpot = stakerRewards.clone(0.25, JACKPOT);
+  // Volume = ETH wagered per round. Staker rewards are a flat 8% of each round's wagers,
+  // so wagers = rewards / 0.08,
+  const dailyVolume = stakerRewards.clone(12.5);
 
   // Fees = the full 10% rake = staker rewards (8%) + jackpot (2%).
   const dailyFees = options.createBalances();
@@ -26,6 +29,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addBalances(jackpot);
 
   return {
+    dailyVolume,
     dailyFees,
     dailyRevenue: stakerRewards,
     dailyHoldersRevenue: stakerRewards,
@@ -34,6 +38,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
+  Volume: "Total ETH wagered across all lottery bets each round, derived from staker rewards (a flat 8% of wagers).",
   Fees: "The 10% rake taken from every round's wagers: 8% distributed to veNFT stakers plus 2% routed to the jackpot.",
   Revenue: "All staker rewards — the ETH distributed to veNFT stakers (RewardDistributed events on SlvrVoteEscrowStaking).",
   HoldersRevenue: "All staker rewards — the ETH distributed to veNFT stakers.",
