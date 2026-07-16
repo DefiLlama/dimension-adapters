@@ -36,11 +36,11 @@ const HOOK_CONTRACTS: Record<string, Array<{ target: string; dexType: "uniV4" | 
 };
 
 const chainConfig: Record<string, { start: string; fromBlock: number }> = {
-  [CHAIN.ETHEREUM]: { start: "2026-02-21", fromBlock: 0 },
-  [CHAIN.BSC]: { start: "2026-02-21", fromBlock: 0 },
-  [CHAIN.BASE]: { start: "2026-02-21", fromBlock: 0 },
-  [CHAIN.MEGAETH]: { start: "2026-02-21", fromBlock: 0 },
-  [CHAIN.ROBINHOOD]: { start: "2026-07-01", fromBlock: 0 },
+  [CHAIN.ETHEREUM]: { start: "2025-11-17", fromBlock: 23820626 },
+  [CHAIN.BSC]: { start: "2025-11-17", fromBlock: 68536068 },
+  [CHAIN.BASE]: { start: "2025-11-17", fromBlock: 38305943 },
+  [CHAIN.MEGAETH]: { start: "2026-02-09", fromBlock: 7852141 },
+  [CHAIN.ROBINHOOD]: { start: "2026-07-09", fromBlock: 4791637 },
 };
 
 const METRICS = {

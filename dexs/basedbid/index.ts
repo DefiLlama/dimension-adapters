@@ -25,11 +25,11 @@ const FLASH_HOOKS: Record<string, Set<string>> = {
 };
 
 const chainConfig: Record<string, { start: string; fromBlock: number }> = {
-  [CHAIN.ETHEREUM]: { start: "2026-06-01", fromBlock: 25218798 },
-  [CHAIN.BSC]: { start: "2026-06-01", fromBlock: 101590092 },
-  [CHAIN.BASE]: { start: "2026-05-12", fromBlock: 45961680 },
-  [CHAIN.MEGAETH]: { start: "2026-06-01", fromBlock: 17474989 },
-  [CHAIN.ROBINHOOD]: { start: "2026-07-01", fromBlock: 0 },
+  [CHAIN.ETHEREUM]: { start: "2025-11-17", fromBlock: 23820626 },
+  [CHAIN.BSC]: { start: "2025-11-17", fromBlock: 68536068 },
+  [CHAIN.BASE]: { start: "2025-11-17", fromBlock: 38305943 },
+  [CHAIN.MEGAETH]: { start: "2026-02-09", fromBlock: 7852141 },
+  [CHAIN.ROBINHOOD]: { start: "2026-07-09", fromBlock: 4791637 },
 };
 
 const ABI = {
