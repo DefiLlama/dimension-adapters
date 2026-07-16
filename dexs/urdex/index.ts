@@ -14,7 +14,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ARBITRUM],
-  start: '2024-12-01',
+  start: '2023-06-09',
+  deadFrom: "2024-11-15",
 };
 
 export default adapter;

@@ -76,7 +76,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: chainConfig
+  adapter: chainConfig,
+  deadFrom: "2026-06-05", //sunset
 }
 
 export default adapter
