@@ -54,11 +54,24 @@ const fetch = async (options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
     const toBlock = await options.getToBlock();
 
+    const result = {
+        dailyVolume,
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailySupplySideRevenue,
+        dailyProtocolRevenue,
+        dailyRevenue: dailyProtocolRevenue,
+    };
+
     const POOLS = POOLS_BY_CHAIN[options.chain as keyof typeof POOLS_BY_CHAIN] ?? [];
     const POOL_ADDRESSES = POOLS.map(({ address }) => address);
     const LEGACY_POOL_ADDRESSES = POOLS
         .filter(({ feeModel }) => feeModel === "legacy")
         .map(({ address }) => address);
+
+    if (POOL_ADDRESSES.length === 0) {
+        return result;
+    }
 
     const swapLogs = await options.getLogs({
         targets: POOL_ADDRESSES,
@@ -134,14 +147,7 @@ const fetch = async (options: FetchOptions) => {
 
     }
 
-    return {
-        dailyVolume,
-        dailyFees,
-        dailyUserFees: dailyFees,
-        dailySupplySideRevenue,
-        dailyProtocolRevenue,
-        dailyRevenue: dailyProtocolRevenue,
-    };
+    return result;
 };
 
 const methodology = {
@@ -174,11 +180,10 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
-    fetch,
-    chains: [
-        [CHAIN.BASE, { start: "2026-03-19" }],
-        [CHAIN.MONAD, { start: "2026-04-30" }],
-    ],
+    adapter: {
+        [CHAIN.BASE]: { fetch, start: "2026-03-19" },
+        [CHAIN.MONAD]: { fetch, start: "2026-04-30" },
+    },
     methodology,
     breakdownMethodology,
 };
