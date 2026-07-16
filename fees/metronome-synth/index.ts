@@ -143,6 +143,15 @@ const HARVEST_EVENT_ABI =
 const SYNTH_SWAPPED_EVENT_ABI =
   "event SyntheticTokenSwapped(address indexed account, address indexed syntheticTokenIn, address indexed syntheticTokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
 
+// Metronome pool contracts that emit SyntheticTokenSwapped. Passing them as
+// `targets` avoids scanning every log on chain (noTarget).
+// Addresses from https://docs.metronome.io/metronome-synth/contracts
+const SYNTH_POOLS: Record<string, string[]> = {
+  [CHAIN.ETHEREUM]: ["0x3364f53cb866762aef66deef2a6b1a17c1f17f46"],
+  [CHAIN.BASE]:     ["0xc614136d6c5ab85bc2acf0ec2652351642d7f54e"],
+  [CHAIN.OPTIMISM]: ["0x6394152946dc3e0babaa474ee9d366ef31f959c0"],
+};
+
 const AMO_CONTROLLERS: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: ["0x82Ed3Fc9D93112124B04B6C7B35394A5AbA8af39"],
   [CHAIN.BASE]:     ["0xDb9bD9eb1CdD9AE62A2e9569075A5154296CD632"],
@@ -300,10 +309,10 @@ const fetch = async (options: FetchOptions) => {
   //    syntheticTokenOut to the treasury. Post-filter by SYNTHS list to ignore
   //    unrelated contracts that may emit a same-signature event.
   const swapFees = options.createBalances();
-  if (TREASURY[options.chain]) {
+  if (TREASURY[options.chain] && SYNTH_POOLS[options.chain]) {
     const synthSet = new Set((SYNTHS[options.chain] ?? []).map((t) => t.toLowerCase()));
     const swapLogs = await options.getLogs({
-      noTarget: true,
+      targets: SYNTH_POOLS[options.chain],
       eventAbi: SYNTH_SWAPPED_EVENT_ABI,
     });
     for (const log of swapLogs) {
