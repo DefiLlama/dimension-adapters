@@ -51,14 +51,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const accruedLogs = await dayLogs(FeesAccruedEvent);
   const graduatedLogs = await dayLogs(GraduatedEvent);
 
-  // ethIn/ethOut are net of fee — volume is reported gross (fee included),
-  // matching the standard DEX convention where the fee sits inside the swap.
+  // ethIn/ethOut are net of fee. On a buy, the trader's real tx.value equals
+  // ethIn + ethFee (verified on-chain, exact to the wei) - the fee is paid on
+  // top of the trade. On a sell, the trader's real payout (verified via
+  // Blockscout internal-transactions) equals ethOut exactly, with no separate
+  // transfer for the fee anywhere in the transaction - the fee has no
+  // discrete payment on this side, it's netted out of the curve math itself.
+  // So volume only adds the fee on buys, matching the same asymmetric
+  // convention already established for fees/based-alpha/index.ts after the
+  // same on-chain verification there.
   for (const log of buyLogs) {
     dailyVolume.addGasToken(BigInt(log.ethIn) + BigInt(log.ethFee));
     dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of sellLogs) {
-    dailyVolume.addGasToken(BigInt(log.ethOut) + BigInt(log.ethFee));
+    dailyVolume.addGasToken(log.ethOut);
     dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of accruedLogs) {
