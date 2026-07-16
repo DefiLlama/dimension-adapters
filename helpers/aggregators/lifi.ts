@@ -6,6 +6,9 @@ type IContract = {
   [c: string | Chain]: {
     id: string;
     startTime: string;
+    // numeric LI.FI chainId for the analytics API; set only when `id` is a contract
+    // address but the chain is API-routed (see LIFI_API_CHAINS). Falls back to `id`.
+    chainId?: string;
   }
 }
 
@@ -172,6 +175,7 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.TAIKO]: {
     id: '0x3A9A5dBa8FE1C4Da98187cE4755701BCA182f63b',
+    chainId: '167000', // API-routed (see LIFI_API_CHAINS)
     startTime: '2024-08-15'
   },
   [CHAIN.BLAST]: {
@@ -260,6 +264,7 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.XDC]: {
     id: '0x055d4612Ec74aD799C6cB4dF72C0Ab8dbDBCBAfa',
+    chainId: '50', // API-routed (see LIFI_API_CHAINS)
     startTime: '2025-05-19'
   },
   [CHAIN.BOB]: {
@@ -268,6 +273,7 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.FLARE]: {
     id: '0x198FC70Dfe05E755C81e54bd67Bff3F729344B9b',
+    chainId: '14', // API-routed (see LIFI_API_CHAINS)
     startTime: '2025-06-04'
   },
   [CHAIN.RONIN]: {
@@ -299,6 +305,15 @@ export const LifiDiamonds: IContract = {
     startTime: '2025-11-11'
   }
 }
+
+// Chains whose volume is fetched via the LI.FI analytics API instead of on-chain getLogs
+// (non-EVM chains, or EVM chains whose public RPCs do not serve eth_getLogs reliably).
+// For every chain here, LifiDiamonds[chain].id MUST be the numeric LI.FI chainId (the API
+// fromChain param), not a diamond contract address, or the API returns 400.
+export const LIFI_API_CHAINS = [
+  CHAIN.BITCOIN, CHAIN.SOLANA, CHAIN.SUI, CHAIN.SEI, CHAIN.ROOTSTOCK,
+  CHAIN.TAIKO, CHAIN.FLARE, CHAIN.XDC,
+]
 
 export const LifiFeeCollectors: IContract = {
   [CHAIN.ABSTRACT]: {
@@ -504,9 +519,12 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
   let totalValue = 0;
   let nextCursor: string | undefined;
 
+  // the analytics API keys on the numeric LI.FI chainId; `id` may be a diamond address
+  const apiChainId = LifiDiamonds[chain].chainId ?? LifiDiamonds[chain].id;
+
   while (hasMore) {
     const params = new URLSearchParams({
-      fromChain: LifiDiamonds[chain].id,
+      fromChain: apiChainId,
       fromTimestamp: startTime.toString(),
       toTimestamp: endTime.toString(),
       status: 'DONE',
@@ -532,7 +550,7 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
         // enforce the requested window client-side: the API filter is by chain, but with hourly
         // runs we must drop any transfer whose timestamp falls outside [startTime, endTime]
         tx.sending.timestamp >= startTime && tx.sending.timestamp < endTime &&
-        (swapType === 'cross-chain' ? tx.receiving.chainId !== Number(LifiDiamonds[chain].id) : tx.receiving.chainId === Number(LifiDiamonds[chain].id)) &&
+        (swapType === 'cross-chain' ? tx.receiving.chainId !== Number(apiChainId) : tx.receiving.chainId === Number(apiChainId)) &&
         (integrators && integrators.length > 0 ? integrators.includes(tx.metadata.integrator) : true) &&
         (exclude_integrators && exclude_integrators.length > 0 ? !exclude_integrators.includes(tx.metadata.integrator) : true)
       ) {
