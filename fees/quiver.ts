@@ -13,7 +13,7 @@
 //
 // Contracts (Robinhood Chain):
 //   factoryV3 (active):     0xaA8Af274bba2b9dE53119CB117C8AC6A39e6F5Aa  block 10113641 (2026-07-15)
-//                           FACTORY_V3_DEPLOY_BLOCK gates live teamFeeRecipient reads
+//                           documented as FACTORY_V3 / FACTORY_V3_DEPLOY_BLOCK (no runtime eth_call)
 //   lpLockerV3:             0x38daBB90C96eea7B90613ABbf019ABCe0808CF12  block 10113611
 //   factory (legacy v4):    0x3eDDD33805652c933a981F59055ef561660c54D2  block 9787616  (2026-07-14)
 //   lpLocker (legacy v4):   0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98  block 9787616
@@ -49,9 +49,9 @@ const FACTORY_V3_DEPLOY_BLOCK = 10113641; // https://robinhoodchain.blockscout.c
 const LP_LOCKER_V3 = "0x38daBB90C96eea7B90613ABbf019ABCe0808CF12"; // https://robinhoodchain.blockscout.com/address/0x38daBB90C96eea7B90613ABbf019ABCe0808CF12
 const LP_LOCKER_V4 = "0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98"; // https://robinhoodchain.blockscout.com/address/0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98
 const FEE_LOCKER = "0xd1B13382fDa3E165658F1d3502d6616A31B62491"; // https://robinhoodchain.blockscout.com/address/0xd1B13382fDa3E165658F1d3502d6616A31B62491
-// Known protocol fee recipient from on-chain factory.teamFeeRecipient / owner EOA
-// (0x9748…AE5a). Used for all ranges, and as the sole classifier before FACTORY_V3
-// exists so we never eth_call a contract that has not been deployed yet.
+// Verified factory.teamFeeRecipient / owner EOA. Hardcoded (no historical eth_call)
+// because Robinhood public RPC often lacks archive state ("missing trie node") and
+// this address has not rotated. Update this constant if setTeamFeeRecipient changes it.
 const PROTOCOL_RECIPIENT = "0x9748D3fe02890f155489dc4F76e413Bdcd97AE5a";
 
 const BPS = 10_000n;
@@ -63,29 +63,13 @@ const STORE_TOKENS =
 const TOKEN_REWARDS_V3 =
   "function tokenRewards(address token) view returns (address pool, (int24 tickLower, int24 tickUpper)[] positions, address[] recipients, uint16[] rewardBps)";
 
-const isProtocolRecipient = (addr: string, teamFeeRecipient: string) => {
-  const a = addr.toLowerCase();
-  return a === PROTOCOL_RECIPIENT.toLowerCase() || a === teamFeeRecipient.toLowerCase();
-};
+const isProtocolRecipient = (addr: string) =>
+  addr.toLowerCase() === PROTOCOL_RECIPIENT.toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-
-  // Default to the known historical protocol recipient. Only read the live
-  // factory.teamFeeRecipient once the v3 factory deployment block is in range.
-  let teamFeeRecipient = PROTOCOL_RECIPIENT;
-  const toBlock = await options.getToBlock();
-  if (toBlock >= FACTORY_V3_DEPLOY_BLOCK) {
-    const current: string = await options.api.call({
-      target: FACTORY_V3,
-      abi: "function teamFeeRecipient() view returns (address)",
-    });
-    if (current && current !== "0x0000000000000000000000000000000000000000") {
-      teamFeeRecipient = current;
-    }
-  }
 
   // --- Legacy Uniswap v4 path: fee shares stored by lpLocker into feeLocker ---
   const storeLogs = await options.getLogs({
@@ -99,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
     if (amount === 0n || amount === "0") continue;
 
     dailyFees.add(log.token, amount, METRIC.SWAP_FEES);
-    if (isProtocolRecipient(log.feeOwner, teamFeeRecipient)) {
+    if (isProtocolRecipient(log.feeOwner)) {
       dailyRevenue.add(log.token, amount, "LP Fees To Protocol");
     } else {
       dailySupplySideRevenue.add(log.token, amount, "LP Fees To Creators");
@@ -110,6 +94,7 @@ const fetch = async (options: FetchOptions) => {
   const collectedLogs = await options.getLogs({
     target: LP_LOCKER_V3,
     eventAbi: REWARDS_COLLECTED,
+    fromBlock: FACTORY_V3_DEPLOY_BLOCK,
   });
 
   if (collectedLogs.length) {
@@ -151,7 +136,7 @@ const fetch = async (options: FetchOptions) => {
         allocated0 += share0;
         allocated1 += share1;
 
-        const toProtocol = isProtocolRecipient(recipients[j], teamFeeRecipient);
+        const toProtocol = isProtocolRecipient(recipients[j]);
         if (toProtocol) {
           dailyRevenue.add(log.currency0, share0, "LP Fees To Protocol");
           dailyRevenue.add(log.currency1, share1, "LP Fees To Protocol");
