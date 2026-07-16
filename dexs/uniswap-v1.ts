@@ -8,9 +8,9 @@ const abi = {
 }
 
 const blacklists = [
-  '0xa539baaa3aca455c986bb1e25301cef936ce1b65', // bad data on 2020-1014
-  '0xd1d038818b0c4d7841e464c806db1fcdb6d6ac5d',
-  '0xb86f736a0c50583123c44fc43bf56d9aeee040f8',
+  '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1', // bad data on 2020-1014
+  '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
+  '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
 ]
 
 export default {
