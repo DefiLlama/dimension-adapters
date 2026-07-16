@@ -7,7 +7,7 @@ const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, strin
 const exclude_integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA || options.chain === CHAIN.SUI) {
+  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA || options.chain === CHAIN.SUI || options.chain === CHAIN.SEI) {
     const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], exclude_integrators, 'cross-chain');
     return {
       dailyBridgeVolume: dailyVolume

@@ -219,8 +219,9 @@ export const LifiDiamonds: IContract = {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     startTime: '2025-10-02'
   },
+  // Sei is fetched via the LI.FI analytics API (getLogs unreliable here); id is the LI.FI chainId
   [CHAIN.SEI]: {
-    id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
+    id: '1329',
     startTime: '2024-06-07'
   },
   [CHAIN.ROOTSTOCK]: {
