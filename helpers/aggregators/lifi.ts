@@ -224,8 +224,10 @@ export const LifiDiamonds: IContract = {
     id: '1329',
     startTime: '2024-06-07'
   },
+  // Rootstock public nodes do not support eth_getLogs, so it is fetched via the
+  // analytics API; id is the LI.FI chainId
   [CHAIN.ROOTSTOCK]: {
-    id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
+    id: '30',
     startTime: '2024-05-24'
   },
   [CHAIN.IMX]: {
@@ -247,10 +249,6 @@ export const LifiDiamonds: IContract = {
   [CHAIN.ETHERLINK]: {
     id: '0x977474593c982cFa8b197cAE302e6d01f789435b',
     startTime: '2025-04-08'
-  },
-  [CHAIN.CORN]: {
-    id: '0x11d8E4207a976B8Bb33bD3b494d80f8a6854F06b',
-    startTime: '2025-04-09'
   },
   [CHAIN.SUPERPOSITION]: {
     id: '0x03d55A7896097801B1dE90b4E3E0392CE279180A',
