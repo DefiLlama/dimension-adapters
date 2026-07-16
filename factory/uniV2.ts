@@ -790,6 +790,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "upheaval-v2": {
     [CHAIN.HYPERLIQUID]: { factory: "0x98e19A533FadB2C9853983772E4e7aa09a1478e0", fees: 0.003, revenueRatio: 0.16, start: "2025-07-26" },
+  },
+  "catnip": {
+    [CHAIN.ROBINHOOD]: { factory: "0x002EC9782d70f4e79396c58964D4691cA648FB49", fees: 0.003, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-14" }
   }
 }
 
@@ -1231,7 +1234,7 @@ const feesConfigs: Record<string, Record<string, any>> = {
   },
   "velox": {
     [CHAIN.BASE]: { factory: "0xa28dBAE4D926067F4c343aA8071e833b04C8b99E", fees: 0.0001, start: "2026-03-08" }
-  },
+  }
 }
 
 const feesMethodologyMap: Record<string, any> = {
