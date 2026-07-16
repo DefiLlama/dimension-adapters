@@ -78,7 +78,8 @@ const adapter: SimpleAdapter = {
             };
         }, {}),
     },
-    version: 1
+    version: 1,
+    deadFrom: "2026-02-05",
 };
 
 export default adapter;

@@ -48,6 +48,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.CELO],
   start: '2023-08-01',
+  deadFrom: "2025-08-15", //Beta program ended
 };
 
 export default adapter;
