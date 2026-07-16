@@ -12,7 +12,7 @@ const ContractAbis = {
   RewardsClaimedEvent: 'event RewardsClaimed(bytes32 root, address indexed earner, address indexed claimer, address indexed recipient, address token, uint256 claimedAmount)',
 }
 
-const RewardsCoordinatorContract = '0x7750d328b314effa365a0402ccfd489b80b0adda'
+const RewardsCoordinatorContract = '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
