@@ -6,9 +6,17 @@ import { httpGet } from "../utils/fetchURL";
 const poolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const swapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 
-const HOLDERS_RATIO = 0.10;
-const PROTOCOL_RATIO = 0.0323;
-const REVENUE_RATIO = HOLDERS_RATIO + PROTOCOL_RATIO;
+const REVENUE_RATIO = 0.1323;
+// Governance vote executed ~9PM Nov 4, 2025; first full day under the new split is Nov 5.
+const nov5th2025 = 1762300800; // Nov 5, 2025 00:00 UTC
+
+// Foundation/holders split of the protocol revenue: ~24/76 before the vote, 30/70 after.
+const getRatios = (timestamp: number) => {
+  if (timestamp >= nov5th2025) {
+    return { protocol: REVENUE_RATIO * 0.30, holders: REVENUE_RATIO * 0.70 };
+  }
+  return { protocol: 0.0323, holders: 0.10 };
+};
 
 const config = {
   isAlgebraV3: true,
@@ -16,8 +24,6 @@ const config = {
   swapEvent,
   userFeesRatio: 1,
   revenueRatio: REVENUE_RATIO,
-  protocolRevenueRatio: PROTOCOL_RATIO,
-  holdersRevenueRatio: HOLDERS_RATIO,
 }
 
 const chainData: any = {}
@@ -48,6 +54,7 @@ async function fetch(options: FetchOptions) {
 
   const fees = dayData?.feesUSD || 0;
   const volume = dayData?.dailyVolumeUSD || 0;
+  const { protocol, holders } = getRatios(startOfDay);
 
   return {
     dailyVolume: volume,
@@ -55,8 +62,8 @@ async function fetch(options: FetchOptions) {
     dailyUserFees: fees,
     dailyRevenue: fees * REVENUE_RATIO,
     dailySupplySideRevenue: fees * (1 - REVENUE_RATIO),
-    dailyProtocolRevenue: fees * PROTOCOL_RATIO,
-    dailyHoldersRevenue: fees * HOLDERS_RATIO,
+    dailyProtocolRevenue: fees * protocol,
+    dailyHoldersRevenue: fees * holders,
   }
 }
 
@@ -65,10 +72,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Swap fees paid by users',
     UserFees: 'Swap fees paid by users',
-    Revenue: 'Protocol takes 13.23% of collected fees (3.23% foundation + 10% community buybacks).',
-    ProtocolRevenue: 'Foundation receives 3.23% of collected fees.',
-    SupplySideRevenue: '85% of collected fees go to liquidity providers.',
-    HoldersRevenue: 'Community receives 10% of collected fees for buybacks.',
+    Revenue: 'Protocol takes 13.23% of collected fees.',
+    ProtocolRevenue: 'Foundation receives 30% of the protocol revenue since Nov 4, 2025 (before that ~3.23% of fees).',
+    SupplySideRevenue: '~86.77% of collected fees go to liquidity providers.',
+    HoldersRevenue: 'Community receives 70% of the protocol revenue since Nov 4, 2025 (before that 10% of fees) for buybacks.',
   },
   fetch,
   adapter: {

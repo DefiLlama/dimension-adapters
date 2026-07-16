@@ -66,7 +66,8 @@ const adapters: SimpleAdapter = {
   adapter: chainConfig,
   methodology,
   breakdownMethodology,
-  allowNegativeValue: true // bridging fees can be negative due to price fluctuations
+  allowNegativeValue: true, // bridging fees can be negative due to price fluctuations
+  deadFrom: "2026-02-01",
 };
 
 export default adapters

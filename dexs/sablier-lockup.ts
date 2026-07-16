@@ -35,6 +35,12 @@ const CONFIG: Record<string, { chainId: number; start: string }> = {
   [CHAIN.SEI]: { chainId: 1329, start: "2024-12-01" },
   [CHAIN.BERACHAIN]: { chainId: 80094, start: "2025-02-01" },
   [CHAIN.HYPERLIQUID]: { chainId: 999, start: "2025-02-01" },
+  [CHAIN.SSEED]: { chainId: 5330, start: "2024-11-01" },
+  [CHAIN.MORPH]: { chainId: 2818, start: "2024-12-01" },
+  [CHAIN.CHILIZ]: { chainId: 88888, start: "2024-12-01" },
+  [CHAIN.XDC]: { chainId: 50, start: "2025-02-01" },
+  [CHAIN.SOPHON]: { chainId: 50104, start: "2025-05-01" },
+  [CHAIN.MONAD]: { chainId: 143, start: "2025-12-01" },
 };
 
 interface Row {

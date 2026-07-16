@@ -84,7 +84,8 @@ const adapter: SimpleAdapter = {
       [METRIC.SWAP_FEES]: '50% of swap fees paid by users from all trades.',
       [METRIC.ASSETS_YIELDS]: '90% of yields captured from all assets in liquity pools.',
     },
-  }
+  },
+  deadFrom: "2026-01-13",
 };
 
 export default adapter;

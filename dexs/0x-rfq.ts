@@ -21,6 +21,7 @@ const chainConfig = {
   [CHAIN.ARBITRUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'arbitrum', start: '2021-12-23' },
   [CHAIN.BASE]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'base', start: '2023-07-17' },
   [CHAIN.HYPERLIQUID]: { duneChain: 'hyperevm', start: '2025-12-22' },
+  [CHAIN.ROBINHOOD]: { duneChain: 'robinhood', start: '2026-06-26' },
 } as { [chain: string]: { exchange?: string, duneChain?: string, start: string } }
 
 /*

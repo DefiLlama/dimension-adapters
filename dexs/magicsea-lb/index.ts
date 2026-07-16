@@ -1,6 +1,5 @@
-import { ChainBlocks, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addOneToken } from "../../helpers/prices";
 import { filterPools } from "../../helpers/uniswap";
 
 const event_swap = 'event Swap(address indexed sender, address indexed to, uint24 id, bytes32 amountsIn, bytes32 amountsOut, uint24 volatilityAccumulator, bytes32 totalFees, bytes32 protocolFees)';
@@ -53,6 +52,8 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.IOTAEVM],
   start: '2023-04-10',

@@ -26,14 +26,16 @@ interface CurveFeesResponse {
 // Cache the in-flight promise so concurrent calls await the same request
 let cachedPromise: { key: string; promise: Promise<CurveFeesResponse> } | null = null;
 
-export async function fetchCurveApiData(startTimestamp: number, endTimestamp: number): Promise<CurveFeesResponse> {
-  const cacheKey = `${startTimestamp}-${endTimestamp}`;
+export async function fetchCurveApiData(startOfDay: number): Promise<CurveFeesResponse> {
+  const cacheKey = `${startOfDay}`;
 
   if (cachedPromise && cachedPromise.key === cacheKey) {
     return cachedPromise.promise;
   }
 
-  const url = `${CURVE_API_BASE}?start=${startTimestamp}&end=${endTimestamp}`;
+  // curve api accept exactly start and end timestamp of a given day
+  // other values always return 0
+  const url = `${CURVE_API_BASE}?start=${startOfDay}&end=${startOfDay + 24 * 3600}`;
   const promise = httpGet(url).catch((err) => {
     // Clear cache on failure so retries can happen
     if (cachedPromise?.key === cacheKey) cachedPromise = null;

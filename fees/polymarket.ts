@@ -25,10 +25,12 @@ const POLYMARKET_ADDRESSES = {
     ]
   },
   common: {
-    FeeDistributor: '0x3a9418b2651c8164DB5EBc56F12008137865e0f7',
+    MakerRebatesDistributors: ['0x3a9418b2651c8164DB5EBc56F12008137865e0f7', '0xfdB1b8dC7f5789a0c9A398026585B8B10FbA5507'],
     ProtocolFeeWallet: '0x2d507657cA4EBCc8F9a38F6764c07310B66DEA54',
-    LiquidityRewardsDistributor: '0xc288480574783BD7615170660d71753378159c47',
-    HoldingRewardsDistributor: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41',
+    LiquidityRewardsDistributors: ['0xc288480574783BD7615170660d71753378159c47', '0x2c2795EA295d5Eb51F9121B728eD2eA4e936a709'],
+    HoldingRewardsDistributors: ['0xC536633Ff12ee52e280b2aF2594031060C5aAf41', '0x607C8c9866Ef3b4665C5a384188706be738d8Bf8'],
+    TakerRebatesDistributors: ['0x520BF77D9d34C34a6A9723f50E1Dcb887eD238C5'],
+    ReferralRewardsDistributors: ['0x1510565E93c9729410b6e41088E014E312Fd8829', '0x8a80356b6304a08c24da30b0cf0d85b6907824ee'],
   }
 }
 
@@ -40,69 +42,74 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const [fees, liquidityRewards, holdingRewards, liquidityDistributorUsdcToPusdWrapping, holdingDistributorUsdcToPusdWrapping] = await Promise.all([
-    addTokensReceived({
-      options,
-      fromAdddesses: [POLYMARKET_ADDRESSES.v1.FeeModule, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleOld, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleNew, POLYMARKET_ADDRESSES.v1.Ctf, POLYMARKET_ADDRESSES.v1.NegRiskCtf, POLYMARKET_ADDRESSES.v1.WrappedCollateral,
-      POLYMARKET_ADDRESSES.v2.Ctf, POLYMARKET_ADDRESSES.v2.NegRiskCtf
-      ],
-      targets: [...POLYMARKET_ADDRESSES.v1.FeeRecipients, ...POLYMARKET_ADDRESSES.v2.FeeRecipients],
-      tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD]
-    }),
-    addTokensReceived({
-      options,
-      tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-      fromAddressFilter: POLYMARKET_ADDRESSES.common.LiquidityRewardsDistributor
-    }),
-    addTokensReceived({
-      options,
-      tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-      fromAddressFilter: POLYMARKET_ADDRESSES.common.HoldingRewardsDistributor
-    }),
-    addTokensReceived({
-      options,
-      token: ADDRESSES.polygon.USDC,
-      target: ADDRESSES.polygon.PUSD,
-      fromAddressFilter: POLYMARKET_ADDRESSES.common.LiquidityRewardsDistributor
-    }),
-    addTokensReceived({
-      options,
-      token: ADDRESSES.polygon.USDC,
-      target: ADDRESSES.polygon.PUSD,
-      fromAddressFilter: POLYMARKET_ADDRESSES.common.HoldingRewardsDistributor
-    })
-  ])
+  const usdc = ADDRESSES.polygon.USDC
+  const pusd = ADDRESSES.polygon.PUSD
+  const usdcLc = usdc.toLowerCase()
+  const pusdLc = pusd.toLowerCase()
+  const protocolFeeWalletLc = POLYMARKET_ADDRESSES.common.ProtocolFeeWallet.toLowerCase()
 
-  const [netOutflow, outFlowToProtocolOrWrapping] = await Promise.all([addTokensReceived({
+  const logFilter = (log: any) => {
+    const to = String(log.to ?? log.toAddress ?? '').toLowerCase()
+    const token = String(log.token ?? log.address ?? '').toLowerCase()
+    return !(token === usdcLc && to === pusdLc) && to !== protocolFeeWalletLc
+  }
+
+  const fees = await addTokensReceived({
     options,
-    fromAddressFilter: POLYMARKET_ADDRESSES.common.FeeDistributor,
-    tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-  }), addTokensReceived({
+    fromAdddesses: [POLYMARKET_ADDRESSES.v1.FeeModule, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleOld, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleNew, POLYMARKET_ADDRESSES.v1.Ctf, POLYMARKET_ADDRESSES.v1.NegRiskCtf, POLYMARKET_ADDRESSES.v1.WrappedCollateral,
+    POLYMARKET_ADDRESSES.v2.Ctf, POLYMARKET_ADDRESSES.v2.NegRiskCtf
+    ],
+    targets: [...POLYMARKET_ADDRESSES.v1.FeeRecipients, ...POLYMARKET_ADDRESSES.v2.FeeRecipients],
+    tokens: [usdc, pusd],
+    logFilter,
+  })
+  const netLiquidityRewards = await addTokensReceived({
     options,
-    fromAddressFilter: POLYMARKET_ADDRESSES.common.FeeDistributor,
-    targets: [POLYMARKET_ADDRESSES.common.ProtocolFeeWallet, ADDRESSES.polygon.PUSD],
-    tokens: [ADDRESSES.polygon.USDC, ADDRESSES.polygon.PUSD],
-  })])
-
-  const makerRebatesFees = netOutflow.clone();
-  makerRebatesFees.subtract(outFlowToProtocolOrWrapping);
-
-  const netLiquidityRewards = liquidityRewards.clone();
-  netLiquidityRewards.subtract(liquidityDistributorUsdcToPusdWrapping);
-  const netHoldingRewards = holdingRewards.clone();
-  netHoldingRewards.subtract(holdingDistributorUsdcToPusdWrapping);
+    tokens: [usdc, pusd],
+    fromAdddesses: POLYMARKET_ADDRESSES.common.LiquidityRewardsDistributors,
+    logFilter,
+  })
+  const netHoldingRewards = await addTokensReceived({
+    options,
+    tokens: [usdc, pusd],
+    fromAdddesses: POLYMARKET_ADDRESSES.common.HoldingRewardsDistributors,
+    logFilter,
+  })
+  const makerRebates = await addTokensReceived({
+    options,
+    fromAdddesses: POLYMARKET_ADDRESSES.common.MakerRebatesDistributors,
+    tokens: [usdc, pusd],
+    logFilter,
+  })
+  const takerRebates = await addTokensReceived({
+    options,
+    fromAdddesses: POLYMARKET_ADDRESSES.common.TakerRebatesDistributors,
+    tokens: [usdc, pusd],
+    logFilter,
+  })
+  const referralRewards = await addTokensReceived({
+    options,
+    fromAdddesses: POLYMARKET_ADDRESSES.common.ReferralRewardsDistributors,
+    tokens: [usdc, pusd],
+    logFilter,
+  })
 
   const revenueFromTakerFees = fees.clone();
 
-  revenueFromTakerFees.subtract(makerRebatesFees)
+  revenueFromTakerFees.subtract(makerRebates)
   revenueFromTakerFees.subtract(netLiquidityRewards)
   revenueFromTakerFees.subtract(netHoldingRewards)
+  revenueFromTakerFees.subtract(takerRebates)
+  revenueFromTakerFees.subtract(referralRewards)
 
   dailyFees.add(fees, 'Taker Fees');
   dailyRevenue.add(revenueFromTakerFees, 'Taker Fees');
-  dailySupplySideRevenue.add(makerRebatesFees, 'Maker Rebates')
+
+  dailySupplySideRevenue.add(makerRebates, 'Maker Rebates')
   dailySupplySideRevenue.add(netLiquidityRewards, 'Liquidity Rewards')
   dailySupplySideRevenue.add(netHoldingRewards, 'Holding Rewards')
+  dailySupplySideRevenue.add(takerRebates, 'Taker Rebates')
+  dailySupplySideRevenue.add(referralRewards, 'Referral Rewards')
 
   return {
     dailyFees,
@@ -117,8 +124,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Fees: 'Users pay fees when they trade binary options on polymarket',
-    SupplySideRevenue: 'Maker rebates, liquidity and holding rewards',
-    Revenue: 'Fees going to protocol address post maker rebate, liquidity and holding rewards distribution',
+    SupplySideRevenue: 'Maker rebates, taker rebates, referral rewards, liquidity and holding rewards',
+    Revenue: 'Fees going to protocol address post maker rebate, taker rebate, referral reward, liquidity and holding rewards distribution',
     ProtocolRevenue: 'All the revenue goes to protocol',
   },
   breakdownMethodology: {
@@ -126,15 +133,17 @@ const adapter: SimpleAdapter = {
       'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
     },
     Revenue: {
-      'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
+      'Taker Fees': 'Taker fees minus maker rebate, taker rebate, referral reward, liquidity and holding rewards',
     },
     ProtocolRevenue: {
-      'Taker Fees': 'Taker fees minus rebates, liquidity and holding rewards',
+      'Taker Fees': 'Taker fees minus maker rebate, taker rebate, referral reward, liquidity and holding rewards',
     },
     SupplySideRevenue: {
       'Maker Rebates': 'Part of Fees charged on trades are distributed as maker rebates',
       'Liquidity Rewards': 'Liquidity incentives paid to users who place limit orders that help keep the market active and balanced',
-      'Holding Rewards': 'Polymarket pays a 4.00% annualized Holding Reward on certain markets'
+      'Holding Rewards': 'Polymarket pays a 3.25% annualized Holding Reward on certain markets',
+      "Taker Rebates": "Rebates paid to takers based on 30 day weighted volume tiers",
+      "Referral Rewards": "Referral rewards paid to users who refer others to trade on polymarket"
     }
   },
   adapter: {

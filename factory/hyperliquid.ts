@@ -30,6 +30,29 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "stablejack-perps": {
+    addresses: [
+      "0x68b7e8be8f1a62f99e37f1ac191dd23486e8a2ad",
+    ],
+    start: "2026-06-17",
+    methodology: {
+      Volume: "Notional volume of perpetual trades routed through StableJack on Hyperliquid.",
+      Fees: "Builder code fees paid by users trading Hyperliquid perpetuals through StableJack.",
+      Revenue: "Builder code fees collected by StableJack from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by StableJack from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
+    "hyperank-perps": {
+    addresses: ["0x860343ba897f44a9a87353d93795f417b9a22226"],
+    start: "2026-07-01",
+    methodology: {
+      Volume: "Total volume from users trading Hyperliquid perps through hypeRank.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades executed through hypeRank.",
+      Revenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
+    },
+  },
   "ohayo-perps": {
     addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
     start: "2026-03-15",

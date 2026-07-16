@@ -52,22 +52,6 @@ const configs: Record<string, SubgraphConfig> = {
     },
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
   },
-  "upheaval-v2": {
-    graphUrls: {
-      [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v2",
-    },
-    totalVolume: { factory: "pancakeFactories" },
-    feesPercent: {
-      type: "volume",
-      Fees: 0.3,
-      UserFees: 0.3,
-      ProtocolRevenue: 0.16 * 0.3,
-      HoldersRevenue: 0,
-      SupplySideRevenue: 0.84 * 0.3,
-      Revenue: 0.16 * 0.3,
-    },
-    start: "2025-07-26",
-  },
   // "sailfish": {
   //   graphUrls: {
   //     occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
@@ -128,21 +112,7 @@ const configs: Record<string, SubgraphConfig> = {
   //   },
   //   start: "2023-07-02",
   // },
-  "winnieswap": {
-    graphUrls: {
-      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap/0.0.1/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
-    },
-    start: "2025-07-07",
-  },
+  // winnieswap migrated off its deleted Goldsky subgraph to on-chain logs -> dexs/winnieswap.ts
   "physica-finance": {
     graphUrls: {
       [CHAIN.PLANQ]: "https://subgraph.planq.finance/subgraphs/name/ianlapham/uniswap-v3",
@@ -158,21 +128,7 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-05-22",
   },
-  "fpex": {
-    graphUrls: {
-      [CHAIN.FLARE]: "https://api.goldsky.com/api/public/project_cmbnjfb9bfd3001tj08r4hq5c/subgraphs/flareswap/1.0.0/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
-    },
-    start: "2025-07-01",
-  },
+  // fpex migrated off its deleted Goldsky subgraph to on-chain logs -> dexs/fpex.ts
   "hydradex-v3": {
     graphUrls: {
       [CHAIN.HYDRAGON]: "https://subgraph.hydrachain.org/subgraphs/name/v3-subgraph",

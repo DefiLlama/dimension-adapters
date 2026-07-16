@@ -56,9 +56,9 @@ const methodology = {
     ProtocolRevenue: "auction ETH proceeds goes to dao treasury.",
 };
 
-// Version 1 bcz auction settlement just once a day
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     methodology,
     chains: [CHAIN.ETHEREUM],

@@ -4,6 +4,7 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
+  SPACESCAN_API_KEY: 'tkn1qqqhsdmkq3pzrcvt24sgpstsndz2z95qsetg4zchsdmkq3p9wqqqdr2u6a', // free-plan key for api.spacescan.io (Chia block lookups)
   ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
@@ -25,6 +26,7 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   GATELAYER_RPC: 'https://www.gatescan.org/gatelayer/api/eth-rpc',
+  ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
