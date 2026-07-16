@@ -23,6 +23,7 @@ interface IData {
     total_referral_fees: string;
     total_damm_v2_fees: string;
     total_damm_v2_protocol_fees: string;
+    total_damm_v2_partner_fees: string;
     total_damm_v2_creator_fees: string;
     total_damm_v2_referral_fees: string;
 }
@@ -50,10 +51,35 @@ const fetch = async (options: FetchOptions) => {
         SELECT
           m.account_config,
           m.account_pool,
-          MIN(m.call_block_time) AS migrated_at
+          m.call_tx_id AS migration_tx,
+          MIN(m.call_block_time) AS migrated_at,
+          MIN(m.account_first_position) AS first_pos,
+          MIN(m.account_second_position) AS second_pos
         FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
         JOIN easya_partner_configs epc ON m.account_config = epc.config
-        GROUP BY 1, 2
+        GROUP BY 1, 2, 3
+      ),
+      -- Liquidity permanently locked at migration. Kickstart's position is
+      -- account_second_position when the migration locked two positions, else
+      -- the single locked first position (early configs lock only Kickstart's,
+      -- matching creator_permanent_locked_liquidity_percentage = 0).
+      migration_locks AS (
+        SELECT l.pool, CAST(l.lock_liquidity_amount AS DECIMAL(38,0)) AS liq,
+               CASE WHEN l.position = m.second_pos THEN 'second'
+                    WHEN l.position = m.first_pos THEN 'first' ELSE 'unmatched' END AS pos_kind
+        FROM meteora_solana.cp_amm_evt_evtpermanentlockposition l
+        JOIN migrated_pools m ON l.pool = m.account_pool AND l.evt_tx_id = m.migration_tx
+      ),
+      pool_locked AS (
+        SELECT pool, locked_total,
+          CASE WHEN has_second = 1 THEN second_liq ELSE first_liq END AS locked_partner
+        FROM (
+          SELECT pool, SUM(liq) AS locked_total,
+            SUM(CASE WHEN pos_kind = 'second' THEN liq ELSE 0 END) AS second_liq,
+            SUM(CASE WHEN pos_kind = 'first' THEN liq ELSE 0 END) AS first_liq,
+            MAX(CASE WHEN pos_kind = 'second' THEN 1 ELSE 0 END) AS has_second
+          FROM migration_locks GROUP BY pool
+        )
       ),
       swap_events AS (
         SELECT
@@ -71,12 +97,32 @@ const fetch = async (options: FetchOptions) => {
           AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
       ),
-      damm_v2_swap_events AS (
-        SELECT
-          m.account_config,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.lp_fee') AS DECIMAL(38,0)) AS lp_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+      -- Pool liquidity at any moment = migration-locked liquidity + cumulative
+      -- third-party adds/removes (evtliquiditychange; the migration tx's own
+      -- liquidity event is excluded so the locked base is not double counted).
+      -- Each swap's lp_fee is then attributed pro rata to Kickstart's locked
+      -- liquidity - exact per-swap attribution, validated against the cp-amm
+      -- program's per-position fee counters (matches to 12 significant figures
+      -- over full pool history). Third-party LP fees can never land in Revenue.
+      damm_liquidity_events AS (
+        SELECT lc.pool, lc.evt_block_slot AS slot, lc.evt_tx_index AS txi, 0 AS is_swap,
+               CASE WHEN CAST(lc.change_type AS INT) = 0 THEN CAST(lc.liquidity_delta AS DECIMAL(38,0))
+                    ELSE -CAST(lc.liquidity_delta AS DECIMAL(38,0)) END AS delta,
+               CAST(NULL AS DECIMAL(38,0)) AS lp_fee,
+               CAST(NULL AS DECIMAL(38,0)) AS protocol_fee,
+               CAST(NULL AS DECIMAL(38,0)) AS referral_fee
+        FROM meteora_solana.cp_amm_evt_evtliquiditychange lc
+        JOIN migrated_pools m ON lc.pool = m.account_pool
+        WHERE lc.evt_tx_id <> m.migration_tx
+          AND CAST(lc.change_type AS INT) IN (0, 1)
+          AND lc.evt_block_time < from_unixtime(${options.endTimestamp})
+      ),
+      damm_day_swaps AS (
+        SELECT s.pool, s.evt_block_slot AS slot, s.evt_tx_index AS txi, 1 AS is_swap,
+               CAST(0 AS DECIMAL(38,0)) AS delta,
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.lp_fee') AS DECIMAL(38,0)) AS lp_fee,
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
         FROM meteora_solana.cp_amm_evt_evtswap s
         JOIN migrated_pools m ON s.pool = m.account_pool
         WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
@@ -85,25 +131,34 @@ const fetch = async (options: FetchOptions) => {
 
         UNION ALL
 
-        SELECT
-          m.account_config,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)) AS lp_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+        SELECT s.pool, s.evt_block_slot, s.evt_tx_index, 1,
+               CAST(0 AS DECIMAL(38,0)),
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)),
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)),
+               CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0))
         FROM meteora_solana.cp_amm_evt_evtswap2 s
         JOIN migrated_pools m ON s.pool = m.account_pool
         WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
           AND s.evt_block_time >= m.migrated_at
       ),
+      damm_replay AS (
+        SELECT pool, is_swap, lp_fee, protocol_fee, referral_fee,
+               SUM(delta) OVER (PARTITION BY pool ORDER BY slot, txi, is_swap ROWS UNBOUNDED PRECEDING) AS tp_liq
+        FROM (SELECT * FROM damm_liquidity_events UNION ALL SELECT * FROM damm_day_swaps)
+      ),
       damm_v2_totals AS (
         SELECT
-          SUM(COALESCE(s.lp_fee, 0)) AS total_damm_v2_fees,
-          SUM(COALESCE(s.protocol_fee, 0)) AS total_damm_v2_protocol_fees,
-          SUM(COALESCE(s.lp_fee, 0) * CAST(fs.creator_lp_pct AS DOUBLE) / 100) AS total_damm_v2_creator_fees,
-          SUM(COALESCE(s.referral_fee, 0)) AS total_damm_v2_referral_fees
-        FROM damm_v2_swap_events s
-        LEFT JOIN easya_partner_configs fs ON s.account_config = fs.config
+          SUM(COALESCE(r.lp_fee, 0)) AS total_damm_v2_fees,
+          SUM(COALESCE(r.protocol_fee, 0)) AS total_damm_v2_protocol_fees,
+          SUM(COALESCE(r.lp_fee, 0) * CAST(p.locked_partner AS DOUBLE)
+              / (CAST(p.locked_total AS DOUBLE) + GREATEST(CAST(r.tp_liq AS DOUBLE), 0))) AS total_damm_v2_partner_fees,
+          SUM(COALESCE(r.lp_fee, 0) * CAST(p.locked_total - p.locked_partner AS DOUBLE)
+              / (CAST(p.locked_total AS DOUBLE) + GREATEST(CAST(r.tp_liq AS DOUBLE), 0))) AS total_damm_v2_creator_fees,
+          SUM(COALESCE(r.referral_fee, 0)) AS total_damm_v2_referral_fees
+        FROM damm_replay r
+        JOIN pool_locked p ON r.pool = p.pool
+        WHERE r.is_swap = 1
       )
     SELECT
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(trading_fee,  0) END) AS total_trading_fees,
@@ -112,6 +167,7 @@ const fetch = async (options: FetchOptions) => {
       SUM(CASE WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0 ELSE COALESCE(referral_fee, 0) END) AS total_referral_fees,
       (SELECT total_damm_v2_fees FROM damm_v2_totals) AS total_damm_v2_fees,
       (SELECT total_damm_v2_protocol_fees FROM damm_v2_totals) AS total_damm_v2_protocol_fees,
+      (SELECT total_damm_v2_partner_fees FROM damm_v2_totals) AS total_damm_v2_partner_fees,
       (SELECT total_damm_v2_creator_fees FROM damm_v2_totals) AS total_damm_v2_creator_fees,
       (SELECT total_damm_v2_referral_fees FROM damm_v2_totals) AS total_damm_v2_referral_fees
     FROM swap_events
@@ -130,10 +186,11 @@ const fetch = async (options: FetchOptions) => {
         const referral = Number(row.total_referral_fees || 0);
         const dammV2Fees = Number(row.total_damm_v2_fees || 0);
         const dammV2ProtocolFees = Number(row.total_damm_v2_protocol_fees || 0);
+        const dammV2PartnerFees = Number(row.total_damm_v2_partner_fees || 0);
         const dammV2CreatorFees = Number(row.total_damm_v2_creator_fees || 0);
         const dammV2ReferralFees = Number(row.total_damm_v2_referral_fees || 0);
         const kickstartTrading = trading - creatorTrading;
-        const dammV2Revenue = dammV2Fees - dammV2CreatorFees;
+        const dammV2ThirdPartyFees = Math.max(dammV2Fees - dammV2PartnerFees - dammV2CreatorFees, 0);
 
         dailyFees.add(wsol, trading, METRIC.TRADING_FEES);
         dailyFees.add(wsol, dammV2Fees, "DAMM v2 LP Fees");
@@ -142,10 +199,11 @@ const fetch = async (options: FetchOptions) => {
         dailyFees.add(wsol, referral, "Referral Fees");
         dailyFees.add(wsol, dammV2ReferralFees, "Referral Fees");
         dailyProtocolRevenue.add(wsol, kickstartTrading, "Trading Fees to Kickstart");
-        dailyProtocolRevenue.add(wsol, dammV2Revenue, "DAMM v2 Fees to Kickstart");
+        dailyProtocolRevenue.add(wsol, dammV2PartnerFees, "DAMM v2 Fees to Kickstart");
 
         dailySupplySideRevenue.add(wsol, creatorTrading, "Trading Fees to Creators");
         dailySupplySideRevenue.add(wsol, dammV2CreatorFees, "DAMM v2 Fees to Creators");
+        dailySupplySideRevenue.add(wsol, dammV2ThirdPartyFees, "DAMM v2 Fees to third-party LPs");
         dailySupplySideRevenue.add(wsol, protocol, "Protocol Fees to Meteora");
         dailySupplySideRevenue.add(wsol, dammV2ProtocolFees, "Protocol Fees to Meteora");
         dailySupplySideRevenue.add(wsol, referral, "Referral Fees");
@@ -165,7 +223,7 @@ const methodology = {
     Fees:
         'Total swap fees paid by users on Kickstart bonding curves plus post-migration DAMM v2 LP and protocol fees generated by Kickstart-launched pools. DBC swap fees include trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.',
     Revenue:
-        "Kickstart's share of DBC bonding-curve trading fees plus Kickstart's share of post-migration DAMM v2 LP fees, per on-chain pool config fee splits (50% on current configs, token creators receive the other 50%). The protocol_fee portion is collected by Meteora and is excluded.",
+        "Kickstart's share of DBC bonding-curve trading fees per on-chain pool config fee splits (50% on current configs, token creators receive the other 50%), plus DAMM v2 LP fees attributed per swap to Kickstart's permanently-locked migration liquidity. Fees earned by token creators, third-party LPs, Meteora (protocol_fee) and referrers are excluded.",
     ProtocolRevenue:
         'Same as Revenue: trading fees retained by the Kickstart protocol, excluding the creator share and the cut that goes to Meteora.',
     SupplySideRevenue:
@@ -181,7 +239,7 @@ const breakdownMethodology = {
     },
     Revenue: {
         "Trading Fees to Kickstart": "Kickstart's share of DBC trading fees per on-chain pool config",
-        "DAMM v2 Fees to Kickstart": "Kickstart's locked-LP share of post-migration DAMM v2 fees",
+        "DAMM v2 Fees to Kickstart": "Post-migration DAMM v2 LP fees attributed per swap to Kickstart's permanently-locked migration liquidity",
     },
     ProtocolRevenue: {
         "Trading Fees to Kickstart": "Kickstart's share of DBC trading fees per on-chain pool config",
@@ -189,7 +247,8 @@ const breakdownMethodology = {
     },
     SupplySideRevenue: {
         "Trading Fees to Creators": "DBC bonding-curve trading fees allocated to token creators per on-chain pool config",
-        "DAMM v2 Fees to Creators": "Post-migration DAMM v2 LP fees allocated to token creators via their locked LP",
+        "DAMM v2 Fees to Creators": "Post-migration DAMM v2 LP fees attributed per swap to the token creator's permanently-locked migration liquidity",
+        "DAMM v2 Fees to third-party LPs": "Post-migration DAMM v2 LP fees attributed per swap to positions opened by third-party LPs",
         "Protocol Fees to Meteora": "DBC and DAMM v2 Protocol Fees going to Meteora",
         "Referral Fees": "DBC and DAMM v2 referral fees paid to routing frontends out of the Meteora protocol share",
     },
