@@ -42,6 +42,10 @@ export const LifiDiamonds: IContract = {
     id: '1151111081099710',
     startTime: '2024-01-01'
   },
+  [CHAIN.SUI]: {
+    id: '9270000000000000',
+    startTime: '2025-07-01'
+  },
   [CHAIN.MOONBEAM]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     startTime: '2022-10-18'
@@ -194,9 +198,10 @@ export const LifiDiamonds: IContract = {
     id: '0xC59fe32C9549e3E8B5dCcdAbC45BD287Bd5bA2bc',
     startTime: '2025-07-01'
   },
+  // DefiLlama does not differentiate HyperEVM from Hyperliquid; this uses the HyperEVM diamond deployment
   [CHAIN.HYPERLIQUID]: {
     id: '0x0a0758d937d1059c356D4714e57F5df0239bce1A',
-    startTime: '2025-06-01'
+    startTime: '2025-05-19'
   },
   [CHAIN.KLAYTN]: {
     id: '0x1255d17c1BC2f764d087536410879F2d0D8772fD',
@@ -213,6 +218,85 @@ export const LifiDiamonds: IContract = {
   [CHAIN.MONAD]: {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     startTime: '2025-10-02'
+  },
+  // Sei is fetched via the LI.FI analytics API (getLogs unreliable here); id is the LI.FI chainId
+  [CHAIN.SEI]: {
+    id: '1329',
+    startTime: '2024-06-07'
+  },
+  // Rootstock public nodes do not support eth_getLogs, so it is fetched via the
+  // analytics API; id is the LI.FI chainId
+  [CHAIN.ROOTSTOCK]: {
+    id: '30',
+    startTime: '2024-05-24'
+  },
+  [CHAIN.IMX]: {
+    id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
+    startTime: '2024-08-01'
+  },
+  [CHAIN.XLAYER]: {
+    id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
+    startTime: '2024-09-23'
+  },
+  [CHAIN.WC]: {
+    id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
+    startTime: '2024-12-02'
+  },
+  [CHAIN.SWELLCHAIN]: {
+    id: '0x76F6937a41910F075024138066708B36139AC104',
+    startTime: '2025-04-07'
+  },
+  [CHAIN.ETHERLINK]: {
+    id: '0x977474593c982cFa8b197cAE302e6d01f789435b',
+    startTime: '2025-04-08'
+  },
+  [CHAIN.SUPERPOSITION]: {
+    id: '0x03d55A7896097801B1dE90b4E3E0392CE279180A',
+    startTime: '2025-04-16'
+  },
+  [CHAIN.LENS]: {
+    id: '0xF3B20515d9B193531c48E47c18aF16d1e5d28f9a',
+    startTime: '2025-04-21'
+  },
+  [CHAIN.XDC]: {
+    id: '0x055d4612Ec74aD799C6cB4dF72C0Ab8dbDBCBAfa',
+    startTime: '2025-05-19'
+  },
+  [CHAIN.BOB]: {
+    id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
+    startTime: '2025-05-21'
+  },
+  [CHAIN.FLARE]: {
+    id: '0x198FC70Dfe05E755C81e54bd67Bff3F729344B9b',
+    startTime: '2025-06-04'
+  },
+  [CHAIN.RONIN]: {
+    id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
+    startTime: '2025-06-20'
+  },
+  [CHAIN.VANA]: {
+    id: '0x198FC70Dfe05E755C81e54bd67Bff3F729344B9b',
+    startTime: '2025-06-24'
+  },
+  [CHAIN.SOPHON]: {
+    id: '0x81aFE8745038A0B63782186bcD1a4f27cB2Aef9d',
+    startTime: '2025-08-04'
+  },
+  [CHAIN.PLASMA]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-09-09'
+  },
+  [CHAIN.FLOW]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-09-12'
+  },
+  [CHAIN.HEMI]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-09-16'
+  },
+  [CHAIN.STABLE]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-11-11'
   }
 }
 
