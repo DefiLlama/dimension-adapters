@@ -39,7 +39,6 @@ async function fetch(options: FetchOptions) {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
   };
@@ -54,7 +53,6 @@ const adapter: SimpleAdapter = {
   start: '2026-04-01',
   methodology: {
     Fees: 'API usage fees paid by users of the x402.miroshark.xyz simulation API ($1.00 USDC per simulation run), settled on Base via x402 (gasless EIP-3009 USDC transfers submitted by x402 facilitators).',
-    UserFees: 'API usage fees paid by users.',
     Revenue: 'All API fees accrue to MiroShark — there is no supply side and facilitators charge no on-chain cut.',
     ProtocolRevenue: 'All API fees accrue to MiroShark.',
   },
