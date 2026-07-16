@@ -17,10 +17,10 @@ const fetch = async (options: FetchOptions) => {
 
   const tradeLogs = await options.getLogs({ target: LAUNCHPAD, eventAbi: TRADE_EVENT });
   for (const log of tradeLogs) {
-    // ethAmount is the gross ETH side of the trade (fees included on buys,
-    // pre-fee proceeds on sells) — the launchpad's notional curve volume.
-    dailyVolume.addGasToken(log.ethAmount);
-    dailyFees.addGasToken(log.protocolFee + log.creatorFee, METRIC.TRADING_FEES);
+    const totalFee = log.protocolFee + log.creatorFee;
+    const volume = log.isBuy ? log.ethAmount + totalFee : log.ethAmount;
+    dailyVolume.addGasToken(volume);
+    dailyFees.addGasToken(totalFee, METRIC.TRADING_FEES);
     dailyRevenue.addGasToken(log.protocolFee, "Trading Fees to Protocol");
     dailySupplySideRevenue.addGasToken(log.creatorFee, 'Trading Fees to Creators');
   }
@@ -63,7 +63,8 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     'Trading Fees to Protocol': "Protocol share of trade fees (0.95% of each trade)",
     "Migration Fees to Protocol": "All the migration fees go to the protocol",
-}
+  },
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
