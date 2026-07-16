@@ -91,6 +91,9 @@ const adapter: SimpleAdapter = {
     Revenue: {
       [METRIC.SWAP_FEES]: '57% treasury share of swap fees, per the on-chain beneficiary split.',
     },
+    ProtocolRevenue: {
+      [METRIC.SWAP_FEES]: '57% treasury share of swap fees, per the on-chain beneficiary split.',
+    },
     SupplySideRevenue: {
       [METRIC.SWAP_FEES]: '43% launch platform share of swap fees (Bankr/Doppler & interface beneficiaries).',
     },
