@@ -32,6 +32,7 @@ const SWAP_TOPIC = '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84a
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   // treasury share of swap fees (WAD), read on-chain so beneficiary updates are reflected
   const shares = await options.api.multiCall({
@@ -46,6 +47,7 @@ async function fetch(options: FetchOptions) {
   const logs = await options.getLogs({
     target: UNIV4_POOL_MANAGER,
     eventAbi: SWAP_EVENT,
+    // filter by indexed poolId (topic1) — only swaps on the MiroShark/WETH pool
     topics: [SWAP_TOPIC, MIROSHARK_WETH_POOL_ID],
   });
 
@@ -54,32 +56,32 @@ async function fetch(options: FetchOptions) {
     // same approximation as the canonical uniswap-v4 adapter
     const amount0 = Math.abs(Number(log.amount0));
     const feeRate = Number(log.fee) / 1e6; // dynamic fee in ppm
-    dailyFees.add(WETH, amount0 * feeRate, METRIC.SWAP_FEES);
-    dailyRevenue.add(WETH, amount0 * feeRate * treasuryShare, METRIC.SWAP_FEES);
+    const fee = amount0 * feeRate;
+    dailyFees.add(WETH, fee, METRIC.SWAP_FEES);
+    dailyRevenue.add(WETH, fee * treasuryShare, METRIC.SWAP_FEES);
+    dailySupplySideRevenue.add(WETH, fee * (1 - treasuryShare), METRIC.SWAP_FEES);
   }
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue: 0,
   };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2026-03-24',
-    },
-  },
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2026-03-24',
   methodology: {
     Fees: 'Dynamic swap fee (1.2% steady-state) paid by users trading on the WETH/MiroShark Uniswap v4 pool on Base. Liquidity is protocol-owned multicurve positions — there are no third-party LPs.',
-    UserFees: 'Swap fees paid by users trading MiroShark.',
-    Revenue: '57% of swap fees routed to MiroShark, per the on-chain beneficiary split read from the multicurve initializer. The remaining 43% goes to launch platform beneficiaries (Bankr/Doppler & interface) and is not counted as MiroShark revenue.',
+    Revenue: '57% of swap fees routed to MiroShark, per the on-chain beneficiary split read from the multicurve initializer.',
     ProtocolRevenue: '57% of swap fees routed to MiroShark.',
+    SupplySideRevenue: '43% of swap fees going to the launch platform beneficiaries (Bankr/Doppler & interface), per the on-chain beneficiary split.',
     HoldersRevenue: 'Swap fees are not distributed to token holders directly.',
   },
   breakdownMethodology: {
@@ -88,6 +90,9 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [METRIC.SWAP_FEES]: '57% treasury share of swap fees, per the on-chain beneficiary split.',
+    },
+    SupplySideRevenue: {
+      [METRIC.SWAP_FEES]: '43% launch platform share of swap fees (Bankr/Doppler & interface beneficiaries).',
     },
   },
 };
