@@ -4,8 +4,9 @@ import fetchURL from "../../utils/fetchURL";
 
 const TICKERS_URL = "https://api.templedigitalgroup.com/api/exchange/tickers";
 
-// Temple CLOB trading fees: maker 1 bps + taker 2 bps = 3 bps per matched notional, all retained by the protocol.
-const FEE_RATE = (1 + 2) / 10000;
+const MAKER_FEE_BPS = 1;
+const TAKER_FEE_BPS = 2;
+const BPS = 10000;
 
 type TempleTicker = {
   ticker_id: string;
@@ -14,7 +15,7 @@ type TempleTicker = {
   target_volume: string;
 };
 
-const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const tickers: TempleTicker[] = await fetchURL(TICKERS_URL);
   if (!Array.isArray(tickers) || tickers.length === 0)
     throw new Error("Temple tickers response empty or malformed");
@@ -30,7 +31,9 @@ const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
     return sum + volume;
   }, 0);
 
-  const dailyFees = dailyVolume * FEE_RATE;
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees")
+  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees")
 
   return {
     dailyVolume,
@@ -45,11 +48,26 @@ const methodology = {
   Volume:
     "24h spot orderbook volume across all USDA-quoted Temple markets, summing each ticker's quote-side target_volume from Temple's public exchange-listing API. USDA is a fiat-backed 1:1 USD stablecoin, so quote volume is treated as USD; non-USDA markets are rejected.",
   Fees: "Trading fees charged by the Temple orderbook: 1 bps maker + 2 bps taker = 3 bps applied to daily volume.",
-  Revenue: "All trading fees are retained by the protocol; there is no fee rebate to market makers.",
-  ProtocolRevenue: "Same as Revenue — the full 3 bps of volume is retained by Temple.",
+  Revenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
+  ProtocolRevenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
   SupplySideRevenue:
     "Zero. No trading-fee share is paid to liquidity providers or market makers; the monthly Canton Coin leaderboard is a separately-funded incentive, not a fee redistribution.",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    "Maker Fees": "1 bps maker fee applied to daily volume.",
+    "Taker Fees": "2 bps taker fee applied to daily volume.",
+  },
+  Revenue: {
+    "Maker Fees": "1 bps maker fee applied to daily volume.",
+    "Taker Fees": "2 bps taker fee applied to daily volume.",
+  },
+  ProtocolRevenue: {
+    "Maker Fees": "1 bps maker fee applied to daily volume.",
+    "Taker Fees": "2 bps taker fee applied to daily volume.",
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -57,6 +75,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.CANTON],
   runAtCurrTime: true,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
