@@ -34,52 +34,58 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailySupplySideRevenue = options.createBalances();
 
   // Every bonding curve ever deployed by the factory (full history, cached).
-  // Buy/Sell/FeesAccrued/Graduated fire on the per-token curve contracts, so
-  // day-range logs are fetched chain-wide by topic and filtered to our curves —
-  // other launchpads forked from similar code can emit identical signatures.
+  // Buy/Sell/FeesAccrued/Graduated fire on the per-token curve contracts.
   const createdLogs = await options.getLogs({
     target: FACTORY,
     eventAbi: TokenCreatedEvent,
     fromBlock: FACTORY_DEPLOY_BLOCK,
     cacheInCloud: true,
   });
-  const curves = new Set(createdLogs.map((log: any) => log.bondingCurve.toLowerCase()));
+  const curves: string[] = createdLogs.map((log: any) => log.bondingCurve);
 
-  const isOurs = (log: any) => curves.has(log.address.toLowerCase());
   const dayLogs = (eventAbi: string) =>
-    options.getLogs({ eventAbi, noTarget: true, entireLog: true, parseLog: true });
+    curves.length ? options.getLogs({ eventAbi, targets: curves }) : Promise.resolve([]);
 
-  const buyLogs = (await dayLogs(BuyEvent)).filter(isOurs);
-  const sellLogs = (await dayLogs(SellEvent)).filter(isOurs);
-  const accruedLogs = (await dayLogs(FeesAccruedEvent)).filter(isOurs);
-  const graduatedLogs = (await dayLogs(GraduatedEvent)).filter(isOurs);
+  const buyLogs = await dayLogs(BuyEvent);
+  const sellLogs = await dayLogs(SellEvent);
+  const accruedLogs = await dayLogs(FeesAccruedEvent);
+  const graduatedLogs = await dayLogs(GraduatedEvent);
 
   for (const log of buyLogs) {
-    dailyVolume.addGasToken(log.args.ethIn);
-    dailyFees.addGasToken(log.args.ethFee, METRIC.TRADING_FEES);
+    dailyVolume.addGasToken(log.ethIn);
+    dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of sellLogs) {
-    dailyVolume.addGasToken(log.args.ethOut);
-    dailyFees.addGasToken(log.args.ethFee, METRIC.TRADING_FEES);
+    dailyVolume.addGasToken(log.ethOut);
+    dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of accruedLogs) {
-    dailySupplySideRevenue.addGasToken(log.args.creatorAmount, METRIC.TRADING_FEES);
-    dailyProtocolRevenue.addGasToken(log.args.protocolAmount, METRIC.TRADING_FEES);
+    dailySupplySideRevenue.addGasToken(log.creatorAmount, METRIC.TRADING_FEES);
+    dailyProtocolRevenue.addGasToken(log.protocolAmount, METRIC.TRADING_FEES);
   }
 
-  // Flat fees are owner-configurable — read them from the current config.
-  const config = await options.api.call({
-    target: FACTORY,
-    abi: "function getCurrentConfig() view returns ((uint256 virtualTokenReserves, uint256 virtualEthReserves, uint256 curveSupply, uint256 migrationSupply, uint256 graduationEthTarget, uint256 graduationFeeWei, uint256 creatorGraduationRewardWei, uint96 protocolFeeBps, uint96 creatorFeeBps, address protocolFeeRecipient, address migrator, uint64 creatorFirstBuyWindowSec))",
-  });
-  const creationFeeWei = await options.api.call({ target: FACTORY, abi: "uint256:creationFeeWei" });
+  // Flat fees are owner-configurable — read them from the current config, with
+  // a fallback to the values live at listing time (2026-07-16) in case the RPC
+  // cannot serve historical state for backfill days.
+  let graduationFeeWei = 1000000000000000n; // 0.001 ETH
+  let creationFeeWei = 0n;
+  try {
+    const config = await options.api.call({
+      target: FACTORY,
+      abi: "function getCurrentConfig() view returns ((uint256 virtualTokenReserves, uint256 virtualEthReserves, uint256 curveSupply, uint256 migrationSupply, uint256 graduationEthTarget, uint256 graduationFeeWei, uint256 creatorGraduationRewardWei, uint96 protocolFeeBps, uint96 creatorFeeBps, address protocolFeeRecipient, address migrator, uint64 creatorFirstBuyWindowSec))",
+    });
+    graduationFeeWei = BigInt(config.graduationFeeWei);
+    creationFeeWei = BigInt(await options.api.call({ target: FACTORY, abi: "uint256:creationFeeWei" }));
+  } catch (e) {
+    console.error(`imf: factory config read failed, using fallback fee constants: ${(e as Error).message}`);
+  }
 
-  const graduationFees = BigInt(config.graduationFeeWei) * BigInt(graduatedLogs.length);
+  const graduationFees = graduationFeeWei * BigInt(graduatedLogs.length);
   dailyFees.addGasToken(graduationFees, GRADUATION_FEES);
   dailyProtocolRevenue.addGasToken(graduationFees, GRADUATION_FEES);
 
   const createdToday = await options.getLogs({ target: FACTORY, eventAbi: TokenCreatedEvent });
-  const creationFees = BigInt(creationFeeWei) * BigInt(createdToday.length);
+  const creationFees = creationFeeWei * BigInt(createdToday.length);
   dailyFees.addGasToken(creationFees, CREATION_FEES);
   dailyProtocolRevenue.addGasToken(creationFees, CREATION_FEES);
 
@@ -109,6 +115,11 @@ const breakdownMethodology = {
     [CREATION_FEES]: "Flat fee charged per token creation, read from the factory (currently 0 — launches are free and gas is sponsored).",
   },
   Revenue: {
+    [METRIC.TRADING_FEES]: "Protocol share of the trading fee (0.95% of trade value).",
+    [GRADUATION_FEES]: "Graduation fees accrue to the protocol.",
+    [CREATION_FEES]: "Creation fees accrue to the protocol.",
+  },
+  ProtocolRevenue: {
     [METRIC.TRADING_FEES]: "Protocol share of the trading fee (0.95% of trade value).",
     [GRADUATION_FEES]: "Graduation fees accrue to the protocol.",
     [CREATION_FEES]: "Creation fees accrue to the protocol.",
