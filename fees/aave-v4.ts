@@ -4,9 +4,9 @@ import { METRIC } from '../helpers/metrics'
 
 const HUBS: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
-    '0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9', // Core
-    '0x06002e9c4412CB7814a791eA3666D905871E536A', // Plus
-    '0x943827DCA022D0F354a8a8c332dA1e5Eb9f9F931', // Prime
+    '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1', // Core
+    '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1', // Plus
+    '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1', // Prime
   ],
 }
 
