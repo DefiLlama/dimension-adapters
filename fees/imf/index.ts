@@ -51,12 +51,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const accruedLogs = await dayLogs(FeesAccruedEvent);
   const graduatedLogs = await dayLogs(GraduatedEvent);
 
+  // ethIn/ethOut are net of fee — volume is reported gross (fee included),
+  // matching the standard DEX convention where the fee sits inside the swap.
   for (const log of buyLogs) {
-    dailyVolume.addGasToken(log.ethIn);
+    dailyVolume.addGasToken(BigInt(log.ethIn) + BigInt(log.ethFee));
     dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of sellLogs) {
-    dailyVolume.addGasToken(log.ethOut);
+    dailyVolume.addGasToken(BigInt(log.ethOut) + BigInt(log.ethFee));
     dailyFees.addGasToken(log.ethFee, METRIC.TRADING_FEES);
   }
   for (const log of accruedLogs) {
@@ -100,7 +102,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "ETH value of all bonding-curve buys and sells (Buy/Sell events on every curve deployed by the factory).",
+  Volume: "Gross ETH value of all bonding-curve buys and sells (Buy/Sell events on every curve deployed by the factory), fee included.",
   Fees: "1.25% fee on every bonding-curve trade (Buy/Sell ethFee), plus flat graduation and token-creation fees read from the factory config (currently 0.001 ETH and 0).",
   UserFees: "Same as Fees — all fees are paid by traders.",
   Revenue: "Protocol share of trading fees (0.95% of trade value via FeesAccrued) plus graduation and creation fees.",
