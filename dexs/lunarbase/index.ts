@@ -2,25 +2,28 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const POOLS = [
-    {
-        address: "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
-        feeModel: "legacy",
-    },
-    {
-        address: "0x00003bf45Ce34Bf1BeA78669f9A40ee630e11b99",
-        feeModel: "dark_pools_v2",
-    },
-    {
-        address: "0x0000eFC4ec03a7c47D3a38A9Be7Ff1d52dD01b99",
-        feeModel: "dark_pools_v2",
-    }
-] as const;
-
-const POOL_ADDRESSES = POOLS.map(({ address }) => address);
-const LEGACY_POOL_ADDRESSES = POOLS
-    .filter(({ feeModel }) => feeModel === "legacy")
-    .map(({ address }) => address);
+const POOLS_BY_CHAIN = {
+    [CHAIN.BASE]: [
+        {
+            address: "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
+            feeModel: "legacy",
+        },
+        {
+            address: "0x00003bf45Ce34Bf1BeA78669f9A40ee630e11b99",
+            feeModel: "dark_pools_v2",
+        },
+        {
+            address: "0x0000eFC4ec03a7c47D3a38A9Be7Ff1d52dD01b99",
+            feeModel: "dark_pools_v2",
+        },
+    ],
+    [CHAIN.MONAD]: [
+        {
+            address: "0x0000a8fd148694aE3E17c079Ce4BBF8187758888",
+            feeModel: "dark_pools_v2",
+        },
+    ],
+} as const;
 
 const poolAbis = {
     tokenX: "address:X",
@@ -50,6 +53,12 @@ const fetch = async (options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const toBlock = await options.getToBlock();
+
+    const POOLS = POOLS_BY_CHAIN[options.chain as keyof typeof POOLS_BY_CHAIN] ?? [];
+    const POOL_ADDRESSES = POOLS.map(({ address }) => address);
+    const LEGACY_POOL_ADDRESSES = POOLS
+        .filter(({ feeModel }) => feeModel === "legacy")
+        .map(({ address }) => address);
 
     const swapLogs = await options.getLogs({
         targets: POOL_ADDRESSES,
@@ -166,8 +175,10 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
-    chains: [CHAIN.BASE],
-    start: "2026-03-19",
+    chains: [
+        [CHAIN.BASE, { start: "2026-03-19" }],
+        [CHAIN.MONAD, { start: "2026-04-30" }],
+    ],
     methodology,
     breakdownMethodology,
 };
