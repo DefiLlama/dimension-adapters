@@ -1,5 +1,5 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
@@ -9,7 +9,7 @@ const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactio
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA || options.chain === CHAIN.SUI || options.chain === CHAIN.SEI || options.chain === CHAIN.ROOTSTOCK) {
+  if (LIFI_API_CHAINS.includes(options.chain as CHAIN)) {
     // exclude jumper integrators to match the on-chain path (this adapter counts LI.FI ex-Jumper)
     const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], integrators, 'same-chain');
     return {
