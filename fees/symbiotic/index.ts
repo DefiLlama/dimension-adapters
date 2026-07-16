@@ -3,6 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 
 const SYMBIOTIC_ABIs = {
     addEntity: "event AddEntity(address indexed entity)",
+    distributeRewards: "event DistributeRewards(address indexed network, address indexed token, uint256 distributeAmount, uint256 adminFeeAmount, uint48 timestamp)",
+    tanssiDistributeRewards: "event DistributeRewards(address indexed token, address stakerRewards, uint48 indexed epoch, uint48 indexed eraIndex, uint256 amount, bytes data)",
 }
 
 // Reward-distributor factories whose deployed entities emit the reward events
@@ -29,29 +31,23 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const rewardDistributionLogs = await options.getLogs({
         targets: entities,
+        eventAbi: SYMBIOTIC_ABIs.distributeRewards,
         topic: "0x52c39ebed294659631d22a2341c526a86ab683888dccb1429ac42c6e413d4b7b",
     });
 
     const tanssiRewardDistributionLogs = await options.getLogs({
         targets: entities,
+        eventAbi: SYMBIOTIC_ABIs.tanssiDistributeRewards,
         topic: "0x6a4b9b1f4e6e9369e7cc09dfda8ca9def764110609845dca69c2ae408ad4dcac",
     });
 
     rewardDistributionLogs.forEach(log => {
-        if (!entities.includes(log.address)) return;
-        const token = "0x" + log.topics[2].slice(-40);
-        const distributeAmount = BigInt(log.data.slice(0, 66));
-        const adminFeeAmount = BigInt("0x" + log.data.slice(66, 130));
-
-        dailySupplySideRevenue.add(token, distributeAmount);
-        dailyFees.add(token, adminFeeAmount);
+        dailySupplySideRevenue.add(log.token, log.distributeAmount);
+        dailyFees.add(log.token, log.adminFeeAmount);
     });
 
     tanssiRewardDistributionLogs.forEach(log => {
-        if (!entities.includes(log.address)) return;
-        const token = "0x" + log.topics[1].slice(-40);
-        const amount = BigInt("0x" + log.data.slice(66, 130));
-        dailySupplySideRevenue.add(token, amount);
+        dailySupplySideRevenue.add(log.token, log.amount);
     })
 
     dailyFees.add(dailySupplySideRevenue);
