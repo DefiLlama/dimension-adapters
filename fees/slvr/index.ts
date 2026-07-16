@@ -11,7 +11,6 @@ const VE_STAKING = "0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200"; // SlvrVoteEscr
 const REWARD_DISTRIBUTED = "event RewardDistributed(uint256 amount)";
 
 const JACKPOT = "Jackpot"; // 2% of wagers routed to the jackpot pool
-const WAGERS = "Wagers"; // ETH wagered by players
 
 const fetch = async (options: FetchOptions) => {
   const rewards = await options.getLogs({ target: VE_STAKING, eventAbi: REWARD_DISTRIBUTED })
@@ -21,9 +20,8 @@ const fetch = async (options: FetchOptions) => {
   rewards.forEach((log: any) => stakerRewards.addGasToken(log.amount, METRIC.STAKING_REWARDS));
   const jackpot = stakerRewards.clone(0.25, JACKPOT);
   // Volume = ETH wagered per round. Staker rewards are a flat 8% of each round's wagers,
-  // so wagers = rewards / 0.08, without a second getLogs query (BetPlaced) against the
-  // rate-limited Robinhood RPC.
-  const dailyVolume = stakerRewards.clone(12.5, WAGERS);
+  // so wagers = rewards / 0.08,
+  const dailyVolume = stakerRewards.clone(12.5);
 
   // Fees = the full 10% rake = staker rewards (8%) + jackpot (2%).
   const dailyFees = options.createBalances();
@@ -48,9 +46,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    [WAGERS]: "ETH wagered across the grid each round, derived as staker rewards / 0.08 (the flat 8% staker cut of wagers).",
-  },
   Fees: {
     [METRIC.STAKING_REWARDS]: "8% of wagers distributed to veNFT stakers (RewardDistributed events).",
     [JACKPOT]: "2% of wagers routed to the jackpot pool.",
