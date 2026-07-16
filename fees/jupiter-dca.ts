@@ -5,7 +5,7 @@ import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "./jupiter";
 
 const fethcFeesSolana = async (options: FetchOptions) => {
   const fees = await getSolanaReceived({ options, targets: [
-    'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
+    '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE'
   ]})
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
