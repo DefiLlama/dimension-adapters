@@ -1,7 +1,6 @@
 import { gql, request } from "graphql-request";
 import { SimpleAdapter, FetchResultV2, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
 // Old Perps (V21) and New Perps (V22) are separate deployments; markets may share
@@ -101,6 +100,46 @@ const addDays = (a: DayMetrics, b: DayMetrics): DayMetrics => ({
   dailySupplySideRevenue: a.dailySupplySideRevenue + b.dailySupplySideRevenue,
 });
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const requireSnapshotMetric = (
+  row: Partial<DayMetrics>,
+  key: keyof DayMetrics,
+  todaysTimestamp: number,
+): number => {
+  const value = row[key];
+  if (!isFiniteNumber(value)) {
+    throw new Error(
+      `SparkDEX Old Perps snapshot for ${todaysTimestamp} has invalid or missing ${key}`,
+    );
+  }
+  return value;
+};
+
+const assertGraphDayResponse = (
+  response: unknown,
+  deployment: string,
+  todaysTimestamp: number,
+): GraphDayResponse => {
+  if (!response || typeof response !== "object") {
+    throw new Error(
+      `SparkDEX ${deployment}: invalid GraphQL response for ${todaysTimestamp}`,
+    );
+  }
+
+  const record = response as Record<string, unknown>;
+  for (const key of ["volumeStats", "feeStats", "tradingStats"] as const) {
+    if (!Array.isArray(record[key])) {
+      throw new Error(
+        `SparkDEX ${deployment}: missing ${key} for ${todaysTimestamp}`,
+      );
+    }
+  }
+
+  return response as GraphDayResponse;
+};
+
 const graphQuery = (todaysTimestamp: number) => gql`
   query SparkdexPerpsDay {
     volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
@@ -163,23 +202,44 @@ const attributeFromSnapshotRow = (
   todaysTimestamp: number,
   row: Partial<DayMetrics>,
 ): DayMetrics => {
-  const dailyVolume = Number(row.dailyVolume) || 0;
-  const dailyUserFees = Number(row.dailyUserFees) || 0;
-  const dailyFees = Number(row.dailyFees) || 0;
+  const dailyVolume = requireSnapshotMetric(row, "dailyVolume", todaysTimestamp);
+  const dailyUserFees = requireSnapshotMetric(row, "dailyUserFees", todaysTimestamp);
+  const dailyFees = requireSnapshotMetric(row, "dailyFees", todaysTimestamp);
 
-  // Prefer an explicit revenue breakdown when present on the snapshot row.
-  if (
-    row.dailyHoldersRevenue !== undefined ||
-    row.dailyProtocolRevenue !== undefined ||
-    row.dailySupplySideRevenue !== undefined
-  ) {
+  const hasProtocol = row.dailyProtocolRevenue !== undefined;
+  const hasHolders = row.dailyHoldersRevenue !== undefined;
+  const hasSupply = row.dailySupplySideRevenue !== undefined;
+  const anyRevenue = hasProtocol || hasHolders || hasSupply;
+  const allRevenue = hasProtocol && hasHolders && hasSupply;
+
+  if (anyRevenue && !allRevenue) {
+    throw new Error(
+      `SparkDEX Old Perps snapshot for ${todaysTimestamp} has incomplete revenue breakdown`,
+    );
+  }
+
+  if (allRevenue) {
+    const dailyProtocolRevenue = row.dailyProtocolRevenue!;
+    const dailyHoldersRevenue = row.dailyHoldersRevenue!;
+    const dailySupplySideRevenue = row.dailySupplySideRevenue!;
+
+    if (
+      !isFiniteNumber(dailyProtocolRevenue) ||
+      !isFiniteNumber(dailyHoldersRevenue) ||
+      !isFiniteNumber(dailySupplySideRevenue)
+    ) {
+      throw new Error(
+        `SparkDEX Old Perps snapshot for ${todaysTimestamp} has non-finite revenue breakdown`,
+      );
+    }
+
     return {
       dailyVolume,
       dailyUserFees,
       dailyFees,
-      dailyProtocolRevenue: Number(row.dailyProtocolRevenue) || 0,
-      dailyHoldersRevenue: Number(row.dailyHoldersRevenue) || 0,
-      dailySupplySideRevenue: Number(row.dailySupplySideRevenue) || 0,
+      dailyProtocolRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
     };
   }
 
@@ -199,11 +259,11 @@ const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
   let dailyPoolAndKeeperUSD = BigInt(0);
   let dailyFundingUSD = BigInt(0);
 
-  for (const vol of response.volumeStats ?? []) {
+  for (const vol of response.volumeStats) {
     dailyVolumeUSD += BigInt(vol.volumeUsd);
   }
 
-  for (const fee of response.feeStats ?? []) {
+  for (const fee of response.feeStats) {
     const feeUsd = BigInt(fee.feeUsd);
     const total = BigInt(fee.fee);
     dailyUserFeesUSD += feeUsd;
@@ -216,7 +276,7 @@ const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
     dailyPoolAndKeeperUSD += feeUsd - treasuryUsd;
   }
 
-  for (const stat of response.tradingStats ?? []) {
+  for (const stat of response.tradingStats) {
     dailyFundingUSD += BigInt(stat.fundingFeeUsd);
   }
 
@@ -242,13 +302,13 @@ const sumPreBbbStats = (response: GraphDayResponse): DayMetrics => {
   let dailyFeeUSD = BigInt(0);
   let dailyFundingFeeUSD = BigInt(0);
 
-  for (const vol of response.volumeStats ?? []) {
+  for (const vol of response.volumeStats) {
     dailyVolumeUSD += BigInt(vol.volumeUsd);
   }
-  for (const fee of response.feeStats ?? []) {
+  for (const fee of response.feeStats) {
     dailyFeeUSD += BigInt(fee.feeUsd);
   }
-  for (const stat of response.tradingStats ?? []) {
+  for (const stat of response.tradingStats) {
     dailyFundingFeeUSD += BigInt(stat.fundingFeeUsd);
   }
 
@@ -260,20 +320,16 @@ const sumPreBbbStats = (response: GraphDayResponse): DayMetrics => {
 };
 
 const queryOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
-  const response: GraphDayResponse = await request(
-    ENDPOINT_OLD_PERPS,
-    graphQuery(todaysTimestamp),
-  );
+  const raw = await request(ENDPOINT_OLD_PERPS, graphQuery(todaysTimestamp));
+  const response = assertGraphDayResponse(raw, "Old Perps", todaysTimestamp);
   return todaysTimestamp >= BBB_START
     ? sumTreasuryBbbStats(response)
     : sumPreBbbStats(response);
 };
 
 const queryNewPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
-  const response: GraphDayResponse = await request(
-    ENDPOINT_NEW_PERPS,
-    graphQuery(todaysTimestamp),
-  );
+  const raw = await request(ENDPOINT_NEW_PERPS, graphQuery(todaysTimestamp));
+  const response = assertGraphDayResponse(raw, "New Perps", todaysTimestamp);
   // New Perps launched after BBB_START; always use treasury → BBB.
   return sumTreasuryBbbStats(response);
 };
@@ -320,7 +376,7 @@ const fetchOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> =>
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+  const todaysTimestamp = options.startOfDay;
 
   const oldPerps = await fetchOldPerpsDay(todaysTimestamp);
   const newPerps =
