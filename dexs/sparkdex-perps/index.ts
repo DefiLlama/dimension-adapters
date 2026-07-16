@@ -36,11 +36,11 @@ const OLD_PERPS_SNAPSHOT_URL =
 const OLD_PERPS_USE_SNAPSHOT = false;
 
 /**
- * Inclusive last UTC day that may still carry Old Perps volume. After this day
- * the Old Perps contribution is 0 without reading live subgraph or snapshot.
- * Leave null while Old Perps can still trade / wind-down date is unknown.
+ * Inclusive last UTC day that may still carry Old Perps volume. Old Perps fully
+ * stops on 2026-07-31 12:00 UTC; until then wind-down days may have no stats.
+ * After this day the Old Perps contribution is 0 without reading live subgraph.
  */
-const OLD_PERPS_LAST_DAY: number | null = null;
+const OLD_PERPS_LAST_DAY = 1785456000; // 2026-07-31
 
 /**
  * Pre-BBB protocol share of fees (~treasury). After BBB, the same ratio is only
@@ -121,7 +121,8 @@ const assertGraphDayResponse = (
   response: unknown,
   deployment: string,
   todaysTimestamp: number,
-): GraphDayResponse => {
+  options?: { allowEmpty?: boolean },
+): GraphDayResponse | null => {
   if (!response || typeof response !== "object") {
     throw new Error(
       `SparkDEX ${deployment}: invalid GraphQL response for ${todaysTimestamp}`,
@@ -146,6 +147,9 @@ const assertGraphDayResponse = (
     feeStats.length === 0 &&
     tradingStats.length === 0
   ) {
+    if (options?.allowEmpty) {
+      return null;
+    }
     throw new Error(
       `SparkDEX ${deployment}: missing daily stats for ${todaysTimestamp}`,
     );
@@ -335,7 +339,12 @@ const sumPreBbbStats = (response: GraphDayResponse): DayMetrics => {
 
 const queryOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
   const raw = await request(ENDPOINT_OLD_PERPS, graphQuery(todaysTimestamp));
-  const response = assertGraphDayResponse(raw, "Old Perps", todaysTimestamp);
+  const response = assertGraphDayResponse(raw, "Old Perps", todaysTimestamp, {
+    allowEmpty: true,
+  });
+  if (!response) {
+    return emptyDay();
+  }
   return todaysTimestamp >= BBB_START
     ? sumTreasuryBbbStats(response)
     : sumPreBbbStats(response);
@@ -344,6 +353,11 @@ const queryOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> =>
 const queryNewPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
   const raw = await request(ENDPOINT_NEW_PERPS, graphQuery(todaysTimestamp));
   const response = assertGraphDayResponse(raw, "New Perps", todaysTimestamp);
+  if (!response) {
+    throw new Error(
+      `SparkDEX New Perps: missing daily stats for ${todaysTimestamp}`,
+    );
+  }
   // New Perps launched after BBB_START; always use treasury → BBB.
   return sumTreasuryBbbStats(response);
 };
