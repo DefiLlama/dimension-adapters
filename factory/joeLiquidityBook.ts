@@ -39,7 +39,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.AVAX]: {
         factories: [
           {
-            factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.2 as any,
             fromBlock: 46536129,
           },
@@ -48,7 +48,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.ARBITRUM]: {
         factories: [
           {
-            factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.2 as any,
             fromBlock: 220345864,
           },
@@ -57,7 +57,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.MONAD]: {
         factories: [
           {
-            factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.2 as any,
             fromBlock: 32250766,
           },
@@ -81,7 +81,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.AVAX]: {
         factories: [
           {
-            factory: '0x6E77932A92582f504FF6c4BdbCef7Da6c198aEEf',
+            factory: '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
             version: 2 as any,
             fromBlock: 22426953,
           },
@@ -90,7 +90,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.ARBITRUM]: {
         factories: [
           {
-            factory: '0x1886D09C9Ade0c5DB822D85D21678Db67B6c2982',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2 as any,
             fromBlock: 47891979,
           },
@@ -99,7 +99,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.BSC]: {
         factories: [
           {
-            factory: '0x43646A8e839B2f2766392C1BF8f60F6e587B6960',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2 as any,
             fromBlock: 26153438,
           },
@@ -123,7 +123,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.AVAX]: {
         factories: [
           {
-            factory: '0x8e42f2F4101563bF679975178e880FD87d3eFd4e',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.1 as any,
             fromBlock: 28371397,
           },
@@ -132,7 +132,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.ARBITRUM]: {
         factories: [
           {
-            factory: '0x8e42f2F4101563bF679975178e880FD87d3eFd4e',
+            factory: '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
             version: 2.1 as any,
             fromBlock: 77473199,
           },
@@ -141,7 +141,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.BSC]: {
         factories: [
           {
-            factory: '0x8e42f2F4101563bF679975178e880FD87d3eFd4e',
+            factory: '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
             version: 2.1 as any,
             fromBlock: 27099340,
           },
@@ -150,7 +150,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.ETHEREUM]: {
         factories: [
           {
-            factory: '0xDC8d77b69155c7E68A95a4fb0f06a71FF90B943a',
+            factory: '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
             version: 2.1 as any,
             fromBlock: 17821282,
           },
@@ -159,7 +159,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.MONAD]: {
         factories: [
           {
-            factory: '0xe32D45C2B1c17a0fE0De76f1ebFA7c44B7810034',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.1 as any,
             fromBlock: 32248561,
           },
@@ -184,7 +184,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.MANTLE]: {
         factories: [
           {
-            factory: '0xa6630671775c4EA2743840F9A5016dCf2A104054',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.2 as any,
             fromBlock: 61742960,
           },
@@ -208,7 +208,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.ROBINHOOD]: {
         factories: [
           {
-            factory: '0x22602d966DeFd638ee94E97A92e2Eb0934c3fE1B',
+            factory: '0x46531ea0E7cec64b14181d45F8C6798a1cE45da1',
             version: 2.2 as any,
             fromBlock: 7297329,
           },
@@ -233,7 +233,7 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       [CHAIN.HYPERLIQUID]: {
         factories: [
           {
-            factory: '0x4A1EFb00B4Ad1751FC870C6125d917C3f1586600',
+            factory: '0x3211d27a1A1B8E40C7974F6951935303e6e56DBE',
             version: 2.2 as any,
             fromBlock: 9069569,
           },
