@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 type IContract = {
   [c: string | Chain]: {
@@ -536,7 +536,9 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
     }
 
     const url = `https://li.quest/v2/analytics/transfers?${params}`;
-    const response = await fetchURL(url) as LifiResponse;
+    // pullHourly runs this fetch 24x/day per chain and each call paginates, so the LI.FI
+    // analytics API 429s under the burst; back off + retry instead of failing the adapter
+    const response = await fetchURLAutoHandleRateLimit(url) as LifiResponse;
 
     if (!response?.data || !Array.isArray(response.data)) {
       break;
