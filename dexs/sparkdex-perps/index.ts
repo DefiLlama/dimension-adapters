@@ -1,6 +1,7 @@
 import { gql, request } from "graphql-request";
 import { SimpleAdapter, FetchResultV2, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 // Old Perps (V21) and New Perps (V22) are separate deployments; markets may share
@@ -42,11 +43,10 @@ const OLD_PERPS_USE_SNAPSHOT = false;
  */
 const OLD_PERPS_LAST_DAY = 1785456000; // 2026-07-31
 
-/**
- * Pre-BBB protocol share of fees (~treasury). After BBB, the same ratio is only
- * used if a snapshot day lacks an explicit treasury/holders breakdown.
- */
+/** Pre-BBB protocol share of trading fees (~treasury). */
 const PROTOCOL_FEE_SHARE = 0.6;
+
+const KEEPER_FEES = "Keeper Fees";
 
 interface IVolumeStat {
   volumeUsd: string;
@@ -62,42 +62,43 @@ interface IFeeStat {
   id: string;
 }
 
-interface ITradingStat {
-  fundingFeeUsd: string;
-  id: string;
-}
-
-interface DayMetrics {
-  dailyVolume: number;
-  dailyUserFees: number;
-  dailyFees: number;
-  dailyProtocolRevenue: number;
-  dailyHoldersRevenue: number;
-  dailySupplySideRevenue: number;
-}
-
 type GraphDayResponse = {
   volumeStats: IVolumeStat[];
   feeStats: IFeeStat[];
-  tradingStats: ITradingStat[];
+  tradingStats: unknown[];
 };
+
+interface DayMetrics {
+  dailyVolume: number;
+  dailyFees: number;
+  dailyUserFees: number;
+  dailyProtocolRevenue: number;
+  dailyHoldersRevenue: number;
+  dailySupplySideRevenue: number;
+  dailyLpFees: number;
+  dailyKeeperFees: number;
+}
 
 const emptyDay = (): DayMetrics => ({
   dailyVolume: 0,
-  dailyUserFees: 0,
   dailyFees: 0,
+  dailyUserFees: 0,
   dailyProtocolRevenue: 0,
   dailyHoldersRevenue: 0,
   dailySupplySideRevenue: 0,
+  dailyLpFees: 0,
+  dailyKeeperFees: 0,
 });
 
 const addDays = (a: DayMetrics, b: DayMetrics): DayMetrics => ({
   dailyVolume: a.dailyVolume + b.dailyVolume,
-  dailyUserFees: a.dailyUserFees + b.dailyUserFees,
   dailyFees: a.dailyFees + b.dailyFees,
+  dailyUserFees: a.dailyUserFees + b.dailyUserFees,
   dailyProtocolRevenue: a.dailyProtocolRevenue + b.dailyProtocolRevenue,
   dailyHoldersRevenue: a.dailyHoldersRevenue + b.dailyHoldersRevenue,
   dailySupplySideRevenue: a.dailySupplySideRevenue + b.dailySupplySideRevenue,
+  dailyLpFees: a.dailyLpFees + b.dailyLpFees,
+  dailyKeeperFees: a.dailyKeeperFees + b.dailyKeeperFees,
 });
 
 const isFiniteNumber = (value: unknown): value is number =>
@@ -174,45 +175,45 @@ const graphQuery = (todaysTimestamp: number) => gql`
     }
     tradingStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
       id
-      fundingFeeUsd
     }
   }
 `;
 
-/** Pre-BBB (before 2026-05-18): 60% protocol / 40% LPs. */
-const attributePreBbb = (
-  dailyVolume: number,
-  dailyUserFees: number,
-  dailyFees: number,
-): DayMetrics => {
-  const dailyProtocolRevenue = dailyFees * PROTOCOL_FEE_SHARE;
+/** Pre-BBB: 60% protocol / 40% LPs on trading fees. */
+const attributePreBbb = (dailyVolume: number, tradingFees: number): DayMetrics => {
+  const dailyProtocolRevenue = tradingFees * PROTOCOL_FEE_SHARE;
+  const dailyLpFees = tradingFees - dailyProtocolRevenue;
   return {
     dailyVolume,
-    dailyUserFees,
-    dailyFees,
+    dailyFees: tradingFees,
+    dailyUserFees: tradingFees,
     dailyProtocolRevenue,
     dailyHoldersRevenue: 0,
-    dailySupplySideRevenue: dailyFees - dailyProtocolRevenue,
+    dailySupplySideRevenue: dailyLpFees,
+    dailyLpFees,
+    dailyKeeperFees: 0,
   };
 };
 
 /**
- * Fallback for post-BBB snapshot days without a treasury/holders breakdown:
+ * Fallback for post-BBB snapshot days without an explicit revenue breakdown:
  * treat the historical ~60% protocol share as HoldersRevenue (BBB).
  */
 const attributePostBbbApprox = (
   dailyVolume: number,
-  dailyUserFees: number,
-  dailyFees: number,
+  tradingFees: number,
 ): DayMetrics => {
-  const dailyHoldersRevenue = dailyFees * PROTOCOL_FEE_SHARE;
+  const dailyHoldersRevenue = tradingFees * PROTOCOL_FEE_SHARE;
+  const dailyLpFees = tradingFees - dailyHoldersRevenue;
   return {
     dailyVolume,
-    dailyUserFees,
-    dailyFees,
+    dailyFees: tradingFees,
+    dailyUserFees: tradingFees,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
-    dailySupplySideRevenue: dailyFees - dailyHoldersRevenue,
+    dailySupplySideRevenue: dailyLpFees,
+    dailyLpFees,
+    dailyKeeperFees: 0,
   };
 };
 
@@ -221,8 +222,11 @@ const attributeFromSnapshotRow = (
   row: Partial<DayMetrics>,
 ): DayMetrics => {
   const dailyVolume = requireSnapshotMetric(row, "dailyVolume", todaysTimestamp);
-  const dailyUserFees = requireSnapshotMetric(row, "dailyUserFees", todaysTimestamp);
   const dailyFees = requireSnapshotMetric(row, "dailyFees", todaysTimestamp);
+  const dailyUserFees =
+    row.dailyUserFees !== undefined
+      ? requireSnapshotMetric(row, "dailyUserFees", todaysTimestamp)
+      : dailyFees;
 
   const hasProtocol = row.dailyProtocolRevenue !== undefined;
   const hasHolders = row.dailyHoldersRevenue !== undefined;
@@ -251,90 +255,86 @@ const attributeFromSnapshotRow = (
       );
     }
 
+    const dailyLpFees = isFiniteNumber(row.dailyLpFees)
+      ? row.dailyLpFees
+      : dailySupplySideRevenue;
+    const dailyKeeperFees = isFiniteNumber(row.dailyKeeperFees)
+      ? row.dailyKeeperFees
+      : 0;
+
     return {
       dailyVolume,
-      dailyUserFees,
       dailyFees,
+      dailyUserFees,
       dailyProtocolRevenue,
       dailyHoldersRevenue,
       dailySupplySideRevenue,
+      dailyLpFees,
+      dailyKeeperFees,
     };
   }
 
   return todaysTimestamp >= BBB_START
-    ? attributePostBbbApprox(dailyVolume, dailyUserFees, dailyFees)
-    : attributePreBbb(dailyVolume, dailyUserFees, dailyFees);
+    ? attributePostBbbApprox(dailyVolume, dailyFees)
+    : attributePreBbb(dailyVolume, dailyFees);
 };
 
-/**
- * Proposal B / post-BBB: 100% of subgraph treasuryFee → SPRK buyback/burn
- * (HoldersRevenue). Pool + keeper + funding → supply side. Protocol = 0.
- */
-const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
+const sumVolume = (response: GraphDayResponse): number => {
   let dailyVolumeUSD = BigInt(0);
-  let dailyUserFeesUSD = BigInt(0);
-  let dailyTreasuryUSD = BigInt(0);
-  let dailyPoolAndKeeperUSD = BigInt(0);
-  let dailyFundingUSD = BigInt(0);
-
   for (const vol of response.volumeStats) {
     dailyVolumeUSD += BigInt(vol.volumeUsd);
   }
+  return Number(dailyVolumeUSD) / 1e18;
+};
+
+/**
+ * Post-BBB: protocol treasury share → SPRK buyback/burn (HoldersRevenue).
+ * Pool + keeper shares → supply side.
+ */
+const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
+  let tradingFeesUSD = BigInt(0);
+  let treasuryUSD = BigInt(0);
+  let poolUSD = BigInt(0);
+  let keeperUSD = BigInt(0);
 
   for (const fee of response.feeStats) {
     const feeUsd = BigInt(fee.feeUsd);
     const total = BigInt(fee.fee);
-    dailyUserFeesUSD += feeUsd;
+    tradingFeesUSD += feeUsd;
 
     if (total === 0n) {
       continue;
     }
-    const treasuryUsd = (feeUsd * BigInt(fee.treasuryFee)) / total;
-    dailyTreasuryUSD += treasuryUsd;
-    dailyPoolAndKeeperUSD += feeUsd - treasuryUsd;
+    treasuryUSD += (feeUsd * BigInt(fee.treasuryFee)) / total;
+    poolUSD += (feeUsd * BigInt(fee.poolFee)) / total;
+    keeperUSD += (feeUsd * BigInt(fee.keeperFee)) / total;
   }
 
-  for (const stat of response.tradingStats) {
-    dailyFundingUSD += BigInt(stat.fundingFeeUsd);
-  }
-
-  const dailyVolume = Number(dailyVolumeUSD) / 1e18;
-  const dailyUserFees = Number(dailyUserFeesUSD) / 1e18;
-  const dailyHoldersRevenue = Number(dailyTreasuryUSD) / 1e18;
-  const dailySupplySideRevenue =
-    (Number(dailyPoolAndKeeperUSD) + Number(dailyFundingUSD)) / 1e18;
-  const dailyFees = dailyUserFees + Number(dailyFundingUSD) / 1e18;
+  const dailyFees = Number(tradingFeesUSD) / 1e18;
+  const dailyHoldersRevenue = Number(treasuryUSD) / 1e18;
+  const dailyLpFees = Number(poolUSD) / 1e18;
+  const dailyKeeperFees = Number(keeperUSD) / 1e18;
+  const attributed = dailyHoldersRevenue + dailyLpFees + dailyKeeperFees;
+  const dust = dailyFees - attributed;
 
   return {
-    dailyVolume,
-    dailyUserFees,
+    dailyVolume: sumVolume(response),
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    dailySupplySideRevenue: dailyLpFees + dailyKeeperFees + dust,
+    dailyLpFees: dailyLpFees + dust,
+    dailyKeeperFees,
   };
 };
 
 const sumPreBbbStats = (response: GraphDayResponse): DayMetrics => {
-  let dailyVolumeUSD = BigInt(0);
-  let dailyFeeUSD = BigInt(0);
-  let dailyFundingFeeUSD = BigInt(0);
-
-  for (const vol of response.volumeStats) {
-    dailyVolumeUSD += BigInt(vol.volumeUsd);
-  }
+  let tradingFeesUSD = BigInt(0);
   for (const fee of response.feeStats) {
-    dailyFeeUSD += BigInt(fee.feeUsd);
+    tradingFeesUSD += BigInt(fee.feeUsd);
   }
-  for (const stat of response.tradingStats) {
-    dailyFundingFeeUSD += BigInt(stat.fundingFeeUsd);
-  }
-
-  return attributePreBbb(
-    Number(dailyVolumeUSD) / 1e18,
-    Number(dailyFeeUSD) / 1e18,
-    (Number(dailyFeeUSD) + Number(dailyFundingFeeUSD)) / 1e18,
-  );
+  return attributePreBbb(sumVolume(response), Number(tradingFeesUSD) / 1e18);
 };
 
 const queryOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
@@ -358,7 +358,6 @@ const queryNewPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> =>
       `SparkDEX New Perps: missing daily stats for ${todaysTimestamp}`,
     );
   }
-  // New Perps launched after BBB_START; always use treasury → BBB.
   return sumTreasuryBbbStats(response);
 };
 
@@ -385,7 +384,7 @@ const loadOldPerpsSnapshot = async (): Promise<Record<string, Partial<DayMetrics
 };
 
 const fetchOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
-  if (OLD_PERPS_LAST_DAY !== null && todaysTimestamp > OLD_PERPS_LAST_DAY) {
+  if (todaysTimestamp > OLD_PERPS_LAST_DAY) {
     return emptyDay();
   }
 
@@ -412,35 +411,101 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       ? await queryNewPerpsDay(todaysTimestamp)
       : emptyDay();
 
-  const totals = addDays(oldPerps, newPerps);
-  const dailyRevenue = totals.dailyProtocolRevenue + totals.dailyHoldersRevenue;
+  const metrics = addDays(oldPerps, newPerps);
+
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(metrics.dailyFees, METRIC.MARGIN_FEES);
+  dailyUserFees.addUSDValue(metrics.dailyUserFees, METRIC.MARGIN_FEES);
+
+  if (metrics.dailyProtocolRevenue > 0) {
+    dailyProtocolRevenue.addUSDValue(
+      metrics.dailyProtocolRevenue,
+      METRIC.MARGIN_FEES,
+    );
+    dailyRevenue.addUSDValue(metrics.dailyProtocolRevenue, METRIC.MARGIN_FEES);
+  }
+
+  if (metrics.dailyHoldersRevenue > 0) {
+    dailyHoldersRevenue.addUSDValue(
+      metrics.dailyHoldersRevenue,
+      METRIC.TOKEN_BUY_BACK,
+    );
+    dailyRevenue.addUSDValue(
+      metrics.dailyHoldersRevenue,
+      METRIC.TOKEN_BUY_BACK,
+    );
+  }
+
+  if (metrics.dailyLpFees > 0) {
+    dailySupplySideRevenue.addUSDValue(metrics.dailyLpFees, METRIC.LP_FEES);
+  }
+  if (metrics.dailyKeeperFees > 0) {
+    dailySupplySideRevenue.addUSDValue(metrics.dailyKeeperFees, KEEPER_FEES);
+  }
 
   return {
-    dailyVolume: totals.dailyVolume,
-    dailyFees: totals.dailyFees,
-    dailyUserFees: totals.dailyUserFees,
+    dailyVolume: metrics.dailyVolume,
+    dailyFees,
+    dailyUserFees,
     dailyRevenue,
-    dailyProtocolRevenue: totals.dailyProtocolRevenue,
-    dailyHoldersRevenue: totals.dailyHoldersRevenue,
-    dailySupplySideRevenue: totals.dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Volume:
-    "Old Perps + New Perps daily perpetual volume (isolated deployments; overlapping days are added). Old Perps from sparkdex-trade while live, then a frozen daily snapshot after the V21 subgraph is retired; New Perps from sparkdex-trade-v2 starting 2026-06-23.",
+    "Sum of daily perpetual trading volume on Old Perps and New Perps. The two deployments are isolated; overlapping days are added together.",
   Fees:
-    "Old Perps + New Perps: user trading fees plus funding fees (summed on overlapping days).",
+    "Trading fees paid by perpetual traders on Old Perps and New Perps (summed on overlapping days).",
   UserFees:
-    "Old Perps + New Perps: user trading fees only (summed on overlapping days).",
+    "Same as Fees — trading fees paid by perpetual traders.",
   Revenue:
-    "Pre-2026-05-18 (Old Perps): 60% of fees retained as protocol revenue. From 2026-05-18 (governance proposal B): 100% of subgraph treasuryFee used for SPRK buyback/burn (BBB) on both Old Perps and New Perps.",
+    "Before 2026-05-18: 60% of trading fees kept by the protocol. From 2026-05-18 (governance proposal B): the protocol treasury share of trading fees is used to buy back and burn SPRK.",
   ProtocolRevenue:
-    "Pre-2026-05-18: 60% of Old Perps fees. From 2026-05-18: 0 — treasury share is fully allocated to BBB (HoldersRevenue).",
+    "Before 2026-05-18: 60% of trading fees. From 2026-05-18: none — the treasury share goes to SPRK buyback and burn instead.",
   HoldersRevenue:
-    "From 2026-05-18 (proposal B): 100% of subgraph treasuryFee on Old Perps and New Perps allocated to SPRK buyback/burn. Before that date: not attributed separately (protocol kept the non-LP share).",
+    "From 2026-05-18: the protocol treasury share of trading fees used to buy back and burn SPRK. Before that date: not reported separately.",
   SupplySideRevenue:
-    "Pre-2026-05-18: 40% of Old Perps fees to LPs. From 2026-05-18: poolFee + keeperFee + funding fees to liquidity providers (Old Perps + New Perps).",
+    "Before 2026-05-18: 40% of trading fees to liquidity providers. From 2026-05-18: the LP and keeper shares of trading fees.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MARGIN_FEES]:
+      "Perpetual trading fees paid by traders on Old Perps and New Perps.",
+  },
+  UserFees: {
+    [METRIC.MARGIN_FEES]:
+      "Trading fees paid by perpetual traders.",
+  },
+  Revenue: {
+    [METRIC.MARGIN_FEES]:
+      "Before 2026-05-18: protocol share of trading fees (60%).",
+    [METRIC.TOKEN_BUY_BACK]:
+      "From 2026-05-18: treasury share of trading fees used to buy back and burn SPRK.",
+  },
+  ProtocolRevenue: {
+    [METRIC.MARGIN_FEES]:
+      "Before 2026-05-18: 60% of trading fees to the protocol. From 2026-05-18: none.",
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]:
+      "From 2026-05-18: treasury share of trading fees used to buy back and burn SPRK.",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]:
+      "Trading fees distributed to perpetual liquidity providers.",
+    [KEEPER_FEES]:
+      "Trading fees paid to keepers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -448,6 +513,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.FLARE],
   start: "2025-10-15",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
