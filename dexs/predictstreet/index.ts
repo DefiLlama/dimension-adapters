@@ -28,6 +28,7 @@ const toUnits = (amount: bigint) => Number(amount / 1_000_000n) + Number(amount 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const logs = await options.getLogs({ targets: EXCHANGES, eventAbi: OrderFilled, flatten: true });
 
@@ -42,9 +43,16 @@ const fetch = async (options: FetchOptions) => {
     }
     dailyVolume.addCGToken("usd-coin", toUnits(lg.usdc) / 2);
     dailyNotionalVolume.addCGToken("usd-coin", toUnits(lg.qty) / 2);
+
+    // Each order pays its own fee (both legs are real charges, not a mirrored
+    // double-emit like volume) so no ÷2. SELL leg (takerAssetId 0): fee in
+    // USDC.e. BUY leg (makerAssetId 0): fee in outcome shares, valued at fill price.
+    const fee = toUnits(log.fee as bigint);
+    if (log.takerAssetId === 0n) dailyFees.addCGToken("usd-coin", fee);
+    else if (lg.qty > 0n) dailyFees.addCGToken("usd-coin", fee * (toUnits(lg.usdc) / toUnits(lg.qty)));
   }
 
-  return { dailyVolume, dailyNotionalVolume };
+  return { dailyVolume, dailyNotionalVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -58,6 +66,12 @@ const adapter: SimpleAdapter = {
       "USDC.e collateral traded from OrderFilled events on the CTFExchange and NegRiskCtfExchange.",
     NotionalVolume:
       "Outcome-token shares traded (each share pays $1 if its outcome wins), summed across every fill's outcome leg.",
+    Fees:
+      "Trading fee taken out of each filled order's proceeds. Sellers pay it in USDC.e; buyers pay it in outcome shares, valued at the price they traded at. Both sides of a trade are charged.",
+    Revenue:
+      "All trading fees. predictstreet keeps the full fee — there are no maker or liquidity-provider rebates.",
+    ProtocolRevenue:
+      "Same as Revenue — every fee is sent to the protocol's fee wallet.",
   },
 };
 
