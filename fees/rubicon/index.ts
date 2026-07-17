@@ -9,7 +9,7 @@ import { addOneToken } from "../../helpers/prices";
 //
 //   Aquila V2 — 30 bps LP fee; 1/6 to protocol (~5 bps) on OP/Arb/Base; OFF
 //               on mainnet (factory.feeTo() == 0x0, re-verified 2026-07-09).
-//   CLMM V3   — per-pool tier (500/3000/10000 bps). factory.setFeeProtocol
+//   CLMM V3   — per-pool tier (5/30/100 bps; raw fee units 500/3000/10000). factory.setFeeProtocol
 //               not enabled on any Rubicon pool → 100% to LPs (UniV3 default).
 //   Classic   — getFeeBPS() == 2 (0.02% taker). No LP layer → 100% protocol.
 //   Gladius   — UniswapX-fork per-order fee outputs to the canonical Rubicon
@@ -221,7 +221,7 @@ const methodology = {
     'protocol-side fee sources beyond trading.',
   Fees:
     'Sum across four Rubicon trading systems: Aquila V2 charges 30 bps LP fee on every ' +
-    'swap; CLMM V3 charges the per-pool tier (500/3000/10000 bps); Classic charges ' +
+    'swap; CLMM V3 charges the per-pool tier (5/30/100 bps); Classic charges ' +
     'getFeeBPS() = 2 bps to takers on RubiconMarket; Gladius (RFQ) fees are token inflows ' +
     'to the Rubicon fee wallet (0x7527…ef14) restricted to today\'s Gladius fillers, so ' +
     'unrelated treasury flows (e.g. Aquila LP redemption) are excluded.',

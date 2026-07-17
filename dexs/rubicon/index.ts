@@ -131,7 +131,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // === CLMM V3 ==============================================================
-  // Per-pool fee tier (500/3000/10000 bps from PoolCreated). Protocol fee
+  // Per-pool fee tier (5/30/100 bps; raw fee units 500/3000/10000 from PoolCreated). Protocol fee
   // defaults to 0 — factory.setFeeProtocol() is not enabled on any Rubicon
   // pool (UniV3 default). All LP fees go to suppliers.
   //
@@ -240,7 +240,7 @@ const methodology = {
     'transfers).',
   Fees:
     'Total user-paid trading fees across all four systems: Aquila V2 = 30 bps × swap ' +
-    'notional, CLMM V3 = per-pool tier (500/3000/10000 bps) × swap notional, Classic = ' +
+    'notional, CLMM V3 = per-pool tier (5/30/100 bps) × swap notional, Classic = ' +
     '2 bps × take-event notional. Gladius per-order fees are not surfaced in this adapter ' +
     '(see the Rubicon fees adapter).',
   Revenue:
@@ -264,7 +264,7 @@ const breakdownMethodology = {
   },
   Fees: {
     [LBL_AQUILA]:  '30 bps × swap notional on every Aquila pair.',
-    [LBL_CLMM]:    'Per-pool tier (500/3000/10000 bps) × swap notional.',
+    [LBL_CLMM]:    'Per-pool tier (5/30/100 bps) × swap notional.',
     [LBL_CLASSIC]: '2 bps × take-event notional (getFeeBPS() = 2, re-verified 2026-07-09).',
   },
   Revenue: {
