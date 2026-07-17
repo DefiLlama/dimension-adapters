@@ -7,7 +7,9 @@ import type {
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint = "https://dex-explorer.rivrdex.io/graphql";
-const swapFeeRate = 0.003;
+const lpFeeRate = 0.003;
+const protocolFeeRate = 0.0005;
+const totalFeeRate = lpFeeRate + protocolFeeRate;
 
 interface Pair {
   volume24H: string;
@@ -44,9 +46,11 @@ async function fetch(): Promise<FetchResultVolume & FetchResultFees> {
 
   return {
     dailyVolume,
-    dailyFees: dailyVolume * swapFeeRate,
-    dailyUserFees: dailyVolume * swapFeeRate,
-    dailySupplySideRevenue: dailyVolume * swapFeeRate, // Assuming 100% of the 0.3% fee goes to LPs
+    dailyFees: dailyVolume * totalFeeRate,
+    dailyUserFees: dailyVolume * totalFeeRate,
+    dailyRevenue: dailyVolume * protocolFeeRate,
+    dailyProtocolRevenue: dailyVolume * protocolFeeRate,
+    dailySupplySideRevenue: dailyVolume * lpFeeRate,
   };
 }
 
@@ -56,7 +60,10 @@ const adapter: SimpleAdapter = {
   start: "2026-06-17",
   runAtCurrTime: true,
   methodology: {
-    Fees: "0.3% swap fee paid by traders, calculated from the rolling 24h volume reported by the RivrDEX API.",
+    Fees: "0.35% total swap fee paid by traders, calculated from the rolling 24h volume reported by the RivrDEX API.",
+    Revenue: "0.05% of swap volume is collected by the protocol.",
+    ProtocolRevenue: "0.05% of swap volume is collected by the protocol.",
+    SupplySideRevenue: "0.3% of swap volume is distributed to liquidity providers.",
   },
 };
 
