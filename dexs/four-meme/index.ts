@@ -2,10 +2,10 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from '../../helpers/dune';
 
-// Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB/stablecoin), regardless of router.
+// Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
 const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
 
-// Quote currency: stablecoin if it's in most of a token's trades, else BNB (native BNB pays emit no transfer).
+// Quote token: a supported ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if it's in most of a token's trades, else BNB (native BNB pays emit no transfer).
 const fetch = async (options: FetchOptions) => {
   const query = `
     WITH v2_trades AS (
@@ -72,7 +72,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the curve's quote currency: BNB by default, or the stablecoin (USDT, USD1, USDC, BUSD, CAKE) the curve is priced in.",
+    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the curve's quote token: BNB by default, or the ERC-20 quote token (USDT, USD1, USDC, BUSD, CAKE) the curve is priced in.",
   },
 }
 
