@@ -55,7 +55,7 @@ async function fetch(options: FetchOptions) {
       const payer = topicToAddress(log.topics[1]);
       if (ownWallets.has(payer)) continue; // internal transfer
       if (!authorizedTxs.has(log.transactionHash.toLowerCase())) continue; // not a gasless EIP-3009 settlement
-      dailyFees.add(USDC, BigInt(log.data).toString());
+      dailyFees.add(USDC, BigInt(log.data).toString(), "API usage fees");
     }
   }
 
@@ -76,6 +76,17 @@ const adapter: SimpleAdapter = {
     Fees: 'API usage fees paid by users of the x402.miroshark.xyz simulation API ($1.00 USDC per simulation run), settled on Base via x402 (gasless EIP-3009 USDC transfers submitted by x402 facilitators).',
     Revenue: 'All API fees accrue to MiroShark — there is no supply side and facilitators charge no on-chain cut.',
     ProtocolRevenue: 'All API fees accrue to MiroShark.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'API usage fees': 'Fees paid by users of the x402.miroshark.xyz simulation API ($1.00 USDC per simulation run), settled on Base via x402.',
+    },
+    Revenue: {
+      'API usage fees': 'All API usage fees accrue to MiroShark.',
+    },
+    ProtocolRevenue: {
+      'API usage fees': 'All API usage fees accrue to MiroShark.',
+    },
   },
 };
 
