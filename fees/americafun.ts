@@ -35,10 +35,12 @@ const fetch = async (options: FetchOptions) => {
   // returns a total far below its own components (revenue 5x fees), and on
   // others meteoraFee exceeds dailySupplySideRevenue - floor the total at the
   // sum of what gets booked below so revenue can never exceed fees
-  const feesUsd = Math.max(
-    parseFloat(data.dailyFees) || 0,
+  const bookedComponentsUsd =
     protocolRevenueUsd + holdersRevenueUsd + supplySideBookedUsd
-  )
+  const feesUsd = Math.max(parseFloat(data.dailyFees) || 0, bookedComponentsUsd)
+  // if the reported total is instead the larger side, book the remainder into
+  // revenue so dailyFees = dailyRevenue + dailySupplySideRevenue still holds
+  const unattributedFeesUsd = feesUsd - bookedComponentsUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
@@ -48,6 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyRevenue = dailyProtocolRevenue.clone()
   dailyRevenue.addBalances(dailyHoldersRevenue)
+  if (unattributedFeesUsd > 0) dailyRevenue.addUSDValue(unattributedFeesUsd, "Swap Fees Unattributed")
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
 }
@@ -59,6 +62,7 @@ const breakdownMethodology = {
   Revenue: {
     "Swap Fees To Treasury": "Fees allocated to the americafun treasury.",
     "Swap Fees To Stakers": "Fees distributed to americafun governance token stakers.",
+    "Swap Fees Unattributed": "Remainder on days the reported fee total exceeds the sum of its attributed components.",
   },
   ProtocolRevenue: {
     "Swap Fees To Treasury": "Fees allocated to the americafun treasury.",
