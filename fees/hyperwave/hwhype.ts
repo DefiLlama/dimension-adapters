@@ -181,7 +181,7 @@ export async function getHwhypeHwusdFees(options: FetchOptions): Promise<{
                         vaultRateBase;
 
                     const supplySideYield =
-                        (totalDeposited * growthRate) / vaultRateBase;
+                        (Number(totalSupplyAtUpdated) * growthRate) / vaultRateBase;
                     const totalYield =
                         supplySideYield / (1 - performanceFeeRate);
                     const protocolFee = totalYield - supplySideYield;
