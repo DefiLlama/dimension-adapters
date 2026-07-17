@@ -299,20 +299,33 @@ const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
   for (const fee of response.feeStats) {
     const feeUsd = BigInt(fee.feeUsd);
     const total = BigInt(fee.fee);
-    tradingFeesUSD += feeUsd;
+    const poolFee = BigInt(fee.poolFee);
+    const keeperFee = BigInt(fee.keeperFee);
+    const treasuryFee = BigInt(fee.treasuryFee);
+    const components = poolFee + keeperFee + treasuryFee;
 
-    if (total === 0n) {
+    // Skip unattributable / inconsistent rows so feeUsd cannot leak into LP/dust.
+    if (total <= 0n || components <= 0n) {
       continue;
     }
-    treasuryUSD += (feeUsd * BigInt(fee.treasuryFee)) / total;
-    poolUSD += (feeUsd * BigInt(fee.poolFee)) / total;
-    keeperUSD += (feeUsd * BigInt(fee.keeperFee)) / total;
+    const componentDiff =
+      components >= total ? components - total : total - components;
+    // Subgraph rows are occasionally off by a few wei; reject only material mismatch.
+    if (componentDiff > 1000n && componentDiff * 1_000_000n > total) {
+      continue;
+    }
+
+    tradingFeesUSD += feeUsd;
+    treasuryUSD += (feeUsd * treasuryFee) / total;
+    poolUSD += (feeUsd * poolFee) / total;
+    keeperUSD += (feeUsd * keeperFee) / total;
   }
 
   const dailyFees = Number(tradingFeesUSD) / 1e18;
   const dailyHoldersRevenue = Number(treasuryUSD) / 1e18;
   const dailyLpFees = Number(poolUSD) / 1e18;
   const dailyKeeperFees = Number(keeperUSD) / 1e18;
+  // Integer-division dust only — counted feeUsd rows are attributed above.
   const attributed = dailyHoldersRevenue + dailyLpFees + dailyKeeperFees;
   const dust = dailyFees - attributed;
 
