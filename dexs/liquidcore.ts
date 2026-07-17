@@ -8,7 +8,7 @@ const SwapWithRefEvent = "event SwapWithRef(address indexed user, address tokenI
 
 const chainConfig: Record<string, { start: string, address: string }> = {
   [CHAIN.HYPERLIQUID]: {
-    start: "2026-03-03",
+    start: "2025-08-11",
     address: "0x625aC1D165c776121A52ff158e76e3544B4a0b8B",
   },
   [CHAIN.ROBINHOOD]: {
