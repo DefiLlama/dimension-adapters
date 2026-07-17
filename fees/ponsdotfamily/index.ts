@@ -71,9 +71,9 @@ async function fetch(options: FetchOptions) {
     const [token0, token1] = pairObject[pool] ?? [];
     if (!token0 || !token1) continue;
     for (const swapLog of poolSwapLogs) {
-      await addOneToken({ balances: feesFromSwap, token0, amount0: Number(swapLog.amount0) * SWAP_FEE, token1, amount1: Number(swapLog.amount1) * SWAP_FEE });
-      await addOneToken({ balances: swapFeesToCreator, token0, amount0: Number(swapLog.amount0) * SWAP_FEE * creatorShare, token1, amount1: Number(swapLog.amount1) * SWAP_FEE * creatorShare });
-      await addOneToken({ balances: swapFeesToProtocol, token0, amount0: Number(swapLog.amount0) * SWAP_FEE * protocolShare, token1, amount1: Number(swapLog.amount1) * SWAP_FEE * protocolShare });
+      addOneToken({ balances: feesFromSwap, token0, amount0: Number(swapLog.amount0) * SWAP_FEE, token1, amount1: Number(swapLog.amount1) * SWAP_FEE });
+      addOneToken({ balances: swapFeesToCreator, token0, amount0: Number(swapLog.amount0) * SWAP_FEE * creatorShare, token1, amount1: Number(swapLog.amount1) * SWAP_FEE * creatorShare });
+      addOneToken({ balances: swapFeesToProtocol, token0, amount0: Number(swapLog.amount0) * SWAP_FEE * protocolShare, token1, amount1: Number(swapLog.amount1) * SWAP_FEE * protocolShare });
     }
   }
 
@@ -98,7 +98,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Token Swap Fees": "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $500 in TVL are included)",
+    [METRIC.SWAP_FEES]: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $500 in TVL are included)",
   },
   Revenue: {
     "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
