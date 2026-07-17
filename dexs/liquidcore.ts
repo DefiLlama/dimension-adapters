@@ -6,9 +6,15 @@ import { METRIC } from "../helpers/metrics";
 const SwapEvent = "event Swap(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 reserve0, uint256 reserve1)";
 const SwapWithRefEvent = "event SwapWithRef(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, bytes32 indexed refCode, uint256 refFee, uint256 reserve0, uint256 reserve1)";
 
-const LIQUIDCORE_ROUTERS: Record<string, string> = {
-  [CHAIN.HYPERLIQUID]: "0x625aC1D165c776121A52ff158e76e3544B4a0b8B",
-  [CHAIN.ROBINHOOD]: "0x322F277BfB7Ba9c196194ad18011377A0fF55Fb3",
+const chainConfig: Record<string, { start: string, address: string }> = {
+  [CHAIN.HYPERLIQUID]: {
+    start: "2026-03-03",
+    address: "0x625aC1D165c776121A52ff158e76e3544B4a0b8B",
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-07-14",
+    address: "0x322F277BfB7Ba9c196194ad18011377A0fF55Fb3",
+  },
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
@@ -19,7 +25,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   // query pools at latest block so backfills before router deployment still work
   const pools = await new ChainApi({ chain: options.chain }).call({
-    target: LIQUIDCORE_ROUTERS[options.chain],
+    target: chainConfig[options.chain].address,
     abi: "function getPools() external view returns (address[])",
   });
 
@@ -63,16 +69,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: "2025-08-11",
-    },
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-07-14",
-    },
-  },
+  fetch,
+  adapter: chainConfig,
   breakdownMethodology: {
     Fees: {
       [METRIC.SWAP_FEES]: "Swap fees collected by LiquidCore pools.",
@@ -91,4 +89,3 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
-
