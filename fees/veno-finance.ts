@@ -62,9 +62,9 @@ const fetchCronosFees = async (options: FetchOptions) => {
   }
 
   // LATOM - Liquid ATOM (ATOM uses 6 decimals)
-  const atomYield = await calculateLSTYield(options, CONTRACTS[CHAIN.CRONOS].LATOM, 'getTotalPooledToken');
+  const atomYield = await calculateLSTYield(options, CONTRACTS[CHAIN.CRONOS].LATOM, 'getTotalPooledToken', 6);
   if (atomYield > 0) {
-    dailyFees.addCGToken("cosmos", atomYield / 1e6);
+    dailyFees.addCGToken("cosmos", atomYield);
   }
 
   const dailyRevenue = dailyFees.clone(CRONOS_FEE_RATE);
