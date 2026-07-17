@@ -65,7 +65,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const performanceFeeRate = Number(accountantState[11]) / FeeRateBase
 
       const totalDeposited = Number(totalSupply) * exchangeRate / rateBase
-      const supplySideYield = totalDeposited * growthRate / rateBase
+      const supplySideYield = Number(totalSupply) * growthRate / rateBase
       const totalYield = supplySideYield / (1 - performanceFeeRate)
       const protocolFee = totalYield - supplySideYield
 
