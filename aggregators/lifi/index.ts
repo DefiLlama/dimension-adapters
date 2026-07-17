@@ -22,6 +22,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
+    maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   })
 
   // count volune only from whitelisted tokens

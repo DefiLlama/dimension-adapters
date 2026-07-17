@@ -17,6 +17,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     target: LifiDiamonds[options.chain].id,
     topic: '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1',
     eventAbi: LifiBridgeEvent,
+    maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   });
 
   logs.forEach((e: any) => {
