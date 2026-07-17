@@ -4,8 +4,9 @@ import { queryDuneSql } from '../../helpers/dune';
 
 // Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
 const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
+const TOKEN_MANAGER_V2 = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
 
-// Quote token: a supported ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if it's in most of a token's trades, else BNB (native BNB pays emit no transfer).
+// Quote token: a supported ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if it moves to/from TokenManager2 in most of a token's trades, else BNB (native BNB pays emit no transfer).
 const fetch = async (options: FetchOptions) => {
   const query = `
     WITH v2_trades AS (
@@ -22,6 +23,7 @@ const fetch = async (options: FetchOptions) => {
       FROM erc20_bnb.evt_transfer tr
       JOIN tx_tokens tt ON tt.evt_tx_hash = tr.evt_tx_hash
       WHERE tr.evt_block_time >= from_unixtime(${options.startTimestamp}) AND tr.evt_block_time < from_unixtime(${options.endTimestamp})
+        AND (tr."to" = ${TOKEN_MANAGER_V2} OR tr."from" = ${TOKEN_MANAGER_V2})
         AND tr.contract_address IN (
           0x55d398326f99059ff775485246999027b3197955, -- USDT
           0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d, -- USD1
