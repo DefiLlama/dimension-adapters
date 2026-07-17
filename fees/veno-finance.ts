@@ -87,7 +87,7 @@ const fetchZkSyncFees = async (options: FetchOptions) => {
   // LETH - Liquid ETH
   const ethYield = await calculateLSTYield(options, CONTRACTS[CHAIN.ERA].LETH, 'getTotalPooledToken');
   if (ethYield > 0) {
-    dailyFees.addGasToken(ethYield);
+    dailyFees.addGasToken(ethYield * 1e18);
   }
 
   // 12% total fee: 50% to Reservoir (protocol), 50% to Kiln (service provider)
