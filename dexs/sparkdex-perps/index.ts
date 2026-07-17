@@ -15,9 +15,8 @@ const ENDPOINT_NEW_PERPS =
 const NEW_PERPS_START = 1782172800; // 2026-06-23
 
 /**
- * Governance proposal B (100% of protocol revenue → SPRK buyback/burn) effective
- * date: https://sparkdex.ai/governance/proposal/6a046cbecd38e8c7fea826ee
- * (passed 2026-05-17; counted from 2026-05-18 UTC).
+ * From this UTC day, the protocol treasury share of trading fees is used to buy
+ * back and burn SPRK (no separate protocol revenue retention).
  */
 const BBB_START = 1779062400; // 2026-05-18
 
@@ -468,7 +467,7 @@ const methodology = {
   UserFees:
     "Same as Fees — trading fees paid by perpetual traders.",
   Revenue:
-    "Before 2026-05-18: 60% of trading fees kept by the protocol. From 2026-05-18 (governance proposal B): the protocol treasury share of trading fees is used to buy back and burn SPRK.",
+    "Before 2026-05-18: 60% of trading fees kept by the protocol. From 2026-05-18: the protocol treasury share of trading fees is used to buy back and burn SPRK.",
   ProtocolRevenue:
     "Before 2026-05-18: 60% of trading fees. From 2026-05-18: none — the treasury share goes to SPRK buyback and burn instead.",
   HoldersRevenue:
