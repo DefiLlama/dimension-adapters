@@ -267,6 +267,28 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 0.2,
     }
   },
+  // VVS concentrated liquidity (v3), fee varies per pool so fees come from the
+  // subgraph, the protocol keeps 1/4 of swap fees (feeProtocol 0x44 on pools)
+  'vvs-flawless': {
+    graphUrls: {
+      [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange-v3"
+    },
+    totalVolume: {
+      factory: "factories"
+    },
+    totalFees: {
+      factory: "factories",
+      field: "totalFeesUSD"
+    },
+    feesPercent: {
+      type: "fees",
+      UserFees: 100,
+      Revenue: 25,
+      ProtocolRevenue: 25,
+      SupplySideRevenue: 75,
+    },
+    start: '2023-09-20',
+  },
   taraswap: {
     graphUrls: {
       [CHAIN.TARA]: "https://indexer.lswap.app/subgraphs/name/taraxa/uniswap-v3"
