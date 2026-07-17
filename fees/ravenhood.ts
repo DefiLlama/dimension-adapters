@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 // RavenhoodRitual (the protocol's core contract) periodically calls
 // RavenhoodVault.claimFees()/claimBurn(), both of which call the Uniswap V3
@@ -23,10 +24,8 @@ const EVENTS = {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const [collectLogs, decreaseLogs] = await Promise.all([
-    options.getLogs({ target: POSITION_MANAGER, eventAbi: EVENTS.collect, entireLog: true, parseLog: true }),
-    options.getLogs({ target: POSITION_MANAGER, eventAbi: EVENTS.decreaseLiquidity, entireLog: true, parseLog: true }),
-  ]);
+  const collectLogs = await options.getLogs({ target: POSITION_MANAGER, eventAbi: EVENTS.collect, entireLog: true, parseLog: true });
+  const decreaseLogs = await options.getLogs({ target: POSITION_MANAGER, eventAbi: EVENTS.decreaseLiquidity, entireLog: true, parseLog: true });
 
   const withdrawnMap = new Map<string, { amount0: bigint; amount1: bigint }>();
   for (const log of decreaseLogs as any[]) {
@@ -40,8 +39,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   for (const log of collectLogs as any[]) {
-    if (String(log.args.tokenId) !== POSITION_ID) continue;
-    if (log.args.recipient.toLowerCase() !== RAVENHOOD_RITUAL.toLowerCase()) continue;
+    if (String(log.args.tokenId) !== POSITION_ID || log.args.recipient.toLowerCase() !== RAVENHOOD_RITUAL.toLowerCase()) continue;
     const key = log.transactionHash.toLowerCase();
     const withdrawn = withdrawnMap.get(key);
 
@@ -52,25 +50,36 @@ const fetch = async (options: FetchOptions) => {
       amount1 = amount1 > withdrawn.amount1 ? amount1 - withdrawn.amount1 : 0n;
     }
 
-    if (amount0 > 0n) dailyFees.add(WETH, amount0.toString());
-    if (amount1 > 0n) dailyFees.add(RVH, amount1.toString());
+    if (amount0 > 0n) dailyFees.add(WETH, amount0, METRIC.SWAP_FEES);
+    if (amount1 > 0n) dailyFees.add(RVH, amount1, METRIC.SWAP_FEES);
   }
 
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
+const methodology = {
+  Fees: "Swap fees collected from RavenhoodVault's single permanently-locked RVH/WETH Uniswap V3 position (tokenId 17757), read from Collect events on the position manager, with any co-occurring DecreaseLiquidity principal subtracted out.",
+  Revenue: "100% of collected fees - the locked position is the protocol's own treasury (routed to buyback+burn or the owner depending on burn progress), not third-party LP yield paid to external depositors.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees collected from RavenhoodVault's single permanently-locked RVH/WETH Uniswap V3 position (tokenId 17757), read from Collect events on the position manager, with any co-occurring DecreaseLiquidity principal subtracted out.",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "100% of collected fees - the locked position is the protocol's own treasury (routed to buyback+burn or the owner depending on burn progress), not third-party LP yield paid to external depositors.",
+  },
+}
+
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-07-08",
-    },
-  },
-  methodology: {
-    Fees: "Swap fees collected from RavenhoodVault's single permanently-locked RVH/WETH Uniswap V3 position (tokenId 17757), read from Collect events on the position manager, with any co-occurring DecreaseLiquidity principal subtracted out.",
-    Revenue: "100% of collected fees - the locked position is the protocol's own treasury (routed to buyback+burn or the owner depending on burn progress), not third-party LP yield paid to external depositors.",
-  },
+  fetch,
+  pullHourly: true,
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-07-08",
+  methodology,
+  breakdownMethodology,
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
