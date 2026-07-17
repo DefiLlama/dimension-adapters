@@ -90,24 +90,24 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform",
-  Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function)",
-  ProtocolRevenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function)",
-  SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted",
+  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $500 in TVL are included).",
+  Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
+  ProtocolRevenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
+  SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    "Token Swap Fees": "1% swap fees paid on all token swaps of tokens launched on the platform",
+    "Token Swap Fees": "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $500 in TVL are included)",
   },
   Revenue: {
-    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function)",
+    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   },
   ProtocolRevenue: {
-    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function)",
+    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   },
   SupplySideRevenue: {
-    "Token Swap Fees to Creators": "Part of swap fees paid to token creators after protocol revenue is deducted",
+    "Token Swap Fees to Creators": "Part of swap fees paid to token creators after protocol revenue is deducted.",
   },
 }
 
