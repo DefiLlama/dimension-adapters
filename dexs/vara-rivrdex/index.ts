@@ -45,6 +45,8 @@ async function fetch(): Promise<FetchResultVolume & FetchResultFees> {
   return {
     dailyVolume,
     dailyFees: dailyVolume * swapFeeRate,
+    dailyUserFees: dailyVolume * swapFeeRate,
+    dailySupplySideRevenue: dailyVolume * swapFeeRate, // Assuming 100% of the 0.3% fee goes to LPs
   };
 }
 
