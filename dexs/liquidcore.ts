@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -9,19 +10,6 @@ const LIQUIDCORE_ROUTERS: Record<string, string> = {
   [CHAIN.HYPERLIQUID]: "0x625aC1D165c776121A52ff158e76e3544B4a0b8B",
   [CHAIN.ROBINHOOD]: "0x322F277BfB7Ba9c196194ad18011377A0fF55Fb3",
 };
-const LIQUIDCORE_POOLS: Record<string, string[]> = {
-  [CHAIN.HYPERLIQUID]: [
-    "0xA7478A5ff7cB27A8008D6D90785db10223bc6087",
-    "0xD3994A6CF46cA91536376f89aCDadf92eD289a9F"
-  ],
-  [CHAIN.ROBINHOOD]: [
-    "0x31114060CB522097F4cF670b3cd95C254920668e"
-  ],
-};
-const ROUTER_DEPLOYED_DATES: Record<string, string> = {
-  [CHAIN.HYPERLIQUID]: "2026-03-03",
-  [CHAIN.ROBINHOOD]: "2026-07-16",
-};
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
@@ -29,8 +17,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const usePoolsFallback = options.dateString <= ROUTER_DEPLOYED_DATES[options.chain];
-  const pools = usePoolsFallback ? LIQUIDCORE_POOLS[options.chain] : await options.api.call({
+  // query pools at latest block so backfills before router deployment still work
+  const pools = await new ChainApi({ chain: options.chain }).call({
     target: LIQUIDCORE_ROUTERS[options.chain],
     abi: "function getPools() external view returns (address[])",
   });
