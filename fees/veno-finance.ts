@@ -62,9 +62,9 @@ const fetchCronosFees = async (options: FetchOptions) => {
   }
 
   // LATOM - Liquid ATOM (ATOM uses 6 decimals)
-  const atomYield = await calculateLSTYield(options, CONTRACTS[CHAIN.CRONOS].LATOM, 'getTotalPooledToken');
+  const atomYield = await calculateLSTYield(options, CONTRACTS[CHAIN.CRONOS].LATOM, 'getTotalPooledToken', 6);
   if (atomYield > 0) {
-    dailyFees.addCGToken("cosmos", atomYield / 1e6);
+    dailyFees.addCGToken("cosmos", atomYield);
   }
 
   const dailyRevenue = dailyFees.clone(CRONOS_FEE_RATE);
@@ -87,7 +87,7 @@ const fetchZkSyncFees = async (options: FetchOptions) => {
   // LETH - Liquid ETH
   const ethYield = await calculateLSTYield(options, CONTRACTS[CHAIN.ERA].LETH, 'getTotalPooledToken');
   if (ethYield > 0) {
-    dailyFees.addGasToken(ethYield);
+    dailyFees.addGasToken(ethYield * 1e18);
   }
 
   // 12% total fee: 50% to Reservoir (protocol), 50% to Kiln (service provider)
