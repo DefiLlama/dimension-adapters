@@ -793,6 +793,25 @@ const configs: Record<string, Record<string, any>> = {
   },
   "catnip": {
     [CHAIN.ROBINHOOD]: { factory: "0x002EC9782d70f4e79396c58964D4691cA648FB49", fees: 0.003, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-14" }
+  },
+  // Sheriff V2 has no TVL-side dimensions coverage yet. Verified on-chain: the
+  // 0.5% swap fee (not the Uniswap V2 default 0.3%) was confirmed by solving
+  // the constant-product-with-fee formula against two independent real swaps
+  // on pair 0xfA0a35415eD6f038C3830f48073aC7f77f2daa01 (both gave
+  // feeMultiplier=995 exactly):
+  //   tx 0xe2bafa108d19d66379f3caca607b5594bf154c4149780fb55445cba5b61ec23e
+  //   (block 11777172) and
+  //   tx 0xd23cd676fb03623f28a6b3837cc0809ec2d50c078732b48aa862589564a56fae
+  //   (block 11879878).
+  // The 30% owner/protocol revenue share was confirmed both via
+  // ownerFeeShare()/OWNER_FEE_SHARE_MAX() on the live factory (30000/100000)
+  // and in the factory's own verified source ("ownerFeeShare = 30000;
+  // // default value = 30%"):
+  //   https://robinhoodchain.blockscout.com/address/0x10F7D1eF77f58181484936170430DF13539C5162?tab=contract
+  // Factory deployed 2026-07-03, confirmed via its creation transaction:
+  //   tx 0xcb2a6e8c7d6a2ed32336e5d5f6eb5d99691cf83d0c4074ff4a12e672ffca616b
+  "sheriff-v2": {
+    [CHAIN.ROBINHOOD]: { factory: "0x10F7D1eF77f58181484936170430DF13539C5162", fees: 0.005, revenueRatio: 0.3, protocolRevenueRatio: 0.3, start: "2026-07-03" }
   }
 }
 
