@@ -1,10 +1,11 @@
 import request, { gql } from "graphql-request";
 import type {
-  FetchResultFees,
-  FetchResultVolume,
+  FetchOptions,
+  FetchResultV2,
   SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const endpoint = "https://dex-explorer.rivrdex.io/graphql";
 // Official fee schedule (0.35% total, with 0.30% paid to LPs):
@@ -33,7 +34,7 @@ const query = gql`
   }
 `;
 
-async function fetch(): Promise<FetchResultVolume & FetchResultFees> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const { allPairs } = await request<PairsResponse>(endpoint, query);
   const pairs = allPairs?.nodes;
 
@@ -46,27 +47,54 @@ async function fetch(): Promise<FetchResultVolume & FetchResultFees> {
     return total + volume;
   }, 0);
 
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(dailyVolume * totalFeeRate, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(dailyVolume * protocolFeeRate, "Token Swap Fees to Protocol");
+  dailySupplySideRevenue.addUSDValue(dailyVolume * lpFeeRate, "Token Swap Fees to LPs");
+
   return {
     dailyVolume,
-    dailyFees: dailyVolume * totalFeeRate,
-    dailyUserFees: dailyVolume * totalFeeRate,
-    dailyRevenue: dailyVolume * protocolFeeRate,
-    dailyProtocolRevenue: dailyVolume * protocolFeeRate,
-    dailySupplySideRevenue: dailyVolume * lpFeeRate,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 }
 
+const methodology = {
+  Fees: "0.35% total swap fee paid by traders, calculated from the rolling 24h volume reported by the RivrDEX API.",
+  Revenue: "0.05% of swap volume is collected by the protocol.",
+  ProtocolRevenue: "0.05% of swap volume is collected by the protocol.",
+  SupplySideRevenue: "0.3% of swap volume is distributed to liquidity providers.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "0.35% total swap fee paid by traders, calculated from the rolling 24h volume reported by the RivrDEX API.",
+  },
+  Revenue: {
+    "Token Swap Fees to Protocol": "0.05% of swap volume is collected by the protocol.",
+  },
+  ProtocolRevenue: {
+    "Token Swap Fees to Protocol": "0.05% of swap volume is collected by the protocol.",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees to LPs": "0.3% of swap volume is distributed to liquidity providers.",
+  },
+}
+
 const adapter: SimpleAdapter = {
+  version: 2,
   chains: [CHAIN.VARA],
   fetch,
   start: "2026-06-17",
   runAtCurrTime: true,
-  methodology: {
-    Fees: "0.35% total swap fee paid by traders, calculated from the rolling 24h volume reported by the RivrDEX API.",
-    Revenue: "0.05% of swap volume is collected by the protocol.",
-    ProtocolRevenue: "0.05% of swap volume is collected by the protocol.",
-    SupplySideRevenue: "0.3% of swap volume is distributed to liquidity providers.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
