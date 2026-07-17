@@ -545,6 +545,13 @@ export const LifiFeeCollectors: IContract = {
   }
 }
 
+// LI.FI's analytics API occasionally reports a wildly wrong amountUSD: e.g. on 2026-06-29 a
+// Solana->Ethereum USDC bridge that on-chain delivered ~$1 (0.997 USDC) was tagged $99.7M,
+// spiking the daily total from ~$0.6M to ~$100M. Drop single transfers above this ceiling; it
+// sits far above any legit single bridge on these chains (observed max ~$60k, daily totals $1-5M).
+// ponytail: blunt magnitude cap, catches the egregious 10^8-off errors, not subtle mispricing.
+const MAX_TRANSFER_USD = 50_000_000;
+
 export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[], exclude_integrators?: string[], swapType?: 'cross-chain' | 'same-chain'): Promise<number> => {
   let hasMore = true;
   let totalValue = 0;
@@ -567,8 +574,7 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
     }
 
     const url = `https://li.quest/v2/analytics/transfers?${params}`;
-    // pullHourly runs this fetch 24x/day per chain and each call paginates, so the LI.FI
-    // analytics API 429s under the burst; back off + retry instead of failing the adapter
+    // paginating a busy chain can 429 the analytics API; back off + retry instead of failing
     const response = await fetchURLAutoHandleRateLimit(url) as LifiResponse;
 
     if (!response?.data || !Array.isArray(response.data)) {
@@ -588,6 +594,7 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
         (exclude_integrators && exclude_integrators.length > 0 ? !exclude_integrators.includes(tx.metadata.integrator) : true)
       ) {
         const value = parseFloat(tx.sending.amountUSD) || 0;
+        if (value > MAX_TRANSFER_USD) return; // skip corrupt amountUSD outliers (see MAX_TRANSFER_USD)
         totalValue += value;
       }
     });
