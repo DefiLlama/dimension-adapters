@@ -33,7 +33,7 @@ async function fetch(): Promise<FetchResultVolume & FetchResultFees> {
   const { allPairs } = await request<PairsResponse>(endpoint, query);
   const pairs = allPairs?.nodes;
 
-  if (!pairs) throw new Error("RivrDEX API returned no pairs");
+  if (!pairs || pairs.length === 0) throw new Error("RivrDEX API returned no pairs");
 
   const dailyVolume = pairs.reduce((total, pair) => {
     const volume = Number(pair.volume24H);
