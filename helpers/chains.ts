@@ -228,6 +228,7 @@ export enum CHAIN {
   SAGA = "saga",
   SAPPHIRE = "sapphire",
   VANA = "vana",
+  VARA = "vara",
   SONIC = "sonic",
   HYPERLIQUID = "hyperliquid",
   SONEIUM = "soneium",
