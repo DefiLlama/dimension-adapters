@@ -24,11 +24,21 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const feesUsd = parseFloat(data.dailyFees) || 0
   const protocolRevenueUsd = parseFloat(data.dailyProtocolRevenue) || 0
   const holdersRevenueUsd = parseFloat(data.dailyHoldersRevenue) || 0
   const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
   const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
+  const supplySideBookedUsd = meteoraFeeUsd + Math.max(lpFeeUsd, 0)
+
+  // on healthy days the endpoint maintains dailyFees = dailyProtocolRevenue +
+  // dailyHoldersRevenue + dailySupplySideRevenue exactly, but on some days it
+  // returns a total far below its own components (revenue 5x fees), and on
+  // others meteoraFee exceeds dailySupplySideRevenue - floor the total at the
+  // sum of what gets booked below so revenue can never exceed fees
+  const feesUsd = Math.max(
+    parseFloat(data.dailyFees) || 0,
+    protocolRevenueUsd + holdersRevenueUsd + supplySideBookedUsd
+  )
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
