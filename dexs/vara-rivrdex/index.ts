@@ -7,8 +7,10 @@ import type {
 import { CHAIN } from "../../helpers/chains";
 
 const endpoint = "https://dex-explorer.rivrdex.io/graphql";
-const lpFeeRate = 0.003;
-const protocolFeeRate = 0.0005;
+// Official fee schedule (0.35% total, with 0.30% paid to LPs):
+// https://app.rivrdex.io/explore and https://app.rivrdex.io/trade
+const lpFeeRate = 0.003; // 0.30% LP fee.
+const protocolFeeRate = 0.0005; // 0.05% protocol fee (the remainder of the total fee).
 const totalFeeRate = lpFeeRate + protocolFeeRate;
 
 interface Pair {
