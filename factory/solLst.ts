@@ -248,6 +248,21 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
         }
+      } else if (row.metric_type === "dailyUserFees") {
+        // Deposit/withdrawal fees are charged on the user's principal, so unlike the
+        // manager's epoch fee they are not part of the staking rewards counted above and
+        // have to be added to fees on their own. Adapters that already feed the whole fee
+        // account inflow into dailyFees include them, so they are skipped here.
+        if (!config.revenueFeedback.addToFees) {
+          const rev = config.revenue;
+          if (rev.type === "addCGToken") {
+            dailyFees.addCGToken(rev.cgId, row.amount || 0, rev.metric);
+          } else if (rev.type === "add") {
+            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, rev.metric);
+          } else if (rev.type === "addToken") {
+            dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
+          }
+        }
       }
     });
 
@@ -508,7 +523,7 @@ const configs: Record<string, SolLstConfig> = {
     revenueFeedback: { addToFees: false },
     returnDailyHoldersRevenue: 0,
     methodology: {
-      Fees: "Staking rewards from staked SOL on doublezero staked solana",
+      Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to 2Z token holders.",
@@ -844,6 +859,11 @@ const doublezeroAdapter = (() => {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+      } else if (row.metric_type === "dailyUserFees") {
+        // Withdrawal fees are charged on the user's principal, so they are not part
+        // of the staking rewards counted above and have to be added to fees on their
+        // own. Without this a heavy withdrawal day reports more revenue than fees.
+        dailyFees.addCGToken(revenueToken, row.amount || 0);
       }
     });
 

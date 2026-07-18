@@ -30,6 +30,25 @@ WITH
             AND token_mint_address='{{lst_mint}}'
             AND block_time>=from_unixtime({{start}})
             AND block_time<=from_unixtime({{end}})
+    ),
+    -- The fee account receives the manager's cut two different ways:
+    --   action='mint'     -> the epoch (management) fee, minted out of the staking
+    --                        rewards that staking_fees above already counts
+    --   action='transfer' -> deposit/withdrawal fees paid by users on their principal,
+    --                        which are NOT part of the staking rewards
+    -- Only the transfer leg is fee revenue that staking_fees does not already include.
+    user_paid_fees AS (
+        SELECT
+            'dailyUserFees' as metric_type,
+            SUM(amount)/POW(10, 9) as amount
+        FROM
+            tokens_solana.transfers
+        WHERE
+            to_token_account='{{lst_fee_token_account}}'
+            AND token_mint_address='{{lst_mint}}'
+            AND action='transfer'
+            AND block_time>=from_unixtime({{start}})
+            AND block_time<=from_unixtime({{end}})
     )
 SELECT
     metric_type,
@@ -42,3 +61,9 @@ SELECT
     COALESCE(amount, 0) as amount
 FROM
     revenue_fees
+UNION ALL
+SELECT
+    metric_type,
+    COALESCE(amount, 0) as amount
+FROM
+    user_paid_fees
