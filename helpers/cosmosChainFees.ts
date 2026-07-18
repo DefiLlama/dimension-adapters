@@ -133,7 +133,9 @@ export function makeBlockWindows(fromBlock: number, toBlock: number, windowSize 
  */
 function accumulateTxResults(metrics: CosmosChainMetricsAccumulator, txs: any[]) {
   for (const tx of txs) {
-    const txResult = tx.tx_result ?? {};
+    const txResult = tx.tx_result;
+    if (!txResult) throw new Error(`malformed tx_search result for tx ${tx.hash}: missing tx_result`);
+    // CometBFT JSON omits zero-valued fields: an absent code/gas/events means 0/empty, not missing data
     if (Number(txResult.code ?? 0) !== 0 && Number(txResult.gas_wanted ?? 0) === 0 && !(txResult.events?.length)) continue;
     metrics.transactionCount += 1;
     metrics.totalGasUsed += Number(txResult.gas_used ?? 0);
@@ -160,6 +162,9 @@ async function getWindowTxs(config: CosmosChainMetricConfig, window: BlockRange)
       order_by: "asc",
     });
     totalCount = Number(result.total_count);
+    if (!Number.isFinite(totalCount) || !Array.isArray(result.txs ?? [])) {
+      throw new Error(`${config.chain}: malformed tx_search response for blocks ${window.fromBlock}-${window.toBlock}: ${JSON.stringify(result).slice(0, 200)}`);
+    }
     txs.push(...(result.txs ?? []));
     // requesting a page past the last one is an error, so stop on the page that completes the set
     if (!result.txs?.length || txs.length >= totalCount) break;
@@ -183,9 +188,10 @@ export async function fetchCosmosChainMetrics(config: CosmosChainMetricConfig & 
     .withConcurrency(config.windowConcurrency ?? DEFAULT_WINDOW_CONCURRENCY)
     .for(windows)
     .process(async (window) => {
-      // one retry per window: with public RPCs a transient failure on every endpoint
-      // at once is common enough to kill hour-long runs otherwise
-      const txs = await getWindowTxs(config, window).catch(() => getWindowTxs(config, window));
+      const txs = await getWindowTxs(config, window).catch((error) => {
+        log(`${config.chain}: retrying blocks ${window.fromBlock}-${window.toBlock} after: ${error?.message}`);
+        return getWindowTxs(config, window);
+      });
       accumulateTxResults(totals, txs);
     });
 
