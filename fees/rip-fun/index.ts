@@ -191,117 +191,95 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(token, amount, pair[1]);
   };
 
-  const [
-    packetSales,
-    instantPackSales,
-    instantPackPurchaseRequests,
-    instantPackRefunds,
-    comboTierPurchases,
-    comboVouchers,
-    comboInventoryRefunds,
-    comboCancellations,
-    sealedProductSales,
-    sealedProductOpeningFees,
-    marketplacePurchases,
-    marketplaceOffers,
-    marketplaceCollectionOffers,
-    auctionSettlements,
-    packetBuybacks,
-    cardBuybacks,
-    gradedCardBuybacks,
-    sealedProductBuybacks,
-    signedBuybacks,
-  ] = await Promise.all([
-    options.getLogs({
-      targets: [CONTRACTS.legacyPacketStore, CONTRACTS.packetStore],
-      eventAbi: EVENTS.packetSold,
-    }),
-    options.getLogs({
-      target: CONTRACTS.packetStore,
-      eventAbi: EVENTS.instantPackSold,
-    }),
-    options.getLogs({
-      target: CONTRACTS.packetStore,
-      eventAbi: EVENTS.instantPackPurchaseRequested,
-    }),
-    options.getLogs({
-      target: CONTRACTS.packetStore,
-      eventAbi: EVENTS.instantPackRefunded,
-    }),
-    options.getLogs({
-      target: CONTRACTS.comboStore,
-      eventAbi: EVENTS.comboTierPurchased,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.comboStore,
-      eventAbi: EVENTS.voucherRedeemed,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.comboStore,
-      eventAbi: EVENTS.purchaseRefundedDueToInventory,
-    }),
-    options.getLogs({
-      target: CONTRACTS.comboStore,
-      eventAbi: EVENTS.requestCancelled,
-    }),
-    options.getLogs({
-      target: CONTRACTS.sealedProductStore,
-      eventAbi: EVENTS.productSold,
-    }),
-    options.getLogs({
-      target: CONTRACTS.sealedProduct,
-      eventAbi: EVENTS.openRequestFeePaid,
-    }),
-    options.getLogs({
-      target: CONTRACTS.marketplace,
-      eventAbi: EVENTS.purchase,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.marketplace,
-      eventAbi: EVENTS.offerAccepted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.marketplace,
-      eventAbi: EVENTS.collectionOfferAccepted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.auctionMarketplace,
-      eventAbi: EVENTS.auctionSettled,
-      onlyArgs: false,
-    }),
-    // Only completed execution events are accounting flows. Requests, quotes,
-    // transfers, shipping, and protocol-owned recycling remain excluded.
-    options.getLogs({
-      target: CONTRACTS.buybackPool,
-      eventAbi: EVENTS.packetSellExecuted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.buybackPool,
-      eventAbi: EVENTS.cardSellExecuted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.buybackPool,
-      eventAbi: EVENTS.gradedCardSellExecuted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.buybackPool,
-      eventAbi: EVENTS.sealedProductSellExecuted,
-      onlyArgs: false,
-    }),
-    options.getLogs({
-      target: CONTRACTS.buybackPool,
-      eventAbi: EVENTS.signedBuybackExecuted,
-      onlyArgs: false,
-    }),
-  ]);
+  const packetSales = await options.getLogs({
+    targets: [CONTRACTS.legacyPacketStore, CONTRACTS.packetStore],
+    eventAbi: EVENTS.packetSold,
+  });
+  const instantPackSales = await options.getLogs({
+    target: CONTRACTS.packetStore,
+    eventAbi: EVENTS.instantPackSold,
+  });
+  const instantPackPurchaseRequests = await options.getLogs({
+    target: CONTRACTS.packetStore,
+    eventAbi: EVENTS.instantPackPurchaseRequested,
+  });
+  const instantPackRefunds = await options.getLogs({
+    target: CONTRACTS.packetStore,
+    eventAbi: EVENTS.instantPackRefunded,
+  });
+  const comboTierPurchases = await options.getLogs({
+    target: CONTRACTS.comboStore,
+    eventAbi: EVENTS.comboTierPurchased,
+    onlyArgs: false,
+  });
+  const comboVouchers = await options.getLogs({
+    target: CONTRACTS.comboStore,
+    eventAbi: EVENTS.voucherRedeemed,
+    onlyArgs: false,
+  });
+  const comboInventoryRefunds = await options.getLogs({
+    target: CONTRACTS.comboStore,
+    eventAbi: EVENTS.purchaseRefundedDueToInventory,
+  });
+  const comboCancellations = await options.getLogs({
+    target: CONTRACTS.comboStore,
+    eventAbi: EVENTS.requestCancelled,
+  });
+  const sealedProductSales = await options.getLogs({
+    target: CONTRACTS.sealedProductStore,
+    eventAbi: EVENTS.productSold,
+  });
+  const sealedProductOpeningFees = await options.getLogs({
+    target: CONTRACTS.sealedProduct,
+    eventAbi: EVENTS.openRequestFeePaid,
+  });
+  const marketplacePurchases = await options.getLogs({
+    target: CONTRACTS.marketplace,
+    eventAbi: EVENTS.purchase,
+    onlyArgs: false,
+  });
+  const marketplaceOffers = await options.getLogs({
+    target: CONTRACTS.marketplace,
+    eventAbi: EVENTS.offerAccepted,
+    onlyArgs: false,
+  });
+  const marketplaceCollectionOffers = await options.getLogs({
+    target: CONTRACTS.marketplace,
+    eventAbi: EVENTS.collectionOfferAccepted,
+    onlyArgs: false,
+  });
+  const auctionSettlements = await options.getLogs({
+    target: CONTRACTS.auctionMarketplace,
+    eventAbi: EVENTS.auctionSettled,
+    onlyArgs: false,
+  });
+  // Only completed execution events are accounting flows. Requests, quotes,
+  // transfers, shipping, and protocol-owned recycling remain excluded.
+  const packetBuybacks = await options.getLogs({
+    target: CONTRACTS.buybackPool,
+    eventAbi: EVENTS.packetSellExecuted,
+    onlyArgs: false,
+  });
+  const cardBuybacks = await options.getLogs({
+    target: CONTRACTS.buybackPool,
+    eventAbi: EVENTS.cardSellExecuted,
+    onlyArgs: false,
+  });
+  const gradedCardBuybacks = await options.getLogs({
+    target: CONTRACTS.buybackPool,
+    eventAbi: EVENTS.gradedCardSellExecuted,
+    onlyArgs: false,
+  });
+  const sealedProductBuybacks = await options.getLogs({
+    target: CONTRACTS.buybackPool,
+    eventAbi: EVENTS.sealedProductSellExecuted,
+    onlyArgs: false,
+  });
+  const signedBuybacks = await options.getLogs({
+    target: CONTRACTS.buybackPool,
+    eventAbi: EVENTS.signedBuybackExecuted,
+    onlyArgs: false,
+  });
 
   const marketplaceActivity = [
     ...marketplacePurchases,
@@ -324,26 +302,24 @@ const fetch = async (options: FetchOptions) => {
       comparePositions(getPosition(log), CARD_RECIPIENT_INITIALIZER) >= 0,
   );
 
-  const [marketplaceFeeUpdateLogs, recipientUpdateLogs] = await Promise.all([
-    marketplaceActivity.length
-      ? options.getLogs({
-          target: CONTRACTS.marketplace,
-          eventAbi: EVENTS.feesSet,
-          fromBlock: MARKETPLACE_DEPLOY_BLOCK,
-          cacheInCloud: true,
-          onlyArgs: false,
-        })
-      : Promise.resolve([]),
-    needsRecipientHistory
-      ? options.getLogs({
-          target: CONTRACTS.buybackPool,
-          eventAbi: EVENTS.cardRecipientUpdated,
-          fromBlock: CARD_RECIPIENT_INITIALIZER.blockNumber,
-          cacheInCloud: true,
-          onlyArgs: false,
-        })
-      : Promise.resolve([]),
-  ]);
+  const marketplaceFeeUpdateLogs = marketplaceActivity.length
+    ? await options.getLogs({
+        target: CONTRACTS.marketplace,
+        eventAbi: EVENTS.feesSet,
+        fromBlock: MARKETPLACE_DEPLOY_BLOCK,
+        cacheInCloud: true,
+        onlyArgs: false,
+      })
+    : [];
+  const recipientUpdateLogs = needsRecipientHistory
+    ? await options.getLogs({
+        target: CONTRACTS.buybackPool,
+        eventAbi: EVENTS.cardRecipientUpdated,
+        fromBlock: CARD_RECIPIENT_INITIALIZER.blockNumber,
+        cacheInCloud: true,
+        onlyArgs: false,
+      })
+    : [];
 
   const feeUpdates: FeeUpdate[] = marketplaceFeeUpdateLogs
     .map((log) => ({
@@ -411,22 +387,20 @@ const fetch = async (options: FetchOptions) => {
   );
 
   if (reversedRequestIds.size) {
-    const [historicalPurchases, historicalVouchers] = await Promise.all([
-      options.getLogs({
-        target: CONTRACTS.comboStore,
-        eventAbi: EVENTS.comboTierPurchased,
-        fromBlock: COMBO_DEPLOY_BLOCK,
-        cacheInCloud: true,
-        onlyArgs: false,
-      }),
-      options.getLogs({
-        target: CONTRACTS.comboStore,
-        eventAbi: EVENTS.voucherRedeemed,
-        fromBlock: COMBO_DEPLOY_BLOCK,
-        cacheInCloud: true,
-        onlyArgs: false,
-      }),
-    ]);
+    const historicalPurchases = await options.getLogs({
+      target: CONTRACTS.comboStore,
+      eventAbi: EVENTS.comboTierPurchased,
+      fromBlock: COMBO_DEPLOY_BLOCK,
+      cacheInCloud: true,
+      onlyArgs: false,
+    });
+    const historicalVouchers = await options.getLogs({
+      target: CONTRACTS.comboStore,
+      eventAbi: EVENTS.voucherRedeemed,
+      fromBlock: COMBO_DEPLOY_BLOCK,
+      cacheInCloud: true,
+      onlyArgs: false,
+    });
     const historicalCashPurchases = getCashComboPurchases(
       historicalPurchases,
       historicalVouchers,
@@ -520,8 +494,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Cash primary sales and opening fees, marketplace commissions, and first-party marketplace and auction proceeds, net of purchase refunds and completed external inventory buybacks. Voucher-funded purchases and protocol-owned inventory recycling are excluded.",
-  Revenue:
-    "All net fees accrue to RIP.FUN, so revenue equals fees after refunds and completed external inventory buybacks.",
+  Revenue: "All fees (cash primary sales, opening fees, marketplace commissions, and first-party marketplace and auction proceeds, net of purchase refunds and completed external inventory buybacks) accrue to RIP.FUN.",
 };
 
 const breakdownMethodology = {
