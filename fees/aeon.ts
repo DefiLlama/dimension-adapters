@@ -58,8 +58,8 @@ async function fetch(options: FetchOptions) {
     const feeRate = Number(log.fee) / 1e6; // dynamic fee in ppm
     const fee = amount0 * feeRate;
     dailyFees.add(WETH, fee, METRIC.SWAP_FEES);
-    dailyRevenue.add(WETH, fee * treasuryShare, METRIC.SWAP_FEES);
-    dailySupplySideRevenue.add(WETH, fee * (1 - treasuryShare), METRIC.SWAP_FEES);
+    dailyRevenue.add(WETH, fee * treasuryShare, "Token Swap Fees to Treasury");
+    dailySupplySideRevenue.add(WETH, fee * (1 - treasuryShare), "Token Swap Fees to Launch Platform");
   }
 
   return {
@@ -89,15 +89,16 @@ const adapter: SimpleAdapter = {
       [METRIC.SWAP_FEES]: 'Dynamic swap fee charged on WETH/AEON Uniswap v4 pool swaps, measured on the WETH side of each swap.',
     },
     Revenue: {
-      [METRIC.SWAP_FEES]: '57% treasury share of swap fees, per the on-chain beneficiary split.',
+      "Token Swap Fees to Treasury": '57% treasury share of swap fees, per the on-chain beneficiary split.',
     },
     ProtocolRevenue: {
-      [METRIC.SWAP_FEES]: '57% treasury share of swap fees, per the on-chain beneficiary split.',
+      "Token Swap Fees to Treasury": '57% treasury share of swap fees, per the on-chain beneficiary split.',
     },
     SupplySideRevenue: {
-      [METRIC.SWAP_FEES]: '43% launch platform share of swap fees (Bankr/Doppler & interface beneficiaries).',
+      "Token Swap Fees to Launch Platform": '43% launch platform share of swap fees (Bankr/Doppler & interface beneficiaries).',
     },
   },
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
