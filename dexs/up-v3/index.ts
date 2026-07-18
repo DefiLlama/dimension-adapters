@@ -21,21 +21,25 @@ const eventAbis = {
   poolCreated: "event PoolCreated(address indexed token0,address indexed token1,int24 indexed tickSpacing,address pool)",
   swap:
     "event Swap(address indexed sender,address indexed recipient,int256 amount0,int256 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick)",
+  collectFees: "event CollectFees(address indexed recipient,uint128 amount0,uint128 amount1)",
 };
 
 const abis = {
   fee: "uint256:fee",
+  gaugeFees: "function gaugeFees() view returns (uint128 token0, uint128 token1)",
 };
 
 const METRIC = {
   SWAP_FEES: "Token Swap Fees",
-  PROTOCOL_FEES: "Protocol Swap Fees",
+  VOTER_FEES: "CL Gauge Voter Fees",
+  LP_FEES: "CL Liquidity Provider Fees",
 };
 
 type PoolLog = {
   token0: string;
   token1: string;
   pool: string;
+  blockNumber?: number;
 };
 
 function toBN(value: any, context = "value") {
@@ -45,12 +49,22 @@ function toBN(value: any, context = "value") {
 
 const absBN = (value: any, context?: string) => toBN(value, context).abs();
 
+function requiredGaugeFees(value: any, context: string) {
+  if (value === null || value === undefined) throw new Error(`Missing ${context}`);
+  return {
+    token0: toBN(value.token0 ?? value[0], `${context} token0`),
+    token1: toBN(value.token1 ?? value[1], `${context} token1`),
+  };
+}
+
 function normalizePoolLog(log: any): PoolLog {
   const args = log.args ?? log;
+  const blockNumber = log.blockNumber ?? log.block_number;
   return {
     token0: args.token0,
     token1: args.token1,
     pool: args.pool,
+    blockNumber: blockNumber === undefined ? undefined : Number(blockNumber),
   };
 }
 
@@ -84,13 +98,32 @@ function addPricedAmount(
   addAmount(balances, token, amount, label);
 }
 
+function convertToPricedAmount(
+  chain: string,
+  token0: string,
+  token1: string,
+  amount0: BigNumber,
+  amount1: BigNumber,
+  volume0: BigNumber,
+  volume1: BigNumber,
+): { token: string; amount: BigNumber } {
+  if (isCoreAsset(chain, token0)) {
+    const converted1 = volume1.gt(0) ? amount1.times(volume0).div(volume1) : new BigNumber(0);
+    return { token: token0, amount: amount0.plus(converted1) };
+  }
+
+  const converted0 = volume0.gt(0) ? amount0.times(volume1).div(volume0) : new BigNumber(0);
+  return { token: token1, amount: amount1.plus(converted0) };
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const { api, chain, createBalances, getLogs } = options;
+  const { api, fromApi, chain, createBalances, getLogs } = options;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyUserFees = createBalances();
   const dailyRevenue = createBalances();
-  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
@@ -107,11 +140,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   ).map(normalizePoolLog);
 
   if (!rawPools.length) {
-    return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
+    return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
   }
 
   const poolIds = rawPools.map((pool) => pool.pool.toLowerCase());
   const fees = await api.multiCall({ abi: abis.fee, calls: poolIds });
+  const gaugeFeesStart = await fromApi.multiCall({ abi: abis.gaugeFees, calls: poolIds, permitFailure: true });
+  const gaugeFeesEnd = await api.multiCall({ abi: abis.gaugeFees, calls: poolIds });
 
   const poolInfo: Record<string, { token0: string; token1: string; fee: BigNumber }> = {};
   rawPools.forEach((pool, index) => {
@@ -133,8 +168,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const poolFeeTotals: Record<
     string,
     {
+      fee0: BigNumber;
+      fee1: BigNumber;
       pricedFee: BigNumber;
       pricedToken: string;
+      volume0: BigNumber;
+      volume1: BigNumber;
     }
   > = {};
   (swapLogsByPool as any[][]).forEach((logs, index) => {
@@ -149,36 +188,105 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
       if (!poolFeeTotals[pool]) {
         poolFeeTotals[pool] = {
+          fee0: new BigNumber(0),
+          fee1: new BigNumber(0),
           pricedFee: new BigNumber(0),
           pricedToken: getPricedAmount(chain, info.token0, info.token1, new BigNumber(0), new BigNumber(0)).token,
+          volume0: new BigNumber(0),
+          volume1: new BigNumber(0),
         };
       }
+      poolFeeTotals[pool].volume0 = poolFeeTotals[pool].volume0.plus(amount0);
+      poolFeeTotals[pool].volume1 = poolFeeTotals[pool].volume1.plus(amount1);
+      if (toBN(log.amount0).gt(0)) poolFeeTotals[pool].fee0 = poolFeeTotals[pool].fee0.plus(amount0.times(info.fee));
+      if (toBN(log.amount1).gt(0)) poolFeeTotals[pool].fee1 = poolFeeTotals[pool].fee1.plus(amount1.times(info.fee));
       poolFeeTotals[pool].pricedFee = poolFeeTotals[pool].pricedFee.plus(
         getPricedAmount(chain, info.token0, info.token1, amount0.times(info.fee), amount1.times(info.fee)).amount,
       );
     }
   });
 
-  rawPools.forEach((poolLog) => {
+  const collectLogsByPool = await getLogs({
+    targets: poolIds,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.collectFees,
+    flatten: false,
+  });
+
+  const collectedByPool: Record<string, { c0: BigNumber; c1: BigNumber }> = {};
+  (collectLogsByPool as any[][]).forEach((logs, index) => {
+    const pool = poolIds[index];
+    for (const log of logs) {
+      if (!collectedByPool[pool]) collectedByPool[pool] = { c0: new BigNumber(0), c1: new BigNumber(0) };
+      collectedByPool[pool].c0 = collectedByPool[pool].c0.plus(toBN(log.amount0));
+      collectedByPool[pool].c1 = collectedByPool[pool].c1.plus(toBN(log.amount1));
+    }
+  });
+
+  rawPools.forEach((poolLog, index) => {
     const pool = poolLog.pool.toLowerCase();
     const totals = poolFeeTotals[pool];
-    if (!totals || totals.pricedFee.isZero()) return;
+    if (!totals || (totals.fee0.isZero() && totals.fee1.isZero())) return;
+
+    const createdAfterWindowStart = poolLog.blockNumber !== undefined && poolLog.blockNumber > fromBlock;
+    const start =
+      gaugeFeesStart[index] === null || gaugeFeesStart[index] === undefined
+        ? createdAfterWindowStart
+          ? { token0: new BigNumber(0), token1: new BigNumber(0) }
+          : requiredGaugeFees(gaugeFeesStart[index], `${pool} gaugeFees at fromBlock`)
+        : requiredGaugeFees(gaugeFeesStart[index], `${pool} gaugeFees at fromBlock`);
+    const end = requiredGaugeFees(gaugeFeesEnd[index], `${pool} gaugeFees at toBlock`);
+    const collected = collectedByPool[pool] ?? { c0: new BigNumber(0), c1: new BigNumber(0) };
+
+    let holders0 = end.token0.minus(start.token0).plus(collected.c0);
+    let holders1 = end.token1.minus(start.token1).plus(collected.c1);
+    if (holders0.lt(0)) holders0 = new BigNumber(0);
+    if (holders1.lt(0)) holders1 = new BigNumber(0);
+    if (holders0.gt(totals.fee0)) holders0 = totals.fee0;
+    if (holders1.gt(totals.fee1)) holders1 = totals.fee1;
+
+    const actualFees = convertToPricedAmount(
+      chain,
+      poolLog.token0,
+      poolLog.token1,
+      totals.fee0,
+      totals.fee1,
+      totals.volume0,
+      totals.volume1,
+    );
+    const actualHolders = convertToPricedAmount(
+      chain,
+      poolLog.token0,
+      poolLog.token1,
+      holders0,
+      holders1,
+      totals.volume0,
+      totals.volume1,
+    );
+    const holdersShare = actualFees.amount.gt(0)
+      ? BigNumber.min(actualHolders.amount.div(actualFees.amount), 1)
+      : new BigNumber(0);
+    const holders = totals.pricedFee.times(holdersShare);
 
     addAmount(dailyFees, totals.pricedToken, totals.pricedFee, METRIC.SWAP_FEES);
     addAmount(dailyUserFees, totals.pricedToken, totals.pricedFee, METRIC.SWAP_FEES);
-    addAmount(dailyRevenue, totals.pricedToken, totals.pricedFee, METRIC.PROTOCOL_FEES);
-    addAmount(dailyProtocolRevenue, totals.pricedToken, totals.pricedFee, METRIC.PROTOCOL_FEES);
+    addAmount(dailyHoldersRevenue, totals.pricedToken, holders, METRIC.VOTER_FEES);
+    addAmount(dailySupplySideRevenue, totals.pricedToken, totals.pricedFee.minus(holders), METRIC.LP_FEES);
   });
 
-  return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
+  dailyRevenue.add(dailyHoldersRevenue);
+
+  return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
   Volume: "Swap volume from UP concentrated liquidity pools on Robinhood Chain. Each swap is counted once on the pricing side of the pair.",
   Fees: "Total concentrated liquidity swap fees paid by traders, valued on the same pricing side used for volume. Fees use CLPool.fee(), where 3000 means 0.30%.",
   UserFees: "Swap fees directly paid by traders.",
-  Revenue: "100% of concentrated liquidity swap fees are protocol revenue.",
-  ProtocolRevenue: "100% of concentrated liquidity swap fees are protocol revenue.",
+  Revenue: "Concentrated liquidity fees routed to veUP voters through gauges, equal to HoldersRevenue.",
+  HoldersRevenue: "Voter fee share is measured from CLPool.gaugeFees() deltas plus CollectFees events and applied to the priced fee total.",
+  SupplySideRevenue: "Concentrated liquidity provider fees not routed to veUP voters.",
 };
 
 const breakdownMethodology = {
@@ -189,10 +297,13 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "All concentrated liquidity swap fees paid directly by traders.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "All concentrated liquidity swap fees are protocol revenue.",
+    [METRIC.VOTER_FEES]: "Concentrated liquidity swap fees accumulated for gauges and routed to veUP voters.",
   },
-  ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "All concentrated liquidity swap fees are protocol revenue.",
+  HoldersRevenue: {
+    [METRIC.VOTER_FEES]: "Concentrated liquidity swap fees accumulated for gauges and routed to veUP voters.",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "Concentrated liquidity swap fees retained by liquidity providers after gauge-routed fees.",
   },
 };
 
