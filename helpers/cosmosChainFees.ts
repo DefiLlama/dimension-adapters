@@ -36,6 +36,15 @@ type BlockRange = {
   toBlock: number;
 };
 
+// minimal shapes of the CometBFT RPC payloads this helper reads
+type CometBftEventAttribute = { key?: string; value?: string };
+type CometBftEvent = { type?: string; attributes?: CometBftEventAttribute[] };
+type CometBftTxResult = { code?: number | string; gas_wanted?: string; gas_used?: string; events?: CometBftEvent[] };
+type CometBftTx = { hash?: string; height?: string; tx_result?: CometBftTxResult };
+type TxSearchResponse = { txs?: CometBftTx[]; total_count?: string };
+type BlockResponse = { block: { header: { time: string } } };
+type StatusResponse = { sync_info: { earliest_block_height: string; latest_block_height: string; earliest_block_time: string } };
+
 const TX_SEARCH_PAGE_SIZE = 100; // CometBFT maximum
 const DEFAULT_BLOCK_WINDOW_SIZE = 1_000;
 const DEFAULT_WINDOW_CONCURRENCY = 10;
@@ -118,6 +127,7 @@ const baseBreakdownMethodology = {
  * Splits an inclusive block range into deterministic windows for tx_search queries.
  */
 export function makeBlockWindows(fromBlock: number, toBlock: number, windowSize = DEFAULT_BLOCK_WINDOW_SIZE): BlockRange[] {
+  if (!Number.isInteger(windowSize) || windowSize < 1) throw new Error(`invalid block window size: ${windowSize}`);
   if (fromBlock > toBlock) return [];
   const windows: BlockRange[] = [];
   for (let block = fromBlock; block <= toBlock; block += windowSize) {
@@ -131,7 +141,7 @@ export function makeBlockWindows(fromBlock: number, toBlock: number, windowSize 
  * Vote-extension/oracle payloads (e.g. Slinky prices on Neutron) are injected into blocks
  * as pseudo-transactions that fail decoding (no gas, no events, non-zero code) and are skipped.
  */
-function accumulateTxResults(metrics: CosmosChainMetricsAccumulator, txs: any[]) {
+function accumulateTxResults(metrics: CosmosChainMetricsAccumulator, txs: CometBftTx[]) {
   for (const tx of txs) {
     const txResult = tx.tx_result;
     if (!txResult) throw new Error(`malformed tx_search result for tx ${tx.hash}: missing tx_result`);
@@ -142,20 +152,19 @@ function accumulateTxResults(metrics: CosmosChainMetricsAccumulator, txs: any[])
     const events = txResult.events ?? [];
     addCoins(metrics.feesByDenom, getEventAttribute(events, FEE_EVENT_TYPES, "fee"));
     addCoins(metrics.feesByDenom, getEventAttribute(events, [TIP_EVENT_TYPE], "tip"));
-    const sender = getTxSender(events);
-    if (sender) metrics.users.add(sender);
+    for (const sender of getTxSenders(events)) metrics.users.add(sender);
   }
 }
 
 /**
  * Fetches all transactions of one height window through paginated tx_search queries.
  */
-async function getWindowTxs(config: CosmosChainMetricConfig, window: BlockRange): Promise<any[]> {
-  const txs: any[] = [];
+async function getWindowTxs(config: CosmosChainMetricConfig, window: BlockRange): Promise<CometBftTx[]> {
+  const txs: CometBftTx[] = [];
   let page = 1;
   let totalCount = 0;
   while (true) {
-    const result = await rpcCall(config, "tx_search", {
+    const result = await rpcCall<TxSearchResponse>(config, "tx_search", {
       query: `tx.height>=${window.fromBlock} AND tx.height<=${window.toBlock}`,
       page: String(page),
       per_page: String(TX_SEARCH_PAGE_SIZE),
@@ -202,15 +211,15 @@ export async function fetchCosmosChainMetrics(config: CosmosChainMetricConfig & 
 /**
  * Sends a single JSON-RPC call through healthy senders with per-endpoint retries.
  */
-async function rpcCall(config: CosmosChainMetricConfig, method: string, params?: any): Promise<any> {
-  let lastError: any;
+async function rpcCall<T>(config: CosmosChainMetricConfig, method: string, params?: Record<string, string>): Promise<T> {
+  let lastError: unknown;
   for (const rpc of getOrderedRpcSenders(config, method)) {
     for (let attempt = 0; attempt < DEFAULT_SINGLE_RPC_ATTEMPTS; attempt++) {
       try {
         const res = await httpPost(rpc, { jsonrpc: "2.0", id: 1, method, params }, { timeout: config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS });
         if (res.error) throw new Error(`${method} failed on ${rpc}: ${JSON.stringify(res.error)}`);
         markRpcSenderSuccess(config, method, rpc);
-        return res.result;
+        return res.result as T;
       } catch (error: any) {
         // surface the response body: axios only reports the status code in the message
         if (error?.axiosError) error.message = `${method} on ${rpc}: ${error.message}: ${JSON.stringify(error.axiosError).slice(0, 300)}`;
@@ -232,11 +241,14 @@ async function rpcCall(config: CosmosChainMetricConfig, method: string, params?:
  * load-balanced endpoints like cosmos.directory) prune to different depths.
  */
 async function getChainStatus(config: CosmosChainMetricConfig) {
-  const results = await Promise.allSettled(config.rpcs.map((rpc) =>
-    httpPost(rpc, { jsonrpc: "2.0", id: 1, method: "status" }, { timeout: config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS })));
-  const statuses = results
-    .map((result) => result.status === "fulfilled" ? result.value.result : null)
-    .filter(Boolean);
+  const { results } = await PromisePool
+    .withConcurrency(4)
+    .for(config.rpcs)
+    .process(async (rpc) => {
+      const res = await httpPost(rpc, { jsonrpc: "2.0", id: 1, method: "status" }, { timeout: config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS });
+      return res.result as StatusResponse;
+    });
+  const statuses = results.filter(Boolean);
   if (!statuses.length) throw new Error(`${config.chain}: no RPC endpoint responded to status`);
   return {
     earliest: Math.max(Math.min(...statuses.map((s) => Number(s.sync_info.earliest_block_height))), 1),
@@ -255,7 +267,7 @@ async function getBlockTime(config: CosmosChainMetricConfig, height: number): Pr
   const cached = blockTimeCache.get(cacheKey);
   if (cached !== undefined) return cached;
   try {
-    const result = await rpcCall(config, "block", { height: String(height) });
+    const result = await rpcCall<BlockResponse>(config, "block", { height: String(height) });
     const time = Math.floor(Date.parse(result.block.header.time) / 1000);
     if (blockTimeCache.size > 100_000) blockTimeCache.clear();
     blockTimeCache.set(cacheKey, time);
@@ -293,7 +305,9 @@ export async function getBlockRangeForTimestamps(config: CosmosChainMetricConfig
   }
 
   const fromBlock = await findHeightAtTimestamp(config, startTimestamp, earliest, latest);
-  const toBlock = (await findHeightAtTimestamp(config, endTimestamp, fromBlock, latest)) - 1;
+  // endTimestamp may be beyond the current tip (partial day/hour): latest + 1 as the
+  // search sentinel lets the window resolve through the latest block instead of dropping it
+  const toBlock = (await findHeightAtTimestamp(config, endTimestamp, fromBlock, latest + 1)) - 1;
   assertValidBlockRange(config.chain, fromBlock, toBlock);
 
   // a first block landing hours into the window means its start was pruned on every
@@ -364,17 +378,21 @@ export function createCosmosChainUsersFetcher(config: CosmosChainMetricConfig) {
 }
 
 /**
- * Orders senders by cached health for the specific chain and RPC method.
+ * Orders senders by cached health for the specific chain and RPC method: last successful
+ * endpoint first, previously failed ones last. Failed endpoints are deprioritized rather
+ * than excluded, so a transient failure never permanently removes an endpoint.
  */
 function getOrderedRpcSenders(config: CosmosChainMetricConfig, method: string): string[] {
   const cacheKey = getRpcMethodCacheKey(config, method);
   const failed = failedRpcSenders[cacheKey];
-  let candidates = failed ? config.rpcs.filter((rpc) => !failed.has(getRpcSenderKey(config, rpc))) : config.rpcs;
-  if (!candidates.length) candidates = config.rpcs;
-
   const preferred = preferredRpcSender[cacheKey];
-  if (!preferred) return candidates;
-  return [...candidates].sort((left, right) => Number(getRpcSenderKey(config, right) === preferred) - Number(getRpcSenderKey(config, left) === preferred));
+  const rank = (rpc: string) => {
+    const key = getRpcSenderKey(config, rpc);
+    if (key === preferred) return 0;
+    if (failed?.has(key)) return 2;
+    return 1;
+  };
+  return [...config.rpcs].sort((left, right) => rank(left) - rank(right));
 }
 
 function getRpcSenderKey(config: CosmosChainMetricConfig, rpc: string) {
@@ -398,9 +416,9 @@ function markRpcSenderFailure(config: CosmosChainMetricConfig, method: string, r
   failedRpcSenders[cacheKey]!.add(getRpcSenderKey(config, rpc));
 }
 
-function getEventAttribute(events: any[], eventTypes: string[], attributeKey: string): string | undefined {
+function getEventAttribute(events: CometBftEvent[], eventTypes: string[], attributeKey: string): string | undefined {
   for (const event of events) {
-    if (!eventTypes.includes(event.type)) continue;
+    if (!event.type || !eventTypes.includes(event.type)) continue;
     for (const attribute of event.attributes ?? []) {
       if (attribute.key === attributeKey) return attribute.value;
     }
@@ -408,13 +426,25 @@ function getEventAttribute(events: any[], eventTypes: string[], attributeKey: st
   return undefined;
 }
 
+function getEventAttributes(events: CometBftEvent[], eventTypes: string[], attributeKey: string): string[] {
+  const values: string[] = [];
+  for (const event of events) {
+    if (!event.type || !eventTypes.includes(event.type)) continue;
+    for (const attribute of event.attributes ?? []) {
+      if (attribute.key === attributeKey && attribute.value) values.push(attribute.value);
+    }
+  }
+  return values;
+}
+
 /**
- * Extracts the signer address from the acc_seq ("cosmos1.../41") or fee_payer tx event attributes.
+ * Extracts every signer address from the acc_seq ("cosmos1.../41") tx event attributes -
+ * multisig transactions emit one per signer - falling back to the fee_payer attribute.
  */
-function getTxSender(events: any[]): string | undefined {
-  const accSeq = getEventAttribute(events, ["tx"], "acc_seq");
-  if (accSeq) return accSeq.split("/")[0];
-  return getEventAttribute(events, ["tx", "fee_pay"], "fee_payer");
+function getTxSenders(events: CometBftEvent[]): string[] {
+  const accSeqs = getEventAttributes(events, ["tx"], "acc_seq");
+  if (accSeqs.length) return accSeqs.map((accSeq) => accSeq.split("/")[0]);
+  return getEventAttributes(events, ["tx", "fee_pay"], "fee_payer");
 }
 
 /**
@@ -430,12 +460,12 @@ function addCoins(feesByDenom: Record<string, number>, coins: string | undefined
   }
 }
 
-function isPrunedHeightError(error: any): boolean {
-  return /lowest height|is not available|pruned/i.test(JSON.stringify(error?.message ?? error ?? ""));
+function isPrunedHeightError(error: unknown): boolean {
+  return /lowest height|is not available|pruned/i.test(JSON.stringify((error as any)?.message ?? error ?? ""));
 }
 
-function isRateLimitError(error: any): boolean {
-  return /429|too many requests/i.test(JSON.stringify(error?.message ?? error ?? ""));
+function isRateLimitError(error: unknown): boolean {
+  return /429|too many requests/i.test(JSON.stringify((error as any)?.message ?? error ?? ""));
 }
 
 function assertValidBlockRange(chain: string, fromBlock: any, toBlock: any) {

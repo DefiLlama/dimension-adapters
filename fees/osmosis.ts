@@ -1,3 +1,4 @@
+import { log } from "@defillama/sdk";
 import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { COSMOS_CHAIN_METRIC_CONFIGS, fetchCosmosChainMetrics, GAS_FEES_TO_VALIDATORS_LABEL, getBlockRangeForTimestamps } from "../helpers/cosmosChainFees";
@@ -46,12 +47,17 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  const unknownDenoms: string[] = [];
   for (const [denom, amount] of Object.entries(metrics.feesByDenom)) {
     const denomConfig = config.denoms[denom];
-    if (!denomConfig) continue;
+    if (!denomConfig) {
+      unknownDenoms.push(`${amount}${denom}`);
+      continue;
+    }
     dailyFees.addCGToken(denomConfig.cgToken, amount / 10 ** denomConfig.decimals, METRIC.TRANSACTION_GAS_FEES);
     dailySupplySideRevenue.addCGToken(denomConfig.cgToken, amount / 10 ** denomConfig.decimals, GAS_FEES_TO_VALIDATORS_LABEL);
   }
+  if (unknownDenoms.length) log(`${config.chain}: skipped fees in unmapped denoms: ${unknownDenoms.join(", ")}`);
 
   const historicalFees: INumiaDay[] = await fetchURL(numiaFeesEndpoint);
   const dayData = historicalFees.find((item) => item.timestamp.split(" ")[0] === options.dateString);
