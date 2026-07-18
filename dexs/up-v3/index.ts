@@ -1,5 +1,6 @@
 import { Balances, ChainApi } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
+import PromisePool from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { isCoreAsset } from "../../helpers/prices";
@@ -17,6 +18,7 @@ const CONFIG = {
 // CLPool.fee returns Uniswap-V3-style pips.
 const CL_FEE_DENOMINATOR = 1_000_000;
 const CALL_DELAY_MS = 150;
+const LOG_CONCURRENCY = 5;
 
 const eventAbis = {
   poolCreated: "event PoolCreated(address indexed token0,address indexed token1,int24 indexed tickSpacing,address pool)",
@@ -135,16 +137,21 @@ async function getLogsByPool(
   fromBlock: number,
   toBlock: number,
 ) {
-  const logsByPool: any[][] = [];
-  for (const pool of poolIds) {
-    const logs = await options.getLogs({
-      target: pool,
-      fromBlock,
-      toBlock,
-      eventAbi,
+  const { results, errors } = await PromisePool.withConcurrency(LOG_CONCURRENCY)
+    .for(poolIds.map((pool, index) => ({ pool, index })))
+    .process(async ({ pool, index }) => {
+      const logs = await options.getLogs({
+        target: pool,
+        fromBlock,
+        toBlock,
+        eventAbi,
+      });
+      return { index, logs: logs as any[] };
     });
-    logsByPool.push(logs as any[]);
-  }
+  if (errors.length) throw errors[0];
+
+  const logsByPool: any[][] = new Array(poolIds.length).fill(null).map(() => []);
+  for (const result of results) logsByPool[result.index] = result.logs;
   return logsByPool;
 }
 
@@ -167,7 +174,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       toBlock,
       eventAbi: eventAbis.poolCreated,
       entireLog: true,
-      skipCacheRead: true,
     })) as any[]
   ).map(normalizePoolLog);
 
