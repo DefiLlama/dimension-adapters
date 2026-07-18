@@ -1,8 +1,7 @@
-import { Balances } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
-import { isCoreAsset } from "../../helpers/prices";
+import { addOneToken } from "../../helpers/prices";
 
 // UP public launch on Robinhood Chain. Source: first public UP pool deployments on the Robinhood Chain explorer.
 const START = "2026-07-10";
@@ -54,51 +53,10 @@ function toBN(value: any, context = "value") {
 
 const absBN = (value: any, context?: string) => toBN(value, context).abs();
 
-function normalizePoolLog(log: any): PoolLog {
-  const args = log.args ?? log;
-  return {
-    token0: args.token0,
-    token1: args.token1,
-    pool: args.pool,
-    stable: args.stable,
-  };
-}
-
-function addAmount(balances: Balances, token: string, amount: BigNumber, label?: string) {
-  if (!amount.gt(0)) return;
-  if (label) balances.add(token, amount.toFixed(0), label);
-  else balances.add(token, amount.toFixed(0));
-}
-
-function getPricedAmount(
-  chain: string,
-  token0: string,
-  token1: string,
-  amount0: BigNumber,
-  amount1: BigNumber,
-): { token: string; amount: BigNumber } {
-  if (isCoreAsset(chain, token0)) return { token: token0, amount: amount0 };
-  return { token: token1, amount: amount1 };
-}
-
-function addPricedAmount(
-  chain: string,
-  balances: Balances,
-  token0: string,
-  token1: string,
-  amount0: BigNumber,
-  amount1: BigNumber,
-  label?: string,
-) {
-  const { token, amount } = getPricedAmount(chain, token0, token1, amount0, amount1);
-  addAmount(balances, token, amount, label);
-}
-
-async function getV2PoolToGauge(options: FetchOptions, toBlock: number): Promise<Map<string, string>> {
+async function getV2PoolToGauge(options: FetchOptions): Promise<Map<string, string>> {
   const logs = await options.getLogs({
     target: CONFIG.voter,
     fromBlock: CONFIG.voterStartBlock,
-    toBlock,
     eventAbi: eventAbis.gaugeCreated,
     onlyArgs: true,
     cacheInCloud: true,
@@ -107,10 +65,10 @@ async function getV2PoolToGauge(options: FetchOptions, toBlock: number): Promise
   const v2PoolToGauge = new Map<string, string>();
   const v2GaugeFactory = CONFIG.v2GaugeFactory.toLowerCase();
 
-  for (const log of logs as any[]) {
-    const gaugeFactory = String(log.gaugeFactory ?? log[2]).toLowerCase();
-    const pool = String(log.pool ?? log[3]).toLowerCase();
-    const gauge = String(log.gauge ?? log[6]).toLowerCase();
+  for (const log of logs) {
+    const gaugeFactory = log.gaugeFactory.toLowerCase();
+    const pool = log.pool.toLowerCase();
+    const gauge = log.gauge.toLowerCase();
     if (gaugeFactory === v2GaugeFactory) v2PoolToGauge.set(pool, gauge);
   }
 
@@ -126,41 +84,36 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
-  const v2PoolToGauge = await getV2PoolToGauge(options, toBlock);
+  const v2PoolToGauge = await getV2PoolToGauge(options);
 
-  const rawPools = (
-    (await getLogs({
-      target: CONFIG.v2Factory,
-      fromBlock: CONFIG.v2FactoryStartBlock,
-      toBlock,
-      eventAbi: eventAbis.poolCreated,
-      onlyArgs: true,
-      cacheInCloud: true,
-    })) as any[]
-  ).map(normalizePoolLog);
+  const poolCreatedLogs = await getLogs({
+    target: CONFIG.v2Factory,
+    fromBlock: CONFIG.v2FactoryStartBlock,
+    eventAbi: eventAbis.poolCreated,
+    onlyArgs: true,
+    cacheInCloud: true,
+  })
 
-  if (!rawPools.length) {
+  if (!poolCreatedLogs.length) {
     return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
   }
 
-  const poolIds = rawPools.map((pool) => pool.pool.toLowerCase());
+  const poolIds = poolCreatedLogs.map((pool) => pool.pool.toLowerCase());
   const fees = await api.multiCall({
     abi: abis.fee,
     target: CONFIG.v2Factory,
-    calls: rawPools.map((pool) => ({ params: [pool.pool, pool.stable] })),
+    calls: poolCreatedLogs.map((pool) => ({ params: [pool.pool, pool.stable] })),
   });
 
-  const gaugedPools = rawPools
-    .map((pool, index) => ({ pool, poolId: poolIds[index], gauge: v2PoolToGauge.get(poolIds[index]) }))
+  const gaugedPools: { pool: PoolLog; poolId: string; gauge: string }[] = poolCreatedLogs
+    .map((pool, index) => ({ pool, poolId: poolIds[index], gauge: v2PoolToGauge.get(poolIds[index]) as string }))
     .filter((pool) => pool.gauge);
 
   const stakedBalances = gaugedPools.length
     ? await api.multiCall({
-        abi: abis.balanceOf,
-        calls: gaugedPools.map(({ pool, gauge }) => ({ target: pool.pool, params: [gauge] })),
-      })
+      abi: abis.balanceOf,
+      calls: gaugedPools.map(({ pool, gauge }) => ({ target: pool.pool, params: [gauge] })),
+    })
     : [];
   const totalSupplies = gaugedPools.length
     ? await api.multiCall({ abi: abis.totalSupply, calls: gaugedPools.map(({ pool }) => pool.pool) })
@@ -176,7 +129,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   });
 
   const poolInfo: Record<string, { token0: string; token1: string; fee: BigNumber; stakedShare: BigNumber }> = {};
-  rawPools.forEach((pool, index) => {
+  poolCreatedLogs.forEach((pool, index) => {
     const poolId = pool.pool.toLowerCase();
     poolInfo[poolId] = {
       token0: pool.token0,
@@ -188,35 +141,39 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   const swapLogsByPool = await getLogs({
     targets: poolIds,
-    fromBlock,
-    toBlock,
     eventAbi: eventAbis.swap,
     flatten: false,
   });
 
-  (swapLogsByPool as any[][]).forEach((logs, index) => {
+  swapLogsByPool.forEach((logs, index) => {
     const pool = poolIds[index];
     const info = poolInfo[pool];
     if (!info) return;
 
+    const { token0, token1 } = info;
+
     for (const log of logs) {
       const amount0 = absBN(log.amount0In).plus(absBN(log.amount0Out));
       const amount1 = absBN(log.amount1In).plus(absBN(log.amount1Out));
-      addPricedAmount(chain, dailyVolume, info.token0, info.token1, amount0, amount1);
+      const fee0 = amount0.times(info.fee);
+      const fee1 = amount1.times(info.fee);
 
-      const { token: feeToken, amount: feeAmount } = getPricedAmount(
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
+
+      const { token: feeToken, amount: feeAmount } = addOneToken({
         chain,
-        info.token0,
-        info.token1,
-        amount0.times(info.fee),
-        amount1.times(info.fee),
-      );
-      addAmount(dailyFees, feeToken, feeAmount, METRIC.SWAP_FEES);
-      addAmount(dailyUserFees, feeToken, feeAmount, METRIC.SWAP_FEES);
+        balances: dailyFees,
+        token0,
+        token1,
+        amount0: fee0,
+        amount1: fee1,
+        label: METRIC.SWAP_FEES,
+      });
+      addOneToken({ chain, balances: dailyUserFees, token0, token1, amount0: fee0, amount1: fee1, label: METRIC.SWAP_FEES });
 
-      const holders = feeAmount.times(info.stakedShare);
-      addAmount(dailyHoldersRevenue, feeToken, holders, METRIC.VOTER_FEES);
-      addAmount(dailySupplySideRevenue, feeToken, feeAmount.minus(holders), METRIC.LP_FEES);
+      const stakedShare = info.stakedShare.toNumber();
+      dailyHoldersRevenue.add(feeToken, feeAmount * stakedShare, METRIC.VOTER_FEES);
+      dailySupplySideRevenue.add(feeToken, feeAmount * (1 - stakedShare), METRIC.LP_FEES);
     }
   });
 
@@ -254,6 +211,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: START,
