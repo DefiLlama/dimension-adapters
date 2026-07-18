@@ -30,7 +30,10 @@ const fetch = async (options: FetchOptions) => {
         dailySupplySideRevenue.addCGToken("solana", amount * 0.95, "BonkSOL Staking Rewards to Stakers")
         dailySupplySideRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Sanctum")
         dailyRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Bonk")
-    } else if (row.metric_type === 'dailyRevenue') {
+    } else if (row.metric_type === 'dailyUserFees') {
+        // Only the withdrawal fees users pay on their principal. The rest of the fee
+        // account inflow is the 5% epoch fee, which is minted out of the staking rewards
+        // above and is already booked through the 2.5% Sanctum / 2.5% Bonk split.
         const amount = Number(row.amount) || 0
         dailyFees.addCGToken("bonk-staked-sol", amount, "BonkSOL Withdrawal Fees")
         dailyRevenue.addCGToken("bonk-staked-sol", amount, "BonkSOL Withdrawal Fees");
