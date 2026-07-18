@@ -9,6 +9,8 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQ
 const LST_FEE_TOKEN_ACCOUNT_OLD = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD"; // old
 const LST_FEE_TOKEN_ACCOUNT_NEW = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
 const LST_MINT = ADDRESSES.solana.JupSOL;
+// epochFee on the stake pool 8VpRhuxa7sUUepdY3kQiTmX9rS5vx4WgaXiAnXq4KCtr, read onchain
+const EPOCH_FEE = 0.05;
 
 const fetch = async (options: FetchOptions) => {
   const LST_FEE_TOKEN_ACCOUNT = options.startOfDay <= 1760486400 ? LST_FEE_TOKEN_ACCOUNT_OLD : LST_FEE_TOKEN_ACCOUNT_NEW;
@@ -32,10 +34,15 @@ const fetch = async (options: FetchOptions) => {
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewards);
-      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewardsToStakers);
+      // The pool keeps a 5% epoch fee out of the staking rewards, so only the rest
+      // reaches jupSOL holders.
+      dailySupplySideRevenue.addCGToken("solana", Number(row.amount) * (1 - EPOCH_FEE) || 0, JUPITER_METRICS.JupSOLStakingRewardsToStakers);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
       dailyRevenue.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+    } else if (row.metric_type === 'dailyUserFees') {
+      // Deposit/withdrawal fees are paid by users on their principal, so unlike the epoch
+      // fee they are not already inside the staking rewards counted above.
+      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0);
     }
   });
   
@@ -59,7 +66,7 @@ const methodology = {
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
   HoldersRevenue: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
-  SupplySideRevenue: 'All SOL staking rewards go to stakers.'
+  SupplySideRevenue: '95% of SOL staking rewards go to stakers, the pool keeps a 5% epoch fee.'
 }
 
 const adapter: SimpleAdapter = {
@@ -73,7 +80,6 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [JUPITER_METRICS.JupSOLStakingRewards]: 'Staking rewards from staked SOL on Jupiter.',
-      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
     },
     Revenue: {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
@@ -82,7 +88,7 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: 'All the staking rewards are distributed to jupSOL.',
+      [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: '95% of the staking rewards are distributed to jupSOL.',
     },
     HoldersRevenue: {
       [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
