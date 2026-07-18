@@ -19,6 +19,9 @@ const CONFIG = {
 const CL_FEE_DENOMINATOR = 1_000_000;
 const CALL_DELAY_MS = 150;
 const LOG_CONCURRENCY = 5;
+const LOG_STAGGER_MS = 250;
+const LOG_RETRY_ATTEMPTS = 4;
+const LOG_RETRY_DELAY_MS = 1_000;
 
 const eventAbis = {
   poolCreated: "event PoolCreated(address indexed token0,address indexed token1,int24 indexed tickSpacing,address pool)",
@@ -140,12 +143,8 @@ async function getLogsByPool(
   const { results, errors } = await PromisePool.withConcurrency(LOG_CONCURRENCY)
     .for(poolIds.map((pool, index) => ({ pool, index })))
     .process(async ({ pool, index }) => {
-      const logs = await options.getLogs({
-        target: pool,
-        fromBlock,
-        toBlock,
-        eventAbi,
-      });
+      await sleep((index % LOG_CONCURRENCY) * LOG_STAGGER_MS);
+      const logs = await getPoolLogsWithRetry(options, pool, eventAbi, fromBlock, toBlock);
       return { index, logs: logs as any[] };
     });
   if (errors.length) throw errors[0];
@@ -153,6 +152,31 @@ async function getLogsByPool(
   const logsByPool: any[][] = new Array(poolIds.length).fill(null).map(() => []);
   for (const result of results) logsByPool[result.index] = result.logs;
   return logsByPool;
+}
+
+async function getPoolLogsWithRetry(
+  options: FetchOptions,
+  pool: string,
+  eventAbi: string,
+  fromBlock: number,
+  toBlock: number,
+) {
+  let lastError: any;
+  for (let attempt = 1; attempt <= LOG_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await options.getLogs({
+        target: pool,
+        fromBlock,
+        toBlock,
+        eventAbi,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt === LOG_RETRY_ATTEMPTS) break;
+      await sleep(LOG_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastError;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
