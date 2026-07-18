@@ -27,6 +27,10 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+    } else if (row.metric_type === 'dailyUserFees') {
+      // Withdrawal fees are charged on the user's principal, so unlike the manager's
+      // epoch fee they are not part of the staking rewards counted above.
+      dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
 
@@ -51,6 +55,10 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
+    } else if (row.metric_type === 'dailyUserFees') {
+      // Withdrawal fees are charged on the user's principal, so unlike the manager's
+      // epoch fee they are not part of the staking rewards counted above.
+      dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
     }
   });
 
