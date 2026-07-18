@@ -116,6 +116,26 @@ function convertToPricedAmount(
   return { token: token1, amount: amount1.plus(converted0) };
 }
 
+async function getLogsByPool(
+  options: FetchOptions,
+  poolIds: string[],
+  eventAbi: string,
+  fromBlock: number,
+  toBlock: number,
+) {
+  const logsByPool: any[][] = [];
+  for (const pool of poolIds) {
+    const logs = await options.getLogs({
+      target: pool,
+      fromBlock,
+      toBlock,
+      eventAbi,
+    });
+    logsByPool.push(logs as any[]);
+  }
+  return logsByPool;
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { api, fromApi, chain, createBalances, getLogs } = options;
   const dailyVolume = createBalances();
@@ -157,13 +177,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     };
   });
 
-  const swapLogsByPool = await getLogs({
-    targets: poolIds,
-    fromBlock,
-    toBlock,
-    eventAbi: eventAbis.swap,
-    flatten: false,
-  });
+  const swapLogsByPool = await getLogsByPool(options, poolIds, eventAbis.swap, fromBlock, toBlock);
 
   const poolFeeTotals: Record<
     string,
@@ -206,13 +220,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     }
   });
 
-  const collectLogsByPool = await getLogs({
-    targets: poolIds,
-    fromBlock,
-    toBlock,
-    eventAbi: eventAbis.collectFees,
-    flatten: false,
-  });
+  const collectLogsByPool = await getLogsByPool(options, poolIds, eventAbis.collectFees, fromBlock, toBlock);
 
   const collectedByPool: Record<string, { c0: BigNumber; c1: BigNumber }> = {};
   (collectLogsByPool as any[][]).forEach((logs, index) => {
