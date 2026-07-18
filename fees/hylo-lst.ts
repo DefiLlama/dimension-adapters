@@ -30,6 +30,8 @@ const fetch = async (options: FetchOptions) => {
     } else if (row.metric_type === 'dailyUserFees') {
       // Withdrawal fees are charged on the user's principal, so unlike the manager's
       // epoch fee they are not part of the staking rewards counted above.
+      // The query returns whole tokens, so scale by 1e9 for the LST's 9 decimals,
+      // same as the revenue branch above.
       dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
@@ -58,6 +60,8 @@ const fetch = async (options: FetchOptions) => {
     } else if (row.metric_type === 'dailyUserFees') {
       // Withdrawal fees are charged on the user's principal, so unlike the manager's
       // epoch fee they are not part of the staking rewards counted above.
+      // The query returns whole tokens, so scale by 1e9 for the LST's 9 decimals,
+      // same as the revenue branch above.
       dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
     }
   });
