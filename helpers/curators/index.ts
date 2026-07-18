@@ -329,29 +329,21 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // interest earned by vault curator - performance fee
     const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
     
-    // interest earned by vault curator - management fee
-    // managementFee is a per-second rate charged on assets under management, not on the
-    // interest earned: VaultV2.accrueInterestView() computes it as
-    // (newTotalAssets * elapsed).mulDivDown(managementFee, WAD), and the contract notes the
-    // fee "is not bound to the interest" and "is taken even if the vault incurs some losses".
+    // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
-    const interestManagementFee = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+    const managementFeesEarned = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
-    // The management fee is charged on principal rather than taken out of the interest, so
-    // it is fee revenue the interest figure does not already contain and has to be added to
-    // dailyFees on its own. Only the performance fee comes out of the interest, so that is
-    // the only term subtracted from the supply side.
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
-      balances.dailyFees.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
       balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.MorphoYieldsToSuppliers)
     } else {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
-      balances.dailyFees.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.AssetYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
       balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.AssetYields)
     }
   }
@@ -445,4 +437,3 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     allowNegativeValue: true, // we allow negative fees for vaults because vaults can make yields or make loss too
   }
 }
-
