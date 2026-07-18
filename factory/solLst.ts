@@ -693,8 +693,8 @@ const configs: Record<string, SolLstConfig> = {
   }),
 
   "marginfi-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "3b7XQeZ8nSMyjcQGTFJS5kBw4pXS2SqtB9ooHCnF2xV9",
-    stakePoolWithdrawAuthority: "2C9aTiNL6VyrPhFKspZC8BY9JeL3j4RtkPP2e4PrVAwP",
+    stakePoolReserveAccount: "AWDrV3Va8RKGMAo9bi5iYhqhETRsTT7NasRFC22uBj4A",
+    stakePoolWithdrawAuthority: "3b7XQeZ8nSMyjcQGTFJS5kBw4pXS2SqtB9ooHCnF2xV9",
     lstFeeTokenAccount: "3zaVJxg2HCEYF9n2ndgm2SemrDiYniru7oS26yb7fep2",
     lstMint: "LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp",
     start: "2024-07-17",
