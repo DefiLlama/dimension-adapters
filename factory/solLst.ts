@@ -413,21 +413,23 @@ const configs: Record<string, SolLstConfig> = {
     start: "2022-12-07",
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "blazestake-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
+    // The fee account's inflow is mostly the 5% epoch fee, which is minted out of the
+    // staking rewards already counted above, so it must not be added to fees again. The
+    // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
+    revenueFeedback: { addToFees: false },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     returnDailyHoldersRevenue: 0,
     methodology: {
-      Fees: "Staking rewards from staked SOL on blazestake",
+      Fees: "Staking rewards from staked SOL on blazestake, plus deposit and withdrawal fees",
       Revenue: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
-      SupplySideRevenue: "All the staking rewards are distributed to bSOL",
+      SupplySideRevenue: "95% of the staking rewards are distributed to bSOL",
       ProtocolRevenue: "All fees going to treasury/DAO (50% of total fees) + All fees going to the team(50% of total fees)",
       HoldersRevenue: "No revenue share to BLZE token holders",
     },
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Blazestake",
-        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
@@ -436,7 +438,7 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to bSOL",
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to bSOL",
       },
     },
   },
@@ -449,19 +451,21 @@ const configs: Record<string, SolLstConfig> = {
     start: "2024-09-07",
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "bybit-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
+    // The fee account's inflow is mostly the 5% epoch fee, which is minted out of the
+    // staking rewards already counted above, so it must not be added to fees again. The
+    // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
+    revenueFeedback: { addToFees: false },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     methodology: {
-      Fees: "Staking rewards from staked SOL on bybit staked solana",
+      Fees: "Staking rewards from staked SOL on bybit staked solana, plus deposit and withdrawal fees",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
-      SupplySideRevenue: "All the staking rewards go to stakers",
+      SupplySideRevenue: "95% of the staking rewards go to stakers",
     },
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Bybit",
-        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
@@ -470,7 +474,7 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to bbSOL",
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to bbSOL",
       },
     },
   },
@@ -544,21 +548,23 @@ const configs: Record<string, SolLstConfig> = {
         : "4ipvqrPR7dvkRPJ9iHhAxY7NfcgCSrZw5KLH3K8aAbCM",
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "drift-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
+    // The fee account's inflow is mostly the 2.5% epoch fee, which is minted out of the
+    // staking rewards already counted above, so it must not be added to fees again. The
+    // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
+    revenueFeedback: { addToFees: false },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     returnDailyHoldersRevenue: 0,
     methodology: {
-      Fees: "Staking rewards from staked SOL on drift staked solana",
+      Fees: "Staking rewards from staked SOL on drift staked solana, plus deposit and withdrawal fees",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to DRIFT token holders",
-      SupplySideRevenue: "All the staking rewards go to stakers",
+      SupplySideRevenue: "97.5% of the staking rewards go to stakers",
     },
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Drift",
-        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
@@ -567,7 +573,7 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to dSOL",
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards are distributed to dSOL",
       },
     },
   },
