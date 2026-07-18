@@ -1,4 +1,4 @@
-import { Balances } from "@defillama/sdk";
+import { Balances, ChainApi } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
@@ -16,6 +16,7 @@ const CONFIG = {
 
 // CLPool.fee returns Uniswap-V3-style pips.
 const CL_FEE_DENOMINATOR = 1_000_000;
+const CALL_DELAY_MS = 150;
 
 const eventAbis = {
   poolCreated: "event PoolCreated(address indexed token0,address indexed token1,int24 indexed tickSpacing,address pool)",
@@ -72,6 +73,17 @@ function addAmount(balances: Balances, token: string, amount: BigNumber, label?:
   if (!amount.gt(0)) return;
   if (label) balances.add(token, amount.toFixed(0), label);
   else balances.add(token, amount.toFixed(0));
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function callByPool(api: ChainApi, poolIds: string[], abi: string, permitFailure = false) {
+  const results: any[] = [];
+  for (const pool of poolIds) {
+    results.push(await api.call({ target: pool, abi, permitFailure }));
+    await sleep(CALL_DELAY_MS);
+  }
+  return results;
 }
 
 function getPricedAmount(
@@ -164,9 +176,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   }
 
   const poolIds = rawPools.map((pool) => pool.pool.toLowerCase());
-  const fees = await api.multiCall({ abi: abis.fee, calls: poolIds });
-  const gaugeFeesStart = await fromApi.multiCall({ abi: abis.gaugeFees, calls: poolIds, permitFailure: true });
-  const gaugeFeesEnd = await api.multiCall({ abi: abis.gaugeFees, calls: poolIds });
+  const fees = await callByPool(api, poolIds, abis.fee);
+  const gaugeFeesStart = await callByPool(fromApi, poolIds, abis.gaugeFees, true);
+  const gaugeFeesEnd = await callByPool(api, poolIds, abis.gaugeFees);
 
   const poolInfo: Record<string, { token0: string; token1: string; fee: BigNumber }> = {};
   rawPools.forEach((pool, index) => {
