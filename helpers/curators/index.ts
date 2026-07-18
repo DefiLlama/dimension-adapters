@@ -14,7 +14,7 @@ const METRICS = {
   MorphoYields: 'Morpho Yields',
   MorphoYieldsToSuppliers: 'Morpho Yields Distributed To Supliers',
   MorphoPerformanceFee: 'Morpho Performance Fees',
-  MorphoManagementFee: 'Morpho Performance Fees',
+  MorphoManagementFee: 'Morpho Management Fees',
   EulerYields: 'Euler Yields',
   EulerYieldsToSuppliers: 'Euler Yields Distributed To Supliers',
   EulerPerformanceFee: 'Euler Performance Fees',
@@ -330,12 +330,16 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
     
     // interest earned by vault curator - management fee
+    // managementFee is a per-second rate charged on assets under management, not on the
+    // interest earned: VaultV2.accrueInterestView() computes it as
+    // (newTotalAssets * elapsed).mulDivDown(managementFee, WAD), and the contract notes the
+    // fee "is not bound to the interest" and "is taken even if the vault incurs some losses".
     const timeElapsed = options.toTimestamp - options.fromTimestamp
-    const interestManagementFee = interestEarnedIncludingFees * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+    const interestManagementFee = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoManagementFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
       balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.MorphoYieldsToSuppliers)
     } else {
@@ -362,9 +366,9 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
-      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Moroho',
-      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Moroho',
-      [METRICS.EulerPerformanceFee]: 'Management fees charged from vaults in Euler',
+      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Morpho',
+      [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
