@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
     } else if (row.metric_type === 'dailyUserFees') {
       // Deposit/withdrawal fees are paid by users on their principal, so unlike the epoch
       // fee they are not already inside the staking rewards counted above.
-      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0);
+      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
     }
   });
   
@@ -80,6 +80,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [JUPITER_METRICS.JupSOLStakingRewards]: 'Staking rewards from staked SOL on Jupiter.',
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Deposit/withdrawal fees users pay on their principal.',
     },
     Revenue: {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
