@@ -337,16 +337,22 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     const timeElapsed = options.toTimestamp - options.fromTimestamp
     const interestManagementFee = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
+    // The management fee is charged on principal rather than taken out of the interest, so
+    // it is fee revenue the interest figure does not already contain and has to be added to
+    // dailyFees on its own. Only the performance fee comes out of the interest, so that is
+    // the only term subtracted from the supply side.
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
+      balances.dailyFees.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.MorphoYieldsToSuppliers)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.MorphoYieldsToSuppliers)
     } else {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
+      balances.dailyFees.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.AssetYields)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.AssetYields)
     }
   }
 }
@@ -362,6 +368,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     Fees: {
       [METRICS.AssetYields]: 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
       [METRICS.MorphoYields]: 'Interest yields generated from deposited assets in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged on assets deposited in Morpho vaults',
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
     },
     Revenue: {
