@@ -255,10 +255,12 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
         // account inflow into dailyFees include them, so they are skipped here.
         if (!config.revenueFeedback.addToFees) {
           const rev = config.revenue;
+          // No metric label here: the revenue labels are Revenue-side and have no matching
+          // entry under Fees, so these roll up into the base dailyFees total instead.
           if (rev.type === "addCGToken") {
-            dailyFees.addCGToken(rev.cgId, row.amount || 0, rev.metric);
+            dailyFees.addCGToken(rev.cgId, row.amount || 0);
           } else if (rev.type === "add") {
-            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, rev.metric);
+            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0);
           } else if (rev.type === "addToken") {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
