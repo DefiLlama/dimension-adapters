@@ -44,14 +44,10 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const FACTORY_V3 = "0xaA8Af274bba2b9dE53119CB117C8AC6A39e6F5Aa"; // https://robinhoodchain.blockscout.com/address/0xaA8Af274bba2b9dE53119CB117C8AC6A39e6F5Aa
-const FACTORY_V3_DEPLOY_BLOCK = 10113641; // https://robinhoodchain.blockscout.com/block/10113641
-const LP_LOCKER_V3 = "0x38daBB90C96eea7B90613ABbf019ABCe0808CF12"; // https://robinhoodchain.blockscout.com/address/0x38daBB90C96eea7B90613ABbf019ABCe0808CF12
-const LP_LOCKER_V4 = "0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98"; // https://robinhoodchain.blockscout.com/address/0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98
-const FEE_LOCKER = "0xd1B13382fDa3E165658F1d3502d6616A31B62491"; // https://robinhoodchain.blockscout.com/address/0xd1B13382fDa3E165658F1d3502d6616A31B62491
-// Verified factory.teamFeeRecipient / owner EOA. Hardcoded (no historical eth_call)
-// because Robinhood public RPC often lacks archive state ("missing trie node") and
-// this address has not rotated. Update this constant if setTeamFeeRecipient changes it.
+const FACTORY_V3_DEPLOY_BLOCK = 10113641;
+const LP_LOCKER_V3 = "0x38daBB90C96eea7B90613ABbf019ABCe0808CF12";
+const LP_LOCKER_V4 = "0x11e0B26508788ABbc6e1F2df8A86C4F10b897a98";
+const FEE_LOCKER = "0xd1B13382fDa3E165658F1d3502d6616A31B62491";
 const PROTOCOL_RECIPIENT = "0x9748D3fe02890f155489dc4F76e413Bdcd97AE5a";
 
 const BPS = 10_000n;
@@ -94,28 +90,17 @@ const fetch = async (options: FetchOptions) => {
   const collectedLogs = await options.getLogs({
     target: LP_LOCKER_V3,
     eventAbi: REWARDS_COLLECTED,
-    fromBlock: FACTORY_V3_DEPLOY_BLOCK,
   });
 
   if (collectedLogs.length) {
     const rewardInfos = await options.api.multiCall({
       abi: TOKEN_REWARDS_V3,
       calls: collectedLogs.map((log: any) => ({ target: LP_LOCKER_V3, params: [log.token] })),
-      permitFailure: true,
     });
 
     for (let i = 0; i < collectedLogs.length; i++) {
       const log = collectedLogs[i];
       const info = rewardInfos[i];
-      // permitFailure: multicall returned null/undefined — recoverable RPC/contract failure
-      if (!info) {
-        console.error(
-          `[quiver] tokenRewards failed for token=${log.token} locker=${LP_LOCKER_V3}`,
-        );
-        continue;
-      }
-      // Present but empty recipients/bps: malformed or unconfigured reward data — skip quietly
-      if (!info.recipients?.length || !info.rewardBps?.length) continue;
 
       const amount0 = BigInt(log.amount0);
       const amount1 = BigInt(log.amount1);
@@ -162,7 +147,7 @@ const methodology = {
   Revenue:
     "Portion of collected LP fees credited to the Quiver protocol fee recipient (factory.teamFeeRecipient).",
   ProtocolRevenue:
-    "Same as Revenue — LP fee share retained by the Quiver protocol fee recipient.",
+    "Portion of collected LP fees credited to the Quiver protocol fee recipient (factory.teamFeeRecipient).",
   SupplySideRevenue:
     "Portion of collected LP fees credited to token creators (and any other non-protocol reward recipients configured at launch).",
 };
