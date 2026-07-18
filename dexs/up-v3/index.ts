@@ -1,9 +1,7 @@
-import { Balances, ChainApi } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
-import PromisePool from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
-import { isCoreAsset } from "../../helpers/prices";
+import { addOneToken } from "../../helpers/prices";
 
 // UP public launch on Robinhood Chain. Source: first public UP pool deployments on the Robinhood Chain explorer.
 const START = "2026-07-10";
@@ -17,11 +15,6 @@ const CONFIG = {
 
 // CLPool.fee returns Uniswap-V3-style pips.
 const CL_FEE_DENOMINATOR = 1_000_000;
-const CALL_DELAY_MS = 150;
-const LOG_CONCURRENCY = 5;
-const LOG_STAGGER_MS = 250;
-const LOG_RETRY_ATTEMPTS = 4;
-const LOG_RETRY_DELAY_MS = 1_000;
 
 const eventAbis = {
   poolCreated: "event PoolCreated(address indexed token0,address indexed token1,int24 indexed tickSpacing,address pool)",
@@ -41,13 +34,6 @@ const METRIC = {
   LP_FEES: "CL Liquidity Provider Fees",
 };
 
-type PoolLog = {
-  token0: string;
-  token1: string;
-  pool: string;
-  blockNumber?: number;
-};
-
 function toBN(value: any, context = "value") {
   if (value === null || value === undefined) throw new Error(`Missing ${context}`);
   return new BigNumber(value.toString());
@@ -55,128 +41,9 @@ function toBN(value: any, context = "value") {
 
 const absBN = (value: any, context?: string) => toBN(value, context).abs();
 
-function requiredGaugeFees(value: any, context: string) {
-  if (value === null || value === undefined) throw new Error(`Missing ${context}`);
-  return {
-    token0: toBN(value.token0 ?? value[0], `${context} token0`),
-    token1: toBN(value.token1 ?? value[1], `${context} token1`),
-  };
-}
-
-function normalizePoolLog(log: any): PoolLog {
-  const args = log.args ?? log;
-  const blockNumber = log.blockNumber ?? log.block_number;
-  return {
-    token0: args.token0,
-    token1: args.token1,
-    pool: args.pool,
-    blockNumber: blockNumber === undefined ? undefined : Number(blockNumber),
-  };
-}
-
-function addAmount(balances: Balances, token: string, amount: BigNumber, label?: string) {
-  if (!amount.gt(0)) return;
-  if (label) balances.add(token, amount.toFixed(0), label);
-  else balances.add(token, amount.toFixed(0));
-}
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function callByPool(api: ChainApi, poolIds: string[], abi: string, permitFailure = false) {
-  const results: any[] = [];
-  for (const pool of poolIds) {
-    results.push(await api.call({ target: pool, abi, permitFailure }));
-    await sleep(CALL_DELAY_MS);
-  }
-  return results;
-}
-
-function getPricedAmount(
-  chain: string,
-  token0: string,
-  token1: string,
-  amount0: BigNumber,
-  amount1: BigNumber,
-): { token: string; amount: BigNumber } {
-  if (isCoreAsset(chain, token0)) return { token: token0, amount: amount0 };
-  return { token: token1, amount: amount1 };
-}
-
-function addPricedAmount(
-  chain: string,
-  balances: Balances,
-  token0: string,
-  token1: string,
-  amount0: BigNumber,
-  amount1: BigNumber,
-  label?: string,
-) {
-  const { token, amount } = getPricedAmount(chain, token0, token1, amount0, amount1);
-  addAmount(balances, token, amount, label);
-}
-
-function convertToPricedAmount(
-  chain: string,
-  token0: string,
-  token1: string,
-  amount0: BigNumber,
-  amount1: BigNumber,
-  volume0: BigNumber,
-  volume1: BigNumber,
-): { token: string; amount: BigNumber } {
-  if (isCoreAsset(chain, token0)) {
-    const converted1 = volume1.gt(0) ? amount1.times(volume0).div(volume1) : new BigNumber(0);
-    return { token: token0, amount: amount0.plus(converted1) };
-  }
-
-  const converted0 = volume0.gt(0) ? amount0.times(volume1).div(volume0) : new BigNumber(0);
-  return { token: token1, amount: amount1.plus(converted0) };
-}
-
-async function getLogsByPool(
-  options: FetchOptions,
-  poolIds: string[],
-  eventAbi: string,
-  fromBlock: number,
-  toBlock: number,
-) {
-  const { results, errors } = await PromisePool.withConcurrency(LOG_CONCURRENCY)
-    .for(poolIds.map((pool, index) => ({ pool, index })))
-    .process(async ({ pool, index }) => {
-      await sleep((index % LOG_CONCURRENCY) * LOG_STAGGER_MS);
-      const logs = await getPoolLogsWithRetry(options, pool, eventAbi, fromBlock, toBlock);
-      return { index, logs: logs as any[] };
-    });
-  if (errors.length) throw errors[0];
-
-  const logsByPool: any[][] = new Array(poolIds.length).fill(null).map(() => []);
-  for (const result of results) logsByPool[result.index] = result.logs;
-  return logsByPool;
-}
-
-async function getPoolLogsWithRetry(
-  options: FetchOptions,
-  pool: string,
-  eventAbi: string,
-  fromBlock: number,
-  toBlock: number,
-) {
-  let lastError: any;
-  for (let attempt = 1; attempt <= LOG_RETRY_ATTEMPTS; attempt++) {
-    try {
-      return await options.getLogs({
-        target: pool,
-        fromBlock,
-        toBlock,
-        eventAbi,
-      });
-    } catch (error) {
-      lastError = error;
-      if (attempt === LOG_RETRY_ATTEMPTS) break;
-      await sleep(LOG_RETRY_DELAY_MS * attempt);
-    }
-  }
-  throw lastError;
+function gaugeAmount(value: any, field: "token0" | "token1") {
+  const index = field === "token0" ? 0 : 1;
+  return toBN(value?.[field] ?? value?.[index] ?? 0);
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
@@ -188,30 +55,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
+  const poolCreatedLogs = await getLogs({
+    target: CONFIG.clFactory,
+    fromBlock: CONFIG.clFactoryStartBlock,
+    eventAbi: eventAbis.poolCreated,
+    onlyArgs: true,
+    cacheInCloud: true,
+  });
 
-  const rawPools = (
-    (await getLogs({
-      target: CONFIG.clFactory,
-      fromBlock: CONFIG.clFactoryStartBlock,
-      toBlock,
-      eventAbi: eventAbis.poolCreated,
-      entireLog: true,
-    })) as any[]
-  ).map(normalizePoolLog);
-
-  if (!rawPools.length) {
+  if (!poolCreatedLogs.length) {
     return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
   }
 
-  const poolIds = rawPools.map((pool) => pool.pool.toLowerCase());
-  const fees = await callByPool(api, poolIds, abis.fee);
-  const gaugeFeesStart = await callByPool(fromApi, poolIds, abis.gaugeFees, true);
-  const gaugeFeesEnd = await callByPool(api, poolIds, abis.gaugeFees);
+  const poolIds = poolCreatedLogs.map((pool) => pool.pool.toLowerCase());
+  const fees = await api.multiCall({ abi: abis.fee, calls: poolIds });
+  const gaugeFeesStart = await fromApi.multiCall({ abi: abis.gaugeFees, calls: poolIds, permitFailure: true });
+  const gaugeFeesEnd = await api.multiCall({ abi: abis.gaugeFees, calls: poolIds, permitFailure: true });
 
   const poolInfo: Record<string, { token0: string; token1: string; fee: BigNumber }> = {};
-  rawPools.forEach((pool, index) => {
+  poolCreatedLogs.forEach((pool, index) => {
     poolInfo[pool.pool.toLowerCase()] = {
       token0: pool.token0,
       token1: pool.token1,
@@ -219,53 +81,39 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     };
   });
 
-  const swapLogsByPool = await getLogsByPool(options, poolIds, eventAbis.swap, fromBlock, toBlock);
+  const swapLogsByPool = await getLogs({
+    targets: poolIds,
+    eventAbi: eventAbis.swap,
+    flatten: false,
+  });
 
-  const poolFeeTotals: Record<
-    string,
-    {
-      fee0: BigNumber;
-      fee1: BigNumber;
-      pricedFee: BigNumber;
-      pricedToken: string;
-      volume0: BigNumber;
-      volume1: BigNumber;
-    }
-  > = {};
-  (swapLogsByPool as any[][]).forEach((logs, index) => {
+  const poolFeeTotals: Record<string, { fee0: BigNumber; fee1: BigNumber }> = {};
+  swapLogsByPool.forEach((logs, index) => {
     const pool = poolIds[index];
     const info = poolInfo[pool];
     if (!info) return;
 
+    const { token0, token1, fee } = info;
+
     for (const log of logs) {
       const amount0 = absBN(log.amount0);
       const amount1 = absBN(log.amount1);
-      addPricedAmount(chain, dailyVolume, info.token0, info.token1, amount0, amount1);
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
 
-      if (!poolFeeTotals[pool]) {
-        poolFeeTotals[pool] = {
-          fee0: new BigNumber(0),
-          fee1: new BigNumber(0),
-          pricedFee: new BigNumber(0),
-          pricedToken: getPricedAmount(chain, info.token0, info.token1, new BigNumber(0), new BigNumber(0)).token,
-          volume0: new BigNumber(0),
-          volume1: new BigNumber(0),
-        };
-      }
-      poolFeeTotals[pool].volume0 = poolFeeTotals[pool].volume0.plus(amount0);
-      poolFeeTotals[pool].volume1 = poolFeeTotals[pool].volume1.plus(amount1);
-      if (toBN(log.amount0).gt(0)) poolFeeTotals[pool].fee0 = poolFeeTotals[pool].fee0.plus(amount0.times(info.fee));
-      if (toBN(log.amount1).gt(0)) poolFeeTotals[pool].fee1 = poolFeeTotals[pool].fee1.plus(amount1.times(info.fee));
-      poolFeeTotals[pool].pricedFee = poolFeeTotals[pool].pricedFee.plus(
-        getPricedAmount(chain, info.token0, info.token1, amount0.times(info.fee), amount1.times(info.fee)).amount,
-      );
+      if (!poolFeeTotals[pool]) poolFeeTotals[pool] = { fee0: new BigNumber(0), fee1: new BigNumber(0) };
+      if (toBN(log.amount0).gt(0)) poolFeeTotals[pool].fee0 = poolFeeTotals[pool].fee0.plus(amount0.times(fee));
+      if (toBN(log.amount1).gt(0)) poolFeeTotals[pool].fee1 = poolFeeTotals[pool].fee1.plus(amount1.times(fee));
     }
   });
 
-  const collectLogsByPool = await getLogsByPool(options, poolIds, eventAbis.collectFees, fromBlock, toBlock);
+  const collectLogsByPool = await getLogs({
+    targets: poolIds,
+    eventAbi: eventAbis.collectFees,
+    flatten: false,
+  });
 
   const collectedByPool: Record<string, { c0: BigNumber; c1: BigNumber }> = {};
-  (collectLogsByPool as any[][]).forEach((logs, index) => {
+  collectLogsByPool.forEach((logs, index) => {
     const pool = poolIds[index];
     for (const log of logs) {
       if (!collectedByPool[pool]) collectedByPool[pool] = { c0: new BigNumber(0), c1: new BigNumber(0) };
@@ -274,55 +122,39 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     }
   });
 
-  rawPools.forEach((poolLog, index) => {
-    const pool = poolLog.pool.toLowerCase();
-    const totals = poolFeeTotals[pool];
+  poolCreatedLogs.forEach(({ token0, token1, pool }, index) => {
+    const poolId = pool.toLowerCase();
+    const totals = poolFeeTotals[poolId];
     if (!totals || (totals.fee0.isZero() && totals.fee1.isZero())) return;
 
-    const createdAfterWindowStart = poolLog.blockNumber !== undefined && poolLog.blockNumber > fromBlock;
-    const start =
-      gaugeFeesStart[index] === null || gaugeFeesStart[index] === undefined
-        ? createdAfterWindowStart
-          ? { token0: new BigNumber(0), token1: new BigNumber(0) }
-          : requiredGaugeFees(gaugeFeesStart[index], `${pool} gaugeFees at fromBlock`)
-        : requiredGaugeFees(gaugeFeesStart[index], `${pool} gaugeFees at fromBlock`);
-    const end = requiredGaugeFees(gaugeFeesEnd[index], `${pool} gaugeFees at toBlock`);
-    const collected = collectedByPool[pool] ?? { c0: new BigNumber(0), c1: new BigNumber(0) };
+    const collected = collectedByPool[poolId] ?? { c0: new BigNumber(0), c1: new BigNumber(0) };
+    let holders0 = gaugeAmount(gaugeFeesEnd[index], "token0")
+      .minus(gaugeAmount(gaugeFeesStart[index], "token0"))
+      .plus(collected.c0);
+    let holders1 = gaugeAmount(gaugeFeesEnd[index], "token1")
+      .minus(gaugeAmount(gaugeFeesStart[index], "token1"))
+      .plus(collected.c1);
 
-    let holders0 = end.token0.minus(start.token0).plus(collected.c0);
-    let holders1 = end.token1.minus(start.token1).plus(collected.c1);
     if (holders0.lt(0)) holders0 = new BigNumber(0);
     if (holders1.lt(0)) holders1 = new BigNumber(0);
     if (holders0.gt(totals.fee0)) holders0 = totals.fee0;
     if (holders1.gt(totals.fee1)) holders1 = totals.fee1;
 
-    const actualFees = convertToPricedAmount(
-      chain,
-      poolLog.token0,
-      poolLog.token1,
-      totals.fee0,
-      totals.fee1,
-      totals.volume0,
-      totals.volume1,
-    );
-    const actualHolders = convertToPricedAmount(
-      chain,
-      poolLog.token0,
-      poolLog.token1,
-      holders0,
-      holders1,
-      totals.volume0,
-      totals.volume1,
-    );
-    const holdersShare = actualFees.amount.gt(0)
-      ? BigNumber.min(actualHolders.amount.div(actualFees.amount), 1)
-      : new BigNumber(0);
-    const holders = totals.pricedFee.times(holdersShare);
+    const supply0 = totals.fee0.minus(holders0);
+    const supply1 = totals.fee1.minus(holders1);
 
-    addAmount(dailyFees, totals.pricedToken, totals.pricedFee, METRIC.SWAP_FEES);
-    addAmount(dailyUserFees, totals.pricedToken, totals.pricedFee, METRIC.SWAP_FEES);
-    addAmount(dailyHoldersRevenue, totals.pricedToken, holders, METRIC.VOTER_FEES);
-    addAmount(dailySupplySideRevenue, totals.pricedToken, totals.pricedFee.minus(holders), METRIC.LP_FEES);
+    if (totals.fee0.gt(0)) {
+      dailyFees.add(token0, totals.fee0.toFixed(0), METRIC.SWAP_FEES);
+      dailyUserFees.add(token0, totals.fee0.toFixed(0), METRIC.SWAP_FEES);
+    }
+    if (totals.fee1.gt(0)) {
+      dailyFees.add(token1, totals.fee1.toFixed(0), METRIC.SWAP_FEES);
+      dailyUserFees.add(token1, totals.fee1.toFixed(0), METRIC.SWAP_FEES);
+    }
+    if (holders0.gt(0)) dailyHoldersRevenue.add(token0, holders0.toFixed(0), METRIC.VOTER_FEES);
+    if (holders1.gt(0)) dailyHoldersRevenue.add(token1, holders1.toFixed(0), METRIC.VOTER_FEES);
+    if (supply0.gt(0)) dailySupplySideRevenue.add(token0, supply0.toFixed(0), METRIC.LP_FEES);
+    if (supply1.gt(0)) dailySupplySideRevenue.add(token1, supply1.toFixed(0), METRIC.LP_FEES);
   });
 
   dailyRevenue.add(dailyHoldersRevenue);
@@ -335,7 +167,7 @@ const methodology = {
   Fees: "Total concentrated liquidity swap fees paid by traders, valued on the same pricing side used for volume. Fees use CLPool.fee(), where 3000 means 0.30%.",
   UserFees: "Swap fees directly paid by traders.",
   Revenue: "Concentrated liquidity fees routed to veUP voters through gauges, equal to HoldersRevenue.",
-  HoldersRevenue: "Voter fee share is measured from CLPool.gaugeFees() deltas plus CollectFees events and applied to the priced fee total.",
+  HoldersRevenue: "Voter fee share is measured from CLPool.gaugeFees() deltas plus CollectFees events and applied per token.",
   SupplySideRevenue: "Concentrated liquidity provider fees not routed to veUP voters.",
 };
 
@@ -359,6 +191,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: START,
