@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 // Quiver Protocol: AI-managed concentrated-liquidity vaults on Robinhood Chain
 // (Uniswap V3 + V4, incl. tokenized-stock pairs). Each vault's strategy emits
@@ -28,11 +29,9 @@ const fetch = async (options: FetchOptions) => {
     api.fetchList({ lengthAbi: abis.vaultCount, itemAbi: abis.allVaults, target })
   ))).flat();
   const strategies = await api.multiCall({ abi: 'address:strategy', calls: vaults });
-  const [token0s, token1s, feeSplits] = await Promise.all([
-    api.multiCall({ abi: 'address:token0', calls: strategies }),
-    api.multiCall({ abi: 'address:token1', calls: strategies }),
-    api.multiCall({ abi: abis.getFees, target: FEE_CONFIG, calls: vaults }),
-  ]);
+  const token0s = await api.multiCall({ abi: 'address:token0', calls: strategies });
+  const token1s = await api.multiCall({ abi: 'address:token1', calls: strategies });
+  const feeSplits = await api.multiCall({ abi: abis.getFees, target: FEE_CONFIG, calls: vaults });
 
   const logsPerStrategy = await options.getLogs({ targets: strategies, eventAbi: HARVEST_ABI, flatten: false });
   logsPerStrategy.forEach((logs: any[], i: number) => {
@@ -40,8 +39,8 @@ const fetch = async (options: FetchOptions) => {
     logs.forEach((log: any) => {
       dailyFees.add(token0s[i], log.fees0, 'LP fees harvested');
       dailyFees.add(token1s[i], log.fees1, 'LP fees harvested');
-      dailyRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(perfBps)) / 10000n, 'Performance fee');
-      dailyRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(perfBps)) / 10000n, 'Performance fee');
+      dailyRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(perfBps)) / 10000n, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(perfBps)) / 10000n, METRIC.PERFORMANCE_FEES);
       dailySupplySideRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(10000 - perfBps)) / 10000n, 'Compounded to LPs');
       dailySupplySideRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(10000 - perfBps)) / 10000n, 'Compounded to LPs');
     });
@@ -53,19 +52,34 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Gross Uniswap V3/V4 LP fees collected by Quiver vault strategies, taken from Harvest events (fees realize when harvested or rebalanced; small fee amounts settled inline during V4 withdrawals are not tracked).',
   Revenue: 'Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.',
-  ProtocolRevenue: 'All revenue goes to the protocol treasury; Quiver has no token.',
+  ProtocolRevenue: 'Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.',
   SupplySideRevenue: 'The remaining ~90% of harvested LP fees, compounded back into vault positions for depositors.',
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "LP fees harvested": "Gross Uniswap V3/V4 LP fees collected by Quiver vault strategies, taken from Harvest events (fees realize when harvested or rebalanced; small fee amounts settled inline during V4 withdrawals are not tracked).",
+  },
+  Revenue: {
+    [METRIC.PERFORMANCE_FEES]: "Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PERFORMANCE_FEES]: "Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Compounded to LPs": "The remaining ~90% of harvested LP fees, compounded back into vault positions for depositors.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   methodology,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      start: '2026-07-16',
-    },
-  },
+  breakdownMethodology,
+  chains: [CHAIN.ROBINHOOD],
+  start: '2026-07-16',
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
