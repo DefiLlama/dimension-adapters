@@ -423,7 +423,7 @@ const configs: Record<string, SolLstConfig> = {
     // The fee account's inflow is mostly the 5% epoch fee, which is minted out of the
     // staking rewards already counted above, so it must not be added to fees again. The
     // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
-    revenueFeedback: { addToFees: false },
+    revenueFeedback: { addToFees: false, userFeesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
     supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     returnDailyHoldersRevenue: 0,
@@ -437,6 +437,7 @@ const configs: Record<string, SolLstConfig> = {
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Blazestake",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
@@ -461,7 +462,7 @@ const configs: Record<string, SolLstConfig> = {
     // The fee account's inflow is mostly the 5% epoch fee, which is minted out of the
     // staking rewards already counted above, so it must not be added to fees again. The
     // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
-    revenueFeedback: { addToFees: false },
+    revenueFeedback: { addToFees: false, userFeesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
     supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     methodology: {
@@ -473,6 +474,7 @@ const configs: Record<string, SolLstConfig> = {
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Bybit",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
@@ -558,7 +560,7 @@ const configs: Record<string, SolLstConfig> = {
     // The fee account's inflow is mostly the 2.5% epoch fee, which is minted out of the
     // staking rewards already counted above, so it must not be added to fees again. The
     // user-paid deposit/withdrawal transfers are added separately by the dailyUserFees row.
-    revenueFeedback: { addToFees: false },
+    revenueFeedback: { addToFees: false, userFeesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
     supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     returnDailyHoldersRevenue: 0,
@@ -572,6 +574,7 @@ const configs: Record<string, SolLstConfig> = {
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Drift",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
