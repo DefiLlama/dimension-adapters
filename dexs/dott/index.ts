@@ -12,14 +12,10 @@ const START_BLOCK = 5025894;
 
 const LAUNCHED_EVENT =
   "event Launched(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadata, uint256 firstBuyWei)";
-// Event names aren't available from source (curve, factory proxy, and its
-// implementation are all unverified on Blockscout) - confirmed via exact
-// keccak256(signature) match against the real topic0 hashes observed on
-// live Buy/Sell logs, not guessed.
 const BUY_EVENT =
-  "event Buy(address indexed trader, uint256 ethIn, uint256 tokenOut, uint256 fee, address token)";
+  "event Buy(address indexed buyer, uint256 ethIn, uint256 tokensOut, uint256 fee, address referrer)";
 const SELL_EVENT =
-  "event Sell(address indexed trader, uint256 tokenIn, uint256 ethOut, uint256 fee, address token)";
+  "event Sell(address indexed seller, uint256 tokensIn, uint256 ethOut, uint256 fee, address referrer)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -44,7 +40,7 @@ const fetch = async (options: FetchOptions) => {
   // real buy transaction: tx.value matched ethIn exactly (fee is carved out
   // of this same total internally, not added on top).
   for (const log of buyLogs) {
-    dailyVolume.addGasToken(log.ethIn, 'Trade Volume');
+    dailyVolume.addGasToken(log.ethIn);
     dailyFees.addGasToken(log.fee, METRIC.TRADING_FEES);
   }
 
@@ -58,8 +54,8 @@ const fetch = async (options: FetchOptions) => {
   // discrete, additional payment on this side, it isn't netted out of
   // ethOut itself.
   for (const log of sellLogs) {
-    dailyVolume.addGasToken(log.ethOut, 'Trade Volume');
-    dailyVolume.addGasToken(log.fee, 'Trade Volume');
+    dailyVolume.addGasToken(log.ethOut);
+    dailyVolume.addGasToken(log.fee);
     dailyFees.addGasToken(log.fee, METRIC.TRADING_FEES);
   }
 
@@ -79,9 +75,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    'Trade Volume': "Gross ETH notional of every bonding-curve buy and sell.",
-  },
   Fees: {
     [METRIC.TRADING_FEES]: "1% trade fee on every curve buy and sell.",
   },
