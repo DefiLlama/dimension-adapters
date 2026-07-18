@@ -70,19 +70,37 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
       VALUES
       ${routerValues}
   ),
+  -- dex.trades has one row per pool hop, so summing it double-counts multi-hop
+  -- routes; dex_aggregator.trades has the full order amount for decoded
+  -- aggregator fills (including split routes)
+  all_trades AS (
+      SELECT blockchain, tx_hash, tx_to, amount_usd, block_date
+      FROM dex.trades
+      WHERE blockchain IN (${duneChainList})
+        AND block_date >= date(from_unixtime(${options.startTimestamp}))
+        AND block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND TIME_RANGE
+      UNION ALL
+      SELECT blockchain, tx_hash, tx_to, amount_usd, block_date
+      FROM dex_aggregator.trades
+      WHERE blockchain IN (${duneChainList})
+        AND block_date >= date(from_unixtime(${options.startTimestamp}))
+        AND block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND TIME_RANGE
+  ),
   eoa_router_trades AS (
       SELECT
-          r.chain,
-          SUM(t.amount_usd)          AS volume,
-          SUM(t.amount_usd * 0.0085) AS fees
-      FROM dex.trades t
-      INNER JOIN routers r
-        ON t.blockchain = r.blockchain
-       AND t.tx_to = r.router
-      WHERE t.blockchain IN (${duneChainList})
-        AND t.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND t.block_date <= date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+          chain,
+          SUM(tx_amount)          AS volume,
+          SUM(tx_amount * 0.0085) AS fees
+      FROM (
+          SELECT r.chain, t.tx_hash, MAX(t.amount_usd) AS tx_amount
+          FROM all_trades t
+          INNER JOIN routers r
+            ON t.blockchain = r.blockchain
+           AND t.tx_to = r.router
+          GROUP BY 1, 2
+      )
       GROUP BY 1
   ),
 
@@ -102,18 +120,18 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
 
   smart_wallet_trades AS (
       SELECT
-          s.chain,
-          SUM(t.amount_usd)          AS volume,
-          SUM(t.amount_usd * 0.0085) AS fees
-      FROM dex.trades t
-      INNER JOIN smart_wallet_validated s
-        ON t.blockchain = s.blockchain
-       AND t.tx_hash = s.tx_hash
-      WHERE t.blockchain IN (${duneChainList})
-        AND t.block_date >= DATE '${SMART_WALLET_START}'
-        AND t.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND t.block_date <= date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+          chain,
+          SUM(tx_amount)          AS volume,
+          SUM(tx_amount * 0.0085) AS fees
+      FROM (
+          SELECT s.chain, t.tx_hash, MAX(t.amount_usd) AS tx_amount
+          FROM all_trades t
+          INNER JOIN smart_wallet_validated s
+            ON t.blockchain = s.blockchain
+           AND t.tx_hash = s.tx_hash
+          WHERE t.block_date >= DATE '${SMART_WALLET_START}'
+          GROUP BY 1, 2
+      )
       GROUP BY 1
   ),
 
