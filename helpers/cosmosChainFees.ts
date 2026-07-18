@@ -12,8 +12,8 @@ export type CosmosDenomConfig = {
 
 export type CosmosChainMetricConfig = {
   chain: string;
-  rpcs: string[]; // CometBFT RPC endpoints
-  denoms: Record<string, CosmosDenomConfig>; // fee denom -> coingecko token, unknown denoms are skipped
+  rpcs: string[]; 
+  denoms: Record<string, CosmosDenomConfig>;
   start?: string;
   blockWindowSize?: number; // heights per tx_search query
   windowConcurrency?: number;
@@ -169,11 +169,12 @@ async function getWindowTxs(config: CosmosChainMetricConfig, window: BlockRange)
       page: String(page),
       per_page: String(TX_SEARCH_PAGE_SIZE),
       order_by: "asc",
+    }, (r) => {
+      if (!Number.isFinite(Number(r?.total_count)) || !Array.isArray(r?.txs ?? [])) {
+        throw new Error(`malformed tx_search response for blocks ${window.fromBlock}-${window.toBlock}: ${JSON.stringify(r).slice(0, 200)}`);
+      }
     });
     totalCount = Number(result.total_count);
-    if (!Number.isFinite(totalCount) || !Array.isArray(result.txs ?? [])) {
-      throw new Error(`${config.chain}: malformed tx_search response for blocks ${window.fromBlock}-${window.toBlock}: ${JSON.stringify(result).slice(0, 200)}`);
-    }
     txs.push(...(result.txs ?? []));
     // requesting a page past the last one is an error, so stop on the page that completes the set
     if (!result.txs?.length || txs.length >= totalCount) break;
@@ -211,22 +212,21 @@ export async function fetchCosmosChainMetrics(config: CosmosChainMetricConfig & 
 /**
  * Sends a single JSON-RPC call through healthy senders with per-endpoint retries.
  */
-async function rpcCall<T>(config: CosmosChainMetricConfig, method: string, params?: Record<string, string>): Promise<T> {
+async function rpcCall<T>(config: CosmosChainMetricConfig, method: string, params?: Record<string, string>, validateResult?: (result: T) => void): Promise<T> {
   let lastError: unknown;
   for (const rpc of getOrderedRpcSenders(config, method)) {
     for (let attempt = 0; attempt < DEFAULT_SINGLE_RPC_ATTEMPTS; attempt++) {
       try {
         const res = await httpPost(rpc, { jsonrpc: "2.0", id: 1, method, params }, { timeout: config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS });
         if (res.error) throw new Error(`${method} failed on ${rpc}: ${JSON.stringify(res.error)}`);
+        const result = res.result as T;
+        validateResult?.(result);
         markRpcSenderSuccess(config, method, rpc);
-        return res.result as T;
+        return result;
       } catch (error: any) {
-        // surface the response body: axios only reports the status code in the message
         if (error?.axiosError) error.message = `${method} on ${rpc}: ${error.message}: ${JSON.stringify(error.axiosError).slice(0, 300)}`;
         lastError = error;
-        // a pruned height is deterministic per node: skip retries but still try other endpoints
         if (isPrunedHeightError(error)) break;
-        // rate limits clear on their own: back off harder instead of burning the attempt budget
         await sleep((isRateLimitError(error) ? 1500 : 250) * (attempt + 1));
       }
     }
@@ -248,7 +248,7 @@ async function getChainStatus(config: CosmosChainMetricConfig) {
       const res = await httpPost(rpc, { jsonrpc: "2.0", id: 1, method: "status" }, { timeout: config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS });
       return res.result as StatusResponse;
     });
-  const statuses = results.filter(Boolean);
+  const statuses = results.filter((status) => status?.sync_info);
   if (!statuses.length) throw new Error(`${config.chain}: no RPC endpoint responded to status`);
   return {
     earliest: Math.max(Math.min(...statuses.map((s) => Number(s.sync_info.earliest_block_height))), 1),
@@ -267,7 +267,9 @@ async function getBlockTime(config: CosmosChainMetricConfig, height: number): Pr
   const cached = blockTimeCache.get(cacheKey);
   if (cached !== undefined) return cached;
   try {
-    const result = await rpcCall<BlockResponse>(config, "block", { height: String(height) });
+    const result = await rpcCall<BlockResponse>(config, "block", { height: String(height) }, (r) => {
+      if (!r?.block?.header?.time) throw new Error(`block ${height} returned without header data`);
+    });
     const time = Math.floor(Date.parse(result.block.header.time) / 1000);
     if (blockTimeCache.size > 100_000) blockTimeCache.clear();
     blockTimeCache.set(cacheKey, time);
