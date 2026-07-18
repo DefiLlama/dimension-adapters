@@ -347,19 +347,18 @@ const configs: Record<string, SolLstConfig> = {
     start: "2024-09-12",
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "binance-staked-sol", metric: METRIC.MANAGEMENT_FEES },
-    revenueFeedback: { addToFees: true, feesMetric: METRIC.MANAGEMENT_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
+    revenueFeedback: { addToFees: false },
+    supplySide: { enabled: true, ratio: 0.9, metric: METRIC.STAKING_REWARDS },
     stakingRevenue: { enabled: false, ratio: 0 },
     methodology: {
       Fees: "Staking rewards from staked SOL on binance staked solana",
       Revenue: "Binance's 10% commission on staking rewards, collected as bnSOL minted to the pool's fee account, plus withdrawal fees",
       ProtocolRevenue: "Revenue going to treasury/team",
-      SupplySideRevenue: "Staking rewards accruing to bnSOL holders",
+      SupplySideRevenue: "90% of the staking rewards go to bnSOL holders, the pool keeps a 10% epoch fee",
     },
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Binance",
-        [METRIC.MANAGEMENT_FEES]: "Binance's 10% commission, plus withdrawal fees, collected by the fee account",
       },
       Revenue: {
         [METRIC.MANAGEMENT_FEES]: "Binance's 10% commission, plus withdrawal fees, collected by the fee account",
@@ -368,7 +367,7 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.MANAGEMENT_FEES]: "Binance's 10% commission, plus withdrawal fees, collected by the fee account",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "Staking rewards are distributed to bnSOL",
+        [METRIC.STAKING_REWARDS]: "90% of the staking rewards are distributed to bnSOL",
       },
     },
   },
