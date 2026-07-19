@@ -65,7 +65,7 @@ const prefetch = async (options: FetchOptions) => {
       SELECT
         blockchain,
         amount_usd,
-        ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY amount_usd DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY blockchain, tx_hash ORDER BY amount_usd DESC) AS rn
       FROM dex.trades
       WHERE TIME_RANGE
         AND (${evmFilter})
