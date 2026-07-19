@@ -14,7 +14,8 @@ const fetch = async (options: FetchOptions) => {
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: ""
   });
 
   const results = await queryDuneSql(options, query);
@@ -41,7 +42,8 @@ const fetch = async (options: FetchOptions) => {
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT_PLUS,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY_PLUS,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT_PLUS,
-    lst_mint: LST_MINT_PLUS
+    lst_mint: LST_MINT_PLUS,
+    exclude_mints_filter: ""
   });
 
   const results_plus = await queryDuneSql(options, query_plus);
