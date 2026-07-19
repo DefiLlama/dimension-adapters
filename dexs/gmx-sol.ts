@@ -47,10 +47,21 @@ const MAX_EVENTS = 1_000_000;
 // keying off the biggest one understates their capital by about that factor and
 // sweeps in ordinary multi-market traders.
 //
-// Capital sitting in a position that is never touched during the day is not counted,
-// since the position only becomes visible when it trades. That is nil in practice:
-// every wallet this flags churns its whole book, so it carries no untouched
-// positions into the day.
+// The one thing this cannot see. A position that is never touched during the day
+// does not appear in tradeEvents at all, and the subgraph exposes no position
+// entity, so its capital is invisible. Capital carried in IS counted, because the
+// first event on a position contributes its beforeSizeInUsd, but a position that
+// sits idle all day is not. Measured capital is therefore a lower bound and
+// turnover an upper bound.
+//
+// This matters more than it looks. Inflating every wallet's peak capital to stand
+// in for idle positions, 2026-06-01 removes 55.4% at +0%, 52.7% at +10%, 32.7% at
+// +25% and 9.3% at +50%. The 06-01 leader sits at 24.6x, only 23% clear of the
+// threshold. What keeps it honest is that these wallets touch nearly everything
+// they hold: 88% of their positions on 06-01 are opened fresh that day, on 3,079
+// trades across 76 positions for the leader. A wallet churning 76 positions is
+// unlikely to be sitting on a large 77th all day. Marginal wallets near 20x have
+// no such protection, which is the main reason not to lower the threshold.
 //
 // Turnover is bounded on both sides. At 20 the quiet and historical days come
 // out identical to the adapter without this filter. Dropping it to 10 costs an
