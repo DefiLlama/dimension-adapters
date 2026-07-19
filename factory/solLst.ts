@@ -58,10 +58,7 @@ interface StakingRevenueConfig {
 interface RevenueFeedbackConfig {
   addToFees: boolean;
   feesMetric?: string;
-  // Label for the user-paid deposit/withdrawal fees added to dailyFees when addToFees is
-  // false. Only set it on adapters that publish a Fees breakdown, so every label used has
-  // a matching breakdownMethodology entry.
-  userFeesMetric?: string;
+  userFeesMetric?: string; // deposit/withdrawal fees users pay during respective actions
 }
 
 interface SolLstConfig {
@@ -254,12 +251,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
         }
-      } else if (row.metric_type === "dailyUserFees") {
-        // Deposit/withdrawal fees are charged on the user's principal, so unlike the
-        // manager's epoch fee they are not part of the staking rewards counted above and
-        // have to be added to fees on their own. Adapters that already feed the whole fee
-        // account inflow into dailyFees include them, so they are skipped here.
-        if (!config.revenueFeedback.addToFees) {
+      } else if (row.metric_type === "dailyUserFees" && !config.revenueFeedback.addToFees) {
           const rev = config.revenue;
           const metric = config.revenueFeedback.userFeesMetric;
           if (rev.type === "addCGToken") {
@@ -267,8 +259,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
           } else if (rev.type === "add") {
             dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, metric);
           } else if (rev.type === "addToken") {
-            dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0, metric);
-          }
+          dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0, metric);
         }
       }
     });
@@ -869,9 +860,6 @@ const doublezeroAdapter = (() => {
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
       } else if (row.metric_type === "dailyUserFees") {
-        // Withdrawal fees are charged on the user's principal, so they are not part
-        // of the staking rewards counted above and have to be added to fees on their
-        // own. Without this a heavy withdrawal day reports more revenue than fees.
         dailyFees.addCGToken(revenueToken, row.amount || 0);
       }
     });
