@@ -89,6 +89,9 @@ interface SolLstConfig {
   returnDailyHoldersRevenue?: boolean | number; // false = not included, 0 = explicit zero
   returnDailyProtocolRevenue?: boolean; // whether to include dailyProtocolRevenue (defaults to true)
 
+  // Exclude mint transfers when computing revenue (fee account receives minted LST)
+  excludeMintsForRevenue?: boolean;
+
   // Methodology
   methodology?: Record<string, string>;
   breakdownMethodology?: Record<string, Record<string, string>>;
@@ -174,6 +177,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
       stake_pool_withdraw_authority: config.stakePoolWithdrawAuthority,
       lst_fee_token_account: lstFeeTokenAccount,
       lst_mint: config.lstMint,
+      exclude_mints_filter: config.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);
@@ -345,6 +349,7 @@ const configs: Record<string, SolLstConfig> = {
     lstFeeTokenAccount: "3ZC6mkJr9hnFSrVHzXXcPopw3SArgKGm8agcah1vhy2Z",
     lstMint: (ADDRESSES.solana as any).BNSOL,
     start: "2024-09-12",
+    excludeMintsForRevenue: true,
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "binance-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
@@ -832,6 +837,7 @@ const doublezeroAdapter = (() => {
       stake_pool_withdraw_authority: baseCfg.stakePoolWithdrawAuthority,
       lst_fee_token_account: baseCfg.lstFeeTokenAccount,
       lst_mint: baseCfg.lstMint,
+      exclude_mints_filter: baseCfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);
@@ -880,6 +886,7 @@ const doublezeroAdapter = (() => {
       stake_pool_withdraw_authority: cfg.stakePoolWithdrawAuthority,
       lst_fee_token_account: cfg.lstFeeTokenAccount,
       lst_mint: cfg.lstMint,
+      exclude_mints_filter: cfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);

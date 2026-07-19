@@ -30,7 +30,7 @@ WITH
             AND token_mint_address='{{lst_mint}}'
             AND block_time>=from_unixtime({{start}})
             AND block_time<=from_unixtime({{end}})
-            AND action!='mint'
+            {{exclude_mints_filter}}
     )
 SELECT
     metric_type,
