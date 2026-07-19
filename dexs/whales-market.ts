@@ -103,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, // Dune dependency (Solana): per guidelines, Dune adapters must be v1 so the query runs once per day
+  version: 1, 
   fetch,
   adapter: config,
   dependencies: [Dependencies.DUNE],
