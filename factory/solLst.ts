@@ -438,10 +438,11 @@ const configs: Record<string, SolLstConfig> = {
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "bybit-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
-    stakingRevenue: { enabled: false, ratio: 0 },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
     methodology: {
-      Fees: "Staking rewards from staked SOL on bybit staked solana",
+      Fees: "Staking rewards from staked SOL on bybit staked solana, plus withdrawal fees",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       SupplySideRevenue: "All the staking rewards go to stakers",
@@ -452,13 +453,15 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       Revenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to bbSOL",
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to bbSOL",
       },
     },
   },
