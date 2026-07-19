@@ -58,6 +58,7 @@ interface StakingRevenueConfig {
 interface RevenueFeedbackConfig {
   addToFees: boolean;
   feesMetric?: string;
+  userFeesMetric?: string; // deposit/withdrawal fees users pay during respective actions
 }
 
 interface SolLstConfig {
@@ -134,6 +135,8 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
     feesBreakdown[config.fees.metric] = "Staking rewards from staked SOL";
   if (config.revenueFeedback.addToFees && config.revenueFeedback.feesMetric)
     feesBreakdown[config.revenueFeedback.feesMetric] = "Includes withdrawal fees and management fees";
+  if (!config.revenueFeedback.addToFees && config.revenueFeedback.userFeesMetric)
+    feesBreakdown[config.revenueFeedback.userFeesMetric] = "Deposit/withdrawal fees users pay on their principal";
   if (Object.keys(feesBreakdown).length > 0) breakdown.Fees = feesBreakdown;
 
   // Revenue breakdown
@@ -248,6 +251,16 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
         }
+      } else if (row.metric_type === "dailyUserFees" && !config.revenueFeedback.addToFees) {
+          const rev = config.revenue;
+          const metric = config.revenueFeedback.userFeesMetric;
+          if (rev.type === "addCGToken") {
+            dailyFees.addCGToken(rev.cgId, row.amount || 0, metric);
+          } else if (rev.type === "add") {
+            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, metric);
+          } else if (rev.type === "addToken") {
+          dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0, metric);
+        }
       }
     });
 
@@ -328,10 +341,12 @@ const configs: Record<string, SolLstConfig> = {
     lstMint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P",
     start: "2025-02-24",
     revenue: { type: "add", mint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P", metric: METRIC.MANAGEMENT_FEES },
+    revenueFeedback: { addToFees: false, userFeesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
     fees: { metric: METRIC.STAKING_REWARDS },
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Backpack staked solana",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Deposit/withdrawal fees users pay on their principal",
       },
       Revenue: {
         [METRIC.MANAGEMENT_FEES]: "Includes withdrawal fees and management fees collected by fee collector",
@@ -508,7 +523,7 @@ const configs: Record<string, SolLstConfig> = {
     revenueFeedback: { addToFees: false },
     returnDailyHoldersRevenue: 0,
     methodology: {
-      Fees: "Staking rewards from staked SOL on doublezero staked solana",
+      Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to 2Z token holders.",
@@ -844,6 +859,8 @@ const doublezeroAdapter = (() => {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+      } else if (row.metric_type === "dailyUserFees") {
+        dailyFees.addCGToken(revenueToken, row.amount || 0);
       }
     });
 
