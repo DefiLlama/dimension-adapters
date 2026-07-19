@@ -34,8 +34,9 @@ const MAX_EVENTS = 1_000_000;
 // a directional scalper working one or two positions with small capital. Those
 // exist mostly in early history: on 2025-03-15 and 2026-02-15, turnover alone
 // would take 60.7% and 71.7% of the day off wallets holding 1 to 7 positions on
-// $39k to $755k. The position count is what separates the two, and 8, 10 and 15
-// all give the same answer, so it is not a fitted line.
+// $39k to $755k. The position count is what separates the two. Anything from 8 to
+// 20 gives the same answer on every day tested, so it is not a fitted line; 6
+// starts reaching into the 2025 days, which is the floor.
 //
 // Turnover has to be measured against total concurrent capital, not against the
 // largest single position. Running dozens of positions at once, as these do, means
@@ -47,9 +48,10 @@ const MAX_EVENTS = 1_000_000;
 // every wallet this flags churns its whole book, so it carries no untouched
 // positions into the day.
 //
-// Quiet days are untouched anywhere in turnover 10-30 and imbalance 0.05-0.25, so
-// the thresholds are not load bearing on the false positive side. Above 30 the
-// signal itself starts to go, so do not raise it.
+// Turnover is bounded on both sides. At 20 the quiet and historical days come
+// out identical to the adapter without this filter. Dropping it to 10 costs an
+// ordinary day real volume, 2026-07-17 goes 1.53B to 1.37B, and above 30 the
+// signal itself starts to go. Do not move it without rerunning both ends.
 //
 // Backfill runs to 2025-02-12, and the early days behave differently from the
 // 2026 spikes, so check both before touching any of these numbers.
