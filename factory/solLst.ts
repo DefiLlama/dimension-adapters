@@ -551,15 +551,16 @@ const configs: Record<string, SolLstConfig> = {
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "drift-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
-    stakingRevenue: { enabled: false, ratio: 0 },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.025, metric: METRIC.STAKING_REWARDS },
     returnDailyHoldersRevenue: 0,
+    excludeMintsForRevenue: true,
     methodology: {
       Fees: "Staking rewards from staked SOL on drift staked solana",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to DRIFT token holders",
-      SupplySideRevenue: "All the staking rewards go to stakers",
+      SupplySideRevenue: "97.5% of the staking rewards go to stakers",
     },
     breakdownMethodology: {
       Fees: {
@@ -568,12 +569,14 @@ const configs: Record<string, SolLstConfig> = {
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
+        [METRIC.STAKING_REWARDS]: "2.5% of staking rewards is collected as staking fees"
       },
       ProtocolRevenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
+        [METRIC.STAKING_REWARDS]: "2.5% of staking rewards is collected as staking fees"
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to dSOL",
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards distributed to dSOL",
       },
     },
   },
