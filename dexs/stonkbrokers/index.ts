@@ -4,10 +4,13 @@ import { CHAIN } from "../../helpers/chains";
 /**
  * StonkBrokers Anvil NFT AMM volume on Robinhood Chain.
  *
- * Volume is the ETH notional of each NFT↔$STONKBROKER trade
- * (ethNotionalPerNFT per fill). Token legs are fixed at 666,666 STONKBROKER.
+ * Volume is inferred from the ETH trade fee and the known fee bps
+ * (random 10% / snipe 15% of ethNotionalPerNFT) so we do not need an
+ * extra eth_call per hour (Robinhood public RPC rate-limits easily).
  */
 const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
+const RANDOM_FEE_BPS = 1000n;
+const SPECIFIC_FEE_BPS = 1500n;
 
 const NFT_SOLD =
   "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
@@ -17,15 +20,23 @@ const NFT_BOUGHT =
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const [ethNotional, sold, bought] = await Promise.all([
-    options.api.call({ target: AMM_VAULT, abi: "uint256:ethNotionalPerNFT" }),
+  const [sold, bought] = await Promise.all([
     options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD }),
     options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT }),
   ]);
 
-  const trades = sold.length + bought.length;
-  if (trades > 0) {
-    dailyVolume.addGasToken(BigInt(ethNotional) * BigInt(trades));
+  for (const log of sold) {
+    // sellNFT always uses randomFeeBps (10%)
+    if (log.ethFeePaid > 0n) {
+      dailyVolume.addGasToken((log.ethFeePaid * 10_000n) / RANDOM_FEE_BPS);
+    }
+  }
+
+  for (const log of bought) {
+    const bps = log.isSpecific ? SPECIFIC_FEE_BPS : RANDOM_FEE_BPS;
+    if (log.ethFeePaid > 0n) {
+      dailyVolume.addGasToken((log.ethFeePaid * 10_000n) / bps);
+    }
   }
 
   return { dailyVolume };
@@ -40,7 +51,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "ETH notional of StonkBrokers NFT AMM fills (buyRandomNFT / buySpecificNFT / sellNFT), using the vault's ethNotionalPerNFT oracle/fallback per trade.",
+      "ETH notional of StonkBrokers NFT AMM fills, derived from ethFeePaid and the vault fee bps (10% random / 15% snipe).",
   },
 };
 
