@@ -9,6 +9,7 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQ
 const LST_FEE_TOKEN_ACCOUNT_OLD = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD"; // old
 const LST_FEE_TOKEN_ACCOUNT_NEW = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
 const LST_MINT = ADDRESSES.solana.JupSOL;
+const STAKE_FEE_SHARE = 0.05;
 
 const fetch = async (options: FetchOptions) => {
   const LST_FEE_TOKEN_ACCOUNT = options.startOfDay <= 1760486400 ? LST_FEE_TOKEN_ACCOUNT_OLD : LST_FEE_TOKEN_ACCOUNT_NEW;
@@ -18,7 +19,8 @@ const fetch = async (options: FetchOptions) => {
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: "AND action!='mint'"
   });
 
   const results = await queryDuneSql(options, query);
@@ -32,7 +34,8 @@ const fetch = async (options: FetchOptions) => {
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewards);
-      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewardsToStakers);
+      dailyRevenue.addCGToken("solana", (row.amount || 0) * STAKE_FEE_SHARE, JUPITER_METRICS.JupSOLStakingRewards);
+      dailySupplySideRevenue.addCGToken("solana", (row.amount || 0) * (1 - STAKE_FEE_SHARE), JUPITER_METRICS.JupSOLStakingRewardsToStakers);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
       dailyRevenue.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
@@ -77,12 +80,14 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
+      [JUPITER_METRICS.JupSOLStakingRewards]: '5% of staking rewards are collected as fees.',
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
+      [JUPITER_METRICS.JupSOLStakingRewards]: '5% of staking rewards are collected as fees.',
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: 'All the staking rewards are distributed to jupSOL.',
+      [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: '95% of the staking rewards are distributed to jupSOL.',
     },
     HoldersRevenue: {
       [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',

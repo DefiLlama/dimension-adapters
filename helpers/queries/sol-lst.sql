@@ -30,6 +30,7 @@ WITH
             AND token_mint_address='{{lst_mint}}'
             AND block_time>=from_unixtime({{start}})
             AND block_time<=from_unixtime({{end}})
+            {{exclude_mints_filter}}
     ),
     --   action='transfer' -> deposit/withdrawal fees paid by users on their principal,
     --                        which are NOT part of the staking rewards
