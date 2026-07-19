@@ -41,20 +41,31 @@ const prefetch = async (options: FetchOptions) => {
         AND address = '${chainConfig[CHAIN.SOLANA].address}'
       GROUP BY 1
     ),
-    sol AS (
+    -- dex trades hold one row per pool hop, so a routed swap appears several times.
+    -- Keep the largest hop per transaction, which is the size of the swap the user made.
+    sol_hops AS (
       SELECT
         t.blockchain,
-        SUM(t.amount_usd) AS trading_volume
+        t.amount_usd,
+        ROW_NUMBER() OVER (PARTITION BY t.tx_id ORDER BY t.amount_usd DESC) AS rn
       FROM dex_solana.trades t
       INNER JOIN solana_txs b ON t.tx_id = b.tx_id
       WHERE TIME_RANGE
         AND t.amount_usd < 10000000
-      GROUP BY 1
     ),
-    evm AS (
+    sol AS (
       SELECT
         blockchain,
         SUM(amount_usd) AS trading_volume
+      FROM sol_hops
+      WHERE rn = 1
+      GROUP BY 1
+    ),
+    evm_hops AS (
+      SELECT
+        blockchain,
+        amount_usd,
+        ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY amount_usd DESC) AS rn
       FROM dex.trades
       WHERE TIME_RANGE
         AND (${evmFilter})
@@ -62,6 +73,13 @@ const prefetch = async (options: FetchOptions) => {
         AND amount_usd < 10000000
         AND token_sold_address NOT IN (${blacklisted.toString()})
         AND token_bought_address NOT IN (${blacklisted.toString()})
+    ),
+    evm AS (
+      SELECT
+        blockchain,
+        SUM(amount_usd) AS trading_volume
+      FROM evm_hops
+      WHERE rn = 1
       GROUP BY 1
     ),
     total AS (
