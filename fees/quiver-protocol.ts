@@ -9,7 +9,9 @@ import { METRIC } from "../helpers/metrics";
 // of it goes to whoever calls harvest (a keeper incentive), the remainder
 // (totalBps - callerBps) goes to the protocol treasury, the rest compounds
 // back into the LP position. See QuiverStrategyUniV3._harvest on-chain:
-// treasuryBps = totalBps - callerBps; only treasuryBps is sent to treasury.
+// treasuryBps = totalBps - callerBps; only treasuryBps is sent to treasury,
+// callerBps is sent to whoever calls harvest (an integrator/keeper), so it's
+// counted as supply-side revenue rather than dropped or sent to treasury.
 const FACTORY_V3 = '0xa511D763a79293b306BeAfd3e7eEB5e2884A71d5';
 const FACTORY_V4 = '0x3941116A9fF2d3e0B4CFa396d7927e8462dF7b38';
 const FEE_CONFIG = '0x777bBe1F53ae75f478DaF22b0E5A5d9513e98E31';
@@ -48,6 +50,10 @@ const fetch = async (options: FetchOptions) => {
       dailyRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(treasuryBps)) / 10000n, METRIC.PERFORMANCE_FEES);
       dailySupplySideRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(10000 - totalBps)) / 10000n, 'Compounded to LPs');
       dailySupplySideRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(10000 - totalBps)) / 10000n, 'Compounded to LPs');
+      if (callerBps > 0) {
+        dailySupplySideRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(callerBps)) / 10000n, 'Caller incentives');
+        dailySupplySideRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(callerBps)) / 10000n, 'Caller incentives');
+      }
     });
   });
 
@@ -56,9 +62,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Gross Uniswap V3/V4 LP fees collected by Quiver vault strategies, taken from Harvest events (fees realize when harvested or rebalanced; small fee amounts settled inline during V4 withdrawals are not tracked).',
-  Revenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller fee, which is paid to whoever calls harvest, not the protocol.',
-  ProtocolRevenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller fee, which is paid to whoever calls harvest, not the protocol.',
-  SupplySideRevenue: 'The remaining share of harvested LP fees after the full performance fee (totalBps) is taken, compounded back into vault positions for depositors.',
+  Revenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller incentive, which is paid to whoever calls harvest, not the protocol.',
+  ProtocolRevenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller incentive, which is paid to whoever calls harvest, not the protocol.',
+  SupplySideRevenue: 'The remaining share of harvested LP fees after the full performance fee (totalBps) is taken, compounded back into vault positions for depositors, plus the caller incentive (callerBps) paid to whoever calls harvest.',
 };
 
 const breakdownMethodology = {
@@ -73,6 +79,7 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     "Compounded to LPs": "The remaining share of harvested LP fees after the full performance fee is taken, compounded back into vault positions for depositors.",
+    "Caller incentives": "The callerBps portion of the performance fee, paid to whoever calls harvest (an integrator/keeper reward), not sent to the protocol treasury.",
   },
 }
 
