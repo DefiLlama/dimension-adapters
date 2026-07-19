@@ -124,8 +124,11 @@ async function processUnwrapEvents(
   for (const unwrapLog of unwrapLogs) {
     const event = unwrapLog as UnwrapEvent;
 
-    // Add volume from input token amount
-    acc.dailyVolume.add(event.inputToken, event.amounts[0]);
+    // Only swapAndUnwrap (input token != teleBTC) runs an AMM swap; a plain
+    // unwrap is a 1:1 teleBTC burn (bridge outflow) and is not swap volume.
+    if (event.inputToken.toLowerCase() !== config.teleBTC.toLowerCase()) {
+      acc.dailyVolume.add(event.inputToken, event.amounts[0]);
+    }
 
     recordFees(acc, config.teleBTC, event.fees);
   }
@@ -173,9 +176,8 @@ async function processWrapEvents(
   for (const wrapLog of wrapLogs) {
     const event = wrapLog as WrapEvent;
 
-    // Add volume from input token (teleBTC) amount
-    acc.dailyVolume.add(config.teleBTC, event.amounts[0]);
-
+    // A plain wrap is a 1:1 BTC->teleBTC mint (bridge inflow) with no swap leg,
+    // so it is not counted as swap volume — only its fees are recorded.
     recordFees(acc, config.teleBTC, event.fees);
   }
 }
@@ -209,7 +211,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 }
 
 const methodology = {
-  Volume: "Total value of Bitcoin moved through the bridge — wrapping BTC into teleBTC on EVM chains and unwrapping teleBTC back to BTC.",
+  Volume: "The value of tokens swapped on TeleSwap: BTC bridged in and swapped to another token, or a token swapped and bridged out to BTC. Plain bridge transfers that only wrap or unwrap BTC one-for-one, with no swap, are not counted as volume.",
   Fees: "The Locker fee, protocol fee, and referral fee charged on every bridge transaction.",
   Revenue: "The protocol fee only. The Locker fee and referral fee are paid out to others, so they are not revenue for the protocol.",
   SupplySideRevenue: "The Locker fee plus any referral fee — paid to Lockers (who lock up collateral to back teleBTC and process each bridge transaction) and to third parties that refer users.",
