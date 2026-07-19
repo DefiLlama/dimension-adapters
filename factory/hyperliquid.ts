@@ -30,6 +30,19 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "signalview": {
+    addresses: [
+      "0x7c7f5fab1e78a08274a2f2a36c4e7dd3557c9cfa",
+    ],
+    start: "2026-06-02",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades routed by Signalview's AI trading agents.",
+      Fees: "Builder code fees paid by users whose Hyperliquid perpetual trades are executed through Signalview.",
+      Revenue: "Builder code fees collected by Signalview from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by Signalview from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "stablejack-perps": {
     addresses: [
       "0x68b7e8be8f1a62f99e37f1ac191dd23486e8a2ad",
