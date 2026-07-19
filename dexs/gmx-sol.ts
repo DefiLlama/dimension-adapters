@@ -137,14 +137,24 @@ const fetch = async (options: FetchOptions) => {
   const to = new Date(options.endTimestamp * 1000).toISOString();
 
   const events: TradeEvent[] = [];
+  let complete = false;
   for (let offset = 0; offset < MAX_EVENTS; offset += PAGE) {
     const res = await request(url, tradesQuery, { from, to, limit: PAGE, offset });
     const page: TradeEvent[] = res.tradeEvents;
     events.push(...page);
-    if (page.length < PAGE) break;
+    if (page.length < PAGE) { complete = true; break; }
   }
 
   if (!events.length) throw new Error("No trade events found for the day.");
+  // a short page is the only proof the day is fully read. running out of budget
+  // with every page full means there is more, and carrying on would report a
+  // truncated day as if it were the whole one
+  if (!complete) {
+    throw new Error(
+      `Read ${events.length} trade events without reaching the end of the day. ` +
+      `Raise MAX_EVENTS above ${MAX_EVENTS}.`
+    );
+  }
 
   const wallets = new Map<string, Wallet>();
   for (const event of events) {
