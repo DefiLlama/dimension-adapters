@@ -14,7 +14,7 @@ const lpLockers = [
   "0x736D76699C26D0d966744cAe304C000d471f7F35", //new
 ];
 
-const MIN_TVL = 500;
+const MIN_TVL = 1000;
 const tokenLunchedEvent = "event TokenLaunched(address indexed token, address indexed deployer, address indexed dexFactory, address pairToken, address pool, uint256 dexId, uint256 launchConfigId, uint256 positionId, uint256 restrictionsEndBlock, uint256 initialBuyAmount)";
 const swapEvent = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 const SWAP_FEE = 1 / 100;
@@ -90,7 +90,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $500 in TVL are included).",
+  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included).",
   Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   ProtocolRevenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted.",
@@ -113,7 +113,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-13",
