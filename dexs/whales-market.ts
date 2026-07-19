@@ -1,4 +1,3 @@
-import asyncRetry from "async-retry";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -40,11 +39,18 @@ const fetchEvm = async (options: FetchOptions) => {
 
   if (orders.length) {
     const offerIds = [...new Set(orders.map((o: any) => o.offerId.toString()))];
-    // multicall was crashing sometimes while testing, so we retry a few times before failing
-    const offers = await asyncRetry(
-      () => options.api.multiCall({ target, abi: OFFERS_ABI, calls: offerIds, permitFailure: true }),
-      { retries: 3, minTimeout: 2000 },
-    );
+    // a whole multicall RPC batch can fail transiently under load; retry a few
+    // times before failing the run
+    let offers: any[] = [];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        offers = await options.api.multiCall({ target, abi: OFFERS_ABI, calls: offerIds, permitFailure: true });
+        break;
+      } catch (e) {
+        if (attempt >= 3) throw e;
+        await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+      }
+    }
     const offersById = new Map(offerIds.map((id, i) => [id, offers[i]]));
 
     for (const order of orders) {
@@ -97,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, 
+  version: 1, // Dune dependency (Solana): per guidelines, Dune adapters must be v1 so the query runs once per day
   fetch,
   adapter: config,
   dependencies: [Dependencies.DUNE],
