@@ -331,14 +331,26 @@ const configs: Record<string, SolLstConfig> = {
     lstFeeTokenAccount: "G2hGzCcDUJdtTSVLazEGfaMVEGWxEwWrnyy8TuTmP25j",
     lstMint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P",
     start: "2025-02-24",
-    revenue: { type: "add", mint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P", metric: METRIC.MANAGEMENT_FEES },
-    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "add", mint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.025, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Backpack staked solana",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
       },
       Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "Includes withdrawal fees and management fees collected by fee collector",
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards are distributed to BPSoL",
       },
     },
   }),
