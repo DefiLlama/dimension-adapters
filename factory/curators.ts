@@ -210,6 +210,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x17e7bB9fe7983947FdCf02c1E3d8e6C92C21da54'],
         start: '2025-02-01',
       },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x17e7bB9fe7983947FdCf02c1E3d8e6C92C21da54'],
+        start: '2024-06-10',
+      }
     },
   },
   "muscadine": {
