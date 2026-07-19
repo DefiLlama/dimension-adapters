@@ -58,6 +58,7 @@ interface StakingRevenueConfig {
 interface RevenueFeedbackConfig {
   addToFees: boolean;
   feesMetric?: string;
+  userFeesMetric?: string; // deposit/withdrawal fees users pay during respective actions
 }
 
 interface SolLstConfig {
@@ -137,6 +138,8 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
     feesBreakdown[config.fees.metric] = "Staking rewards from staked SOL";
   if (config.revenueFeedback.addToFees && config.revenueFeedback.feesMetric)
     feesBreakdown[config.revenueFeedback.feesMetric] = "Includes withdrawal fees and management fees";
+  if (!config.revenueFeedback.addToFees && config.revenueFeedback.userFeesMetric)
+    feesBreakdown[config.revenueFeedback.userFeesMetric] = "Deposit/withdrawal fees users pay on their principal";
   if (Object.keys(feesBreakdown).length > 0) breakdown.Fees = feesBreakdown;
 
   // Revenue breakdown
@@ -251,6 +254,16 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
           } else if (rev.type === "addToken") {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
+        }
+      } else if (row.metric_type === "dailyUserFees" && !config.revenueFeedback.addToFees) {
+          const rev = config.revenue;
+          const metric = config.revenueFeedback.userFeesMetric;
+          if (rev.type === "addCGToken") {
+            dailyFees.addCGToken(rev.cgId, row.amount || 0, metric);
+          } else if (rev.type === "add") {
+            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, metric);
+          } else if (rev.type === "addToken") {
+          dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0, metric);
         }
       }
     });
@@ -871,6 +884,8 @@ const doublezeroAdapter = (() => {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+      } else if (row.metric_type === "dailyUserFees") {
+        dailyFees.addCGToken(revenueToken, row.amount || 0);
       }
     });
 
