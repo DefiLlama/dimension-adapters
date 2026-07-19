@@ -204,18 +204,18 @@ const breakdownMethodology = {
   Fees: {
     [LBL_AQUILA]: '30 bps × swap notional on every Aquila pair.',
     [LBL_CLMM]: 'Per-pool tier (5/30/100 bps) × swap notional.',
-    [LBL_CLASSIC]: '2 bps × take-event notional (getFeeBPS() = 2, re-verified 2026-07-09).',
-    [LBL_GLADIUS]: '2 bps × take-event notional.',
+    [LBL_CLASSIC]: '2 bps × take-event notional.',
+    [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   Revenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
-    [LBL_GLADIUS]: '100% of the 2 bps taker fee.',
+    [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   ProtocolRevenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
-    [LBL_GLADIUS]: '100% of the 2 bps taker fee.',
+    [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   SupplySideRevenue: {
     [LBL_AQUILA]: '~25 bps on OP/Arb/Base; 30 bps on mainnet (fee switch off).',
