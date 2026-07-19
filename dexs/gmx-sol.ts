@@ -71,8 +71,12 @@ interface Wallet {
   trades: number;
   longVolume: number;
   shortVolume: number;
-  openSize: Map<string, number>; // position -> current size in usd
-  exposure: number;              // sum of openSize
+  // position -> its size in usd right now. closing a position sets the entry to 0
+  // rather than removing it, so the key count is how many distinct positions the
+  // wallet touched over the day, which is what MIN_POSITIONS reads. do not delete
+  // closed keys here, it would quietly change the filter.
+  positionSize: Map<string, number>;
+  exposure: number; // sum of positionSize
   peakExposure: number;
 }
 
@@ -98,7 +102,7 @@ const newWallet = (): Wallet => ({
   trades: 0,
   longVolume: 0,
   shortVolume: 0,
-  openSize: new Map(),
+  positionSize: new Map(),
   exposure: 0,
   peakExposure: 0,
 });
@@ -107,7 +111,8 @@ const isVolumeFarmer = (wallet: Wallet): boolean => {
   if (wallet.trades < MIN_TRADES || wallet.volume === 0 || wallet.peakExposure === 0) return false;
   if (wallet.volume / wallet.peakExposure < MIN_TURNOVER) return false;
   const imbalance = Math.abs(wallet.longVolume - wallet.shortVolume) / wallet.volume;
-  return imbalance <= MAX_IMBALANCE || wallet.openSize.size >= MIN_POSITIONS;
+  const positionsTouched = wallet.positionSize.size;
+  return imbalance <= MAX_IMBALANCE || positionsTouched >= MIN_POSITIONS;
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -140,13 +145,13 @@ const fetch = async (options: FetchOptions) => {
 
     // first sighting of a position: whatever it held before this trade is already
     // capital at risk, so count it before applying the trade
-    if (!wallet.openSize.has(event.position)) {
-      wallet.openSize.set(event.position, before);
+    if (!wallet.positionSize.has(event.position)) {
+      wallet.positionSize.set(event.position, before);
       wallet.exposure += before;
       wallet.peakExposure = Math.max(wallet.peakExposure, wallet.exposure);
     }
-    wallet.exposure += after - (wallet.openSize.get(event.position) as number);
-    wallet.openSize.set(event.position, after);
+    wallet.exposure += after - (wallet.positionSize.get(event.position) as number);
+    wallet.positionSize.set(event.position, after);
     wallet.peakExposure = Math.max(wallet.peakExposure, wallet.exposure);
 
     const volume = Math.abs(after - before);
