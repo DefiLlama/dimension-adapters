@@ -5,8 +5,11 @@ import { METRIC } from "../helpers/metrics";
 // Quiver Protocol: AI-managed concentrated-liquidity vaults on Robinhood Chain
 // (Uniswap V3 + V4, incl. tokenized-stock pairs). Each vault's strategy emits
 // Harvest(caller, fees0, fees1, ppsAfter) with the GROSS LP fees collected;
-// a 10% performance fee (FeeConfig.getFees) goes to the treasury and the rest
-// compounds back into the LP position.
+// a performance fee (FeeConfig.getFees) is split at harvest time: callerBps
+// of it goes to whoever calls harvest (a keeper incentive), the remainder
+// (totalBps - callerBps) goes to the protocol treasury, the rest compounds
+// back into the LP position. See QuiverStrategyUniV3._harvest on-chain:
+// treasuryBps = totalBps - callerBps; only treasuryBps is sent to treasury.
 const FACTORY_V3 = '0xa511D763a79293b306BeAfd3e7eEB5e2884A71d5';
 const FACTORY_V4 = '0x3941116A9fF2d3e0B4CFa396d7927e8462dF7b38';
 const FEE_CONFIG = '0x777bBe1F53ae75f478DaF22b0E5A5d9513e98E31';
@@ -35,14 +38,16 @@ const fetch = async (options: FetchOptions) => {
 
   const logsPerStrategy = await options.getLogs({ targets: strategies, eventAbi: HARVEST_ABI, flatten: false });
   logsPerStrategy.forEach((logs: any[], i: number) => {
-    const perfBps = Number(feeSplits[i].totalBps);
+    const totalBps = Number(feeSplits[i].totalBps);
+    const callerBps = Number(feeSplits[i].callerBps);
+    const treasuryBps = totalBps - callerBps;
     logs.forEach((log: any) => {
       dailyFees.add(token0s[i], log.fees0, 'LP fees harvested');
       dailyFees.add(token1s[i], log.fees1, 'LP fees harvested');
-      dailyRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(perfBps)) / 10000n, METRIC.PERFORMANCE_FEES);
-      dailyRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(perfBps)) / 10000n, METRIC.PERFORMANCE_FEES);
-      dailySupplySideRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(10000 - perfBps)) / 10000n, 'Compounded to LPs');
-      dailySupplySideRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(10000 - perfBps)) / 10000n, 'Compounded to LPs');
+      dailyRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(treasuryBps)) / 10000n, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(treasuryBps)) / 10000n, METRIC.PERFORMANCE_FEES);
+      dailySupplySideRevenue.add(token0s[i], (BigInt(log.fees0) * BigInt(10000 - totalBps)) / 10000n, 'Compounded to LPs');
+      dailySupplySideRevenue.add(token1s[i], (BigInt(log.fees1) * BigInt(10000 - totalBps)) / 10000n, 'Compounded to LPs');
     });
   });
 
@@ -51,9 +56,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Gross Uniswap V3/V4 LP fees collected by Quiver vault strategies, taken from Harvest events (fees realize when harvested or rebalanced; small fee amounts settled inline during V4 withdrawals are not tracked).',
-  Revenue: 'Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.',
-  ProtocolRevenue: 'Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.',
-  SupplySideRevenue: 'The remaining ~90% of harvested LP fees, compounded back into vault positions for depositors.',
+  Revenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller fee, which is paid to whoever calls harvest, not the protocol.',
+  ProtocolRevenue: 'Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury. Excludes the caller fee, which is paid to whoever calls harvest, not the protocol.',
+  SupplySideRevenue: 'The remaining share of harvested LP fees after the full performance fee (totalBps) is taken, compounded back into vault positions for depositors.',
 };
 
 const breakdownMethodology = {
@@ -61,13 +66,13 @@ const breakdownMethodology = {
     "LP fees harvested": "Gross Uniswap V3/V4 LP fees collected by Quiver vault strategies, taken from Harvest events (fees realize when harvested or rebalanced; small fee amounts settled inline during V4 withdrawals are not tracked).",
   },
   Revenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.",
+    [METRIC.PERFORMANCE_FEES]: "Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury.",
   },
   ProtocolRevenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fee share of harvested LP fees (currently 10%, read live from FeeConfig), sent to the protocol treasury.",
+    [METRIC.PERFORMANCE_FEES]: "Treasury share of harvested LP fees (totalBps minus the caller incentive callerBps, read live from FeeConfig), sent to the protocol treasury.",
   },
   SupplySideRevenue: {
-    "Compounded to LPs": "The remaining ~90% of harvested LP fees, compounded back into vault positions for depositors.",
+    "Compounded to LPs": "The remaining share of harvested LP fees after the full performance fee is taken, compounded back into vault positions for depositors.",
   },
 }
 
