@@ -15,21 +15,31 @@ const MAX_EVENTS = 1_000_000;
 
 // Volume farming filter, see issue #7120.
 //
-// The wallets behind the spikes are farming the GT points programme. They hold a
-// book that is flat overall and churn it, so they turn over far more volume than
-// they ever have capital at risk. On 2026-05-20 there are 13 of them carrying 99.8%
-// of the flagged volume, and they look like one operation: $2.8M to $11.0M of
-// capital each, 15 to 26 markets open at once, 20x to 33x turnover, VIP tier 4-5,
-// and GT ranks packed into 220-998. Two numbers per wallet per day catch that:
+// The wallets behind the spikes are farming the GT points programme. They churn a
+// wide book, turning over far more volume than they ever have capital at risk. On
+// 2026-05-20 this flags 17 of them holding $2.36B, the thirteen largest carry 94%
+// of it, and they look like one operation: $3.9M to $11.0M of capital each, 29 to
+// 41 positions, 20.0x to 32.8x turnover. Three numbers per wallet per day:
 //
 //   turnover    volume / the largest capital the wallet ever had deployed at one
 //               time, summed across all its open positions. One open and close of
 //               the whole book is 2. Ten round trips is 20.
 //   imbalance   |long volume - short volume| / volume. Flat books sit near 0.
+//   positions   distinct positions the wallet touched during the day.
+//
+// Churn plus either a flat book or a wide book. Not every farmer hedges: on
+// 2026-06-01 the largest wallet on the venue ran 24.6x turnover on $28.6M with
+// imbalance 0.36, and imbalance alone let it through. Requiring a flat book OR a
+// wide book catches it without reaching the other thing that clears 20x turnover,
+// a directional scalper working one or two positions with small capital. Those
+// exist mostly in early history: on 2025-03-15 and 2026-02-15, turnover alone
+// would take 60.7% and 71.7% of the day off wallets holding 1 to 7 positions on
+// $39k to $755k. The position count is what separates the two, and 8, 10 and 15
+// all give the same answer, so it is not a fitted line.
 //
 // Turnover has to be measured against total concurrent capital, not against the
-// largest single position. These wallets run 15 to 26 markets at once, so keying
-// off the biggest position understates their capital by about that factor and
+// largest single position. Running dozens of positions at once, as these do, means
+// keying off the biggest one understates their capital by about that factor and
 // sweeps in ordinary multi-market traders.
 //
 // Capital sitting in a position that is never touched during the day is not counted,
@@ -40,9 +50,13 @@ const MAX_EVENTS = 1_000_000;
 // Quiet days are untouched anywhere in turnover 10-30 and imbalance 0.05-0.25, so
 // the thresholds are not load bearing on the false positive side. Above 30 the
 // signal itself starts to go, so do not raise it.
+//
+// Backfill runs to 2025-02-12, and the early days behave differently from the
+// 2026 spikes, so check both before touching any of these numbers.
 const MIN_TRADES = 20;
 const MIN_TURNOVER = 20;
 const MAX_IMBALANCE = 0.15;
+const MIN_POSITIONS = 8;
 
 interface TradeEvent {
   user: string;
@@ -91,9 +105,9 @@ const newWallet = (): Wallet => ({
 
 const isVolumeFarmer = (wallet: Wallet): boolean => {
   if (wallet.trades < MIN_TRADES || wallet.volume === 0 || wallet.peakExposure === 0) return false;
-  const turnover = wallet.volume / wallet.peakExposure;
+  if (wallet.volume / wallet.peakExposure < MIN_TURNOVER) return false;
   const imbalance = Math.abs(wallet.longVolume - wallet.shortVolume) / wallet.volume;
-  return turnover >= MIN_TURNOVER && imbalance <= MAX_IMBALANCE;
+  return imbalance <= MAX_IMBALANCE || wallet.openSize.size >= MIN_POSITIONS;
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -156,7 +170,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2025-02-12',
   methodology: {
-    Volume: "Notional volume of perpetual trades from the GMX Solana subgraph, taken as the change in position size on each trade event. Volume from wallets farming the GT points programme, meaning they turn over more than 20x their peak concurrent capital while holding a flat book, is excluded. See issue #7120.",
+    Volume: "Notional volume of perpetual trades from the GMX Solana subgraph, taken as the change in position size on each trade event. Volume from wallets farming the GT points programme is excluded, meaning those that turn over more than 20x their peak concurrent capital in a day while either holding a flat book or working eight or more positions. See issue #7120.",
   },
 };
 
