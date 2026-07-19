@@ -42,12 +42,13 @@ const prefetch = async (options: FetchOptions) => {
       GROUP BY 1
     ),
     -- dex trades hold one row per pool hop, so a routed swap appears several times.
-    -- Keep the largest hop per transaction, which is the size of the swap the user made.
+    -- Keep the largest hop per trader per transaction: partitioning on the transaction
+    -- alone would drop the other traders in a batched transaction.
     sol_hops AS (
       SELECT
         t.blockchain,
         t.amount_usd,
-        ROW_NUMBER() OVER (PARTITION BY t.tx_id ORDER BY t.amount_usd DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY t.tx_id, t.trader_id ORDER BY t.amount_usd DESC) AS rn
       FROM dex_solana.trades t
       INNER JOIN solana_txs b ON t.tx_id = b.tx_id
       WHERE TIME_RANGE
@@ -65,7 +66,7 @@ const prefetch = async (options: FetchOptions) => {
       SELECT
         blockchain,
         amount_usd,
-        ROW_NUMBER() OVER (PARTITION BY blockchain, tx_hash ORDER BY amount_usd DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY blockchain, tx_hash, taker ORDER BY amount_usd DESC) AS rn
       FROM dex.trades
       WHERE TIME_RANGE
         AND (${evmFilter})
