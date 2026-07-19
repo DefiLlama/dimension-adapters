@@ -28,15 +28,19 @@ const MAX_EVENTS = 1_000_000;
 //   positions   distinct positions the wallet touched during the day.
 //
 // Churn plus either a flat book or a wide book. Not every farmer hedges: on
-// 2026-06-01 the largest wallet on the venue ran 24.6x turnover on $28.6M with
-// imbalance 0.36, and imbalance alone let it through. Requiring a flat book OR a
-// wide book catches it without reaching the other thing that clears 20x turnover,
-// a directional scalper working one or two positions with small capital. Those
-// exist mostly in early history: on 2025-03-15 and 2026-02-15, turnover alone
-// would take 60.7% and 71.7% of the day off wallets holding 1 to 7 positions on
-// $39k to $755k. The position count is what separates the two. Anything from 8 to
-// 20 gives the same answer on every day tested, so it is not a fitted line; 6
-// starts reaching into the 2025 days, which is the floor.
+// 2026-06-01 the largest wallet on the venue ran 24.6x turnover on $28.6M across
+// 76 positions with imbalance 0.36, and the flat book test alone let it through.
+// Accepting a wide book too catches it without reaching the other thing that
+// clears 20x turnover, a directional scalper working a handful of positions with
+// small capital. Those dominate early history: on 2025-03-15 and 2026-02-15
+// turnover alone would take 60.7% and 71.7% of the day off wallets holding 1 to 7
+// positions on $3k to $755k. The 02-15 leader is the shape of it, 221x turnover
+// on $78k across a single position at imbalance 1.00, which is one directional
+// trade reopened all day.
+//
+// The position count separates the two. Anything from 8 to 20 gives the same
+// answer on every day tested, so it is not a fitted line; 6 starts reaching into
+// the 2025 days, which is the floor.
 //
 // Turnover has to be measured against total concurrent capital, not against the
 // largest single position. Running dozens of positions at once, as these do, means
@@ -177,7 +181,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2025-02-12',
   methodology: {
-    Volume: "Notional volume of perpetual trades from the GMX Solana subgraph, taken as the change in position size on each trade event. Volume from wallets farming the GT points programme is excluded, meaning those that turn over more than 20x their peak concurrent capital in a day while either holding a flat book or working eight or more positions. See issue #7120.",
+    Volume: "Notional volume of perpetual trades from the GMX Solana subgraph, taken as the change in position size on each trade event. Volume from wallets farming the GT points programme is excluded, meaning those that turn over 20x or more of their peak concurrent capital in a day while either holding a flat book or working eight or more positions. See issue #7120.",
   },
 };
 
