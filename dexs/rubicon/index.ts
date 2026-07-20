@@ -115,7 +115,7 @@ const fetch = async (options: FetchOptions) => {
       userFeesRatio: 1,
       dynamicProtocolFees: true,
       getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: any) => {
-        const ratio = protocolFeeRatioToken0 ?? protocolFeeRatioToken1 ?? 0
+        const ratio = protocolFeeRatioToken0 || protocolFeeRatioToken1 || 0
         return { _revenueRatio: ratio, _protocolRevenueRatio: ratio }
       },
     })(options)
