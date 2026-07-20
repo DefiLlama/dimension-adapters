@@ -103,16 +103,21 @@ const fetch = async (options: FetchOptions) => {
       cacheInCloud: true,
     })
     const pools = poolCreatedLogs.map((log: any) => log.pool)
-    // CLMM V3 pool.feeProtocol is live and set to 6/6 on Arbitrum and Base
-    // (confirmed on-chain via slot0(), not the factory default), matching the
-    // same 1/6 protocol cut already used for Aquila V2 on these chains. Reuse
-    // the per-chain AQUILAL_REVENUE_RATIO instead of hardcoding it disabled.
-    const clmmRevenueRatio = AQUILAL_REVENUE_RATIO ?? 0
+    // CLMM V3 pool.feeProtocol is live (confirmed on-chain via slot0(), not
+    // the factory default) — 6/6 on Arbitrum and Base pools checked, matching
+    // the same 1/6 protocol cut already used for Aquila V2 on these chains.
+    // Read it per-pool per-timeslot via dynamicProtocolFees instead of
+    // hardcoding a ratio, so historical periods before any fee-switch change
+    // are still attributed correctly rather than assuming today's value held
+    // for all time.
     const clData = await getUniV3LogAdapter({
       pools,
       userFeesRatio: 1,
-      revenueRatio: clmmRevenueRatio,
-      protocolRevenueRatio: clmmRevenueRatio,
+      dynamicProtocolFees: true,
+      getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: any) => {
+        const ratio = protocolFeeRatioToken0 ?? protocolFeeRatioToken1 ?? 0
+        return { _revenueRatio: ratio, _protocolRevenueRatio: ratio }
+      },
     })(options)
 
     if (clData?.dailyVolume) dailyVolume.addBalances(clData.dailyVolume)
@@ -198,15 +203,16 @@ const methodology = {
     '2 bps × take-event notional.',
   Revenue:
     'Protocol cut: Aquila V2 ~5 bps (1/6 of LP fee) on OP/Arb/Base where factory.feeTo ' +
-    'is set, 0 on mainnet; CLMM V3 1/6 of the pool fee on OP/Arb/Base where ' +
-    'pool.feeProtocol is live (confirmed on-chain via slot0), 0 on mainnet; ' +
-    'Classic 100% of the 2 bps taker fee.',
+    'is set, 0 on mainnet; CLMM V3 read live per-pool per-timeslot from ' +
+    'pool.slot0().feeProtocol (currently 1/6 on the Arbitrum and Base pools checked, ' +
+    '0 where the fee switch is off), so historical periods before any fee-switch ' +
+    'change are attributed correctly; Classic 100% of the 2 bps taker fee.',
   ProtocolRevenue: 'Identical to Revenue — Rubicon does not currently route fees to a holders/buyback bucket.',
   SupplySideRevenue:
     'LP cut: dailyFees minus protocol Revenue. Aquila ~25 bps to LPs (OP/Arb/Base) or ' +
-    '30 bps (mainnet, fee switch off). CLMM ~5/6 of pool tier to LPs on OP/Arb/Base, ' +
-    '100% on mainnet where pool.feeProtocol is disabled. Classic and Gladius ' +
-    'have no LP layer.',
+    '30 bps (mainnet, fee switch off). CLMM whatever\'s left after the live ' +
+    'per-pool pool.slot0().feeProtocol cut (currently ~5/6 where the fee switch is on). ' +
+    'Classic and Gladius have no LP layer.',
 }
 
 const breakdownMethodology = {
@@ -218,19 +224,19 @@ const breakdownMethodology = {
   },
   Revenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
-    [LBL_CLMM]: '1/6 of the pool fee tier on OP/Arb/Base where pool.feeProtocol is live; 0 on mainnet.',
+    [LBL_CLMM]: 'Live per-pool pool.slot0().feeProtocol cut, read per timeslot (currently 1/6 where the fee switch is on).',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   ProtocolRevenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
-    [LBL_CLMM]: '1/6 of the pool fee tier on OP/Arb/Base where pool.feeProtocol is live; 0 on mainnet.',
+    [LBL_CLMM]: 'Live per-pool pool.slot0().feeProtocol cut, read per timeslot (currently 1/6 where the fee switch is on).',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   SupplySideRevenue: {
     [LBL_AQUILA]: '~25 bps on OP/Arb/Base; 30 bps on mainnet (fee switch off).',
-    [LBL_CLMM]: '~5/6 of per-pool fee tier on OP/Arb/Base; 100% on mainnet.',
+    [LBL_CLMM]: 'Whatever\'s left after the live per-pool pool.slot0().feeProtocol cut.',
   },
 }
 
