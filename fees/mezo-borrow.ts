@@ -147,6 +147,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
+  allowNegativeValue: true, // liquidations can also be lossy for liquidators
 };
 
 export default adapter;
