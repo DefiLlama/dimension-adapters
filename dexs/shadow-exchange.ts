@@ -29,23 +29,18 @@ const fetch = async (options: FetchOptions) => {
   const tokenTaxes = createBalances()
   const supplySideRevenue = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools" })
-    .then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
-    .catch(() => [])
+  const poolsWithGauges = (await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools" }))
+    .map((contract: string) => contract.toLowerCase())
   const poolsWithGaugesSet = new Set(poolsWithGauges)
   const InstantExitLogs = await getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
     eventAbi: "event InstantExit(address indexed user, uint256 amount)",
     topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
   });
-  let shadowPenaltyAmount = 0;
-
+  // exit() emits the exited amount, which equals the 50% penalty streamed to xSHADOW holders
   for (const log of InstantExitLogs) {
-    shadowPenaltyAmount += Number(log.amount) / 1e18;
+    tokenTaxes.add(SHADOW_TOKEN_CONTRACT, log.amount)
   }
-
-  // Calculate xSHADOW rebase revenue in USD
-  tokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
   const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
 
@@ -57,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
     pairObject[log.pool] = [log.token0, log.token1]
   })
 
-  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances, maxPairSize: 500 })
   const poolAddresses = Object.keys(filteredPools)
   const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
   const aeroPoolSet = new Set()
