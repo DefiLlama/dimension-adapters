@@ -104,9 +104,12 @@ const fetch = async (options: FetchOptions) => {
 
     if (source === 'protocol') {
       if (mint === FRAGMETRIC.SW1TCH) {
-        // Jito restaking vault yield
-        dailyRevenue.add(mint, amount, METRIC.STAKING_REWARDS)
-        dailyFees.add(mint, amount, METRIC.STAKING_REWARDS)
+        // SW1TCH reaching the program-revenue account is restaking yield in
+        // transit to the reward reserves, where it is distributed to and claimed
+        // by LRT holders (already counted on the rewards leg below). The account
+        // forwards it onward rather than retaining it, so it is not protocol
+        // revenue; counting it here double-counts fees and overstates revenue.
+        continue
       } else if (mint === FRAGMETRIC.FRAGSOL || mint === FRAGMETRIC.FRAGJTO) {
         // LRT operation fees
         dailyRevenue.add(mint, amount, METRIC.MANAGEMENT_FEES)

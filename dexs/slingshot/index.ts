@@ -54,26 +54,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      start: '2023-05-09'
-    },
-    [CHAIN.ETHEREUM]: {
-      start: '2023-05-09'
-    },
-    [CHAIN.POLYGON]: {
-      start: '2023-05-09'
-    },
-    [CHAIN.OPTIMISM]: {
-      start: '2023-05-09'
-    },
-    [CHAIN.BSC]: {
-      start: '2023-05-09'
-    },
-    [CHAIN.CANTO]: {
-      start: '2023-05-09'
-    }
-  }
+  chains: Object.keys(contract_address),
+  start: '2023-05-09',
 }
 export default adapters;

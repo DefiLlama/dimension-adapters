@@ -135,7 +135,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         else {
             performanceFeeInBps = feeConfigs[v2Index].currentPerformanceFee;
         }
-        const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n) : 0n;
+        const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * yieldForPeriod) / (100n * 100n) : 0n;
 
         dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
         dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);

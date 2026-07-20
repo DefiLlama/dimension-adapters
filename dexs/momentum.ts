@@ -50,20 +50,27 @@ const fetch = async (_: any): Promise<FetchResultV2> => {
   // const beginVolume = Number(values[0].value);
   // const latestVolume = Number(values[values.length - 1].value);
   // dailyVolume = latestVolume - beginVolume;
-  
+
   let dailyVolume = 0;
   let dailyFees = 0;
+  let dailyProtocolRevenue = 0;
+  let dailySupplySideRevenue = 0;
   const response = await httpGet('https://api.mmt.finance/pools/v3');
   for (const poolData of response.data) {
+    const poolFees = Number(poolData.fees24h);
+    const protocolShare = Number(poolData.protocolFeesPercent) / 100;
     dailyVolume += Number(poolData.volume24h);
-    dailyFees += Number(poolData.fees24h);
+    dailyFees += poolFees;
+    dailyProtocolRevenue += poolFees * protocolShare;
+    dailySupplySideRevenue += poolFees * (1 - protocolShare);
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees * 0.2,
-    dailyProtocolRevenue: dailyFees * 0.2,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 }
 
@@ -74,9 +81,10 @@ const adapter: SimpleAdapter = {
   // start: '2025-03-08',
   runAtCurrTime: true,
   methodology: {
-    Fees: 'All swap fees paid by users from 6 fee tiers pools.',
-    Revenue: 'Amount of 20% swap fees is redirected to the Momentum treasury.',
-    ProtocolRevenue: 'Amount of 20% swap fees is redirected to the Momentum treasury.',
+    Fees: 'Gross swap fees paid by users across all CLMM pools.',
+    Revenue: "Each pool's protocolFeesPercent of swap fees redirected to the Momentum treasury.",
+    ProtocolRevenue: "Each pool's protocolFeesPercent of swap fees redirected to the Momentum treasury.",
+    SupplySideRevenue: "Remaining share of swap fees distributed to liquidity providers.",
   }
 };
 

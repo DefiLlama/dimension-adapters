@@ -48,7 +48,8 @@ const adapter: Adapter = {
         Fees: "All mint, burn, margin and liquidation and swap fees are collected",
         UserFees: "Users pay swap fees and margin and liquidation fees",
         Revenue: "Revenue is calculated as 30% of the total fee.",
-    }
+    },
+    deadFrom: "2024-08-19",
 };
 
 export default adapter;

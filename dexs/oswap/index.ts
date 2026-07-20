@@ -62,7 +62,12 @@ const getDailyVolume = async () => {
             c: exchangeRates[`${assetId1}_USD`],
             volumeInUSD
         };
-    }).filter((a: any) => a.base_symbol !== 'O-GBYTE-BUSD').reduce((acc: any, { volumeInUSD }: any) => acc + volumeInUSD, 0);
+    })
+        // Exclude the "O-*" pool-share token markets: these are LP-token accounting entries
+        // (e.g. O-CITY-GBYTE reports a ~206B base_volume at a near-zero price), not real swaps.
+        // Counting them inflated daily volume to ~$10T; the real Obyte DEX volume is ~$2k/day.
+        .filter((a: any) => !a.base_symbol.startsWith('O-'))
+        .reduce((acc: any, { volumeInUSD }: any) => acc + volumeInUSD, 0);
 
     return volume;
 }

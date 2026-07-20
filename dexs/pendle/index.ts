@@ -34,6 +34,8 @@ const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.OPTIMISM]: { id: 10, start: '2023-08-11' },
   [CHAIN.BASE]: { id: 8453, start: '2024-11-27' },
   [CHAIN.PLASMA]: { id: 9745, start: "2025-10-01" },
+  [CHAIN.HYPERLIQUID]: { id: 999, start: "2025-07-29" },
+  [CHAIN.MONAD]: { id: 143, start: "2026-06-19" },
 };
 
 async function amm(

@@ -43,13 +43,22 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume: dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue: dailyFees - dailyRevenue,
   };
+};
+
+const methodology = {
+  Volume: "Trading volume across all ThalaSwap v3 pools, summed from the protocol's trading-volume API.",
+  Fees: "Total swap fees paid by traders, summed from the protocol's trading-fee API.",
+  Revenue: "The protocol's cut of swap fees that accrues to the treasury, from the protocol's protocol-revenue API.",
+  SupplySideRevenue: "The portion of swap fees that accrues to liquidity providers, computed as total fees minus protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.APTOS],
   start: '2025-09-04',
+  methodology,
 };
 
 export default adapter;

@@ -40,7 +40,16 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   const dailyFeesETH = current.totalFees - previous.totalFees;
-  const dailyRevenueETH = current.totalRevenue - previous.totalRevenue;
+  let dailyRevenueETH = current.totalRevenue - previous.totalRevenue;
+
+  // The Obol API's total_revenue field intermittently returns 0 (the correctedTotalRevenues map
+  // above patches individual known dates one at a time). When total_revenue is 0 on either the
+  // current or the previous day, this day-over-day delta becomes a phantom ~118 ETH (~$200k) swing
+  // (positive on the day it recovers to ~118, negative on the day it drops to 0) while real daily
+  // revenue is ~0.1-0.2 ETH, which surfaces on the protocol page as Revenue several times larger
+  // than Fees on some days and deeply negative on others. Revenue is a share of the fees, so treat
+  // a 0 on either side as missing data and book no revenue for that day.
+  if (current.totalRevenue === 0 || previous.totalRevenue === 0) dailyRevenueETH = 0;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

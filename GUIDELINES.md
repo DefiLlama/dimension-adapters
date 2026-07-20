@@ -13,6 +13,7 @@ These guidelines apply to ALL adapters in this repository.
 - Never swallow errors silently. For recoverable chain-specific failures, return 0 and log the error so the adapter continues for other chains. For system-level or critical errors, throw/propagate to fail fast. Do NOT wrap adapter logic in `try/catch` just to ignore errors - either remove the catch or `throw` inside it
 - Use/add helper code when multiple adapters use similar logic - check `helpers/` folder first
 - Do NOT add npm dependencies - this leads to bloat
+- Do NOT add new `.js` files - all new adapters and helpers must be written in TypeScript (`.ts`). PRs that add `.js` files should be rejected
 - Use `api.multiCall` where possible, avoid `Promise.all`. Use PromisePool for non-EVM calls
 - Return token breakdown where possible - always include `methodology` and `breakdownMethodology`
 

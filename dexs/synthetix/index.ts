@@ -92,6 +92,8 @@ const fetch: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume>
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.OPTIMISM],
   start: '2023-04-22',

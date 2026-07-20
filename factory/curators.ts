@@ -117,7 +117,7 @@ const configs: Record<string, CuratorConfig> = {
   "felix-vaults": {
     vaults: {
       [CHAIN.HYPERLIQUID]: {
-        morpho: ['0x835febf893c6dddee5cf762b0f8e31c5b06938ab', '0xfc5126377f0efc0041c0969ef9ba903ce67d151e', '0x9c59a9389d8f72de2cdaf1126f36ea4790e2275e', '0x2900ABd73631b2f60747e687095537B673c06A76', '0x9896a8605763106e57A51aa0a97Fe8099E806bb3', '0x66c71204B70aE27BE6dC3eb41F9aF5868E68fDb6', '0x8A862fD6c12f9ad34C9c2ff45AB2b6712e8CEa27', '0x207ccaE51Ad2E1C240C4Ab4c94b670D438d2201C'],
+        morpho: ['0x835febf893c6dddee5cf762b0f8e31c5b06938ab', '0xfc5126377f0efc0041c0969ef9ba903ce67d151e', '0x9c59a9389d8f72de2cdaf1126f36ea4790e2275e', '0x2900ABd73631b2f60747e687095537B673c06A76', '0x9896a8605763106e57A51aa0a97Fe8099E806bb3', '0x66c71204B70aE27BE6dC3eb41F9aF5868E68fDb6', '0x8A862fD6c12f9ad34C9c2ff45AB2b6712e8CEa27', '0x207ccaE51Ad2E1C240C4Ab4c94b670D438d2201C', '0x808F72b6Ff632fba005C88b49C2a76AB01CAB545', '0x274f854b2042DB1aA4d6C6E45af73588BEd4Fc9D'],
       },
     },
   },
@@ -210,6 +210,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x17e7bB9fe7983947FdCf02c1E3d8e6C92C21da54'],
         start: '2025-02-01',
       },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x17e7bB9fe7983947FdCf02c1E3d8e6C92C21da54'],
+        start: '2024-06-10',
+      }
     },
   },
   "muscadine": {
@@ -328,16 +332,6 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.BASE]: {
         morpho: ['0x616a4E1db48e22028f6bbf20444Cd3b8e3273738', '0x27D8c7273fd3fcC6956a0B370cE5Fd4A7fc65c18', '0x5a47C803488FE2BB0A0EAaf346b420e4dF22F3C7'],
         start: '2025-01-21',
-      },
-    },
-  },
-  "sentora": {
-    breakdownFees: true,
-    vaults: {
-      [CHAIN.ETHEREUM]: {
-        eulerVaultOwners: ['0x5aB5FE7d04CFDeFb9daf61f6f569a58A53D05eE1'],
-        morphoVaultOwners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
-        morphoVaultV2Owners: ['0x13DE0cEE0B83562CBfD46682e10FfA4E3c5090e1'],
       },
     },
   },

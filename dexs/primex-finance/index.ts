@@ -69,7 +69,9 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   };
 
 const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  adapter: config
+  chains: Object.entries(config).map(([chain, { start }]) => [chain, { start }]),
 };
 export default adapters;

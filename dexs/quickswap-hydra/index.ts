@@ -53,6 +53,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.POLYGON_ZKEVM, CHAIN.MANTA],
   start: '2024-07-02',
+  deadFrom: "2025-09-11",
 };
 
 export default adapter;

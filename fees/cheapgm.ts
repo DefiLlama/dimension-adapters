@@ -5,18 +5,18 @@ const TREASURY = "0x21ad6ef3979638d8e73747f22b92c4aade145d82".toLowerCase();
 
 const CHAINS: Array<string> = [
   CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.BSC,
-  CHAIN.SCROLL, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.ERA, 
+  CHAIN.SCROLL, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.ERA,
   CHAIN.BLAST, CHAIN.MODE,
-  CHAIN.ZORA, CHAIN.METIS, 
-  CHAIN.REDSTONE, 
-  CHAIN.XDAI, CHAIN.APECHAIN, CHAIN.XLAYER, 
+  CHAIN.ZORA, CHAIN.METIS,
+  CHAIN.REDSTONE,
+  CHAIN.XDAI, CHAIN.APECHAIN, CHAIN.XLAYER,
   CHAIN.BOTANIX,
-  CHAIN.CRONOS, CHAIN.CELO, CHAIN.CONFLUX, 
+  CHAIN.CRONOS, CHAIN.CELO, CHAIN.CONFLUX,
   CHAIN.RONIN, CHAIN.LISK, CHAIN.BERACHAIN, CHAIN.CORE,
-  CHAIN.BOB, CHAIN.ZIRCUIT, CHAIN.MORPH, CHAIN.MANTA, 
-  CHAIN.ANCIENT8, 
+  CHAIN.BOB, CHAIN.ZIRCUIT, CHAIN.MORPH, CHAIN.MANTA,
+  //CHAIN.ANCIENT8, 
   CHAIN.TAIKO,
-  CHAIN.POLYGON_ZKEVM, CHAIN.WC, 
+  CHAIN.POLYGON_ZKEVM, CHAIN.WC,
   CHAIN.KLAYTN,
   CHAIN.ABSTRACT, CHAIN.SONEIUM, CHAIN.INK,
   CHAIN.UNICHAIN, CHAIN.PLUME, CHAIN.SONIC
@@ -183,19 +183,24 @@ const fetch = async (options: FetchOptions) => {
   //   return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
   // }
   // const _treasury = await options.api.call({ target: COUNTERS[options.chain][0], abi: abis.treasury })
-  const [balStart, balEnd] = await Promise.all([
-    options.fromApi.provider.getBalance(TREASURY),
-    options.toApi.provider.getBalance(TREASURY)
-  ]);
-  const delta = Number(balEnd) - Number(balStart);
-  const fees = delta > 0n ? delta : 0n;
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(fees);
+  try {
+    const [balStart, balEnd] = await Promise.all([
+      options.fromApi.provider.getBalance(TREASURY),
+      options.toApi.provider.getBalance(TREASURY)
+    ]);
+    const delta = Number(balEnd) - Number(balStart);
+    const fees = delta > 0n ? delta : 0n;
+    dailyFees.addGasToken(fees);
+  } catch (error) {
+    //ignoring error as there are many chains, and few may fail due to bad RPC
+  }
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   start: "2025-08-11",
   chains: CHAINS,

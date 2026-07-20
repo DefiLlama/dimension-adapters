@@ -15,6 +15,7 @@
  *   - traderjoe-v2 (dexs only)
  *   - joe-v2.1 (dexs + fees)
  *   - merchant-moe-liquidity-book (dexs only)
+ *   - hoodit (dexs + fees)
  *   - hyperbrick (dexs only)
  */
 
@@ -199,6 +200,31 @@ const configs: Record<string, JoeLBProtocolConfig> = {
       Revenue: 'Share of amount of swap fees.',
       ProtocolRevenue: 'No protocol fees.',
       HoldersRevenue: 'All revenue distributed to MOE stakers.',
+    },
+  },
+
+  "hoodit": {
+    exportConfig: {
+      [CHAIN.ROBINHOOD]: {
+        factories: [
+          {
+            factory: '0x22602d966DeFd638ee94E97A92e2Eb0934c3fE1B',
+            version: 2.2 as any,
+            fromBlock: 7297329,
+          },
+        ],
+        start: "2026-07-12",
+      },
+    },
+    feesConfig: {
+      protocolRevenueFromRevenue: 1, // protocol share accrues to the protocol treasury
+    },
+    methodology: {
+      Fees: 'Total swap fees paid by users, typically 0.1% up to ~8% of swap amount depending on pool bin step and volatility.',
+      UserFees: 'Total swap fees paid by users, typically 0.1% up to ~8% of swap amount depending on pool bin step and volatility.',
+      Revenue: 'Protocol share (25%) of swap fees.',
+      ProtocolRevenue: 'Protocol share (25%) of swap fees, collected by the protocol treasury.',
+      SupplySideRevenue: 'Share of swap fees distributed to liquidity providers (75%).',
     },
   },
 

@@ -28,6 +28,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},
   // [CHAIN.POLYGON_ZKEVM]: { id: 1101, start: '2023-03-27' },
   // [CHAIN.BITTORRENT]: {id: 199, start: '2021-06-01'},
+  [CHAIN.ROBINHOOD]: { id: 4663, start: '2026-07-09' },
 };
 
 // Chains where the helper's Allium native-trace fallback is wired (ALLIUM_CHAIN_MAP).
@@ -36,7 +37,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
 const nativeFeeChains = new Set<string>([
   CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.OPTIMISM,
   CHAIN.POLYGON, CHAIN.SCROLL, CHAIN.BASE, CHAIN.PLASMA, CHAIN.BERACHAIN,
-  CHAIN.UNICHAIN, CHAIN.MONAD, CHAIN.ERA
+  CHAIN.UNICHAIN, CHAIN.MONAD, CHAIN.ERA, CHAIN.ROBINHOOD
 ])
 
 const blacklistedTokens = [

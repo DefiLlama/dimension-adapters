@@ -15,6 +15,8 @@ const HYLOSOL_MINT = "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT";
 const fetchFromApi = async (options: FetchOptions) => {
   const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
   const to_date = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10);
+
+  // includes v2 fees, to verify data on chain: Bz6Xsr7vTo2oSFxjmJVpoC4bVNGVpP5egbdVk4Jeu1JZ, oacVCceELzvyK944xDJaMGhVKzwkaY9yBHw2uifhLJ8
   const url = `https://api.hylo.so/activity/volumes?from=${date}&to=${to_date}`;
   const res = await fetchURL(url);
   const row = res?.volumes?.find((v: any) => v.date === date);
@@ -147,6 +149,7 @@ const fetchFromDune = async (options: FetchOptions) => {
 }
 
 const fetch: any = async (options: FetchOptions) => {
+  return fetchFromApi(options);
   try {
     return await fetchFromApi(options);
   } catch (e) {

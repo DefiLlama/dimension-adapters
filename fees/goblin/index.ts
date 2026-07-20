@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const BASE_URL =
   "https://api.hyperion.xyz/base/data/public/defillama/vaults-fee-stat";
@@ -8,7 +8,11 @@ const BASE_URL =
 const fetch = async ({ startOfDay }: FetchOptions) => {
   // Goblin takes 50% from performance and management fees
   // remain 50% are distributed to goAPT staking - supply side revenue
-  const { dailyFees } = await fetchURL(`${BASE_URL}?timestamp=${startOfDay}`);
+  const { dailyFees } = await httpGet(`${BASE_URL}?timestamp=${startOfDay}`, {
+    headers: {
+      'User-Agent': process.env.HYPERION_USER_AGENT
+    }
+  });
   const dailyFeesNumber = Number(dailyFees);
   const dailyRevenue = dailyFeesNumber * 0.5;
   const dailySupplySideRevenue = dailyFeesNumber - dailyRevenue;

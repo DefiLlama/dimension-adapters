@@ -60,7 +60,8 @@ const adapter: SimpleAdapter = {
       start: '2023-10-07'
     },
     [CHAIN.MANTA]: {
-      start: '2023-11-01'
+      start: '2023-11-01',
+      deadFrom: '2026-05-12'
     },
     [CHAIN.TAIKO]: {
       start: '2024-05-30', deadFrom: '2026-02-10'

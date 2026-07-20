@@ -19,7 +19,7 @@ const CHAINS: TChain = {
   [CHAIN.LINEA]: 59144,
   [CHAIN.SCROLL]: 534352,
   [CHAIN.MANTLE]: 5000,
-  [CHAIN.MODE]: 34443,
+  //[CHAIN.MODE]: 34443,
   [CHAIN.BERACHAIN]: 80094,
   [CHAIN.INK]: 57073,
   [CHAIN.UNICHAIN]: 130,
@@ -30,11 +30,13 @@ const CHAINS: TChain = {
   [CHAIN.HYPERLIQUID]: 999,
   [CHAIN.ABSTRACT]: 2741,
   [CHAIN.TEMPO]: 4217,
+  [CHAIN.ROBINHOOD]: 4663,
 };
 
 const inflatedVolume: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: ["2026-03-02", "2026-03-22"],
   [CHAIN.BASE]: ["2026-05-02"],
+  [CHAIN.BSC]: ["2026-07-09"],
 };
 
 const fetch = async (options: FetchOptions) => {

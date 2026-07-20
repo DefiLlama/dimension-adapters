@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { addTokensReceived } from "../../helpers/token"
+import { FLASHLOAN_WALLETS } from "./flashloan-wallets"
 
 const contracts = {
   FPMM_FACTORY_V1: "0x8e50578aca3c5e2ef5ed2aa4bd66429b5e44c16e",
@@ -87,14 +88,14 @@ async function fetch(options: FetchOptions) {
 
   buyLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
-    if (!collateralToken) return;
+    if (!collateralToken || FLASHLOAN_WALLETS.has(log.args.buyer.toLowerCase())) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
     dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensBought);
     ammFees.addToken(collateralToken, log.args.feeAmount);
   })
   sellLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
-    if (!collateralToken) return;
+    if (!collateralToken || FLASHLOAN_WALLETS.has(log.args.seller.toLowerCase())) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
     dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensSold);
     ammFees.addToken(collateralToken, log.args.feeAmount);

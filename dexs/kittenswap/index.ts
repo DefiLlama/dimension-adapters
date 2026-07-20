@@ -1,9 +1,7 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 
 const CONFIG = {
   PoolFactory: "0xDa12F450580A4cc485C3b501BAB7b0B3cbc3B31B",
@@ -63,85 +61,74 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     kittenswapPoolSet.add(pool);
   });
 
-  const blockStep = 2000;
-  let i = 0;
-  let startBlock = fromBlock;
-  let ranges: any = [];
+  const logs = await options.getLogs({
+    noTarget: true,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.event_swap,
+    topics: [event_topics.swap],
+    entireLog: true,
+  });
+  const iface = new ethers.Interface([eventAbis.event_swap]);
 
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock);
-    ranges.push([startBlock, endBlock]);
-    startBlock += blockStep;
-  }
-
-  let errorFound = false;
-  await PromisePool.withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await options.getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          topics: [event_topics.swap],
-          entireLog: true,
-          skipCache: true,
-        });
-        sdk.log(
-          `Kittenswap got logs (${logs.length}) for ${i++}/ ${Math.ceil(
-            (toBlock - fromBlock) / blockStep
-          )}`
-        );
-        const iface = new ethers.Interface([eventAbis.event_swap]);
-
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase();
-          if (!kittenswapPoolSet.has(pool)) return;
-          const parsedLog = iface.parseLog(log);
-          const { token0, token1, fee } = poolInfoMap[pool];
-          const amount0 =
-            Number(parsedLog!.args.amount0In) +
-            Number(parsedLog!.args.amount0Out);
-          const amount1 =
-            Number(parsedLog!.args.amount1In) +
-            Number(parsedLog!.args.amount1Out);
-          const fee0 = amount0 * fee;
-          const fee1 = amount1 * fee;
-          addOneToken({
-            chain: options.chain,
-            balances: dailyVolume,
-            token0,
-            token1,
-            amount0,
-            amount1,
-          });
-          addOneToken({
-            chain: options.chain,
-            balances: dailyFees,
-            token0,
-            token1,
-            amount0: fee0,
-            amount1: fee1,
-          });
-        });
-      } catch (e) {
-        errorFound = e as boolean;
-        throw e;
-      }
+  logs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase();
+    if (!kittenswapPoolSet.has(pool)) return;
+    const parsedLog = iface.parseLog(log);
+    const { token0, token1, fee } = poolInfoMap[pool];
+    const amount0 =
+      Number(parsedLog!.args.amount0In) +
+      Number(parsedLog!.args.amount0Out);
+    const amount1 =
+      Number(parsedLog!.args.amount1In) +
+      Number(parsedLog!.args.amount1Out);
+    const fee0 = amount0 * fee;
+    const fee1 = amount1 * fee;
+    addOneToken({
+      chain: options.chain,
+      balances: dailyVolume,
+      token0,
+      token1,
+      amount0,
+      amount1,
     });
+    addOneToken({
+      chain: options.chain,
+      balances: dailyFees,
+      token0,
+      token1,
+      amount0: fee0,
+      amount1: fee1,
+    });
+  });
 
-  if (errorFound) throw errorFound;
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: 0,
+  };
+};
 
-  return { dailyVolume, dailyFees };
+const methodology = {
+  Fees: "All swap fees paid by traders across kittenswap pools.",
+  UserFees: "All swap fees paid by traders.",
+  Revenue: "100% of swap fees — the protocol retains the full fee to redistribute to voters.",
+  ProtocolRevenue: "Zero. Under ve(3,3) the treasury takes no cut of swap fees.",
+  HoldersRevenue: "100% of swap fees are distributed weekly to veKITTEN voters/holders.",
+  SupplySideRevenue: "Zero. Liquidity providers are rewarded with KITTEN emissions (incentives), not swap fees.",
 };
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2025-02-18",
+  methodology,
 };
 
 export default adapters;

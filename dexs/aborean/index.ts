@@ -3,7 +3,6 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "./utils";
 
 const CONFIG = {
@@ -74,58 +73,28 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
   })
 
 
-  const blockStep = 2000;
-  let i = 0;
-  let startBlock = fromBlock;
-  let ranges: any = []
+  const iface = new ethers.Interface([eventAbis.event_swap]);
+  const logs = await fetchOptions.getLogs({
+    noTarget: true,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.event_swap,
+    topics: [event_topics.swap],
+    entireLog: true,
+  })
 
-
-
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    ranges.push([startBlock, endBlock])
-    startBlock += blockStep
-  }
-
-  let errorFound = false
-
-  await PromisePool
-    .withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await fetchOptions.getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          topics: [event_topics.swap],
-          entireLog: true,
-          skipCache: true,
-        })
-        sdk.log(`Aborean got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
-        const iface = new ethers.Interface([eventAbis.event_swap]);
-
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase()
-          if (!aeroPoolSet.has(pool)) return;
-          const parsedLog = iface.parseLog(log)
-          const { token0, token1, fee } = poolInfoMap[pool]
-          const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
-          const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
-          const fee0 = amount0 * fee
-          const fee1 = amount1 * fee
-          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
-        })
-      } catch (e) {
-        errorFound = e
-        throw e
-      }
-    })
-
-  if (errorFound) throw errorFound
+  logs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase()
+    if (!aeroPoolSet.has(pool)) return;
+    const parsedLog = iface.parseLog(log)
+    const { token0, token1, fee } = poolInfoMap[pool]
+    const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
+    const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
+    const fee0 = amount0 * fee
+    const fee1 = amount1 * fee
+    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+    addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+  })
 
   return { dailyVolume, dailyFees }
 }
@@ -133,16 +102,61 @@ const getVolumeAndFees = async (fromBlock: number, toBlock: number, fetchOptions
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { getToBlock, getFromBlock } = options
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const { dailyVolume, dailyFees } = await getVolumeAndFees(fromBlock, toBlock, options);
+  const { dailyVolume, dailyFees: swapFees } = await getVolumeAndFees(fromBlock, toBlock, options);
   const { dailyBribesRevenue } = await getBribes(options);
-  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailyVolume, dailyBribesRevenue }
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  dailyFees.addBalances(swapFees, 'Token Swap Fees')
+  dailyFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
+
+  dailyRevenue.addBalances(swapFees, 'Token Swap Fees To Holders')
+  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addBalances(swapFees, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailyVolume,
+  }
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ABSTRACT],
-  start: '2025-10-02'
+  start: '2025-10-02',
+  methodology: {
+    Fees: "Swap fees paid by users plus external bribes deposited for Aborean pools.",
+    UserFees: "Swap fees paid by users plus external bribes deposited for Aborean pools.",
+    Revenue: "Swap fees and external bribes distributed to ABR holders.",
+    HoldersRevenue: "Swap fees and external bribes distributed to ABR holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+  }
 }
 
 export default adapters

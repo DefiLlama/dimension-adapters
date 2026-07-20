@@ -1,5 +1,4 @@
-import fetchURL, { httpGet } from "../../utils/fetchURL";
-import { ProtocolType } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
@@ -7,6 +6,7 @@ type ChainConfig = {
   baseUrl: string;
   statsUrl?: string;
   version: 1 | 2;
+  start?: string;
 };
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
@@ -16,6 +16,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   aurora: { chain: CHAIN.AURORA, baseUrl: "https://aurorascan.dev", version: 2 },
   bob: { chain: CHAIN.BOB, baseUrl: "https://explorer-bob-mainnet-0.t.conduit.xyz", version: 1 },
   boba: { chain: CHAIN.BOBA, baseUrl: "https://blockscout.boba.network", version: 2 },
+  bsquared: { chain: CHAIN.BSQUARED, baseUrl: "https://explorer.bsquared.network", statsUrl: "https://12d6a1773a-stats-blockscout.bsquared.network", version: 1, start: "2024-04-15" },
   celo: { chain: CHAIN.CELO, baseUrl: "https://celo.blockscout.com", version: 2 },
   corn: { chain: CHAIN.CORN, baseUrl: "https://explorer-corn-maizenet.t.conduit.xyz", version: 1 },
   coti: { chain: CHAIN.COTI, baseUrl: "https://mainnet.cotiscan.io", version: 2 },
@@ -33,7 +34,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   filecoin: { chain: CHAIN.FILECOIN, baseUrl: "https://filecoin.blockscout.com", version: 2 },
   flare: { chain: CHAIN.FLARE, baseUrl: "https://flare-explorer.flare.network", version: 1 },
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1 },
-  flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flowscan.io", statsUrl: "https://evm.flowscan.io:8080", version: 1 },
+  flow: { chain: CHAIN.FLOW, baseUrl: "https://evm.flow.com", version: 2, start: "2024-09-04" },
   fuse: { chain: CHAIN.FUSE, baseUrl: "https://explorer.fuse.io", version: 2 },
   harmony: { chain: CHAIN.HARMONY, baseUrl: "https://explorer.harmony.one", statsUrl: "https://stats.explorer.harmony.one", version: 1 },
   hemi: { chain: CHAIN.HEMI, baseUrl: "https://explorer.hemi.xyz", version: 1 },
@@ -63,6 +64,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   shimmerevm: { chain: CHAIN.SHIMMER_EVM, baseUrl: "https://explorer.evm.shimmer.network", version: 2 },
   songbird: { chain: CHAIN.SONGBIRD, baseUrl: "https://songbird-explorer.flare.network", version: 1 },
   soneium: { chain: CHAIN.SONEIUM, baseUrl: "https://soneium.blockscout.com", version: 2 },
+  somnia: { chain: CHAIN.SOMNIA, baseUrl: "https://explorer.somnia.network", statsUrl: "https://stats.mainnet.somnia.w3us.site", version: 1, start: "2025-07-01" },
   superposition: { chain: CHAIN.SUPERPOSITION, baseUrl: "https://explorer-superposition-1v9rjalnat.t.conduit.xyz", version: 1 },
   superseed: { chain: CHAIN.SSEED, baseUrl: "https://explorer.superseed.xyz", version: 1 },
   story: { chain: CHAIN.STORY, baseUrl: "https://www.storyscan.io", version: 2 },
@@ -78,6 +80,13 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   zora: { chain: CHAIN.ZORA, baseUrl: "https://explorer.zora.co", version: 1 },
   "zksync-era": { chain: CHAIN.ZKSYNC, baseUrl: "https://zksync.blockscout.com", version: 2 },
   fluent: { chain: CHAIN.FLUENT, baseUrl: "https://fluentscan.xyz", statsUrl: "https://fluentscan.xyz/node-api/proxy", version: 1 },
+  citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
+  gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
+  lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
+  "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 },
+  b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" },
+  degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2, start: "2024-03-10" },
+  robinhood: { chain: CHAIN.ROBINHOOD, baseUrl: "https://robinhoodchain.blockscout.com", version: 2, start: "2026-04-30" },
 };
 
 async function fetchLine(config: ChainConfig, line: string, date: string) {
@@ -113,7 +122,8 @@ export const blockscoutStatsExports = Object.entries(blockscoutStatsChains).map(
   name: id,
   id,
   chain: config.chain,
-  protocolType: ProtocolType.CHAIN,
+  type: "chain",
+  start: config.start,
   getUsers: getBlockscoutUsers(config),
   getNewUsers: getBlockscoutNewUsers(config),
 }));

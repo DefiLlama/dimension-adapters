@@ -40,6 +40,7 @@ const adapter: Adapter = {
   fetch,
   runAtCurrTime: true,
   chains: [CHAIN.FANTOM, CHAIN.ARBITRUM, CHAIN.BSC],
+  deadFrom: "2025-02-21",
 };
 
 

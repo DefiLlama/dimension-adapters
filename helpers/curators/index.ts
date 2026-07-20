@@ -14,7 +14,7 @@ const METRICS = {
   MorphoYields: 'Morpho Yields',
   MorphoYieldsToSuppliers: 'Morpho Yields Distributed To Supliers',
   MorphoPerformanceFee: 'Morpho Performance Fees',
-  MorphoManagementFee: 'Morpho Performance Fees',
+  MorphoManagementFee: 'Morpho Management Fees',
   EulerYields: 'Euler Yields',
   EulerYieldsToSuppliers: 'Euler Yields Distributed To Supliers',
   EulerPerformanceFee: 'Euler Performance Fees',
@@ -28,6 +28,7 @@ export interface CuratorConfig {
     [key: string]: {
       start?: string;
       morpho?: Array<string>;
+      morphoV2?: Array<string>;
       euler?: Array<string>;
 
       // initial owner of morpho vaults
@@ -104,8 +105,8 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
   return morphoVaults
 }
 
-async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | undefined): Promise<Array<string>> {
-  let morphoVaults: Array<string> = []
+async function getMorphoVaultsV2(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults = vaults ? vaults : []
 
   if (owners && owners.length > 0) {
     for (const factory of MorphoConfigs[options.chain].vaultV2Factories) {
@@ -328,20 +329,22 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // interest earned by vault curator - performance fee
     const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
     
-    // interest earned by vault curator - management fee
+    // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
-    const interestManagementFee = interestEarnedIncludingFees * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+    const managementFeesEarned = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoManagementFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.MorphoYieldsToSuppliers)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.MorphoYieldsToSuppliers)
     } else {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.AssetYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.AssetYields)
     }
   }
 }
@@ -357,13 +360,14 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     Fees: {
       [METRICS.AssetYields]: 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
       [METRICS.MorphoYields]: 'Interest yields generated from deposited assets in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged on assets deposited in Morpho vaults',
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
-      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Moroho',
-      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Moroho',
-      [METRICS.EulerPerformanceFee]: 'Management fees charged from vaults in Euler',
+      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Morpho',
+      [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
@@ -390,7 +394,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         const morphoVaults = (await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         // morpho v2 vaults
-        const morphoVaultsV2 = (await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners)).filter(vault => !isBlacklistedVault(vault));
+        const morphoVaultsV2 = (await getMorphoVaultsV2(options, vaults.morphoV2, vaults.morphoVaultV2Owners)).filter(vault => !isBlacklistedVault(vault));
 
         const eulerVaults = (await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
@@ -433,4 +437,3 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     allowNegativeValue: true, // we allow negative fees for vaults because vaults can make yields or make loss too
   }
 }
-

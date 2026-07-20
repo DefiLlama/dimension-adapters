@@ -74,12 +74,11 @@ async function fetch(options: FetchOptions) {
       throw new Error(`Land Bid V2 protocol revenue below expected BPS split: ${protocolRevenue} < ${expectedProtocolRevenue}`);
     }
 
-    dailyVolume.addGasToken(price.toString());
-    dailyFees.addGasToken(price.toString(), "Conquer payments");
-    dailySupplySideRevenue.addGasToken(prevHolderPayout.toString(), "Previous holder payout");
-    dailyHoldersRevenue.addGasToken(staking.toString(), "Staking distribution");
-    dailyProtocolRevenue.addGasToken(protocolRevenue.toString(), "Buybacks and incentives");
-    dailyRevenue.addGasToken(revenue.toString(), "Conquer revenue");
+    dailyVolume.addGasToken(price);
+    dailyFees.addGasToken(revenue, "Conquer revenue");
+    dailyHoldersRevenue.addGasToken(staking, "Staking distribution");
+    dailyProtocolRevenue.addGasToken(protocolRevenue, "Buybacks and incentives");
+    dailyRevenue.addGasToken(revenue, "Conquer revenue");
   }
 
   const lpFeesCollectedLogs = await options.getLogs({
@@ -110,17 +109,15 @@ async function fetch(options: FetchOptions) {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
     dailyHoldersRevenue,
   };
 }
 
 const methodology = {
   Volume: "Includes ETH paid by users when conquering continents in the Land Bid game.",
-  Fees: "For V2, includes 100% of Conquer.price paid by users into WorldMiner for the core gameplay action. Historical V1 data is kept under the previous 15% protocol fee methodology.",
-  Revenue: "For V2, includes protocol revenue plus holders revenue, equal to 15% of Conquer.price. Historical V1 revenue is kept under the previous adapter methodology.",
-  ProtocolRevenue: "For V2, includes 11.25% used for LAND buybacks and 0.75% used for incentives. Historical V1 protocol revenue includes protocol and protocol-owned-liquidity fees.",
-  SupplySideRevenue: "For V2, includes the previous holder payout, currently 85% of each Conquer.",
+  Fees: "For V2, includes protocol revenue plus holders revenue, equal to 15% of Conquer.price and LP fees earned by protocol-owned/locked Uniswap V3 liquidity. Historical V1 data is kept under the previous adapter methodology.",
+  Revenue: "For V2, includes protocol revenue plus holders revenue, equal to 15% of Conquer.price and LP fees earned by protocol-owned/locked Uniswap V3 liquidity. Historical V1 revenue is kept under the previous adapter methodology.",
+  ProtocolRevenue: "For V2, includes 11.25% used for LAND buybacks and 0.75% used for incentives plus LP fees earned by protocol-owned/locked Uniswap V3 liquidity. Historical V1 protocol revenue includes protocol and protocol-owned-liquidity fees.",
   HoldersRevenue: "For V2, includes the staking distribution, currently 3% of each Conquer.",
 };
 
@@ -129,7 +126,6 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: "Historical V1 protocol fee: 5% of the conquer amount.",
     [METRIC.LP_FEES]: "Fees earned by protocol-owned/locked Uniswap V3 liquidity.",
     "Fees to protocol owned liquidity": "Historical V1 protocol-owned-liquidity fee: 10% of the conquer amount.",
-    "Conquer payments": "V2: 100% of Conquer.price paid by users into WorldMiner.",
   },
   Revenue: {
     [METRIC.LP_FEES]: "Fees earned by protocol-owned/locked Uniswap V3 liquidity.",
@@ -138,9 +134,6 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     [METRIC.LP_FEES]: "Fees earned by protocol-owned/locked Uniswap V3 liquidity.",
     "Buybacks and incentives": "V2: 11.25% of Conquer.price used for buybacks plus 0.75% used for incentives.",
-  },
-  SupplySideRevenue: {
-    "Previous holder payout": "V2: 85% of each Conquer paid to the previous continent holder.",
   },
   HoldersRevenue: {
     "Staking distribution": "V2: 3% of each Conquer distributed to the LAND staking contract.",
@@ -155,6 +148,7 @@ const adapter: SimpleAdapter = {
   start: "2026-05-05",
   methodology,
   breakdownMethodology,
+  deadFrom: "2026-07-09",
 };
 
 export default adapter;

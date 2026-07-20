@@ -1208,6 +1208,21 @@
         "version": 1
       }
     },
+    "cherryswap": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "dexs/cherryswap",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "okexchain": {
+            "fetch": "_f",
+            "start": "2021-07-27"
+          }
+        },
+        "deadFrom": "2024-07-27",
+        "runAtCurrTime": false
+      }
+    },
     "clober": {
       "modulePath": "-",
       "codePath": "dead/dexs/clober",
@@ -1250,6 +1265,21 @@
           }
         },
         "deadFrom": "2024-12-31",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "core-markets": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "dexs/core-markets",
+      "module": {
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-03-01",
+            "deadFrom": "2026-06-01"
+          }
+        },
         "version": 1,
         "runAtCurrTime": false
       }
@@ -2283,6 +2313,21 @@
           },
           "scroll": {
             "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kyex": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "dexs/kyex",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-12-02",
+        "adapter": {
+          "zeta": {
+            "fetch": "_f",
+            "start": "2025-02-02"
           }
         },
         "runAtCurrTime": false
@@ -6211,6 +6256,35 @@
         "runAtCurrTime": false
       }
     },
+    "makenow-meme": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "fees/makenow-meme.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "solana"
+        ],
+        "start": "2022-09-14",
+        "dependencies": [
+          "dune"
+        ],
+        "isExpensiveAdapter": true,
+        "methodology": {
+          "Fees": "Tokens trading and launching fees paid by users.",
+          "Revenue": "All fees are revenue.",
+          "ProtocolRevenue": "All revenue collected by protocol."
+        },
+        "deadFrom": "2026-01-18",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2022-09-14"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "mango-v4": {
       "modulePath": "-",
       "codePath": "dead/fees/mango-v4.ts",
@@ -6823,6 +6897,35 @@
         "runAtCurrTime": false
       }
     },
+    "pumper": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "fees/pumper",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "solana"
+        ],
+        "dependencies": [
+          "dune"
+        ],
+        "start": "2025-07-14",
+        "methodology": {
+          "Fees": "All trading fees collected from users.",
+          "Revenue": "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
+          "ProtocolRevenue": "All protocol fees collected from trading and withdrawals. Does not include referral fees."
+        },
+        "isExpensiveAdapter": true,
+        "deadFrom": "2025-12-31",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2025-07-14"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "quanto": {
       "commit": "907a33a21a905e24de53272e391f73b262898e8b",
       "codePath": "fees/quanto",
@@ -6959,6 +7062,34 @@
             "runAtCurrTime": true
           }
         }
+      }
+    },
+    "step-finance": {
+      "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
+      "codePath": "fees/step-finance",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "solana"
+        ],
+        "dependencies": [
+          "dune"
+        ],
+        "methodology": {
+          "Fees": "Fees come from different sources under the Step Finance Organization, Solana Allstars, Solana Floor, Step revenue in its dashboard and APIs.",
+          "Revenue": "All fees are revenue.",
+          "HoldersRevenue": "All the revenue is used to buy back STEP, part of which goes to STEP token stakers and the rest are burnt.",
+          "ProtocolRevenue": "No protocol revenue."
+        },
+        "isExpensiveAdapter": true,
+        "deadFrom": "2026-02-23",
+        "adapter": {
+          "solana": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
       }
     },
     "substanceX": {

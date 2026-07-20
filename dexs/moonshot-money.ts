@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from "../helpers/allium";
 
 const chainConfig: Record<string, { start: string; feeAddress: string }> = {
   [CHAIN.SOLANA]: {
@@ -11,41 +11,40 @@ const chainConfig: Record<string, { start: string; feeAddress: string }> = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
-  }
-
   const { feeAddress } = chainConfig[options.chain];
+  const start = options.startTimestamp;
+  const end = options.endTimestamp;
 
-  const rows = await (queryDuneSql(options, `
+  const rows = await queryAllium(`
     SELECT
-      COALESCE(SUM(amount_usd), 0) AS daily_volume
+      COALESCE(SUM(t.usd_amount), 0) AS daily_volume
     FROM
-      dex_solana.trades t
+      solana.dex.trades t
     WHERE
-      TIME_RANGE
-      AND t.trader_id != '${feeAddress}'
+      t.block_timestamp >= TO_TIMESTAMP_NTZ(${start})
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ(${end})
+      AND t.signer != '${feeAddress}'
       AND (
         EXISTS (
           SELECT 1
-          FROM tokens_solana.transfers tr
-          WHERE TIME_RANGE
-            AND tr.tx_id = t.tx_id
-            AND tr.to_owner = '${feeAddress}'
-            AND tr.token_mint_address = '${ADDRESSES.solana.USDC}'
+          FROM solana.assets.transfers tr
+          WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${start})
+            AND tr.block_timestamp < TO_TIMESTAMP_NTZ(${end})
+            AND tr.txn_id = t.txn_id
+            AND tr.to_address = '${feeAddress}'
+            AND tr.mint = '${ADDRESSES.solana.USDC}'
         )
         OR EXISTS (
           SELECT 1
-          FROM solana.transactions tx
-          CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(tx.account_keys))) AS u(i)
-          WHERE TIME_RANGE
-            AND tx.id = t.tx_id
+          FROM solana.raw.transactions tx
+          WHERE tx.block_timestamp >= TO_TIMESTAMP_NTZ(${start})
+            AND tx.block_timestamp < TO_TIMESTAMP_NTZ(${end})
+            AND tx.txn_id = t.txn_id
             AND tx.success = true
-            AND tx.account_keys[i] = '${feeAddress}'
+            AND ARRAY_CONTAINS('${feeAddress}'::VARIANT, tx.account_keys)
         )
       )
-  `) as any);
+  `);
 
   return { dailyVolume: Number(rows[0].daily_volume) };
 };
@@ -55,10 +54,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
+  pullHourly: true,
   adapter: chainConfig,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology,
   doublecounted: true,

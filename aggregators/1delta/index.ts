@@ -18,7 +18,9 @@ const fetchFuelVolume = async (options: FetchOptions) => {
     }
   })
 
-  const dailyVolume = data.syncSqlResponse.result?.rows.reduce((acc: number, row: any) => acc + Number(row.volumeUsd), 0)
+  // When the window has no trades, the API omits `rows` entirely (result only has columns),
+  // so guard rows itself: no rows => 0 volume.
+  const dailyVolume = (data.syncSqlResponse.result?.rows ?? []).reduce((acc: number, row: any) => acc + Number(row.volumeUsd), 0)
 
   return {
     dailyVolume,

@@ -300,22 +300,22 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.MANTLE]: { factory: '0x3eF942017d51BA257c4B61BE2f8f641209C8b341' },
   },
   "zkSwap_Finance": {
-    [CHAIN.ERA]: { factory: '0x3a76e377ed58c8731f9df3a36155942438744ce3', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
-    [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
-    [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 1 },
+    [CHAIN.ERA]: { factory: '0x3a76e377ed58c8731f9df3a36155942438744ce3', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
+    [CHAIN.SONIC]: { factory: '0xCe98a0E578b639AA90EE96eD5ba8E5a4022de529', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
+    [CHAIN.MONAD]: { factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.067 / 0.2, protocolRevenueRatio: 0.067 / 0.2 },
   },
-  "velodrome-v2": {
-    [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
-    [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-    [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
-  },
+  // "velodrome-v2": {
+  //   [CHAIN.OPTIMISM]: { factory: '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.MODE]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.LISK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.FRAXTAL]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.INK]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.BOB]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SONEIUM]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.UNICHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.SWELLCHAIN]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  //   [CHAIN.CELO]: { factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent: velodromeSwapEvent },
+  // },
   "dyorswap": {
     [CHAIN.MODE]: { factory: '0xE470699f6D0384E3eA68F1144E41d22C6c8fdEEf', start: '2023-11-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
     [CHAIN.BLAST]: { factory: '0xA1da7a7eB5A858da410dE8FBC5092c2079B58413', start: '2024-03-01', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
@@ -331,7 +331,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BSC]: { factory: '0x1D9F43a6195054313ac1aE423B1f810f593b6ac1', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
   "babydogeswap": {
-    [CHAIN.BSC]: { factory: '0x4693B62E5fc9c0a45F89D62e6300a03C85f43137', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.1 / 0.3, protocolRevenueRatio: 1 },
+    [CHAIN.BSC]: { factory: '0x4693B62E5fc9c0a45F89D62e6300a03C85f43137', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.1 / 0.3, protocolRevenueRatio: 0.1 / 0.3 },
   },
   "hydrometer": {
     [CHAIN.BASE]: { factory: '0xF60caCf0A3daa5B6a79ca6594BEF38F85391AE0A', swapEvent: velodromeSwapEvent },
@@ -417,9 +417,9 @@ const configs: Record<string, Record<string, any>> = {
   "octoswap-classic": {
     [CHAIN.MONAD]: { factory: '0xCe104732685B9D7b2F07A09d828F6b19786cdA32', revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
-  "pharaoh-v2": {
-    [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
-  },
+  // "pharaoh-v2": {
+  //   [CHAIN.AVAX]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 1, holdersRevenueRatio: 1 },
+  // },
   "swapmode-v2": {
     [CHAIN.MODE]: { factory: '0xfb926356BAf861c93C3557D7327Dbe8734A71891', start: '2024-02-02', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
@@ -468,24 +468,24 @@ const configs: Record<string, Record<string, any>> = {
   "swappi": {
     [CHAIN.CONFLUX]: { factory: '0xe2a6f7c0ce4d5d300f97aa7e125455f5cd3342f5', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.12, holdersRevenueRatio: 0.2 },
   },
-  "sushiswap-classic": {
-    [CHAIN.ETHEREUM]: { factory: '0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac', start: '2020-09-05', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.AVAX]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-10', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.FUSE]: { factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', start: '2021-09-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.ARBITRUM]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.POLYGON]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.BSC]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.CORE]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2023-11-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.BLAST]: { factory: '0x42fa929fc636e657ac568c0b5cf38e203b67ac2b', start: '2024-03-03', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.KATANA]: { factory: '0x72d111b4d6f31b38919ae39779f570b747d6acd9', start: '2025-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.XDAI]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.OPTIMISM]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-16', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.BASE]: { factory: '0x71524b4f93c58fcbf659783284e38825f0622859', start: '2023-08-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.SONIC]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    // [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.LINEA]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.METIS]: { factory: '0x580ED43F3BBa06555785C81c2957efCCa71f7483', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-  },
+  // "sushiswap-classic": {
+  //   [CHAIN.ETHEREUM]: { factory: '0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac', start: '2020-09-05', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.AVAX]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-10', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.FUSE]: { factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', start: '2021-09-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.ARBITRUM]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.POLYGON]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.BSC]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.CORE]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2023-11-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.BLAST]: { factory: '0x42fa929fc636e657ac568c0b5cf38e203b67ac2b', start: '2024-03-03', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.KATANA]: { factory: '0x72d111b4d6f31b38919ae39779f570b747d6acd9', start: '2025-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.XDAI]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.OPTIMISM]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-16', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.BASE]: { factory: '0x71524b4f93c58fcbf659783284e38825f0622859', start: '2023-08-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.SONIC]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   // [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.LINEA]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  //   [CHAIN.METIS]: { factory: '0x580ED43F3BBa06555785C81c2957efCCa71f7483', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  // },
   "camelot": {
     [CHAIN.APECHAIN]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-10-15', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     [CHAIN.ARBITRUM]: { factory: '0x6EcCab422D763aC031210895C81787E87B43A652', start: '2022-11-22', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
@@ -698,7 +698,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BSC]: { factory: '0x940BEb635cbEeC04720AC97FADb97205676e6aa4', start: 1663921255 },
   },
   "netswap": {
-    [CHAIN.METIS]: { factory: '0x70f51d68D16e8f9e418441280342BD43AC9Dff9f', start: 1638760703, fees: 0.003, userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 1 },
+    [CHAIN.METIS]: { factory: '0x70f51d68D16e8f9e418441280342BD43AC9Dff9f', start: 1638760703, fees: 0.003, userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 0.05 / 0.3 },
   },
   "revoswap": {
     [CHAIN.XLAYER]: { factory: '0xa38498983e7b31DE851e36090bc9D1D8fB96BE5E', start: 1713225600, userFeesRatio: 1 },
@@ -757,11 +757,45 @@ const configs: Record<string, Record<string, any>> = {
   "qie-dex": {
     [CHAIN.QIEV3]: { factory: "0x8E23128a5511223bE6c0d64106e2D4508C08398C", start: '2025-08-05', fees: 0.003, revenueRatio: 0, }
   },
+  // migrated off deleted Goldsky subgraph to on-chain logs; factory (same on every chain) from
+  // DefiLlama-Adapters registries/uniswapV2.js. bsc omitted: one of its pairs returns a malformed
+  // multicall result that trips a @defillama/sdk crash (abi/index.js filter on undefined).
+  "omni-exchange-v2": {
+    [CHAIN.BASE]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.ARBITRUM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.AVAX]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.OPTIMISM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
+  },
   "wswap": {
     [CHAIN.WCHAIN]: { factory: "0x2A44f013aD7D6a1083d8F499605Cf1148fbaCE31", start: '2025-06-19', fees: 0.003, revenueRatio: 0, },
     [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },
     //No bsc pools yet
     //[CHAIN.BSC]: { factory: "0x5105989c863e801fC610396529BE9f2A6B95bF0A", start: '2026-05-20', fees: 0.003, revenueRatio: 0, }
+  },
+  "noxa-fi": {
+    [CHAIN.ABSTRACT]: { factory: "0xE1e98623082f662BCA1009a05382758f86F133b3", start: "2025-01-22", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.MEGAETH]: { factory: "0xd6a8198307a51Ae8d33695BDee2F82E48925B445", start: "2025-11-13", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.MONAD]: { factory: "0x8361060eD5F4E8789F1442FB4284eca9b4305985", start: "2025-11-20", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.BERACHAIN]: { factory: "0xec4a56061d86955d0df883efb2e5791d99ea71f2", start: "2025-02-04", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.SONIC]: { factory: "0xfDE31CCAf95b8bF65a0D3805CD1668969787992c", start: "2025-02-21", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.SOMNIA]: { factory: "0xeC4a56061d86955D0Df883efb2E5791d99Ea71f2", start: "2025-09-03", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.OG]: { factory: "0xD9eC2db5f3D1b236843925949fe5bd8a3836FCcB", start: "2025-09-22", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.PLASMA]: { factory: "0x630957Cf4582baDa8B583B5A9476a7108cFdE0A4", start: "2025-09-25", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.STABLE]: { factory: "0xf306fEdB206ac1Baff1dB8BB63A14151Cb72ee7B", start: "2025-11-27", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.KATANA]: { factory: "0xeC4a56061d86955D0Df883efb2E5791d99Ea71f2", start: "2025-06-17", fees: 0.003, revenueRatio: 0, },
+    [CHAIN.HYPERLIQUID]: { factory: "0xec4a56061d86955d0df883efb2e5791d99ea71f2", start: "2025-02-18", fees: 0.003, revenueRatio: 0, },
+  },
+  "robinswap": {
+    [CHAIN.ROBINHOOD]: { factory: "0xa95DA9b9fCef09A07F99444fE9304457d6ECdccA", start: "2026-07-09", fees: 0.0025, revenueRatio: 1 / 4 },
+  },
+  "upheaval-v2": {
+    [CHAIN.HYPERLIQUID]: { factory: "0x98e19A533FadB2C9853983772E4e7aa09a1478e0", fees: 0.003, revenueRatio: 0.16, start: "2025-07-26" },
+  },
+  "catnip": {
+    [CHAIN.ROBINHOOD]: { factory: "0x002EC9782d70f4e79396c58964D4691cA648FB49", fees: 0.003, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-14" }
+  },
+  "sheriff-v2": {
+    [CHAIN.ROBINHOOD]: { factory: "0x10F7D1eF77f58181484936170430DF13539C5162", fees: 0.005, revenueRatio: 0.3, protocolRevenueRatio: 0.3, start: "2026-07-03" }
   }
 }
 
@@ -1203,7 +1237,7 @@ const feesConfigs: Record<string, Record<string, any>> = {
   },
   "velox": {
     [CHAIN.BASE]: { factory: "0xa28dBAE4D926067F4c343aA8071e833b04C8b99E", fees: 0.0001, start: "2026-03-08" }
-  },
+  }
 }
 
 const feesMethodologyMap: Record<string, any> = {
@@ -1619,14 +1653,14 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
   //   totalVolume: "totalVolumeUSD",
   //   start: '2022-01-21',
   // },
-  "pharaoh-exchange": {
-    endpoints: {
-      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    start: '2023-12-12',
-  },
+  // "pharaoh-exchange": {
+  //   endpoints: {
+  //     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
+  //   },
+  //   factoriesName: "factories",
+  //   totalVolume: "totalVolumeUSD",
+  //   start: '2023-12-12',
+  // },
 }
 
 // Build subgraph-based adapters into SimpleAdapter format

@@ -3,7 +3,7 @@
  * ── Protocol ───────────────────────────────────────────────────────
  *
  * `DurianAggregatorRouter` is a Jupiter-style atomic multi-DEX router
- * on Bitkub Chain. There are TWO deployed generations:
+ * on Bitkub Chain. Deployed generations — V1 plus the V2 family:
  *
  *   V1 (canonical pre-V466 router, LIVE for pure-V4.5/Udonswap routes):
  *     - Address: 0x5078cE74728bC3F1313B55A04B79E227E1181918
@@ -14,8 +14,13 @@
  *         Swapped(user, tokenIn, tokenOut, amountIn, amountOutToUser,
  *                 fee, hops)
  *
- *   V2 (V4.6.6-aware aggregator, LIVE — deployed 2026-05-09):
- *     - Address: 0xf3d6896A5dCB6896d6F2DB55D6Eb0b41496f0215
+ *   V2 family (V4.6.6-aware aggregators — byte-identical 8-field Swapped
+ *   ABI with a trailing `referrer` across the whole family):
+ *     - V2    0xf3d6896A5dCB6896d6F2DB55D6Eb0b41496f0215 (2026-05-09)
+ *     - V2.4  0xaCaB7A476C4D7dad184EC0a55cD4203dF8E30b3F (2026-05-28)
+ *     - V2.5  0x9b7119cceAc97F6D3645a2b9302a85270Cc741Ac (2026-05-28)
+ *     - V2.67 0xB2B3d1cf3249E4762F32d65441B546f9088A69F7 (current live;
+ *             on-chain contract name DurianAggregatorRouterV3)
  *     - Swapped event (8 fields, ADDS `referrer`):
  *         Swapped(user, tokenIn, tokenOut, amountIn, amountOutToUser,
  *                 fee, hops, referrer)
@@ -41,9 +46,15 @@ const ROUTERS_V1: string[] = [
   "0xB85E049484f5c44A8D1407fF372081Fe3e2455BC", // V3.1 (paused)
 ];
 
-// V2 routers (8-arg Swapped with trailing `referrer`).
+// V2-family routers — all share the SAME 8-arg Swapped ABI (trailing
+// `referrer`), verified byte-identical in-source across V2 / V2.4 / V2.5 /
+// V2.67. The live prod router is V2.67; V2.5 handled the bulk of swaps
+// before the cutover — both were previously unindexed.
 const ROUTERS_V2: string[] = [
-  "0xf3d6896A5dCB6896d6F2DB55D6Eb0b41496f0215", // V2 LIVE (2026-05-09)
+  "0xf3d6896A5dCB6896d6F2DB55D6Eb0b41496f0215", // V2    (2026-05-09)
+  "0xaCaB7A476C4D7dad184EC0a55cD4203dF8E30b3F", // V2.4  (2026-05-28)
+  "0x9b7119cceAc97F6D3645a2b9302a85270Cc741Ac", // V2.5  (2026-05-28)
+  "0xB2B3d1cf3249E4762F32d65441B546f9088A69F7", // V2.67 (on-chain DurianAggregatorRouterV3) — current live
 ];
 
 const SWAPPED_ABI_V1 =
@@ -80,7 +91,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Sum of swap volume routed through Durian Aggregator Router V1 and V2.",
+  Volume: "Sum of swap volume routed through Durian Aggregator Router V1 and the V2 family (V2 / V2.4 / V2.5 / V2.67).",
   Fees: "Router-skim fee deducted from the output token of every Swapped event, capped at 1.0% per route.",
   Revenue: "100% of the swap fees accrue to the protocol.",
 };

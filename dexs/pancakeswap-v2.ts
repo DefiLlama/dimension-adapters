@@ -103,6 +103,11 @@ const PROTOCOL_CONFIG: Record<string, ChainConfig> = {
     dataSource: DataSource.LOGS,
     factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
   },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-06-30',
+    dataSource: DataSource.LOGS,
+    factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
+  },
 };
 
 // --- ABIs ---
@@ -388,20 +393,9 @@ const fetchAptosVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBal
   const dailyVolume = createBalances();
   dailyVolume.addUSDValue(await balances.getUSDString());
   
-  const dailyFees = dailyVolume.clone(FEE_CONFIG.Fees);
-  const dailyRevenue = dailyVolume.clone(FEE_CONFIG.Revenue);
-  const dailyProtocolRevenue = dailyVolume.clone(FEE_CONFIG.ProtocolRevenue);
-  const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.SupplySideRevenue);
-  const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.HoldersRevenue);
-
   return {
     dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-    dailyHoldersRevenue,
+    ...calculateFeesBalances(dailyVolume),
   }
 }
 

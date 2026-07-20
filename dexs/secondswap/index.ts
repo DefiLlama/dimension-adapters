@@ -85,8 +85,10 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+	version: 2,
+	pullHourly: true,
 	fetch,
-	adapter: chainConfig,
+	chains: Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }]),
 	methodology,
 	breakdownMethodology
 };

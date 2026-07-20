@@ -2,18 +2,6 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-// const fetchGraph = univ2Adapter2({
-//   endpoints: {
-//     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7StqFFqbxi3jcN5C9YxhRiTxQM8HA8XEHopsynqqxw3t'),
-//     [CHAIN.SONIC]: sdk.graph.modifyEndpoint('6m7Dp7MFFLW1V7csgeBxqm9khNkfbn2U9qgADSdECfMA'),
-//     [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('HCThb3gJC45qUYmNEaYmZZTqJW3pSq7X6tb4MqNHEvZf'),
-//     [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ALCsbp7jWC6EQjwgicvZkG6dDEFGMV32QUZJvJGqL9Kx'),
-//     [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('HDNu25S2uqr13BHrQdPv2PfTpwxJgPB7QEnC8fsgKcM9')
-//   },
-//   factoriesName: "factories",
-//   totalVolume: "totalVolumeUSD",
-// })
-
 const configs: any = {
   [CHAIN.ETHEREUM]: {
     factory: '0x70Fe4a44EA505cFa3A57b95cF2862D4fd5F0f687',
@@ -43,7 +31,9 @@ const configs: any = {
 
 const fetch = async (options:FetchOptions) => {
   return await getUniV3LogAdapter({
-    factory: configs[options.chain].factory
+    factory: configs[options.chain].factory,
+    revenueRatio: 0.2,
+    holdersRevenueRatio: 0.2,
   })(options);
 }
 
@@ -52,6 +42,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: configs,
   skipBreakdownValidation: true,
+  pullHourly: true,
 }
 
 export default adapter;

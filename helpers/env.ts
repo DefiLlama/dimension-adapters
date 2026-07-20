@@ -4,12 +4,16 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
+  SPACESCAN_API_KEY: 'tkn1qqqhsdmkq3pzrcvt24sgpstsndz2z95qsetg4zchsdmkq3p9wqqqdr2u6a', // free-plan key for api.spacescan.io (Chia block lookups)
   ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
-  CAMP_RPC: 'https://rpc.camp.raas.gelato.cloud',
+  CAMP_RPC: 'https://rpc-mainnet.campnetwork.xyz',
+  ERA_RPC: 'https://mainnet.era.zksync.io,https://zksync.drpc.org,https://1rpc.io/zksync2-era',
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
+  '0G_ARCHIVAL_RPC': "https://0g.drpc.org,https://16661.rpc.thirdweb.com",
+  '0G_RPC': "https://0g.drpc.org,https://16661.rpc.thirdweb.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
   VELAS_RPC: 'https://evmexplorer.velas.com/api/eth-rpc',
@@ -22,6 +26,7 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   GATELAYER_RPC: 'https://www.gatescan.org/gatelayer/api/eth-rpc',
+  ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
@@ -32,7 +37,6 @@ const DEFAULTS: any = {
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
-  ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
   DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
   DEBUG_BREAKDOWN_FEES: true,
@@ -74,7 +78,6 @@ export const ENV_KEYS = new Set([
   'DUNE_BULK_MODE_BATCH_TIME',
   'LLAMA_HL_INDEXER',
   'SAUCERSWAP_API_KEY',
-  'ASTROS_PERP_API_KEY',
   'VOLO_VAULT_API_KEY',
   'TREADTOOLS_API_KEY',
   'CLICKHOUSE_CONFIG',
@@ -89,6 +92,8 @@ export const ENV_KEYS = new Set([
   'SUBSCAN_API_KEY',
   'PEARL_BLOCKBOOK_API',
   'OKLINK_API_KEY',
+  'TRONSCAN_API_KEY',
+  'ROBINHOOD_RPC'
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

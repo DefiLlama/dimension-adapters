@@ -58,6 +58,7 @@ interface StakingRevenueConfig {
 interface RevenueFeedbackConfig {
   addToFees: boolean;
   feesMetric?: string;
+  userFeesMetric?: string; // deposit/withdrawal fees users pay during respective actions
 }
 
 interface SolLstConfig {
@@ -88,6 +89,9 @@ interface SolLstConfig {
   // Extra return fields
   returnDailyHoldersRevenue?: boolean | number; // false = not included, 0 = explicit zero
   returnDailyProtocolRevenue?: boolean; // whether to include dailyProtocolRevenue (defaults to true)
+
+  // Exclude mint transfers when computing revenue (fee account receives minted LST)
+  excludeMintsForRevenue?: boolean;
 
   // Methodology
   methodology?: Record<string, string>;
@@ -134,6 +138,8 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
     feesBreakdown[config.fees.metric] = "Staking rewards from staked SOL";
   if (config.revenueFeedback.addToFees && config.revenueFeedback.feesMetric)
     feesBreakdown[config.revenueFeedback.feesMetric] = "Includes withdrawal fees and management fees";
+  if (!config.revenueFeedback.addToFees && config.revenueFeedback.userFeesMetric)
+    feesBreakdown[config.revenueFeedback.userFeesMetric] = "Deposit/withdrawal fees users pay on their principal";
   if (Object.keys(feesBreakdown).length > 0) breakdown.Fees = feesBreakdown;
 
   // Revenue breakdown
@@ -174,6 +180,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
       stake_pool_withdraw_authority: config.stakePoolWithdrawAuthority,
       lst_fee_token_account: lstFeeTokenAccount,
       lst_mint: config.lstMint,
+      exclude_mints_filter: config.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);
@@ -247,6 +254,16 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
           } else if (rev.type === "addToken") {
             dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0);
           }
+        }
+      } else if (row.metric_type === "dailyUserFees" && !config.revenueFeedback.addToFees) {
+          const rev = config.revenue;
+          const metric = config.revenueFeedback.userFeesMetric;
+          if (rev.type === "addCGToken") {
+            dailyFees.addCGToken(rev.cgId, row.amount || 0, metric);
+          } else if (rev.type === "add") {
+            dailyFees.add(rev.mint, Number(row.amount) * 1e9 || 0, metric);
+          } else if (rev.type === "addToken") {
+          dailyFees.addToken(rev.mint, Number(row.amount) * 1e9 || 0, metric);
         }
       }
     });
@@ -327,14 +344,26 @@ const configs: Record<string, SolLstConfig> = {
     lstFeeTokenAccount: "G2hGzCcDUJdtTSVLazEGfaMVEGWxEwWrnyy8TuTmP25j",
     lstMint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P",
     start: "2025-02-24",
-    revenue: { type: "add", mint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P", metric: METRIC.MANAGEMENT_FEES },
-    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "add", mint: "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.025, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
     breakdownMethodology: {
       Fees: {
         [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Backpack staked solana",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
       },
       Revenue: {
-        [METRIC.MANAGEMENT_FEES]: "Includes withdrawal fees and management fees collected by fee collector",
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes withdrawal fees",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards are distributed to BPSoL",
       },
     },
   }),
@@ -345,6 +374,7 @@ const configs: Record<string, SolLstConfig> = {
     lstFeeTokenAccount: "3ZC6mkJr9hnFSrVHzXXcPopw3SArgKGm8agcah1vhy2Z",
     lstMint: (ADDRESSES.solana as any).BNSOL,
     start: "2024-09-12",
+    excludeMintsForRevenue: true,
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "binance-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
@@ -397,13 +427,14 @@ const configs: Record<string, SolLstConfig> = {
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "blazestake-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
-    stakingRevenue: { enabled: false, ratio: 0 },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
     returnDailyHoldersRevenue: 0,
+    excludeMintsForRevenue: true,
     methodology: {
-      Fees: "Staking rewards from staked SOL on blazestake",
-      Revenue: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
-      SupplySideRevenue: "All the staking rewards are distributed to bSOL",
+      Fees: "Staking rewards from staked SOL on blazestake plus deposit and withdrawal fees",
+      Revenue: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee and 5% of the staking rewards are collected as fees",
+      SupplySideRevenue: "95% of the staking rewards are distributed to bSOL",
       ProtocolRevenue: "All fees going to treasury/DAO (50% of total fees) + All fees going to the team(50% of total fees)",
       HoldersRevenue: "No revenue share to BLZE token holders",
     },
@@ -414,12 +445,14 @@ const configs: Record<string, SolLstConfig> = {
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
+        [METRIC.STAKING_REWARDS]: "5% of the staking rewards are collected as fees",
       },
       ProtocolRevenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee",
+        [METRIC.STAKING_REWARDS]: "5% of the staking rewards are collected as fees",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to bSOL",
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to bSOL",
       },
     },
   },
@@ -433,10 +466,11 @@ const configs: Record<string, SolLstConfig> = {
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "bybit-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
-    stakingRevenue: { enabled: false, ratio: 0 },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
     methodology: {
-      Fees: "Staking rewards from staked SOL on bybit staked solana",
+      Fees: "Staking rewards from staked SOL on bybit staked solana, plus withdrawal fees",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       SupplySideRevenue: "All the staking rewards go to stakers",
@@ -447,13 +481,15 @@ const configs: Record<string, SolLstConfig> = {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       Revenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes a 0.1% deposit fee",
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to bbSOL",
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to bbSOL",
       },
     },
   },
@@ -508,7 +544,7 @@ const configs: Record<string, SolLstConfig> = {
     revenueFeedback: { addToFees: false },
     returnDailyHoldersRevenue: 0,
     methodology: {
-      Fees: "Staking rewards from staked SOL on doublezero staked solana",
+      Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to 2Z token holders.",
@@ -528,15 +564,16 @@ const configs: Record<string, SolLstConfig> = {
     fees: { metric: METRIC.STAKING_REWARDS },
     revenue: { type: "addCGToken", cgId: "drift-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
     revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
-    supplySide: { enabled: true, ratio: 1.0, metric: METRIC.STAKING_REWARDS },
-    stakingRevenue: { enabled: false, ratio: 0 },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.025, metric: METRIC.STAKING_REWARDS },
     returnDailyHoldersRevenue: 0,
+    excludeMintsForRevenue: true,
     methodology: {
       Fees: "Staking rewards from staked SOL on drift staked solana",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to DRIFT token holders",
-      SupplySideRevenue: "All the staking rewards go to stakers",
+      SupplySideRevenue: "97.5% of the staking rewards go to stakers",
     },
     breakdownMethodology: {
       Fees: {
@@ -545,12 +582,14 @@ const configs: Record<string, SolLstConfig> = {
       },
       Revenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
+        [METRIC.STAKING_REWARDS]: "2.5% of staking rewards is collected as staking fees"
       },
       ProtocolRevenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes instant and delayed withdrawal fees",
+        [METRIC.STAKING_REWARDS]: "2.5% of staking rewards is collected as staking fees"
       },
       SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: "All the staking rewards are distributed to dSOL",
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards distributed to dSOL",
       },
     },
   },
@@ -693,8 +732,8 @@ const configs: Record<string, SolLstConfig> = {
   }),
 
   "marginfi-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "3b7XQeZ8nSMyjcQGTFJS5kBw4pXS2SqtB9ooHCnF2xV9",
-    stakePoolWithdrawAuthority: "2C9aTiNL6VyrPhFKspZC8BY9JeL3j4RtkPP2e4PrVAwP",
+    stakePoolReserveAccount: "AWDrV3Va8RKGMAo9bi5iYhqhETRsTT7NasRFC22uBj4A",
+    stakePoolWithdrawAuthority: "3b7XQeZ8nSMyjcQGTFJS5kBw4pXS2SqtB9ooHCnF2xV9",
     lstFeeTokenAccount: "3zaVJxg2HCEYF9n2ndgm2SemrDiYniru7oS26yb7fep2",
     lstMint: "LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp",
     start: "2024-07-17",
@@ -832,6 +871,7 @@ const doublezeroAdapter = (() => {
       stake_pool_withdraw_authority: baseCfg.stakePoolWithdrawAuthority,
       lst_fee_token_account: baseCfg.lstFeeTokenAccount,
       lst_mint: baseCfg.lstMint,
+      exclude_mints_filter: baseCfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);
@@ -844,6 +884,8 @@ const doublezeroAdapter = (() => {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+      } else if (row.metric_type === "dailyUserFees") {
+        dailyFees.addCGToken(revenueToken, row.amount || 0);
       }
     });
 
@@ -880,6 +922,7 @@ const doublezeroAdapter = (() => {
       stake_pool_withdraw_authority: cfg.stakePoolWithdrawAuthority,
       lst_fee_token_account: cfg.lstFeeTokenAccount,
       lst_mint: cfg.lstMint,
+      exclude_mints_filter: cfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
     const results = await queryDuneSql(options, query);

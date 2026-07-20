@@ -5,6 +5,7 @@ import * as sdk from '@defillama/sdk';
 import { AdapterType, SimpleAdapter, } from '../adapters/types';
 import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
+import { deadChainsSet } from '../helpers/deadChains';
 import { camelCaseToSpaces, checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
 import { importAdapter } from '../adapters/utils/importAdapter';
 
@@ -112,6 +113,17 @@ let usedHelper: string | null | undefined = null;
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)
 
+  const chainDeadFroms = Object.values(module.adapter ?? {}).map((c: any) => c.deadFrom)
+  const adapterDeadFrom = module.deadFrom
+    ?? (chainDeadFroms.length && chainDeadFroms.every(Boolean) ? chainDeadFroms.sort().pop() : undefined)
+  if (adapterDeadFrom) {
+    const deadFromTimestamp = Math.round(new Date(adapterDeadFrom).getTime() / 1e3)
+    if (deadFromTimestamp < cleanDayTimestamp) {
+      console.info(`🦙 ${moduleArg.toUpperCase()} is dead (deadFrom ${adapterDeadFrom}); skipping run.\n`)
+      process.exit(0)
+    }
+  }
+
   const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
 
   function mergeAggregated(target: any, source: any) {
@@ -190,6 +202,7 @@ let usedHelper: string | null | undefined = null;
     endTimestamp,
     withMetadata: debugBreakdownFees,
     isTest: true,
+    deadChains: deadChainsSet,
     name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
   })
 
@@ -204,6 +217,14 @@ let usedHelper: string | null | undefined = null;
   process.exit(0)
 
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
+
+    const windowEnd = dayStart + (lastHour + 1) * 3600
+    Object.entries(module.adapter ?? {}).forEach(([chain, chainConfig]: [string, any]) => {
+      if (!chainConfig?.deadFrom) return
+      const deadFromTimestamp = Math.round(new Date(chainConfig.deadFrom).getTime() / 1e3)
+      if (deadFromTimestamp < windowEnd - 24 * 60 * 60)
+        console.info(`Skipping ${chain} because the adapter ended at ${new Date(deadFromTimestamp * 1e3).toUTCString()}`)
+    })
 
     const dailyByChain: Record<string, Record<string, number>> = {}
     const aggregatedDaily: any = {}
@@ -222,7 +243,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60 }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60, deadChains: deadChainsSet }))
       )
 
       results.forEach((res: any, idx) => {

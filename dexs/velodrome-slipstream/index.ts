@@ -116,11 +116,33 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     sdk.log(`Velodrome ${chain} chunk ${chunkIndex + 1}/${pairChunks.length} processed`);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, 'Token Swap Fees'),
+    dailyRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+    dailyHoldersRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+  }
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: 'Total swap fees paid by users',
+    Revenue: 'Swap feesare distributed to holders',
+    HoldersRevenue: 'Swap fees are distributed to holders',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Total swap fees paid by users',
+    },
+    Revenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+    HoldersRevenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch,
@@ -158,7 +180,7 @@ const adapters: SimpleAdapter = {
       fetch,
       start: '2025-04-02',
     },
-  }
+  },
 }
 
 export default adapters;

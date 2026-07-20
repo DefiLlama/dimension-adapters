@@ -91,17 +91,15 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ERA]: {
-      start: '2023-08-01', // 2023/08/01 00:00:00
-    },
-    [CHAIN.ARBITRUM]: {
-      start: '2023-11-02', // 2023/11/02 00:00:00
-    },
-  },
+  chains: [
+    [CHAIN.ERA, { start: '2023-08-01' }], // 2023/08/01 00:00:00
+    [CHAIN.ARBITRUM, { start: '2023-11-02' }], // 2023/11/02 00:00:00
+  ],
 };
 
 export default adapter;

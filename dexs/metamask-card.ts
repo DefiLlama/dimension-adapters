@@ -6,6 +6,7 @@ import { sleep } from "../utils/utils";
 import { getSolanaReceived } from "../helpers/token";
 import coreAssets from "../helpers/coreAssets.json";
 
+//https://github.com/MetaMask/metamask-mobile/blob/main/app/selectors/featureFlagController/card/index.ts
 const configs: Record<string, { withdrawContracts: Array<string>, start: string, getTrasnactionLimit: number }> = {
   [CHAIN.LINEA]: {
     start: '2024-11-13',
@@ -19,6 +20,14 @@ const configs: Record<string, { withdrawContracts: Array<string>, start: string,
     start: '2025-11-11',
     withdrawContracts: [
       '0xdabdafc43b2bc1c7d10c2bbce950a8cad4a367f8',
+    ],
+    getTrasnactionLimit: 10000,
+  },
+  [CHAIN.MONAD]: {
+    start: '2026-03-10',
+    withdrawContracts: [
+      '0x40a695a16c213afef1c87fd471fb73157b948f3f', // global
+      '0x144c1ce815bd1eb71678978fe8641cc4e3fd59e6', // US
     ],
     getTrasnactionLimit: 10000,
   },

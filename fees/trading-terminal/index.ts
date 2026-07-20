@@ -4,7 +4,7 @@ import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 
 const LABELS = {
   TRADING_TERMINAL_FEES: 'Trading Terminal Fees',
@@ -15,7 +15,6 @@ const LABELS = {
 const solanaConfig = {
   mainFeeWallet: 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5',
   feeCashbackWallet: 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb',
-  burnWallet: '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM',
 }
 
 const evmChainConfig: any = {
@@ -31,7 +30,13 @@ const evmChainConfig: any = {
 }
 
 async function fetchSolana(options: FetchOptions) {
-  const { mainFeeWallet, feeCashbackWallet, burnWallet } = solanaConfig
+  const { mainFeeWallet, feeCashbackWallet } = solanaConfig
+  // Each trade fee is split in-tx: the protocol portion lands in mainFeeWallet (swept to treasury)
+  // and the cashback/referral portion lands in feeCashbackWallet (paid out to ~thousands of users).
+  // Fees = the full charge = every non-internal inflow to BOTH wallets. The previous query took
+  // MAX(inflow) per tx (dropping the smaller split leg, ~32%) and inner-joined dex_solana.trades
+  // (dropping undecoded Pump/router trades, ~24% more), which understated fees ~2x and made the
+  // ~46% cashback look like ~90%, crushing revenue.
   const query = `
     WITH
     interfundTransfers AS (
@@ -48,10 +53,9 @@ async function fetchSolana(options: FetchOptions) {
         SUM(CASE WHEN address = '${mainFeeWallet}' AND balance_change < 0 THEN 1 ELSE 0 END) > 0
         AND SUM(CASE WHEN address = '${feeCashbackWallet}' AND balance_change > 0 THEN 1 ELSE 0 END) > 0
     ),
-    allFeePayments AS (
+    feeInflows AS (
       SELECT
-        tx_id,
-        balance_change AS fee_token_amount
+        COALESCE(SUM(balance_change), 0) AS fee_amount
       FROM
         solana.account_activity
       WHERE
@@ -71,44 +75,32 @@ async function fetchSolana(options: FetchOptions) {
         AND address = '${feeCashbackWallet}'
         AND tx_success
         AND balance_change < 0
-    ),
-    burnWalletInflows AS (
-      SELECT
-        COALESCE(SUM(balance_change), 0) AS buyback_burn_amount
-      FROM
-        solana.account_activity
-      WHERE
-        TIME_RANGE
-        AND address = '${burnWallet}'
-        AND tx_success
-        AND balance_change > 0
-    ),
-    botTrades AS (
-      SELECT
-        trades.tx_id,
-        MAX(fee_token_amount) AS fee
-      FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-      WHERE
-        TIME_RANGE
-        AND trades.trader_id != '${mainFeeWallet}'
-        AND trades.trader_id != '${feeCashbackWallet}'
-        AND trades.trader_id != '${burnWallet}'
-      GROUP BY trades.tx_id
     )
     SELECT
-      SUM(fee) AS fee,
-      (SELECT payout_amount FROM cashbackPayouts) AS cashback_payout_amount,
-      (SELECT buyback_burn_amount FROM burnWalletInflows) AS buyback_burn_amount
-    FROM
-      botTrades
+      (SELECT fee_amount FROM feeInflows) AS fee,
+      (SELECT payout_amount FROM cashbackPayouts) AS cashback_payout_amount
   `;
 
-  const [row] = await queryDuneSql(options, query);
-  const tradingFees = Number(row?.fee ?? 0);
-  const cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
-  const buybackBurnAmount = Number(row?.buyback_burn_amount ?? 0);
+  let tradingFees = 0;
+  let cashbackPayouts = 0;
+  // Days up to 2026-06-23 are served from the precomputed per-day Dune results
+  // (https://dune.com/queries/7788861) to avoid re-running the full Solana scan on
+  // every historical refill; newer days run the live query built above.
+  if (options.startOfDay <= 1782172800) {
+    const cached = await queryDuneResult(options, '7788861');
+    const matched = cached.find(
+      (row: any) => typeof row.day === 'string' && row.day.slice(0, 10) === options.dateString,
+    );
+    if (!matched) {
+      throw new Error(`No cached trading-terminal result for ${options.dateString}; re-run dune query 7788861`);
+    }
+    tradingFees = Number(matched.fee_lamports ?? 0);
+    cashbackPayouts = Number(matched.cashback_payout_lamports ?? 0);
+  } else {
+    const [row] = await queryDuneSql(options, query);
+    tradingFees = Number(row?.fee ?? 0);
+    cashbackPayouts = Number(row?.cashback_payout_amount ?? 0);
+  }
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -116,7 +108,10 @@ async function fetchSolana(options: FetchOptions) {
 
   dailyFees.add(ADDRESSES.solana.SOL, tradingFees, LABELS.TRADING_TERMINAL_FEES);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, cashbackPayouts, LABELS.CASHBACK_REFERRAL_PAYOUTS);
-  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts - buybackBurnAmount, LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL);
+  // Revenue = the protocol's portion = fees minus what the cashback wallet pays back out to
+  // users/referrers. (Buyback/burn is a lumpy treasury distribution funded out of this retained
+  // revenue, not a daily fee deduction, so it is intentionally not subtracted here.)
+  dailyRevenue.add(ADDRESSES.solana.SOL, tradingFees - cashbackPayouts, LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
@@ -155,10 +150,10 @@ export const breakdownMethodology = {
     [LABELS.TRADING_TERMINAL_FEES]: 'Fees charged on each trade executed through the trading terminal.',
   },
   Revenue: {
-    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
+    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts.',
   },
   ProtocolRevenue: {
-    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts and buyback/burn allocations.',
+    [LABELS.TRADING_TERMINAL_FEES_TO_PROTOCOL]: 'Trading terminal fees retained by the protocol after cashback/referral payouts.',
   },
   SupplySideRevenue: {
     [LABELS.CASHBACK_REFERRAL_PAYOUTS]: 'All outbound transfers from the cashback/referral wallet.',
@@ -175,8 +170,8 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   methodology: {
     Fees: "Trading fees paid by users while using Pump Trading Terminal(previously known as Padre).",
-    Revenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts and buyback/burn allocations.",
-    ProtocolRevenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts and buyback/burn allocations.",
+    Revenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts.",
+    ProtocolRevenue: "Trading terminal fees retained by Pump.fun after cashback/referral payouts.",
     SupplySideRevenue: "All outbound transfers from the cashback/referral wallet.",
   },
   allowNegativeValue: true,

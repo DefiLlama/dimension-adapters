@@ -23,6 +23,7 @@ export enum CHAIN {
   BSC = "bsc",
   BIFROST = "bifrost",
   BOTANIX = "btnx",
+  BEAM = "beam",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
@@ -227,6 +228,7 @@ export enum CHAIN {
   SAGA = "saga",
   SAPPHIRE = "sapphire",
   VANA = "vana",
+  VARA = "vara",
   SONIC = "sonic",
   HYPERLIQUID = "hyperliquid",
   SONEIUM = "soneium",
@@ -384,4 +386,11 @@ export enum CHAIN {
   BFC = "bfc",
   B3 = "b3",
   DEGEN = "degen",
+  AELF = "aelf",
+  ADI = "adi",
+  RUBIN = "rubin",
+  AFX = "afx",
+  ROBINHOOD = "robinhood",
+  JUPNET = "jupnet",
+  INTUITION= "intuition"
 }

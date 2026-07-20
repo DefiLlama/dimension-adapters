@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
+import * as sdk from "@defillama/sdk";
 
 // Venice (VVV) — private/uncensored AI platform on Base.
 //
@@ -64,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const priceKey = `${CHAIN.BASE}:${VVV.toLowerCase()}`;
-  const price = (await getPrices([priceKey], options.toTimestamp))[priceKey];
+  const price = (await sdk.coins.getPrices([priceKey], options.toTimestamp))[priceKey];
 
   logs.forEach((log: any) => {
     let label = DISCRETIONARY;

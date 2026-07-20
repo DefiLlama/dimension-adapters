@@ -1,11 +1,23 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetch = async (_: any) => {
-  let openInterestAtEnd = 0;
+const chainConfig: Record<string, { api: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: {
+    api: "https://mainnet.zklighter.elliot.ai/api/v1",
+    start: "2025-01-17",
+  },
+  [CHAIN.ROBINHOOD]: {
+    api: "https://api.rh.lighter.xyz/api/v1",
+    start: "2026-06-26",
+  },
+};
 
-  const data = await fetchURL('https://mainnet.zklighter.elliot.ai/api/v1/orderBookDetails');
+const fetch = async (options: FetchOptions) => {
+  let openInterestAtEnd = 0;
+  const { api } = chainConfig[options.chain];
+
+  const data = await fetchURL(`${api}/orderBookDetails`);
   const markets = data.order_book_details;
   markets.forEach((market: any) => {
     openInterestAtEnd += (Number(market.open_interest || 0) * Number(market.last_trade_price || 0) * 2); // * 2 because of double sided OI
@@ -17,9 +29,8 @@ const fetch = async (_: any) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.ZK_LIGHTER],
+  adapter: chainConfig,
   runAtCurrTime: true,
-  start: "2025-01-17",
 };
 
 export default adapter;
