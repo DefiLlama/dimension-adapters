@@ -103,13 +103,6 @@ const fetch = async (options: FetchOptions) => {
       cacheInCloud: true,
     })
     const pools = poolCreatedLogs.map((log: any) => log.pool)
-    // CLMM V3 pool.feeProtocol is live (confirmed on-chain via slot0(), not
-    // the factory default) — 6/6 on Arbitrum and Base pools checked, matching
-    // the same 1/6 protocol cut already used for Aquila V2 on these chains.
-    // Read it per-pool per-timeslot via dynamicProtocolFees instead of
-    // hardcoding a ratio, so historical periods before any fee-switch change
-    // are still attributed correctly rather than assuming today's value held
-    // for all time.
     const clData = await getUniV3LogAdapter({
       pools,
       userFeesRatio: 1,
