@@ -177,6 +177,13 @@ const ChainConfigs: { [key: string]: ChainTokenConfig } = {
       'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
     ],
   },
+  [CHAIN.POLYGON]: {
+    chainId: 137,
+    tokenListUrls: [
+      'https://tokens.coingecko.com/polygon-pos/all.json',
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/polygon.json',
+    ],
+  },
 };
 
 export async function getDefaultDexTokensWhitelisted({ chain }: { chain: string }): Promise<Array<string>> {
