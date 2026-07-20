@@ -5,11 +5,11 @@ import { CHAIN } from "../../helpers/chains";
 const CONFIG: Record<string, { vaultRegistry: string; start: string }> = {
     [CHAIN.ETHEREUM]: {
         vaultRegistry: "0x12a86ae14992c5a5e8671d30cfd60289f9d0afbe",
-        start: '2026-07-11', 
+        start: '2026-07-11',
     },
     [CHAIN.HYPERLIQUID]: {
-        vaultRegistry: "0x425ffAB71CEFc7aB96CBFbb75282e731234C1885", 
-        start: '2026-02-05', 
+        vaultRegistry: "0x425ffAB71CEFc7aB96CBFbb75282e731234C1885",
+        start: '2026-02-05',
     },
 };
 
@@ -37,20 +37,23 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         calls: pools.map((pool) => ({ target: pool })),
     });
 
+    // Batch all pools into one getLogs per event type; flatten:false keeps
+    // per-pool arrays aligned to `pools`, so we can attribute each log to its
+    // pool's collateralAsset.
+    const writeLogsByPool = await options.getLogs({ targets: pools, eventAbi: WRITE_OPTION, flatten: false });
+    const buybackLogsByPool = await options.getLogs({ targets: pools, eventAbi: BUYBACK_OPTION, flatten: false });
+
     for (let i = 0; i < pools.length; i++) {
-        const pool = pools[i];
         const collateral = collateralAssets[i];
 
         // Writes: buyer pays premium into the pool; escrow = collateral locked ~ notional.
-        const writeLogs = await options.getLogs({ target: pool, eventAbi: WRITE_OPTION });
-        writeLogs.forEach((log: any) => {
+        writeLogsByPool[i].forEach((log: any) => {
             dailyPremiumVolume.add(collateral, log.premium);
             dailyNotionalVolume.add(collateral, log.escrow);
         });
 
         // Buybacks: pool pays premium back to the seller — premium turnover.
-        const buybackLogs = await options.getLogs({ target: pool, eventAbi: BUYBACK_OPTION });
-        buybackLogs.forEach((log: any) => {
+        buybackLogsByPool[i].forEach((log: any) => {
             dailyPremiumVolume.add(collateral, log.premium);
         });
     }
@@ -60,10 +63,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     fetch,
-    adapter: Object.fromEntries(
-        Object.entries(CONFIG).map(([chain, { start }]) => [chain, { start }])
-    ),
+    adapter: CONFIG,
 };
 
 export default adapter;
