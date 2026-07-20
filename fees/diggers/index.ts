@@ -2,12 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-// Diggers launchpad on Robinhood Chain (https://diggers.fun).
-// One singleton contract is factory + swap router + sole LP of every launched
-// token. All LP fees of every Diggers pool therefore accrue to the launchpad
-// and are split on harvest — ETH side: team / platform-token slice / creators;
-// token side: burned + daily traders-airdrop pot.
-// https://robinhoodchain.blockscout.com/address/0x4190a197e9c7c8D9ce1095c32e6666A13A996580
 const DIGGERS = "0x4190a197e9c7c8D9ce1095c32e6666A13A996580";
 const DEPLOY_BLOCK = 12296204;
 
@@ -30,15 +24,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Fee split parameters are on-chain config: teamShareWad is bounded owner
-  // config (1e18-scaled), the platform slice only applies while the airdrop
-  // window is live. Read live values instead of hardcoding.
-  const [teamShareWad, airdropActive, createdLogs, swapLogs] = await Promise.all([
-    options.api.call({ target: DIGGERS, abi: "uint256:teamShareWad" }),
-    options.api.call({ target: DIGGERS, abi: "bool:airdropActive" }),
-    options.getLogs({ target: DIGGERS, eventAbi: CREATED, fromBlock: DEPLOY_BLOCK, cacheInCloud: true }),
-    options.getLogs({ target: DIGGERS, eventAbi: SWAPPED }),
-  ]);
+  const teamShareWad = await options.api.call({ target: DIGGERS, abi: "uint256:teamShareWad" })
+  const airdropActive = await options.api.call({ target: DIGGERS, abi: "bool:airdropActive" })
+  const createdLogs = await options.getLogs({ target: DIGGERS, eventAbi: CREATED, fromBlock: DEPLOY_BLOCK, cacheInCloud: true })
+  const swapLogs = await options.getLogs({ target: DIGGERS, eventAbi: SWAPPED })
 
   // poolFee is chosen per token at launch (1%-5%, V4 millionths).
   const poolFee: Record<string, bigint> = {};
@@ -114,6 +103,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
