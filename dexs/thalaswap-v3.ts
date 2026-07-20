@@ -27,16 +27,31 @@ interface IVolumeall {
   timestamp: string;
 }
 
+// The 1D endpoints return 30-minute buckets, but each datapoint is emitted twice —
+// once at :30 and again at the following :00 with the identical value — so summing
+// every bucket counts each hour of activity twice.
+const sumBuckets = (points: IVolumeall[]) => {
+  const sorted = [...points].sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+  return sorted.reduce((total: number, point: IVolumeall, i: number) => {
+    const previous = sorted[i - 1];
+    const isRepeat =
+      previous !== undefined &&
+      Number(point.timestamp) - Number(previous.timestamp) === 1800 &&
+      Number(point.value) === Number(previous.value);
+    return isRepeat ? total : total + Number(point.value);
+  }, 0);
+};
+
 const fetch = async (options: FetchOptions) => {
   const dayVolumeQuery = (await fetchURL(volumeEndpoint(options.toTimestamp, "1D")))?.data;
-  const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyVolume = sumBuckets(dayVolumeQuery);
 
 
   const dayFeesQuery = (await fetchURL(feesEndpoint(options.toTimestamp, "1D")))?.data;
-  const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyFees = sumBuckets(dayFeesQuery);
 
   const dayRevenueQuery = (await fetchURL(revenueEndpoint(options.toTimestamp, "1D")))?.data;
-  const dailyRevenue = dayRevenueQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyRevenue = sumBuckets(dayRevenueQuery);
 
 
   return {
