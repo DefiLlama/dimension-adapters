@@ -146,6 +146,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const revenueLogs = await options.getLogs({ target: treasury, eventAbi: ABI.feeCollected });
   revenueLogs.forEach((log: any) => {
@@ -159,15 +160,18 @@ const fetch = async (options: FetchOptions) => {
   const memeOwnerFeeLogs = await options.getLogs({ target: core, eventAbi: ABI.memeOwnerFeeCollected });
   const referralFeeLogs = await options.getLogs({ target: core, eventAbi: ABI.referralFeeCollected });
 
-  subBoardFeeLogs.forEach((log: any) =>
+  subBoardFeeLogs.forEach((log: any) =>{
     addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.subBoardFees),
-  );
-  memeOwnerFeeLogs.forEach((log: any) =>
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.subBoardFees)
+  });
+  memeOwnerFeeLogs.forEach((log: any) =>{
     addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.memeOwnerFees),
-  );
-  referralFeeLogs.forEach((log: any) =>
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.memeOwnerFees)
+  });
+  referralFeeLogs.forEach((log: any) =>{
     addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.referralFees),
-  );
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.referralFees)
+  });
 
   const flashV4CreatedLogs = await options.getLogs({ target: core, eventAbi: ABI.flashV4Created, fromBlock, cacheInCloud: true });
   const finalizedV4Logs = await options.getLogs({ target: core, eventAbi: ABI.finalizedV4, fromBlock, cacheInCloud: true });
@@ -321,23 +325,27 @@ const fetch = async (options: FetchOptions) => {
       if (!poolMeta) return;
       addTokenAmount(dailyFees, poolMeta.token0, log.liquidity0, METRICS.hookLiquidityFees);
       addTokenAmount(dailyFees, poolMeta.token1, log.liquidity1, METRICS.hookLiquidityFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.token0, log.liquidity0, METRICS.hookLiquidityFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.token1, log.liquidity1, METRICS.hookLiquidityFees);
     });
     buyback.forEach((log: any) => {
       const poolMeta = hookPoolMeta[String(log.poolId).toLowerCase()];
       if (!poolMeta) return;
       addTokenAmount(dailyFees, poolMeta.projectToken, log.projectTokenAmount, METRICS.hookBuybackFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.projectToken, log.projectTokenAmount, METRICS.hookBuybackFees);
     });
     rewardDistributed.forEach((log: any) => {
       const poolMeta = hookPoolMeta[String(log.poolId).toLowerCase()];
       if (!poolMeta) return;
       addTokenAmount(dailyFees, poolMeta.rewardToken, log.amount, METRICS.hookRewardFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.rewardToken, log.amount, METRICS.hookRewardFees);
     });
     customWalletFeeDistributed.forEach((log: any) => {
       addTokenAmount(dailyFees, ZERO_ADDRESS, log.amount, METRICS.hookCustomWalletFees);
+      addTokenAmount(dailySupplySideRevenue, ZERO_ADDRESS, log.amount, METRICS.hookCustomWalletFees);
     });
   });
 
-  const dailySupplySideRevenue = dailyFees.clone();
   dailyFees.add(dailyRevenue);
 
   return {
