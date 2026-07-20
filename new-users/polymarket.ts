@@ -3,32 +3,23 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch = async (options: FetchOptions) => {
+    const before = `evt_block_time < from_unixtime(${options.endTimestamp})`
     const query = `
-    WITH trades AS (
-        SELECT maker AS trader, evt_block_time FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
+    WITH fills AS (
+        SELECT maker, taker, evt_block_time FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled WHERE ${before}
         UNION ALL
-        SELECT taker AS trader, evt_block_time FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
+        SELECT maker, taker, evt_block_time FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled WHERE ${before}
         UNION ALL
-        SELECT maker AS trader, evt_block_time FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
-        UNION ALL
-        SELECT taker AS trader, evt_block_time FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
-        UNION ALL
-        SELECT maker AS trader, evt_block_time FROM polymarket_polygon.CTFExchange_evt_OrderFilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
-        UNION ALL
-        SELECT taker AS trader, evt_block_time FROM polymarket_polygon.CTFExchange_evt_OrderFilled
-          WHERE evt_block_time < from_unixtime(${options.endTimestamp})
+        SELECT maker, taker, evt_block_time FROM polymarket_polygon.CTFExchange_evt_OrderFilled WHERE ${before}
+    ),
+    first_seen AS (
+        SELECT trader, MIN(evt_block_time) AS first_ts
+        FROM fills CROSS JOIN UNNEST(ARRAY[maker, taker]) AS t(trader)
+        GROUP BY trader
     )
-    SELECT
-        COUNT(DISTINCT trader)
-        - COUNT(DISTINCT CASE
-            WHEN evt_block_time < from_unixtime(${options.startTimestamp}) THEN trader
-          END) AS new_users
-    FROM trades
+    SELECT COUNT(*) AS new_users
+    FROM first_seen
+    WHERE first_ts >= from_unixtime(${options.startTimestamp})
     `;
 
     const result = await queryDuneSql(options, query);

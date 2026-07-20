@@ -12,28 +12,18 @@ const contractAddresses = [
 
 const fetch = async (options: FetchOptions) => {
     const contractAddressList = contractAddresses.map(a => a.toLowerCase()).join(', ')
+    const window = `evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})`
     const query = `
-    WITH trades_data AS (
+    WITH fills AS (
+        SELECT maker, taker FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled WHERE ${window}
+        UNION ALL
+        SELECT maker, taker FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled WHERE ${window}
+        UNION ALL
+        SELECT maker, taker FROM polymarket_polygon.CTFExchange_evt_OrderFilled WHERE ${window}
+    ),
+    trades_data AS (
         SELECT COUNT(DISTINCT trader) AS active_users
-        FROM (
-            SELECT maker AS trader FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT taker AS trader FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT maker AS trader FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT taker AS trader FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT maker AS trader FROM polymarket_polygon.CTFExchange_evt_OrderFilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT taker AS trader FROM polymarket_polygon.CTFExchange_evt_OrderFilled
-              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-        )
+        FROM fills CROSS JOIN UNNEST(ARRAY[maker, taker]) AS t(trader)
     ),
     blockchain_data AS (
         SELECT
