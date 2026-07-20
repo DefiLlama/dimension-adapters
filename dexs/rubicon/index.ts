@@ -103,15 +103,22 @@ const fetch = async (options: FetchOptions) => {
       cacheInCloud: true,
     })
     const pools = poolCreatedLogs.map((log: any) => log.pool)
+    // CLMM V3 pool.feeProtocol is live and set to 6/6 on Arbitrum and Base
+    // (confirmed on-chain via slot0(), not the factory default), matching the
+    // same 1/6 protocol cut already used for Aquila V2 on these chains. Reuse
+    // the per-chain AQUILAL_REVENUE_RATIO instead of hardcoding it disabled.
+    const clmmRevenueRatio = AQUILAL_REVENUE_RATIO ?? 0
     const clData = await getUniV3LogAdapter({
       pools,
       userFeesRatio: 1,
-      revenueRatio: 0,
-      protocolRevenueRatio: 0,
+      revenueRatio: clmmRevenueRatio,
+      protocolRevenueRatio: clmmRevenueRatio,
     })(options)
 
     if (clData?.dailyVolume) dailyVolume.addBalances(clData.dailyVolume)
     if (clData?.dailyFees) dailyFees.addBalances(clData.dailyFees, LBL_CLMM)
+    if (clData?.dailyRevenue) dailyRevenue.addBalances(clData.dailyRevenue, LBL_CLMM)
+    if (clData?.dailyProtocolRevenue) dailyProtocolRevenue.addBalances(clData.dailyProtocolRevenue, LBL_CLMM)
     if (clData?.dailySupplySideRevenue) dailySupplySideRevenue.addBalances(clData.dailySupplySideRevenue, LBL_CLMM)
   }
 
@@ -191,12 +198,14 @@ const methodology = {
     '2 bps × take-event notional.',
   Revenue:
     'Protocol cut: Aquila V2 ~5 bps (1/6 of LP fee) on OP/Arb/Base where factory.feeTo ' +
-    'is set, 0 on mainnet; CLMM V3 0 by default (factory.setFeeProtocol not enabled); ' +
+    'is set, 0 on mainnet; CLMM V3 1/6 of the pool fee on OP/Arb/Base where ' +
+    'pool.feeProtocol is live (confirmed on-chain via slot0), 0 on mainnet; ' +
     'Classic 100% of the 2 bps taker fee.',
   ProtocolRevenue: 'Identical to Revenue — Rubicon does not currently route fees to a holders/buyback bucket.',
   SupplySideRevenue:
     'LP cut: dailyFees minus protocol Revenue. Aquila ~25 bps to LPs (OP/Arb/Base) or ' +
-    '30 bps (mainnet, fee switch off). CLMM 100% of pool tier to LPs. Classic and Gladius ' +
+    '30 bps (mainnet, fee switch off). CLMM ~5/6 of pool tier to LPs on OP/Arb/Base, ' +
+    '100% on mainnet where pool.feeProtocol is disabled. Classic and Gladius ' +
     'have no LP layer.',
 }
 
@@ -209,17 +218,19 @@ const breakdownMethodology = {
   },
   Revenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
+    [LBL_CLMM]: '1/6 of the pool fee tier on OP/Arb/Base where pool.feeProtocol is live; 0 on mainnet.',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   ProtocolRevenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
+    [LBL_CLMM]: '1/6 of the pool fee tier on OP/Arb/Base where pool.feeProtocol is live; 0 on mainnet.',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   SupplySideRevenue: {
     [LBL_AQUILA]: '~25 bps on OP/Arb/Base; 30 bps on mainnet (fee switch off).',
-    [LBL_CLMM]: '100% of per-pool fee tier.',
+    [LBL_CLMM]: '~5/6 of per-pool fee tier on OP/Arb/Base; 100% on mainnet.',
   },
 }
 
