@@ -1,7 +1,8 @@
 import { Dependencies, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryAllium } from "../helpers/allium";
+import { queryDuneSql } from "../helpers/dune";
 
+// CTF / NegRisk contracts (tx + gas are measured against direct interactions with these)
 const contractAddresses = [
     '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045', // Ctf
     '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296', // NegRiskCtf
@@ -10,35 +11,38 @@ const contractAddresses = [
 ]
 
 const fetch = async (options: FetchOptions) => {
-    const contractAddressList = contractAddresses.map(a => `'${a.toLowerCase()}'`).join(', ')
-    const alliumQuery = `
+    const contractAddressList = contractAddresses.map(a => a.toLowerCase()).join(', ')
+    const query = `
     WITH trades_data AS (
-        SELECT 
-            COALESCE(COUNT(DISTINCT trader), 0) AS active_users
+        SELECT COUNT(DISTINCT trader) AS active_users
         FROM (
-            SELECT maker AS trader
-            FROM polygon.predictions.trades
-            WHERE protocol = 'polymarket'
-              AND event_name = 'OrderFilled'
-              AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-              AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+            SELECT maker AS trader FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
             UNION ALL
-            SELECT taker AS trader
-            FROM polygon.predictions.trades
-            WHERE protocol = 'polymarket'
-              AND event_name = 'OrderFilled'
-              AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-              AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+            SELECT taker AS trader FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+            UNION ALL
+            SELECT maker AS trader FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+            UNION ALL
+            SELECT taker AS trader FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+            UNION ALL
+            SELECT maker AS trader FROM polymarket_polygon.CTFExchange_evt_OrderFilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+            UNION ALL
+            SELECT taker AS trader FROM polymarket_polygon.CTFExchange_evt_OrderFilled
+              WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
         )
     ),
     blockchain_data AS (
         SELECT
-            COALESCE(SUM(receipt_effective_gas_price * receipt_gas_used) / 1e18, 0) AS total_gas,
+            SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) / 1e18 AS total_gas,
             COUNT(*) AS total_transactions
-        FROM polygon.raw.transactions
-        WHERE to_address IN (${contractAddressList})
-          AND block_timestamp > TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-          AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        FROM polygon.transactions
+        WHERE "to" IN (${contractAddressList})
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time < from_unixtime(${options.endTimestamp})
     )
     SELECT
         trades_data.active_users,
@@ -48,12 +52,12 @@ const fetch = async (options: FetchOptions) => {
     CROSS JOIN blockchain_data
     `;
 
-    const alliumResult = await queryAllium(alliumQuery);
+    const result = await queryDuneSql(options, query);
 
     return {
-        dailyActiveUsers: alliumResult[0].active_users,
-        dailyTransactionsCount: alliumResult[0].total_transactions,
-        dailyGasUsed: alliumResult[0].total_gas,
+        dailyActiveUsers: result[0].active_users,
+        dailyTransactionsCount: result[0].total_transactions,
+        dailyGasUsed: result[0].total_gas,
     }
 }
 
@@ -61,7 +65,7 @@ const adapter: SimpleAdapter = {
     version: 1,
     fetch,
     chains: [CHAIN.POLYGON],
-    dependencies: [Dependencies.ALLIUM],
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
     start: "2020-09-30",
 };
