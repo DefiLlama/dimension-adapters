@@ -14,28 +14,38 @@ const SOLANA_FEE_WALLET = "F2Vvt5KT33bUWnQtmGGJ4o2VW1BRXcJHucfi8ExW8JvX";
 // feeWallets: first entry is deployment, later ones come from UpdateConfig events 
 const config: Record<string, { start: string; feeWallets?: [number, string][] }> = {
   [CHAIN.SOLANA]: { start: "2023-12-13" },
-  [CHAIN.ETHEREUM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713398400 /* 2024-04-18 */, W_5876], [1758758400 /* 2025-09-25 */, W_89C8], [1758758400, W_5876]] },
-  [CHAIN.BASE]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713398400 /* 2024-04-18 */, W_5876]] },
-  [CHAIN.ERA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716422400 /* 2024-05-23 */, W_5876]] },
-  [CHAIN.ARBITRUM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716422400 /* 2024-05-23 */, W_5876]] },
-  [CHAIN.BSC]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1711065600 /* 2024-03-22 */, W_5876], [1763942400 /* 2025-11-24 */, W_89C8], [1763942400, W_5876], [1777593600 /* 2026-05-01 */, W_89C8]] },
-  [CHAIN.OPTIMISM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1762819200 /* 2025-11-11 */, W_5876]] },
-  [CHAIN.LINEA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1712620800 /* 2024-04-09 */, W_5876]] },
-  [CHAIN.MODE]: { start: "2024-02-15", feeWallets: [[1707955200, W_914B], [1713484800 /* 2024-04-19 */, W_5876]] },
-  [CHAIN.SCROLL]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713484800 /* 2024-04-19 */, W_5876]] },
+  [CHAIN.ETHEREUM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713431855, W_5876], [1758825539, W_89C8], [1758833423, W_5876]] },
+  [CHAIN.BASE]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713416461, W_5876]] },
+  [CHAIN.ERA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716477360, W_5876]] },
+  [CHAIN.ARBITRUM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716439342, W_5876]] },
+  [CHAIN.BSC]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1711083578, W_5876], [1764018375, W_89C8], [1763942400, W_5876], [1777646002, W_89C8]] },
+  [CHAIN.OPTIMISM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1762834185, W_5876]] },
+  [CHAIN.LINEA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1712662157, W_5876]] },
+  [CHAIN.MODE]: { start: "2024-02-15", feeWallets: [[1707955200, W_914B], [1713518461, W_5876]] },
+  [CHAIN.SCROLL]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713521381, W_5876]] },
   [CHAIN.TAIKO]: { start: "2024-06-01", feeWallets: [[1717200000, W_5876]] },
   [CHAIN.BERACHAIN]: { start: "2025-02-06", feeWallets: [[1738800000, W_5876]] },
-  [CHAIN.AVAX]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1740355200 /* 2025-02-24 */, W_5876]] },
+  [CHAIN.AVAX]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1740404146, W_5876]] },
   [CHAIN.HYPERLIQUID]: { start: "2025-02-18", feeWallets: [[1739836800, W_5876]] },
-  [CHAIN.ABSTRACT]: { start: "2025-01-27", feeWallets: [[1737936000, W_914B], [1740441600 /* 2025-02-25 */, W_5876]] },
+  [CHAIN.ABSTRACT]: { start: "2025-01-27", feeWallets: [[1737936000, W_914B], [1740472576, W_5876]] },
 };
 
 const fetchEvm = async (options: FetchOptions) => {
   const timeline = config[options.chain].feeWallets!;
-  // wallet active at a given time = last timeline entry on or before it;
-  // checking both window edges covers rotation days (both wallets that day)
-  const activeAt = (ts: number) => [...timeline].reverse().find(([from]) => from <= ts)?.[1] ?? timeline[0][1];
-  const targets = [...new Set([activeAt(options.startTimestamp), activeAt(options.endTimestamp)])];
+  const targets = [
+    ...new Set(
+      timeline
+        .filter(([from], i) => {
+          const nextFrom = timeline[i + 1]?.[0];
+
+          return nextFrom === undefined
+            ? from <= options.endTimestamp
+            : from <= options.endTimestamp &&
+              nextFrom >= options.startTimestamp;
+        })
+        .map(([, wallet]) => wallet)
+    ),
+];
 
   const received = await addTokensReceived({ options, targets });
   const dailyFees = options.createBalances();
