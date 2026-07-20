@@ -1,38 +1,30 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Aqua registry, deployed at the same address on every supported chain:
-// https://github.com/1inch/aqua#deployments
-const AQUA_REGISTRY = "0x499943e74fb0ce105688beee8ef2abec5d936d31";
+// Aqua registries (https://github.com/1inch/aqua), each deployed at the same
+// address on every supported chain. The protocol redeployed on 2026-07-19 as
+// AquaRouter with an unchanged event interface (source verified, e.g.
+// https://robinhoodchain.blockscout.com/address/0x1111113CCf1426A8e30e2BFF5e005D929bf6A90A?tab=contract);
+// the original developer-release registry is kept so earlier history stays reproducible.
+const AQUA_REGISTRIES = [
+  "0x499943e74fb0ce105688beee8ef2abec5d936d31", // developer release, 2025-11-17
+  "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a", // AquaRouter, 2026-07-19
+];
 
-const PULLED_ABI = "event Pulled(address maker, address app, bytes32 strategyHash, address token, uint256 amount)";
-const SHIPPED_ABI = "event Shipped(address maker, address app, bytes32 strategyHash, bytes strategy)";
-const DOCKED_ABI = "event Docked(address maker, address app, bytes32 strategyHash)";
+const PULLED_ABI =
+  "event Pulled(address maker, address app, bytes32 strategyHash, address token, uint256 amount)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  // entireLog keeps transactionHash on the logs so swap pulls can be separated
-  // from strategy lifecycle transactions below; parseLog must be explicit
-  // because the indexer path does not auto-enable it the way the RPC path does
-  const [pulledLogs, shippedLogs, dockedLogs] = await Promise.all([
-    options.getLogs({ target: AQUA_REGISTRY, eventAbi: PULLED_ABI, entireLog: true, parseLog: true }),
-    options.getLogs({ target: AQUA_REGISTRY, eventAbi: SHIPPED_ABI, entireLog: true, parseLog: true }),
-    options.getLogs({ target: AQUA_REGISTRY, eventAbi: DOCKED_ABI, entireLog: true, parseLog: true }),
-  ]);
-
-  // Transactions that ship (deploy) or dock (revoke) a strategy move liquidity,
-  // not swap volume - Pulled/Pushed events they emit must not be counted.
-  // Hashes are lowercased because the three fetches may be served by different
-  // backends (indexer/RPC/cache) with no canonical casing guarantee
-  const strategyLifecycleTxs = new Set<string>();
-  shippedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash.toLowerCase()));
-  dockedLogs.forEach((log: any) => strategyLifecycleTxs.add(log.transactionHash.toLowerCase()));
-
-  pulledLogs.forEach((log: any) => {
-    if (strategyLifecycleTxs.has(log.transactionHash.toLowerCase())) return;
-    dailyVolume.add(log.args.token, log.args.amount);
+  // Pulled fires only when a strategy delivers tokens to a taker during swap
+  // execution. Strategy lifecycle operations (ship/dock) move no tokens and
+  // never emit Pulled, so all Pulled events count toward volume.
+  const pulledLogs = await options.getLogs({
+    targets: AQUA_REGISTRIES,
+    eventAbi: PULLED_ABI,
   });
+  pulledLogs.forEach((log: any) => dailyVolume.add(log.token, log.amount));
 
   return { dailyVolume };
 };
@@ -54,11 +46,12 @@ const adapter: SimpleAdapter = {
     CHAIN.SONIC,
     CHAIN.UNICHAIN,
     CHAIN.ERA,
+    [CHAIN.ROBINHOOD, { start: "2026-07-19" }],
   ],
   start: "2025-11-17", // Aqua developer release: https://blog.1inch.com/aqua-developer-release/
   methodology: {
     Volume:
-      "Sum of tokens delivered to takers by Aqua strategies during swap execution, measured as Pulled events on the Aqua registry. Only the taker-received side of each swap is counted to avoid double counting. Pulled events emitted in transactions that also ship or dock a strategy are excluded, as those move liquidity rather than trade it. Liquidity withdrawals executed through the swap path are indistinguishable from swaps on-chain and are therefore included.",
+      "Sum of tokens delivered to takers by Aqua strategies during swap execution, measured as Pulled events on the Aqua registries (the current AquaRouter and the original developer-release registry). Only the taker-received side of each swap is counted to avoid double counting. Strategy deploy/close operations (Shipped/Docked) move no tokens and emit no Pulled events, so liquidity lifecycle operations add no volume.",
   },
 };
 
