@@ -1,7 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-import ADDRESSES from "../helpers/coreAssets.json";
 
 const NEW_ORDER_ABI = "event NewOrder(uint256 id, uint256 offerId, uint256 amount, address seller, address buyer)";
 const OFFERS_ABI = "function offers(uint256) view returns (uint8 offerType, bytes32 tokenId, address exToken, uint256 amount, uint256 value, uint256 collateral, uint256 filledAmount, uint8 status, address offeredBy, bool fullMatch)";
@@ -25,12 +24,6 @@ const config: Record<string, { contract?: string; start: string }> = {
   [CHAIN.ABSTRACT]: { contract: "0xeFFcBE4711Bc9360F596CA615b3C4003A0d7Ea33", start: "2025-01-27" },
 };
 
-const addVolume = (dailyVolume: any, exToken: string, amount: number) => {
-  if (amount <= 0) return;
-  if (exToken.toLowerCase() === ADDRESSES.null) dailyVolume.addGasToken(amount);
-  else dailyVolume.add(exToken, amount);
-};
-
 const fetchEvm = async (options: FetchOptions) => {
   const target = config[options.chain].contract;
   const dailyVolume = options.createBalances();
@@ -39,24 +32,13 @@ const fetchEvm = async (options: FetchOptions) => {
 
   if (orders.length) {
     const offerIds = [...new Set(orders.map((o: any) => o.offerId.toString()))];
-    // a whole multicall RPC batch can fail transiently under load; retry a few
-    // times before failing the run
-    let offers: any[] = [];
-    for (let attempt = 0; ; attempt++) {
-      try {
-        offers = await options.api.multiCall({ target, abi: OFFERS_ABI, calls: offerIds, permitFailure: true });
-        break;
-      } catch (e) {
-        if (attempt >= 3) throw e;
-        await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
-      }
-    }
+    const offers = await options.api.multiCall({ target, abi: OFFERS_ABI, calls: offerIds, permitFailure: true });
     const offersById = new Map(offerIds.map((id, i) => [id, offers[i]]));
 
     for (const order of orders) {
       const offer: any = offersById.get(order.offerId.toString());
       if (!offer || Number(offer.amount) === 0) continue;
-      addVolume(dailyVolume, offer.exToken, Number(offer.value) * Number(order.amount) / Number(offer.amount));
+      dailyVolume.add(offer.exToken, Number(offer.value) * Number(order.amount) / Number(offer.amount));
     }
   }
 
@@ -80,7 +62,7 @@ const solSql = () => `
     )
     SELECT
         t.token_mint_address AS mint,
-        SUM(t.amount) AS amount
+        COALESCE(SUM(t.amount), 0) AS amount
     FROM tokens_solana.transfers t
     JOIN fill_txs f ON t.tx_id = f.tx_id
     WHERE t.to_owner = '${SOLANA_ESCROW}'
@@ -103,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, 
+  version: 1,
   fetch,
   adapter: config,
   dependencies: [Dependencies.DUNE],
