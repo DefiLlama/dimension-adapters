@@ -93,6 +93,7 @@ const adapter: SimpleAdapter = {
     Volume:
       "USD value of filled OTC orders on Whales Market pre-markets. EVM fills are valued pro-rata against the offer they fill (read from the contract); Solana fills are valued as the tokens deposited into the program escrow in the fill transaction.",
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
