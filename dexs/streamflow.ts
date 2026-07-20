@@ -2,26 +2,10 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 
-// Streamflow on Solana: token vesting + airdrop distribution. Volume is the
-// value of tokens delivered to recipients across all Streamflow products --
-// Stream (vesting/payments), Aligned Unlocks (token-launch vesting with
-// aligned-to-market unlock curves), and the two airdrop distributors
-// (MerkleDistributor and AlignedDistributor). The existing fees adapter at
-// `fees/streamflow/index.ts` reads Streamflow's Metabase `revenue-daily`
-// endpoint; there is no equivalent `claims-daily` endpoint, so for volume we
-// go on-chain via Allium (solana.assets.transfers). Same data-source pattern
-// as every other Solana volume adapter in the codebase.
-//
-// Streams are pre-funded: at creation the sender deposits the full notional
-// amount into a per-stream escrow PDA owned by the Streamflow program, and
-// recipients withdraw lazily via the `Withdraw` instruction. Cliffs apply to
-// vesting products (Sablier-Lockup analog), and $-at-withdrawal is the
-// economically real number for volatile project-token vesting -- which is
-// what dominates Streamflow's Solana flow (JAM, RIV, RXT, WINGS launches
-// mid-unlock). We sum the recipient-bound SPL token outflows from Streamflow
-// PDAs in the window. This captures both Withdraw and cancel-time settlement
-// (the cancel IX still routes the accrued-but-unwithdrawn portion to the
-// recipient as an SPL transfer).
+// Streamflow (Solana): value of tokens delivered to vesting/airdrop recipients.
+// Join each escrow-PDA outflow to its outer Anchor instruction and keep only
+// delivery instructions by discriminator, so clawbacks (-> admin), cancel
+// refunds (-> sender), escrow funding, and the 0.25% fee leg aren't counted.
 
 const STREAMFLOW_PROGRAMS = [
   "strmRqUCoQUgGUan5YhzUZa6KqdzwX5L6FpUxfmKg5m", // Stream (vesting / payments)
@@ -30,23 +14,44 @@ const STREAMFLOW_PROGRAMS = [
   "MErKy6nZVoVAkryxAejJz2juifQ4ArgLgHmaJCQkU7N", // Distributor (airdrop)
 ];
 
+// delivery instructions, by Anchor discriminator
+const DELIVERY_DISCRIMINATORS = [
+  "b712469c946da122", // withdraw
+  "4eb1627bd215bb53", // new_claim
+  "22ceb5170bcf935a", // claim_locked
+];
+
+// treasury -- receives the 0.25% fee leg inside a withdraw
+const STREAMFLOW_TREASURY = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const programList = STREAMFLOW_PROGRAMS.map((p) => `'${p}'`).join(", ");
+  const discList = DELIVERY_DISCRIMINATORS.map((d) => `'${d}'`).join(", ");
 
   const start = options.startTimestamp;
   const end = options.endTimestamp;
   const rows = await queryAllium(`
+    WITH delivery_ix AS (
+      SELECT txn_id, instruction_index
+      FROM solana.raw.instructions
+      WHERE program_id IN (${programList})
+        AND data_hex_first16 IN (${discList})
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${start}) AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
+    )
     SELECT
-      mint,
-      SUM(raw_amount) AS amount
-    FROM solana.assets.transfers
-    WHERE outer_program_id IN (${programList})
-      AND transfer_type = 'spl_token_transfer'
-      AND from_address != signer
-      AND block_timestamp >= TO_TIMESTAMP_NTZ(${start}) AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
-    GROUP BY mint
+      t.mint,
+      SUM(t.raw_amount) AS amount
+    FROM solana.assets.transfers t
+    JOIN delivery_ix d
+      ON t.txn_id = d.txn_id AND t.instruction_index = d.instruction_index
+    WHERE t.outer_program_id IN (${programList})
+      AND t.transfer_type = 'spl_token_transfer'
+      AND t.from_address != t.signer
+      AND t.to_address != '${STREAMFLOW_TREASURY}'
+      AND t.block_timestamp >= TO_TIMESTAMP_NTZ(${start}) AND t.block_timestamp < TO_TIMESTAMP_NTZ(${end})
+    GROUP BY t.mint
   `);
 
   for (const row of rows) {
@@ -66,7 +71,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   pullHourly: true,
   methodology: {
-    Volume: "Total value of SPL tokens delivered to recipients of Streamflow streams in the day window, summed across all four Streamflow Solana programs.",
+    Volume: "Value of SPL tokens delivered to recipients of Streamflow vesting streams and airdrops in the day window. Only recipient-delivery instructions (withdraw, airdrop claim) are counted; escrow funding, cancellation refunds to the sender, airdrop clawbacks to the admin, and the 0.25% protocol fee are excluded.",
   },
 };
 
