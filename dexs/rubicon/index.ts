@@ -106,12 +106,17 @@ const fetch = async (options: FetchOptions) => {
     const clData = await getUniV3LogAdapter({
       pools,
       userFeesRatio: 1,
-      revenueRatio: 0,
-      protocolRevenueRatio: 0,
+      dynamicProtocolFees: true,
+      getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: any) => {
+        const ratio = protocolFeeRatioToken0 || protocolFeeRatioToken1 || 0
+        return { _revenueRatio: ratio, _protocolRevenueRatio: ratio }
+      },
     })(options)
 
     if (clData?.dailyVolume) dailyVolume.addBalances(clData.dailyVolume)
     if (clData?.dailyFees) dailyFees.addBalances(clData.dailyFees, LBL_CLMM)
+    if (clData?.dailyRevenue) dailyRevenue.addBalances(clData.dailyRevenue, LBL_CLMM)
+    if (clData?.dailyProtocolRevenue) dailyProtocolRevenue.addBalances(clData.dailyProtocolRevenue, LBL_CLMM)
     if (clData?.dailySupplySideRevenue) dailySupplySideRevenue.addBalances(clData.dailySupplySideRevenue, LBL_CLMM)
   }
 
@@ -191,13 +196,16 @@ const methodology = {
     '2 bps × take-event notional.',
   Revenue:
     'Protocol cut: Aquila V2 ~5 bps (1/6 of LP fee) on OP/Arb/Base where factory.feeTo ' +
-    'is set, 0 on mainnet; CLMM V3 0 by default (factory.setFeeProtocol not enabled); ' +
-    'Classic 100% of the 2 bps taker fee.',
+    'is set, 0 on mainnet; CLMM V3 read live per-pool per-timeslot from ' +
+    'pool.slot0().feeProtocol (currently 1/6 on the Arbitrum and Base pools checked, ' +
+    '0 where the fee switch is off), so historical periods before any fee-switch ' +
+    'change are attributed correctly; Classic 100% of the 2 bps taker fee.',
   ProtocolRevenue: 'Identical to Revenue — Rubicon does not currently route fees to a holders/buyback bucket.',
   SupplySideRevenue:
     'LP cut: dailyFees minus protocol Revenue. Aquila ~25 bps to LPs (OP/Arb/Base) or ' +
-    '30 bps (mainnet, fee switch off). CLMM 100% of pool tier to LPs. Classic and Gladius ' +
-    'have no LP layer.',
+    '30 bps (mainnet, fee switch off). CLMM whatever\'s left after the live ' +
+    'per-pool pool.slot0().feeProtocol cut (currently ~5/6 where the fee switch is on). ' +
+    'Classic and Gladius have no LP layer.',
 }
 
 const breakdownMethodology = {
@@ -209,17 +217,19 @@ const breakdownMethodology = {
   },
   Revenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
+    [LBL_CLMM]: 'Live per-pool pool.slot0().feeProtocol cut, read per timeslot (currently 1/6 where the fee switch is on).',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   ProtocolRevenue: {
     [LBL_AQUILA]: '~5 bps (1/6 of LP fee) on OP/Arb/Base; 0 on mainnet.',
+    [LBL_CLMM]: 'Live per-pool pool.slot0().feeProtocol cut, read per timeslot (currently 1/6 where the fee switch is on).',
     [LBL_CLASSIC]: '100% of the 2 bps taker fee.',
     [LBL_GLADIUS]: 'All taker fees collected by the Rubicon fee wallet.',
   },
   SupplySideRevenue: {
     [LBL_AQUILA]: '~25 bps on OP/Arb/Base; 30 bps on mainnet (fee switch off).',
-    [LBL_CLMM]: '100% of per-pool fee tier.',
+    [LBL_CLMM]: 'Whatever\'s left after the live per-pool pool.slot0().feeProtocol cut.',
   },
 }
 
