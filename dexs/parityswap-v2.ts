@@ -26,4 +26,25 @@ adapter.methodology = {
   HoldersRevenue: 'No revenue to token holders.',
 }
 
+adapter.breakdownMethodology = {
+  Fees: {
+    'Token Swap Fees': 'Swap fees paid by traders: 0.30% of swap volume.',
+  },
+  UserFees: {
+    'Trading fees': 'Swap fees paid directly by traders.',
+  },
+  Revenue: {
+    'Protocol fees': 'Protocol treasury share: 1/6 of swap fees (0.05% of volume), accrued via the Uniswap V2 feeTo mechanism.',
+  },
+  ProtocolRevenue: {
+    'Protocol fees': 'Protocol treasury share: 1/6 of swap fees (0.05% of volume), accrued via the Uniswap V2 feeTo mechanism.',
+  },
+  SupplySideRevenue: {
+    'LP fees': 'LP share: 5/6 of swap fees (0.25% of volume) retained by liquidity providers.',
+  },
+  HoldersRevenue: {
+    'Tokenholder fees': 'No revenue to token holders.',
+  },
+}
+
 export default adapter
