@@ -61,35 +61,6 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  * Shared configs for cosmos-sdk chains that derive chain metrics directly from RPC tx results.
  */
 export const COSMOS_CHAIN_METRIC_CONFIGS: Record<string, CosmosChainMetricConfig> = {
-  cosmoshub: {
-    chain: CHAIN.COSMOS,
-    start: "2021-02-18",
-    // endpoints must allow height-range tx_search queries (publicnode does not)
-    rpcs: [
-      "https://rpc.cosmos.directory/cosmoshub",
-      "https://cosmos-rpc.polkachu.com",
-    ],
-    denoms: {
-      uatom: { cgToken: "cosmos", decimals: 6 },
-    },
-  },
-  osmosis: {
-    chain: CHAIN.COSMOS,
-    start: "2022-04-15",
-    rpcs: [
-      "https://rpc.osmosis.zone",
-      "https://osmosis-rpc.polkachu.com",
-      "https://osmosis.rpc.kjnodes.com",
-      "https://rpc.cosmos.directory/osmosis",
-    ],
-    windowConcurrency: 6,
-    denoms: {
-      uosmo: { cgToken: "osmosis", decimals: 6 },
-      // ATOM and USDC (Noble) over IBC, common alternative fee denoms on osmosis-1
-      "ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2": { cgToken: "cosmos", decimals: 6 },
-      "ibc/498A0751C798A0D9A389AA3691123DADA57DAA4FE165D5C75894505B876BA6E4": { cgToken: "usd-coin", decimals: 6 },
-    },
-  },
   neutron: {
     chain: CHAIN.NEUTRON,
     start: "2023-05-10",
@@ -327,11 +298,9 @@ export async function getBlockRangeForTimestamps(config: CosmosChainMetricConfig
 export function createCosmosChainFeesAdapter(config: CosmosChainMetricConfig): SimpleAdapter {
   return {
     version: 2,
-    pullHourly: true,
     protocolType: ProtocolType.CHAIN,
-    isExpensiveAdapter: true,
+    runAtCurrTime: true,
     chains: [config.chain],
-    start: config.start,
     methodology: baseMethodology,
     breakdownMethodology: baseBreakdownMethodology,
     fetch: async (options: FetchOptions) => {
@@ -359,7 +328,6 @@ export function createCosmosChainFeesAdapter(config: CosmosChainMetricConfig): S
         dailyHoldersRevenue: 0,
         dailySupplySideRevenue,
         dailyTransactionsCount: metrics.transactionCount,
-        dailyGasUsed: metrics.totalGasUsed,
       };
     },
   };
