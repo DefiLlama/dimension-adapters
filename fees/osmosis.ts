@@ -56,7 +56,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 1,
-  chains: [CHAIN.COSMOS],
+  chains: [CHAIN.OSMOSIS],
   fetch,
   start: '2022-04-15',
   methodology,

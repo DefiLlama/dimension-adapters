@@ -24,6 +24,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: 0,
     dailyHoldersRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   }
 }
 
@@ -31,6 +32,7 @@ const methodology = {
   Fees: "Transaction fees paid by users for executing transactions on the Cosmos network",
   Revenue: 'No revenue',
   HoldersRevenue: 'None of the transaction fees are burnt',
+  SupplySideRevenue: 'All the transaction fees are distributed to validators',
 }
 
 const adapter: SimpleAdapter = {
