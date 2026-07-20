@@ -395,6 +395,7 @@ const adapter: SimpleAdapter = {
       [METRICS.hookCustomWalletFees]: "CustomWalletFeeDistributed amounts valued as native coin.",
     },
   },
+  doublecounted: true, //uniswap & pcs
 };
 
 export default adapter;
