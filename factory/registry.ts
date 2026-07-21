@@ -101,6 +101,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'active-users': [
     'users/list',
+    'duneChainActiveUsers',
   ],
   'new-users': [
     'users/list:newUsers',
