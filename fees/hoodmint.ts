@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   const tradeLogs = await options.getLogs({ target: HOODMINT_CURVE, eventAbi: TRADE });
 
   for (const log of tradeLogs) {
-    dailyFees.addGasToken(log.protocolFee + log.creatorFee, METRIC.TRADING_FEES);
+    dailyFees.addGasToken(BigInt(log.protocolFee) + BigInt(log.creatorFee), METRIC.TRADING_FEES);
     dailyRevenue.addGasToken(log.protocolFee, "Trading Fees To Protocol");
     dailySupplySideRevenue.addGasToken(log.creatorFee, "Trading Fees To Creators");
     dailyVolume.addGasToken(log.ethGross);
