@@ -9,7 +9,8 @@ const fetch = async (options: FetchOptions) => {
   });
   const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees } = await fetchHIP3DeployerData({
     options,
-    hip3DeployerId: 'km',
+    // Kinetiq migrated its HIP-3 dex from the now-dormant "km" to the active "mkts"
+    hip3DeployerId: 'mkts',
   });
   
   const dailyVolume = options.createBalances();

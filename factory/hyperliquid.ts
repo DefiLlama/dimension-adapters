@@ -883,7 +883,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
   "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
   "felix-perp": { dexId: "flx", start: "2025-11-13", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
-  "kinetiq-markets": { dexId: "mkts", start: "2026-06-01", methodologyName: "Kinetiq" }, // Kinetiq migrated its HIP-3 dex from the now-dormant "km" to the active "mkts"
+  // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
   "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
