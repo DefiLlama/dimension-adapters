@@ -41,7 +41,11 @@ const cianVaults = {
     
       ],
     // [CHAIN.ARBITRUM]: ["0xE946Dd7d03F6F5C440F68c84808Ca88d26475FC5", "0xED5f727107BdAC99443bAE317E0eF38239719e87", '0x15cbFF12d53e7BdE3f1618844CaaEf99b2836d2A'], contract not verified
-    [CHAIN.BSC]: [ "0x406e1e0e3cb4201B4AEe409Ad2f6Cd56d3242De7"], 
+    [CHAIN.BSC]: [ "0x406e1e0e3cb4201B4AEe409Ad2f6Cd56d3242De7"],
+    [CHAIN.MANTLE]: [
+        "0x6B2BA8F249cC1376f2A02A9FaF8BEcA5D7718DCf",
+        "0x74D2Bef5Afe200DaCC76FE2D3C4022435b54CdbB",
+    ], 
         //"0xEa5f10A0E612316A47123D818E2b597437D19a17",
     // [CHAIN.OPTIMISM]: ["0x907883da917ca9750ad202ff6395C4C6aB14e60E"],
     // [CHAIN.BASE]: ["0x9B2316cfe980515de7430F1c4E831B89a5921137"],
@@ -70,7 +74,8 @@ const fetch = async ({createBalances, api, getLogs, fromApi, toApi, chain}: Fetc
     const vaultsParamsAll = await api.multiCall({
         abi: cianVaultABI.getVaultParams,
         calls: vaults,
-        permitFailure: true
+        permitFailure: true,
+        chunkSize: 5, // getVaultParams returns a heavy tuple; keep multicalls small so RPCs don't drop chunks
     });
     
     const validVaults = vaultsParamsAll.map((params, i) => {
@@ -134,10 +139,12 @@ const adapters: Adapter = {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
         },
+        [CHAIN.MANTLE]: {
+            fetch: fetch,
+        },
     },
     
     version: 2,
-    pullHourly: true,
 }
 
 export default adapters;
