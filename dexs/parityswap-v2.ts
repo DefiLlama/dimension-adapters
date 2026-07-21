@@ -4,6 +4,13 @@ import { uniV2Exports } from "../helpers/uniswap";
 // ParitySwap V2 is a Uniswap V2 fork on Robinhood Chain with the protocol fee
 // switch on: swappers pay the stock 0.30% fee, 1/6 of fees (0.05% of volume)
 // accrues to the protocol treasury via the standard feeTo mint, LPs keep 0.25%.
+//
+// Sources:
+// - Factory (Blockscout-verified; feeTo() returns the treasury, so the stock
+//   UniswapV2Pair._mintFee 1/6 split is active):
+//   https://robinhoodchain.blockscout.com/address/0xaA5f8c18EF9be81ffED30c223F9CD0D012a2AdB9?tab=contract
+// - 0.30% is the stock Uniswap V2 swap fee (997/1000 in the verified pair code).
+// - TVL adapter: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20143
 const adapter = uniV2Exports({
   [CHAIN.ROBINHOOD]: {
     factory: '0xaA5f8c18EF9be81ffED30c223F9CD0D012a2AdB9',
