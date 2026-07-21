@@ -14,6 +14,7 @@ const chainConfig: Record<string, { fromBlock: number, start: string }> = {
   [CHAIN.MEGAETH]: { fromBlock: 9083666, start: "2026-02-23" },
   [CHAIN.HYPERLIQUID]: { fromBlock: 30774348, start: "2026-03-26" },
   [CHAIN.MONAD]: { fromBlock: 64807339, start: "2026-03-30" },
+  [CHAIN.ROBINHOOD]: { fromBlock: 9477535, start: "2026-07-14" },
 };
 
 const SwapEvent =
