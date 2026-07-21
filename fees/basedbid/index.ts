@@ -152,6 +152,7 @@ const fetch = async (options: FetchOptions) => {
   revenueLogs.forEach((log: any) => {
     const token = toAddress(log.token);
     const amount = log.amount;
+    addTokenAmount(dailyFees, token, amount, METRICS.treasuryRevenue);
     addTokenAmount(dailyRevenue, token, amount, METRICS.treasuryRevenue);
     addTokenAmount(dailyProtocolRevenue, token, amount, METRICS.treasuryRevenue);
   });
