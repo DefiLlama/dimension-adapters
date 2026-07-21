@@ -811,7 +811,7 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
     addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
   },
   "Kinetiq-Hyperion": {
-    addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
+    addressesOrNames: ['0xeeee86f718f9da3e7250624a460f6ea710e9c006'], // Kinetiq x Hyperion validator (previously duplicated Purrposeful's 0xf8efb4… address)
   },
   "Nansen-HypurrCollective": {
     addressesOrNames: ['0xb8f45222a3246a2b0104696a1df26842007c5bc5'],
