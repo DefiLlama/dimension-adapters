@@ -2,8 +2,13 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-// Forkast's CTF Exchange on Arbitrum One
+// Forkast's CTF Exchange on Arbitrum One, deployed at block 394355236 (2025-10-28 17:26:10 UTC)
+// https://arbiscan.io/tx/0x724c7084a1d08176b289213cb44fbbd49648e1effbf5ca4babd35ab0f9e30871
 const CTF_EXCHANGE = "0x2D7aa09fe8a9Af205aD6E0Fef1441834c4250cdc";
+
+// PC (Platform Credits), Forkast's settlement token
+// https://arbiscan.io/address/0x4AC7b973fb4f10D94eda5Efa92fFABD6aDDFb65c
+const PC_TOKEN = "0x4AC7b973fb4f10D94eda5Efa92fFABD6aDDFb65c";
 
 // Forkast backend operator wallets that submit matchOrders()/fillOrder() to the exchange
 const OPERATOR_WALLETS = [
@@ -24,7 +29,9 @@ const fetch = async (options: FetchOptions) => {
     select coalesce(sum(amount), 0) as daily_volume
     from tokens.transfers
     where
-      tx_from in (${OPERATOR_WALLETS.join(", ")})
+      blockchain = 'arbitrum'
+      and contract_address = ${PC_TOKEN}
+      and tx_from in (${OPERATOR_WALLETS.join(", ")})
       and tx_to = ${CTF_EXCHANGE}
       and "to" = ${CTF_EXCHANGE}
       and TIME_RANGE
@@ -32,8 +39,12 @@ const fetch = async (options: FetchOptions) => {
 
   const res = await queryDuneSql(options, query);
 
+  if (!res?.[0] || res[0].daily_volume === null || res[0].daily_volume === undefined) {
+    throw new Error("Forkast: Dune query returned no data");
+  }
+
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(Number(res[0]?.daily_volume ?? 0));
+  dailyVolume.addUSDValue(Number(res[0].daily_volume));
 
   return { dailyVolume };
 };
