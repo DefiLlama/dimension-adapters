@@ -44,6 +44,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyVolume = options.createBalances();
+  // PC (Platform Credits) is pegged 1:1 to USDC; see https://docs.forkast.gg
   dailyVolume.addUSDValue(Number(res[0].daily_volume));
 
   return { dailyVolume };
