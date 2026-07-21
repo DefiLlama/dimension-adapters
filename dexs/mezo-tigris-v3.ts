@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { filterPools } from "../helpers/uniswap";
 import { addOneToken } from "../helpers/prices";
+import { METRIC } from "../helpers/metrics";
 
 const FACTORY = "0xBB24AF5c6fB88F1d191FA76055e30BF881BeEb79";
 const SWAP_EVENT = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
@@ -32,13 +33,13 @@ const fetch = async (options: FetchOptions) => {
 
   const allLogs = await getLogs({ targets: pairIds, eventAbi: SWAP_EVENT, flatten: false });
   allLogs.forEach((logs: any[], index: number) => {
-    if (!logs.length) return;
+    if (!logs.length || (poolFees[index]) == null) return;
     const pair = pairIds[index];
     const [token0, token1] = pairObject[pair];
     const feeRate = Number(poolFees[index]) / 1e6;
     logs.forEach((log: any) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 });
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0) * feeRate, amount1: Number(log.amount1) * feeRate });
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0) * feeRate, amount1: Number(log.amount1) * feeRate, label: METRIC.SWAP_FEES });
     });
   });
 
@@ -54,6 +55,18 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Per-pool swap fees charged on input amount.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Per-pool swap fees charged on input amount.",
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: "All swap fees are distributed to liquidity providers.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -67,6 +80,7 @@ const adapter: SimpleAdapter = {
     Revenue: "No protocol revenue.",
     ProtocolRevenue: "No protocol revenue.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;
