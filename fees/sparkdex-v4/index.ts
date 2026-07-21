@@ -2,6 +2,7 @@ import { gql, request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { BBB_START } from "../../helpers/sparkdex";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
@@ -9,15 +10,8 @@ const endpoints = {
     "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v4/latest/gn",
 };
 
-/**
- * Governance proposal B (passed 2026-05-17; effective 2026-05-18):
- * 1/4 of swap fees → treasury → 100% SPRK buyback-and-burn.
- * https://sparkdex.ai/governance/proposal/6a046cbecd38e8c7fea826ee
- */
-const BBB_START = 1779062400; // 2026-05-18 UTC
-
 const fetch = async (options: FetchOptions) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startTimestamp);
   const dateId = Math.floor(todaysTimestamp / 86400);
 
   const graphQuery = gql`
@@ -71,6 +65,8 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.FLARE],
   start: "2026-01-26",
+  // algebraDayData only exposes daily aggregates; hourly pull is unsupported
+  pullHourly: false,
   methodology: {
     Fees: "Swap fees paid by platform users on SparkDEX V4.",
     UserFees: "100% of collected fees.",

@@ -2,6 +2,7 @@ import { gql, request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { BBB_START } from "../../helpers/sparkdex";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
@@ -18,13 +19,6 @@ interface IFeeStat {
 const CONTRACT_SPARK_TOKEN = "0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0";
 // staked token is xSpark
 const CONTRACT_XSPARK = "0xB5Dc569d06be81Eb222a00cEe810c42976981986";
-
-/**
- * Governance proposal B (passed 2026-05-17; effective 2026-05-18):
- * 1/4 of swap fees → treasury → 100% SPRK buyback-and-burn.
- * https://sparkdex.ai/governance/proposal/6a046cbecd38e8c7fea826ee
- */
-const BBB_START = 1779062400; // 2026-05-18 UTC
 
 const fetch = async (options: FetchOptions) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
