@@ -118,8 +118,11 @@ const fetch = async ({createBalances, api, getLogs, fromApi, toApi, chain}: Fetc
     
     vaultsManagementFee.forEach((data, i) => {
         if(validVaults[i].managementFeeRate == 0) return;
-        const yieldValue = data * BigInt(1e4) / BigInt(validVaults[i].managementFeeRate);
-        dailyFees.add(validVaults[i].token, yieldValue);
+        // Management fee is a flat protocol fee on AUM (separate from the performance
+        // fee), not a share of yield, so the collected amount is both the fee and the
+        // protocol revenue with no supplier split. Adding the grossed-up base here
+        // overstated dailyFees and broke dailyFees = dailyRevenue + dailySupplySideRevenue.
+        dailyFees.add(validVaults[i].token, data);
         dailyRevenue.add(validVaults[i].token, data);
     });
 
