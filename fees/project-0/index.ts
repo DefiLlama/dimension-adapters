@@ -1,6 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 // Project 0 (P0) is a permissionless prime broker / lending protocol on Solana,
 // built on mrgnLendv2. Borrowers pay interest on their loans (the fees); the
@@ -8,9 +9,9 @@ import { httpGet } from "../../utils/fetchURL";
 //
 // Data comes from P0's public API (/v0/bankMetrics), which returns the current
 // state of every bank only (no historical/timestamp param) — the same source
-// the TVL adapter (`p0`) uses. Fees are therefore a live snapshot: this is a
-// version-1 `runAtCurrTime` adapter, and per bank the daily borrower interest
-// is totalBorrowsUsd * borrowApr / 365.
+// the TVL adapter (`p0`) uses. Fees are therefore a live snapshot
+// (`runAtCurrTime`): per bank, daily borrower interest = totalBorrowsUsd *
+// borrowApr / 365.
 const METRICS_ENDPOINT = "https://api.0.xyz/v0/bankMetrics";
 
 interface Bank {
@@ -21,12 +22,13 @@ interface Bank {
   utilization: string;
 }
 
-const fetch = async () => {
+const fetch = async ({ createBalances }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+
   const data = await httpGet(METRICS_ENDPOINT);
   const banks: Bank[] = data?.banks ?? [];
-
-  let dailyFees = 0;
-  let dailyRevenue = 0;
 
   for (const bank of banks) {
     if (!bank.priced) continue;
@@ -51,8 +53,11 @@ const fetch = async () => {
       if (reserveFactor > 1) reserveFactor = 1;
     }
 
-    dailyFees += borrowInterest;
-    dailyRevenue += borrowInterest * reserveFactor;
+    const revenue = borrowInterest * reserveFactor;
+
+    dailyFees.addUSDValue(borrowInterest, METRIC.BORROW_INTEREST);
+    dailyRevenue.addUSDValue(revenue, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addUSDValue(borrowInterest - revenue, METRIC.BORROW_INTEREST);
   }
 
   return {
@@ -60,12 +65,12 @@ const fetch = async () => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees - dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   runAtCurrTime: true,
   fetch,
   chains: [CHAIN.SOLANA],
@@ -75,6 +80,17 @@ const adapter: SimpleAdapter = {
     Revenue: "Protocol's reserve share of the borrower interest.",
     ProtocolRevenue: "Protocol's reserve share of the borrower interest.",
     SupplySideRevenue: "Borrower interest distributed to depositors/lenders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: "Interest paid by borrowers on all outstanding loans.",
+    },
+    Revenue: {
+      [METRIC.BORROW_INTEREST]: "Protocol reserve cut of borrower interest.",
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: "Borrower interest paid out to depositors.",
+    },
   },
 };
 
