@@ -132,7 +132,13 @@ const fetch = async (options: FetchOptions) => {
             dailyFees.add(feeToken, feeBig, METRIC.SWAP_FEES);
 
             if (feeModel === "legacy") {
-                if (!legacyParamsValid) continue; // volume + fees counted above; split unresolved
+                if (!legacyParamsValid) {
+                    // Split params unreadable: default the fee to supply-side so
+                    // dailyFees stays == supply + protocol. Matches on-chain reality
+                    // (treasuryShareBps is 0, so the whole fee is supply-side anyway).
+                    dailySupplySideRevenue.add(feeToken, feeBig, METRIC.SWAP_FEES);
+                    continue;
+                }
                 const treasuryShareBpsBig = toBigIntOrZero(treasuryShareBps);
                 const totalBpsBig = toBigIntOrZero(totalBps);
 
