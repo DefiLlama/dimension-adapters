@@ -7,25 +7,37 @@ const fetch = async (options: FetchOptions) => {
     options,
     builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
   });
-  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees } = await fetchHIP3DeployerData({
+  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, dailyDeployerFee: hip3DeployerFee } = await fetchHIP3DeployerData({
     options,
     // Kinetiq migrated its HIP-3 dex from the now-dormant "km" to the active "mkts"
     hip3DeployerId: 'mkts',
   });
-  
+
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
   dailyVolume.add(builderVolume);
   dailyVolume.add(hip3Volume);
+
+  // Builder-code fees are retained entirely by Kinetiq.
   dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
+  dailyRevenue.add(builderFees, 'Hyperliquid Builder Code Fees');
+
+  // On HIP-3 markets Kinetiq only keeps its deployer-fee cut; the rest is paid through to Hyperliquid.
   dailyFees.add(hip3Fees, 'Hyperliquid HIP-3 Markets Fees');
-  
+  dailyRevenue.add(hip3DeployerFee, 'Hyperliquid HIP-3 Markets Fees');
+  const hip3ToHyperliquid = hip3Fees.clone();
+  hip3ToHyperliquid.subtract(hip3DeployerFee);
+  dailySupplySideRevenue.add(hip3ToHyperliquid, 'HIP-3 Fees To Hyperliquid');
+
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -35,9 +47,10 @@ const adapter: SimpleAdapter = {
   start: '2025-12-16',
   doublecounted: true,
   methodology: {
-    Fees: "Trading fees paid by users for perps in using Hyperliquid HIP-3 markets and builder code.",
-    Revenue: "Fees collected by Kinetiq Revenue from Hyperliquid and HIP-3 markets.",
-    ProtocolRevenue: "Fees collected by Kinetiq as Builder Revenue from Hyperliquid and HIP-3 markets.",
+    Fees: "Trading fees paid by users on Hyperliquid via Kinetiq's builder code and its HIP-3 markets.",
+    Revenue: "Builder-code fees (retained by Kinetiq) plus Kinetiq's deployer-fee cut of its HIP-3 market fees.",
+    ProtocolRevenue: "Same as Revenue — retained by Kinetiq.",
+    SupplySideRevenue: "The remainder of HIP-3 market fees, paid through to Hyperliquid.",
   },
   breakdownMethodology: {
     Fees: {
@@ -45,12 +58,15 @@ const adapter: SimpleAdapter = {
       'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
     },
     Revenue: {
-      'Hyperliquid Builder Code Fees': 'All perps trading fees using Hyperliquid builder code.',
-      'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
+      'Hyperliquid Builder Code Fees': 'Builder-code fees retained by Kinetiq.',
+      'Hyperliquid HIP-3 Markets Fees': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     ProtocolRevenue: {
-      'Hyperliquid Builder Code Fees': 'All perps trading fees using Hyperliquid builder code.',
-      'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
+      'Hyperliquid Builder Code Fees': 'Builder-code fees retained by Kinetiq.',
+      'Hyperliquid HIP-3 Markets Fees': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
+    },
+    SupplySideRevenue: {
+      'HIP-3 Fees To Hyperliquid': 'HIP-3 market fees paid through to Hyperliquid (not retained by Kinetiq).',
     },
   }
 };
