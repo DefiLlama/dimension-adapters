@@ -796,6 +796,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "sheriff-v2": {
     [CHAIN.ROBINHOOD]: { factory: "0x10F7D1eF77f58181484936170430DF13539C5162", fees: 0.005, revenueRatio: 0.3, protocolRevenueRatio: 0.3, start: "2026-07-03" }
+  },
+  "parityswap-v2": {
+    [CHAIN.ROBINHOOD]: { factory: "0xaA5f8c18EF9be81ffED30c223F9CD0D012a2AdB9", fees: 0.003, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, start: "2026-07-20" }
   }
 }
 
