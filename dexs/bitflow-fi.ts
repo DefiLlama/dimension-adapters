@@ -22,6 +22,8 @@ interface Token {
   priceData: { last_price: number } | null;
 }
 
+// native STX shows up as "Stacks" in the spot feed and as its wrapped SIP-010 token
+// (token-stx-v-1-2) in the DLMM feed; both price under STX_PRICE_KEY
 const isStacksToken = (currency: string) =>
   currency === "Stacks" ||
   currency === "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2";
