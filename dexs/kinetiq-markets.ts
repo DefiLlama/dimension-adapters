@@ -23,11 +23,11 @@ const fetch = async (options: FetchOptions) => {
 
   // Builder-code fees are retained entirely by Kinetiq.
   dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
-  dailyRevenue.add(builderFees, 'Hyperliquid Builder Code Fees');
+  dailyRevenue.add(builderFees, 'Builder Code Fees To Kinetiq');
 
   // On HIP-3 markets Kinetiq only keeps its deployer-fee cut; the rest is paid through to Hyperliquid.
   dailyFees.add(hip3Fees, 'Hyperliquid HIP-3 Markets Fees');
-  dailyRevenue.add(hip3DeployerFee, 'Hyperliquid HIP-3 Markets Fees');
+  dailyRevenue.add(hip3DeployerFee, 'HIP-3 Deployer Fees To Kinetiq');
   const hip3ToHyperliquid = hip3Fees.clone();
   hip3ToHyperliquid.subtract(hip3DeployerFee);
   dailySupplySideRevenue.add(hip3ToHyperliquid, 'HIP-3 Fees To Hyperliquid');
@@ -58,12 +58,12 @@ const adapter: SimpleAdapter = {
       'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
     },
     Revenue: {
-      'Hyperliquid Builder Code Fees': 'Builder-code fees retained by Kinetiq.',
-      'Hyperliquid HIP-3 Markets Fees': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
+      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
+      'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     ProtocolRevenue: {
-      'Hyperliquid Builder Code Fees': 'Builder-code fees retained by Kinetiq.',
-      'Hyperliquid HIP-3 Markets Fees': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
+      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
+      'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     SupplySideRevenue: {
       'HIP-3 Fees To Hyperliquid': 'HIP-3 market fees paid through to Hyperliquid (not retained by Kinetiq).',
