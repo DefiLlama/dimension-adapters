@@ -876,6 +876,12 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
       '0x914d7f841b5ee14d1cd3852c7b2601b6ff6a8c52', // Enigma-Hypedexer-Meria-HypurrFi
     ],
   },
+  "hyperliquid-strategies-staking": {
+    // "Hyperliquid Strategies x Unit" validator, run by Hyperliquid Strategies Inc
+    // (NASDAQ: PURR) — the largest publicly listed HYPE treasury company — with Unit Labs.
+    // Largest HYPE validator not yet tracked by any staking adapter (~22.5M HYPE).
+    addressesOrNames: ['0xd6a72f04b9868d5d6050376d5d7b729f47305cec'],
+  },
 }
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
