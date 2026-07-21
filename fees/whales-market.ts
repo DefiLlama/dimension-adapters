@@ -18,7 +18,7 @@ const config: Record<string, { start: string; feeWallets?: [number, string][] }>
   [CHAIN.BASE]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1713416461, W_5876]] },
   [CHAIN.ERA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716477360, W_5876]] },
   [CHAIN.ARBITRUM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1716439342, W_5876]] },
-  [CHAIN.BSC]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1711083578, W_5876], [1764018375, W_89C8], [1777646002, W_89C8]] },
+  [CHAIN.BSC]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1711083578, W_5876], [1764018375, W_89C8], [1764020778, W_5876],[1777646002, W_89C8]] },
   [CHAIN.OPTIMISM]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1762834185, W_5876]] },
   [CHAIN.LINEA]: { start: "2024-01-29", feeWallets: [[1706486400, W_914B], [1712662157, W_5876]] },
   [CHAIN.MODE]: { start: "2024-02-15", feeWallets: [[1707955200, W_914B], [1713518461, W_5876]] },
