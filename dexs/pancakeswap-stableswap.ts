@@ -10,87 +10,76 @@ const METRIC = {
   BUY_BACK_AND_BURN: 'Buy Back And Burn CAKE',
 }
 
-const PancakeStableswapConfigs: { [key: string]: ICurveDexConfig } = {
-  [CHAIN.BSC]: {
-    start: '2020-09-06',
-    customPools: {
-      [ContractVersion.crypto]: [
-        '0x3EFebC418efB585248A0D2140cfb87aFcc2C63DD',
-        '0xc2F5B9a3d9138ab2B74d581fC11346219eBf43Fe',
-        '0x169F653A54ACD441aB34B73dA9946e2C451787EF',
-        '0x176f274335c8b5fd5ec5e8274d0cf36b08e44a57',
-        '0xb1da7d2c257c5700612bde35c8d7187dc80d79f1',
-        '0x6d8fba276ec6f1eda2344da48565adbca7e4ffa5',
-        '0x85259443fad3dc9ecfafe62f043a020992f0e4fc',
-        '0x7c762fa6393df0a43730f004c868b93af696ae1e',
-        '0x4d7b3f461519bac5436e50b9b9b9a9dc061de6a4',
-        '0x54d5935cd89ea8df2022bbf2fe2f398490b47f67',
-        '0xd791be03a4e0e4b9be62adac8a5cd4ae2813a2d6',
-        '0x7a47b084fa37b88d4dda182f8ba4449963dd34bc',
-        '0xb337e78c4ac4f811a0e47f61f4aba58da8e51103',
-        '0xc54d35a8cfd9f6dae50945df27a91c9911a03ab1',
-        '0xb8204d31379a9b317cd61c833406c972f58eccbc',
-        '0xd8cb82059da7215b1a9604e845d49d3e78d0f95a',
-        '0x25d0ed3b1ce5af0f3ac7da4b39b46fc409bf67e2',
-        '0x49079d07ef47449af808a4f36c2a8dec975594ec',
-        '0x9c138be1d76ee4c5162e0fe9d4eea5542a23d1bd',
-        '0x0b03e3d6ec0c5e5bbf993ded8d947c6fb6eec18d',
-        '0xff5ce4846a3708ea9befa6c3ab145e63f65dc045',
-        '0xe1cf7b307d1136e12dc5c21aa790648e3b512f56',
-        '0xfc17919098e9f0a0d72093e25ad052a359ae3e43',
-        '0xd68baf485e4635ec6b9821036cad05cb53140160',
-      ]
-    }
-  }
+// pools discovered via pairLength()/swapPairContract(i) — factory lacks Curve's pool_count/pool_list
+const PancakeStableswapConfigs: { [chain: string]: { start: string; factory: string } } = {
+  [CHAIN.BSC]: { start: '2020-09-06', factory: '0x25a55f9f2279a54951133d503490342b50e5cd15' },
+  [CHAIN.ETHEREUM]: { start: '2024-07-25', factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054' },
+  [CHAIN.ARBITRUM]: { start: '2024-01-11', factory: '0x5D5fBB19572c4A89846198c3DBEdB2B6eF58a77a' },
 };
+
+async function getStableSwapPools(options: FetchOptions, factory: string): Promise<Array<string>> {
+  const pairLength = await options.api.call({ target: factory, abi: 'uint256:pairLength' });
+  return options.api.multiCall({
+    target: factory,
+    abi: 'function swapPairContract(uint256) view returns (address)',
+    calls: Array.from({ length: Number(pairLength) }, (_, i) => i),
+  });
+}
+
+async function fetch(options: FetchOptions) {
+  const { start, factory } = PancakeStableswapConfigs[options.chain];
+  const pools = await getStableSwapPools(options, factory);
+  const config: ICurveDexConfig = { start, customPools: { [ContractVersion.crypto]: pools } };
+
+  const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, config)
+
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.add(adminFees.clone(0.2), METRIC.PROTOCOL_REVENUE) // 10% of swap fees → treasury
+  dailyRevenue.add(adminFees.clone(0.8), METRIC.HOLDERS_REVENUE) // 40% of swap fees → CAKE buyback
+
+  const lpFees = swapFees.clone(1)
+  lpFees.subtract(adminFees)
+
+  return {
+    dailyVolume,
+    dailyFees: swapFees.clone(1, METRIC.SWAP_FEES),
+    dailyRevenue,
+    dailyProtocolRevenue: adminFees.clone(0.2, METRIC.PROTOCOL_REVENUE),
+    dailySupplySideRevenue: lpFees.clone(1, METRIC.LP_REVENUE),
+    dailyHoldersRevenue: adminFees.clone(0.8, METRIC.BUY_BACK_AND_BURN),
+  };
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  chains: Object.keys(PancakeStableswapConfigs),
-  fetch: async function (options: FetchOptions) {
-    const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, PancakeStableswapConfigs[options.chain])
-
-    const dailyRevenue = options.createBalances()
-    dailyRevenue.add(adminFees.clone(0.2), METRIC.PROTOCOL_REVENUE) // 10% from admin fees
-    dailyRevenue.add(adminFees.clone(0.8), METRIC.HOLDERS_REVENUE) // 40% from admin fees
-
-    const lpFees = swapFees.clone(1)
-    lpFees.subtract(adminFees)
-
-    return {
-      dailyVolume,
-      dailyFees: swapFees.clone(1, METRIC.SWAP_FEES),
-      dailyRevenue,
-      dailyProtocolRevenue: adminFees.clone(0.2, METRIC.PROTOCOL_REVENUE),
-      dailySupplySideRevenue: lpFees.clone(1, METRIC.LP_REVENUE),
-      dailyHoldersRevenue: adminFees.clone(0.8, METRIC.BUY_BACK_AND_BURN),
-    };
-  },
+  adapter: Object.fromEntries(
+    Object.entries(PancakeStableswapConfigs).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
+  ),
   methodology: {
-    UserFees: "User pays 0.25% fees on each swap.",
-    ProtocolRevenue: "Treasury receives 10% of the fees.",
-    SupplySideRevenue: "LPs receive 50% of the fees.",
-    HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-    Revenue: "Revenue is 50% of the fees paid by users.",
-    Fees: "All fees comes from the user fees, which is 0.25% of each trade."
+    UserFees: "Traders pay each pool's configured swap fee, read on-chain per pool (ranges roughly 0.01%–0.25%).",
+    Fees: "Total swap fees charged to traders, using each pool's on-chain fee rate.",
+    Revenue: "Half of the swap fees (the pool admin fee); the other half stays with liquidity providers.",
+    ProtocolRevenue: "Treasury keeps 10% of swap fees (20% of the admin fee).",
+    SupplySideRevenue: "Liquidity providers keep 50% of swap fees (the non-admin half).",
+    HoldersRevenue: "40% of swap fees (80% of the admin fee) funds CAKE buyback and burn.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.SWAP_FEES]: 'User pays 0.25% fees on each swap',
+      [METRIC.SWAP_FEES]: "Each pool's on-chain swap fee applied to trade volume.",
     },
     Revenue: {
-      [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 10% of the fees.',
-      [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
+      [METRIC.PROTOCOL_REVENUE]: 'Treasury keeps 10% of swap fees.',
+      [METRIC.HOLDERS_REVENUE]: '40% of swap fees funds CAKE buyback and burn.',
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 10% of the fees.',
+      [METRIC.PROTOCOL_REVENUE]: 'Treasury keeps 10% of swap fees.',
     },
     SupplySideRevenue: {
-      [METRIC.LP_REVENUE]: 'LPs receive 50% of the fees.',
+      [METRIC.LP_REVENUE]: 'Liquidity providers keep 50% of swap fees.',
     },
     HoldersRevenue: {
-      [METRIC.BUY_BACK_AND_BURN]: 'A 40% of the fees is used to facilitate CAKE buyback and burn.',
+      [METRIC.BUY_BACK_AND_BURN]: '40% of swap fees funds CAKE buyback and burn.',
     },
   }
 };
