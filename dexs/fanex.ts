@@ -50,17 +50,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances()
   dailyVolume.add(ADDRESSES.solana.SOL, Number(rows?.[0]?.volume_lamports ?? 0))
 
-  // All fee-wallet inflow is booked under a single label: getSolanaReceived returns
-  // one SOL total, so the 6% fundraise share, 1% swap fee, 3% dividend cut and
-  // harvested LP fees can't be split into distinct on-chain labels.
+  // Fees = gross inflow to the fee wallet, labeled by SOURCE (trading fees).
+  // getSolanaReceived returns one SOL total, so the 6% fundraise share, 1% swap
+  // fee, 3% dividend cut and harvested LP fees can't be split into distinct labels.
   const dailyFees = options.createBalances()
   dailyFees.addBalances(feesReceived, METRIC.TRADING_FEES)
+
+  // Revenue = the same SOL, labeled by DESTINATION: Fanex keeps 100% of what its
+  // fee wallet collects (no supply-side cut is netted here — see methodology), so
+  // it all accrues to the protocol treasury.
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addBalances(feesReceived, METRIC.PROTOCOL_FEES)
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 
@@ -85,10 +91,10 @@ const adapter: SimpleAdapter = {
         'All SOL received by the Fanex fee wallet: the 6% fundraise share + 1% platform swap fee on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
     },
     Revenue: {
-      [METRIC.TRADING_FEES]: 'Fanex retains all fee-wallet inflow, so revenue equals fees.',
+      [METRIC.PROTOCOL_FEES]: 'All fee-wallet inflow is retained by Fanex, so revenue equals fees.',
     },
     ProtocolRevenue: {
-      [METRIC.TRADING_FEES]: 'All fee-wallet inflow accrues to the Fanex treasury.',
+      [METRIC.PROTOCOL_FEES]: 'All fee-wallet inflow accrues to the Fanex protocol treasury.',
     },
   },
 }
