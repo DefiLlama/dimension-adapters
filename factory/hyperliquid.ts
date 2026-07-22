@@ -335,6 +335,9 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "ranger-finance-perps": { addresses: ["0xf5bc9107916b91a3ea5966cd2e51655d21b7eb02"], start: "2025-08-12" },
   "senpi-perps": { addresses: ["0x1368f4311db5807f7c7924d736adaeb83e47bafe"], start: "2025-11-10" },
   "splashos-perps": {
+    // Splash Wallet builder code. Source: HyperTracker public builder registry
+    // (refCode "Splash", joined 2025-06-04). Was previously mis-set to CoinPilot's
+    // builder address (shared with coinpilot-perps above), which double-counted CoinPilot.
     addresses: ["0x3f24962739e6d703942dc2456e7c51c8d0ca4b70"],
     start: "2025-06-04",
     methodology: {
