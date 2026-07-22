@@ -3,6 +3,7 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from '../adapt
 import { CHAIN } from '../helpers/chains'
 import { queryDuneSql } from '../helpers/dune'
 import { getSolanaReceived } from '../helpers/token'
+import { METRIC } from '../helpers/metrics'
 
 // Fanex — YouTube creator-token launchpad on Solana. New tokens trade on a custom on-chain
 // bonding-curve program `fanex_curve` (program id CDPwGWGWbAE8FL5f2oVdzfkTutrnsKJcAcgqWktC3dwZ).
@@ -40,7 +41,7 @@ const VOLUME_SQL = (options: FetchOptions) => `
 // `
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const [rows, dailyFees] = await Promise.all([
+  const [rows, feesReceived] = await Promise.all([
     queryDuneSql(options, VOLUME_SQL(options)),
     // If treasury top-ups from known Fanex-owned wallets ever need excluding, add `blacklists: [...]`.
     getSolanaReceived({ target: FANEX_FEE_WALLET, options }),
@@ -48,6 +49,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   const dailyVolume = options.createBalances()
   dailyVolume.add(ADDRESSES.solana.SOL, Number(rows?.[0]?.volume_lamports ?? 0))
+
+  // All fee-wallet inflow is booked under a single label: getSolanaReceived returns
+  // one SOL total, so the 6% fundraise share, 1% swap fee, 3% dividend cut and
+  // harvested LP fees can't be split into distinct on-chain labels.
+  const dailyFees = options.createBalances()
+  dailyFees.addBalances(feesReceived, METRIC.TRADING_FEES)
 
   return {
     dailyVolume,
@@ -71,6 +78,18 @@ const adapter: SimpleAdapter = {
     Fees: 'All value received by the Fanex fee wallet on Solana: the 6% fundraise share plus the 1% platform swap fee taken on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
     Revenue: 'Fanex retains 100% of what its fee wallet collects, so revenue equals fees.',
     ProtocolRevenue: 'Equal to revenue — all of it accrues to the Fanex treasury. The 94% creator fundraise share is paid directly to creators and is not received by this wallet.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]:
+        'All SOL received by the Fanex fee wallet: the 6% fundraise share + 1% platform swap fee on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: 'Fanex retains all fee-wallet inflow, so revenue equals fees.',
+    },
+    ProtocolRevenue: {
+      [METRIC.TRADING_FEES]: 'All fee-wallet inflow accrues to the Fanex treasury.',
+    },
   },
 }
 
