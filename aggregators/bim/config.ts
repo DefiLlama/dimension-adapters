@@ -86,6 +86,8 @@ export const BIM_NEW_API_CHAINS: Array<string> = [
     CHAIN.PLASMA,
     CHAIN.HYPERLIQUID,
     CHAIN.AVAX,
+    CHAIN.BERACHAIN,
+    CHAIN.BSC,
 ];
 
 // legacy chains (for refills of pre-June-24 days) + new API chains

@@ -206,6 +206,7 @@ export enum CHAIN {
   FUEL = "fuel",
   REAL = "real",
   CELESTIA = "celestia",
+  EDEN = "eden",
   MORPH = "morph",
   APECHAIN = "apechain",
   DCHAIN = "dchainmainnet",

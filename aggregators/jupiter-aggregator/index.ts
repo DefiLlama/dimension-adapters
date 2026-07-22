@@ -6,10 +6,22 @@ const DEX_TRADES_START = '2025-09-01'; //aggregator_swaps coverage incomplete fr
 
 const newQuery = (options: FetchOptions) => `
   SELECT COALESCE(SUM(amount_usd), 0) AS volume_24
-  FROM dex_solana.trades
-  WHERE block_time >= from_unixtime(${options.startTimestamp})
-    AND block_time <  from_unixtime(${options.endTimestamp})
-    AND trade_source = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'
+  FROM (
+    SELECT
+      amount_usd,
+      -- dex_solana.trades has one row per pool hop, so a multi-hop route would
+      -- otherwise be counted once per hop. One Jupiter swap is one outer
+      -- instruction, and a transaction can carry several of them.
+      ROW_NUMBER() OVER (
+        PARTITION BY tx_id, trader_id, outer_instruction_index
+        ORDER BY amount_usd DESC
+      ) AS rn
+    FROM dex_solana.trades
+    WHERE block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time <  from_unixtime(${options.endTimestamp})
+      AND trade_source = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'
+  )
+  WHERE rn = 1
 `;
 
 const legacyQuery = (options: FetchOptions) => `
