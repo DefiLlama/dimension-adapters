@@ -782,6 +782,29 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  // CCXT trading library builder code (HyperTracker public builder registry,
+  // refCode "CCXT1", joined 2025-07-16). ~$310k of accrued builder fees on
+  // HyperCore, not tracked by any existing config.
+  "ccxt-perps": {
+    addresses: ["0x6530512a6c89c7cfcebc3ba7fcd9ada5f30827a6"],
+    start: "2025-07-16",
+    methodology: {
+      Fees: "Builder code fees paid by users trading Hyperliquid perps via CCXT.",
+      Revenue: "Builder code fees collected by CCXT from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by CCXT from Hyperliquid perps trades.",
+    },
+  },
+  // Owly.fi asset-management / copy-trading app on Hyperliquid (app.owly.fi;
+  // HyperTracker public builder registry, joined 2025-12-17). Untracked builder.
+  "owly-fi-perps": {
+    addresses: ["0x2e2e7c7696134f740aea7242a55b55d5cf769fab"],
+    start: "2025-12-17",
+    methodology: {
+      Fees: "Builder code fees paid by users trading Hyperliquid perps via Owly.fi.",
+      Revenue: "Builder code fees collected by Owly.fi from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Owly.fi from Hyperliquid perps trades.",
+    },
+  },
 };
 
 
