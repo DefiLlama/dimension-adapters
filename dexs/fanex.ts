@@ -58,7 +58,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  // v1 is required for Dune-backed adapters: Dune runs once per day, so a v2
+  // (hourly) adapter would needlessly re-run the same expensive query.
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2026-06-30', // first fanex_curve mainnet trade (2026-06-30T19:52:40Z)
