@@ -48,7 +48,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   skipBreakdownValidation: true,
   adapter: {
-    [CHAIN.OFF_CHAIN]: {
+    [CHAIN.MANTLE]: {
       fetch: fetchOffChain,
       start: "2026-06-03",
     },
