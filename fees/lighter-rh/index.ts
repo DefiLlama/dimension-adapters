@@ -38,24 +38,34 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
+  // Protocol revenue: maker, taker, transfer and withdraw fees.
   dailyRevenue.addUSDValue(tradingFees, METRIC.TRADING_FEES)
   dailyRevenue.addUSDValue(transferFee, 'Transfer Fees')
   dailyRevenue.addUSDValue(withdrawFee, METRIC.DEPOSIT_WITHDRAW_FEES)
-  dailyFees.addUSDValue(liquidationFee, METRIC.LIQUIDATION_FEES)
+
+  // Liquidation fees are routed to the Lighter Liquidity Pool (LLP) — i.e. the
+  // supply side (liquidity providers), not the protocol. Booking them as
+  // supply-side revenue keeps dailyFees = dailyRevenue + dailySupplySideRevenue.
+  dailySupplySideRevenue.addUSDValue(liquidationFee, METRIC.LIQUIDATION_FEES)
+
   dailyFees.addBalances(dailyRevenue)
+  dailyFees.addBalances(dailySupplySideRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const methodology = {
-  Fees: 'Maker, taker and liquidation fees paid by traders on the Lighter Robinhood perpetuals deployment.',
-  Revenue: 'Protocol revenue from maker and taker fees, plus transfer and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
-  ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury.',
+  Fees: 'All fees paid by traders on the Lighter Robinhood perpetuals deployment: maker, taker, transfer, withdraw and liquidation fees.',
+  Revenue: 'Protocol revenue from maker, taker, transfer and withdraw fees. Liquidation fees are excluded — they go to the LLP (see SupplySideRevenue).',
+  ProtocolRevenue: 'Same as Revenue: maker, taker, transfer and withdraw fees retained by the protocol.',
+  SupplySideRevenue: 'Liquidation fees, which are paid to the Lighter Liquidity Pool (LLP) — i.e. to liquidity providers, not the protocol.',
 }
 
 const breakdownMethodology = {
@@ -63,7 +73,20 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
     'Transfer Fees': 'Transfer fees paid by traders on Lighter.',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on Lighter.',
-    [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by traders on Lighter.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by traders, routed to the LLP.',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Maker and taker fees retained by the protocol.',
+    'Transfer Fees': 'Transfer fees retained by the protocol.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees retained by the protocol.',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: 'Maker and taker fees retained by the protocol.',
+    'Transfer Fees': 'Transfer fees retained by the protocol.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees retained by the protocol.',
+  },
+  SupplySideRevenue: {
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid to the Lighter Liquidity Pool (LLP).',
   },
 }
 
