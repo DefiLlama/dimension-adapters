@@ -10,11 +10,14 @@ const METRIC = {
   BUY_BACK_AND_BURN: 'Buy Back And Burn CAKE',
 }
 
-// pools discovered via pairLength()/swapPairContract(i) — factory lacks Curve's pool_count/pool_list
-const PancakeStableswapConfigs: { [chain: string]: { start: string; factory: string } } = {
+// StableSwap factory per chain (same factories DefiLlama's TVL adapter uses:
+// DefiLlama-Adapters/projects/pancake-swap-stableswap). Pools are discovered on-chain via
+// pairLength()/swapPairContract(i) — the factory lacks Curve's pool_count/pool_list.
+// start = factory deploy date; BSC start kept from the original config.
+const chainConfig: { [chain: string]: { start: string; factory: string } } = {
   [CHAIN.BSC]: { start: '2020-09-06', factory: '0x25a55f9f2279a54951133d503490342b50e5cd15' },
-  [CHAIN.ETHEREUM]: { start: '2024-07-25', factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054' },
-  [CHAIN.ARBITRUM]: { start: '2024-01-11', factory: '0x5D5fBB19572c4A89846198c3DBEdB2B6eF58a77a' },
+  [CHAIN.ETHEREUM]: { start: '2024-07-25', factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054' }, // deploy block 20362671
+  [CHAIN.ARBITRUM]: { start: '2024-01-11', factory: '0x5D5fBB19572c4A89846198c3DBEdB2B6eF58a77a' }, // deploy block 169319653
 };
 
 async function getStableSwapPools(options: FetchOptions, factory: string): Promise<Array<string>> {
@@ -27,7 +30,7 @@ async function getStableSwapPools(options: FetchOptions, factory: string): Promi
 }
 
 async function fetch(options: FetchOptions) {
-  const { start, factory } = PancakeStableswapConfigs[options.chain];
+  const { start, factory } = chainConfig[options.chain];
   const pools = await getStableSwapPools(options, factory);
   const config: ICurveDexConfig = { start, customPools: { [ContractVersion.crypto]: pools } };
 
@@ -53,9 +56,8 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    Object.entries(PancakeStableswapConfigs).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
-  ),
+  fetch,
+  adapter: chainConfig,
   methodology: {
     UserFees: "Traders pay each pool's configured swap fee, read on-chain per pool (ranges roughly 0.01%–0.25%).",
     Fees: "Total swap fees charged to traders, using each pool's on-chain fee rate.",
