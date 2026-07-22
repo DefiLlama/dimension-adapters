@@ -64,7 +64,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 		target: poolAddress,
 	})
 
-	dailyFees.add(feeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore), METRIC.BORROW_INTEREST)
+	// USDa is Avalon's USD-pegged stablecoin (peggedUSD on DefiLlama's stablecoin
+	// list, ~$145m circulating) but coins.llama.fi does not price it, so
+	// dailyFees.add(feeTokenAddress, ...) values the interest at $0. Value the USDa
+	// interest at its $1 peg using the token's own decimals instead.
+	const usdaDecimals = Number(await options.fromApi.call({ abi: 'erc20:decimals', target: feeTokenAddress }))
+	const usdaInterest = (Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore)) / 10 ** usdaDecimals
+	dailyFees.addUSDValue(usdaInterest, METRIC.BORROW_INTEREST)
 
 	// @dev Ethereum has both V1 and V2 pools, so we need to add the fees from the V1 pool
 	if (options.chain === CHAIN.ETHEREUM) {
