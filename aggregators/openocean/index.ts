@@ -46,6 +46,7 @@ const CHAINS: Record<string, string> = {
   [CHAIN.SUI]: "2025-05-17",
   [CHAIN.NEAR]: "2025-05-17",
   [CHAIN.STARKNET]: "2025-05-17",
+  [CHAIN.ROBINHOOD]: "2026-05-17",
 };
 
 const fetch = async (options: FetchOptions) => {
