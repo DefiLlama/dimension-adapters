@@ -71,6 +71,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch,
+      start: '2025-03-26',
     },
   },
 };
