@@ -30,7 +30,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
-import { METRIC } from "../../helpers/metrics"
 
 const ROUTER = "0x6cbBBef3783CA0EfF752A1855206Fa4A69453b8c";
 
@@ -47,24 +46,28 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   });
   for (const log of logs) {
     addOneToken({ chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOutToUser })
-    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES)
+    dailyFees.add(log.tokenOut, log.fee, "Router Skim Fees")
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
   Volume: "Sum of swap volume routed through the PurrFlow Aggregator Router on Bitkub Chain.",
   Fees: "Router-skim fee deducted from every Swapped event (currently 0.60%), hard-capped at 1.00% per route.",
-  Revenue: "100% of the swap fees accrue to the protocol treasury.",
+  Revenue: "All the router-skim fees deducted from each swap accrue to the protocol treasury.",
+  "Protocol Revenue": "All the router-skim fees deducted from each swap accrue to the protocol treasury.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
+    "Router Skim Fees": "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
   },
   Revenue: {
-    [METRIC.SWAP_FEES]: "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
+    "Router Skim Fees": "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
+  },
+  "Protocol Revenue": {
+    "Router Skim Fees": "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
   },
 };
 
