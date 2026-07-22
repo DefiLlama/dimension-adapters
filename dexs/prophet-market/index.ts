@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
 
   const logs = await options.getLogs({
-    target: EXCHANGE_ADDRESS,
+    targets: [EXCHANGE_ADDRESS],
     eventAbi: ORDER_FILLED_ABI,
     onlyArgs: true,
   });
@@ -47,18 +47,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "USDC notional traded through OrderFilled events on Prophet's CTF exchange. Each trade's USDC leg " +
       "(the side with asset id 0) is summed; complementary mint/merge legs sum to the collateral of a complete " +
       "set, so the raw sum is the true notional and is not divided.",
   },
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: 1777608094, // block 86244025, ProphetCTFExchange deployment (2026-05-01)
-    },
-  },
+  chains: [CHAIN.POLYGON],
+  start: 1777608094, // block 86244025, ProphetCTFExchange deployment (2026-05-01)
+  fetch,
 };
 
 export default adapter;
