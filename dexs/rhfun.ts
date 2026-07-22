@@ -5,9 +5,19 @@ import { CHAIN } from "../helpers/chains";
 // Volume = trades executed on the bonding curves themselves (gross collateral,
 // fees included). Post-graduation swaps execute on the chain's Uniswap V2 DEX
 // (a different venue) and are not counted here.
+// RHFactory proxy: single entry point that emits all market events
+// (NewRHTokenCurveParams / NewRHTaxTokenParams on creation, Buy/Sell on trades,
+// V2Migrated on graduation). Deployed via delegatecall modules, so all events
+// surface under this address.
 export const FACTORY = '0x32a00Df7C511A882f3A7a18bcD69367880239726'
+// Block of the first NewRHTokenCurveParams event on the factory (verified by an
+// unbounded eth_getLogs scan) — no market events exist before this block.
 export const FACTORY_DEPLOY_BLOCK = 12923899
+// Canonical WETH on Robinhood Chain (chain id 4663); the quote token used by
+// tax accounting for native-ETH markets.
 export const WETH = '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'
+
+const ZERO = '0x0000000000000000000000000000000000000000'
 
 export const CURVE_EVENT = 'event NewRHTokenCurveParams(address indexed addr, address indexed bondingCurve, uint256 initialTokenSupply, uint256 virtualCollateralReservesInitial, uint256 virtualTokenReservesInitial, uint256 feeBPS, uint256 mcLowerLimit, uint256 mcUpperLimit, uint256 tokensMigrationThreshold, uint256 fixedMigrationFee, uint256 firstBuyFee, uint256 targetCollectionAmount, address collateralToken)'
 export const TAX_EVENT = 'event NewRHTaxTokenParams(address indexed token, address indexed bondingCurve, address indexed collateralToken, address mainPool, address taxProcessor, address dividendContract, uint16 taxRateBps, uint64 taxDuration, uint64 antiFarmerDuration, uint256 minBuyBackQuote, uint16 processorFeeRateCurve, uint16 processorFeeRateDex, uint16 processorMarketBps, uint16 processorDeflationBps, uint16 processorLpBps, uint16 processorDividendBps, uint256 minimumShareBalance, address marketAddress)'
@@ -45,12 +55,12 @@ async function fetch(options: FetchOptions) {
   buys.forEach((log: any) => {
     const collateral = collateralOf[String(log.token).toLowerCase()]
     if (collateral === undefined) return
-    dailyVolume.add(collateral, log.collateralAmount, 'Bonding Curve Trades')
+    dailyVolume.add(collateral === ZERO ? WETH : collateral, log.collateralAmount, 'Bonding Curve Trades')
   })
   sells.forEach((log: any) => {
     const collateral = collateralOf[String(log.token).toLowerCase()]
     if (collateral === undefined) return
-    dailyVolume.add(collateral, BigInt(log.collateralAmount) + BigInt(log.tradeFee), 'Bonding Curve Trades')
+    dailyVolume.add(collateral === ZERO ? WETH : collateral, BigInt(log.collateralAmount) + BigInt(log.tradeFee), 'Bonding Curve Trades')
   })
 
   return { dailyVolume }
