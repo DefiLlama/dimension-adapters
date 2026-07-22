@@ -78,19 +78,20 @@ const fetchSolana = async (options: FetchOptions) => {
     FROM (
       SELECT
         amount_usd,
-        -- dex_solana.trades has one row per pool hop, so a multi-hop route would
-        -- otherwise be counted once per hop. One 0x swap is one outer
-        -- instruction, and a transaction can carry several of them.
-        ROW_NUMBER() OVER (
+        token_sold_mint_address,
+        -- dex_solana.trades has one row per pool hop. One 0x swap is one
+        -- outer instruction; its volume is the sum of the legs that sell the
+        -- route's entry mint: each parallel branch once.
+        FIRST_VALUE(token_sold_mint_address) OVER (
           PARTITION BY tx_id, trader_id, outer_instruction_index
-          ORDER BY amount_usd DESC
-        ) AS rn
+          ORDER BY inner_instruction_index ASC
+        ) AS entry_mint
       FROM dex_solana.trades
       WHERE block_time >= from_unixtime(${options.startTimestamp})
         AND block_time <  from_unixtime(${options.endTimestamp})
         AND trade_source = '${SOLANA_PROGRAM}'
     )
-    WHERE rn = 1
+    WHERE token_sold_mint_address = entry_mint
   `,
   );
   const row = data[0];
