@@ -45,11 +45,13 @@ const fetch = async (options: FetchOptions) => {
 
   // Entry notional per token_in (not hop-weighted routed volume).
   const tokens = row.by_token ?? [];
-  if (tokens.length > 0) {
-    for (const t of tokens) {
-      if (!t.token || t.amount_in == null) continue;
-      dailyVolume.add(t.token, t.amount_in);
-    }
+  let hasTokenVolume = false;
+  for (const t of tokens) {
+    if (!t.token || t.amount_in == null) continue;
+    dailyVolume.add(t.token, t.amount_in);
+    hasTokenVolume = true;
+  }
+  if (hasTokenVolume) {
     return { dailyVolume };
   }
 
@@ -60,18 +62,25 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+const methodology = {
+  Volume:
+    "Sum of user swap entry amounts (token_in notional) through the LumAgg aggregator contract on Stellar. Multi-hop routed volume (entry × serial hops) is excluded. Source: https://api.lumagg.xyz/api/v1/stats",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    "Swap entry notional":
+      "USD entry notional used when token-level amounts are unavailable.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.STELLAR]: {
-      fetch,
-      start: START,
-    },
-  },
-  methodology: {
-    Volume:
-      "Sum of user swap entry amounts (token_in notional) through the LumAgg aggregator contract on Stellar. Multi-hop routed volume (entry × serial hops) is excluded. Source: https://api.lumagg.xyz/api/v1/stats",
-  },
+  fetch,
+  chains: [CHAIN.STELLAR],
+  start: START,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
