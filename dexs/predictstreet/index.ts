@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // CTFExchange (binary markets) / NegRiskCtfExchange (multi-outcome markets) — the
 // same deployments exchange-service verifies EIP712 signatures against
 // (EXCHANGE_CONTRACT_ADDRESS / EXCHANGE_CONTRACT_ADDRESS_NEG_RISK) and chain-watcher
 // indexes OrderFilled from (CTF_EXCHANGE_ADDRESS / PREDICTSTREET_NEGRISK_CTF_EXCHANGE_ADDRESS).
+//FEE_WALLET = "0x0a3EDDe878fa0f5a9A8c95C8054283Ffb2fb0df2"
 const CTF = "0x90EA87493E208A14011EC700Ac9cbAf4d064acc0";
 const NEGRISK = "0x79ACbb874dd01044FA38a89c1478E60FaAB40D00";
 const EXCHANGES = [CTF, NEGRISK];
@@ -48,8 +50,8 @@ const fetch = async (options: FetchOptions) => {
     // double-emit like volume) so no ÷2. SELL leg (takerAssetId 0): fee in
     // USDC.e. BUY leg (makerAssetId 0): fee in outcome shares, valued at fill price.
     const fee = toUnits(log.fee as bigint);
-    if (log.takerAssetId === 0n) dailyFees.addCGToken("usd-coin", fee);
-    else if (lg.qty > 0n) dailyFees.addCGToken("usd-coin", fee * (toUnits(lg.usdc) / toUnits(lg.qty)));
+    if (log.takerAssetId === 0n) dailyFees.addCGToken("usd-coin", fee, METRIC.TRADING_FEES);
+    else if (lg.qty > 0n) dailyFees.addCGToken("usd-coin", fee * (toUnits(lg.usdc) / toUnits(lg.qty)), METRIC.TRADING_FEES);
   }
 
   return { dailyVolume, dailyNotionalVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
@@ -71,7 +73,18 @@ const adapter: SimpleAdapter = {
     Revenue:
       "All trading fees. predictstreet keeps the full fee — there are no maker or liquidity-provider rebates.",
     ProtocolRevenue:
-      "Same as Revenue — every fee is sent to the protocol's fee wallet.",
+      "All trading fees. Predictstreet keeps the full fee — there are no maker or liquidity-provider rebates.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Trading Fees": "Trading fee taken out of each filled order's proceeds. Sellers pay it in USDC.e; buyers pay it in outcome shares, valued at the price they traded at. Both sides of a trade are charged.",
+    },
+    Revenue: {
+      "Trading Fees": "All trading fees. Predictstreet keeps the full fee — there are no maker or liquidity-provider rebates.",
+    },
+    ProtocolRevenue: {
+      "Trading Fees": "All trading fees. Predictstreet keeps the full fee — there are no maker or liquidity-provider rebates.",
+    },
   },
 };
 
