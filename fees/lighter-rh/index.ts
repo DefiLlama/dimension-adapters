@@ -90,7 +90,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // Protocol revenue: maker, taker, transfer and withdrawal fees.
   dailyRevenue.addUSDValue(tradingFees, METRIC.TRADING_FEES)
   dailyRevenue.addUSDValue(totals.transfer_fee, 'Transfer Fees')
-  dailyRevenue.addUSDValue(totals.withdraw_fee, 'Withdrawal Fees')
+  dailyRevenue.addUSDValue(totals.withdraw_fee, METRIC.DEPOSIT_WITHDRAW_FEES)
 
   // Liquidation fees go to the Lighter Liquidity Pool (LLP) — the supply side
   // (liquidity providers), not the protocol. Booking them here keeps
@@ -119,18 +119,18 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading (summed across active perp markets).',
     'Transfer Fees': 'Transfer fees paid by traders on Lighter.',
-    'Withdrawal Fees': 'Withdrawal fees paid by traders on Lighter.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees paid by traders on Lighter.',
     [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by traders, routed to the LLP.',
   },
   Revenue: {
     [METRIC.TRADING_FEES]: 'Maker and taker fees retained by the protocol.',
     'Transfer Fees': 'Transfer fees retained by the protocol.',
-    'Withdrawal Fees': 'Withdrawal fees retained by the protocol.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees retained by the protocol.',
   },
   ProtocolRevenue: {
     [METRIC.TRADING_FEES]: 'Maker and taker fees retained by the protocol.',
     'Transfer Fees': 'Transfer fees retained by the protocol.',
-    'Withdrawal Fees': 'Withdrawal fees retained by the protocol.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees retained by the protocol.',
   },
   SupplySideRevenue: {
     [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid to the Lighter Liquidity Pool (LLP).',
