@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived, nullAddress } from "../../helpers/token";
 
 // 1inch DAO fee exchangers — the receivers encoded into every Aqua strategy's
@@ -30,7 +31,7 @@ const fetch = async (options: FetchOptions) => {
   // Mint transfers (from == 0x0) are excluded: the exchanger holds
   // interest-bearing tokens (e.g. aTokens) whose rebase mints would otherwise
   // count as fee income.
-  const dailyFees = await addTokensReceived({
+  const inflows = await addTokensReceived({
     options,
     target: FEE_EXCHANGER[options.chain],
     logFilter: (log: any) =>
@@ -38,6 +39,9 @@ const fetch = async (options: FetchOptions) => {
         log.from ?? log.from_address ?? log.fromAddress ?? log.args?.from ?? "",
       ).toLowerCase() !== nullAddress,
   });
+
+  const dailyFees = options.createBalances();
+  dailyFees.add(inflows, METRIC.PROTOCOL_FEES);
 
   return {
     dailyFees,
@@ -74,6 +78,20 @@ const adapter: SimpleAdapter = {
       "All counted fees go to the protocol entity; equals dailyFees until LP-retained fees are measurable.",
     ProtocolRevenue:
       "ERC20 transfers received by the per-chain 1inch DAO fee-exchanger addresses, excluding mints (interest-bearing-token rebases). Inflows occur inside Aqua fill transactions.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.PROTOCOL_FEES]:
+        "The DAO's encoded share of Aqua LP swap fees, transferred to the per-chain fee exchanger at fill time (the exchangers were deployed for this purpose on 2026-07-18 and receive nothing else).",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]:
+        "All tracked fee-exchanger inflows are retained by the protocol entity.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]:
+        "Fee-exchanger inflows accrue to the 1inch DAO treasury.",
+    },
   },
 };
 
