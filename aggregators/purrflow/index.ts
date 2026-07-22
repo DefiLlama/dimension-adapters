@@ -66,7 +66,7 @@ const breakdownMethodology = {
   Revenue: {
     "Router Skim Fees": "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
   },
-  "Protocol Revenue": {
+  ProtocolRevenue: {
     "Router Skim Fees": "Router-skim fee deducted from each swap, currently 0.60% and hard-capped at 1.00% per route.",
   },
 };
