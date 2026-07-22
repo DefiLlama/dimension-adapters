@@ -75,10 +75,22 @@ const fetchSolana = async (options: FetchOptions) => {
     options,
     `
     SELECT COALESCE(SUM(amount_usd), 0) AS volume_24
-    FROM dex_solana.trades
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <  from_unixtime(${options.endTimestamp})
-      AND trade_source = '${SOLANA_PROGRAM}'
+    FROM (
+      SELECT
+        amount_usd,
+        -- dex_solana.trades has one row per pool hop, so a multi-hop route would
+        -- otherwise be counted once per hop. One 0x swap is one outer
+        -- instruction, and a transaction can carry several of them.
+        ROW_NUMBER() OVER (
+          PARTITION BY tx_id, trader_id, outer_instruction_index
+          ORDER BY amount_usd DESC
+        ) AS rn
+      FROM dex_solana.trades
+      WHERE block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time <  from_unixtime(${options.endTimestamp})
+        AND trade_source = '${SOLANA_PROGRAM}'
+    )
+    WHERE rn = 1
   `,
   );
   const row = data[0];
