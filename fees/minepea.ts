@@ -136,6 +136,14 @@ const breakdownMethodology = {
     'Vault fees': 'ETH routed to the Treasury vault at settlement (10% of losers pool after admin on normal rounds; the full pot minus admin on no-winner rounds), tracked via VaultReceived events.',
     'Admin fees': 'Admin fees (1% of deployed ETH + 1% of losers pool) derived from RoundSettled events, with no-winner rounds recovered from their paired VaultReceived amount.',
   },
+  UserFees: {
+    'Vault fees': 'Vault fee portion of the fees paid by players out of their deployed ETH.',
+    'Admin fees': 'Admin fee portion of the fees paid by players out of their deployed ETH.',
+  },
+  Revenue: {
+    'Vault fees': 'Holders revenue portion: vault fee ETH funding PEA buybacks.',
+    'Admin fees': 'Protocol revenue portion: admin fees accruing to the protocol fee wallet.',
+  },
   ProtocolRevenue: {
     'Admin fees': 'Admin fees accruing to the protocol fee wallet.',
   },
@@ -146,6 +154,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   chains: [CHAIN.ROBINHOOD],
