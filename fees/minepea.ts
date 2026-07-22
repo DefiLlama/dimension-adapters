@@ -9,22 +9,23 @@
 //   GridMining: 0x46D5459F439E64B8CC2D02e89b137608eA5711CE
 //   Treasury:   0x78Df583557baa1b9C8b8839BeCAAe2eD665Bd7e6
 //
-// Settlement math (GridMining._calculateSettlementFees):
+// Settlement math (GridMining._calculateSettlementFees, all divisions floor):
 //   losersPool     = totalDeployed - winnersDeployed
 //   adminFee       = totalDeployed × 1%
 //   losersAdmin    = losersPool × 1%
 //   vaultAmount    = (losersPool - losersAdmin) × 10%
 //   totalWinnings  = (losersPool - losersAdmin) - vaultAmount
 //
-// So totalWinnings = losersPool × 0.99 × 0.9 = losersPool × 8910 / 10000,
-// which lets us derive losersPool (and from it the admin fees) from the
-// RoundSettled event alone.
+// So totalWinnings ≈ losersPool × 8910 / 10000, which lets us derive losersPool
+// (and from it the admin fees) from the RoundSettled event. The derivation
+// replays the contract's sequential integer divisions to stay wei-exact.
 //
-// Rounds where nobody deployed to the winning block settle via a separate
-// path: the ENTIRE pot minus the 1% admin fee is routed to the Treasury and
-// RoundSettled is emitted with totalWinnings = 0. That vault transfer is fully
-// captured by VaultReceived below; only the 1% admin fee of those rounds is
-// left uncounted (conservative undercount, avoids per-tx log matching).
+// Rounds where nobody deployed to the winning block settle via a separate path
+// (GridMining._settleNoWinners): the ENTIRE pot minus the 1% admin fee is
+// routed to the Treasury and RoundSettled is emitted with all-zero amounts.
+// Both events emit in the same settlement transaction, so those rounds' admin
+// fees are recovered by pairing RoundSettled with the VaultReceived of the
+// same transaction (vault = totalDeployed - adminFee → adminFee = vault/99).
 
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -37,6 +38,27 @@ const ADMIN_FEE_BPS = 100n;   // 1% of totalDeployed
 const VAULT_FEE_BPS = 1000n;  // 10% of losersPool after admin
 const BPS = 10000n;
 
+// Replay of GridMining._calculateSettlementFees for a given losersPool,
+// using the contract's sequential floor divisions.
+const winningsFor = (losersPool: bigint): bigint => {
+  const losersAdmin = losersPool * ADMIN_FEE_BPS / BPS;
+  const afterAdmin = losersPool - losersAdmin;
+  const vaultAmount = afterAdmin * VAULT_FEE_BPS / BPS;
+  return afterAdmin - vaultAmount;
+};
+
+// Invert totalWinnings -> losersPool. Start from the closed-form candidate,
+// then adjust within the flooring error so the contract's sequential math
+// reproduces the emitted totalWinnings exactly.
+const deriveLosersPool = (totalWinnings: bigint): bigint => {
+  const candidate = totalWinnings * BPS * BPS / ((BPS - ADMIN_FEE_BPS) * (BPS - VAULT_FEE_BPS));
+  for (let offset = -3n; offset <= 3n; offset++) {
+    const pool = candidate + offset;
+    if (pool >= 0n && winningsFor(pool) === totalWinnings) return pool;
+  }
+  return candidate;
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
@@ -47,37 +69,50 @@ const fetch = async (options: FetchOptions) => {
   const vaultLogs = await options.getLogs({
     target: TREASURY,
     eventAbi: 'event VaultReceived(uint256 amount, uint256 totalVaulted)',
+    entireLog: true,
+    parseLog: true,
   });
 
-  vaultLogs.forEach((log: any) => {
-    dailyFees.addGasToken(log.amount, 'Vault fees');
-    dailyHoldersRevenue.addGasToken(log.amount, 'Vault fees');
-  });
+  // One settlement per transaction -> map tx to its vault amount so no-winner
+  // rounds can recover their admin fee below
+  const vaultByTx = new Map<string, bigint>();
+  for (const log of vaultLogs as any[]) {
+    const amount = BigInt(log.args.amount);
+    dailyFees.addGasToken(amount, 'Vault fees');
+    dailyHoldersRevenue.addGasToken(amount, 'Vault fees');
+    vaultByTx.set(log.transactionHash.toLowerCase(), amount);
+  }
 
   // RoundSettled gives totalWinnings + winnersDeployed to derive admin fees
   const roundLogs = await options.getLogs({
     target: GRID_MINING,
     eventAbi: 'event RoundSettled(uint64 indexed roundId, uint8 winningBlock, address topMiner, uint256 totalWinnings, uint256 topMinerReward, uint256 peapotAmount, bool isSplit, uint256 topMinerSeed, uint256 winnersDeployed)',
+    entireLog: true,
+    parseLog: true,
   });
 
-  roundLogs.forEach((log: any) => {
-    const totalWinnings = log.totalWinnings;
-    const winnersDeployed = log.winnersDeployed;
+  for (const log of roundLogs as any[]) {
+    const totalWinnings = BigInt(log.args.totalWinnings);
+    const winnersDeployed = BigInt(log.args.winnersDeployed);
 
-    // Derive losersPool: totalWinnings = losersPool × (BPS - ADMIN) / BPS × (BPS - VAULT) / BPS
-    const losersPool = totalWinnings > 0n
-      ? totalWinnings * BPS * BPS / ((BPS - ADMIN_FEE_BPS) * (BPS - VAULT_FEE_BPS))
-      : 0n;
-    const totalDeployed = losersPool + winnersDeployed;
-
-    // Admin fees: 1% on totalDeployed + 1% on losersPool
-    const adminFee = totalDeployed * ADMIN_FEE_BPS / BPS;
-    const losersAdminFee = losersPool * ADMIN_FEE_BPS / BPS;
-    const totalAdminFees = adminFee + losersAdminFee;
+    let totalAdminFees: bigint;
+    if (totalWinnings > 0n) {
+      // Normal round: 1% on totalDeployed + 1% on losersPool
+      const losersPool = deriveLosersPool(totalWinnings);
+      const totalDeployed = losersPool + winnersDeployed;
+      totalAdminFees = totalDeployed * ADMIN_FEE_BPS / BPS + losersPool * ADMIN_FEE_BPS / BPS;
+    } else if (winnersDeployed > 0n) {
+      // Everyone deployed on the winning block: losersPool = 0, base admin fee only
+      totalAdminFees = winnersDeployed * ADMIN_FEE_BPS / BPS;
+    } else {
+      // No-winner round: vault = totalDeployed - adminFee, so adminFee = vault × 1/99
+      const vaultAmount = vaultByTx.get(log.transactionHash.toLowerCase()) ?? 0n;
+      totalAdminFees = vaultAmount * ADMIN_FEE_BPS / (BPS - ADMIN_FEE_BPS);
+    }
 
     dailyFees.addGasToken(totalAdminFees, 'Admin fees');
     dailyProtocolRevenue.addGasToken(totalAdminFees, 'Admin fees');
-  });
+  }
 
   return {
     dailyFees,
@@ -91,18 +126,18 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Fees extracted per round: 1% admin fee on all deployed ETH, 1% admin fee on the losers pool, and a 10% vault fee on the losers pool after admin. On rounds where nobody hit the winning block, the entire pot (minus the admin fee) is routed to the Treasury vault. Variable effective rate depending on winner/loser ratio.',
   UserFees: 'Same as Fees — all fees are paid by players out of their deployed ETH.',
-  Revenue: 'All extracted fees (admin + vault) are protocol revenue.',
-  ProtocolRevenue: 'Admin fees (1% of deployed ETH + 1% of losers pool) sent to the feeCollector wallet for protocol operations.',
+  Revenue: 'All extracted fees: the sum of protocol revenue (admin fees) and holders revenue (vault fees).',
+  ProtocolRevenue: 'Admin fees (1% of deployed ETH + 1% of losers pool) accruing to the protocol fee wallet.',
   HoldersRevenue: 'Vault fee ETH funds automated PEA buybacks — 95% of bought PEA is permanently burned, 5% is distributed to PEA stakers as yield.',
 };
 
 const breakdownMethodology = {
   Fees: {
     'Vault fees': 'ETH routed to the Treasury vault at settlement (10% of losers pool after admin on normal rounds; the full pot minus admin on no-winner rounds), tracked via VaultReceived events.',
-    'Admin fees': 'Admin fees (1% of deployed ETH + 1% of losers pool) derived from RoundSettled events.',
+    'Admin fees': 'Admin fees (1% of deployed ETH + 1% of losers pool) derived from RoundSettled events, with no-winner rounds recovered from their paired VaultReceived amount.',
   },
   ProtocolRevenue: {
-    'Admin fees': 'Admin fees sent to the feeCollector wallet.',
+    'Admin fees': 'Admin fees accruing to the protocol fee wallet.',
   },
   HoldersRevenue: {
     'Vault fees': 'Treasury vault ETH spent on PEA buybacks: 95% burned, 5% to stakers.',
