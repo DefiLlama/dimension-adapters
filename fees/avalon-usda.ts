@@ -69,7 +69,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	// dailyFees.add(feeTokenAddress, ...) values the interest at $0. Value the USDa
 	// interest at its $1 peg using the token's own decimals instead.
 	const usdaDecimals = Number(await options.fromApi.call({ abi: 'erc20:decimals', target: feeTokenAddress }))
-	const usdaInterest = (Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore)) / 10 ** usdaDecimals
+	const usdaInterest = Number(BigInt(protocolProfitAccumulateAfter) - BigInt(protocolProfitAccumulateBefore)) / 10 ** usdaDecimals
 	dailyFees.addUSDValue(usdaInterest, METRIC.BORROW_INTEREST)
 
 	// @dev Ethereum has both V1 and V2 pools, so we need to add the fees from the V1 pool
@@ -85,7 +85,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 			target: v1PoolAddress,
 		})
 
-		dailyFees.add(v1FeeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore), METRIC.BORROW_INTEREST)
+		dailyFees.add(v1FeeTokenAddress, BigInt(protocolProfitAccumulateAfter) - BigInt(protocolProfitAccumulateBefore), METRIC.BORROW_INTEREST)
 	}
 
 	return {
