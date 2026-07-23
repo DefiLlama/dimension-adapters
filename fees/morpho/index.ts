@@ -14,7 +14,11 @@ const blacklistedMarketIds: Record<string, Array<any>> = {
   [CHAIN.WC]: [{
     from: "2025-11-07",
     id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
-  }]
+  }],
+  [CHAIN.ETHEREUM]: [{
+    from: "2026-07-21",
+    id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
+  }],
 }
 
 export const MorphoBlues: Record<string, MorphoBlueConfig> = {
@@ -160,6 +164,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     chainId: 988,
     blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
     start: "2025-11-10",
+  },
+  [CHAIN.PHAROS]: {
+    // no chainId: Pharos (1672) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0x18573fA18fd17dDfD790B4a5B5b2977aad3b4Efb",
+    fromBlock: 4202147,
+    start: "2026-06-01",
   },
   [CHAIN.ROBINHOOD]: {
     fromBlock: 286,

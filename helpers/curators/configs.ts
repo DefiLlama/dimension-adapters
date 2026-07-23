@@ -104,6 +104,14 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.PHAROS]: {
+    vaultV2Factories: [
+      {
+        address: '0x8e01ed1e1a41029b3137fce9aa880c0a54827498',
+        fromBlock: 4240410,
+      }
+    ]
+  },
   [CHAIN.KATANA]: {
     vaultFactories: [
       {

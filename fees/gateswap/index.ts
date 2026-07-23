@@ -50,6 +50,8 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.ENI]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
   [CHAIN.SONIC]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
   [CHAIN.POLYGON]: { start: "2026-03-04", feeTargets: EVM_EXECUTORS },
+  // Robinhood Alpha fees are charged off-chain before execution and emit no on-chain fee event.
+  [CHAIN.ROBINHOOD]: { start: "2026-07-15", feeTargets: EVM_EXECUTORS },
   [CHAIN.WC]: { start: "2026-02-28", feeTargets: EVM_EXECUTORS },
   [CHAIN.ERA]: { start: "2025-09-01", feeTargets: ZK_EXECUTORS },
 };
