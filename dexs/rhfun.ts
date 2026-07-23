@@ -11,6 +11,12 @@ import { CHAIN } from "../helpers/chains";
 // surface under this address.
 const FACTORY = '0x32a00Df7C511A882f3A7a18bcD69367880239726'
 const FACTORY_DEPLOY_BLOCK = 12923899
+// Canonical WETH on Robinhood Chain (chain id 4663). Native-ETH markets use the
+// zero address as their collateral/quote token; we normalize it to WETH so a
+// market's volume/fees land under one key instead of splitting native vs WETH.
+const WETH = '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'
+const ZERO = '0x0000000000000000000000000000000000000000'
+const quoteToken = (collateral: string) => (collateral === ZERO ? WETH : collateral)
 
 const CURVE_EVENT = 'event NewRHTokenCurveParams(address indexed addr, address indexed bondingCurve, uint256 initialTokenSupply, uint256 virtualCollateralReservesInitial, uint256 virtualTokenReservesInitial, uint256 feeBPS, uint256 mcLowerLimit, uint256 mcUpperLimit, uint256 tokensMigrationThreshold, uint256 fixedMigrationFee, uint256 firstBuyFee, uint256 targetCollectionAmount, address collateralToken)'
 const TAX_EVENT = 'event NewRHTaxTokenParams(address indexed token, address indexed bondingCurve, address indexed collateralToken, address mainPool, address taxProcessor, address dividendContract, uint16 taxRateBps, uint64 taxDuration, uint64 antiFarmerDuration, uint256 minBuyBackQuote, uint16 processorFeeRateCurve, uint16 processorFeeRateDex, uint16 processorMarketBps, uint16 processorDeflationBps, uint16 processorLpBps, uint16 processorDividendBps, uint256 minimumShareBalance, address marketAddress)'
@@ -48,7 +54,7 @@ const LABEL = {
   // destinations
   TradeFeesToProtocol: 'Curve Trade Fees to Protocol',
   TaxToProtocol: 'Token Tax to Protocol',
-  TaxToDividends: 'Token Tax to Holder Dividends',
+  TaxToDividends: 'Token Tax to Token-Holder Dividends',
   TaxBuybackBurn: 'Token Tax to Buyback and Burn',
   TaxToLockedLiquidity: 'Token Tax to Permanently Locked Liquidity',
   TaxToCreators: 'Token Tax to Market Recipients',
@@ -60,7 +66,6 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
   const launchLogs = await options.getLogs({
@@ -81,17 +86,19 @@ async function fetch(options: FetchOptions) {
   buys.forEach((log: any) => {
     const collateral = collateralOf[String(log.token).toLowerCase()]
     if (collateral === undefined) return
-    dailyVolume.add(collateral, log.collateralAmount)
-    dailyFees.add(collateral, log.tradeFee, LABEL.CurveTradeFees)
-    dailyProtocolRevenue.add(collateral, log.tradeFee, LABEL.TradeFeesToProtocol)
+    const key = quoteToken(collateral)
+    dailyVolume.add(key, log.collateralAmount)
+    dailyFees.add(key, log.tradeFee, LABEL.CurveTradeFees)
+    dailyProtocolRevenue.add(key, log.tradeFee, LABEL.TradeFeesToProtocol)
   })
 
   sells.forEach((log: any) => {
     const collateral = collateralOf[String(log.token).toLowerCase()]
     if (collateral === undefined) return
-    dailyVolume.add(collateral, BigInt(log.collateralAmount) + BigInt(log.tradeFee))
-    dailyFees.add(collateral, log.tradeFee, LABEL.CurveTradeFees)
-    dailyProtocolRevenue.add(collateral, log.tradeFee, LABEL.TradeFeesToProtocol)
+    const key = quoteToken(collateral)
+    dailyVolume.add(key, BigInt(log.collateralAmount) + BigInt(log.tradeFee))
+    dailyFees.add(key, log.tradeFee, LABEL.CurveTradeFees)
+    dailyProtocolRevenue.add(key, log.tradeFee, LABEL.TradeFeesToProtocol)
   })
 
   const taxMarkets = await options.getLogs({
@@ -103,7 +110,7 @@ async function fetch(options: FetchOptions) {
   // Tax accounting is quote-token denominated: WETH for native markets.
   const quoteOf: Record<string, string> = {}
   taxMarkets.forEach((l: any) => {
-    quoteOf[String(l.token).toLowerCase()] = l.collateralToken
+    quoteOf[String(l.token).toLowerCase()] = quoteToken(l.collateralToken)
   })
   const processors = [...new Set(taxMarkets.map((l: any) => l.taxProcessor))]
 
@@ -128,28 +135,31 @@ async function fetch(options: FetchOptions) {
       dailyProtocolRevenue.add(quote, -BigInt(log.quoteAmount), LABEL.TradeFeesToProtocol)
     })
 
-    // 3. Tax realization.
+    // 3. Tax realization. RH.fun has no protocol/governance token, so every tax
+    //    destination other than the protocol fee bucket accrues to the launched
+    //    token's own market/holders — i.e. supply-side revenue, not holders
+    //    revenue (which is reserved for a protocol's own token holders).
     dispatchLogs.forEach((log: any) => {
       const quote = quoteOf[String(log.taxToken).toLowerCase()]
       if (quote === undefined) return
       dailyFees.add(quote, BigInt(log.fee) + BigInt(log.market) + BigInt(log.dividend), LABEL.TokenTax)
       dailyProtocolRevenue.add(quote, log.fee, LABEL.TaxToProtocol)
-      dailyHoldersRevenue.add(quote, log.dividend, LABEL.TaxToDividends)
+      dailySupplySideRevenue.add(quote, log.dividend, LABEL.TaxToDividends)
       dailySupplySideRevenue.add(quote, log.market, LABEL.TaxToCreators)
     })
     burnLogs.forEach((log: any) => {
       const quote = quoteOf[String(log.taxToken).toLowerCase()]
       if (quote === undefined) return
       dailyFees.add(quote, log.quoteIn, LABEL.TokenTax)
-      dailyHoldersRevenue.add(quote, log.quoteIn, LABEL.TaxBuybackBurn)
+      dailySupplySideRevenue.add(quote, log.quoteIn, LABEL.TaxBuybackBurn)
     })
     lpLogs.forEach((log: any) => {
       const quote = quoteOf[String(log.taxToken).toLowerCase()]
       if (quote === undefined) return
       // LP is minted to the dead address — value permanently committed to the
-      // token, economically akin to a burn → holders revenue.
+      // launched token's liquidity, benefiting that token's holders (supply side).
       dailyFees.add(quote, log.quoteAdded, LABEL.TokenTax)
-      dailyHoldersRevenue.add(quote, log.quoteAdded, LABEL.TaxToLockedLiquidity)
+      dailySupplySideRevenue.add(quote, log.quoteAdded, LABEL.TaxToLockedLiquidity)
     })
   }
 
@@ -161,8 +171,10 @@ async function fetch(options: FetchOptions) {
     dailyProtocolRevenue.add(log.pairedToken, amount, LABEL.GraduationToProtocol)
   })
 
+  // No protocol token → no holders revenue; Revenue = ProtocolRevenue, which also
+  // equals Fees − SupplySideRevenue (every fee leg lands in exactly one bucket).
+  // Clone so the two returned dimensions don't alias the same Balances instance.
   const dailyRevenue = dailyProtocolRevenue.clone()
-  dailyRevenue.addBalances(dailyHoldersRevenue)
 
   return {
     dailyVolume,
@@ -170,7 +182,6 @@ async function fetch(options: FetchOptions) {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
 }
@@ -179,10 +190,9 @@ const methodology = {
   Volume: 'Gross collateral notional (ETH and USDG, fees included) of buys and sells executed on RH.fun bonding curves, from the factory Buy/Sell events. Post-graduation swaps happen on the chain\'s Uniswap V2 DEX and are not counted here.',
   Fees: 'All fees generated by the protocol: the 1% trade fee on bonding-curve buys/sells, token taxes (curve phase and post-graduation DEX phase, counted when the TaxProcessor realizes them), and graduation fees (fixed migration fee + dust). Legs denominated in the launched tokens themselves are not counted.',
   UserFees: 'Same as Fees — all fees are paid by traders.',
-  Revenue: 'Protocol revenue plus value routed to token holders (dividends, buyback-and-burn, permanently locked liquidity).',
+  Revenue: 'Protocol revenue: the 1% curve trade fee, graduation fees, and the protocol fee bucket of tax dispatches. RH.fun has no protocol token, so there is no holders revenue and Revenue equals ProtocolRevenue.',
   ProtocolRevenue: 'The 1% curve trade fee, graduation fees, and the protocol fee bucket of tax dispatches.',
-  HoldersRevenue: 'Tax dispatched to token-holder dividends, quote spent on buyback-and-burn, and quote permanently locked as dead-address liquidity.',
-  SupplySideRevenue: 'Tax dispatched to per-token market recipients (creator/community side).',
+  SupplySideRevenue: 'Token tax routed to the launched token\'s own side: market recipients (creator/community), token-holder dividends, buyback-and-burn, and permanently locked liquidity.',
 }
 
 const breakdownMethodology = {
@@ -200,22 +210,17 @@ const breakdownMethodology = {
     [LABEL.TradeFeesToProtocol]: 'The 1% curve trade fee, kept by the protocol.',
     [LABEL.TaxToProtocol]: 'The protocol fee bucket of tax dispatches.',
     [LABEL.GraduationToProtocol]: 'Graduation fees kept by the protocol.',
-    [LABEL.TaxToDividends]: 'Tax dispatched to token-holder dividends.',
-    [LABEL.TaxBuybackBurn]: 'Tax spent buying back and burning the token.',
-    [LABEL.TaxToLockedLiquidity]: 'Tax paired into liquidity whose LP is minted to the dead address (permanently locked).',
   },
   ProtocolRevenue: {
     [LABEL.TradeFeesToProtocol]: 'The 1% curve trade fee, kept by the protocol.',
     [LABEL.TaxToProtocol]: 'The protocol fee bucket of tax dispatches.',
     [LABEL.GraduationToProtocol]: 'Graduation fees kept by the protocol.',
   },
-  HoldersRevenue: {
-    [LABEL.TaxToDividends]: 'Tax dispatched to token-holder dividends.',
-    [LABEL.TaxBuybackBurn]: 'Tax spent buying back and burning the token.',
-    [LABEL.TaxToLockedLiquidity]: 'Tax paired into liquidity whose LP is minted to the dead address (permanently locked).',
-  },
   SupplySideRevenue: {
     [LABEL.TaxToCreators]: 'Tax dispatched to per-token market recipients (creator/community side).',
+    [LABEL.TaxToDividends]: 'Tax dispatched to the launched token\'s holder dividends.',
+    [LABEL.TaxBuybackBurn]: 'Tax spent buying back and burning the launched token.',
+    [LABEL.TaxToLockedLiquidity]: 'Tax paired into the launched token\'s liquidity, with LP minted to the dead address (permanently locked).',
   },
 }
 
