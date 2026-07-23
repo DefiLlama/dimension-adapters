@@ -25,12 +25,20 @@ const fetch = async (options: FetchOptions) => {
 
   // Fail loudly if the dataset has no row for the requested day rather than
   // silently reporting 0 volume; the daily upload should always precede this run.
-  if (!data.length || data[0].matched_volume_usd == null) {
+  if (
+    !data.length ||
+    data[0].matched_volume_usd == null ||
+    data[0].notional_volume_usd == null
+  ) {
     throw new Error(`dune.magicmarkets.data has no rows for ${options.dateString}`);
   }
 
   const dailyVolume = Number(data[0].matched_volume_usd);
   const dailyNotionalVolume = Number(data[0].notional_volume_usd);
+  // Guard against malformed aggregates becoming NaN and corrupting the series.
+  if (!Number.isFinite(dailyVolume) || !Number.isFinite(dailyNotionalVolume)) {
+    throw new Error(`dune.magicmarkets.data has invalid volume data for ${options.dateString}`);
+  }
 
   return { dailyVolume, dailyNotionalVolume };
 };
