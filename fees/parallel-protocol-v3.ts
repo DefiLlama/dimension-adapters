@@ -27,12 +27,12 @@ const SUSDP_RATIO = 0.90;
 const DAO_RATIO = 0.09;
 const DAO_POST_EXPIRY_RATIO = 0.10;
 const ANGLE_LABS_RATIO = 0.01;
-const ANGLE_LABS_LICENSE_EXPIRY = Math.floor(new Date("2026-06-01").getTime() / 1000);
+const ANGLE_LABS_LICENSE_EXPIRY = "2026-06-01";
 
 const ABI = "function getCollateralRatio() view returns (uint64 collatRatio, uint256 stablecoinsIssued)";
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, chain, fromApi, toApi, toTimestamp } = options;
+  const { createBalances, chain, fromApi, toApi } = options;
   const { parallelizer } = config[chain];
 
   const [[crStart, stablesStart], [crEnd, stablesEnd]] = await Promise.all([
@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
   const surplusEnd = (Number(crEnd) / 1e9 - 1) * Number(stablesEnd) / 1e18;
   const dailyFeesUSD = surplusEnd - surplusStart;
 
-  const licenseActive = toTimestamp < ANGLE_LABS_LICENSE_EXPIRY;
+  const licenseActive = options.dateString <= ANGLE_LABS_LICENSE_EXPIRY;
   const daoRatio = licenseActive ? DAO_RATIO : DAO_POST_EXPIRY_RATIO;
 
   const dailyFees = createBalances();
@@ -55,10 +55,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
 
   dailyFees.addUSDValue(dailyFeesUSD, "Yield From Backing Collateral");
-  dailySupplySideRevenue.addUSDValue(dailyFeesUSD * SUSDP_RATIO, "sUSDp Savings Holders");
-  dailyRevenue.addUSDValue(dailyFeesUSD * daoRatio, "DAO Treasury");
-  if (licenseActive) dailyRevenue.addUSDValue(dailyFeesUSD * ANGLE_LABS_RATIO, "Angle Labs");
-  dailyProtocolRevenue.addUSDValue(dailyFeesUSD * daoRatio, "DAO Treasury");
+  dailySupplySideRevenue.addUSDValue(dailyFeesUSD * SUSDP_RATIO, "Yield to sUSDp Savings Holders");
+  dailyRevenue.addUSDValue(dailyFeesUSD * daoRatio, "Yield to DAO Treasury");
+  if (licenseActive) dailyRevenue.addUSDValue(dailyFeesUSD * ANGLE_LABS_RATIO, "Yield to Angle Labs");
+  dailyProtocolRevenue.addUSDValue(dailyFeesUSD * daoRatio, "Yield to DAO Treasury");
 
   return {
     dailyFees,
@@ -80,23 +80,22 @@ const breakdownMethodology = {
     "Yield From Backing Collateral": "Yield accrued on yield-bearing collateral held by the Parallelizer plus burn fees on yield-bearing redemptions.",
   },
   Revenue: {
-    "DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
-    "Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
+    "Yield to DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
+    "Yield to Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
   },
   ProtocolRevenue: {
-    "DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
+    "Yield to DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
   },
   SupplySideRevenue: {
-    "sUSDp Savings Holders": "90% of net surplus accrual distributed to sUSDp stakers as savings yield.",
+    "Yield to sUSDp Savings Holders": "90% of net surplus accrual distributed to sUSDp stakers as savings yield.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    Object.entries(config).map(([chain, cfg]) => [chain, { fetch, start: cfg.start }])
-  ),
+  fetch,
+  adapter:config,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true,
