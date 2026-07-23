@@ -17,7 +17,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const logs = await options.getLogs({ target: AaroLauncher, eventAbi: FeesCollectedEvent })
+  const logs = await options.getLogs({ targets: [AaroLauncher], eventAbi: FeesCollectedEvent })
 
   for (const log of logs) {
     dailyFees.add(WETH, log.wethCreator, METRIC.SWAP_FEES)
