@@ -14,7 +14,11 @@ const blacklistedMarketIds: Record<string, Array<any>> = {
   [CHAIN.WC]: [{
     from: "2025-11-07",
     id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
-  }]
+  }],
+  [CHAIN.ETHEREUM]: [{
+    from: "2026-07-21",
+    id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
+  }],
 }
 
 export const MorphoBlues: Record<string, MorphoBlueConfig> = {
