@@ -7,9 +7,12 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 // of that swap, used here as trade notional volume.
 const INDEXER_URL = 'https://indexer-production-6ea6.up.railway.app/graphql'
 
+// Ponder's GraphQL API caps `limit` at 1000 rows per page (requests above that are rejected).
+const PAGE_SIZE = 1000
+
 const query = gql`
   query Trades($start: BigInt!, $end: BigInt!, $after: String) {
-    trades(where: { timestamp_gte: $start, timestamp_lte: $end }, limit: 1000, after: $after) {
+    trades(where: { timestamp_gte: $start, timestamp_lte: $end }, limit: ${PAGE_SIZE}, after: $after) {
       items { ethAmount }
       pageInfo { hasNextPage endCursor }
     }
