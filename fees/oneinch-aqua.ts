@@ -54,7 +54,12 @@ function decodeStrategyFees(
     for (let i = 0; i + 1 < program.length; ) {
       const opcode = program[i];
       const argsLength = program[i + 1];
-      if (opcode === 0) return null;
+      // Index 0 of the Aqua instruction set is the EMPTY_OPCODE placeholder,
+      // never a real instruction; the SDK's own decoder throws
+      // "Invalid opcode: 0 (NOT_INSTRUCTION)" on it. Mirror that: a program
+      // carrying opcode 0 is malformed/foreign, so skip the whole strategy
+      // (conservative undercount) rather than trust partial parses.
+      if (opcode === 0) throw new Error(`invalid opcode 0 at byte ${i}`);
       const args = program.slice(i + 2, i + 2 + argsLength);
       if (opcode === FLAT_FEE_OPCODE && argsLength >= 4)
         flat = BigInt(new DataView(args.buffer, args.byteOffset).getUint32(0));
@@ -65,7 +70,10 @@ function decodeStrategyFees(
       i += 2 + argsLength;
     }
     return { flat, protocol };
-  } catch {
+  } catch (e: any) {
+    console.log(
+      `oneinch-aqua: failed to decode strategy ${strategyHex.slice(0, 10)}… (${e?.message ?? e}) - its fills will carry zero fees`,
+    );
     return null;
   }
 }
@@ -102,6 +110,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   // Full-history Shipped scan (cached): every fee rate lives in the strategy
   // registered at ship time. Also used below to exclude ship-registration
@@ -169,13 +178,14 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(log.args.token, daoShare, LABEL_DAO);
     dailySupplySideRevenue.add(log.args.token, lpShare, LABEL_LP);
     dailyRevenue.add(log.args.token, daoShare, LABEL_DAO);
+    dailyProtocolRevenue.add(log.args.token, daoShare, LABEL_DAO);
   });
 
   return {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
