@@ -2,15 +2,17 @@ import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue, fetchHIP3DeployerData } from "../helpers/hyperliquid";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
+const KINETIQ_MARKETS_LEGACY_END_DATE = "2026-06-20";
+
 const fetch = async (options: FetchOptions) => {
+  const deployerId = options.dateString > KINETIQ_MARKETS_LEGACY_END_DATE ? 'mkts' : 'km';
   const { dailyVolume: builderVolume, dailyFees: builderFees } = await fetchBuilderCodeRevenue({
     options,
     builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
   });
   const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, dailyDeployerFee: hip3DeployerFee } = await fetchHIP3DeployerData({
     options,
-    // Kinetiq migrated its HIP-3 dex from the now-dormant "km" to the active "mkts"
-    hip3DeployerId: 'mkts',
+    hip3DeployerId: deployerId,
   });
 
   const dailyVolume = options.createBalances();
