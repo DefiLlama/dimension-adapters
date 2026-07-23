@@ -534,6 +534,8 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
 }
 
 async function fetchFromApi(options: FetchOptions) {
+  if (options.startOfDay < 1704067200) throw Error('Can not fetch data from api older than 2024-01-01');
+  
   const apiResponse = await fetchCurveApiData(options.startOfDay);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
