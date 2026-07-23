@@ -4,28 +4,24 @@ import { httpGet } from "../../utils/fetchURL";
 
 /**
  * InsightX Adapter for DefiLlama
- * 
- * Platform: Prediction Market
+ *
+ * Platform: Prediction Market (Mantle)
  * Data Source: InsightX Backend API
- * 
- * Displays daily trading volume and protocol fees aggregated by the InsightX backend.
+ *
+ * InsightX is a Mantle-native prediction market protocol.
+ * All trading volume and fees are on-chain on Mantle.
  * Data is fetched from: https://mainnet-api.insightx.finance/predict/v2/llama/stats
  */
 
 interface InsightXDailyStats {
     date: string;
-    volume: number;      // Daily trading volume in USD
-    fees: number;        // Daily fees in USD
+    volume: number;
+    fees: number;
 }
 
 const INSIGHTX_API_BASE = "https://mainnet-api.insightx.finance/predict/v2/llama/stats";
 
-/**
- * Fetch daily metrics from InsightX Backend API (Off-Chain)
- * 
- * Returns aggregated trading volume and protocol fees calculated off-chain
- */
-const fetchOffChain = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = `${INSIGHTX_API_BASE}?date=${options.dateString}`;
 
   const response = await httpGet(url);
@@ -46,10 +42,9 @@ const fetchOffChain = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  skipBreakdownValidation: true,
   adapter: {
     [CHAIN.MANTLE]: {
-      fetch: fetchOffChain,
+      fetch,
       start: "2026-06-03",
     },
   },
