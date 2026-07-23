@@ -70,7 +70,7 @@ const chainConfig: Record<
   [CHAIN.ROBINHOOD]: {
     // Robinhood Chain earliest DefiLlama history / RH Doppler go-live window.
     // Source: DefiLlama robinhood chain listing + Squeeze RH Airlock deploy.
-    start: "2026-04-20",
+    start: "2026-07-10",
     kind: "evm",
     airlock: IDENTITY.robinhoodAirlock,
     feeTokens: [
