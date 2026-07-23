@@ -2,27 +2,12 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../helpers/uniswap";
 
-// GIGA DEX — PancakeSwap-style AMM fork on Robinhood Chain.
-// It runs two independent pool systems, each with its own factory:
-//   - Classic: v2-style stable (x*y=k stable) + volatile pools
-//   - CL:      v3-style concentrated-liquidity pools (per-pool fee tiers)
-// Docs: https://docs.gigadex.fi  |  Contracts: https://docs.gigadex.fi/security/contracts
-// Website: https://gigadex.fi  |  Twitter: https://x.com/gigadex_fi
 const CLASSIC_FACTORY = "0x6Fdf38f92eAd1adFc04B73aaa947ab254f6c0916";
 const CL_FACTORY = "0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B";
 
-// Classic pool swap fees: 0.3% on both volatile and stable pools (confirmed by
-// the GIGA team). CL pool fees are read per-pool on-chain.
 const CLASSIC_VOLATILE_FEE = 0.003; // 0.3%
 const CLASSIC_STABLE_FEE = 0.003; // 0.3%
 
-// Fee distribution (confirmed by the GIGA team):
-//   - Non-gauged pools: 20% of swap fees to the protocol treasury, 80% to LPs.
-//   - Gauged pools: 100% of swap fees to veGIGA stakers, and LPs are instead
-//     rewarded with GIGA emissions (incentives, not fees, so excluded here).
-// There are currently 0 gauged pools, so every pool follows the 20% treasury /
-// 80% LP split. If gauged pools are created, the gauged fees would need to be
-// attributed to dailyHoldersRevenue (veGIGA) instead of the treasury.
 const REVENUE_RATIO = 0.2; // protocol treasury's share of swap fees
 const PROTOCOL_REVENUE_RATIO = 0.2; // same 20% — all revenue is the treasury cut
 
