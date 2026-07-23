@@ -1,53 +1,45 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
-import { getEnv } from "../helpers/env";
+import { METRIC } from "../helpers/metrics";
 
-const BASE_URL = "https://llama.astros.ag/api/third/info";
+const API_URL =
+  "https://api.astros.ag/api/contract-sub-provider/openapi/pub/defillama";
 
 const methodology = {
-  Volume: "Volume of all perpetual contract trades executed.",
-  Fees: "Trading fees paid by users.",
-  Revenue: "Trading fees paid by users are revenue.",
+  Volume: "Volume of all perpetual contract trades executed on Astros.",
+  Fees: "Trading fees and liquidation revenue collected by the protocol.",
+  Revenue: "Trading fees and liquidation revenue collected by the protocol.",
 };
 
-const getHeaders = () => ({
-  "api-key": getEnv("ASTROS_PERP_API_KEY"),
-});
+const fetch = async (options: FetchOptions) => {
+  const { data } = await httpGet(API_URL);
 
-const fetch = async () => {
-  let dailyVolume = 0
-  let dailyFees = 0
-  
-  const pairs = await httpGet(`${BASE_URL}/pairs`, { headers: getHeaders() })
+  const dailyVolume = Number(data.perp_volume.volume_24h);
 
-  const tradablePairs = pairs.data.filter((pair: any) => pair.tradable);
-
-  for (const pair of tradablePairs) {
-    const ticker: any = await httpGet(
-      `${BASE_URL}/ticker/24hr?pairName=${pair.symbol}`,
-      { headers: getHeaders() }
-    );
-    
-    dailyVolume += Number(ticker.data.amount)
-    
-    const feeRate = (Number(pair.takerTradeFeeRate) + Number(pair.makerTradeFeeRate)) / 100;
-    dailyFees += feeRate * Number(ticker.data.amount)
-  }
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(Number(data.revenue.revenue_24h), METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
+    dailyFees: dailyRevenue,
+    dailyRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.SUI],
+  runAtCurrTime: true,
   methodology,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      runAtCurrTime: true,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]:
+        "Trading fees and liquidation revenue collected by the protocol",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]:
+        "Trading fees and liquidation revenue collected by the protocol",
     },
   },
 };

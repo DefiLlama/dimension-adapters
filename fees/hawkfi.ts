@@ -1,0 +1,77 @@
+/*
+  HawkFi - High Frequency Liquidity (HFL) platform on Solana
+  https://hawkfi.ag | https://hawkfi.gitbook.io/whitepaper
+  
+  Fee Structure (per docs):
+  - 0% deposit/withdrawal fee
+  - 0% automation fee  
+  - 8% performance fee on LP yield only (not on principal deposits)
+  - 0.1% rebalance fee for balances < $1,000 (captured within claimfee flow)
+  
+  DEX Integrations:
+  - Primary: Meteora DLMM
+  - Secondary: Orca Whirlpool
+  - Swaps via Jupiter, Raydium during rebalancing
+  
+  This adapter tracks all transfers to HawkFi's dedicated fee wallet, which
+  receives the 8% performance fee from all DEX integrations. This approach is
+  more efficient and comprehensive than tracking individual DEX events.
+*/
+
+import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
+import { CHAIN } from '../helpers/chains'
+import { queryAllium } from '../helpers/allium'
+
+const FEE_WALLET = '4K3a2ucXiGvuMJMPNneRDyzmNp6i4RdzXJmBdWwGwPEh';
+const HAWKFI_MEV = 'HAWK3BVnwptKRFYfVoVGhBc2TYxpyG9jmAbkHeW9tyKE'
+
+const fetch = async (options: FetchOptions) => {
+  const dailyProtocolRevenue = options.createBalances()
+
+ // Track all transfers to HawkFi fee wallet (8% performance fee from all DEX sources)
+  const query = `
+    SELECT mint AS token, SUM(raw_amount) AS amount
+    FROM solana.assets.transfers
+    WHERE to_address = '${FEE_WALLET}'
+      AND signer = '${HAWKFI_MEV}'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    GROUP BY 1
+  `
+
+  const rows: any[] = await queryAllium(query)
+  rows.forEach((row) => dailyProtocolRevenue.add(row.token, row.amount))
+
+  // Total fees = protocol revenue / 0.08 (HawkFi takes 8% of LP yield)
+  const dailyFees = dailyProtocolRevenue.clone(1 / 0.08)
+
+  // Supply side revenue = 92% of total fees (what LPs keep)
+  const dailySupplySideRevenue = dailyFees.clone(0.92)
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
+}
+
+const methodology = {
+  Fees: 'Total LP yield generated through HawkFi automated liquidity strategies on Meteora DLMM and Orca Whirlpool. Derived from the 8% performance fee collected (fee_amount / 0.08 = total_yield).',
+  Revenue: '8% performance fee on LP yield and rebalance fees, collected by HawkFi protocol treasury.',
+  ProtocolRevenue: '8% performance fee on LP yield and rebalance fees, collected by HawkFi protocol treasury.',
+  SupplySideRevenue: '92% of LP yield retained by liquidity providers after the HawkFi 8% performance fee.',
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-02-05',
+  pullHourly: true,
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
+  methodology,
+}
+
+export default adapter

@@ -1,8 +1,7 @@
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchV2, Adapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { Adapter, FetchOptions } from "../../adapters/types";
 
 const endpoints = {
   [CHAIN.BLAST]: "https://api.synfutures.com/thegraph/v3-blast",
@@ -13,9 +12,8 @@ const endpoints = {
 // LiquidityFee = MakerRebates + FeesToLP
 const methodology = {
   Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
-  MakerRebates: "fees rebated received by limit order makers on the protocol, these fees are paid by takers",
-  FeesToLp: "fees received by AMM LPs on the protocol, these fees are paid by takers",
-  ProcotolFees: "fees received by the protocol from takers, these fees are paid by takers"
+  SupplySideRevenue: "fees rebated received by limit order makers and fees received by AMM LPs on the protocol, these fees are paid by takers",
+  ProtocolRevenue: "fees received by the protocol from takers, these fees are paid by takers"
 }
 
 function convertDecimals(value: string | number, decimals: number) {
@@ -28,49 +26,47 @@ function convertDecimals(value: string | number, decimals: number) {
   }
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-    const fetch: FetchV2 = async ({ chain, startTimestamp, createBalances }) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp)
-      const graphQuery = gql
-      `{
-        dailyQuoteDatas(where: {timestamp: "${todaysTimestamp}"}){
-          timestamp
-          quote{
-            id
-            symbol
-            decimals
-          }
-          liquidityFee
-          poolFee
-          protocolFee
-
-          totalLiquidityFee
-          totalPoolFee
-          totalProtocolFee
+const fetch = async (options: FetchOptions) => {
+  // startTimestamp is one second before midnight, so flooring it to a day lands on the
+  // previous day's bucket. startOfDay is already the midnight of the day being reported.
+  const todaysTimestamp = options.startOfDay
+  const graphQuery = gql
+    `{
+      dailyQuoteDatas(where: {timestamp: "${todaysTimestamp}"}){
+        timestamp
+        quote{
+          id
+          symbol
+          decimals
         }
-      }`;
+        liquidityFee
+        poolFee
+        protocolFee
 
-      const dailyFee = createBalances();
-      const dailyMakerRebates = createBalances();
-      const dailyFeesToLP = createBalances();
-      const dailyProtocolRevenue = createBalances();
-
-      const graphRes = await request(graphUrls[chain], graphQuery);
-
-      for (const record of graphRes.dailyQuoteDatas) {
-        dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee), record.quote.decimals))
-        dailyMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) - Number(record.poolFee), record.quote.decimals))
-        dailyFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.poolFee), record.quote.decimals))
-        dailyProtocolRevenue.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
+        totalLiquidityFee
+        totalPoolFee
+        totalProtocolFee
       }
+    }`;
 
-      return {
-        dailyFees: dailyFee,
-        dailyRevenue: dailyProtocolRevenue,
-        dailyProtocolRevenue,
-      };
-    };
-    return fetch 
+  const dailyFee = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
+  const graphRes = await request(endpoints[options.chain], graphQuery);
+
+  for (const record of graphRes.dailyQuoteDatas) {
+    dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee) + Number(record.poolFee), record.quote.decimals))
+    dailySupplySideRevenue.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.poolFee), record.quote.decimals))
+    dailyProtocolRevenue.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
+  }
+
+  return {
+    dailyFees: dailyFee,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue
+  };
 };
 
 
@@ -79,11 +75,11 @@ const adapter: Adapter = {
   methodology,
   adapter: {
     // [CHAIN.BLAST]: {
-    //   fetch: graphs(endpoints),
+    //   fetch,
     //   start: '2024-02-27',
     // }, sunset -> '2025-04-11
     [CHAIN.BASE]: {
-      fetch: graphs(endpoints),
+      fetch,
       start: '2024-06-26',
     }
   }

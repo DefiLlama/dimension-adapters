@@ -18,7 +18,7 @@
 
 // const dataCache = {} as any
 
-// async function fetch(_: any, _1: any, { api, startOfDay, }: FetchOptions) {
+// async function fetch(options: FetchOptions) {
 //   switch (api.chain) {
 //     case 'unichain': api.chainId = 130; break;
 //   }
@@ -85,6 +85,9 @@ const Configs: Record<string, IUniswapConfig> = {
     start: '2025-01-24',
     blacklistPoolIds: [
       '0x78f394840909614a7a1213503e4207d7e62f4a07af85561fc420e7ee6d22d6ce',
+      '0xaf2ad381e7ea687d397077f93d4f71352247cc8975e0a96a15aff9d2ea19716e', //TARA/USDT
+      '0xab3c835c894b0fabcf7d2f44a6322217deceb6b6e5f7b0a7706a9d085935539f', //TARA/USDC
+      '0x3A1687AF1B8C0ABAA67BE1F17DF378CA69BDA27C2EEA008BCD7BF30A3D293EA0', //DOT/USDC
     ],
   },
   [CHAIN.UNICHAIN]: {
@@ -165,6 +168,36 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0x5b7eC4a94fF9beDb700fb82aB09d5846972F4016',
     start: '2025-11-23',
   },
+  [CHAIN.XLAYER]: {
+    poolManager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32',
+    source: 'LOGS',
+    positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
+    start: '2026-01-07'
+  },
+  [CHAIN.CELO]: {
+    poolManager: '0x288dc841a52fca2707c6947b3a777c5e56cd87bc',
+    source: 'LOGS',
+    positionManager: '0xf7965f3981e4d5bc383bfbcb61501763e9068ca9',
+    start: '2025-08-22',
+  },
+  [CHAIN.MEGAETH]: {
+    poolManager: '0xacb7e78fa05d562e0a5d3089ec896d57d057d38e',
+    source: 'LOGS',
+    positionManager: '0x9ae0921e981aaa7308f176f8d4f9129b9247c89d',
+    start: '2026-01-30',
+  },
+  [CHAIN.TEMPO]: {
+    poolManager: '0x33620f62c5b9b2086dd6b62f4a297a9f30347029',
+    source: 'LOGS',
+    positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
+    start: '2026-02-24',
+  },
+  [CHAIN.ROBINHOOD]: {
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
+    positionManager: '0x58daec3116aae6d93017baaea7749052e8a04fa7',
+    source: 'LOGS',
+    start: '2026-01-01',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -236,9 +269,9 @@ async function fetch(options: FetchOptions) {
     });
 
     if (events.length > 0) {
-      const pools: {[key: string]: IPool | null} = {}
+      const pools: { [key: string]: IPool | null } = {}
       for (const event of events) {
-        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
+        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id.toLowerCase())) {
           // ignore blacklist pools
           continue;
         }
@@ -274,7 +307,7 @@ async function fetch(options: FetchOptions) {
           }
         }
       }
-      
+
       for (const event of events) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
@@ -287,7 +320,7 @@ async function fetch(options: FetchOptions) {
           dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
           dailyVolume.add(token, Math.abs(Number(event.amount0)))
         }
-      }      
+      }
     }
   }
 
@@ -304,13 +337,14 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
   // prefetch: prefetchWithDune,
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
-    Revenue: 'Protocol make no revenue.',
-    ProtocolRevenue: 'Protocol make no revenue.',
+    Revenue: 'Protocol makes no revenue.',
+    ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
   },

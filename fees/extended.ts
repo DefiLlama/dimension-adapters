@@ -2,13 +2,15 @@ import { Dependencies, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { FetchOptions } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
 interface IData {
   day: string;
-  daily_protocol_fees: number;
+  daily_trading_fees: number;
+  daily_liquidation_fees: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const dailyFees = options.createBalances()
 
 	const data: Array<IData> = await queryDuneSql(options, `
@@ -23,6 +25,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           WHERE from_address = 0x062da0780fae50d68cecaa5a051606dc21217ba290969b302db4dd99d2e9b470
             AND keys[1]      = 0x02e0a012a863e6b614014d113e7285b06e30d2999e42e6e03ba2ef6158b0a8f1
             AND block_time  >= TIMESTAMP '2025-07-01'
+            AND TIME_RANGE
       ),
       trades_b AS (
           SELECT
@@ -33,6 +36,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           WHERE from_address = 0x062da0780fae50d68cecaa5a051606dc21217ba290969b302db4dd99d2e9b470
             AND keys[1]      = 0x02e0a012a863e6b614014d113e7285b06e30d2999e42e6e03ba2ef6158b0a8f1
             AND block_time  >= TIMESTAMP '2025-07-01'
+            AND TIME_RANGE
       ),
       -- Union of trade events only (for per-trade metrics)
       trades AS (
@@ -59,17 +63,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           WHERE from_address = 0x062da0780fae50d68cecaa5a051606dc21217ba290969b302db4dd99d2e9b470
             AND keys[1]      = 0x0320efd552d992294b62e23bcfa29f7703b7b899c22eb04973d36655afd06ddf
             AND block_time  >= TIMESTAMP '2025-07-01'
+            AND TIME_RANGE
       ),
-      events AS (
-          SELECT * FROM trades
-          UNION ALL
-          SELECT * FROM liquidations
-      ),
-      fees_daily AS (
+      trades_fees_daily AS (
           SELECT
               date_trunc('day', block_time) AS day,
-              SUM(actual_fee)               AS daily_protocol_fees
-          FROM events
+              SUM(actual_fee)               AS daily_trading_fees
+          FROM trades
+          GROUP BY 1
+      ),
+      liquidations_fees_daily AS (
+          SELECT
+              date_trunc('day', block_time) AS day,
+              SUM(actual_fee)               AS daily_liquidation_fees
+          FROM liquidations
           GROUP BY 1
       ),
 
@@ -82,6 +89,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           WHERE version = 3
             AND block_date >= DATE '2025-07-01'
             AND sender_address = 0x048ddc53f41523d2a6b40c3dff7f69f4bbac799cd8b2e3fc50d3de1d4119441f
+            AND TIME_RANGE
       ),
       network_daily AS (
           SELECT
@@ -106,17 +114,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       -- ===== Combine fees =====
       combined AS (
           SELECT
-              COALESCE(f.day, n.day) AS day,
-              f.daily_protocol_fees,
+              COALESCE(t.day, l.day, n.day) AS day,
+              t.daily_trading_fees,
+              l.daily_liquidation_fees,
               n.daily_network_fees
-          FROM fees_daily f
+          FROM trades_fees_daily t
+          FULL OUTER JOIN liquidations_fees_daily l
+            ON t.day = l.day
           FULL OUTER JOIN network_daily n
-            ON f.day = n.day
+            ON COALESCE(t.day, l.day) = n.day
       )
 
       SELECT
           c.day,
-          COALESCE(c.daily_protocol_fees, 0) AS daily_protocol_fees
+          COALESCE(c.daily_trading_fees, 0)     AS daily_trading_fees,
+          COALESCE(c.daily_liquidation_fees, 0) AS daily_liquidation_fees
       FROM combined c
       LEFT JOIN strk_price_daily p
         ON c.day = p.day
@@ -128,7 +140,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const feeItem = data.find(item => item.day.split(' ')[0] === new Date(options.startOfDay * 1000).toISOString().split('T')[0])
   if (feeItem) {
-    dailyFees.addUSDValue(feeItem.daily_protocol_fees);
+    dailyFees.addUSDValue(feeItem.daily_trading_fees, METRIC.TRADING_FEES);
+    dailyFees.addUSDValue(feeItem.daily_liquidation_fees, METRIC.LIQUIDATION_FEES);
   }
 
 	return {
@@ -136,15 +149,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	};
 };
 
+const methodology = {
+	Fees: "On-chain trader-paid fee stream from Extended's trading contract on Starknet, summing per-trade actual_fee values (Trade events) and liquidation fees (Liquidation events). Per Extended's fee schedule, takers pay 0.025% and makers pay 0.000% with a tiered rebate up to 0.013% based on 30-day maker market share. Maker rebates are accrued daily to internal Extended sub-accounts rather than paid out as discrete on-chain transfers, so they cannot be separately attributed from public on-chain data and are not netted from this value. Revenue is therefore left unreported rather than implicitly equated to fees.",
+};
+
+const breakdownMethodology = {
+	Fees: {
+		[METRIC.TRADING_FEES]: "Fees charged on perpetual trades on Extended.",
+		[METRIC.LIQUIDATION_FEES]: "Fees charged when positions are liquidated on Extended.",
+	},
+};
+
 const adapter: SimpleAdapter = {
-	version: 1,
+    version: 1,
 	dependencies: [Dependencies.DUNE],
 	start: '2025-08-02',
-  fetch,
-  chains: [CHAIN.STARKNET],
-	methodology: {
-		Fees: "Tracks total fees paid traders while trading on Extended app.",
-	},
+    fetch,
+    chains: [CHAIN.STARKNET],
+    skipBreakdownValidation: true, // no revenue attribution breakdown
+	methodology,
+	breakdownMethodology,
 }
 
 export default adapter

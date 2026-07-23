@@ -14,6 +14,7 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch: fetch,

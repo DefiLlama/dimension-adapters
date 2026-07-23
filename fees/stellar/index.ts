@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../../a
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
 
   const query = `

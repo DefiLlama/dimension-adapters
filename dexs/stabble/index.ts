@@ -1,6 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 const volumeURL = "https://api.stabble.org/metric";
@@ -11,28 +10,32 @@ interface DailyStats {
   revenue: number;
 }
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(
-    options.endTimestamp
-  );
+const fetch = async (options: FetchOptions) => {
 
   const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const stats: DailyStats = await fetchURL(url);
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume: stats.volume,
+    dailyFees: stats.fees,
+    dailyRevenue: stats.revenue,
+    dailySupplySideRevenue: stats.fees - stats.revenue,
   };
 };
 
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-06-05',
-    },
-  },
+const methodology = {
+  Volume: "Trading volume across stabble's stable and weighted AMM pools.",
+  Fees: "Total swap fees paid by traders.",
+  Revenue: "The protocol's cut of swap fees (treasury / $STB staking pool).",
+  SupplySideRevenue: "The portion of swap fees distributed to liquidity providers.",
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-06-05',
+  methodology,
 };
 
 export default adapter;

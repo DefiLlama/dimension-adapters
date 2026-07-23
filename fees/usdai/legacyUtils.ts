@@ -1,4 +1,5 @@
 import { FetchOptions } from "../../adapters/types";
+import { METRICS } from "./metrics"
 
 // Two legacy pools for GPU-financing, both using USDC as currency token
 
@@ -46,13 +47,14 @@ export async function processPoolLoans(
   });
 
   // Process each loan repaid log
+  const originatedLogs = await options.getLogs({
+    target: poolAddress,
+    eventAbi: 'event LoanOriginated(bytes32 indexed loanReceiptHash, bytes loanReceipt)',
+    fromBlock: startBlock,
+    cacheInCloud: true
+  });
+
   for (const log of repaidLogs) {
-    const originatedLogs = await options.getLogs({
-      target: poolAddress,
-      eventAbi: 'event LoanOriginated(bytes32 indexed loanReceiptHash, bytes loanReceipt)',
-      fromBlock: startBlock,
-      toBlock: log.blockNumber
-    });
 
     // Find the originated log for the loan repaid log
     const originatedLog = originatedLogs.find((l: any) => l.loanReceiptHash === log.loanReceiptHash);
@@ -67,17 +69,18 @@ export async function processPoolLoans(
       });
 
       // Unscale loan receipt principal from 18 decimals to 6 decimals
-      const principal = BigInt(decoded.principal) / 10n**12n;
+      const principal = BigInt(decoded.principal) / 10n ** 12n;
       const repayment = BigInt(log.repayment);
       const interest = repayment - principal;
       const adminFee = interest * ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
 
       // Add interest to fees, revenue, and supply side revenue
-      dailyFees.add(USDC, interest);
-      dailyRevenue.add(USDC, adminFee);
-      dailySupplySideRevenue.add(USDC, interest - adminFee);
+      dailyFees.add(USDC, interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
+      dailyRevenue.add(USDC, adminFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+      dailySupplySideRevenue.add(USDC, interest - adminFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
     } catch (e) {
       console.error(`Error processing loan ${log.loanReceiptHash}:`, e);
+      throw e
     }
   }
 }

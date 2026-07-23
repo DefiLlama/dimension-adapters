@@ -19,7 +19,7 @@ const contract_address: IContract = {
 const usdt = 'tether'
 const event_order_settled = 'event OrderSettled(uint128 indexed marketId,uint128 indexed accountId,uint256 fillPrice,int256 pnl,int256 accruedFunding,int128 sizeDelta,int128 newSize,uint256 totalFees,uint256 referralFees,uint256 collectedFees,uint256 settlementReward,bytes32 indexed trackingCode,address settler)'
 
-const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -32,35 +32,29 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   logs.forEach((log: any) => {
     const totalFees = Number(log.totalFees)
     const collectedFees = Number(log.collectedFees)
-    const referralFees = Number(log.referralFees)
-    const settlementReward = Number(log.settlementReward)
     dailyFees.addCGToken(usdt, totalFees / 1e18)
     dailyRevenue.addCGToken(usdt, collectedFees / 1e18)
     dailyHoldersRevenue.addCGToken(usdt, collectedFees / 1e18)
-    const supplySideRevenue = Number(totalFees) - Number(collectedFees) - Number(referralFees) - Number(settlementReward)
+    const supplySideRevenue = Number(totalFees) - Number(collectedFees)
     dailySupplySideRevenue.addCGToken(usdt, supplySideRevenue / 1e18)
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: dailyHoldersRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
-    timestamp
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: '2024-01-13',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
-      start: '2024-08-15',
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [
+    [CHAIN.BASE, { start: '2024-01-13' }],
+    [CHAIN.ARBITRUM, { start: '2024-08-15' }],
+  ],
   methodology,
 }
 export default adapters

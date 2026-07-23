@@ -19,32 +19,29 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const feeDetails = await options.api.multiCall({
         abi: feeRateAbi,
         calls: vaults,
-        permitFailure: true
     });
 
     const asset = await options.api.multiCall({
         abi: 'address:asset',
         calls: vaults,
-        permitFailure: true
     });
 
     const totalAssets = await options.api.multiCall({
         abi: 'uint256:totalAssets',
         calls: vaults,
-        permitFailure: true
     });
 
     for (let i = 0; i < vaults.length; i++) {
         const { performanceRate, managementRate } = feeDetails[i]; //fee in BPs
         const dailyYield = await getERC4626VaultsYield({ options, vaults: [vaults[i]] });
-        const dailyManagementFee = (totalAssets[i]) * (managementRate / 100) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
+        const dailyManagementFee = (totalAssets[i]) * (managementRate / 10000) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
         dailySupplySideRevenue.add(dailyYield, METRIC.ASSETS_YIELDS);
         dailyFees = dailySupplySideRevenue.clone(1 / (1 - performanceRate / 10000));
         dailyFees.add(asset[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);
     }
 
     const dailyRevenue = dailyFees.clone();
-    dailyRevenue.subtract(dailySupplySideRevenue);
+    dailyRevenue.subtract(dailySupplySideRevenue, METRIC.ASSETS_YIELDS);
 
     return {
         dailyFees,

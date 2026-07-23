@@ -1,20 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
 import { filterPools } from "../../helpers/uniswap";
-import {
-  FetchOptions,
-  FetchResult,
-  SimpleAdapter,
-  IJSON,
-} from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter, IJSON } from "../../adapters/types";
 import { ethers } from "ethers";
 import { addOneToken } from "../../helpers/prices";
 import { toInt256, fromUInt, mul } from "./quadHelper";
-import { swapEventABI } from "./swapEventABI";
-
 import { cache } from "@defillama/sdk";
 
-const poolCreatedEvent =
-  "event PoolCreated(address indexed token0, address indexed token1, int256 splits, address pool, uint8 decimals0, uint8 decimals1)";
+const poolCreatedEvent = "event PoolCreated(address indexed token0, address indexed token1, int256 splits, address pool, uint8 decimals0, uint8 decimals1)";
+
+const swapEventABI = "event SpotSwapEvent((bytes16 shove, bool ofToken, bytes16 limitPrice, bytes16 remainingAmount) params, address receiver, (bytes16 token0, bytes16 token1) swapped)";
 
 const getAbsoluteBigInt = (value: bigint): bigint => {
   return value < BigInt(0) ? value * BigInt(-1) : value;
@@ -45,16 +39,10 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   });
   const dailyVolume = createBalances();
 
-  const swapInterface = new ethers.Interface([swapEventABI]);
-
   await Promise.all(
     Object.keys(filteredPairs).map(async (pair) => {
       const [token0, token1] = pairObject[pair];
-      const event = swapInterface.getEvent("SpotSwapEvent");
-      if (!event) {
-        throw new Error("Event not found");
-      }
-      const logs = await getLogs({ target: pair, eventAbi: event });
+      const logs = await getLogs({ target: pair, eventAbi: swapEventABI });
       logs.forEach((log) => {
         const tenToPowerDecimals0 = fromUInt(
           BigInt(10 ** Number(decimals[pair][0]))
@@ -82,17 +70,18 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     })
   );
 
-  return { dailyVolume } as any;
+  return { dailyVolume };
 };
 
 const adapters: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetch as any,
-      start: "2025-01-13",
-    }
-  },
-  methodology: {dailyVolume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"}
+  pullHourly: true,
+  fetch,
+  start: '2025-01-13',
+  chains: [CHAIN.BASE],
+  methodology: { 
+    Volume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"
+  }
 };
+
 export default adapters;

@@ -1,6 +1,8 @@
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { formatAddress } from "../../utils/utils";
 
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
@@ -34,12 +36,16 @@ const ODOS_V2_ROUTERS: TPool = {
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const routers = ODOS_V2_ROUTERS[chain];
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
+  const isBlacklisted = (token: string) => blacklistedTokens.includes(formatAddress(token))
 
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const logs = await getLogs({ targets: routers, eventAbi: event_swap, })
-  const multiswapLogs = await getLogs({ targets: routers, eventAbi: event_multiswap, })
+  let logs = (await getLogs({ targets: routers, eventAbi: event_swap, }))
+    .filter(i => !isBlacklisted(i.outputToken) && !isBlacklisted(i.inputToken))
+  let multiswapLogs = (await getLogs({ targets: routers, eventAbi: event_multiswap, }))
+    .filter(i => !i.tokensIn.some(isBlacklisted) && !i.tokensOut.some(isBlacklisted))
 
   // add volume
   logs.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
@@ -49,8 +55,10 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   logs.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
   multiswapLogs.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01 / 100))) // 0.01% fixed fee
 
-  const logs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_swap_v3, })
-  const multiswapLogs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_multiswap_v3, })
+  let logs_v3 = (await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_swap_v3, }))
+    .filter(i => !isBlacklisted(i.outputToken) && !isBlacklisted(i.inputToken))
+  let multiswapLogs_v3 = (await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_multiswap_v3, }))
+    .filter(i => !i.tokensIn.some(isBlacklisted) && !i.tokensOut.some(isBlacklisted))
 
   // add v3 volume
   logs_v3.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
@@ -101,6 +109,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 const start = '2023-07-14'
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All fees paid by users for using Odos services.",
     UserFees: "All fees paid by users for using Odos services.",

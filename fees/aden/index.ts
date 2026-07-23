@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 // // Previously it was Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)
 
 // let asterBuilderData: any = null
-// async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
+// async function asterFetch({ dateString }: FetchOptions) {
 //   const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
 //   if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
 //     const dateDataMap: any = {}
@@ -23,18 +23,17 @@ import fetchURL from "../../utils/fetchURL";
 //   return response
 // }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
+async function fetch(options: FetchOptions): Promise<any> {
   if (options.chain !== CHAIN.GATE_LAYER) {
     return {
       dailyVolume: 0,
       dailyFees: 0,
       dailyRevenue: 0,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
     };
   }
 
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}`;
+  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}&broken=aden`;
 
   const data = await fetchURL(endpointWithDate);
 
@@ -42,12 +41,16 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
     throw new Error("Data missing for date: " + options.dateString);
   }
 
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+  dailyFees.addUSDValue(Number(data.fees), "Builder fees");
+  dailyVolume.addUSDValue(Number(data.volume));
+
   return {
     dailyVolume: data.volume,
-    dailyFees: data.fees,
-    dailyRevenue: data.fees,
-    dailyProtocolRevenue: data.fees,
-    dailyHoldersRevenue: 0,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
@@ -57,13 +60,21 @@ const methodology = {
   ProtocolRevenue: "All the revenue go to the protocol",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Builder fees":
+      "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
   doublecounted: true,
-  start: '2025-07-19',
+  start: "2025-07-19",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const GALA_SWAP_API = "https://dex-backend-prod1.defi.gala.com/explore/pools?limit=20";
 
-async function fetch(_: any, _2: any, _3: FetchOptions) {
+async function fetch(_3: FetchOptions) {
   const { count } = (await fetchURL(`${GALA_SWAP_API}&page=1`)).data;
   const totalPages = Math.ceil(count / 20);
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -38,6 +38,7 @@ const methodology = {
 export default {
   fetch,
   start: '2025-09-03',
+  runAtCurrTime: true,
   chains: [CHAIN.GALA],
   methodology,
 }

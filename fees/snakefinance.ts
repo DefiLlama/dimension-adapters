@@ -1,5 +1,5 @@
 
-import { FetchOptions } from "../adapters/types";
+import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter } from "../adapters/types";
 import { getETHReceived } from "../helpers/token";
@@ -11,19 +11,20 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyFees,
     targets: ['0x7d4c78a4d8a5cbfeec4a3498885749079fab590c', '0xa906B773bf4E1F5C668EeDEed06aa8917057eA7D'],
   })
-  return { dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2025-02-15',
-    },
-  },
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: '2025-02-15',
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Total fees paid by users.',
+    Revenue: 'All fees are collected by the Snake Finance protocol addresses.',
+    ProtocolRevenue: 'All fees are collected by the Snake Finance protocol addresses.',
   }
 }
 

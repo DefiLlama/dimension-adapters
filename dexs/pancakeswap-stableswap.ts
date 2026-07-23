@@ -1,32 +1,89 @@
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from '../helpers/chains';
+import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../helpers/curve";
 
-import { CHAIN } from "../helpers/chains";
-import { ICurveDexConfig, ContractVersion, getCurveExport } from "../helpers/curve";
+const METRIC = {
+  SWAP_FEES: 'Token Swap Fees',
+  PROTOCOL_REVENUE: 'Swap Fees To Protocol',
+  HOLDERS_REVENUE: 'Swap Fees To Holders',
+  LP_REVENUE: 'Swap Fees To Liquidity Providers',
+  BUY_BACK_AND_BURN: 'Buy Back And Burn CAKE',
+}
 
-const PancakeStableswapConfigs: {[key: string]: ICurveDexConfig} = {
-  [CHAIN.BSC]: {
-    start: '2020-09-06',
-    customPools: {
-      [ContractVersion.crypto]: [
-        '0x3EFebC418efB585248A0D2140cfb87aFcc2C63DD',
-        '0xc2F5B9a3d9138ab2B74d581fC11346219eBf43Fe',
-        '0x169F653A54ACD441aB34B73dA9946e2C451787EF',
-      ]
-    }
+// StableSwap factory per chain (same factories DefiLlama's TVL adapter uses:
+// DefiLlama-Adapters/projects/pancake-swap-stableswap). Pools are discovered on-chain via
+// pairLength()/swapPairContract(i) — the factory lacks Curve's pool_count/pool_list.
+// start = factory deploy date; BSC start kept from the original config.
+const chainConfig: { [chain: string]: { start: string; factory: string } } = {
+  [CHAIN.BSC]: { start: '2020-09-06', factory: '0x25a55f9f2279a54951133d503490342b50e5cd15' },
+  [CHAIN.ETHEREUM]: { start: '2024-07-25', factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054' }, // deploy block 20362671
+  [CHAIN.ARBITRUM]: { start: '2024-01-11', factory: '0x5D5fBB19572c4A89846198c3DBEdB2B6eF58a77a' }, // deploy block 169319653
+};
+
+async function getStableSwapPools(options: FetchOptions, factory: string): Promise<Array<string>> {
+  const pairLength = await options.api.call({ target: factory, abi: 'uint256:pairLength' });
+  return options.api.multiCall({
+    target: factory,
+    abi: 'function swapPairContract(uint256) view returns (address)',
+    calls: Array.from({ length: Number(pairLength) }, (_, i) => i),
+  });
+}
+
+async function fetch(options: FetchOptions) {
+  const { start, factory } = chainConfig[options.chain];
+  const pools = await getStableSwapPools(options, factory);
+  const config: ICurveDexConfig = { start, customPools: { [ContractVersion.crypto]: pools } };
+
+  const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, config)
+
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.add(adminFees.clone(0.2), METRIC.PROTOCOL_REVENUE) // 10% of swap fees → treasury
+  dailyRevenue.add(adminFees.clone(0.8), METRIC.HOLDERS_REVENUE) // 40% of swap fees → CAKE buyback
+
+  const lpFees = swapFees.clone(1)
+  lpFees.subtract(adminFees)
+
+  return {
+    dailyVolume,
+    dailyFees: swapFees.clone(1, METRIC.SWAP_FEES),
+    dailyRevenue,
+    dailyProtocolRevenue: adminFees.clone(0.2, METRIC.PROTOCOL_REVENUE),
+    dailySupplySideRevenue: lpFees.clone(1, METRIC.LP_REVENUE),
+    dailyHoldersRevenue: adminFees.clone(0.8, METRIC.BUY_BACK_AND_BURN),
+  };
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
+  methodology: {
+    UserFees: "Traders pay each pool's configured swap fee, read on-chain per pool (ranges roughly 0.01%–0.25%).",
+    Fees: "Total swap fees charged to traders, using each pool's on-chain fee rate.",
+    Revenue: "Half of the swap fees (the pool admin fee); the other half stays with liquidity providers.",
+    ProtocolRevenue: "Treasury keeps 10% of swap fees (20% of the admin fee).",
+    SupplySideRevenue: "Liquidity providers keep 50% of swap fees (the non-admin half).",
+    HoldersRevenue: "40% of swap fees (80% of the admin fee) funds CAKE buyback and burn.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: "Each pool's on-chain swap fee applied to trade volume.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_REVENUE]: 'Treasury keeps 10% of swap fees.',
+      [METRIC.HOLDERS_REVENUE]: '40% of swap fees funds CAKE buyback and burn.',
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_REVENUE]: 'Treasury keeps 10% of swap fees.',
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_REVENUE]: 'Liquidity providers keep 50% of swap fees.',
+    },
+    HoldersRevenue: {
+      [METRIC.BUY_BACK_AND_BURN]: '40% of swap fees funds CAKE buyback and burn.',
+    },
   }
-}
-
-const stableSwapMethodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 10% of the fees.",
-  SupplySideRevenue: "LPs receive 50% of the fees.",
-  HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-  Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
-}
-
-
-const adapter = getCurveExport(PancakeStableswapConfigs)
-
-adapter.methodology = stableSwapMethodology;
+};
 
 export default adapter;

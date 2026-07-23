@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-import request, { gql } from "graphql-request";
+import request from "graphql-request";
 
 const URL = "https://backend.swop.fi/pools"
 
@@ -30,7 +29,7 @@ interface IAPIResponse {
   overall: IInfo;
 };
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_options: FetchOptions) => {
   const response: IAPIResponse = (await fetchURL(URL));
   const fees = (parseFloat(response.overall.day.liquidityFee) + parseFloat(response.overall.day.governanceFee)) // 90% of fees
   const teamRevenue = fees / 90 * 10 // 10% of fees going to team treasure
@@ -42,7 +41,6 @@ const fetch = async (timestamp: number) => {
     dailyProtocolRevenue: teamRevenue,
     dailyHoldersRevenue: `${response.overall.day.governanceFee}`,
     dailySupplySideRevenue: `${response.overall.day.liquidityFee}`,
-    timestamp: timestamp,
   };
 };
 
@@ -52,7 +50,7 @@ const endpoints = {
 
 };
 
-const fetchUnit0 = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetchUnit0 = async (options: FetchOptions) => {
   const dayId = Math.floor(options.startOfDay / 86400)
   const query = `
     {
@@ -65,7 +63,6 @@ const fetchUnit0 = async (timestamp: number, _: any, options: FetchOptions) => {
   const res = await request(endpoints[options.chain], query)
   return {
     dailyVolume: res.swopfiDayData.dailyVolumeUSD,
-    timestamp: timestamp,
   };
 
 }

@@ -3,25 +3,36 @@ import { filterPools } from "../../helpers/uniswap";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
-export const brownfiV2Factories: { [key: string]: any } = {
+const chainConfig: Record<string, { factory: string, start: string }> = {
   [CHAIN.BERACHAIN]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-04',
   },
   [CHAIN.BASE]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-01',
   },
   [CHAIN.ARBITRUM]: {
-    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E"
+    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E",
+    start: '2025-07-01',
   },
   [CHAIN.HYPERLIQUID]: {
-    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55"
+    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55",
+    start: '2025-07-19',
   },
   [CHAIN.LINEA]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-09-05',
   },
   [CHAIN.BSC]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-01',
+  },
+  [CHAIN.MONAD]: {
+    factory: "0x68bc42F886ddf6a4b0B90a9496493dA1f8304536",
+    start: '2025-12-02',
   },
 };
 
@@ -32,8 +43,8 @@ const abis = {
   protocolFee: "function protocolFee() external view returns (uint64)"
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const factory = brownfiV2Factories[options.chain].factory;
+const fetch = async (options: FetchOptions) => {
+  const factory = chainConfig[options.chain].factory;
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
 
@@ -49,19 +60,24 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   let _fees = await api.multiCall({ abi: abis.fees, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[pairs[i]] = fee / 1e8)
+  _fees.forEach((fee: any, i: number) => { if (fee !== null) fees[pairs[i]] = fee / 1e8 })
   let _protocolFees = await api.multiCall({ abi: abis.protocolFee, calls: pairs.map((pair: any) => pair), permitFailure: true })
-  _protocolFees.filter(fee => fee !== null).forEach((fee: any, i: number) => protocolFees[pairs[i]] = fee / 1e8)
+  _protocolFees.forEach((fee: any, i: number) => { if (fee !== null) protocolFees[pairs[i]] = fee / 1e8 })
 
   const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
+  const feesRaw = createBalances()
+  const revenue = createBalances()
+  const supplySideRevenue = createBalances()
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, minUSDValue: 100 })
   const pairIds = Object.keys(filteredPairs)
 
   if (!pairIds.length) return {
     dailyVolume,
-    dailyFees,
+    dailyFees: 0,
+    dailyUserFees: 0,
+    dailyRevenue: 0,
+    dailySupplySideRevenue: 0,
+    dailyProtocolRevenue: 0,
   }
 
   const allLogs = await getLogs({ targets: pairIds, eventAbi: brownfiV2SwapEvent, flatten: false })
@@ -71,23 +87,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const fee = fees[pair]
     const protocolFee = protocolFees[pair]
     const [token0, token1] = pairObject[pair]
+    const feeRate = fee / (1 + fee)
     logs.forEach((log: any) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * fee, amount1: Number(log.amount1In) * fee })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * fee, amount1: Number(log.amount1Out) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0In) * fee) * protocolFee, amount1: Number(log.amount1In) * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: (Number(log.amount0Out) * fee) * protocolFee, amount1: Number(log.amount1Out) * fee })
+      addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
+      addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
+      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
     })
   })
-  return { 
-    dailyVolume, 
+
+  const dailyFees = feesRaw.clone(1, METRIC.SWAP_FEES)
+  const dailyRevenue = revenue.clone(1, "Swap Fees to Protocol")
+  const dailySupplySideRevenue = supplySideRevenue.clone(1, "Swap Fees to Liquidity Providers")
+
+  return {
+    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue: dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: "0",
   };
 };
 
@@ -97,13 +116,31 @@ const methodology = {
   Revenue: "Protocol share from swap fees.",
   ProtocolRevenue: "Protocol share from swap fees.",
   SupplySideRevenue: "Liquidity providers share from swap fees.",
-  HoldersRevenue: "Holders does not earn any revenue.",
+  HoldersRevenue: "Holders do not earn any revenue.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees from swap transactions.",
+  },
+  Revenue: {
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
+  },
+  ProtocolRevenue: {
+    "Swap Fees to Protocol": "Protocol share from swap fees.",
+  },
+  SupplySideRevenue: {
+    "Swap Fees to Liquidity Providers": "Liquidity providers share from swap fees.",
+  },
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  chains: [CHAIN.BERACHAIN, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.HYPERLIQUID, CHAIN.LINEA, CHAIN.BSC],
+  adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapters;

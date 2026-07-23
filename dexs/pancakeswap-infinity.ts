@@ -4,29 +4,63 @@ import { CHAIN } from "../helpers/chains"
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists"
 import { addOneToken } from "../helpers/prices"
 
+const METRIC = {
+  SWAP_FEES: 'Token Swap Fees',
+  PROTOCOL_REVENUE: 'Swap Fees To Protocol',
+  HOLDERS_REVENUE: 'Swap Fees To Holders',
+  LP_REVENUE: 'Swap Fees To Liquidity Providers',
+  BUY_BACK_AND_BURN: 'Buy Back And Burn CAKE',
+}
+
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
+// Both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together as part of Infinity.
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
-  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
+  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
+  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
+  pullHourly: true,
   version: 2,
-  adapter: {}
+  adapter: {},
+  methodology: {
+    Fees: 'Total swap fees paid by users.',
+    Revenue: 'Share of swap fees to protocol and holders.',
+    ProtocolRevenue: '50% of revenue are collected by protocol.',
+    SupplySideRevenue: 'Share of swap fees to LPs.',
+    HoldersRevenue: '50% of revenue are used to buy back and burn CAKE',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Total swap fees paid by users.',
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_REVENUE]: 'Share of swap fees to protocol.',
+      [METRIC.HOLDERS_REVENUE]: '50% of revenue are collected by protocol.',
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_REVENUE]: '50% of revenue are collected by protocol.',
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_REVENUE]: 'Share of swap fees to LPs.',
+    },
+    HoldersRevenue: {
+      [METRIC.BUY_BACK_AND_BURN]: '50% of revenue will be used to buy back and burn CAKE',
+    },
+  }
 }
 
-async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
-  const { clPoolManager, fromBlock, blacklistTokens } = config[chain]
-  const getFromBlock = Number(fromApi.block)
-  const getToBlock = Number(toApi.block)
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-
+// CLPoolManager and BinPoolManager share the same Swap semantics (id, amount0, amount1, fee, protocolFee,
+// both denominated in hundredths of a bip) — only the Initialize/Swap ABI differs (sqrtPriceX96+tick vs activeId).
+async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBlock, getToBlock, initializeAbi, swapAbi, blacklistTokens, dailyVolume, swapFees, revenue }: {
+  getLogs: FetchOptions['getLogs'], chain: string, target: string, fromBlock: number, getFromBlock: number, getToBlock: number,
+  initializeAbi: string, swapAbi: string, blacklistTokens?: string[],
+  dailyVolume: ReturnType<FetchOptions['createBalances']>, swapFees: ReturnType<FetchOptions['createBalances']>, revenue: ReturnType<FetchOptions['createBalances']>,
+}) {
   const logs = await getLogs({
-    target: clPoolManager,
+    target,
     fromBlock,
-    skipIndexer: true,
-    eventAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint160 sqrtPriceX96, int24 tick)',
+    cacheInCloud: true,
+    eventAbi: initializeAbi,
   })
 
   const poolMap: Record<string, { currency0: string, currency1: string }> = {}
@@ -39,8 +73,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
 
   await sdk.indexer.getLogs({
     chain,
-    target: clPoolManager,
-    eventAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
+    target,
+    eventAbi: swapAbi,
     fromBlock: getFromBlock,
     toBlock: getToBlock,
     onlyArgs: true,
@@ -60,7 +94,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
         if (
           blacklistTokens &&
           (blacklistTokens.includes(currency0.toLowerCase()) ||
-           blacklistTokens.includes(currency1.toLowerCase()))
+            blacklistTokens.includes(currency1.toLowerCase()))
         ) {
           return
         }
@@ -71,13 +105,62 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOp
         const amount1ProtocolFees = (amount1 * BigInt(protocolFee)) / BigIntE6
 
         addOneToken({ chain, balances: dailyVolume, token0: currency0, amount0, token1: currency1, amount1 })
-        addOneToken({ chain, balances: dailyFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
-        addOneToken({ chain, balances: dailyRevenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
+        addOneToken({ chain, balances: swapFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
+        addOneToken({ chain, balances: revenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
       })
     },
   })
+}
 
-  return { dailyVolume, dailyFees, dailyRevenue }
+async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
+  const { clPoolManager, binPoolManager, fromBlock, blacklistTokens } = config[chain]
+  const getFromBlock = Number(fromApi.block)
+  const getToBlock = Number(toApi.block)
+  const dailyVolume = createBalances()
+  const swapFees = createBalances()
+  const revenue = createBalances()
+
+  await Promise.all([
+    trackPoolManager({
+      getLogs, chain, fromBlock, getFromBlock, getToBlock, blacklistTokens,
+      target: clPoolManager,
+      initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint160 sqrtPriceX96, int24 tick)',
+      swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
+      dailyVolume, swapFees, revenue,
+    }),
+    trackPoolManager({
+      getLogs, chain, fromBlock, getFromBlock, getToBlock, blacklistTokens,
+      target: binPoolManager,
+      initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint24 activeId)',
+      swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint24 activeId, uint24 fee, uint16 protocolFee)',
+      dailyVolume, swapFees, revenue,
+    }),
+  ])
+
+  const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES);
+  const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+
+  const lpRevenue = swapFees.clone(1);
+  lpRevenue.subtract(revenue);
+  dailySupplySideRevenue.add(lpRevenue, METRIC.LP_REVENUE);
+
+  // https://docs.pancakeswap.finance/trade/pancakeswap-infinity/pool-types/infinity-clamm-and-lbamm
+  // 50% to protocol, 50% to burn CAKE
+  dailyRevenue.add(revenue.clone(0.5), METRIC.PROTOCOL_REVENUE);
+  dailyRevenue.add(revenue.clone(0.5), METRIC.HOLDERS_REVENUE);
+
+  const dailyProtocolRevenue = revenue.clone(0.5, METRIC.PROTOCOL_REVENUE);
+  const dailyHoldersRevenue = revenue.clone(0.5, METRIC.BUY_BACK_AND_BURN);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+  }
 }
 
 Object.keys(config).forEach(chain => {

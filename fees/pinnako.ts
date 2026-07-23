@@ -1,20 +1,16 @@
-import { Chain } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { gql, request } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types";
-import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints = {
+const endpoints: Record<string, string> = {
     [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
 };
 
-const graphs = (graphUrls: ChainEndpoints) => {
-    return (chain: Chain) => {
-        return async (timestamp: number) => {
-            const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-            const graphQuery = gql`{
+    const graphQuery = gql`{
                 feeStat(id: "${todaysTimestamp}",period: "daily") {
                     mint
                     burn
@@ -23,36 +19,30 @@ const graphs = (graphUrls: ChainEndpoints) => {
                 }
             }`;
 
-            const graphRes = await request(graphUrls[chain], graphQuery);
+    const graphRes = await request(endpoints[options.chain], graphQuery);
 
-            const dailyFee = (
-                parseInt(graphRes?.feeStat?.mint || 0) +
-                parseInt(graphRes?.feeStat?.burn || 0) +
-                parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
-                parseInt(graphRes?.feeStat?.swap || 0)
-            ) / 1e30
-            const dailyUserFees = (
-                parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
-                parseInt(graphRes?.feeStat?.swap || 0)
-            ) / 1e30;
+    const dailyFee = (
+        parseInt(graphRes?.feeStat?.mint || 0) +
+        parseInt(graphRes?.feeStat?.burn || 0) +
+        parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
+        parseInt(graphRes?.feeStat?.swap || 0)
+    ) / 1e30
+    const dailyUserFees = (
+        parseInt(graphRes?.feeStat?.marginAndLiquidation || 0) +
+        parseInt(graphRes?.feeStat?.swap || 0)
+    ) / 1e30;
 
-            return {
-                timestamp,
-                dailyFees: dailyFee.toString(),
-                dailyUserFees: dailyUserFees.toString(),
-                dailyRevenue: (dailyFee * 0.3).toString()
-            };
-        };
+    return {
+        dailyFees: dailyFee.toString(),
+        dailyUserFees: dailyUserFees.toString(),
+        dailyRevenue: (dailyFee * 0.3).toString()
     };
 };
 
 const adapter: Adapter = {
-    adapter: {
-        [CHAIN.ERA]: {
-            fetch: graphs(endpoints)(CHAIN.ERA),
-            start: '2022-12-10',
-        },
-    },
+    fetch,
+    chains: [CHAIN.ERA],
+    start: '2022-12-10',
     methodology: {
         Fees: "All mint, burn, margin and liquidation and swap fees are collected",
         UserFees: "Users pay swap fees and margin and liquidation fees",

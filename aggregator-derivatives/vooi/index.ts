@@ -48,7 +48,7 @@ const getItems: Record<string, (items: Array<any>) => Array<any>> = {
     return items.filter(item => item.protocol == 'kiloex' && item.network === 'opbnb')
   },
   [CHAIN.OFF_CHAIN]: (items: Array<any>): Array<any> => {
-    return items.filter(item => item.protocol == 'aster')
+    return items.filter(item => ['aster', 'lighter'].includes(item.protocol))
   },
 }
 
@@ -56,14 +56,19 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   return await fetchStatistics(options.startOfDay);
 }
 
-const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults;
 
   const items = getItems[options.chain](results)
 
   let dailyVolume = 0;
   for (const item of items) {
-    dailyVolume += item.dailyVolume;
+    // reported wrong - spike volume on this day on ostium
+    if (options.chain === CHAIN.ARBITRUM && options.startOfDay === 1768003200 && item.protocol === 'ostium') {
+      dailyVolume += 0;
+    } else {
+      dailyVolume += item.dailyVolume;
+    }
   }
 
   return { dailyVolume }

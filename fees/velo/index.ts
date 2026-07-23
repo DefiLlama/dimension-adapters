@@ -1,9 +1,10 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
 const config: any = {
-  bsc: {
+  [CHAIN.BSC]: {
     targets: ["0x6C22422f4044dfBA79f4EA6BbB9C09162c3BF912"],
     tokens: [
       ADDRESSES.bsc.BUSD,
@@ -23,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
     options,
   });
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapters: SimpleAdapter = {
@@ -35,5 +36,10 @@ const adapters: SimpleAdapter = {
     {}
   ),
   version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: "Swap fees paid by users",
+    Revenue: "All the fees are revenue"
+  }
 };
 export default adapters;

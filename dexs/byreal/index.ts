@@ -1,26 +1,27 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from "../../utils/fetchURL"
 import { Agent } from "https"
 
 const agent = new Agent({ family: 4 });
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v1/overview/global?timestamp=${options.startOfDay * 1000}`, { httpsAgent: agent })
+const fetch = async (): Promise<FetchResultV2> => {
+  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v2/overview/global`, { httpsAgent: agent })
   const data = response.result.data
 
+  // Every Byreal CLMM AmmConfig sets protocol_fee_rate = 200000 (20% of swap
+  // fees) on-chain, with fund_fee_rate = 0; the remaining 80% goes to LPs.
   return {
     dailyVolume: data.volumeUsd24h,
     dailyFees: data.feeUsd24h,
     dailyUserFees: data.feeUsd24h,
-    dailyRevenue: data.feeUsd24h * 0.12, // 12%
-    dailyProtocolRevenue: data.feeUsd24h * 0.12, // 12% Treasury
-    dailySupplySideRevenue: data.feeUsd24h * 0.88, // 88%
+    dailyRevenue: data.feeUsd24h * 0.2,
+    dailyProtocolRevenue: data.feeUsd24h * 0.2,
+    dailySupplySideRevenue: data.feeUsd24h * 0.8,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
@@ -31,10 +32,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: 'Total token swap volumes retrieved from Byreal API.',
     Fees: 'All fees from token swaps.',
-    UserFees: 'User pay fees on very token swaps.',
-    Revenue: 'Amount of 12% swap fees to Byreal treasury.',
-    ProtocolRevenue: 'Amount of 12% swap fees to Byreal treasury.',
-    SupplySideRevenue: 'Amount of 88% swap fees distributed to LPs.',
+    UserFees: 'Users pay fees on every token swap.',
+    Revenue: 'Amount of 20% (12% before 2025-11-12) swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
+    ProtocolRevenue: 'Amount of 20% (12% before 2025-11-12) swap fees taken as protocol fee (AmmConfig protocol_fee_rate).',
+    SupplySideRevenue: 'Amount of 80% (88% before 2025-11-12) swap fees distributed to LPs.',
   }
 };
 

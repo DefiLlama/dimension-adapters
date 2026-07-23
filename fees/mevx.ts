@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
@@ -18,13 +18,14 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-07-27',
     },
   },
-  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "All trading fees paid by users while using Mevx bot.",
     Revenue: "Trading fees are collected by Mevx protocol.",

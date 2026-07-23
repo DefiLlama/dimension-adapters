@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchResult, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchUrl from "../utils/fetchURL";
 
-async function fetch(_a: any, _b: any, _c: FetchOptions): Promise<FetchResult> {
+async function fetch(_options: FetchOptions): Promise<FetchResult> {
 
     const tradeData = (await fetchUrl("https://api.ethereal.trade/v1/product")).data;
 

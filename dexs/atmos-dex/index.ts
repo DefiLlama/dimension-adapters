@@ -4,7 +4,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 const API_ENDPOINT = "https://api.atmos.ag/stats/defillama/stats";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const response = await httpGet(
     `${API_ENDPOINT}?timestamp=${options.startOfDay}`
   );

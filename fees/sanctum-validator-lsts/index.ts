@@ -14,10 +14,10 @@ Here are the different materialized query you can find in the query below:
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
+import { SanctumMetric } from "../sanctum";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
@@ -102,18 +102,22 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
-  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), METRIC.STAKING_REWARDS)
-  dailyFees.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
+  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), SanctumMetric.LstStakingRewards)
+  dailyFees.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), SanctumMetric.DepositWithdrawFees)
 
-  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), METRIC.STAKING_REWARDS)
-  dailyRevenue.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), SanctumMetric.StakingRewardsToProtocol)
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), SanctumMetric.DepositWithdrawFees)
+
+  dailySupplySideRevenue.addCGToken('solana', Number(fees[0].daily_epoch_fees) - Number(fees[0].daily_epoch_revenue), SanctumMetric.StakingRewardsToStakers)
 
   return {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue: 0,
+    dailySupplySideRevenue,
   };
 };
 
@@ -122,21 +126,25 @@ const methodology = {
   Revenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
   ProtocolRevenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
   HoldersRevenue: "No revenue share to CLOUD token holders",
+  SupplySideRevenue: "97.5% of staking rewards go to stakers"
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.STAKING_REWARDS]: 'Validators staking rewards from Sanctum LSTS.',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'SOL deposit and withdraw fees.',
+    [SanctumMetric.LstStakingRewards]: 'Validators staking rewards from Sanctum LSTS.',
+    [SanctumMetric.DepositWithdrawFees]: 'SOL deposit and withdraw fees.',
   },
   Revenue: {
-    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+    [SanctumMetric.StakingRewardsToProtocol]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [SanctumMetric.DepositWithdrawFees]: 'All SOL deposit and withdraw fees.',
   },
   ProtocolRevenue: {
-    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+    [SanctumMetric.StakingRewardsToProtocol]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [SanctumMetric.DepositWithdrawFees]: 'All SOL deposit and withdraw fees.',
   },
+  SupplySideRevenue: {
+    [SanctumMetric.StakingRewardsToStakers]: "97.5% of staking rewards go to stakers"
+  }
 }
 
 const adapter: SimpleAdapter = {

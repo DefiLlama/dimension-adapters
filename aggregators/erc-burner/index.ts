@@ -49,6 +49,7 @@ const adapter: SimpleAdapter = {
   start: '2025-02-23', // Current date as specified
   fetch,
   version: 2,
+  pullHourly: true,
   chains: Object.keys(BURNER_CONTRACTS),
 };
 

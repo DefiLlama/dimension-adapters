@@ -1,10 +1,8 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import request, { gql } from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: ChainEndpoints = {
@@ -24,13 +22,12 @@ interface IPoolSnapshot {
 }
 
 
-const v2Graphs = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const startTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const fromTimestamp = startTimestamp - 60 * 60 * 24
-    const toTimestamp = startTimestamp
-    const graphQuery = gql
-      `query fees {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const startTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
+  const fromTimestamp = startTimestamp - 60 * 60 * 24
+  const toTimestamp = startTimestamp
+  const graphQuery = gql
+    `query fees {
         today:poolSnapshots(where: {timestamp:${toTimestamp}, protocolFee_gt:0}, orderBy:swapFees, orderDirection: desc) {
           id
           swapVolume
@@ -40,19 +37,15 @@ const v2Graphs = (chain: Chain) => {
           swapVolume
         }
       }`;
-    // const blackList = ['0x93d199263632a4ef4bb438f1feb99e57b4b5f0bd0000000000000000000005c2']
-    const graphRes: IPoolSnapshot = (await request(endpoints[chain], graphQuery));
-    const dailyVolume = graphRes["today"].map((p: IPool) => {
-      const yesterdayValue = Number(graphRes.yesterday.find((e: IPool) => e.id.split('-')[0] === p.id.split('-')[0])?.swapVolume || '0')
-      if (yesterdayValue === 0) return 0;
-      return Number(p.swapVolume) - yesterdayValue;
-    }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
+  // const blackList = ['0x93d199263632a4ef4bb438f1feb99e57b4b5f0bd0000000000000000000005c2']
+  const graphRes: IPoolSnapshot = (await request(endpoints[options.chain], graphQuery));
+  const dailyVolume = graphRes["today"].map((p: IPool) => {
+    const yesterdayValue = Number(graphRes.yesterday.find((e: IPool) => e.id.split('-')[0] === p.id.split('-')[0])?.swapVolume || '0')
+    if (yesterdayValue === 0) return 0;
+    return Number(p.swapVolume) - yesterdayValue;
+  }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
-    return {
-      dailyVolume: dailyVolume,
-      timestamp,
-    };
-  };
+  return { dailyVolume };
 };
 
 type TTime = {
@@ -65,11 +58,11 @@ const startTimes: TTime = {
 }
 
 const adapter: SimpleAdapter = {
+  fetch,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: v2Graphs(chain),
         start: startTimes[chain],
       }
     }

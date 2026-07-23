@@ -13,9 +13,14 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addBalances(hwhlpFees);
     dailyFees.addBalances(hwhypeFees);
 
+    // Supply side is the yield paid to hwHLP/hwHYPE holders, i.e. fees minus the
+    // platform fee the protocol keeps as revenue (not the full fees).
+    const dailySupplySideRevenue = dailyFees.clone();
+    dailySupplySideRevenue.subtract(dailyRevenue);
+
     return {
         dailyFees,
-        dailySupplySideRevenue: dailyFees,
+        dailySupplySideRevenue,
         dailyRevenue: dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
     };
@@ -37,7 +42,7 @@ const adapter: Adapter = {
         ProtocolRevenue:
             "Revenue share for protocol, currently no revenue share for Hyperwave protocol.",
         SupplySideRevenue:
-            "Currewntly, 100% of yields paid to hwHLP and hwHYPE holders, suppliers.",
+            "Currently, 100% of yields paid to hwHLP and hwHYPE holders, suppliers.",
     },
 };
 

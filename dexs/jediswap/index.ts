@@ -1,7 +1,6 @@
-import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IGraph {
   dayId: number;
@@ -17,9 +16,8 @@ const blackList: string[] = [
   "0x3d56e63387bc55426941a47d6e8b7571d3b98c72253275d8c449a5f216e75a5"
 ]
 
-const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dayID = (dayTimestamp / 86400);
+const fetch = async ({  createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => {
+    const dayID = (startOfDay / 86400);
     const query = gql`
     {
       pairDayDatas(first: 1000 where:{dateGt:1669593600}, orderBy:"date", orderByDirection:"dese") {
@@ -42,17 +40,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, {  createBalances }: Fet
     dailyVolume.addCGToken('tether', volume);
     return {
         dailyVolume: dailyVolume,
-        timestamp: dayTimestamp,
     };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.STARKNET]: {
-          fetch: fetch,
-          start: '2022-11-28',
-        },
-    },
+  fetch,
+  chains: [CHAIN.STARKNET],
+  start: '2022-11-28',
 };
 
 export default adapter;

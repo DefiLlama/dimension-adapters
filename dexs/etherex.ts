@@ -212,40 +212,47 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   };
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD + stats.dailyXrexInstantExitFeeUSD;
-  const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
-  const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
-  const dailyTokenTaxes = stats.dailyXrexInstantExitFeeUSD;
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+  
+  dailyFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
+  dailyFees.addUSDValue(stats.dailyXrexInstantExitFeeUSD, 'Instant Exit Fees')
+  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Rewards')
 
+  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
+  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
+  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
+  
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
+
+  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Token Swap Fees To LPs')
+  
   return {
-    dailyVolume,
+    dailyVolume: stats.clVolumeUSD,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
-    dailyTokenTaxes,
   };
 };
 
 const methodology = {
-  Fees: "Fees are collected from users on each swap.",
+  Fees: "Fees are collected from users on each swap + xREX stakers instant exit penalty + bribes revenue.",
   Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
   TokenTax: "xREX stakers instant exit penalty",
 };
@@ -255,6 +262,33 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.LINEA],
   start: '2025-07-26',
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Etherex concentrated liquidity pools.',
+      'Instant Exit Fees': 'xREX instant exit penalties paid by users and distributed to xREX stakers as rebase rewards.',
+      'Bribes Rewards': 'Vote bribes deposited for Etherex concentrated liquidity pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Etherex concentrated liquidity pools.',
+      'Instant Exit Fees': 'xREX instant exit penalties paid by users.',
+      'Bribes Rewards': 'Vote bribes deposited for Etherex concentrated liquidity pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xREX holders.',
+      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
+      'Bribes Revenue': 'Vote bribes distributed to xREX holders.',
+    },
+    ProtocolRevenue: {
+      'Token Swap Fees To Protocol': 'Treasury portion of concentrated liquidity swap fees.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Portion of concentrated liquidity swap fees distributed to xREX holders.',
+      'Bribes Revenue': 'Vote bribes distributed to xREX holders.',
+    },
+    SupplySideRevenue: {
+      'Token Swap Fees To LPs': 'Concentrated liquidity swap fees retained by LPs after holder and treasury fee shares.',
+    },
+  }
 };
 
 export default adapter;

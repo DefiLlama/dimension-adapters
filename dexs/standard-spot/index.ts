@@ -63,6 +63,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.SOMNIA]: options,
   },
   version: 2,
+  pullHourly: true,
 }
 
 export default adapters;

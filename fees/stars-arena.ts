@@ -31,9 +31,13 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
 
   function addLogData(log: any) {
     dailyVolume.addGasToken(log.amount);
-    dailyRevenue.addGasToken(log.protocolAmount);
-    dailySupplySideRevenue.addGasToken(log.referralAmount);
-    dailyFees.addGasToken(log.protocolAmount + log.subjectAmount + log.referralAmount);
+    
+    dailyFees.addGasToken(BigInt(log.protocolAmount) + BigInt(log.subjectAmount) + BigInt(log.referralAmount), 'Trading Fees');
+
+    dailyRevenue.addGasToken(log.protocolAmount, 'Protocol Fees');
+
+    dailySupplySideRevenue.addGasToken(log.subjectAmount, 'Creator Fees');
+    dailySupplySideRevenue.addGasToken(log.referralAmount, 'Referral Fees');
   }
 
   tradeLogs.forEach(addLogData);
@@ -43,18 +47,37 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 }
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
       start: '2023-09-19',
     },
-  }
+  },
+  methodology: {
+    Fees: "Includes protocol, creator and referral fees",
+    Revenue: "Trading fees charged by the protocol",
+    SupplySideRevenue: "Includes creator and referral fees"
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Trading Fees': 'Fees collected by the protocol from each trade',
+    },
+    Revenue: {
+      'Protocol Fees': 'Protocol\'s share of trading fees retained as revenue',
+    },
+    SupplySideRevenue: {
+      'Creator Fees': 'Portion of trading fees distributed to subjects/creators',
+      'Referral Fees': 'Portion of trading fees distributed to referrers',
+    },
+  },
 }
 
 export default adapter;

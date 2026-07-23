@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const chains = [CHAIN.ARBITRUM, CHAIN.BASE]
 
@@ -24,54 +23,39 @@ interface IGraphResponse {
     totalVolUSD: string,
   }>
 }
-interface IGraphResponse {
-  markets: Array<{
-    liqVolUSD: string,
-    totalVolUSD: string,
-  }>
-}
 
 
-const getFetch = (chain: string): Fetch => async (timestamp: any) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp.toTimestamp * 1000)))
-  
-  const dailyData: IGraphResponse = await request(endpoints[chain], historicalDailyData, {
-    dayTime: String(dayTimestamp),
+const fetch = async (options: FetchOptions) => {
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDailyData, {
+    dayTime: String(options.startOfDay),
   })
-  
+
   let dailyVolume = 0;
-  for(let i in dailyData.marketInfoDailies) {
+  for (let i in dailyData.marketInfoDailies) {
     dailyVolume += parseFloat(dailyData.marketInfoDailies[i].totalVolUSD)
   }
-  
+
   return {
-    timestamp: dayTimestamp,
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume,
   }
 }
 
-const getStartTimestamp = (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.ARBITRUM]: 1713916800,
-    [CHAIN.BASE]: 1721001600,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.ARBITRUM]: 1713916800,
+  [CHAIN.BASE]: 1721001600,
 }
 
-
-const volume = chains.reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: getFetch(chain),
-      start: getStartTimestamp(chain)
-    },
-  }),
-  {}
-);
+const chainsConfig: { [chain: string]: { start: number } } = chains.reduce((acc, chain) => ({
+  ...acc,
+  [chain]: {
+    start: startTimestamps[chain],
+  },
+}), {})
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: volume
+  version: 1,
+  fetch,
+  adapter: chainsConfig,
+  deadFrom: '2025-05-11'
 };
 export default adapter;

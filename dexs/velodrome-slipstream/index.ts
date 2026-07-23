@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { sliceIntoChunks } from "@defillama/sdk/build/util";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 
-const superchainConfig = {
+const superchainConfig: any = {
   [CHAIN.OPTIMISM]: {
     sugar: '0xdE2aE25FB984dd60C77dcF6489Be9ee6438eC195',
   },
@@ -52,7 +51,7 @@ interface ILog {
 const forSwaps = 'function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])'
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getFromBlock, startOfDay, chain, getLogs } = fetchOptions
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), await api.getBlock() - 100])
   const dailyVolume = createBalances()
@@ -66,9 +65,9 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const sugarContract = isOldOptimism ? sugarOld : superchainConfig[chain].sugar;
 
   while (true) {
-    const rawSwaps: IForSwap[] = await api.call({ target: sugarContract, params: [chunkSize, currentOffset], abi: forSwaps });
+    const rawSwaps: IForSwap[] = await api.call({ target: sugarContract, params: [chunkSize, currentOffset], abi: forSwaps, permitFailure: true });
 
-    if (rawSwaps.length === 0) break;
+    if (!rawSwaps || rawSwaps.length === 0) break;
     const seen = new Set<string>();
 
     rawSwaps.forEach((e: any) => {
@@ -92,7 +91,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   sdk.log('velodrome pairs', pairs.length, 'all pairs', pairs.length, chain)
   const targetChunkSize = 10;
-  const pairChunks = sliceIntoChunks(pairs, targetChunkSize);
+  const pairChunks = sdk.util.sliceIntoChunks(pairs, targetChunkSize);
 
   for (let chunkIndex = 0; chunkIndex < pairChunks.length; chunkIndex++) {
     const targets = pairChunks[chunkIndex];
@@ -100,25 +99,50 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
     logs.forEach((logs: ILog[], idx) => {
       const pool = targets[idx];
-      const { token1, pool_fee } = pairInfoMap[pool];
-
-      logs.forEach((log: any) => {
-        const amount1 = Math.abs(Number(log.amount1));
-        const fee = Math.round((amount1 * Number(pool_fee)) / 1_000_000);
-
-        dailyVolume.add(token1, BigInt(amount1));
-        dailyFees.add(token1, BigInt(fee));
-      });
+      
+      if (pairInfoMap[pool]) {
+        const { token1, pool_fee } = pairInfoMap[pool];
+  
+        logs.forEach((log: any) => {
+          const amount1 = Math.abs(Number(log.amount1));
+          const fee = Math.round((amount1 * Number(pool_fee)) / 1_000_000);
+  
+          dailyVolume.add(token1, BigInt(amount1));
+          dailyFees.add(token1, BigInt(fee));
+        });
+      }
     });
 
     sdk.log(`Velodrome ${chain} chunk ${chunkIndex + 1}/${pairChunks.length} processed`);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, 'Token Swap Fees'),
+    dailyRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+    dailyHoldersRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+  }
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: 'Total swap fees paid by users',
+    Revenue: 'Swap feesare distributed to holders',
+    HoldersRevenue: 'Swap fees are distributed to holders',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Total swap fees paid by users',
+    },
+    Revenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+    HoldersRevenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch,
@@ -156,7 +180,7 @@ const adapters: SimpleAdapter = {
       fetch,
       start: '2025-04-02',
     },
-  }
+  },
 }
 
 export default adapters;

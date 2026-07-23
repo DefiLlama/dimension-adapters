@@ -1,10 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
 const wallets = ['9QZgt11ev2g2J1fBUEfYbsjNUiDG9r3LTKwPhkNhuHzY']
 
-const fetch: any = async (_a: any, _b: any, options : FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     blacklists: wallets,
     options,
@@ -19,13 +19,12 @@ const fetch: any = async (_a: any, _b: any, options : FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2025-03-27",
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2025-03-27",
   methodology: {
     Fees: "User pays 1% fee on each trade.",
     Revenue: "XTrade collects all fees as revenue.",

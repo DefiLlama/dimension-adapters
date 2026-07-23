@@ -4,10 +4,10 @@ interface ChainConfig {
   swapManager: string[];
   positionManager: string[];
   batchManager: string[];
-  start: number;
+  start: string;
 }
 
-const config: { [chain: string]: ChainConfig } = {
+const config: Record<string, ChainConfig> = {
   [CHAIN.POLYGON]: {
     swapManager: [
       "0x0AaDC2Eae6963ED983d85cbF088b0c294f4c26ff",

@@ -4,64 +4,104 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 
 const PCS_BNB_PREDICTION_CONTRACT = "0x18B2A687610328590Bc8F2e5fEdDe3b582A49cdA";
 const EVENT_ABI = {
-    REWARDS_CALCULATED: "event RewardsCalculated (uint256 indexed epoch, uint256 rewardBaseCalAmount, uint256 rewardAmount, uint256 treasuryAmount)",
-    BET_BEAR: "event BetBear (address indexed sender,uint256 indexed epoch, uint256 amount)",
-    BET_BULL: "event BetBull (address indexed sender,uint256 indexed epoch, uint256 amount)"
+  REWARDS_CALCULATED: "event RewardsCalculated (uint256 indexed epoch, uint256 rewardBaseCalAmount, uint256 rewardAmount, uint256 treasuryAmount)",
+  BET_BEAR: "event BetBear (address indexed sender,uint256 indexed epoch, uint256 amount)",
+  BET_BULL: "event BetBull (address indexed sender,uint256 indexed epoch, uint256 amount)"
 };
 
+const METRIC = {
+  PredictionFees: 'Prediction Fees',
+  PredictionRevenueToHolders: 'Prediction Fees To Holders',
+  BuyBackAndBurn: 'Buy Back And Burn CAKE',
+}
+
 async function fetch(options: FetchOptions) {
-    const dailyVolume = options.createBalances();
-    const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
 
-    const bullLogs = await options.getLogs({
-        target: PCS_BNB_PREDICTION_CONTRACT,
-        eventAbi: EVENT_ABI.BET_BULL,
-    });
+  const epochData: Map<number, { bullAmount: bigint; bearAmount: bigint }> = new Map();
 
-    bullLogs.forEach(bet => {
-        dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
-    });
+  const bullLogs = await options.getLogs({
+    target: PCS_BNB_PREDICTION_CONTRACT,
+    eventAbi: EVENT_ABI.BET_BULL,
+  });
 
-    const bearLogs = await options.getLogs({
-        target: PCS_BNB_PREDICTION_CONTRACT,
-        eventAbi: EVENT_ABI.BET_BEAR,
-    });
+  bullLogs.forEach(bet => {
+    dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
+    const epoch = bet.epoch;
+    const data = epochData.get(epoch) || { bullAmount: 0n, bearAmount: 0n };
+    data.bullAmount += BigInt(bet.amount);
+    epochData.set(epoch, data);
+  });
 
-    bearLogs.forEach(bet => {
-        dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
-    });
+  const bearLogs = await options.getLogs({
+    target: PCS_BNB_PREDICTION_CONTRACT,
+    eventAbi: EVENT_ABI.BET_BEAR,
+  });
 
-    const rewardLogs = await options.getLogs({
-        target: PCS_BNB_PREDICTION_CONTRACT,
-        eventAbi: EVENT_ABI.REWARDS_CALCULATED,
-    });
+  bearLogs.forEach(bet => {
+    dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
+    const epoch = bet.epoch;
+    const data = epochData.get(epoch) || { bullAmount: 0n, bearAmount: 0n };
+    data.bearAmount += BigInt(bet.amount);
+    epochData.set(epoch, data);
+  });
 
-    rewardLogs.forEach(reward => {
-        dailyFees.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
-    });
+  const rewardLogs = await options.getLogs({
+    target: PCS_BNB_PREDICTION_CONTRACT,
+    eventAbi: EVENT_ABI.REWARDS_CALCULATED,
+  });
 
-    return { 
-        dailyVolume,
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue:0, 
-        dailyHoldersRevenue: dailyFees,
-    };
+  rewardLogs.forEach(reward => {
+    dailyFees.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
+  });
+
+  epochData.forEach(({ bullAmount, bearAmount }) => {
+    if (bullAmount > 0n && bearAmount > 0n) {
+      const total = bullAmount + bearAmount;
+      const notional = (total * (bullAmount * bullAmount + bearAmount * bearAmount)) / (bullAmount * bearAmount);
+      dailyNotionalVolume.add(ADDRESSES.bsc.WBNB, notional);
+    }
+  });
+
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, METRIC.PredictionFees),
+    dailyRevenue: dailyFees.clone(1, METRIC.PredictionRevenueToHolders),
+    dailyNotionalVolume,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyFees.clone(1, METRIC.BuyBackAndBurn),
+  };
 }
 
 const methodology = {
-    Fees: "3% from winners' share is taken as fee",
-    Revenue: "All the fee is kept as revenue",
-    ProtocolRevenue: "Protocol doesn't take any revenue share",
-    HoldersRevenue: "All the revenue goes to CAKE buyback and burn",
+  Fees: "3% from winners' share is taken as fee",
+  Revenue: "All the fee is kept as revenue",
+  ProtocolRevenue: "Protocol doesn't take any revenue share",
+  HoldersRevenue: "All the revenue goes to CAKE buyback and burn",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PredictionFees]: "3% from winners' share is taken as fee",
+  },
+  Revenue: {
+    [METRIC.PredictionRevenueToHolders]: "All the fee is kept as revenue, it will be used to buy back and burn CAKE",
+  },
+  HoldersRevenue: {
+    [METRIC.BuyBackAndBurn]: "All the revenue goes to CAKE buyback and burn",
+  },
+}
+
 const adapter: SimpleAdapter = {
-    version: 2,
-    fetch,
-    chains: [CHAIN.BSC],
-    start: "2021-08-26",
-    methodology
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: "2021-08-26",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

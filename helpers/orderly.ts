@@ -10,17 +10,18 @@ const defaulyBuilderMethodology = {
   ProtocolRevenue: "All the revenue go to the protocol",
 }
 
-export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaulyBuilderMethodology }: {
+export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaulyBuilderMethodology, holderRevenueRatio }: {
   broker_id: string
   start?: string
   revenueRatio?: number,
   protocolRevenueRatio?: number,
+  holderRevenueRatio?: number,
   methodology?: any
 }): Adapter {
 
   const url = `https://api.orderly.org/md/volume/builder/daily_stats?broker_id=${broker_id}`
 
-  async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
+  async function fetch({ dateString }: FetchOptions) {
     if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then(data => {
       const dateDataMap: any = {}
       data.forEach((i: any) => {
@@ -46,6 +47,9 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
 
     if (protocolRevenueRatio < 1)
       response.dailyHoldersRevenue = dailyRevenue - dailyProtocolRevenue
+
+    if (holderRevenueRatio === 0)
+      response.dailyHoldersRevenue = 0
 
     return response
   }

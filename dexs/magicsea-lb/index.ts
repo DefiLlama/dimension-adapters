@@ -1,6 +1,5 @@
-import { ChainBlocks, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addOneToken } from "../../helpers/prices";
 import { filterPools } from "../../helpers/uniswap";
 
 const event_swap = 'event Swap(address indexed sender, address indexed to, uint24 id, bytes32 amountsIn, bytes32 amountsOut, uint24 volatilityAccumulator, bytes32 totalFees, bytes32 protocolFees)';
@@ -14,7 +13,7 @@ const ABIs: TABI = {
 	"getLBPairAtIndex": "function getLBPairAtIndex(uint256 index) view returns (address lbPair)"
 }
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, createBalances }: FetchOptions) => {
+const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 	const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -49,13 +48,15 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, { getLogs, api, cre
     })
   }))
 
-	return { dailyVolume, dailyFees, dailyRevenue, timestamp };
+	return { dailyVolume, dailyFees, dailyRevenue,};
 }
 
 const adapter: SimpleAdapter = {
-	adapter: {
-		[CHAIN.IOTAEVM]: { fetch, start: '2023-04-10', },
-	}
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.IOTAEVM],
+  start: '2023-04-10',
 };
 
 export default adapter;

@@ -12,9 +12,10 @@ const v3ChainMapping: any = {
   [CHAIN.BASE]: "BASE",
   [CHAIN.HYPERLIQUID]: "HYPEREVM",
   [CHAIN.PLASMA]: "PLASMA",
+  [CHAIN.MONAD]: "MONAD",
 };
 
-const HOLDERS_SHARE_OF_PROTOCOL = 0.825;
+const TOKENOMICS_REVAMP_DATE = "2026-04-23";
 
 const n = (x: any) => (Number.isFinite(Number(x)) ? Number(x) : 0);
 
@@ -29,6 +30,9 @@ async function fetch(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenueNet = options.createBalances();
   const dailyRevenue = options.createBalances();
+
+  const HOLDERS_SHARE_OF_PROTOCOL = options.dateString >= TOKENOMICS_REVAMP_DATE ? 0 : 0.825;
+  const LP_SHARE_OF_SWAP_FEES = options.dateString >= TOKENOMICS_REVAMP_DATE ? 0.75 : 0.5;
 
   const query = `query {
   pools: poolGetPools(
@@ -66,11 +70,11 @@ async function fetch(options: FetchOptions) {
     dailyFees.addUSDValue(fees24h, METRIC.SWAP_FEES);
     dailyUserFees.addUSDValue(fees24h, METRIC.SWAP_FEES);
 
-    dailyProtocolRevenueGross.addUSDValue(fees24h * 0.5, METRIC.SWAP_FEES);
-    dailySupplySideRevenue.addUSDValue(fees24h * 0.5, METRIC.SWAP_FEES); // 50% of fees goes to the supply side
+    dailyProtocolRevenueGross.addUSDValue(fees24h * (1 - LP_SHARE_OF_SWAP_FEES), METRIC.SWAP_FEES);
+    dailySupplySideRevenue.addUSDValue(fees24h * LP_SHARE_OF_SWAP_FEES, METRIC.SWAP_FEES);
 
-    protocolGrossSum += fees24h * 0.5;
-    supplySideSum += fees24h * 0.5;
+    protocolGrossSum += fees24h * (1-LP_SHARE_OF_SWAP_FEES);
+    supplySideSum += fees24h * LP_SHARE_OF_SWAP_FEES;
 
     // subgraph error on hyperlqiuid yields
     if (options.chain !== CHAIN.HYPERLIQUID) {
@@ -115,13 +119,13 @@ const adapter: SimpleAdapter = {
     Fees: "Fees earned from all the trades and yields.",
     UserFees: "Fees earned from all the trades.",
     Revenue:
-      "Revenue earned by the protocol, which is 50% of the trade fees and 10% of the yield capture.",
+      "Revenue earned by the protocol and holders, which is 25% ( 50 % before 2026-04-23 ) of the trade fees and 10% of the yield capture.",
     ProtocolRevenue:
-      "Revenue earned by the protocol, which is 50% of the trade fees and 10% of the yield capture.",
+      "Revenue earned by the protocol, which is 25% ( 8.75% before 2026-04-23 ) of the trade fees and 10% of the yield capture.",
     HoldersRevenue:
-      "Portion of protocol revenue distributed to token holders (e.g., veBAL/BAL), parameterized here.",
+      "Portion of protocol revenue distributed to token holders (e.g., veBAL/BAL) (82.5 % of revenue before 2026-04-23, 0 % of revenue after )",
     SupplySideRevenue:
-      "Revenue earned by the supply side, which is 90% of the yield capture and 50% of the fees.",
+      "Revenue earned by the supply side, which is 90% of the yield capture and 75% ( 50 % before 2026-04-23 ) of the fees.",
   },
   breakdownMethodology: {
     Fees: {

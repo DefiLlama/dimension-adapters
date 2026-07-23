@@ -10,23 +10,28 @@ import BigNumber from "bignumber.js";
 const feesConfig =
   "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees-v2.json";
 
-const chains: { [chain: Chain]: { deployedAt: number } } = {
-  [CHAIN.ETHEREUM]: { deployedAt: 1726531200 },
-  [CHAIN.BSC]: { deployedAt: 1726531200 },
-  [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
-  [CHAIN.MANTLE]: { deployedAt: 1726531200 },
-  // [CHAIN.MERLIN]: { deployedAt: 1726531200 },
-  [CHAIN.CORE]: { deployedAt: 1726531200 },
-  [CHAIN.SCROLL]: { deployedAt: 1726531200 },
-  [CHAIN.SOLANA]: { deployedAt: 1726531200 },
-  [CHAIN.AVAX]: { deployedAt: 1726531200 },
-  [CHAIN.BOB]: { deployedAt: 1726531200 },
-  [CHAIN.BASE]: { deployedAt: 1726531200 },
-  [CHAIN.LINEA]: { deployedAt: 1726531200 },
-  [CHAIN.ROOTSTOCK]: { deployedAt: 1726531200 },
-  [CHAIN.SONEIUM]: { deployedAt: 1742169600 },
-  [CHAIN.INK]: { deployedAt: 1742169600 },
-  [CHAIN.BERACHAIN]: { deployedAt: 1742169600 },
+// `configKey` is Solv's key in solv-fees-v2.json when it differs from the
+// DefiLlama chain name (options.chain). Without it the config lookup silently
+// misses and the chain reports $0.
+const chains: { [chain: Chain]: { start: string; configKey?: string } } = {
+  [CHAIN.ETHEREUM]: { start: "2024-09-17" },
+  [CHAIN.BSC]: { start: "2024-09-17" },
+  [CHAIN.ARBITRUM]: { start: "2024-09-17" },
+  [CHAIN.MANTLE]: { start: "2024-09-17" },
+  [CHAIN.MERLIN]: { start: "2024-09-17" },
+  [CHAIN.CORE]: { start: "2024-09-17" },
+  [CHAIN.SCROLL]: { start: "2024-09-17" },
+  [CHAIN.SOLANA]: { start: "2024-09-17" },
+  [CHAIN.AVAX]: { start: "2024-09-17" },
+  [CHAIN.BOB]: { start: "2024-09-17" },
+  [CHAIN.BASE]: { start: "2024-09-17" },
+  [CHAIN.LINEA]: { start: "2024-09-17" },
+  //[CHAIN.ROOTSTOCK]: { start: "2024-09-17", configKey: "rootstock" },
+  [CHAIN.AILAYER]: { start: "2024-09-17" },
+  [CHAIN.SONEIUM]: { start: "2025-03-17" },
+  [CHAIN.INK]: { start: "2025-03-17" },
+  [CHAIN.BERACHAIN]: { start: "2025-03-17", configKey: "bera" },
+  [CHAIN.HYPERLIQUID]: { start: "2025-03-17", configKey: "hyper" },
 };
 
 const fetch: FetchV2 = async (options) => {
@@ -53,24 +58,27 @@ const fetch: FetchV2 = async (options) => {
     }>;
   } = await getConfig('solv-fi/fees', feesConfig);
 
-  if (!contracts[options.chain])
-    return {}
+  const configKey = chains[options.chain]?.configKey ?? options.chain;
+  const pools = contracts[configKey];
 
-  const { dailyFees, dailyRevenue } = await fees(options, contracts);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await fees(options, pools);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
-async function fees(options: FetchOptions, contracts: any) {
+async function fees(options: FetchOptions, pools: any[]) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const pools = contracts[options.chain];
-  if (!pools)
-    return { dailyFees, dailyRevenue };
+  const dailySupplySideRevenue = options.createBalances();
+
+  if (!pools || pools.length === 0)
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  
   const shareConcretes = await concrete(pools, options);
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
@@ -138,6 +146,7 @@ async function fees(options: FetchOptions, contracts: any) {
       const subscriptionAmount = await subscriptionFees(options, pool.marketAddress, pool.poolId);
       const subscriptionFeeAmount = BigNumber(subscriptionAmount).times(todayNav.minus(BigNumber(10).pow(currencyDecimal)));
       dailyRevenue.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber(), METRIC.MINT_REDEEM_FEES);
+      dailyFees.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber(), METRIC.MINT_REDEEM_FEES);
     }
 
     if (redemptionFee) {
@@ -154,22 +163,21 @@ async function fees(options: FetchOptions, contracts: any) {
     if (receivedFee) {
       const receivedFees = await received(options, receivedFee);
       dailyFees.addBalances(receivedFees, METRIC.MINT_REDEEM_FEES);
-      dailyRevenue.addBalances(receivedFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.addBalances(receivedFees, METRIC.MINT_REDEEM_FEES);
     }
 
     if (receivedFeeGasTokens) {
       const nativeTokenFees = await gasTokensReceived(options, receivedFeeGasTokens);
-      dailyRevenue.addBalances(nativeTokenFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
+      dailyFees.addBalances(nativeTokenFees, METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.addBalances(nativeTokenFees, METRIC.MINT_REDEEM_FEES);
     }
 
     // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
     let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
-    if (fee.lte(BigNumber(0))) {
-      fee = BigNumber(0);
-    }
 
     dailyFees.add(poolBaseInfo.currency, fee.toNumber(), METRIC.STAKING_REWARDS);
-    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber(), METRIC.STAKING_REWARDS);
+    dailyRevenue.add(poolBaseInfo.currency, Math.max(0, fee.times(revenueRatio).toNumber()), METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.add(poolBaseInfo.currency, fee.times(BigNumber(1).minus(revenueRatio)).toNumber(), METRIC.STAKING_REWARDS);
   }
 
   if (Object.keys(redemptionFees).length > 0) {
@@ -180,10 +188,11 @@ async function fees(options: FetchOptions, contracts: any) {
       address: redemptionFeeAddresses,
       token: redemptionFeeTokens
     });
+    dailyFees.addBalances(redemptionFeeAmount, METRIC.MINT_REDEEM_FEES);
     dailyRevenue.addBalances(redemptionFeeAmount, METRIC.MINT_REDEEM_FEES);
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 }
 
 async function received(
@@ -268,8 +277,9 @@ async function gasTokensReceived(
 
 const methodology = {
   Fees: 'All yields are generated from staking assets and mint/redemption fees.',
-  Revenue: 'Mint/Redemption Fees collected by Solv Protocol.',
-  ProtocolRevenue: 'Mint/Redemption collected by Solv Protocol.',
+  Revenue: 'Protocol share of staking rewards plus all mint/redemption fees collected by Solv Protocol.',
+  ProtocolRevenue: 'Protocol share of staking rewards plus all mint/redemption fees collected by Solv Protocol.',
+  SupplySideRevenue: 'Staking rewards distributed to depositors.',
 }
 
 const breakdownMethodology = {
@@ -278,19 +288,24 @@ const breakdownMethodology = {
     [METRIC.MINT_REDEEM_FEES]: 'All mint/redemption fees.',
   },
   Revenue: {
-    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+    [METRIC.STAKING_REWARDS]: 'Protocol share of staking rewards.',
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption fees collected by Solv Protocol.',
   },
   ProtocolRevenue: {
-    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+    [METRIC.STAKING_REWARDS]: 'Protocol share of staking rewards.',
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption fees collected by Solv Protocol.',
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards distributed to depositors.',
   },
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, methodology, breakdownMethodology };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, methodology, breakdownMethodology, allowNegativeValue: true };
 
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter![chain] = {
     fetch,
-    start: chains[chain].deployedAt,
+    start: chains[chain].start,
   };
 });
 

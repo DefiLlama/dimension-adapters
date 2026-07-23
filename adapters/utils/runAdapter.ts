@@ -2,9 +2,10 @@ import * as sdk from '@defillama/sdk';
 import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
 import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchResultV2, FetchV2, SimpleAdapter, } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -24,7 +25,15 @@ function genUID(length: number = 10): string {
   return result
 }
 
-const adapterRunResponseCache = {} as any
+function roundValue(value: any): number {
+  const num = Number(value)
+  const abs = Math.abs(num)
+  if (abs < 1) return +num.toFixed(4)
+  if (abs < 10) return +num.toFixed(2)
+  return +num.toFixed(0)
+}
+
+// const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
@@ -74,6 +83,16 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 }
 
+export function isHourlyAdapter(module: SimpleAdapter) {
+  const adapterVersion = module.version
+  const disablePullHourly = String(process.env.DISABLE_PULL_HOURLY) // for local testing purpose only
+  return adapterVersion === 2 && (module as any).pullHourly === true && disablePullHourly !== 'true'
+}
+
+export function isPlainDateArg(rawTimeArg?: string) {
+  return !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+}
+
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
@@ -81,38 +100,33 @@ type AdapterRunOptions = {
   name?: string,
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
-  cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  cacheResults?: boolean, // deprecated, if true, caches the results in adapterRunResponseCache
+  runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
+  metadata?: {
+    [key: string]: any
+    adapterType?: string
+    protocolName?: string
+    name?: string
+    id?: string
+    runType?: string
+    isHourlyAdapter?: boolean
+  }
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module, cacheResults = false } = options
+  const { module,} = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
-  if (!cacheResults) return _runAdapter(options)
-
-  const runKey = getRunKey(options)
-
-  if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
-  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
-
-  function clone(obj: any) {
-    return JSON.parse(JSON.stringify(obj))
-  }
-}
-
-function getRunKey(options: AdapterRunOptions) {
-  let randomUID = options.module._randomUID ?? genUID(10)
-  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
+  return _runAdapter(options)
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
 function getStartOfDayId(timestamp: number): string {
   if (!startOfDayIdCache[timestamp]) {
-    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+    startOfDayIdCache[timestamp] = '' + Math.floor(timestamp / 86400)
   }
   return startOfDayIdCache[timestamp]
 }
@@ -123,10 +137,15 @@ async function _runAdapter({
   isTest = false,
   withMetadata = false,
   deadChains = new Set(),
+  runWindowInSeconds = ONE_DAY_IN_SECONDS,
+  metadata = {},
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
+  // const isHourly = isHourlyAdapter(module)
+  // const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  const WINDOW_SECONDS = runWindowInSeconds
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
@@ -153,6 +172,7 @@ async function _runAdapter({
     [chain: string]: {
       canRun: boolean,
       startTimestamp: number
+      endTimestamp?: number
     }
   }
   await Promise.all(chains.map(setChainValidStart))
@@ -162,7 +182,7 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID });
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
     }
   }
@@ -173,8 +193,13 @@ async function _runAdapter({
   let breakdownByLabel: any = {}
 
   const response = await Promise.all(chains.filter(chain => {
-    const res = validStart[chain]?.canRun
-    if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
+    const res = validStart[chain]
+    if (isTest && !res.canRun) {
+      if (res.endTimestamp)
+        console.log(`Skipping ${chain} because the adapter ended at ${new Date(res.endTimestamp! * 1e3).toUTCString()} \n\n`)
+      else
+        console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
+    }
     return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
@@ -186,6 +211,16 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
+  // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
+  if (chains.length > 1 && chains.includes(CHAIN.CHAIN_GLOBAL)) {
+    Object.keys(aggregated).forEach(metricType => {
+      const metricObject = aggregated[metricType]
+      if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
+        metricObject.value = metricObject.chains[CHAIN.CHAIN_GLOBAL]
+        delete metricObject.chains[CHAIN.CHAIN_GLOBAL]
+      }
+    })
+  }
 
   const adaptorRecordV2JSON: any = {
     aggregated,
@@ -210,14 +245,19 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID })
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
 
       let result: any
       if (adapterVersion === 1) {
-        result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
+        // v1 fetch functions now take a single `options` arg (same shape as v2). Any adapter
+        // still on the legacy (timestamp, chainBlocks, options) signature will break here,
+        // which is intentional so the remaining un-migrated adapters surface.
+        result = await (fetchFunction as FetchV2)(options);
+        // v1 adapters may return their own `timestamp` (e.g. when reporting a previous day);
+        // when absent we leave it unset and let the caller default it.
       } else if (adapterVersion === 2) {
         result = await (fetchFunction as FetchV2)(options);
         result.timestamp = options.toTimestamp
@@ -228,7 +268,7 @@ async function _runAdapter({
       const improbableValue = 2e11 // 200 billion
 
       // validate and inject missing record if any
-      validateAdapterResult(result)
+      validateAdapterResult(result, module)
 
       // add missing metrics if need
       addMissingMetrics(chain, result)
@@ -255,7 +295,7 @@ async function _runAdapter({
             const breakData = breakdownByLabelByChain[recordType]
 
             for (let [label, labelValue] of Object.entries(labelBreakdown)) {
-              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              labelValue = roundValue(labelValue)
               aggData[label] = (aggData[label] || 0) + labelValue
               if (!breakData[label]) breakData[label] = {}
               breakData[label][chain] = labelValue
@@ -263,7 +303,7 @@ async function _runAdapter({
           }
         }
 
-        result[recordType] = +Number(result[recordType]).toFixed(0)
+        result[recordType] = roundValue(result[recordType])
         if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
         aggregated[recordType].value += result[recordType]
         aggregated[recordType].chains[chain] = result[recordType]
@@ -301,7 +341,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject({ timestamp, chain, chainBlocks, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, moduleUID?: string }): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -312,10 +352,10 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
+    const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const problematicChains = new Set(['sei', 'xlayer'])
+    const problematicChains = new Set(['sei',])
 
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
 
@@ -324,10 +364,51 @@ async function _runAdapter({
 
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
+      const requestCount = targets ? targets.length : 1
+      if (api) api.addStat('logsRequests', requestCount)
 
       return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
+
+    const streamLogs = async (params: Parameters<typeof sdk.indexer.getLogs>[0] & {
+      targetsFilter?: string[] | Set<string>
+    }) => {
+
+
+      if (!sdk.indexer.supportedChainSet2.has(chain)) {
+        throw new Error(`streamLogs is not supported for ${chain} chain`)
+      }
+
+      const origProcessor = params.processor
+      let targetsFilter = params.targetsFilter
+
+      if (Array.isArray(targetsFilter))
+        targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
+
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
+      if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
+      if (!params.hasOwnProperty('all')) params.all = true
+      if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
+      if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
+
+      if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
+        let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
+
+        if (targetsFilter)
+          swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
+
+
+        origProcessor!(swapLogs)
+      }
+
+
+      const requestCount = params.targets ? params.targets.length : 1
+      if (api) api.addStat('streamLogs', requestCount)
+
+      return sdk.indexer.getLogs({ ...params, chain })
+    }
     // we intentionally add a delay to avoid fetching the same block before it is cached
     // await randomDelay()
 
@@ -345,6 +426,9 @@ async function _runAdapter({
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
+
+    api.getLogs = () => { throw new Error('api.getLogs is disabled, use getLogs from options object instead') }
+    fromApi.getLogs = () => { throw new Error('fromApi.getLogs is disabled, use getLogs from options object instead') }
 
     return {
       createBalances,
@@ -366,6 +450,8 @@ async function _runAdapter({
       dateString: getDateString(startOfDay),
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
+      streamLogs,
+      metadata,
     }
   }
 
@@ -378,8 +464,21 @@ async function _runAdapter({
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
+    // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
+    if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
+
+    // Only check deadFrom if it's explicitly set (not undefined)
+    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < cleanPreviousDayTimestamp) {
+      validStart[chain] = {
+        canRun: false,
+        startTimestamp: _start as number,
+        endTimestamp: _end as number,
+      }
+      return;
+    }
 
     if (typeof _start === 'number') {
       validStart[chain] = {
@@ -437,12 +536,12 @@ function subtractBalance(options: { balance: Balances, amount: FetchResponseValu
   }
 }
 
-function validateAdapterResult(result: any) {
+function validateAdapterResult(result: any, module: any) {
   // validate metrics
   //  this is to ensure that we do this validation only for the new adapters
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
-    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
     }
   }
@@ -454,7 +553,7 @@ function addMissingMetrics(chain: string, result: any) {
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
 
     // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
-    if (result.dailySupplySideRevenue && !result.dailyRevenue) {
+    if (result.dailySupplySideRevenue && result.dailyRevenue === undefined) {
       result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
       subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
     }

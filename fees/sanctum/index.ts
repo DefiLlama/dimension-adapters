@@ -7,11 +7,24 @@ For the Reserve and the Router, fees = revenue because there is no stakeholder o
 
 */
 
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+export const SanctumMetric = {
+  InfinityStakingRewards: 'Infinity Staking Rewards',
+  LstStakingRewards: 'LSTs Staking Rewards',
+  DepositWithdrawFees: 'Deposit And Withdraw Fees',
+  ReserveStakingRewards: 'Reserve Pool Staking Rewards',
+  StakingRewardsToProtocol: 'Staking Rewards To Protocol',
+  StakingRewardsToStakers: 'Staking Rewards To Stakers',
+}
+
+const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
@@ -60,6 +73,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
                         from
                             dune.sanctumso.result_stakedex_fee_accounts
                     )
+                    and token_balance_change > 0
                     AND block_time >= from_unixtime(${options.startTimestamp})
                     AND block_time <= from_unixtime(${options.endTimestamp})
                 )
@@ -72,9 +86,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   );
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("solana", fees[0].daily_fees);
+  const dailyRevenue = options.createBalances();
+  
+  dailyFees.addCGToken("solana", fees[0].daily_fees, SanctumMetric.ReserveStakingRewards);
+  dailyRevenue.addCGToken("solana", fees[0].daily_fees, SanctumMetric.StakingRewardsToProtocol);
 
-  return { dailyFees, dailyRevenue: dailyFees.clone() };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
@@ -90,6 +107,14 @@ const adapter: SimpleAdapter = {
   start: "2022-07-22", // First unstake transaction
   methodology,
   isExpensiveAdapter: true,
+  breakdownMethodology: {
+    Fees: {
+      [SanctumMetric.ReserveStakingRewards]: 'Reserve pool staking rewards.',
+    },
+    Revenue: {
+      [SanctumMetric.ReserveStakingRewards]: 'Reserve pool staking rewards to Sanctum.',
+    },
+  }
 };
 
 export default adapter;

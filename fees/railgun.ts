@@ -64,6 +64,7 @@ const adapters: SimpleAdapter = {
   fetch,
   methodology: info.methodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2022-05-01', },
     [CHAIN.ARBITRUM]: { start: '2022-05-01', },

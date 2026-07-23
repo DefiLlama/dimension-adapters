@@ -40,10 +40,10 @@ const VA_TOKENS = {
 const VSP_TOKEN = "0x1b40183EFB4Dd766f11bda7a7c3ad8982e998421";
 const VSP_DISTRIBUTOR = "0xd31f42cf356e02689d1720b5ffaa6fc7229d255b";
 
-const fetch = (chain: string) => async (options: FetchOptions) => {
-  const dailyFees = await addTokensReceived({ options, tokens: VA_TOKENS[chain], targets: [FEE_RECIPIENT[chain]], });
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = await addTokensReceived({ options, tokens: VA_TOKENS[options.chain], targets: [FEE_RECIPIENT[options.chain]], });
 
-  const dailyHoldersRevenue = chain === CHAIN.ETHEREUM
+  const dailyHoldersRevenue = options.chain === CHAIN.ETHEREUM
     ? await addTokensReceived({ options, tokens: [VSP_TOKEN], targets: [VSP_DISTRIBUTOR] })
     : options.createBalances();
 
@@ -55,25 +55,24 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      start: '2023-08-09',
+    },
+    [CHAIN.BASE]: {
+      start: '2023-08-09',
+    },
+    [CHAIN.OPTIMISM]: {
+      start: '2023-08-09',
+    },
+  },
   methodology: {
     Fees: "Tracks vaTokens minted to Vesper's Fee Recipient address.",
     Revenue: "vaTokens minted are protocol revenue.",
     HoldersRevenue: "Tracks VSP distributed to esVSP lockers.",
-  },
-  version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: '2023-08-09',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: '2023-08-09',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-08-09',
-    },
   },
 };
 

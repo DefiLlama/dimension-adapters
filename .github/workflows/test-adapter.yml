@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Record PR number
+        run: |
+          mkdir -p pr-comments
+          echo "${{ github.event.number }}" > pr-comments/pr-number.txt
+
       - name: Run changes files through test script
         run: |
           # Store the current commit hash in a variable
@@ -59,7 +64,7 @@ jobs:
             {
               IFS='@' read -r -a array <<< "$i"
               npm run test ${array[0]} ${array[1]} 2>&1 | tee output.txt
-              node ${{ github.workspace }}/.github/workflows/commentResult.js /home/runner/work/dimension-adapters/dimension-adapters/output.txt "${{ github.repository_owner }}" "${{ github.event.repository.name }}" "${{ github.event.number }}" ${i}
+              node ${{ github.workspace }}/.github/workflows/commentResult.js ${{ github.workspace }}/output.txt ${{ github.workspace }}/pr-comments ${i}
               if grep -q "\-\-\-\- ERROR \-\-\-\-" output.txt; then
                 exit 1;
               fi
@@ -68,3 +73,12 @@ jobs:
               echo ' doesnt run'
             }
           done
+
+      - name: Upload PR comments artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-comments
+          path: pr-comments/
+          if-no-files-found: ignore
+          retention-days: 1

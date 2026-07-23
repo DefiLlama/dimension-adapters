@@ -21,14 +21,14 @@ const prefetch = async (options: FetchOptions) => {
   );
 };
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
 
-  return { timestamp, dailyVolume: chainStat?.daily_volume || 0 };
+  return { dailyVolume: chainStat?.daily_volume || 0 };
 };
 
-const fetchApechain: any = async (timestamp: number, _: ChainBlocks, { getLogs }: FetchOptions): Promise<FetchResultVolume> => {
+const fetchApechain: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   // Apechain currently not supported on Dune, must fetch from Events
   const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
   const [limitLogs, marketLogs, partialIncreaseLogs, partialDecreaseLogs] = await Promise.all(
@@ -52,7 +52,7 @@ const fetchApechain: any = async (timestamp: number, _: ChainBlocks, { getLogs }
     .map((e: any) => Number((e.vals.positionSizeCollateralDelta * e.collateralPriceUsd) / Number(BI_1e18) / Number(BI_1e8)))
     .reduce((a: number, b: number) => a + b, 0);
 
-  return { dailyVolume: volumeLimitsAndMarkets + volumePartials, timestamp };
+  return { dailyVolume: volumeLimitsAndMarkets + volumePartials,};
 };
 
 const adapter: SimpleAdapter = {
@@ -65,6 +65,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchApechain,
       start: "2024-11-19",
     },
+    [CHAIN.MEGAETH]: { fetch, start: "2026-02-09" },
   },
   prefetch,
   isExpensiveAdapter: true,

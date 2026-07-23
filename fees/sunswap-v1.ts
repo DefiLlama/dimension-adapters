@@ -12,7 +12,7 @@ const adapterHistorical: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.TRON]: {
-      fetch: (async (_t: any, _a: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const start = options.startOfDay * 1000;
         const end = start + 86400;
         const startStr = new Date(start).toISOString().split("T")[0];
@@ -22,7 +22,7 @@ const adapterHistorical: Adapter = {
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
         dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
-        return { dailyFees, timestamp: options.startOfDay };
+        return { dailyFees };
       }) as any,
       start: '2024-01-06'
     },
@@ -42,13 +42,18 @@ async function fetch() {
     }
   });
 
-  return { dailyFees }
+  return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 }
 }
 
 const adapter: SimpleAdapter = {
   fetch,
   runAtCurrTime: true,
   chains: [CHAIN.TRON],
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'The protocol keeps no revenue.',
+    SupplySideRevenue: 'All the swap fees are distributed to liquidity providers.',
+  }
 };
 
 export default adapter;

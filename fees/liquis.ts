@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from '../helpers/token';
 
@@ -6,7 +6,7 @@ const LIT = '0xfd0205066521550d7d7ab19da8f72bb004b4c341';
 const OLIT_TOKEN = '0x627fee87d0D9D2c55098A06ac805Db8F98B158Aa';
 
 const fetch = () => {
-  return async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  return async (options: FetchOptions): Promise<FetchResultFees> => {
 
     const dailyFees = await addTokensReceived({ options, tokens: [OLIT_TOKEN], target: '0x37aeB332D6E57112f1BFE36923a7ee670Ee9278b', tokenTransform: () => LIT })
     dailyFees.resizeBy(0.5)
@@ -17,7 +17,6 @@ const fetch = () => {
     const dailySupplySideRevenue = dailyFees.clone()
     dailySupplySideRevenue.resizeBy(0.75)
     return {
-      timestamp,
       dailyFees,
       dailyRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
@@ -27,6 +26,8 @@ const fetch = () => {
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(),

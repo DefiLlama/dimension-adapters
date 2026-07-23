@@ -20,6 +20,7 @@ const adapter: SimpleAdapter = {
   },
   fetch,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2024-09-25', },
     [CHAIN.BASE]: { start: '2024-09-25', },

@@ -9,7 +9,7 @@ interface ICallPoolData {
 
 const URL = "https://swap-data.kava.io/v1/pools/internal";
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances,}: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ startOfDay, createBalances,}: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances();
   const poolCall = (await fetchURL(URL));
   const poolDetail = poolCall
@@ -21,17 +21,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBala
 
   return {
     dailyVolume,
-    timestamp: startOfDay
   }
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.KAVA]: {
-      fetch,
-            runAtCurrTime: true
-    },
-  },
+  fetch,
+  chains: [CHAIN.KAVA],
+  runAtCurrTime: true,
 };
 
 export default adapter;

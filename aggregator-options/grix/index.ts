@@ -7,7 +7,7 @@ export type GrixMetricsData = {
 };
 
 
-const fetchGrix = async ({ endTimestamp}: FetchOptions) => {
+const fetch = async ({ endTimestamp}: FetchOptions) => {
   /** Timestamp representing the end of the 24 hour period */
   const url = `https://internal-api-dev.grix.finance/volumeData?endTimestamp=${endTimestamp}`;
 
@@ -33,15 +33,11 @@ const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
 };
 
 const grix_adapter: SimpleAdapter = {
-  version: 2,
-  methodology:          "The total value of the underlying assets for all options traded. It is calculated as the spot price (at the trade instance) multiplied by the contract size.",
-  fetch: fetchGrix,
+  version: 1,
+  chains: [CHAIN.ARBITRUM],
+  fetch,
+  start: "2024-11-01",
   runAtCurrTime: true, // currently we don't take the timestamp into account, should be changed soon
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      start: "2024-11-01",
-    },
-  },
 };
 
 export default grix_adapter;

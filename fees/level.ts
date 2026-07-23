@@ -5,6 +5,7 @@ import { ZeroAddress } from "ethers";
 const methodology = {
   Fees: 'Total yield were generated from backing collateral assets.',
   SupplySideRevenue: 'Total yield are distributed to lvlUSD stakers.',
+  Revenue: 'The amount of yield are collected by Level protocol.',
   ProtocolRevenue: 'The amount of yield are collected by Level protocol.',
 }
 
@@ -24,13 +25,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     abi: 'function convertToAssets(uint256) view returns (uint256)',
     params: ['1000000000000000000'],
   })
-  const totalAssets = await options.api.call({
+  const totalSupply = await options.api.call({
     target: slvlUSD,
-    abi: 'uint256:totalAssets',
+    abi: 'uint256:totalSupply',
   })
 
   // fees distributed to slvlUSD holders - they are lvlUSD stakers
-  const totalYield = totalAssets * (exchangeRateAfter - exchangeRateBefore) / 1e18
+  const totalYield = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 1e18
 
   dailyFees.add(lvlUSD, totalYield)
   const dailySupplySideRevenue = dailyFees.clone()
@@ -41,6 +42,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     // level get 0% fees for now
     // https://level-money.gitbook.io/docs/how-it-works/lvlusd#yield-and-reward-distribution
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   }
 }

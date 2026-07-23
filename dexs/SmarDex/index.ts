@@ -6,7 +6,7 @@ import {
   getGraphDimensions2,
 } from "../../helpers/getUniSubgraph";
 import { CHAIN_CONFIG, getGraphHeaders } from "./config";
-import { USDNVolumeService } from "./usdn-volume";
+import { addUsdnVolume } from "./usdn-volume";
 
 const graphs = getGraphDimensions2({
   graphUrls: CHAIN_CONFIG.GRAPH_URLS,
@@ -28,10 +28,10 @@ Object.keys(CHAIN_CONFIG.GRAPH_URLS).forEach((chain: string) => {
         const smardexDimensions = await subgraphFetching(options);
 
         if (chain === CHAIN.ETHEREUM) {
-          const volumeService = new USDNVolumeService(options);
-          const usdnVolume = await volumeService.getUsdnVolume();
-          smardexDimensions.dailyVolume =
-            usdnVolume + Number(smardexDimensions.dailyVolume);
+          const dailyVolume = options.createBalances();
+          await addUsdnVolume(options, dailyVolume);
+          dailyVolume.addUSDValue(Number(smardexDimensions.dailyVolume));
+          smardexDimensions.dailyVolume = dailyVolume;
         }
 
         return {

@@ -1,21 +1,30 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { httpGet, fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 
+const chainConfig: Record<string, { api: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: {
+    api: "https://mainnet.zklighter.elliot.ai/api/v1",
+    start: "2025-01-17",
+  },
+};
 
-const API = "https://mainnet.zklighter.elliot.ai/api/v1";
-
-const fetch = async (_1: any, _2: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0;
   const start = options.startOfDay;
+  const { api } = chainConfig[options.chain];
 
   // Get all markets
-  const markets = await httpGet(`${API}/orderBooks?market_id=255`);
+  const markets = await httpGet(`${api}/orderBooks?market_id=255`);
   options.api.log('Lighter markets #', markets?.order_books?.length || 0);
 
-  await PromisePool.withConcurrency(5)
-    .for(markets.order_books)
+  // Filter markets to only include those with market_id < 2048
+  const filteredMarkets = markets.order_books.filter(({ market_id }: any) => market_id < 2048);
+  options.api.log('Filtered markets (market_id < 2048) #', filteredMarkets?.length || 0);
+
+  await PromisePool.withConcurrency(1)
+    .for(filteredMarkets)
     .process(async ({ market_id }: any) => {
       const params = {
         market_id,
@@ -24,13 +33,14 @@ const fetch = async (_1: any, _2: any, options: FetchOptions) => {
         end_timestamp: start + 1,
         count_back: 1,
       }
-      const data = await httpGet(`${API}/candlesticks`, { params: params, });
+      const url = `${api}/candles?${new URLSearchParams(params as any).toString()}`;
+      const data = await fetchURLAutoHandleRateLimit(url);
 
-      const candle = data?.candlesticks?.[0];
+      const candle = data?.c?.[0];
       if (!candle) return;
 
-      dailyVolume += Number(candle.volume1 || 0); // already in $;
-    });
+        dailyVolume += Number(candle.V || 0); // already in $;
+      });
 
   return { dailyVolume, };
 };
@@ -42,8 +52,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.ZK_LIGHTER],
-  start: "2025-01-17",       // earliest candlestick data available
+  adapter: chainConfig,
   methodology,
 };
 

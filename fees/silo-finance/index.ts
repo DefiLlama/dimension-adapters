@@ -84,6 +84,7 @@ async function getSilos(
     const logChunk = await getLogs({
       target: address,
       fromBlock: block,
+      cacheInCloud: true,
       eventAbi:
         "event NewSiloCreated(address indexed silo, address indexed asset, uint128 version)",
     });
@@ -222,6 +223,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
 };
 
 export default adapter;

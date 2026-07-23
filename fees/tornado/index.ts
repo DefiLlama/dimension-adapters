@@ -163,7 +163,8 @@ const adapter: SimpleAdapter = {
     version: 2,
     chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
     adapter: {},
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    pullHourly: true,
 };
 
 export default adapter;

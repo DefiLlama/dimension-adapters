@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-const ADDRESSES = require('../helpers/coreAssets.json')
+import ADDRESSES from '../helpers/coreAssets.json';
 
 const PENDLE_FEE_DISTRIBUTOR_V2 = '0x8C237520a8E14D658170A633D96F8e80764433b9'
 const PENDLE_STAKING: Record<string, string> = {
@@ -54,9 +54,9 @@ const EVENT_PENDLE_FEE = 'event UpdateProtocolClaimable(address indexed user, ui
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { createBalances, getLogs, chain } = options;
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
-  const dailyBribesRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
   if (chain == 'ETHEREUM') {
@@ -65,10 +65,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       eventAbi: EVENT_PENDLE_FEE,
     })).map((e: any) => {
       if (e.user === '0x6e799758cee75dae3d84e09d40dc416ecf713652') {
-        dailyFees.add(ADDRESSES.null, e.sumTopUp);
-        dailyProtocolRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].protocolRevenue)
-        dailyHoldersRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].holderRevenue);
-        dailySupplySideRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].lpRevenue);
+        dailyFees.add(ADDRESSES.null, e.sumTopUp, 'Pendle Rewards');
+        
+        dailyRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].protocolRevenue, 'Pendle Rewards To Protocol')
+        dailyProtocolRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].protocolRevenue, 'Pendle Rewards To Protocol')
+
+        dailyRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].holderRevenue, 'Pendle Rewards To Holders');
+        dailyHoldersRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].holderRevenue, 'Pendle Rewards To Holders');
+        
+        dailySupplySideRevenue.add(ADDRESSES.null, e.sumTopUp * LP_FEE_DISTRIBUTION[CHAIN.ETHEREUM].lpRevenue, 'Pendle Rewards To Stakers');
       }
     })
   }
@@ -80,52 +85,73 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (EXCLUDE_TOKENS[chain].includes(e._rewardToken)) {
       return
     }
-    dailyFees.add(e._rewardToken, e._feeAmount)
-    dailyHoldersRevenue.add(e._rewardToken, Number(e._feeAmount) * 0.2) // 20% is allocated to the PRT mechanism
+    dailyFees.add(e._rewardToken, e._feeAmount, 'Pendle Rewards')
+
+    // // 20% is allocated to the PRT mechanism
+    dailyRevenue.add(e._rewardToken, Number(e._feeAmount) * 0.2, 'Pendle Rewards To Holders')
+    dailyHoldersRevenue.add(e._rewardToken, Number(e._feeAmount) * 0.2, 'Pendle Rewards To Holders')
   }),
 
-    (await getLogs({
-      target: BRIBE_DISTRIBUTOR[chain],
-      eventAbi: EVENT_PAID_BRIBE,
-    })).map((e: any) => {
-      if (EXCLUDE_TOKENS[chain].includes(e.token)) {
-        return
-      }
-      dailyFees.add(e.token, e.amount)
-      dailyBribesRevenue.add(e.token, e.amount)
-      dailyProtocolRevenue.add(e.token, Number(e.amount) * LP_FEE_DISTRIBUTION[chain].totalProtocolRevenue)
-    })
+  (await getLogs({
+    target: BRIBE_DISTRIBUTOR[chain],
+    eventAbi: EVENT_PAID_BRIBE,
+  })).map((e: any) => {
+    if (EXCLUDE_TOKENS[chain].includes(e.token)) {
+      return
+    }
+    dailyFees.add(e.token, e.amount, 'Bribes Rewards')
+    dailyRevenue.add(e.token, e.amount, 'Bribes Revenue')
 
-  const dailyRevenue = dailyProtocolRevenue.clone();
-  dailyRevenue.addBalances(dailyHoldersRevenue);
+    const bribesProtocolShare = Number(e.amount) * LP_FEE_DISTRIBUTION[chain].totalProtocolRevenue
+    dailyHoldersRevenue.add(e.token, Number(e.amount) - bribesProtocolShare, 'Bribes Revenue')
+    dailyProtocolRevenue.add(e.token, bribesProtocolShare, 'Bribes Revenue')
+  })
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-    dailyBribesRevenue,
     dailySupplySideRevenue
   };
 }
 
 const info = {
   methodology: {
-    Fees: 'Total boosted PENDLE rewards from liquidity farming on Pendle Finance',
-    Revenue: 'Protocol revenue from boosted PENDLE rewards',
+    Fees: 'Total boosted PENDLE rewards from liquidity farming + Bribes from voting incentives on Pendle Finance',
+    Revenue: 'Protocol revenue from boosted PENDLE rewards + Bribes from voting incentives',
     ProtocolRevenue: '5% operational expenses + bribes share of protocol',
-    HoldersRevenue: '5% vlPNP holders + 12% mPENDLE Staking pool + 20% PRT mechanism',
+    HoldersRevenue: '5% vlPNP holders + 12% mPENDLE Staking pool + 20% PRT mechanism + Bribes from voting incentives',
     SupplySideRevenue: '78% to liquidity providers',
-    BribesRevenue: 'Bribes from voting incentives'
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Pendle Rewards': 'Staking rewards from pendle',
+      'Bribes Rewards': 'Bribes from voting incentives on Pendle Finance',
+    },
+    Revenue: {
+      'Pendle Rewards To Protocol': 'Staking rewards from pendle to protocol',
+      'Pendle Rewards To Holders': 'Staking rewards from pendle to holders',
+      'Bribes Revenue': 'Bribes from voting incentives to protocol and holders',
+    },
+    SupplySideRevenue: {
+      'Pendle Rewards To Stakers': 'Staking rewards from pendle to stakers',
+    },
+    HoldersRevenue: {
+      'Pendle Rewards To Holders': 'Staking rewards from pendle to holders',
+      'Bribes Revenue': 'Bribes from voting incentives on Pendle Finance to holders',
+    },
   }
 }
 
 const adapter: SimpleAdapter = {
   methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BSC],
   version: 2,
-  adapter: {}
+  pullHourly: true,
+  start: '2024-06-01',
 };
 
 export default adapter;

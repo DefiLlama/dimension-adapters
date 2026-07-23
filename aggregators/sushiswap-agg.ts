@@ -53,6 +53,13 @@ const CHAIN_ID: any = {
   [CHAIN.APECHAIN]: 33139,
   [CHAIN.SONIC]: 146,
   [CHAIN.HEMI]: 43111,
+  [CHAIN.KATANA]: 747474,
+  [CHAIN.HYPERLIQUID]: 999,
+  [CHAIN.BERACHAIN]: 80094,
+  [CHAIN.PLASMA]: 9745,
+  [CHAIN.MONAD]: 143,
+  [CHAIN.MEGAETH]: 4326,
+  [CHAIN.XLAYER]: 196,
 }
 
 const RP4_ADDRESS: any = {
@@ -376,6 +383,101 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.MONAD]: '0xd2b37aDE14708bf18904047b1E31F8166d39612b',
 }
 
+const RP10_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.OPTIMISM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BASE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.AVAX]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BSC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.LINEA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM_NOVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.XDAI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FANTOM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BITTORRENT]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CELO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FILECOIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HAQQ]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KAVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.METIS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.THUNDERCORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SCROLL]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZETA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON_ZKEVM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HARMONY]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA_BNB]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CRONOS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BLAST]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SKALE_EUROPA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ROOTSTOCK]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ERA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTLE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MODE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.TAIKO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZKLINK]: '0x67ad43499eda05ddd799f4e6c407646c5bf2ed47',
+  [CHAIN.APECHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SONIC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HEMI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KATANA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HYPERLIQUID]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BERACHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.PLASMA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MONAD]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MEGAETH]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.XLAYER]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+}
+
+const RP11_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ARBITRUM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.OPTIMISM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BASE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.POLYGON]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.AVAX]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BSC]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.LINEA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ARBITRUM_NOVA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.XDAI]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.FANTOM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BITTORRENT]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.CELO]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.FILECOIN]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.KAVA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.METIS]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.THUNDERCORE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.SCROLL]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ZETA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.POLYGON_ZKEVM]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.HARMONY]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BOBA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BOBA_BNB]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.CORE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.CRONOS]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BLAST]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.SKALE_EUROPA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ROOTSTOCK]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ERA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.MANTLE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.MANTA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.MODE]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.TAIKO]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.ZKLINK]: '0x169be3df32d31827067649a2d4c7574c738912a3',
+  [CHAIN.APECHAIN]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.SONIC]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.HEMI]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.KATANA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.HYPERLIQUID]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BERACHAIN]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.PLASMA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.MONAD]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.MEGAETH]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.XLAYER]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+}
+
 const WNATIVE_ADDRESS: any = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
   [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
@@ -424,12 +526,10 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
   [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
   [CHAIN.MONAD]: ADDRESSES.monad.WMON,
+  [CHAIN.MEGAETH]: '0x4200000000000000000000000000000000000006',
+  [CHAIN.XLAYER]: ADDRESSES.xlayer.WOKB,
 }
 
-const useSushiAPIPrice = (chain: any) => [
-  CHAIN.BOBA_BNB,
-  CHAIN.MOONRIVER
-].includes(chain)
 
 interface Log {
   tokenIn: string;
@@ -441,6 +541,9 @@ interface Log {
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const dailyVolume = createBalances()
 
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: chain })
+
   let logs: Array<Log> = [];
 
   if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
@@ -451,10 +554,9 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  
-  // count volune only from whitelisted tokens
-  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
-  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
+  if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP11_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
       && !blacklistedTokens.includes(formatAddress(log.tokenIn))
@@ -462,45 +564,21 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     )
   }
 
-  if (useSushiAPIPrice(chain)) {
-    const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
-      acc[key.toLowerCase()] = value
-      return acc
-    });
-    const tokensIn =  [...new Set(logs.map(log => log.tokenIn.toLowerCase()))]
-    const tokensInfo = (await Promise.all(tokensIn.map(token => httpGet(`https://api.sushi.com/token/v1/${CHAIN_ID[chain]}/${token}`)))).flat();
+  // filter many scam/spam tokens on arbitrum
+  if (chain === CHAIN.ARBITRUM) {
+    // require both input and output tokens in whitelisted
+    logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut))))
+  }
 
-    const tokens = tokensInfo.reduce((tokens, token) => {
-      const address = token.address.toLowerCase()
-      tokens[address] = {
-        ...token,
-        price: tokenPrice[address] ?? 0
-      }
-
-      return tokens
-    }, {});
-
-    for (const log of logs) {
-      const token = tokens[log.tokenIn.toLowerCase()]
-      if (token && log.tokenIn.toLowerCase() !== ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
-        const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
-        if (_dailyVolume < 0) throw new Error(`Daily volume cannot be negative. Current value: ${_dailyVolume}`)
-        dailyVolume.addUSDValue(_dailyVolume)
-      } else {
-        if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
-        dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
-      }
-    }
-  } else {
-    for (const log of logs) {
-      if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
-      if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
-        dailyVolume.addGasToken(log.amountIn)
-      else {
-        dailyVolume.add(log.tokenIn, log.amountIn)
-      }
+  for (const log of logs) {
+    if (Number(log.amountIn) < 0) continue;
+    if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
+      dailyVolume.addGasToken(log.amountIn)
+    else {
+      dailyVolume.add(log.tokenIn, log.amountIn)
     }
   }
+
 
   return { dailyVolume }
 }
@@ -685,10 +763,19 @@ const adapters = {
   [CHAIN.MONAD]: {
     fetch,
     start: '2025-11-23'
-  }
+  },
+  [CHAIN.MEGAETH]: {
+    fetch,
+    start: '2026-02-08'
+  },
+  // [CHAIN.XLAYER]: {
+  //   fetch,
+  //   start: '2026-02-08'
+  // },
 }
 
 export default {
   version: 2,
+  pullHourly: true,
   adapter: adapters,
 }

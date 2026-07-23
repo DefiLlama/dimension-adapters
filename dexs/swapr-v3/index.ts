@@ -6,8 +6,6 @@ import * as sdk from '@defillama/sdk'
 const protocolFee = 0.1
 
 const fetch = async (
-  _timestamp: number,
-  _: any,
   options: FetchOptions,
 ): Promise<any> => {
   const dayID = Math.floor(options.startOfDay / 86400)
@@ -27,7 +25,7 @@ const fetch = async (
     dailyVolume: req.algebraDayData?.volumeUSD,
     dailyFees: req.algebraDayData?.feesUSD,
     dailyUserFees: req.algebraDayData?.feesUSD,
-    dailyRevenue: req.algebraDayData?.feesUSD,
+    dailyRevenue: req.algebraDayData?.feesUSD * protocolFee,
     dailyProtocolRevenue: req.algebraDayData?.feesUSD * protocolFee,
     dailySupplySideRevenue: req.algebraDayData?.feesUSD * (1 - protocolFee),
   }

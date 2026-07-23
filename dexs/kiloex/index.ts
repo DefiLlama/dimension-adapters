@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 type ChainMap = {
@@ -19,46 +18,31 @@ const historicalVolumeEndpoints: ChainMap = {
 
 interface IVolume {
   time: number;
-  dayTradeAmount:string;
-  totalTradeAmount:string
+  dayTradeAmount: string;
+  totalTradeAmount: string
 }
 
-const fetch = (chainId: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[options.chain]));
 
-    const dailyVolume = historicalVolume
-      .find(item => item.time === dayTimestamp)?.dayTradeAmount
+  const dailyVolume = historicalVolume
+    .find(item => item.time === options.startOfDay)?.dayTradeAmount
 
-    return {
-      dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
-    };
+  return {
+    dailyVolume: dailyVolume,
   };
 };
 
 
 const adapter: SimpleAdapter = {
+  fetch,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC), start: '2023-06-12'
-    },
-    [CHAIN.OP_BNB]: {
-      fetch: fetch(CHAIN.OP_BNB), start: '2023-10-07'
-    },
-    [CHAIN.MANTA]: {
-      fetch: fetch(CHAIN.MANTA), start: '2023-11-01'
-    },
-    [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30'
-    },
-    [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30'
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE), start: '2024-10-09'
-    },
+    [CHAIN.BSC]: { start: '2023-06-12' },
+    [CHAIN.OP_BNB]: { start: '2023-10-07' },
+    [CHAIN.MANTA]: { start: '2023-11-01', deadFrom: '2026-05-12' },
+    [CHAIN.TAIKO]: { start: '2024-05-30', deadFrom: '2026-02-10' },
+    [CHAIN.BSQUARED]: { start: '2024-07-30', deadFrom: '2026-02-24' },
+    [CHAIN.BASE]: { start: '2024-10-09' },
   },
 };
 

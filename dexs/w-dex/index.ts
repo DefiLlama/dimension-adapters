@@ -19,6 +19,7 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: poolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   });
 
   const iface = new ethers.Interface([poolEvent]);
@@ -69,16 +70,12 @@ const fetch = async (options: FetchOptions) => {
 
   dailyFees.addBalances(infraFees, 'InfraFee');
   dailyFees.addBalances(protocolFees, 'ProtocolFee');
+  dailyFees.addBalances(lpFees, 'LPFee');
+
   dailyRevenue.addBalances(protocolFees, 'ProtocolFee');
 
-  dailyFees.addBalances(lpFees, 'LPFee');
   dailySupplySideRevenue.addBalances(lpFees, 'LPFee');
-
-  dailyFees.add(protocolFees, 'ProtocolFee');
-  dailyRevenue.add(protocolFees, 'ProtocolFee');
-
-  dailyFees.add(infraFees, 'InfraFee');
-  dailySupplySideRevenue.add(infraFees, 'InfraFee');
+  dailySupplySideRevenue.addBalances(infraFees, 'InfraFee');
 
   return {
     dailyVolume,
@@ -121,6 +118,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.POLYGON],
   methodology

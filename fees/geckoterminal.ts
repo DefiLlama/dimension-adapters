@@ -1,4 +1,4 @@
-import { Adapter, BaseAdapter, FetchOptions } from "../adapters/types";
+import { Adapter, BaseAdapter, Dependencies, FetchOptions } from "../adapters/types";
 import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
@@ -10,6 +10,8 @@ const sol = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All fees paid by users for token profile listing.',
     Revenue: 'All fees collected by GeckoTerminal.',

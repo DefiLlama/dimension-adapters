@@ -2,6 +2,7 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request from "graphql-request";
 import BigNumber from "bignumber.js";
+import { METRIC } from "../../helpers/metrics";
 
 const endpoints: Record<string, string> = {
   [CHAIN.OPTIMISM]: `https://gateway-arbitrum.network.thegraph.com/api/a4998f968b8ad324eb3e47ed20c00220/subgraphs/id/3Htp5TKs6BHCcwAYRCoBD6R4X62ThLRv2JiBBikyYze`,
@@ -26,6 +27,10 @@ interface ILendingPool {
 
 const fetch = async ({ fromTimestamp, toTimestamp, createBalances, chain }: FetchOptions) => {
   const dailyFees = createBalances()
+  const dailyHoldersRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  const dailyRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances()
 
   const farmingQuery = `{
     feePaids(
@@ -76,25 +81,58 @@ const fetch = async ({ fromTimestamp, toTimestamp, createBalances, chain }: Fetc
     }
   })
 
-  const allFeesList = [...graphRes, ...lendingFeeList]
-
-  allFeesList.map((e: IFeePaid) => {
-    dailyFees.add(e.asset, e.amount)
+  lendingFeeList.map((e: IFeePaid) => {
+    dailyFees.add(e.asset, e.amount, METRIC.BORROW_INTEREST)
   })
-
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.resizeBy(0.5)
+  dailySupplySideRevenue.add(dailyFees.clone(0.85))
+  dailyRevenue.add(dailyFees.clone(0.15))
+  dailyHoldersRevenue.add(dailyFees.clone(0.075))
+  dailyProtocolRevenue.add(dailyFees.clone(0.075))
+  graphRes.map((e: IFeePaid) => {
+    dailyFees.add(e.asset, e.amount, "Leveraged Yield Farming fees")
+    dailyRevenue.add(e.asset, e.amount, "Leveraged Yield Farming fees")
+    dailyProtocolRevenue.add(e.asset, e.amount, "Leveraged Yield Farming fees")
+  })
 
   return {
     dailyFees, 
     dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue
   };
 };
 
 
 const adapter: Adapter = {
   version: 2,
+  methodology: {
+    Fees: "Includes Leveraged Yield Farming fees like re-investment, borrowing, liquidation and price-range trigger fees plus the borrowing interest accrued",
+    Revenue: "All Leveraged Yield Farming fees are revenue and the protocol collects a 15% performance fee on borrowing interest profit",
+    SupplySideRevenue: "85% of the borrowing interest profit goes to lenders",
+    ProtocolRevenue: "All Leveraged Yield Farming and 7.5% of the borrowing interest profits go to the protocol",
+    HoldersRevenue: "5.25% of the borrowing interest profits are paid to veExtra holders and 2.25% are burned weekly"
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Leveraged Yield Farming fees": "Includes re-investment, borrowing, liquidation and price-range trigger fees",
+      [METRIC.BORROW_INTEREST]: "Borrowing interest accrued"
+    },
+    Revenue: {
+      "Leveraged Yield Farming fees": "All re-investment, borrowing, liquidation and price-range trigger fees are revenue",
+      [METRIC.BORROW_INTEREST]: "15% of the borrowing interest accrued is kept by the protocol"
+    },
+    ProtocolRevenue: {
+      "Leveraged Yield Farming fees": "All re-investment, borrowing, liquidation and price-range trigger fees are revenue",
+      [METRIC.BORROW_INTEREST]: "7.5% of the borrowing interest accrued goes to the protocol"
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: "85% of the borrowing interest accrued goes to lenders"
+    },
+    HoldersRevenue: {
+      [METRIC.BORROW_INTEREST]: "5.25% of the borrowing interest profits are paid to veExtra holders and 2.25% are burned weekly"
+    },
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch,

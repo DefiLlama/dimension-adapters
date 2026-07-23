@@ -40,7 +40,8 @@ const adapter: SimpleAdapter = {
       { fetch, start: config.startTimestamp }
     ])
   ),
-  version: 2
+  version: 2,
+  pullHourly: true,
 };
 
 

@@ -5,10 +5,12 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   // Determine which address/trader_id to use based on date 2024-11-16
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const cutoffTimestamp = 1731715200;
   const isNewAddress = options.startOfDay >= cutoffTimestamp;
 
@@ -26,32 +28,35 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       WHERE
         TIME_RANGE
         AND address = '${address}'
+        AND token_mint_address IS NULL
         AND balance_change > 0
         AND tx_success
     ),
-    bot_trades AS (
-      SELECT
-        fp.fee_token_amount
-      FROM
-        dex_solana.trades t
-        JOIN all_fee_payments fp ON t.tx_id = fp.tx_id
-      WHERE
-        TIME_RANGE
-        AND trader_id != '${traderId}'
+    validated_fee_payments AS (
+      SELECT fee_token_amount
+      FROM all_fee_payments fp
+      WHERE EXISTS (
+        SELECT 1
+        FROM dex_solana.trades t
+        WHERE t.tx_id = fp.tx_id
+          AND TIME_RANGE
+          AND trader_id != '${traderId}'
+      )
     )
     SELECT
-      SUM(fee_token_amount) AS fee
+      COALESCE(SUM(fee_token_amount), 0) AS fee
     FROM
-      bot_trades
+      validated_fee_payments
   `;
 
   const fees = await queryDuneSql(options, query);
 
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
   }
 }
 
@@ -65,6 +70,14 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "All trading fees paid by users while using BullX bot.",
     Revenue: "Trading fees are collected by BullX protocol."
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "SOL fees collected from user trades executed through the BullX trading bot on Solana DEXes.",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: "SOL revenue retained by BullX protocol from user trading activity.",
+    },
   }
 };
 

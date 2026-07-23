@@ -1,45 +1,61 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
-import * as sdk from "@defillama/sdk";
+import { sleep } from '../../utils/utils';
 
 // Previous API: https://cp-amm-api.meteora.ag/pools (with limit/offset support)
 // Min pool fee is 0.25% so wash trading is not economically viable
 
-const meteoraGlobalMetricsEndpoint = 'https://cp-amm-api.meteora.ag/pools/global-metrics';
-
 async function fetch() {
-  try {
-    const response = await httpGet(meteoraGlobalMetricsEndpoint);
-    
-    const dailyVolume = response.data.volume24h || 0;
-    const dailySupplySideRevenue = response.data.lp_fee24h || 0; // LP fees
-    const dailyProtocolRevenue = response.data.protocol_fee24h || 0; // Protocol fees
-    const dailyPartnerRevenue = response.data.partner_fee24h || 0; // Partner fees
-    const dailyReferralRevenue = response.data.referral_fee24h || 0; // Referral fees
+  const baseUrl = 'https://damm-v2.datapi.meteora.ag/pools';
 
-    // Total fees paid by users
-    const dailyFees = dailySupplySideRevenue + dailyProtocolRevenue + dailyPartnerRevenue + dailyReferralRevenue;
+  let page = 1;
+
+  let dailyVolume = 0;
+  let dailyFees = 0;
+  let dailyRevenue = 0;
+  let dailySupplySideRevenue = 0; // LP fees
+  
+  const pageSize = 1000;
+
+  while (true) {
+    const response = await httpGet(`${baseUrl}?is_blacklisted=false&page=${page}&page_size=${pageSize}`);
     
-    // Total revenue = Protocol + Partner + Referral (excluding LP fees)
-    const dailyRevenue = dailyProtocolRevenue + dailyPartnerRevenue + dailyReferralRevenue;
-    
-    if (isNaN(dailyVolume) || isNaN(dailyFees)) {
-      throw new Error('Invalid daily volume or fees from global metrics');
+    const pools = response.data || [];
+    if (pools.length === 0) break;
+
+    for (const pool of pools) {
+      const tvl = pool.tvl || 0;
+      const volume = pool.volume['24h'] || 0;
+
+      // Ignore if TVL < 1M and volume > 10x TVL
+      if (tvl < 1_000_000 && volume > tvl * 10) {
+        continue;
+      }
+
+      dailyVolume += volume;
+
+      const fees = pool.fees['24h'] || 0;
+      const protocolFees = pool.protocol_fees['24h'] || 0;
+      const supplySideFees = fees - protocolFees;
+      
+      dailyFees += fees
+      dailyRevenue += protocolFees
+      dailySupplySideRevenue += supplySideFees
     }
+
+    await sleep(100)
     
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
-    };
-    
-  } catch (error) {
-    sdk.log(`Error fetching global metrics: ${error}`);
-    throw error;
+    page++;
   }
+  
+  return {
+    dailyVolume: dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 }
 
 export default {

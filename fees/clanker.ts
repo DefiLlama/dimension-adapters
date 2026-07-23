@@ -17,7 +17,7 @@ const FEE_WALLETS = [
 ]
 
 // https://dune.com/queries/5768935/9358569
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // count WETH received by fee wallets
   const dailyRevenue = await addTokensReceived({
     options,
@@ -41,6 +41,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   start: "2024-11-08",

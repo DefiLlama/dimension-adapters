@@ -77,6 +77,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",
     Revenue: "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",

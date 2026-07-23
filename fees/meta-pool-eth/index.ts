@@ -39,6 +39,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
@@ -71,7 +72,8 @@ const adapter: SimpleAdapter = {
         SupplySideRevenue: {
             [METRIC.STAKING_REWARDS]: 'Share of 90% ETH staking rewards',
         },
-    }
+    },
+    allowNegativeValue: true, // yields can be negative
 }
 
 export default adapter

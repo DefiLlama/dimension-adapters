@@ -11,24 +11,20 @@ async function getData() {
   return _data
 }
 
-const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const date = new Date(options.startOfDay * 1000).toLocaleDateString()
   const data = (await getData())[date]
   if (!data) throw new Error("No data found for date " + date)
   return {
     dailyVolume: data.volume,
-    timestamp: options.startOfDay,
   }
 }
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.TEZOS]: {
-      fetch: fetchVolume,
-    }
-  }
+  fetch,
+  chains: [CHAIN.TEZOS],
 }
 
 export default adapter;

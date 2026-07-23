@@ -42,6 +42,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Total staking rewards collected from vaults, rETH and osETH.',
     Revenue: 'There are 5% staking rewards on osETH and 10% on rETH.',

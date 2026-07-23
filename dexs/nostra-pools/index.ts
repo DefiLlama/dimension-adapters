@@ -18,6 +18,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
+      runAtCurrTime: true,
       start: '2024-06-13',
     },
   },

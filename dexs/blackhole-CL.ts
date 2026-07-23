@@ -19,12 +19,14 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: poolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   })
   logs = logs.concat(await options.getLogs({
     target: factory,
     eventAbi: customPoolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   }))
   const iface = new ethers.Interface([poolEvent, customPoolEvent])
   logs = logs.map((log: any) => iface.parseLog(log)?.args)
@@ -72,6 +74,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
 
   methodology: {
     Fees: "All swap fees paid by users.",
@@ -79,7 +82,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "No fees distributed to LPs.",
     Revenue: "All swap fees are revenue.",
     ProtocolRevenue: "Protocol makes no revenue.",
-    HoldersRevenue: "All revenue are distributed to veBlack holders.",
+    HoldersRevenue: "All revenue is distributed to veBlack holders.",
   },
   chains: [CHAIN.AVAX],
   fetch,

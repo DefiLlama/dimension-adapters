@@ -1,13 +1,13 @@
 // DEFI_APP_BUILDER_ADDRESS = '0x1922810825C90F4270048B96Da7b1803CD8609Ef';
 
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
 
 const tsToISO = (ts: number) => new Date(ts * 1e3).toISOString();
 
-const fetch = async (_: any, _b: any, options: any): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   // 2-day delay: Hyperliquid builder volumes are reported to DefiApp with a 2-day lag.
   const startDate = options.startOfDay - (24 * 3600);
   const endDate = options.startOfDay;
@@ -27,12 +27,10 @@ const fetch = async (_: any, _b: any, options: any): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: "2025-05-01", // May 1st, 2025
-    },
-  },
+  version: 1,
+  chains: [CHAIN.HYPERLIQUID],
+  fetch,
+  start: "2025-05-01", // May 1st, 2025
   doublecounted: true,
 };
 

@@ -1,11 +1,11 @@
-import { Adapter, ProtocolType } from "../adapters/types";
+import { Adapter, Dependencies, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import type { FetchOptions } from "../adapters/types"
 import { fetchTransactionFees } from "../helpers/getChainFees";
 import { METRIC } from "../helpers/metrics";
 
 
-async function fetch(_: any, _1: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = await fetchTransactionFees(options)
 
   // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md
@@ -21,13 +21,11 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2020-08-29',
-    },
-  },
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2020-08-29',
   protocolType: ProtocolType.CHAIN,
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Transaction fees paid by users',
     Revenue: 'Amount of 10% BNB transaction fees that were burned',

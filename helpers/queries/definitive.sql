@@ -70,4 +70,4 @@ SELECT
   AVG(amount)     AS avg_per_tx
 FROM xfers
 GROUP BY 1
-ORDER BY blockchain;
+ORDER BY blockchain

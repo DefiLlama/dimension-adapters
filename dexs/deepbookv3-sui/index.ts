@@ -1,18 +1,16 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
-const coins = {
+const coins: Record<string, string> = {
   DEEP: ADDRESSES.sui.DEEP,
   SUI: "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
   USDC: ADDRESSES.sui.USDC_CIRCLE,
   ETH: ADDRESSES.sui.ETH,
-  WUSDT:
-    ADDRESSES.sui.USDT,
-  WUSDC:
-    ADDRESSES.sui.USDC,
+  WUSDT: ADDRESSES.sui.USDT,
+  WUSDC: ADDRESSES.sui.USDC,
   NS: "0x5145494a5f5100e645e4b0aa950fa6b68f614e8c59e17bc5ded3495123a79178::ns::NS",
   TYPUS:
     "0xf82dc05634970553615eef6112a1ac4fb7bf10272bf6cbe0f80ef44a6c489385::typus::TYPUS",
@@ -21,11 +19,13 @@ const coins = {
   DRF: "0x294de7579d55c110a00a7c4946e09a1b5cbeca2592fbb83fd7bfacba3cfeaf0e::drf::DRF",
   SEND: "0xb45fcfcc2cc07ce0702cc2d229621e046c906ef14d9b25e8e4d25f6e8763fef7::send::SEND",
   XBTC: "0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC",
+  SUIUSDE: "0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE",
+  USDSUI: "0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI",
 };
 
 const fetchVolumeInUsd = (
   volumeData: Record<string, number>,
-  balances: Balances
+  balances: Balances,
 ) => {
   for (const [poolName, poolVolume] of Object.entries(volumeData)) {
     const quoteTokenSymbol = poolName.split("_")[1];
@@ -58,11 +58,12 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  dailyVolume: "Sum of volume in USD for all pools in the past 24 hours",
+  Volume: "Sum of volume in USD for all pools in the past 24 hours",
 };
 
 export default {
   version: 2,
+  pullHourly: true,
   methodology,
   adapter: {
     [CHAIN.SUI]: {

@@ -11,4 +11,5 @@ export default {
   chains: [CHAIN.OFF_CHAIN],
   fetch,
   runAtCurrTime: true,
+  deadFrom: "2026-02-13",
 }
