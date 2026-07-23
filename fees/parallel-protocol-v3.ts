@@ -21,10 +21,11 @@ const config: Record<string, { parallelizer: string; start: string }> = {
 };
 
 // https://docs.parallel.best/products/parallel-v3/stablecoins-and-savings/usdp-and-susdp/fee-distribution
-// 90% sUSDp holders, 9% DAO Treasury
-// 1% paid to Angle Labs under BUSL 1.1 license (PIP-50) until expiry on June 1, 2026
+// Pre-expiry  (before June 1, 2026): 90% sUSDp holders, 9% DAO Treasury, 1% Angle Labs (BUSL 1.1 PIP-50)
+// Post-expiry (after  June 1, 2026): 90% sUSDp holders, 10% DAO Treasury
 const SUSDP_RATIO = 0.90;
 const DAO_RATIO = 0.09;
+const DAO_POST_EXPIRY_RATIO = 0.10;
 const ANGLE_LABS_RATIO = 0.01;
 const ANGLE_LABS_LICENSE_EXPIRY = Math.floor(new Date("2026-06-01").getTime() / 1000);
 
@@ -46,6 +47,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFeesUSD = surplusEnd - surplusStart;
 
   const licenseActive = toTimestamp < ANGLE_LABS_LICENSE_EXPIRY;
+  const daoRatio = licenseActive ? DAO_RATIO : DAO_POST_EXPIRY_RATIO;
 
   const dailyFees = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -54,9 +56,9 @@ const fetch = async (options: FetchOptions) => {
 
   dailyFees.addUSDValue(dailyFeesUSD, "Yield From Backing Collateral");
   dailySupplySideRevenue.addUSDValue(dailyFeesUSD * SUSDP_RATIO, "sUSDp Savings Holders");
-  dailyRevenue.addUSDValue(dailyFeesUSD * DAO_RATIO, "DAO Treasury");
+  dailyRevenue.addUSDValue(dailyFeesUSD * daoRatio, "DAO Treasury");
   if (licenseActive) dailyRevenue.addUSDValue(dailyFeesUSD * ANGLE_LABS_RATIO, "Angle Labs");
-  dailyProtocolRevenue.addUSDValue(dailyFeesUSD * DAO_RATIO, "DAO Treasury");
+  dailyProtocolRevenue.addUSDValue(dailyFeesUSD * daoRatio, "DAO Treasury");
 
   return {
     dailyFees,
@@ -67,22 +69,22 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Daily change in protocol net surplus (total collateral value minus USDp outstanding). Captures yield from yield-bearing collateral (sfrxUSD, sUSDe, ygamiUSDC, sUSDS) plus 0.05% burn fees on yield-bearing redemptions.",
-  Revenue: "9% of net surplus accrual to the DAO Treasury, plus 1% to Angle Labs under BUSL 1.1 license (PIP-50) for periods before June 1, 2026.",
-  ProtocolRevenue: "9% of net surplus accrual allocated to the DAO Treasury.",
+  Fees: "Daily change in protocol net surplus (total collateral value minus USDp outstanding). Captures yield from yield-bearing collateral held by the Parallelizer plus burn fees on yield-bearing redemptions.",
+  Revenue: "DAO Treasury share of net surplus accrual: 9% before June 1, 2026 (plus 1% to Angle Labs under BUSL 1.1 PIP-50), and 10% thereafter (Angle Labs 1% redistributed to DAO post license expiry).",
+  ProtocolRevenue: "DAO Treasury share of net surplus accrual: 9% before June 1, 2026, 10% after (Angle Labs 1% redistributed to DAO post license expiry).",
   SupplySideRevenue: "90% of net surplus accrual distributed to sUSDp savings holders.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Yield From Backing Collateral": "Yield accrued on yield-bearing collateral (sfrxUSD, sUSDe, ygamiUSDC, sUSDS) held by the Parallelizer, plus 0.05% burn fees on yield-bearing redemptions.",
+    "Yield From Backing Collateral": "Yield accrued on yield-bearing collateral held by the Parallelizer plus burn fees on yield-bearing redemptions.",
   },
   Revenue: {
-    "DAO Treasury": "9% of net surplus accrual sent to the Parallel DAO Treasury.",
-    "Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable before June 1, 2026.",
+    "DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
+    "Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
   },
   ProtocolRevenue: {
-    "DAO Treasury": "9% of net surplus accrual sent to the Parallel DAO Treasury.",
+    "DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
   },
   SupplySideRevenue: {
     "sUSDp Savings Holders": "90% of net surplus accrual distributed to sUSDp stakers as savings yield.",
