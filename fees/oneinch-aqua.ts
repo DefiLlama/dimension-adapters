@@ -155,9 +155,14 @@ const fetch = async (options: FetchOptions) => {
     const fees = feeByStrategyHash.get(
       String(log.args.strategyHash).toLowerCase(),
     );
-    if (!fees || fees.flat === 0n) return;
+    if (!fees || (fees.flat === 0n && fees.protocol === 0n)) return;
     const amount = BigInt(log.args.amount);
-    const totalFee = (amount * fees.flat) / FEE_BASE;
+    // The DAO share is an independent rate, not a slice of the flat fee, so a
+    // (theoretical) protocol-only strategy still pays it; clamp the LP share
+    // at zero for safety.
+    const totalFee =
+      (amount * (fees.flat > fees.protocol ? fees.flat : fees.protocol)) /
+      FEE_BASE;
     const daoShare = (amount * fees.protocol) / FEE_BASE;
     const lpShare = totalFee - daoShare;
     dailyFees.add(log.args.token, lpShare, LABEL_LP);
