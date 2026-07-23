@@ -37,6 +37,7 @@ const TREASURY = '0x78Df583557baa1b9C8b8839BeCAAe2eD665Bd7e6';
 const ADMIN_FEE_BPS = 100n;   // 1% of totalDeployed
 const VAULT_FEE_BPS = 1000n;  // 10% of losersPool after admin
 const BPS = 10000n;
+const TOKEN_STAKER_SHARE = 0.05
 
 // Replay of GridMining._calculateSettlementFees for a given losersPool,
 // using the contract's sequential floor divisions.
@@ -79,7 +80,8 @@ const fetch = async (options: FetchOptions) => {
   for (const log of vaultLogs as any[]) {
     const amount = BigInt(log.args.amount);
     dailyFees.addGasToken(amount, 'Vault fees');
-    dailyHoldersRevenue.addGasToken(amount, 'Vault fees');
+    dailyHoldersRevenue.addGasToken(Number(amount) * TOKEN_STAKER_SHARE, 'Vault Fees to Stakers');
+    dailyHoldersRevenue.addGasToken(Number(amount) * (1 - TOKEN_STAKER_SHARE), 'Vault Fees to Burn');
     vaultByTx.set(log.transactionHash.toLowerCase(), amount);
   }
 
@@ -148,7 +150,8 @@ const breakdownMethodology = {
     'Admin fees': 'Admin fees accruing to the protocol fee wallet.',
   },
   HoldersRevenue: {
-    'Vault fees': 'Treasury vault ETH spent on PEA buybacks: 95% burned, 5% to stakers.',
+    'Vault Fees to Stakers': '5% of the vault fees are used to buy PEA and distributed to PEA stakers.',
+    'Vault Fees to Burn': '95% of the vault fees are used to buy PEA and burned.',
   },
 };
 
