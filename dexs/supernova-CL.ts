@@ -37,13 +37,10 @@ const fetch = async (options: FetchOptions) => {
   logs = logs.map((log: any) => iface.parseLog(log)?.args)
 
   const pairObject: IJSON<string[]> = {}
-  const fees: any = {}
 
   logs.forEach((log: any) => {
     pairObject[log.pool] = [log.token0, log.token1]
   })
-  let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-  _fees.forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
 
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
   const dailyVolume = createBalances()
@@ -56,15 +53,18 @@ const fetch = async (options: FetchOptions) => {
   if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
 
   const poolIds = Object.keys(filteredPairs)
-  // communityFee (vault share) varies per pool; algebraFee (protocol cut) is uniform, so read it once.
+  // Per active pool: fee rate, communityFee (share to the vault) and the vault's algebraFee (protocol cut).
+  const feeList = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: poolIds })
   const globalStates = await api.multiCall({ abi: globalStateAbi, calls: poolIds })
   const vaults = await api.multiCall({ abi: 'address:communityVault', calls: poolIds })
-  const algebraFee = Number(await api.call({ abi: 'function algebraFee() view returns (uint16)', target: vaults[0] }))
+  const algebraFees = await api.multiCall({ abi: 'function algebraFee() view returns (uint16)', calls: vaults })
 
+  const fees: IJSON<number> = {}
   const shares: IJSON<{ supply: number, protocol: number, holders: number }> = {}
   poolIds.forEach((pool, i) => {
-    const vaultShare = Number(globalStates[i].communityFee) / DENOM  // share to vault
-    const protocol = vaultShare * (algebraFee / DENOM)               // protocol cut
+    fees[pool] = feeList[i] / 1e6
+    const vaultShare = Number(globalStates[i].communityFee) / DENOM   // share to vault
+    const protocol = vaultShare * (Number(algebraFees[i]) / DENOM)    // protocol cut
     shares[pool] = { supply: 1 - vaultShare, protocol, holders: vaultShare - protocol }
   })
 
