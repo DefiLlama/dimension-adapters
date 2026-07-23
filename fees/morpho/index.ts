@@ -161,6 +161,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
     start: "2025-11-10",
   },
+  [CHAIN.PHAROS]: {
+    chainId: 1672,
+    blue: "0x18573fA18fd17dDfD790B4a5B5b2977aad3b4Efb",
+    fromBlock: 4202147,
+    start: "2026-06-01",
+  },
   [CHAIN.ROBINHOOD]: {
     fromBlock: 286,
     blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",

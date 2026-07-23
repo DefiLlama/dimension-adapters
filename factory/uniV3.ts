@@ -409,6 +409,10 @@ const configs: Record<string, Record<string, any>> = {
   "parityswap-v3": {
     [CHAIN.ROBINHOOD]: { factory: "0xd479E71C45aEB1E846A7B549c346D62fE77B39bA", start: "2026-07-20", userFeesRatio: 1, revenueRatio: 1 / 4, protocolRevenueRatio: 1 / 4 },
   },
+  'sheriff-v3': { 
+    [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
+  },
+
 }
 
 const optionsMap: Record<string, any> = {

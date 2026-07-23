@@ -335,8 +335,11 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "ranger-finance-perps": { addresses: ["0xf5bc9107916b91a3ea5966cd2e51655d21b7eb02"], start: "2025-08-12" },
   "senpi-perps": { addresses: ["0x1368f4311db5807f7c7924d736adaeb83e47bafe"], start: "2025-11-10" },
   "splashos-perps": {
-    addresses: ["0xe9935bb291ab3603b4d7862e6f19315f759aa3a4"],
-    start: "2025-08-01",
+    // Splash Wallet builder code. Source: HyperTracker public builder registry
+    // (refCode "Splash", joined 2025-06-04). Was previously mis-set to CoinPilot's
+    // builder address (shared with coinpilot-perps above), which double-counted CoinPilot.
+    addresses: ["0x3f24962739e6d703942dc2456e7c51c8d0ca4b70"],
+    start: "2025-06-04",
     methodology: {
       Fees: "Trading fees paid by users for perps in SplashOS Mobile App.",
       Revenue: "Fees collected by SplashOS from Hyperliquid Perps as Builder Revenue.",
@@ -782,6 +785,29 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  // CCXT trading library builder code (HyperTracker public builder registry,
+  // refCode "CCXT1", joined 2025-07-16). ~$310k of accrued builder fees on
+  // HyperCore, not tracked by any existing config.
+  "ccxt-perps": {
+    addresses: ["0x6530512a6c89c7cfcebc3ba7fcd9ada5f30827a6"],
+    start: "2025-07-16",
+    methodology: {
+      Fees: "Builder code fees paid by users trading Hyperliquid perps via CCXT.",
+      Revenue: "Builder code fees collected by CCXT from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by CCXT from Hyperliquid perps trades.",
+    },
+  },
+  // Owly.fi asset-management / copy-trading app on Hyperliquid (app.owly.fi;
+  // HyperTracker public builder registry, joined 2025-12-17). Untracked builder.
+  "owly-fi-perps": {
+    addresses: ["0x2e2e7c7696134f740aea7242a55b55d5cf769fab"],
+    start: "2025-12-17",
+    methodology: {
+      Fees: "Builder code fees paid by users trading Hyperliquid perps via Owly.fi.",
+      Revenue: "Builder code fees collected by Owly.fi from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Owly.fi from Hyperliquid perps trades.",
+    },
+  },
 };
 
 
@@ -811,7 +837,7 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
     addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
   },
   "Kinetiq-Hyperion": {
-    addressesOrNames: ['0xf8efb4cb844a8458114994203d7b0bfe2422a288'],
+    addressesOrNames: ['0xeeee86f718f9da3e7250624a460f6ea710e9c006'], // Kinetiq x Hyperion validator (previously duplicated Purrposeful's 0xf8efb4… address)
   },
   "Nansen-HypurrCollective": {
     addressesOrNames: ['0xb8f45222a3246a2b0104696a1df26842007c5bc5'],
@@ -875,6 +901,12 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
       '0x950f8dd5e5030e1fa6ad2cdc4295809d185925d0', // Meria
       '0x914d7f841b5ee14d1cd3852c7b2601b6ff6a8c52', // Enigma-Hypedexer-Meria-HypurrFi
     ],
+  },
+  "hyperliquid-strategies-staking": {
+    // "Hyperliquid Strategies x Unit" validator, run by Hyperliquid Strategies Inc
+    // (NASDAQ: PURR) — the largest publicly listed HYPE treasury company — with Unit Labs.
+    // Largest HYPE validator not yet tracked by any staking adapter (~22.5M HYPE).
+    addressesOrNames: ['0xd6a72f04b9868d5d6050376d5d7b729f47305cec'],
   },
 }
 
