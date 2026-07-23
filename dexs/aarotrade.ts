@@ -12,7 +12,7 @@ const PAGE_SIZE = 1000
 
 const query = gql`
   query Trades($start: BigInt!, $end: BigInt!, $after: String) {
-    trades(where: { timestamp_gte: $start, timestamp_lte: $end }, limit: ${PAGE_SIZE}, after: $after) {
+    trades(where: { timestamp_gte: $start, timestamp_lt: $end }, limit: ${PAGE_SIZE}, after: $after) {
       items { ethAmount }
       pageInfo { hasNextPage endCursor }
     }
