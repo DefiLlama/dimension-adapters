@@ -119,8 +119,7 @@ async function fetchSolana(options: FetchOptions) {
 const evmAdapter = Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }]));
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
