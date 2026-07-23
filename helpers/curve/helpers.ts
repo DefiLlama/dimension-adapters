@@ -100,9 +100,10 @@ async function getVersionPools(options: FetchOptions, version: ContractVersion, 
     const pool_count = await options.api.call({
       target: factory,
       abi: CurveContractAbis[version].pool_count,
+      permitFailure: true,
     });
     const pool_list_calls = []
-    for (let i = 0; i < Number(pool_count); i++) {
+    for (let i = 0; i < Number(pool_count || 0); i++) {
       pool_list_calls.push({
         target: factory,
         params: [i],
