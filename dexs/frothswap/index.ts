@@ -20,10 +20,10 @@ const customLogic = async ({ dailyVolume, dailyFees, fetchOptions }: any) => {
     dailyVolume,
     dailyFees: dailyFees.clone(1, METRIC.SWAP_FEES),
     dailyUserFees: dailyFees.clone(1, METRIC.SWAP_FEES),
-    dailyRevenue: dailyFees.clone(FROTH_BURN_SHARE, "FROTH Burn"),
+    dailyRevenue: dailyFees.clone(FROTH_BURN_SHARE, "$FROTH Burn"),
     dailySupplySideRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyFees.clone(FROTH_BURN_SHARE, "FROTH Burn"),
+    dailyHoldersRevenue: dailyFees.clone(FROTH_BURN_SHARE, "$FROTH Burn"),
   };
 };
 
@@ -45,10 +45,10 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "1.80% swap fee charged on each trade.",
   },
   Revenue: {
-    "FROTH Burn": "0.50% of swap fees used to buy back and burn FROTH.",
+    "$FROTH Burn": "0.50% of swap fees used to buy back and burn FROTH.",
   },
   HoldersRevenue: {
-    "FROTH Burn": "0.50% of swap fees used to buy back and burn FROTH.",
+    "$FROTH Burn": "0.50% of swap fees used to buy back and burn FROTH.",
   },
   SupplySideRevenue: {
     [METRIC.LP_FEES]: "0.30% of swap fees distributed to liquidity providers.",
