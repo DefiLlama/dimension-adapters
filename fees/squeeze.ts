@@ -23,6 +23,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 /** Canonical Squeeze identity — greppable for reviewers. */
 const IDENTITY = {
@@ -54,38 +55,29 @@ const LABEL_CREATOR = "Creator Fees";
 const LABEL_DOPPLER = "Doppler Protocol Fees";
 const LABEL_LAUNCHLAB_PLATFORM = "LaunchLab Platform Fees";
 
-/** Base numeraires used as Doppler quote tokens. */
-const BASE_FEE_TOKENS = [
-  "0x4200000000000000000000000000000000000006", // WETH
-  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC
-];
-
-/** Robinhood numeraires used as Doppler quote tokens. */
-const ROBINHOOD_FEE_TOKENS = [
-  "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", // WETH
-  "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
-  "0xF444F3C77C77a33F7c8d8fcab8a1E88aFb843dA5", // SQUEEZE (optional quote)
-];
-
 const chainConfig: Record<
   string,
-  { start: string; kind: "evm" | "solana"; tokens?: string[]; airlock?: string }
+  { start: string; kind: "evm" | "solana"; airlock?: string; feeTokens?: string[] }
 > = {
   [CHAIN.BASE]: {
     // Approx. Squeeze Doppler activity window on Base; tighten after first claim-day spot-check.
     // Source: product launch window documented at https://squeeze.run/docs#defillama
     start: "2025-06-01",
     kind: "evm",
-    tokens: BASE_FEE_TOKENS,
     airlock: IDENTITY.baseAirlock,
+    feeTokens: [ADDRESSES.base.WETH, ADDRESSES.base.USDC]
   },
   [CHAIN.ROBINHOOD]: {
     // Robinhood Chain earliest DefiLlama history / RH Doppler go-live window.
     // Source: DefiLlama robinhood chain listing + Squeeze RH Airlock deploy.
     start: "2026-04-20",
     kind: "evm",
-    tokens: ROBINHOOD_FEE_TOKENS,
     airlock: IDENTITY.robinhoodAirlock,
+    feeTokens: [
+      ADDRESSES.robinhood.WETH,
+      ADDRESSES.robinhood.USDG,
+      "0xF444F3C77C77a33F7c8d8fcab8a1E88aFb843dA5", // SQUEEZE (optional quote)
+    ]
   },
   [CHAIN.SOLANA]: {
     // Approx. LaunchLab platform claim window; tighten after first claim-day spot-check.
@@ -110,7 +102,7 @@ const fetch = async (options: FetchOptions) => {
     const erc20 = await addTokensReceived({
       options,
       target: IDENTITY.evmFeeWallet,
-      tokens: cfg.tokens,
+      tokens: cfg.feeTokens,
       fromAdddesses: cfg.airlock ? [cfg.airlock] : undefined,
     });
     dailyRevenue.addBalances(erc20, LABEL_SQUEEZE_PLATFORM);
@@ -162,7 +154,7 @@ const methodology = {
   Revenue:
     "Squeeze platform share — EVM: 47.5% of Doppler swap fees from Airlock collect; Solana: LaunchLab platform fees to the claim wallet.",
   ProtocolRevenue:
-    "Same as Revenue — Squeeze treasury / platform wallet.",
+    "Squeeze platform share — EVM: 47.5% of Doppler swap fees from Airlock collect; Solana: LaunchLab platform fees to the claim wallet.",
   SupplySideRevenue:
     "On EVM: extrapolated creator share (47.5%) and Doppler protocol-owner share (5%). On Solana: not attributed in v1 (those cuts never hit the Squeeze claim wallet).",
 };
