@@ -409,6 +409,9 @@ const configs: Record<string, Record<string, any>> = {
   "parityswap-v3": {
     [CHAIN.ROBINHOOD]: { factory: "0xd479E71C45aEB1E846A7B549c346D62fE77B39bA", start: "2026-07-20", userFeesRatio: 1, revenueRatio: 1 / 4, protocolRevenueRatio: 1 / 4 },
   },
+  'giga-dex-cl': {
+    [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
+  }
 }
 
 const optionsMap: Record<string, any> = {
