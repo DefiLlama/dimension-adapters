@@ -803,6 +803,13 @@ const configs: Record<string, Record<string, any>> = {
   "giga-dex": {
     [CHAIN.ROBINHOOD]: { factory: "0x6Fdf38f92eAd1adFc04B73aaa947ab254f6c0916", fees: 0.003, stableFees: 0.003, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2, start: "2026-07-15" }
   },
+  "frothswap": {
+    // every pair charges 1.8% on swaps: a fixed 0.3% LP fee plus 1.5% of per-pair
+    // creator/bidwall/FROTH-burn fees (94/95 pairs at 50/50/50 bps, one at 0/0/150,
+    // both sum to 150 bps - read from feeConfig() on all pairs). the burn share is
+    // counted as holders revenue, creator and bidwall stay supply side
+    [CHAIN.ROBINHOOD]: { factory: "0x2B1b1FB977e1CD5f18F45571C64E373b1A73dD7f", fees: 0.018, userFeesRatio: 1, revenueRatio: 50 / 180, protocolRevenueRatio: 0, holdersRevenueRatio: 50 / 180, start: "2026-07-11" }
+  },
 }
 
 const optionsMap: Record<string, any> = {
