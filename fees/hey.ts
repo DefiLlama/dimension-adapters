@@ -1,8 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
+// Hey deployment addresses — https://hey.xyz (Lens Chain, chainId 232)
+// Sources: heyxyz/hey src/data/contracts.ts, src/data/constants.ts
 const HEY_TREASURY = "0x2032360d868912867d7d0c3cee9c08f0a3d2ead9";
-const SOCIAL_PAYMENT_ACTION = "0xaEaB214c5E2F44B2dc22Fb426238292B128163C2";
+const SOCIAL_PAYMENT_ACTION = "0xaEaB214c5E2F44B2dc22Fb426238292B128163C2"; // Action Hub module
 const SOCIAL_PAYMENT_POST_RULE = "0x9060719480D5A431Dd3CE865a1Da97822288906e";
 const PREMIUM_CONTRACT = "0xca5bF1Bc5179936cAe9c60913496B54b77d1B17b";
 
@@ -51,7 +53,6 @@ const LABELS = {
   quotePostFeeToAuthors: "Quote Post Fee To Authors",
   newPostFeeToHeyTreasury: "New Post Fee To Hey Treasury",
   commentFeeToHeyTreasury: "Comment Fee To Hey Treasury",
-  repostFeeToHeyTreasury: "Repost Fee To Hey Treasury",
   quotePostFeeToHeyTreasury: "Quote Post Fee To Hey Treasury",
   heyProBasicSubscription: "Hey Pro Basic Subscription",
   heyProProSubscription: "Hey Pro Pro Subscription",
@@ -61,10 +62,13 @@ const LABELS = {
   heyProUnknownTierSubscription: "Hey Pro Unknown Tier Subscription",
 } as const;
 
-// hey-takip: treasury wallet amount → action type (PaymentProcessed'dan bağımsız)
-const GHO_0_01 = 10n ** 16n; // 0.01 GHO
-const GHO_0_02 = 2n * 10n ** 16n; // 0.02 GHO
-const GHO_0_03 = 3n * 10n ** 16n; // 0.03 GHO
+// Social Payment fee schedule (native GHO) — https://hey.xyz
+// New post: 0.03 treasury / 0 author | Comment: 0.01 / 0.01 | Repost: 0 / 0.01 | Quote: 0.02 / 0.01
+// Intentionally classify social treasury by exact wallet inflows (not event treasuryShare)
+// to match hey.xyz accounting and avoid double-counting Hub + Post Rule paths.
+const GHO_0_01 = 10n ** 16n; // 0.01 GHO — comment treasury share
+const GHO_0_02 = 2n * 10n ** 16n; // 0.02 GHO — quote treasury share
+const GHO_0_03 = 3n * 10n ** 16n; // 0.03 GHO — new post treasury share
 
 const TREASURY_ACTION_BY_WEI: Record<
   string,
@@ -150,21 +154,21 @@ const fetch = async (options: FetchOptions) => {
 
   const [paymentLogs, postRuleLogs, treasuryLogs] = await Promise.all([
     options.getLogs({
-      target: SOCIAL_PAYMENT_ACTION,
+      targets: [SOCIAL_PAYMENT_ACTION],
       eventAbi: PAYMENT_PROCESSED_EVENT,
     }),
     options.getLogs({
-      target: SOCIAL_PAYMENT_POST_RULE,
+      targets: [SOCIAL_PAYMENT_POST_RULE],
       eventAbi: INTERACTION_PREPAID_EVENT,
     }),
     options.getLogs({
-      target: L2_BASE_TOKEN,
+      targets: [L2_BASE_TOKEN],
       eventAbi: TRANSFER_EVENT,
       topics: [TRANSFER_TOPIC, null as any, padAddress(HEY_TREASURY)],
     }),
   ]);
 
-  // Author shares: Action Hub + Post Rule (hey-takip / hey.xyz uyumlu)
+  // Author shares: Action Hub + Post Rule (hey.xyz compatible; mutually exclusive settlement paths)
   for (const log of paymentLogs) {
     addAuthorShare(
       authorBalances,
@@ -181,8 +185,7 @@ const fetch = async (options: FetchOptions) => {
     );
   }
 
-  // Social payment treasury: native GHO inflows to Hey treasury wallet
-  // Exact 0.01 / 0.02 / 0.03 only — premium stays on subscription events
+  // Social treasury: exact 0.01/0.02/0.03 native GHO inflows only (premium via events below)
   for (const log of treasuryLogs) {
     const value = BigInt(log.value);
     const mapped = TREASURY_ACTION_BY_WEI[value.toString()];
@@ -195,7 +198,7 @@ const fetch = async (options: FetchOptions) => {
   const premiumBalances = { dailyFees, dailyProtocolRevenue, dailyRevenue };
 
   const subscribedLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: SUBSCRIBED_EVENT,
   });
   for (const log of subscribedLogs) {
@@ -207,7 +210,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const upgradedLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: TIER_UPGRADED_EVENT,
   });
   for (const log of upgradedLogs) {
@@ -219,7 +222,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const giftLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: GIFT_SENT_EVENT,
   });
   for (const log of giftLogs) {
@@ -290,8 +293,6 @@ const breakdownMethodology = {
       "Native GHO (0.01) received by Hey treasury wallet from comment fees.",
     [LABELS.quotePostFeeToHeyTreasury]:
       "Native GHO (0.02) received by Hey treasury wallet from quote post fees.",
-    [LABELS.repostFeeToHeyTreasury]:
-      "Hey treasury share from repost fees (0 GHO under current fee schedule).",
     [LABELS.heyProBasicSubscription]:
       "Full Hey Pro Basic subscription revenue retained by Hey.",
     [LABELS.heyProProSubscription]:
@@ -312,8 +313,6 @@ const breakdownMethodology = {
       "Comment fee revenue received by Hey treasury wallet.",
     [LABELS.quotePostFeeToHeyTreasury]:
       "Quote post fee revenue received by Hey treasury wallet.",
-    [LABELS.repostFeeToHeyTreasury]:
-      "Repost fee revenue allocated to Hey treasury (0 GHO under current fee schedule).",
     [LABELS.heyProBasicSubscription]:
       "Hey Pro Basic subscription revenue allocated to Hey treasury.",
     [LABELS.heyProProSubscription]:
@@ -334,6 +333,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.LENS],
+  // Social Payment module first activity on Lens — https://hey.xyz
   start: "2026-05-15",
   methodology,
   breakdownMethodology,
