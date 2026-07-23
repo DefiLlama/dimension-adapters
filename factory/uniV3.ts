@@ -415,6 +415,9 @@ const configs: Record<string, Record<string, any>> = {
   'giga-dex-cl': {
     [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
   },
+  "swaphood-v3": {
+    [CHAIN.ROBINHOOD]: { factory: "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7", start: "2026-07-10", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.05, holdersRevenueRatio: 0.95 },
+  },
 
 }
 
