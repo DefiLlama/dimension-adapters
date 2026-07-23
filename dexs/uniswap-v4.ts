@@ -57,6 +57,7 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { isCoreAsset } from "../helpers/prices";
 import { formatAddress } from "../utils/utils";
 
 interface IUniswapConfig {
@@ -308,17 +309,23 @@ async function fetch(options: FetchOptions) {
         }
       }
 
+      const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
       for (const event of events) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
-          const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
-          if (blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency0)) || blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency1))) {
+          const { currency0, currency1 } = pools[poolId] as IPool
+          if (blacklistTokens.has(formatAddress(currency0)) || blacklistTokens.has(formatAddress(currency1))) {
             continue;
           }
 
-          const token = (pools[poolId] as IPool).currency0
-          dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
-          dailyVolume.add(token, Math.abs(Number(event.amount0)))
+          // price via the native coin (currency0 is the zero address in native pools)
+          // or a core asset where possible, so long-tail tokens with thin liquidity
+          // don't set the USD value - same preference addOneToken applies for v2/v3
+          const useToken0 = currency0 === ADDRESSES.null || isCoreAsset(options.chain, currency0) || !isCoreAsset(options.chain, currency1)
+          const token = useToken0 ? currency0 : currency1
+          const amount = Math.abs(Number(useToken0 ? event.amount0 : event.amount1))
+          dailyFees.add(token, amount * (Number(event.fee) / 1e6))
+          dailyVolume.add(token, amount)
         }
       }
     }
