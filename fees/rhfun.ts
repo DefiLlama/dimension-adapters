@@ -81,11 +81,22 @@ async function fetch(options: FetchOptions) {
   sells.forEach(bookTradeFee)
 
   if (processors.length) {
+    // TaxProcessor events are emitted by per-token clones. Passing them as
+    // `targets` fans out one RPC request per address (rate-limited at scale),
+    // so instead scan the day window by topic only (the signatures are unique
+    // to these clones) and filter by the enumerated processor set client-side —
+    // a constant 4 requests regardless of how many tax markets exist.
+    const procSet = new Set(processors.map((p: any) => String(p).toLowerCase()))
+    const getProcessorLogs = (eventAbi: string) =>
+      options.getLogs({ eventAbi, noTarget: true, entireLog: true, parseLog: true })
+        .then((logs: any[]) => logs
+          .filter((log: any) => procSet.has(String(log.address).toLowerCase()))
+          .map((log: any) => log.args))
     const [curveTaxLogs, dispatchLogs, burnLogs, lpLogs] = await Promise.all([
-      options.getLogs({ targets: processors, eventAbi: BONDING_TAX_EVENT }),
-      options.getLogs({ targets: processors, eventAbi: DISPATCH_EVENT }),
-      options.getLogs({ targets: processors, eventAbi: BURN_EVENT }),
-      options.getLogs({ targets: processors, eventAbi: LIQUIDITY_EVENT }),
+      getProcessorLogs(BONDING_TAX_EVENT),
+      getProcessorLogs(DISPATCH_EVENT),
+      getProcessorLogs(BURN_EVENT),
+      getProcessorLogs(LIQUIDITY_EVENT),
     ])
 
     // Same-tx curve tax leaves the trade-fee bucket (counted at realization
