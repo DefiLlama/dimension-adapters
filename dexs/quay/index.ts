@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
                 and tx_success = true
         )
         select
-            SUM(amount_usd) as daily_volume
+            COALESCE(SUM(amount_usd), 0) as daily_volume
         from tokens_solana.transfers t
             inner join swaps s on t.tx_id = s.tx_id
             and t.outer_instruction_index = s.outer_instruction_index
@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
     const data = await queryDuneSql(options, query);
 
     return {
-        dailyVolume: data[0]?.daily_volume ?? 0
+        dailyVolume: data[0].daily_volume
     };
 };
 
@@ -46,6 +46,7 @@ const adapter: SimpleAdapter = {
     methodology: {
         Volume: "Sum of the input-leg token transfer (USD) of every successful Quay swap/agg_swap instruction, counted once per swap.",
     },
+    isExpensiveAdapter: true,
 };
 
 export default adapter;
