@@ -110,6 +110,7 @@ const adapter: SimpleAdapter = {
       [METRIC.TRADING_FEES]: "All pre-market fees are kept by the protocol; no on-chain split to stakers or others is observable.",
     },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
