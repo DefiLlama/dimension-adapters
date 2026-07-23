@@ -2,15 +2,29 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
-const LAUNCHPAD = "0x5a96508c1092960dA0981CaC7FD00217E9CdabEC";
-const START_BLOCK = 1872202;
-
 const PAIR_ABI = "event PairCreated(address indexed token0, address indexed token1, address pair, uint256)";
 const SWAP_ABI = "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)";
+
+const config: any = {
+  [CHAIN.PLASMA]: {
+    LAUNCHPAD: "0x5a96508c1092960dA0981CaC7FD00217E9CdabEC",
+    START_BLOCK: 1872202,
+    start: '2025-09-24',
+  },
+  [CHAIN.STABLE]: {
+    LAUNCHPAD: "0xDFEf2F90F7E52609cC89b80b68Ff6a1C86C4ddc4",
+    START_BLOCK: 4253540,
+    start: '2025-12-05',
+  },
+}
+
+const startConfig: any = {}
+Object.entries(config).forEach(([chain, { start }]: any) => startConfig[chain] = { start })
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const chain = options.chain;
+  const { LAUNCHPAD, START_BLOCK } = config[chain]
 
   const pairs: any = await options.getLogs({
     target: LAUNCHPAD,
@@ -84,8 +98,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.PLASMA],
-  start: '2025-09-24',
+  adapter: startConfig,
   methodology: {
     Fees: "1% of WXPL-side swap volume on tokens launched via the DYORSwap launchpad (bonding-curve tokens emit Swap events themselves).",
     Revenue: "bonding curve fees go to protocol treasury.",
