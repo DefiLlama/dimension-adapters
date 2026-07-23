@@ -8,9 +8,10 @@
  * - Gross pool fees are extrapolated: platform share = 47.5% of pool fees
  *   → dailyFees ≈ dailyRevenue * (100 / 47.5).
  * - Supply-side split of the remaining 52.5%: creator 47.5% + Doppler owner 5%.
- * - Solana: value received by the LaunchLab claim wallet (Squeeze-controlled).
- *   Pools are tagged with `solanaPlatformId`; v1 counts claim-wallet receipts
- *   (platformId event/Dune filter can refine later).
+ * - Solana: LaunchLab **platform** fees claimed to the Squeeze claim wallet
+ *   (not gross pool fees / not creator+protocol+referral). Pools are tagged with
+ *   `solanaPlatformId`; v1 uses the Squeeze-controlled claim wallet (platformId
+ *   event/Dune filter can refine later).
  *
  * Do NOT invent TVL from Uniswap V4 / Raydium pool balances.
  *
@@ -21,7 +22,6 @@
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 
 /** Canonical Squeeze identity — greppable for reviewers. */
@@ -47,10 +47,12 @@ const PLATFORM_FEE_SHARE = 0.475;
 const CREATOR_FEE_SHARE = 0.475;
 const DOPPLER_PROTOCOL_SHARE = 0.05;
 
-/** Descriptive breakdown labels (avoid vague METRIC.PROTOCOL_FEES on supply side). */
+/** Descriptive breakdown labels (fee-adapter guidelines: source-specific). */
+const LABEL_DOPPLER_POOL_FEES = "Doppler Pool Trading Fees";
 const LABEL_SQUEEZE_PLATFORM = "Squeeze Platform Fees";
 const LABEL_CREATOR = "Creator Fees";
 const LABEL_DOPPLER = "Doppler Protocol Fees";
+const LABEL_LAUNCHLAB_PLATFORM = "LaunchLab Platform Fees";
 
 /** Base numeraires used as Doppler quote tokens. */
 const BASE_FEE_TOKENS = [
@@ -118,7 +120,7 @@ const fetch = async (options: FetchOptions) => {
     // Doppler protocol 5% of gross = revenue * (0.05 / 0.475)
     dailyFees.addBalances(
       dailyRevenue.clone(1 / PLATFORM_FEE_SHARE),
-      METRIC.TRADING_FEES
+      LABEL_DOPPLER_POOL_FEES
     );
     dailySupplySideRevenue.addBalances(
       dailyRevenue.clone(CREATOR_FEE_SHARE / PLATFORM_FEE_SHARE),
@@ -129,19 +131,21 @@ const fetch = async (options: FetchOptions) => {
       LABEL_DOPPLER
     );
   } else {
-    // Solana: LaunchLab platform fees claimed to the Squeeze claim wallet.
-    // IDENTITY.solanaPlatformId tags Squeeze pools; getSolanaReceived cannot
-    // filter by platformId yet, so v1 uses the Squeeze-controlled claim wallet
-    // (same wallet-receipt pattern as Clanker). Refine with LaunchLab events
-    // or Dune + platformId if maintainers want stricter attribution.
+    // Solana: LaunchLab *platform* fee claims to the Squeeze claim wallet only.
+    // Not gross LaunchLab trading fees (creator / Raydium protocol / referral
+    // cuts do not land here). IDENTITY.solanaPlatformId tags Squeeze pools;
+    // getSolanaReceived cannot filter by platformId yet, so v1 uses the
+    // Squeeze-controlled claim wallet. Refine with LaunchLab claim events or
+    // Dune + platformId if maintainers want stricter attribution.
     const sol = options.createBalances();
     await getSolanaReceived({
       options,
       balances: sol,
       target: IDENTITY.solanaClaimWallet,
     });
-    dailyRevenue.addBalances(sol, LABEL_SQUEEZE_PLATFORM);
-    dailyFees.addBalances(sol, METRIC.TRADING_FEES);
+    dailyRevenue.addBalances(sol, LABEL_LAUNCHLAB_PLATFORM);
+    // Platform-only: fees == revenue (do not label as gross trading fees).
+    dailyFees.addBalances(sol, LABEL_LAUNCHLAB_PLATFORM);
   }
 
   return {
@@ -154,27 +158,33 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "Gross trading fees on Squeeze launches. On Base/Robinhood, Doppler pools charge 2.5%; Squeeze’s platform wallet receives 47.5% of those fees from the Airlock collect path. Gross fees are extrapolated from those Airlock→wallet receipts. On Solana, LaunchLab platform fees claimed to Squeeze’s claim wallet.",
+    "On Base/Robinhood: gross Doppler pool trading fees (2.5%), extrapolated from Squeeze’s 47.5% Airlock→wallet platform receipts. On Solana: LaunchLab *platform* fees claimed to Squeeze’s claim wallet only (not creator/protocol/referral cuts).",
   Revenue:
-    "Squeeze platform share (47.5% of Doppler swap fees on EVM from Airlock; LaunchLab platform fees on Solana) received by Squeeze-controlled wallets.",
+    "Squeeze platform share — EVM: 47.5% of Doppler swap fees from Airlock collect; Solana: LaunchLab platform fees to the claim wallet.",
   ProtocolRevenue:
     "Same as Revenue — Squeeze treasury / platform wallet.",
   SupplySideRevenue:
-    "On EVM: extrapolated creator share (47.5%) and Doppler protocol-owner share (5%). On Solana: not yet attributed in v1.",
+    "On EVM: extrapolated creator share (47.5%) and Doppler protocol-owner share (5%). On Solana: not attributed in v1 (those cuts never hit the Squeeze claim wallet).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]:
-      "User-paid trading fees on Squeeze-launched pools (extrapolated on EVM from 47.5% platform share; Solana = claim-wallet receipts).",
+    [LABEL_DOPPLER_POOL_FEES]:
+      "EVM only — user-paid Doppler pool trading fees, extrapolated from 47.5% Airlock→platform receipts.",
+    [LABEL_LAUNCHLAB_PLATFORM]:
+      "Solana only — LaunchLab platform fee claims to Squeeze’s claim wallet (platform slice, not gross pool fees).",
   },
   Revenue: {
     [LABEL_SQUEEZE_PLATFORM]:
-      "Tokens received by Squeeze platform / claim wallets (EVM: Airlock→platform wallet numeraires only).",
+      "EVM — numeraires received by Squeeze platform wallet from Airlock.",
+    [LABEL_LAUNCHLAB_PLATFORM]:
+      "Solana — LaunchLab platform fees received by Squeeze claim wallet.",
   },
   ProtocolRevenue: {
     [LABEL_SQUEEZE_PLATFORM]:
-      "Squeeze platform cut retained by the treasury / platform wallet.",
+      "EVM — Squeeze platform cut retained by the treasury / platform wallet.",
+    [LABEL_LAUNCHLAB_PLATFORM]:
+      "Solana — LaunchLab platform fees retained by Squeeze.",
   },
   SupplySideRevenue: {
     [LABEL_CREATOR]:
