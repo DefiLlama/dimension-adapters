@@ -9,10 +9,14 @@ const AmphorPTezETHVault_contractAddress: string = '0xeEE8aED1957ca1545a0508AfB5
 const AmphorPTrsETHVault_contractAddress: string = '0xB05cABCd99cf9a73b19805edefC5f67CA5d1895E';
 const AmphorPTweETHVault_contractAddress: string = '0xc69Ad9baB1dEE23F4605a82b3354F8E40d1E5966';
 
-// Amphor vaults charge a 20% performance fee. feesInBps() on AmphorILHedgedWETH
-// returns 2000 (verified on-chain); the other four vaults are uniform 20% (the
-// aggregate fees/revenue ratio sits exactly on 5.00). The EpochEnd `fees` field
-// is that 20% cut, so the gross yield that produced it is fees / 20% = fees * 5.
+// feesInBps() on AmphorILHedgedWETH returns 2000 (20%, verified on-chain) and
+// this is the only address of the five below that has ever emitted a nonzero
+// `fees` in EpochEnd: AmphorLRTwstETHVault's `EpochEnd.fees` is 0 in all of its
+// history (its actual fee getter, `feesInBips()`, currently reads 0 too), and
+// the three PT vaults are plain PendlePrincipalToken contracts that have never
+// emitted EpochEnd at all. The 5x factor below only ever multiplies a nonzero
+// fee for AmphorILHedgedWETH, so it's safe despite not being a genuine 20%
+// rate for the other four addresses.
 const PERFORMANCE_FEE_BPS = 2000n
 
 const breakdownMethodology = {
