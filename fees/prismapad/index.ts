@@ -5,16 +5,29 @@ import { METRIC } from "../../helpers/metrics";
 // Prismapad launchpad on Stable (chain id 988).
 // v1 (bonding curve, legacy — still live for its tokens):
 // https://stablescan.xyz/address/0xdcb881fc8b472eb7797687b237e6cb123c425ff7#code
-// v2 (direct-to-DEX): every token launches straight into an official
+// v2 / v3 (direct-to-DEX): every token launches straight into an official
 // StableSwap (Uniswap v3) pool with the full supply as locked liquidity;
 // the 1% pool fee is collected by the launchpad and split 50/50 between the
-// token's creator and the protocol treasury (CREATOR_SHARE_BPS = 5000):
+// token's creator and the protocol treasury (CREATOR_SHARE_BPS = 5000).
+// v3 supersedes v2 for new launches and is mechanically identical — it only
+// changes how token addresses are derived (CREATE2 over a per-creator salt).
+// v2 stays live and keeps earning fees for the tokens already launched on it.
 // https://stablescan.xyz/address/0xa96d9eadc4d6eed50fa408a33585c5f1df039db5#code
+// https://stablescan.xyz/address/0x7c1628681c18884a1a90977fdae034282892c842#code
 const LAUNCHPAD_V1 = "0xdcb881fc8b472eb7797687b237e6cb123c425ff7";
 const LAUNCHPAD_V2 = "0xa96d9eadc4d6eed50fa408a33585c5f1df039db5";
-// PrismaLaunchpadV2 deployment block (2026-07-24), first possible TokenCreated:
+const LAUNCHPAD_V3 = "0x7c1628681c18884a1a90977fdae034282892c842";
+// Deployment blocks — first possible TokenCreated for each generation:
 // https://stablescan.xyz/tx/0x32f513f268ba78d178d4478633fe761a4becb7a86ebb1e8bf4d7752b4dc11ef6
 const V2_DEPLOY_BLOCK = 32896230;
+const V3_DEPLOY_BLOCK = 32976695;
+
+// Both direct-to-DEX generations emit the identical TokenCreated shape, so
+// they are scanned the same way and their pools pooled together.
+const DEX_LAUNCHPADS = [
+  { address: LAUNCHPAD_V2, fromBlock: V2_DEPLOY_BLOCK },
+  { address: LAUNCHPAD_V3, fromBlock: V3_DEPLOY_BLOCK },
+];
 
 // USDT0 ERC-20 (6 decimals) — on Stable this is the same asset as the native
 // gas balance; v2 pools quote against it.
@@ -54,13 +67,18 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(creatorShare, "Trade fees to token creators");
   }
 
-  // ---- v2: Uniswap v3 swaps on pools created by the v2 launchpad
-  const launches = await options.getLogs({
-    target: LAUNCHPAD_V2,
-    eventAbi: TOKEN_CREATED_V2,
-    fromBlock: V2_DEPLOY_BLOCK,
-    cacheInCloud: true,
-  });
+  // ---- v2/v3: Uniswap v3 swaps on pools created by the direct-to-DEX launchpads
+  const launchBatches = await Promise.all(
+    DEX_LAUNCHPADS.map((pad) =>
+      options.getLogs({
+        target: pad.address,
+        eventAbi: TOKEN_CREATED_V2,
+        fromBlock: pad.fromBlock,
+        cacheInCloud: true,
+      }),
+    ),
+  );
+  const launches = launchBatches.flat();
   // token/USDT0 ordering differs per pool: USDT0 is token0 iff it sorts
   // below the launched token's address
   const usdt0IsToken0 = new Map<string, boolean>();
@@ -115,19 +133,19 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Total volume of swaps on the Prismapad legacy launchpad, valued in USDT0. (v2: not tracked as those swap volume belongs to stableswap-xyz-v3)",
-  Fees: "A flat 1% fee on every trade, valued in USDT0: charged by the bonding curve on legacy v1 tokens, and by the 1% Uniswap v3 pool tier on v2 tokens. v2 buy-side fees are charged on the USDT0 input (exact); v2 sell-side fees are charged in the traded token and valued as their USDT0 equivalent at that swap's own price (usdtOut/99).",
+  Volume: "Total volume of swaps on the Prismapad legacy launchpad, valued in USDT0. (v2/v3: not tracked as that swap volume belongs to stableswap-xyz-v3)",
+  Fees: "A flat 1% fee on every trade, valued in USDT0: charged by the bonding curve on legacy v1 tokens, and by the 1% Uniswap v3 pool tier on v2/v3 tokens. Buy-side pool fees are charged on the USDT0 input (exact); sell-side pool fees are charged in the traded token and valued as their USDT0 equivalent at that swap's own price (usdtOut/99).",
   UserFees: "Traders pay the 1% trade fee; there is no token-creation fee.",
   Revenue: "50% of every trade fee accrues to the Prismapad treasury.",
   ProtocolRevenue: "50% of every trade fee accrues to the Prismapad treasury.",
   SupplySideRevenue:
-    "50% of every trade fee accrues to the launched token's creator (v1: claimable from the launchpad; v2: collected from the locked pool position).",
+    "50% of every trade fee accrues to the launched token's creator (v1: claimable from the launchpad; v2/v3: collected from the locked pool position).",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]:
-      "1% fee on every trade: bonding-curve trades (v1) and swaps in launchpad-created StableSwap pools (v2).",
+      "1% fee on every trade: bonding-curve trades (v1) and swaps in launchpad-created StableSwap pools (v2/v3).",
   },
   Revenue: {
     "Trade fees to protocol": "The protocol's 50% share of the 1% trade fee.",
