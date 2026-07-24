@@ -65,6 +65,9 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailySupplySideRevenue = createBalances()
   const toBlock = await getToBlock()
 
+  // Independent of the pool/swap work below — start it now so it overlaps the fee reads and log scans.
+  const bribesPromise = getBribes(fetchOptions)
+
   const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 20524597, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, })
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
   const [fees, gaugeFeesStart, gaugeFeesEnd] = await Promise.all([
@@ -72,17 +75,25 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     fromApi.multiCall({ abi: abis.gaugeFees, calls: _pools, permitFailure: true }),
     api.multiCall({ abi: abis.gaugeFees, calls: _pools, permitFailure: true }),
   ])
-  const aeroPoolSet = new Set<string>()
+  // A null snapshot is expected for pools that did not exist yet at the window start (their fees
+  // begin at 0). Any other null means a read failed and that pool's missing snapshot defaults to 0,
+  // which can skew its split — log the count so it isn't invisible.
+  const failedStart = (gaugeFeesStart as any[]).filter((r) => r == null).length
+  const failedEnd = (gaugeFeesEnd as any[]).filter((r) => r == null).length
+  if (failedStart || failedEnd) sdk.log(`aborean-cl: gaugeFees snapshot nulls — start ${failedStart}, end ${failedEnd} of ${_pools.length} pools`)
+
+  const aeroPoolSet = new Set<string>(_pools)
   const poolInfoMap = {} as any
   rawPools.forEach(({ token0, token1, pool }, index) => {
     pool = pool.toLowerCase()
     const fee = Number(fees[index]) / 1e6
     poolInfoMap[pool] = { token0, token1, fee }
-    aeroPoolSet.add(pool)
   })
 
-  // Per-pool, input-side fee accumulators (fee is charged on the input side only, matching the
-  // on-chain accounting that the gaugeFees split has to reconcile against).
+  // noTarget + client-side filter (not `targets`): this is a pullHourly adapter over ~470 pools, so a
+  // single chain-wide scan per hourly slot is far cheaper than one getLogs per pool per slot (targets
+  // here runs ~470x the queries). Same approach as the parent dexs/aerodrome-slipstream. Fee is charged
+  // on the input side only, matching the on-chain accounting the gaugeFees split reconciles against.
   const poolFeeTotals: Record<string, { fee0: number; fee1: number }> = {}
   const iface = new ethers.Interface([eventAbis.event_swap]);
   const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_swap, entireLog: true, })
@@ -148,7 +159,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Swap Fees To LPs')
   })
 
-  const { dailyBribesRevenue } = await getBribes(fetchOptions)
+  const { dailyBribesRevenue } = await bribesPromise
   const dailyRevenue = createBalances()
 
   dailyFees.add(dailyBribesRevenue, 'External Bribes')
