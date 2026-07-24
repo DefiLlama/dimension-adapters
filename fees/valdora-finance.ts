@@ -2,6 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
 
+// https://docs.valdora.finance/liquid-staking/introduction
 const ZIGCHAIN_ARCHIVAL_LCD = "https://api.zigchain.com";
 const STAKER_CONTRACT = "zig18nnde5tpn76xj3wm53n0tmuf3q06nruj3p6kdemcllzxqwzkpqzqk7ue55";
 
@@ -97,7 +98,7 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: "10% performance fee on staking rewards directed to the Valdora treasury.",
   },
   SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: "90% of staking rewards accrued into stZIG.",
+    [METRIC.STAKING_REWARDS]: "90% of staking rewards distributed to stZIG holders, accruing value to their stZIG position over time.",
   },
 };
 
