@@ -28,6 +28,7 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const HYPERVISORS = [
   "0xb9F974d19425d93B3a9dC80c8f0d3aE428Cbb2B2", // Tirelire USDG-WETH (0.05%)
@@ -39,6 +40,7 @@ const ZERO_BURN = "event ZeroBurn(uint8 fee, uint256 fees0, uint256 fees1)";
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   for (const target of HYPERVISORS) {
     const [token0, token1] = await Promise.all([
@@ -52,11 +54,14 @@ const fetch = async (options: FetchOptions) => {
       const fees1 = BigInt(log.fees1);
       const divisor = BigInt(Number(log.fee) || 1);
 
-      dailyFees.add(token0, fees0);
-      dailyFees.add(token1, fees1);
+      dailyFees.add(token0, fees0, METRIC.SWAP_FEES);
+      dailyFees.add(token1, fees1, METRIC.SWAP_FEES);
       // Integer division mirrors the contract's SafeMath `.div(fee)` cut.
-      dailyRevenue.add(token0, fees0 / divisor);
-      dailyRevenue.add(token1, fees1 / divisor);
+      dailyRevenue.add(token0, fees0 / divisor, "Token Swap Fees to Protocol");
+      dailyRevenue.add(token1, fees1 / divisor, "Token Swap Fees to Protocol");
+
+      dailySupplySideRevenue.add(token0, (fees0-fees0/divisor), "Token Swap Fees to LPs");
+      dailySupplySideRevenue.add(token1, (fees1-fees1/divisor), "Token Swap Fees to LPs");
     }
   }
 
@@ -64,20 +69,41 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
+
+const methodology = {
+  Fees: "All Uniswap V3 trading fees collected by the positions each Tirelire Hypervisor manages, summed on-chain from ZeroBurn events.",
+  Revenue: "The 10% performance fee taken from collected trading fees and sent to the protocol treasury (fees / fee, with the divisor read from each ZeroBurn event).",
+  ProtocolRevenue: "Same as Revenue — the 10% performance fee retained by the protocol treasury.",
+  SupplySideRevenue: "The 90% of collected trading fees that are compounded back to LPs.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "All Uniswap V3 trading fees collected by the positions each Tirelire Hypervisor manages, summed on-chain from ZeroBurn events.",
+  },
+  Revenue: {
+    "Token Swap Fees to Protocol": "The 10% performance fee taken from collected trading fees and sent to the protocol treasury (fees / fee, with the divisor read from each ZeroBurn event).",
+  },
+  ProtocolRevenue: {
+    "Token Swap Fees to Protocol": "The 10% performance fee taken from collected trading fees and sent to the protocol treasury (fees / fee, with the divisor read from each ZeroBurn event).",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees to LPs": "The 90% of collected trading fees that are compounded back to LPs.",
+  },
+}
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ROBINHOOD]: { start: "2026-07-22" }, // flagship deploy date
-  },
-  methodology: {
-    Fees: "All Uniswap V3 trading fees collected by the positions each Tirelire Hypervisor manages, summed on-chain from ZeroBurn events.",
-    Revenue: "The 10% performance fee taken from collected trading fees and sent to the protocol treasury (fees / fee, with the divisor read from each ZeroBurn event).",
-    ProtocolRevenue: "Same as Revenue — the 10% performance fee retained by the protocol treasury.",
-  },
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-07-22",
+  methodology,
+  breakdownMethodology,
+  doublecounted: true, // uniswap v3
 };
 
 export default adapter;
