@@ -13,6 +13,7 @@ const endpoints: Record<string, string> = {
 }
 
 const PROTOCOL_FEE_RATIO = 0.1 // 10%
+const LIDO_V2_LAUNCH = '2023-05-15' // StakingRouter (per-module fee split) went live; earlier windows read 0
 const LIDO_MEV_REWARDS_VAULT = '0x388c818ca8b9251b393131c08a736a67ccb19297';
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
 const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
@@ -51,11 +52,26 @@ const fetch = async (options: FetchOptions) => {
   const modulesFeeBp = Number(feeSplit.modulesFee)
   const treasuryFeeBp = Number(feeSplit.treasuryFee)
   const totalFeeBp = modulesFeeBp + treasuryFeeBp
-  // Fallback when the StakingRouter read yields a zero total (transient RPC fault or a
-  // governance state where module fees are unset). Defaulting treasuryShare to 1 keeps
-  // total Revenue unchanged in degraded reads and only loses the breakdown for those windows.
-  const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0
-  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 1
+  let operatorShare: number
+  let treasuryShare: number
+  if (totalFeeBp > 0) {
+    // Configured on-chain split (validator-share-weighted aggregate across all active modules).
+    operatorShare = modulesFeeBp / totalFeeBp
+    treasuryShare = treasuryFeeBp / totalFeeBp
+  } else if (options.dateString < LIDO_V2_LAUNCH) {
+    // Before Lido V2 the StakingRouter didn't exist, so the read is 0. The 10% fee was a fixed
+    // 5%/5% split for the whole V1 era (the 2022-07-15 insurance->treasury redirect,
+    // research.lido.fi/t/.../2528, left the operator share unchanged at 5%), so a flat 50/50
+    // operator/treasury split is accurate. Booking the operator share as Revenue (the old
+    // treasuryShare=1 fallback) overstated protocol Revenue ~2x for this era.
+    operatorShare = 0.5
+    treasuryShare = 0.5
+  } else {
+    // Post-V2 the StakingRouter always returns a configured non-zero split, so a 0 here is a
+    // transient read fault, not a real allocation. Fail loudly rather than silently applying the
+    // historical 50/50, which would mis-split protocol Revenue vs the node-operator supply-side.
+    throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
+  }
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
@@ -125,10 +141,10 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
+    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (2023-05-15) the treasury/operator split is the validator-share-weighted aggregate read live from the StakingRouter; before V2 the split was a fixed 5%/5%, so half the fee is treasury.",
     HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
-    ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
-    SupplySideRevenue: "Staking rewards earned by stETH holders and node operators"
+    ProtocolRevenue: "DAO-treasury portion of the 10% fee (same as Revenue); excludes the node-operator share.",
+    SupplySideRevenue: "Staking rewards earned by stETH holders plus the node-operator share of the 10% fee (paid to operators for running validators)."
   },
   breakdownMethodology: {
     Fees: {
@@ -136,7 +152,7 @@ const adapter: Adapter = {
       [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. Ratio read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee).',
+      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. From Lido V2 (2023-05-15) the ratio is read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee); before V2 it defaults to the fixed 5%/5% split (treasury share 0.5).',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     ProtocolRevenue: {

@@ -249,10 +249,17 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     'Staking Rewards To Stakers': '90% of staking rewards to stETH holders.',
     'MEV Rewards To Stakers': '90% of MEV to stETH holders.',
+    // Node operators are external parties (curated professional operators, CSM, DVT), not
+    // Lido itself, so their commission is a validator commission / cost of funds - not Revenue.
+    'Staking Rewards To Node Operators': 'Node-operator share of the 10% fee (validator commissions).',
+    'MEV Rewards To Node Operators': 'Node-operator share of the MEV fee (validator commissions).',
   },
   Revenue: {
-    'Staking Rewards Fee': '10% protocol fee on staking rewards.',
-    'MEV Rewards Fee': '10% protocol fee on MEV.',
+    // Revenue is Gross Profit = the DAO-treasury share only, NOT the full 10% fee. The
+    // operator commission is supply-side (see SupplySideRevenue above and 'Validator
+    // Commissions' in the Cost of Funds list).
+    'Staking Rewards Fee': 'DAO-treasury share of the 10% fee on staking rewards.',
+    'MEV Rewards Fee': 'DAO-treasury share of the 10% fee on MEV.',
   },
 }
 ```
