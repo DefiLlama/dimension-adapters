@@ -28,12 +28,10 @@ const fetch = async (options: FetchOptions) => {
 
   const activeAccounts = data.activeAccounts[0].total;
   const transactions = data.transactions[0].total;
-  const networkFees = data.networkFees;
 
   return {
     dailyActiveUsers: Number(activeAccounts),
     dailyTransactionsCount: Number(transactions),
-    dailyGasUsed: networkFees.reduce((sum: number, metric: any) => sum + Number(metric.total), 0) / 1e8,
   };
 };
 
