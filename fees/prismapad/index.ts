@@ -72,6 +72,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.STABLE],
   start: "2026-07-23",
   fetch,
