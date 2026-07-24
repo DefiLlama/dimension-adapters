@@ -2,8 +2,8 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { postURL } from "../utils/fetchURL";
 
-// HashScan's mainnet metrics page reads Hedera stats from Hgraph GraphQL.
-const HGRAPH_GRAPHQL_URL = "https://mainnet.hedera.api.hgraph.io/v1/graphql";
+// Hgraph's GraphQL API powers HashScan's mainnet ecosystem metric
+const HGRAPH_GRAPHQL_URL = "https://mainnet.hedera.api.hgraph.dev/v1/graphql";
 
 const fetch = async (options: FetchOptions) => {
   const startDate = `${options.dateString}T00:00:00`;
@@ -13,9 +13,11 @@ const fetch = async (options: FetchOptions) => {
       limit: 1
     ) { total }
   }`;
-  const response = await postURL(HGRAPH_GRAPHQL_URL, { query });
+  const { data } = await postURL(HGRAPH_GRAPHQL_URL, { query }, 3, {
+    headers: { "X-API-KEY": process.env.HGRAPH_API_KEY },
+  });
 
-  const newAccounts = response.data.newAccounts[0].total;
+  const newAccounts = data.newAccounts[0].total;
 
   return {
     dailyNewUsers: Number(newAccounts),
