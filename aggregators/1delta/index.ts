@@ -34,7 +34,7 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.LINEA]: { chainId: 59144, start: '2025-03-01' },
   [CHAIN.BSC]: { chainId: 56, start: '2025-03-01' },
   [CHAIN.AVAX]: { chainId: 43114, start: '2025-03-01' },
-  [CHAIN.TAIKO]: { chainId: 167000, start: '2025-03-01' },
+  //[CHAIN.TAIKO]: { chainId: 167000, start: '2025-03-01' }, // invalid spike
   [CHAIN.BASE]: { chainId: 8453, start: '2025-03-01' },
   [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01' },
   //[CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' }, //invalid spike
@@ -90,7 +90,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-  pullHourly: true,
+  //pullHourly: true,
   version: 2,
   fetch,
   adapter: chainConfig

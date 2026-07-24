@@ -2,10 +2,11 @@ import { gql, request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { BBB_START } from "../../helpers/sparkdex";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const endpoints = {
+const BUYBACK_BURN_START = "2026-05-18";
+
+const endpoints: Record<string, string> = {
   [CHAIN.FLARE]:
     "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v4/latest/gn",
 };
@@ -34,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   let dailySupplySideRevenue;
 
-  if (todaysTimestamp >= BBB_START) {
+  if (options.dateString >= BUYBACK_BURN_START) {
     // 75% LP / 25% treasury BBB / 0% protocol
     dailySupplySideRevenue = dailyFees.clone(0.75, METRIC.LP_FEES);
     dailyHoldersRevenue.addUSDValue(feesUsd * 0.25, METRIC.TOKEN_BUY_BACK);
@@ -61,18 +62,16 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.FLARE],
   start: "2026-01-26",
-  // algebraDayData only exposes daily aggregates; hourly pull is unsupported
-  pullHourly: false,
   methodology: {
     Fees: "Swap fees paid by platform users on SparkDEX V4.",
     UserFees: "100% of collected fees.",
     Revenue: "25% of swap fees.",
     ProtocolRevenue: "Before 2026-05-18: 5% of swap fees. From 2026-05-18: 0%.",
-    SupplySideRevenue: "75% of swap fees.",
+    SupplySideRevenue: "75% of swap fees go to LPs.",
     HoldersRevenue:
       "Before 2026-05-18: 10% buyback-and-burn + 10% staking rewards. From 2026-05-18: 25% buyback-and-burn.",
   },
@@ -93,7 +92,7 @@ const adapter: Adapter = {
       [METRIC.STAKING_REWARDS]: "10% of swap fees (before 2026-05-18 only).",
     },
     SupplySideRevenue: {
-      [METRIC.LP_FEES]: "75% of swap fees.",
+      [METRIC.LP_FEES]: "75% of swap fees go to LPs.",
     },
     ProtocolRevenue: {
       [METRIC.SWAP_FEES]: "5% of swap fees (before 2026-05-18 only).",
