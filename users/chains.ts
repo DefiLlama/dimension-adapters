@@ -81,6 +81,7 @@ type ChainUserConfig = {
     chain: string,
     protocolType?: ProtocolType,
     start?: string,
+    deadFrom?: string,
     getUsers?: (start: number, end: number) => Promise<any>,
     getNewUsers?: (start: number, end: number) => Promise<any>,
 }

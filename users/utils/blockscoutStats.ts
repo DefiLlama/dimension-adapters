@@ -11,6 +11,7 @@ type ChainConfig = {
   statsUrl?: string;
   version: 1 | 2;
   start?: string;
+  deadFrom?: string;
 };
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
@@ -34,7 +35,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   etherlink: { chain: CHAIN.ETHERLINK, baseUrl: "https://explorer.etherlink.com", version: 2 },
   ethereal: { chain: CHAIN.ETHEREAL, baseUrl: "https://explorer.ethereal.trade", version: 1 },
   eventum: { chain: CHAIN.EVENTUM, baseUrl: "https://explorer.evedex.com", version: 2 },
-  everclear: { chain: CHAIN.EVERCLEAR, baseUrl: "https://scan.everclear.org", version: 2 },
+  everclear: { chain: CHAIN.EVERCLEAR, baseUrl: "https://scan.everclear.org", version: 2, deadFrom: "2026-05-21" },
   filecoin: { chain: CHAIN.FILECOIN, baseUrl: "https://filecoin.blockscout.com", version: 2 },
   flare: { chain: CHAIN.FLARE, baseUrl: "https://flare-explorer.flare.network", version: 1 },
   flynet: { chain: CHAIN.FLYNET, baseUrl: "https://explorer.flynet.org", version: 1 },
@@ -128,6 +129,7 @@ export const blockscoutStatsExports = Object.entries(blockscoutStatsChains).map(
   chain: config.chain,
   type: "chain",
   start: config.start,
+  deadFrom: config.deadFrom,
   getUsers: getBlockscoutUsers(config),
   getNewUsers: getBlockscoutNewUsers(config),
 }));

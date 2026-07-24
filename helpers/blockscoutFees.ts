@@ -88,7 +88,7 @@ export const chainConfigMap: any = {
   [CHAIN.EDU_CHAIN]: { CGToken: 'EDU', explorer: 'https://educhain.blockscout.com/' },
   [CHAIN.ETHEREAL]: { CGToken: 'ethena-usde', explorer: 'https://explorer.ethereal.trade/' },
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
-  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/' },
+  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/', deadFrom: '2026-05-21' },
   [CHAIN.FLYNET]: { CGToken: 'F2', explorer: 'https://explorer.flynet.org/' },
   [CHAIN.HPP]: { CGToken: 'ethereum', explorer: 'https://explorer.hpp.io/' },
   [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
