@@ -2,10 +2,9 @@ import { gql, request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { BBB_START } from "../../helpers/sparkdex";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const endpoints = {
+const endpoints: Record<string, string> = {
   [CHAIN.FLARE]:
     "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v3-2/latest/gn",
 };
@@ -19,6 +18,7 @@ interface IFeeStat {
 const CONTRACT_SPARK_TOKEN = "0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0";
 // staked token is xSpark
 const CONTRACT_XSPARK = "0xB5Dc569d06be81Eb222a00cEe810c42976981986";
+const BUYBACK_BURN_START = "2026-05-18";
 
 const fetch = async (options: FetchOptions) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
@@ -50,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   let dailySupplySideRevenue;
 
-  if (todaysTimestamp >= BBB_START) {
+  if (options.dateString >= BUYBACK_BURN_START) {
     // 75% LP / 25% treasury BBB / 0% protocol
     dailySupplySideRevenue = dailyFees.clone(0.75, METRIC.LP_FEES);
     dailyHoldersRevenue.addUSDValue(feesUsd * 0.25, METRIC.TOKEN_BUY_BACK);
