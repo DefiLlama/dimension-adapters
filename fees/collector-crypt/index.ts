@@ -195,7 +195,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: "Volume from gacha card pack sales, including packs bought on-chain (USDC) and via the CC fiat/credit-card rail.",
+  Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain or through the CC fiat/credit-card rail.",
   Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
   Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
