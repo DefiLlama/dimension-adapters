@@ -1,60 +1,86 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
-const BASE_URL = "https://www.figuremarkets.com/service-hft-exchange/api/v1/markets";
-
-interface Market {
-  marketType: string;
-  volume24h: string;
-  makerFee?: { rate?: number };
-  takerFee?: { rate?: number };
-}
-
-// Only spot-crypto (CRYPTO) and tokenized-securities (ATS) order books charge a
-// maker/taker trading fee, and their market objects carry the rate. Tokenized RWA
-// loan trades (CONNECT / Figure Connect) and YLDS fund transactions (FUND) charge no
-// on-exchange trading fee — their market objects have no fee fields, and Figure's
-// on-chain settlement (Provenance exchange module) is configured with zero settlement
-// fees. Figure earns on those products through loan servicing and the YLDS interest
-// spread, which are not trading fees and are out of scope for this exchange adapter.
-// These two types are most of the daily volume, so daily fees stay small by design.
-const FEE_LABEL: Record<string, string> = {
-  CRYPTO: "Crypto Spot Trading Fees",
-  ATS: "Tokenized Securities Trading Fees",
-};
+const FIGURE_MARKET_ID = "1";
+const FEE_RECIPIENT = "pb1aafuyj93xfhs0m3mqzfss29w8darm2xntr6au2spgxjjnx44ghlsfvdkqj";
 
 async function fetch(options: FetchOptions) {
-  const locations = ["US", "CAYMAN"];
-  const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  for (const location of locations) {
-    let page = 1;
+  const alliumQuery = `
+    WITH trade_events AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            event_index,
+            MAX(CASE WHEN key = 'price' THEN TRIM(value, '"') END) AS price_raw,
+            MAX(CASE WHEN key = 'source' THEN TRIM(value, '"') END) AS source
+        FROM provenance.raw.event_attributes
+        WHERE event_type = 'provenance.marker.v1.EventSetNetAssetValue'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        GROUP BY 1, 2, 3
+    ),
 
-    while (true) {
-      const response = await fetchURL(`${BASE_URL}?location=${location}&page=${page}`);
-      const markets: Market[] = response.data;
+    trades AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            REGEXP_SUBSTR(price_raw, '[a-zA-Z].*') AS quote_denom,
+            TRY_TO_NUMBER(REGEXP_SUBSTR(price_raw, '^[0-9]+')) AS quote_amount_raw
+        FROM trade_events
+        WHERE source = 'x/exchange market ${FIGURE_MARKET_ID}'
+    ),
 
-      if (!markets || markets.length === 0) break;
+    volume AS (
+        SELECT
+            SUM(
+                CASE
+                    WHEN quote_denom IN ('uusdc.figure.se', 'uusd.trading', 'uylds.fcc')
+                    THEN quote_amount_raw / 1e6
+                END
+            ) AS volume_usd
+        FROM trades
+    ),
 
-      for (const market of markets) {
-        const volume = Number(market.volume24h || 0);
-        if (volume === 0) continue;
+    fee_transfers AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            event_index,
+            MAX(CASE WHEN key = 'recipient' THEN TRIM(value, '"') END) AS recipient,
+            MAX(CASE WHEN key = 'amount' THEN TRIM(value, '"') END) AS amount_raw
+        FROM provenance.raw.event_attributes
+        WHERE event_type = 'transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        GROUP BY 1, 2, 3
+    ),
 
-        dailyVolume.addUSDValue(volume);
+    fees AS (
+        SELECT
+            SUM(TRY_TO_NUMBER(REGEXP_SUBSTR(f.amount_raw, '^[0-9]+'))) / 1e6 AS fees_usd
+        FROM fee_transfers f
+        JOIN (SELECT DISTINCT transaction_hash FROM trades) s
+            USING (transaction_hash)
+        WHERE f.recipient = '${FEE_RECIPIENT}'
+          AND REGEXP_SUBSTR(f.amount_raw, '[a-zA-Z].*')
+              IN ('uusdc.figure.se', 'uusd.trading', 'uylds.fcc')
+    )
 
-        // Fee rates are decimals (0.001 = 0.1%). Both maker and taker pay their own
-        // fee on the trade notional. Zero-fee market types (CONNECT/FUND) add nothing.
-        const feeRate = (market.makerFee?.rate ?? 0) + (market.takerFee?.rate ?? 0);
-        if (feeRate > 0) {
-          dailyFees.addUSDValue(volume * feeRate, FEE_LABEL[market.marketType] ?? "Trading Fees");
-        }
-      }
+    SELECT
+        COALESCE(v.volume_usd, 0) as volume_usd,
+        COALESCE(f.fees_usd, 0) AS fees_usd
+    FROM volume v, fees f
+  `;
 
-      page++;
-    }
-  }
+  const alliumResult = await queryAllium(alliumQuery);
+
+  dailyVolume.addUSDValue(alliumResult.volume_usd);
+  dailyFees.addUSDValue(alliumResult.fees_usd, METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
@@ -65,32 +91,32 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Sum of each market's 24h traded notional across all Figure Markets order books — spot crypto, tokenized securities, tokenized RWA loans (Figure Connect) and the YLDS fund.",
-  Fees: "Maker + taker trading fees. Spot crypto pairs charge up to 0.1% per side (stablecoin pairs are free) and tokenized-securities pairs charge 0.03% per side; tokenized RWA loan trades and YLDS fund transactions have no trading fee, so they add nothing even though they are most of the volume.",
-  Revenue: "Maker + taker trading fees. Figure keeps all trading fees — this is an order-book exchange with no liquidity providers to pay.",
-  ProtocolRevenue: "Maker + taker trading fees. Figure keeps all trading fees — this is an order-book exchange with no liquidity providers to pay.",
-};
+  Volume: "Volume is the total amount of USD traded on the Figure Markets exchange (Market Id 1 on Provenance).",
+  Fees: "Total trading fees collected by Figure Markets' fee recipient.",
+  Revenue: "All the trading fees collected by Figure Markets' fee recipient.",
+  ProtocolRevenue: "All the trading fees collected by Figure Markets' fee recipient.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+}
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: false, // will enable post refill
   fetch,
   chains: [CHAIN.PROVENANCE],
-  runAtCurrTime: true,
   methodology,
-  breakdownMethodology: {
-    Fees: {
-      "Crypto Spot Trading Fees": "Up to 0.1% maker + 0.1% taker on each spot-crypto trade's notional; stablecoin pairs are fee-free.",
-      "Tokenized Securities Trading Fees": "0.03% maker + 0.03% taker charged on each tokenized-securities (ATS) trade's notional.",
-    },
-    Revenue: {
-      "Crypto Spot Trading Fees": "Crypto spot trading fees, all retained by Figure.",
-      "Tokenized Securities Trading Fees": "Tokenized-securities trading fees, all retained by Figure.",
-    },
-    ProtocolRevenue: {
-      "Crypto Spot Trading Fees": "Crypto spot trading fees, all retained by Figure.",
-      "Tokenized Securities Trading Fees": "Tokenized-securities trading fees, all retained by Figure.",
-    },
-  },
+  breakdownMethodology,
+  start: "2026-01-01",
 };
 
 export default adapter;
