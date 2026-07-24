@@ -79,8 +79,8 @@ async function fetch(options: FetchOptions) {
 
   const alliumResult = await queryAllium(alliumQuery);
 
-  dailyVolume.addUSDValue(alliumResult.volume_usd);
-  dailyFees.addUSDValue(alliumResult.fees_usd, METRIC.TRADING_FEES);
+  dailyVolume.addUSDValue(alliumResult[0].volume_usd);
+  dailyFees.addUSDValue(alliumResult[0].fees_usd, METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
