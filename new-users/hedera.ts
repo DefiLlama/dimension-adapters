@@ -1,24 +1,19 @@
-import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
-import { postURL } from "../utils/fetchURL";
-
-// HashScan's mainnet metrics page reads Hedera stats from Hgraph GraphQL.
-const HGRAPH_GRAPHQL_URL = "https://mainnet.hedera.api.hgraph.io/v1/graphql";
 
 const fetch = async (options: FetchOptions) => {
-  const startDate = `${options.dateString}T00:00:00`;
-  const query = `{
-    newAccounts: ecosystem_metric(
-      where: { name: { _eq: "new_accounts" }, period: { _eq: "day" }, start_date: { _eq: "${startDate}" } }
-      limit: 1
-    ) { total }
-  }`;
-  const response = await postURL(HGRAPH_GRAPHQL_URL, { query });
+  const alliumQuery = `
+    SELECT COALESCE(COUNT(*), 0) AS new_users
+    FROM hedera.raw.accounts
+    WHERE TO_TIMESTAMP_NTZ(SPLIT_PART(created_timestamp, '.', 1)) >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND TO_TIMESTAMP_NTZ(SPLIT_PART(created_timestamp, '.', 1)) < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
 
-  const newAccounts = response.data.newAccounts[0].total;
+  const alliumResult = await queryAllium(alliumQuery);
 
   return {
-    dailyNewUsers: Number(newAccounts),
+    dailyNewUsers: alliumResult[0].new_users,
   };
 };
 
@@ -26,6 +21,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.HEDERA],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
   start: "2019-09-13",
 };

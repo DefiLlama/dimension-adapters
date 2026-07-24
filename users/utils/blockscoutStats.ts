@@ -1,5 +1,9 @@
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+
+// Some Blockscout stats hosts (e.g. Bifrost) sit behind Cloudflare and 403 datacenter IPs
+// unless a browser User-Agent is sent.
+const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
 type ChainConfig = {
   chain: string;
@@ -67,7 +71,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   somnia: { chain: CHAIN.SOMNIA, baseUrl: "https://explorer.somnia.network", statsUrl: "https://stats.mainnet.somnia.w3us.site", version: 1, start: "2025-07-01" },
   superposition: { chain: CHAIN.SUPERPOSITION, baseUrl: "https://explorer-superposition-1v9rjalnat.t.conduit.xyz", version: 1 },
   superseed: { chain: CHAIN.SSEED, baseUrl: "https://explorer.superseed.xyz", version: 1 },
-  story: { chain: CHAIN.STORY, baseUrl: "https://www.storyscan.io", version: 2 },
+  story: { chain: CHAIN.STORY, baseUrl: "https://www.datanetscan.io", version: 2 },
   swellchain: { chain: CHAIN.SWELLCHAIN, baseUrl: "https://explorer.swellnetwork.io", version: 1 },
   syndicate: { chain: CHAIN.SYNDICATE, baseUrl: "https://explorer.syndicate.io", version: 2 },
   syscoin: { chain: CHAIN.SYSCOIN, baseUrl: "https://explorer.syscoin.org", version: 1 },
@@ -92,7 +96,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
 async function fetchLine(config: ChainConfig, line: string, date: string) {
   const path = config.version === 1 ? "/api/v1/lines" : "/stats-service/api/v1/lines";
   const baseUrl = (config.statsUrl ?? config.baseUrl).replace(/\/$/, "");
-  const data = await fetchURL(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`);
+  const data = await httpGet(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`, { headers });
   return Number(data.chart.find((item: any) => item.date === date).value);
 }
 
