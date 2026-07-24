@@ -42,35 +42,34 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenueUSD = dailyTotalRevenueUSD - dailyProtocolRevenueUSD
 
   // Lido's 10% protocol take is split between node operators and the DAO treasury, weighted
-  // across staking modules by their active-validator share. Read the live aggregate split off
-  // the StakingRouter at the window's end block so historical accuracy follows the on-chain
-  // rate (e.g. module 1 changed from 5%/5% to 3.5%/6.5% on 2025-12-24, tx 0x470e74a0…).
-  const feeSplit = await options.toApi.call({
-    target: LIDO_STAKING_ROUTER,
-    abi: STAKING_ROUTER_FEE_DISTRIBUTION_ABI,
-  })
-  const modulesFeeBp = Number(feeSplit.modulesFee)
-  const treasuryFeeBp = Number(feeSplit.treasuryFee)
-  const totalFeeBp = modulesFeeBp + treasuryFeeBp
+  // across staking modules by their active-validator share.
   let operatorShare: number
   let treasuryShare: number
-  if (totalFeeBp > 0) {
-    // Configured on-chain split (validator-share-weighted aggregate across all active modules).
-    operatorShare = modulesFeeBp / totalFeeBp
-    treasuryShare = treasuryFeeBp / totalFeeBp
-  } else if (options.dateString < LIDO_V2_LAUNCH) {
-    // Before Lido V2 the StakingRouter didn't exist, so the read is 0. The 10% fee was a fixed
-    // 5%/5% split for the whole V1 era (the 2022-07-15 insurance->treasury redirect,
+  if (options.dateString < LIDO_V2_LAUNCH) {
+    // Before Lido V2 the StakingRouter didn't exist, so calling it reverts. The 10% fee was a
+    // fixed 5%/5% split for the whole V1 era (the 2022-07-15 insurance->treasury redirect,
     // research.lido.fi/t/.../2528, left the operator share unchanged at 5%), so a flat 50/50
     // operator/treasury split is accurate. Booking the operator share as Revenue (the old
     // treasuryShare=1 fallback) overstated protocol Revenue ~2x for this era.
     operatorShare = 0.5
     treasuryShare = 0.5
   } else {
+    // Read the live aggregate split off the StakingRouter at the window's end block so historical
+    // accuracy follows the on-chain rate (e.g. module 1 changed from 5%/5% to 3.5%/6.5% on
+    // 2025-12-24, tx 0x470e74a0…).
+    const feeSplit = await options.toApi.call({
+      target: LIDO_STAKING_ROUTER,
+      abi: STAKING_ROUTER_FEE_DISTRIBUTION_ABI,
+    })
+    const modulesFeeBp = Number(feeSplit.modulesFee)
+    const treasuryFeeBp = Number(feeSplit.treasuryFee)
+    const totalFeeBp = modulesFeeBp + treasuryFeeBp
     // Post-V2 the StakingRouter always returns a configured non-zero split, so a 0 here is a
-    // transient read fault, not a real allocation. Fail loudly rather than silently applying the
-    // historical 50/50, which would mis-split protocol Revenue vs the node-operator supply-side.
-    throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
+    // transient read fault, not a real allocation. Fail loudly rather than silently guessing a
+    // ratio, which would mis-split protocol Revenue vs the node-operator supply-side share.
+    if (totalFeeBp === 0) throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
+    operatorShare = modulesFeeBp / totalFeeBp
+    treasuryShare = treasuryFeeBp / totalFeeBp
   }
 
   // MEV and execution rewards
