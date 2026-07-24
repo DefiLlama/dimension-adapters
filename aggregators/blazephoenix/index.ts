@@ -1,32 +1,28 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
-// Evento Swap emitido pelo Router do BlazePhoenix
-const event_swap = 'event Swap(address indexed sender, address indexed recipient, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 surplus)';
+const event_swap = 'event Swap(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 legs)';
 
-// Endereços dos Routers por rede (extraídos do teu manifesto)
-const ROUTERS: Record<string, string> = {
-  [CHAIN.BASE]: "0x2a779f9Be49aac57495A8B6467Cc325a8a47Eb9f",
-  [CHAIN.ETHEREUM]: "0xE1aE5f49013920CF71De8CED4043e14C4d63416b",
-  [CHAIN.OPTIMISM]: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A",
-  [CHAIN.ARBITRUM]: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A",
-  [CHAIN.ROBINHOOD]: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A",
+const chainConfig: Record<string, { router: string, start: string }> = {
+  [CHAIN.BASE]: { router: "0x2a779f9Be49aac57495A8B6467Cc325a8a47Eb9f", start: "2026-07-08" },
+  [CHAIN.ETHEREUM]: { router: "0xE1aE5f49013920CF71De8CED4043e14C4d63416b", start: "2026-07-08" },
+  [CHAIN.OPTIMISM]: { router: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A", start: "2026-07-08" },
+  [CHAIN.ARBITRUM]: { router: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A", start: "2026-07-08" },
+  [CHAIN.ROBINHOOD]: { router: "0x7262e7483ab6f0db7b8f90eC3a9de3B02Ab36F6A", start: "2026-07-22" },
 };
 
 const fetch = async (options: FetchOptions) => {
+  const { router } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
-  const targetRouter = ROUTERS[options.chain];
 
-  if (!targetRouter) return { dailyVolume };
-
-  // Procura todos os logs de Swap no Router da rede correspondente
   const logs = await options.getLogs({
-    target: targetRouter,
+    target: router,
     eventAbi: event_swap,
   });
 
   logs.forEach((log: any) => {
-    dailyVolume.add(log.tokenOut, log.amountOut);
+    addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
   });
 
   return {
@@ -34,15 +30,16 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Volume: "Total swap volume routed by the blazephoenix router",
+}
+
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: { fetch, start: '2026-07-01' },
-    [CHAIN.ETHEREUM]: { fetch, start: '2026-07-01' },
-    [CHAIN.OPTIMISM]: { fetch, start: '2026-07-01' },
-    [CHAIN.ARBITRUM]: { fetch, start: '2026-07-01' },
-    [CHAIN.ROBINHOOD]: { fetch, start: '2026-07-01' },
-  },
+  version: 2,
+  pullHourly: true,
+  adapter: chainConfig,
+  fetch,
+  methodology,
 };
 
 export default adapter;
-
