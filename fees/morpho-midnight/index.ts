@@ -1,6 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { httpGet } from "../../utils/fetchURL";
 
 // Morpho Midnight is a fixed-rate, zero-coupon, orderbook lending protocol (distinct from the
 // floating-rate Morpho Blue adapter in fees/morpho). Lenders buy `credit`, borrowers sell `debt
@@ -45,39 +46,26 @@ const eventAbis = {
 
 const MORPHO_API = "https://api.morpho.org/v0/midnight";
 
-const info = {
-  methodology: {
-    Fees: "Total borrow interest paid by borrowers: for every trade, the face value of the debt (units) minus the loan tokens the borrower received (sellerAssets), i.e. the fixed-rate discount locked in at execution.",
-    Revenue:
-      "Protocol fees kept by Morpho: the settlement fee (taker-paid spread on each trade) plus the continuous fee accrued on new lender credit. Both are disabled at launch, so Revenue is currently 0.",
-    ProtocolRevenue:
-      "Same as Revenue: settlement fee plus continuous fee. Currently 0 while both fees are disabled.",
-    SupplySideRevenue:
-      "Interest distributed to lenders: total borrow interest minus the protocol settlement and continuous fees.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.BORROW_INTEREST]: "Face value (units) minus proceeds to the borrower (sellerAssets) on every trade in listed markets.",
-    },
-    Revenue: {
-      [METRIC.PROTOCOL_FEES]: "Settlement fee (buyerAssets - sellerAssets) plus continuous fee (buyerPendingFeeIncrease) per trade. Currently 0.",
-    },
-    ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "Settlement fee plus continuous fee per trade. Currently 0.",
-    },
-    SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: "Borrow interest net of protocol settlement and continuous fees, distributed to lenders.",
-    },
-  },
-};
+const methodology = {
+  Fees: "Total borrow interest paid by borrowers: for every trade, the face value of the debt (units) minus the loan tokens the borrower received (sellerAssets), i.e. the fixed-rate discount locked in at execution.",
+  Revenue: "Protocol fees kept by Morpho: the settlement fee (taker-paid spread on each trade) plus the continuous fee accrued on new lender credit. Both are disabled at launch, so Revenue is currently 0.",
+  ProtocolRevenue: "Same as Revenue: settlement fee plus continuous fee. Currently 0 while both fees are disabled.",
+  SupplySideRevenue: "Interest distributed to lenders: total borrow interest minus the protocol settlement and continuous fees.",
+}
 
-async function fetchJson(url: string): Promise<any> {
-  // globalThis.fetch: the module-level adapter function is also named `fetch` and would shadow it.
-  const response = await globalThis.fetch(url, { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error(`Morpho Midnight API ${response.status}: ${url}`);
-  const body = await response.json();
-  if (!body || !Array.isArray(body.data)) throw new Error(`Invalid Morpho Midnight API response: ${url}`);
-  return body;
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Face value (units) minus proceeds to the borrower (sellerAssets) on every trade in listed markets.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "Settlement fee (buyerAssets - sellerAssets) plus continuous fee (buyerPendingFeeIncrease) per trade. Currently 0.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "Settlement fee plus continuous fee per trade. Currently 0.",
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Borrow interest net of protocol settlement and continuous fees, distributed to lenders.",
+  },
 }
 
 // Scope mirrors the Part-1 TVL adapter (DefiLlama-Adapters projects/morpho-midnight): only markets
@@ -90,7 +78,7 @@ async function getListedMarketIds(chainId: number): Promise<Set<string>> {
   do {
     const query = new URLSearchParams({ chain_ids: String(chainId), listed: "true", limit: "100" });
     if (cursor) query.set("cursor", cursor);
-    const body = await fetchJson(`${MORPHO_API}/markets?${query}`);
+    const body = await httpGet(`${MORPHO_API}/markets?${query}`, { headers: { accept: "application/json" } });
     for (const market of body.data) ids.add(String(market.market_id).toLowerCase());
     cursor = body.cursor ?? undefined;
     if (cursor && seenCursors.has(cursor)) throw new Error("Morpho Midnight API returned a repeated cursor");
@@ -161,17 +149,10 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  methodology: info.methodology,
-  breakdownMethodology: info.breakdownMethodology,
+  methodology,
+  breakdownMethodology,
   fetch,
-  adapter: {},
+  adapter: MidnightConfigs,
 };
-
-for (const [chain, cfg] of Object.entries(MidnightConfigs)) {
-  (adapter.adapter as any)[chain] = {
-    fetch,
-    start: cfg.start,
-  };
-}
 
 export default adapter;
