@@ -51,11 +51,14 @@ const fetch = async (options: FetchOptions) => {
   const modulesFeeBp = Number(feeSplit.modulesFee)
   const treasuryFeeBp = Number(feeSplit.treasuryFee)
   const totalFeeBp = modulesFeeBp + treasuryFeeBp
-  // Fallback when the StakingRouter read yields a zero total (transient RPC fault or a
-  // governance state where module fees are unset). Defaulting treasuryShare to 1 keeps
-  // total Revenue unchanged in degraded reads and only loses the breakdown for those windows.
-  const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0
-  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 1
+  // Fallback for windows before the StakingRouter existed (Lido V2 launched 2023-05-15) or a
+  // transient zero read. Throughout the V1 era the 10% fee was a fixed 5%/5% split: node
+  // operators got half, treasury/insurance the other half. The 2022-07-15 insurance->treasury
+  // redirect (research.lido.fi/t/.../2528) moved the protocol half around but left the operator
+  // share unchanged at 5%, so a flat 50/50 operator/treasury split is accurate for the whole
+  // pre-V2 era. Booking the operator share as Revenue (old treasuryShare=1) overstated it 2x.
+  const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0.5
+  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 0.5
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
@@ -125,10 +128,10 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
+    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (2023-05-15) the treasury/operator split is the validator-share-weighted aggregate read live from the StakingRouter; before V2 the split was a fixed 5%/5%, so half the fee is treasury.",
     HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
-    ProtocolRevenue: "Lido applies a 10% fee on staking rewards (validator-share-weighted aggregate across all active staking modules), part of which goes to the DAO treasury.",
-    SupplySideRevenue: "Staking rewards earned by stETH holders and node operators"
+    ProtocolRevenue: "DAO-treasury portion of the 10% fee (same as Revenue); excludes the node-operator share.",
+    SupplySideRevenue: "Staking rewards earned by stETH holders plus the node-operator share of the 10% fee (paid to operators for running validators)."
   },
   breakdownMethodology: {
     Fees: {
@@ -136,7 +139,7 @@ const adapter: Adapter = {
       [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. Ratio read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee).',
+      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. From Lido V2 (2023-05-15) the ratio is read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee); before V2 it defaults to the fixed 5%/5% split (treasury share 0.5).',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     ProtocolRevenue: {
