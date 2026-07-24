@@ -97,7 +97,6 @@ const fetch = async (options: FetchOptions) => {
           : (usdtLeg * POOL_FEE_BPS) / (BPS - POOL_FEE_BPS);
         const creatorShare = (swapFee * CREATOR_SHARE_BPS) / BPS;
         const protocolShare = swapFee - creatorShare;
-        dailyVolume.add(USDT0, usdtLeg);
         dailyFees.add(USDT0, swapFee, METRIC.SWAP_FEES);
         dailyRevenue.add(USDT0, protocolShare, "Trade fees to protocol");
         dailySupplySideRevenue.add(USDT0, creatorShare, "Trade fees to token creators");
@@ -116,6 +115,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
+  Volume: "Total volume of swaps on the Prismapad legacy launchpad, valued in USDT0. (v2: not tracked as those swap volume belongs to stableswap-xyz-v3)",
   Fees: "A flat 1% fee on every trade, valued in USDT0: charged by the bonding curve on legacy v1 tokens, and by the 1% Uniswap v3 pool tier on v2 tokens. v2 buy-side fees are charged on the USDT0 input (exact); v2 sell-side fees are charged in the traded token and valued as their USDT0 equivalent at that swap's own price (usdtOut/99).",
   UserFees: "Traders pay the 1% trade fee; there is no token-creation fee.",
   Revenue: "50% of every trade fee accrues to the Prismapad treasury.",
