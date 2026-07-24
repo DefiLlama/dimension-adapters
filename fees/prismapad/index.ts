@@ -12,15 +12,21 @@ import { METRIC } from "../../helpers/metrics";
 // https://stablescan.xyz/address/0xa96d9eadc4d6eed50fa408a33585c5f1df039db5#code
 const LAUNCHPAD_V1 = "0xdcb881fc8b472eb7797687b237e6cb123c425ff7";
 const LAUNCHPAD_V2 = "0xa96d9eadc4d6eed50fa408a33585c5f1df039db5";
+// PrismaLaunchpadV2 deployment block (2026-07-24), first possible TokenCreated:
+// https://stablescan.xyz/tx/0x32f513f268ba78d178d4478633fe761a4becb7a86ebb1e8bf4d7752b4dc11ef6
 const V2_DEPLOY_BLOCK = 32896230;
 
 // USDT0 ERC-20 (6 decimals) — on Stable this is the same asset as the native
 // gas balance; v2 pools quote against it.
+// https://stablescan.xyz/address/0x779Ded0c9e1022225f8E0630b35a9b54bE713736
 const USDT0 = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
 
+// Basis-point denominator matching the contracts' fee math.
 const BPS = 10_000n;
+// Creator's share of every fee, hard-coded in both launchpads (CREATOR_SHARE_BPS).
 const CREATOR_SHARE_BPS = 5_000n;
-// v2 pools are created at the Uniswap v3 1% fee tier (100 bps).
+// v2 pools are created at the Uniswap v3 1% fee tier (fee = 10000 ppm = 100 bps),
+// hard-coded as POOL_FEE in PrismaLaunchpadV2.
 const POOL_FEE_BPS = 100n;
 
 const TRADE =
@@ -77,8 +83,18 @@ const fetch = async (options: FetchOptions) => {
       const isToken0 = usdt0IsToken0.get(pools[i].toLowerCase());
       for (const log of logs) {
         const raw = isToken0 ? BigInt(log.amount0) : BigInt(log.amount1);
-        const usdtLeg = raw < 0n ? -raw : raw; // 6-dec USDT0 units
-        const swapFee = (usdtLeg * POOL_FEE_BPS) / BPS;
+        if (raw === 0n) continue;
+        const isBuy = raw > 0n; // USDT0 flowed into the pool
+        const usdtLeg = isBuy ? raw : -raw; // 6-dec USDT0 units
+        // The 1% pool fee is charged on the input side: on buys that IS the
+        // USDT0 leg (fee = leg * 1%, exact). On sells it is charged in the
+        // token; its USDT0 value at this swap's own price follows from
+        // usdtOut = tokenIn * 99% * price, so fee = tokenIn * 1% * price
+        // = usdtOut / 99. (Memecoin-denominated fees cannot be priced
+        // directly — none of these tokens have price listings.)
+        const swapFee = isBuy
+          ? (usdtLeg * POOL_FEE_BPS) / BPS
+          : (usdtLeg * POOL_FEE_BPS) / (BPS - POOL_FEE_BPS);
         const creatorShare = (swapFee * CREATOR_SHARE_BPS) / BPS;
         const protocolShare = swapFee - creatorShare;
         dailyVolume.add(USDT0, usdtLeg);
@@ -100,7 +116,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "A flat 1% fee on every trade, in USDT0: charged by the bonding curve on legacy v1 tokens, and by the 1% Uniswap v3 pool tier on v2 tokens (measured on the USDT0 leg of each swap).",
+  Fees: "A flat 1% fee on every trade, valued in USDT0: charged by the bonding curve on legacy v1 tokens, and by the 1% Uniswap v3 pool tier on v2 tokens. v2 buy-side fees are charged on the USDT0 input (exact); v2 sell-side fees are charged in the traded token and valued as their USDT0 equivalent at that swap's own price (usdtOut/99).",
   UserFees: "Traders pay the 1% trade fee; there is no token-creation fee.",
   Revenue: "50% of every trade fee accrues to the Prismapad treasury.",
   ProtocolRevenue: "50% of every trade fee accrues to the Prismapad treasury.",
