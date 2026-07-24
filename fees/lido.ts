@@ -13,6 +13,7 @@ const endpoints: Record<string, string> = {
 }
 
 const PROTOCOL_FEE_RATIO = 0.1 // 10%
+const LIDO_V2_LAUNCH = '2023-05-15' // StakingRouter (per-module fee split) went live; earlier windows read 0
 const LIDO_MEV_REWARDS_VAULT = '0x388c818ca8b9251b393131c08a736a67ccb19297';
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
 const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
@@ -51,14 +52,26 @@ const fetch = async (options: FetchOptions) => {
   const modulesFeeBp = Number(feeSplit.modulesFee)
   const treasuryFeeBp = Number(feeSplit.treasuryFee)
   const totalFeeBp = modulesFeeBp + treasuryFeeBp
-  // Fallback for windows before the StakingRouter existed (Lido V2 launched 2023-05-15) or a
-  // transient zero read. Throughout the V1 era the 10% fee was a fixed 5%/5% split: node
-  // operators got half, treasury/insurance the other half. The 2022-07-15 insurance->treasury
-  // redirect (research.lido.fi/t/.../2528) moved the protocol half around but left the operator
-  // share unchanged at 5%, so a flat 50/50 operator/treasury split is accurate for the whole
-  // pre-V2 era. Booking the operator share as Revenue (old treasuryShare=1) overstated it 2x.
-  const operatorShare = totalFeeBp > 0 ? modulesFeeBp / totalFeeBp : 0.5
-  const treasuryShare = totalFeeBp > 0 ? treasuryFeeBp / totalFeeBp : 0.5
+  let operatorShare: number
+  let treasuryShare: number
+  if (totalFeeBp > 0) {
+    // Configured on-chain split (validator-share-weighted aggregate across all active modules).
+    operatorShare = modulesFeeBp / totalFeeBp
+    treasuryShare = treasuryFeeBp / totalFeeBp
+  } else if (options.dateString < LIDO_V2_LAUNCH) {
+    // Before Lido V2 the StakingRouter didn't exist, so the read is 0. The 10% fee was a fixed
+    // 5%/5% split for the whole V1 era (the 2022-07-15 insurance->treasury redirect,
+    // research.lido.fi/t/.../2528, left the operator share unchanged at 5%), so a flat 50/50
+    // operator/treasury split is accurate. Booking the operator share as Revenue (the old
+    // treasuryShare=1 fallback) overstated protocol Revenue ~2x for this era.
+    operatorShare = 0.5
+    treasuryShare = 0.5
+  } else {
+    // Post-V2 the StakingRouter always returns a configured non-zero split, so a 0 here is a
+    // transient read fault, not a real allocation. Fail loudly rather than silently applying the
+    // historical 50/50, which would mis-split protocol Revenue vs the node-operator supply-side.
+    throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
+  }
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
