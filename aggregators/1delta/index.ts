@@ -90,7 +90,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-  //pullHourly: true,
+  pullHourly: true,
   version: 2,
   fetch,
   adapter: chainConfig
