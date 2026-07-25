@@ -27,6 +27,13 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 // so the raw value has to be divided by 1e6 to get a fraction of the swap amount.
 const FEE_TIER_DENOMINATOR = 1e6;
 
+// Split applied to fees from gauged pools. No v3 contract encodes this. It mirrors
+// dexs/swaphood-v2, added in #8374, which applies the same 5/95 split.
+// The v3 protocol fee path does not implement it either: slot0().feeProtocol accrues to the
+// pool's own protocolFees, and PairFeesV3 (0x626A38d441620a6C6f151dc97309417165f86F3c, read
+// from MasterchefSwapHood.pairFeesV3()) calls collectProtocol and forwards 100% of both tokens
+// to a single taxWallet, currently 0xe49C113adFf614Ac8DFC81F36E6A4848af1fadfb, which also owns
+// the factory and the MasterChef. See the open question on this PR.
 const PROTOCOL_SHARE = 0.05; // retained by the protocol; the remaining 95% goes to holders
 
 const POOL_CREATED_EVENT =
