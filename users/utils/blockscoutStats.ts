@@ -15,7 +15,7 @@ type ChainConfig = {
 };
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
-  ancient8: { chain: CHAIN.ANCIENT8, baseUrl: "https://explorer-ancient8-mainnet-0.t.conduit.xyz", version: 1 },
+  ancient8: { chain: CHAIN.ANCIENT8, baseUrl: "https://explorer-ancient8-mainnet-0.t.conduit.xyz", version: 1, deadFrom: "2026-07-24" },
   apechain: { chain: CHAIN.APECHAIN, baseUrl: "https://apechain.calderaexplorer.xyz", statsUrl: "https://apechain.calderaexplorer.xyz/stats", version: 1 },
   astar: { chain: CHAIN.ASTAR, baseUrl: "https://astar.blockscout.com", version: 2 },
   aurora: { chain: CHAIN.AURORA, baseUrl: "https://aurorascan.dev", version: 2 },
@@ -98,7 +98,9 @@ async function fetchLine(config: ChainConfig, line: string, date: string) {
   const path = config.version === 1 ? "/api/v1/lines" : "/stats-service/api/v1/lines";
   const baseUrl = (config.statsUrl ?? config.baseUrl).replace(/\/$/, "");
   const data = await httpGet(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`, { headers });
-  return Number(data.chart.find((item: any) => item.date === date).value);
+  const entry = data.chart.find((item: any) => item.date === date);
+  if (!entry) throw new Error(`No Blockscout ${line} data for ${config.chain} on ${date}`);
+  return Number(entry.value);
 }
 
 function getBlockscoutUsers(config: ChainConfig) {
