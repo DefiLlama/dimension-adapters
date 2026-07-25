@@ -173,6 +173,18 @@ const addToken = (
   else balances.add(currency, amount, label);
 };
 
+const dedupeLogs = <TArgs>(logs: DecodedLog<TArgs>[]) => {
+  const unique = new Map<string, DecodedLog<TArgs>>();
+  for (const log of logs) {
+    const position = positionOf(log);
+    unique.set(
+      `${normalizeAddress(log.address)}:${position.transactionHash}:${position.blockNumber}:${position.logIndex}`,
+      log,
+    );
+  }
+  return [...unique.values()];
+};
+
 const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | CreditEvent>): FeeAllocation[] => {
   const events = [...unorderedEvents].sort((left, right) => left.logIndex - right.logIndex);
   const allocations: FeeAllocation[] = [];
@@ -257,28 +269,39 @@ const reconcileSuite = (
   return allocations;
 };
 
+const DIRECT_LOG_FETCH_OPTIONS = {
+  skipIndexer: true, //using indexer often throws error 
+  skipCacheRead: true,
+} as const;
+
+const PARSED_LOG_FETCH_OPTIONS = {
+  entireLog: true,
+  parseLog: true,
+  ...DIRECT_LOG_FETCH_OPTIONS,
+} as const;
+
 const fetchAllocations = async (options: FetchOptions, config: ChainConfig) => {
   const { suites, legacyQuotes } = config;
-  const tradeLogsPerHook = await options.getLogs({
-    targets: suites.map((suite) => suite.hook),
-    eventAbi: TRADE_EVENT,
-    entireLog: true,
-    parseLog: true,
-    flatten: false,
-  });
-  const creditLogsPerEscrow = await options.getLogs({
-    targets: suites.map((suite) => suite.feeEscrow),
-    eventAbi: CREDITED_EVENT,
-    entireLog: true,
-    parseLog: true,
-    flatten: false,
-  });
+  const [tradeLogsPerHook, creditLogsPerEscrow] = await Promise.all([
+    options.getLogs({
+      targets: suites.map((suite) => suite.hook),
+      eventAbi: TRADE_EVENT,
+      flatten: false,
+      ...PARSED_LOG_FETCH_OPTIONS,
+    }),
+    options.getLogs({
+      targets: suites.map((suite) => suite.feeEscrow),
+      eventAbi: CREDITED_EVENT,
+      flatten: false,
+      ...PARSED_LOG_FETCH_OPTIONS,
+    }),
+  ]);
 
   return suites.map((suite, index) => reconcileSuite(
     suite,
     legacyQuotes,
-    tradeLogsPerHook[index] ?? [],
-    creditLogsPerEscrow[index] ?? [],
+    dedupeLogs(tradeLogsPerHook[index] ?? []),
+    dedupeLogs(creditLogsPerEscrow[index] ?? []),
   ));
 };
 
@@ -291,6 +314,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     ? await options.getLogs({
       targets: launchFeeSuites.map((suite) => suite.factory),
       eventAbi: LAUNCH_FEE_PAID_EVENT,
+      ...DIRECT_LOG_FETCH_OPTIONS,
     }) as LaunchFeeArgs[]
     : [];
 
