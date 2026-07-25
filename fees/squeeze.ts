@@ -34,12 +34,6 @@ const IDENTITY = {
   baseAirlock: "0x660eAaEdEBc968f8f3694354FA8EC0b4c5Ba8D12",
   /** Robinhood Airlock — same role on chain 4663. */
   robinhoodAirlock: "0xeb7c034704ef8dcd2d32324c1545f62fb4ad0862",
-  /**
-   * Doppler UniswapV4MulticurveInitializer — where swap fees are actually
-   * claimed from: the wallet calls collectFees(poolId) on it and receives its
-   * beneficiary share directly (airlock() getter on each ties it to the chain
-   * Airlock above). The Airlock itself never pays the wallet — see #8379.
-   */
   baseMulticurveInitializer: "0x65de470da664a5be139a5d812be5fda0d76cc951",
   robinhoodMulticurveInitializer: "0x4e3468951d49f2eea976ed0d6e75ffcb44a9a544",
   /** Raydium LaunchLab platformId for Squeeze-tagged pools. */
@@ -103,14 +97,6 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   if (cfg.kind === "evm") {
-    // Only count configured fee-token transfers from the Doppler fee contracts → platform
-    // wallet (multicurve initializer collectFees payouts, plus the Airlock for
-    // completeness). Excludes unrelated deposits, the wallet's own swap
-    // proceeds and 0x affiliate (25 bps) that also land in the same wallet
-    // (those must not be grossed up as if they were 47.5% of Doppler pool fees).
-    // Note: helper param is historically misspelled `fromAdddesses`.
-    // Fail closed: without a sender filter addTokensReceived would count every
-    // deposit into the wallet (swap proceeds, 0x affiliate) as fee revenue.
     if (!cfg.feeSources.length || !cfg.feeTokens.length)
       throw new Error(`squeeze: feeSources/feeTokens not configured for ${options.chain}`);
     const erc20 = await addTokensReceived({
