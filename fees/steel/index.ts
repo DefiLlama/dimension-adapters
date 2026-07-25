@@ -10,8 +10,8 @@ const VE_STEEL = "0xD5116ca699eD6CA186BC07f46B3c851D1A483aa2"; // VeSteelV2 stak
 
 const REWARD_NOTIFIED = "event RewardNotified(uint256 eth)";
 
-const KEEPER = "Keeper";
-const MOTHERLODE = "Motherlode";
+const KEEPER = "Rake to Keeper";
+const MOTHERLODE = "Rake to Motherlode";
 
 const fetch = async (options: FetchOptions) => {
   const rewards = await options.getLogs({ target: VE_STEEL, eventAbi: REWARD_NOTIFIED });
