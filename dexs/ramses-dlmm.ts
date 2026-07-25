@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 
+// RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
 
 const subgraphEndpoints: any = {
@@ -14,10 +15,12 @@ const dlmmSubgraphEndpoints: any = {
 };
 
 const chainIds: Record<string, number> = {
+  // Robinhood Chain mainnet: https://docs.robinhood.com/chain/connecting/
   [CHAIN.ROBINHOOD]: 4663,
 };
 
 const subgraphQueryLimit = 1000;
+// Allow one extra hour for completed daily rollups to materialize.
 const historicalRollupAgeSeconds = 25 * 60 * 60;
 const dayInSeconds = 24 * 60 * 60;
 
@@ -81,7 +84,7 @@ async function getDlmmBribes(options: FetchOptions) {
       voteBribes(
         first: $first
         skip: $skip
-        where: { timestamp_gt: $from, timestamp_lt: $to }
+        where: { timestamp_gte: $from, timestamp_lt: $to }
       ) {
         token {
           id
@@ -204,7 +207,7 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
       DLMMSwap(
         limit: $limit
         offset: $offset
-        where: { chainId: { _eq: ${chainId} }, timestamp: { _gt: $from, _lt: $to } }
+        where: { chainId: { _eq: ${chainId} }, timestamp: { _gte: $from, _lt: $to } }
       ) {
         amountUSD
       }
@@ -215,7 +218,7 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
       DLMMFeeEvent(
         limit: $limit
         offset: $offset
-        where: { chainId: { _eq: ${chainId} }, timestamp: { _gt: $from, _lt: $to } }
+        where: { chainId: { _eq: ${chainId} }, timestamp: { _gte: $from, _lt: $to } }
       ) {
         totalFeesUSD
         protocolFeesUSD
@@ -229,19 +232,23 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
     from: String(options.startTimestamp),
     to: String(options.endTimestamp),
   };
-  const swaps = await paginate<{ amountUSD?: string }>(
-    (limit, offset) => request<any>(endpoint, swapsQuery, { ...variables, limit, offset }).then((data) => data.DLMMSwap),
-    subgraphQueryLimit,
-  );
-  const feeEvents = await paginate<{
-    totalFeesUSD?: string;
-    protocolFeesUSD?: string;
-    lpFeesUSD?: string;
-    pool?: string;
-  }>(
-    (limit, offset) => request<any>(endpoint, feesQuery, { ...variables, limit, offset }).then((data) => data.DLMMFeeEvent),
-    subgraphQueryLimit,
-  );
+  const [swaps, feeEvents] = await Promise.all([
+    paginate<{ amountUSD?: string }>(
+      (limit, offset) => request<any>(endpoint, swapsQuery, { ...variables, limit, offset })
+        .then((data) => data.DLMMSwap),
+      subgraphQueryLimit,
+    ),
+    paginate<{
+      totalFeesUSD?: string;
+      protocolFeesUSD?: string;
+      lpFeesUSD?: string;
+      pool?: string;
+    }>(
+      (limit, offset) => request<any>(endpoint, feesQuery, { ...variables, limit, offset })
+        .then((data) => data.DLMMFeeEvent),
+      subgraphQueryLimit,
+    ),
+  ]);
   const poolIds = Array.from(new Set(feeEvents.map((event) => event.pool ?? "").filter(Boolean)));
   const [feeTreasury, poolIsAliveById] = await Promise.all([
     fetchDlmmFactoryFeeTreasury(options),
@@ -311,9 +318,15 @@ async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
   const tokenIds = new Set(dlmmVoteBribes.map((e) => e.token.id));
   tokenIds.add(RAM_TOKEN_CONTRACT.toLowerCase());
   const tokens = await getTokens(options, Array.from(tokenIds));
-  const dlmmUserBribeRevenueUSD = dlmmVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
+  const tokenPriceById = new Map(tokens.map((token) => [token.id, Number(token.priceUSD)]));
+  const dlmmUserBribeRevenueUSD = dlmmVoteBribes.reduce((total, bribe) => {
+    const priceUSD = tokenPriceById.get(bribe.token.id);
+    if (priceUSD === undefined || !Number.isFinite(priceUSD) || priceUSD < 0) {
+      throw new Error(
+        `Missing or invalid token price for ${bribe.token.id} on ${options.chain} at ${options.startOfDay}`,
+      );
+    }
+    return total + Number(bribe.amount) * priceUSD;
   }, 0);
   const dlmmStats = shouldUseDayRollups(options)
     ? await fetchDlmmDayStats(options)
@@ -378,6 +391,9 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Fees are collected from users on each swap.",
     ["Bribes"]: "Bribes paid by protocols",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Fees paid by users on each swap.",
   },
   Revenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",

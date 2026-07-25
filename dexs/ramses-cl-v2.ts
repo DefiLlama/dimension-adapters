@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 
+// RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
 
 export const subgraphEndpoints: any = {
@@ -23,10 +24,12 @@ const chainIds: Record<string, number> = {
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.HYPERLIQUID]: 999,
   [CHAIN.POLYGON]: 137,
+  // Robinhood Chain mainnet: https://docs.robinhood.com/chain/connecting/
   [CHAIN.ROBINHOOD]: 4663,
 };
 
 const subgraphQueryLimit = 1000;
+// Allow one extra hour for completed daily rollups to materialize.
 const historicalRollupAgeSeconds = 25 * 60 * 60;
 const dayInSeconds = 24 * 60 * 60;
 
@@ -108,7 +111,7 @@ async function getBribes(options: FetchOptions) {
       voteBribes(
         first: $first
         skip: $skip
-        where: { timestamp_gt: $from, timestamp_lt: $to }
+        where: { timestamp_gte: $from, timestamp_lt: $to }
       ) {
         token {
           id
@@ -180,7 +183,7 @@ function shouldUseDayRollups(options: FetchOptions) {
 }
 
 function getStartOfDay(timestamp: number) {
-  return Math.floor(timestamp / (24 * 60 * 60)) * 24 * 60 * 60;
+  return Math.floor(timestamp / dayInSeconds) * dayInSeconds;
 }
 
 function getWindowStartOfDays(options: FetchOptions) {
@@ -188,7 +191,7 @@ function getWindowStartOfDays(options: FetchOptions) {
   const firstDay = getStartOfDay(options.startTimestamp);
   const lastDay = getStartOfDay(options.endTimestamp - 1);
 
-  for (let day = firstDay; day <= lastDay; day += 24 * 60 * 60) {
+  for (let day = firstDay; day <= lastDay; day += dayInSeconds) {
     days.add(day);
   }
   days.add(options.startOfDay);
@@ -207,7 +210,7 @@ async function fetchPoolHourStats(
       items: ${root}(
         limit: $first
         offset: $skip
-        where: { chainId: { _eq: ${chainId} }, startOfHour: { _gt: $from, _lt: $to } }
+        where: { chainId: { _eq: ${chainId} }, startOfHour: { _gte: $from, _lt: $to } }
       ) {
         pool
         volumeUSD
@@ -306,15 +309,19 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const tokens = await getTokens(options, Array.from(tokenIds));
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
+  const tokenPriceById = new Map(tokens.map((token) => [token.id, Number(token.priceUSD)]));
+  const getBribeRevenueUSD = (bribes: IVoteBribe[]) => bribes.reduce((total, bribe) => {
+    const priceUSD = tokenPriceById.get(bribe.token.id);
+    if (priceUSD === undefined || !Number.isFinite(priceUSD) || priceUSD < 0) {
+      throw new Error(
+        `Missing or invalid token price for ${bribe.token.id} on ${options.chain} at ${options.startOfDay}`,
+      );
+    }
+    return total + Number(bribe.amount) * priceUSD;
+  }, 0);
 
-  const legacyUserBribeRevenueUSD = legacyVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
-  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
+  const legacyUserBribeRevenueUSD = getBribeRevenueUSD(legacyVoteBribes);
+  const clUserBribeRevenueUSD = getBribeRevenueUSD(clVoteBribes);
 
   const clDayFeesUSD = Number(clDayData?.feesUsd ?? 0);
   const clDayVoterFeesUSD = Number(clDayData?.voterFeesUsd ?? 0);
