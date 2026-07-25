@@ -51,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     fetch,
-    chains: [CHAIN.ETHEREUM],
+    chains: [CHAIN.ETHEREUM, CHAIN.MANTLE],
     start: '2024-06-14',
 };
 
