@@ -40,6 +40,7 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: keeper,
     dailyHoldersRevenue: stakerRewards,
     dailySupplySideRevenue: motherlode,
   };
@@ -48,7 +49,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Total ETH wagered across all lottery rounds, derived from staker rewards (a flat 6% of each round's pot).",
   Fees: "The 10% rake taken from every round's pot: 6% to veSTEEL stakers, 2% to the keeper, and 2% to the motherlode.",
-  Revenue: "Protocol-retained fees: staker rewards (6%) plus the keeper self-funding cut (2%).",
+  Revenue: "Gross profit: 6% distributed to veSTEEL stakers plus the 2% keeper cut.",
+  ProtocolRevenue: "The 2% keeper self-funding cut retained by the protocol.",
   HoldersRevenue: "All staker rewards — the ETH distributed to veSTEEL stakers (RewardNotified events on VeSteelV2).",
   SupplySideRevenue: "The 2% of each pot routed to the motherlode, paid back out to winning players.",
 };
@@ -62,6 +64,9 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.STAKING_REWARDS]: "6% of each pot distributed to veSTEEL stakers.",
     [KEEPER]: "2% of each pot self-funding the keeper.",
+  },
+  ProtocolRevenue: {
+    [KEEPER]: "2% of each pot retained by the protocol for keeper operations.",
   },
   HoldersRevenue: {
     [METRIC.STAKING_REWARDS]: "6% of each pot distributed to veSTEEL stakers.",
