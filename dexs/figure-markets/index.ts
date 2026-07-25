@@ -111,7 +111,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false, // will enable post refill
+  pullHourly: true,
   fetch,
   chains: [CHAIN.PROVENANCE],
   methodology,
