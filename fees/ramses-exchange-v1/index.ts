@@ -64,6 +64,8 @@ const feeAdapter = uniV2Exports({
 
 const adapter: Adapter = {
   version: 2,
+  // UniV2 log block ranges are inclusive; adjacent hourly slices can overlap.
+  pullHourly: false,
   methodology,
   breakdownMethodology,
   adapter: {

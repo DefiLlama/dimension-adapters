@@ -44,7 +44,7 @@ const v2Graphs = getGraphDimensions2({
     ProtocolRevenue: 8,
     SupplySideRevenue: 20,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80, // Protocol and holder revenue receive 80% of swap fees
+    Revenue: 80, // Aggregate revenue: 80% of swap fees + 100% of bribes
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
@@ -79,6 +79,8 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  // Cumulative snapshot diffs + bribe subtraction are composable across hourly windows.
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {
