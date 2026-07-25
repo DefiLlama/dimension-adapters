@@ -68,17 +68,16 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // ---- v2/v3: Uniswap v3 swaps on pools created by the direct-to-DEX launchpads
-  const launchBatches = await Promise.all(
-    DEX_LAUNCHPADS.map((pad) =>
+  const earliestFromBlock = DEX_LAUNCHPADS.map((pad) => pad.fromBlock).sort((a, b) => a - b)[0];
+  const launches = await 
       options.getLogs({
-        target: pad.address,
+        targets: DEX_LAUNCHPADS.map((pad) => pad.address),
         eventAbi: TOKEN_CREATED_V2,
-        fromBlock: pad.fromBlock,
+        fromBlock: earliestFromBlock,
         cacheInCloud: true,
-      }),
-    ),
+      },
   );
-  const launches = launchBatches.flat();
+
   // token/USDT0 ordering differs per pool: USDT0 is token0 iff it sorts
   // below the launched token's address
   const usdt0IsToken0 = new Map<string, boolean>();
