@@ -12,7 +12,6 @@ async function fetch(fetchOptions: FetchOptions) {
   const { api, createBalances } = fetchOptions;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
-  const dailyHoldersRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
@@ -23,19 +22,20 @@ async function fetch(fetchOptions: FetchOptions) {
     eventAbi: eventAbis.swap,
   });
 
-  // Current fee distribution ratios from Ryze Protocol
-  // Swap Fees: 100% to UNIT holders (distributionAddress)
-  // Taker Fees: 100% to Protocol
-  // Slippage Fees: 50% Protocol, 50% UNIT holders
-  // WBF Fees: 25% Protocol, 25% UNIT holders, 50% Treasury (not considered revenue/fees usually)
+  // Fee routing verified on-chain (pool contract is unverified on Basescan):
+  //   swapFee    100% -> liquidity providers (collector 0x3fe1 forwards to the Smart-Vault that holds the pool LP token)
+  //   takerFee   100% -> protocol (0xd7c0)
+  //   wbfFee     25% LPs, 25% protocol, 50% Bonus Vault (0x8280) which pays it back to rebalancing traders as Weight Balance Rewards
+  //   slippage   50% LPs, 50% protocol
+  // UNIT Economy is not live, so there is no token-holder revenue.
 
   logs.forEach((log: any) => {
     const tokenIn = log.tokenIn;
     const amountIn = log.amountIn;
     const feeDetails = log.feeDetails;
 
-    // Arrays matching the tuple structure: [ [token, amount], [token, amount], ... ]
-    // Index 0: swapFee, Index 1: takerFee, Index 2: wbfFee, Index 3: slippageFee, Index 4: wbrFee
+    // Index 0: swapFee, 1: takerFee, 2: wbfFee, 3: slippageFee, 4: wbrFee
+    // wbrFee (index 4) is a reward PAID OUT to rebalancing traders (denominated in tokenOut), not a charged fee — intentionally excluded from dailyFees.
     const swapFee = { token: feeDetails[0].token ?? feeDetails[0][0], amount: BigInt(feeDetails[0].amount ?? feeDetails[0][1]) };
     const takerFee = { token: feeDetails[1].token ?? feeDetails[1][0], amount: BigInt(feeDetails[1].amount ?? feeDetails[1][1]) };
     const wbfFee = { token: feeDetails[2].token ?? feeDetails[2][0], amount: BigInt(feeDetails[2].amount ?? feeDetails[2][1]) };
@@ -43,85 +43,84 @@ async function fetch(fetchOptions: FetchOptions) {
 
     dailyVolume.add(tokenIn, amountIn);
 
+    // Swap fee — the LP trading fee, 100% to liquidity providers
     if (swapFee.amount > 0n) {
       dailyFees.add(swapFee.token, swapFee.amount, METRIC.SWAP_FEES);
-      dailyHoldersRevenue.add(swapFee.token, swapFee.amount, 'Swap Fees To Holders');
+      dailySupplySideRevenue.add(swapFee.token, swapFee.amount, 'Swap Fees To LPs');
     }
 
+    // Taker fee — 100% to protocol
     if (takerFee.amount > 0n) {
       dailyFees.add(takerFee.token, takerFee.amount, 'Taker Fees');
       dailyProtocolRevenue.add(takerFee.token, takerFee.amount, 'Taker Fees To Protocol');
     }
 
-    // Process WBF Fee (25% Protocol, 25% UNIT holders, 50% Treasury)
+    // Weight Breaking Fee — 25% LPs, 25% protocol, 50% paid back to rebalancing traders (Weight Balance Rewards)
     if (wbfFee.amount > 0n) {
       dailyFees.add(wbfFee.token, wbfFee.amount, 'WBF Fees');
 
-      const wbfProtocolAndTreasury = (wbfFee.amount * 75n) / 100n;
-      const wbfHolders = (wbfFee.amount * 25n) / 100n;
+      const wbfLps = (wbfFee.amount * 25n) / 100n;
+      const wbfProtocol = (wbfFee.amount * 25n) / 100n;
+      const wbfRebalancers = wbfFee.amount - wbfLps - wbfProtocol; // 50%, remainder to avoid rounding loss
 
-      dailyProtocolRevenue.add(wbfFee.token, wbfProtocolAndTreasury, 'WBF Fees To Protocol And Treasury');
-      dailyHoldersRevenue.add(wbfFee.token, wbfHolders, 'WBF Fees To Holders');
+      dailySupplySideRevenue.add(wbfFee.token, wbfLps, 'WBF Fees To LPs');
+      dailyProtocolRevenue.add(wbfFee.token, wbfProtocol, 'WBF Fees To Protocol');
+      dailySupplySideRevenue.add(wbfFee.token, wbfRebalancers, 'WBF Fees To Rebalancing Traders');
     }
 
-    // Process Slippage Fee (50% Protocol, 50% UNIT holders)
+    // Slippage fee — 50% LPs, 50% protocol
     if (slippageFee.amount > 0n) {
       dailyFees.add(slippageFee.token, slippageFee.amount, 'Slippage Fees');
 
       const slippageProtocol = (slippageFee.amount * 50n) / 100n;
-      const slippageHolders = slippageFee.amount - slippageProtocol;
+      const slippageLps = slippageFee.amount - slippageProtocol;
 
+      dailySupplySideRevenue.add(slippageFee.token, slippageLps, 'Slippage Fees To LPs');
       dailyProtocolRevenue.add(slippageFee.token, slippageProtocol, 'Slippage Fees To Protocol');
-      dailyHoldersRevenue.add(slippageFee.token, slippageHolders, 'Slippage Fees To Holders');
     }
   });
 
-  const dailyRevenue = dailyHoldersRevenue.clone();
-  dailyRevenue.addBalances(dailyProtocolRevenue);
+  const dailyRevenue = dailyProtocolRevenue.clone(); // no holders revenue while UNIT Economy is not live
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue
+    dailySupplySideRevenue,
   };
 }
 
 const methodology = {
-  Volume: "Daily volume is tracked by summing the amountIn of all Swap events across all Ryze pools.",
-  Fees: "Daily fees are calculated by summing the swapFee, takerFee, wbfFee, and slippageFee emitted in Swap events.",
-  Revenue: "Total Revenue equals UNIT holders Revenue plus Protocol Revenue.",
-  HoldersRevenue: "UNIT holders receive 100% of Swap Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
-  ProtocolRevenue: "Protocol receives 100% of Taker Fees, 25% of WBF Fees, and 50% of Slippage Fees.",
-  SupplySideRevenue: "LPs do not auto-compound fees; fees are routed to protocol, UNIT holders, and treasury.",
+  Volume: "Sum of the input amount of every swap across all Ryze pools.",
+  Fees: "Every fee charged on a swap: the swap fee, taker fee, weight-breaking fee, and captured slippage.",
+  Revenue: "What the protocol keeps: 100% of taker fees, 25% of weight-breaking fees, and 50% of captured slippage. There is no token-holder revenue yet — UNIT distribution is not live.",
+  ProtocolRevenue: "The protocol's share: 100% of taker fees, 25% of weight-breaking fees, and 50% of captured slippage.",
+  SupplySideRevenue: "Paid to liquidity providers: 100% of swap fees, 25% of weight-breaking fees, and 50% of captured slippage. The other 50% of weight-breaking fees is paid back to traders who rebalance the pool (Weight Balance Rewards).",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Trading fee charged on each swap.",
-    'Taker Fees': "Taker fee charged on each swap.",
-    'WBF Fees': "Weight Breaking Fee charged when a swap moves pool weights from target.",
-    'Slippage Fees': "Captured slippage on each swap.",
+    [METRIC.SWAP_FEES]: "Swap fee charged on each trade (the LP trading fee).",
+    'Taker Fees': "Taker fee charged on each trade.",
+    'WBF Fees': "Weight-breaking fee charged when a trade pushes pool weights away from target.",
+    'Slippage Fees': "Slippage captured on each trade.",
   },
   Revenue: {
-    'Swap Fees To Holders': "100% of Swap Fees distributed to UNIT holders.",
-    'Taker Fees To Protocol': "100% of Taker Fees retained by the protocol.",
-    'WBF Fees To Protocol And Treasury': "25% of WBF Fees retained by the protocol and 50% of WBF Fees distributed to treasury.",
-    'WBF Fees To Holders': "25% of WBF Fees distributed to UNIT holders.",
-    'Slippage Fees To Protocol': "50% of Slippage Fees distributed to protocol.",
-    'Slippage Fees To Holders': "50% of Slippage Fees distributed to UNIT holders.",
-  },
-  HoldersRevenue: {
-    'Swap Fees To Holders': "100% of Swap Fees distributed to UNIT holders.",
-    'WBF Fees To Holders': "25% of WBF Fees distributed to UNIT holders.",
-    'Slippage Fees To Holders': "50% of Slippage Fees distributed to UNIT holders.",
+    'Taker Fees To Protocol': "100% of taker fees.",
+    'WBF Fees To Protocol': "25% of weight-breaking fees.",
+    'Slippage Fees To Protocol': "50% of captured slippage.",
   },
   ProtocolRevenue: {
-    'Taker Fees To Protocol': "100% of Taker Fees retained by the protocol.",
-    'WBF Fees To Protocol And Treasury': "25% of WBF Fees retained by the protocol and 50% of WBF Fees distributed to treasury.",
-    'Slippage Fees To Protocol': "50% of Slippage Fees distributed to protocol.",
+    'Taker Fees To Protocol': "100% of taker fees.",
+    'WBF Fees To Protocol': "25% of weight-breaking fees.",
+    'Slippage Fees To Protocol': "50% of captured slippage.",
+  },
+  SupplySideRevenue: {
+    'Swap Fees To LPs': "100% of swap fees go to liquidity providers.",
+    'WBF Fees To LPs': "25% of weight-breaking fees go to liquidity providers.",
+    'WBF Fees To Rebalancing Traders': "50% of weight-breaking fees are paid back to traders who rebalance the pool (Weight Balance Rewards).",
+    'Slippage Fees To LPs': "50% of captured slippage goes to liquidity providers.",
   },
 }
 
