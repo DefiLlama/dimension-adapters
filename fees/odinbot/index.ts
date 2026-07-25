@@ -16,7 +16,7 @@ async function fetch(options: FetchOptions) {
       FROM solana.assets.transfers
       WHERE to_address = '${FEE_RECIPIENT}'
         AND mint = '${SOL_MINT}'
-        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ),
     referral_fees AS (
       SELECT r.raw_amount
@@ -25,7 +25,7 @@ async function fetch(options: FetchOptions) {
       WHERE r.mint = '${SOL_MINT}'
         AND r.to_address != '${FEE_RECIPIENT}'
         AND ABS(r.raw_amount - ROUND(p.protocol_amount * 40.0 / 60.0)) <= 1
-        AND r.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND r.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND r.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
     SELECT
       COALESCE((SELECT SUM(protocol_amount) FROM protocol_fees), 0) AS protocol_fees,
