@@ -2,7 +2,7 @@
  * DefiLlama fees adapter for Squeeze (https://squeeze.run)
  *
  * Methodology (on-chain receipts — Clanker / Flaunch style):
- * - EVM (Base + Robinhood): count numeraire ERC-20s received by the Squeeze
+ * - EVM (Base + Robinhood): count configured fee-token ERC-20s received by the Squeeze
  *   platform wallet **from the Doppler fee contracts** (multicurve initializer
  *   collectFees payouts + Airlock). That wallet is the Airlock `integrator`
  *   and the 47.5% swap-fee beneficiary.
@@ -103,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   if (cfg.kind === "evm") {
-    // Only count numeraire transfers from the Doppler fee contracts → platform
+    // Only count configured fee-token transfers from the Doppler fee contracts → platform
     // wallet (multicurve initializer collectFees payouts, plus the Airlock for
     // completeness). Excludes unrelated deposits, the wallet's own swap
     // proceeds and 0x affiliate (25 bps) that also land in the same wallet
