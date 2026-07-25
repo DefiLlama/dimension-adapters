@@ -44,15 +44,15 @@ const v2Graphs = getGraphDimensions2({
     ProtocolRevenue: 8,
     SupplySideRevenue: 20,
     UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80 // Revenue is 100% of collected fees
+    Revenue: 80, // Protocol and holder revenue receive 80% of swap fees
   }
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
   UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees.",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees.",
-  SupplySideRevenue: "20% of collected fees are distributed among LPs."
+  ProtocolRevenue: "8% of swap fees go to the protocol.",
+  HoldersRevenue: "72% of swap fees and all bribes go to holders.",
+  SupplySideRevenue: "20% of swap fees go to LPs.",
 }
 
 const breakdownMethodology = {
@@ -61,18 +61,18 @@ const breakdownMethodology = {
     ['Bribes']: "Bribes paid by protocols"
   },
   Revenue: {
-    ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
-    ['Swap Fees to holders']: "75% of swap fees go to the holders",
+    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury",
+    ['Swap Fees to holders']: "72% of swap fees go to the holders",
     ['Bribes to holders']: "All the bribes go to the holders",
   },
   ProtocolRevenue: {
-    ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
+    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury",
   },
   SupplySideRevenue: {
     ['Swap Fees to LPs']: "20% of swap fees go to the LPs",
   },
   HoldersRevenue: {
-    ['Swap Fees to holders']: "75% of swap fees go to the holders",
+    ['Swap Fees to holders']: "72% of swap fees go to the holders",
     ['Bribes to holders']: "All the bribes go to the holders",
   },
 }
