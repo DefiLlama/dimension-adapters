@@ -27,8 +27,8 @@ const fetchFuelVolume = async (options: FetchOptions) => {
   }
 }
 
-const chainConfig: Record<string, { chainId: number, start: string }> = {
-  [CHAIN.MANTLE]: { chainId: 5000, start: '2025-03-01' },
+const chainConfig: Record<string, { chainId: number, start: string, invalidSpikes?: string[] }> = {
+  [CHAIN.MANTLE]: { chainId: 5000, start: '2025-03-01' , invalidSpikes: ["2026-04-19"] },
   [CHAIN.OPTIMISM]: { chainId: 10, start: '2025-03-01' },
   [CHAIN.POLYGON]: { chainId: 137, start: '2025-03-01' },
   [CHAIN.LINEA]: { chainId: 59144, start: '2025-03-01' },
@@ -36,7 +36,7 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.AVAX]: { chainId: 43114, start: '2025-03-01' },
   //[CHAIN.TAIKO]: { chainId: 167000, start: '2025-03-01' }, // invalid spike
   [CHAIN.BASE]: { chainId: 8453, start: '2025-03-01' },
-  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01', invalidSpikes: ["2026-04-14"] },
   //[CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' }, //invalid spike
   [CHAIN.METIS]: { chainId: 1088, start: '2025-03-01' },
   // [CHAIN.XDAI]: { chainId: 100, start: '2025-03-01' }, // invalid spike
@@ -67,6 +67,9 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
 const fetch = async (options: FetchOptions) => {
   const chain = options.chain as CHAIN;
   const dailyVolume = options.createBalances()
+  if (chainConfig[chain].invalidSpikes?.includes(options.dateString)) {
+    return { dailyVolume }
+  }
   if (chain === CHAIN.FUEL) {
     return await fetchFuelVolume(options)
   }
