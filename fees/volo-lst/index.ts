@@ -99,7 +99,7 @@ const adapter: SimpleAdapter = {
       start: "2025-05-09",
     },
   },
-  //pullHourly: true,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
 };
