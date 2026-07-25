@@ -64,10 +64,10 @@ const LABEL_CREATOR = "Creator Fees";
 const LABEL_DOPPLER = "Doppler Protocol Fees";
 const LABEL_LAUNCHLAB_PLATFORM = "LaunchLab Platform Fees";
 
-const chainConfig: Record<
-  string,
-  { start: string; kind: "evm" | "solana"; feeSources?: string[]; feeTokens?: string[] }
-> = {
+type EvmChainConfig = { start: string; kind: "evm"; feeSources: string[]; feeTokens: string[] };
+type SolanaChainConfig = { start: string; kind: "solana" };
+
+const chainConfig: Record<string, EvmChainConfig | SolanaChainConfig> = {
   [CHAIN.BASE]: {
     // Approx. Squeeze Doppler activity window on Base; tighten after first claim-day spot-check.
     // Source: product launch window documented at https://squeeze.run/docs#defillama
@@ -109,6 +109,10 @@ const fetch = async (options: FetchOptions) => {
     // proceeds and 0x affiliate (25 bps) that also land in the same wallet
     // (those must not be grossed up as if they were 47.5% of Doppler pool fees).
     // Note: helper param is historically misspelled `fromAdddesses`.
+    // Fail closed: without a sender filter addTokensReceived would count every
+    // deposit into the wallet (swap proceeds, 0x affiliate) as fee revenue.
+    if (!cfg.feeSources.length || !cfg.feeTokens.length)
+      throw new Error(`squeeze: feeSources/feeTokens not configured for ${options.chain}`);
     const erc20 = await addTokensReceived({
       options,
       target: IDENTITY.evmFeeWallet,
