@@ -29,9 +29,9 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 
 const methodology = {
   UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
-  SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
+  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees.",
+  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees.",
+  SupplySideRevenue: "20% of collected fees are distributed among LPs."
 }
 
 const breakdownMethodology = {
