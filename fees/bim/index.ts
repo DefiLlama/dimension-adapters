@@ -27,7 +27,7 @@ const fetchStellarFees = async (options: FetchOptions) => {
 };
 
 const tokenChainsEndpoint = "https://ugcs4scwc8wwckcc40os4oso.bim.finance/token-chains";
-const bridgeAndSwapTarget = "0x1895108f64033F4c0A1fEd0669Adc93e7E017f3C";
+const bridgeAndSwapTarget = "0x5c6bcf885453394ea71986bb8de596c34f9a19ee";
 
 let cachedTokensPromise: Promise<Record<string, string[]>> | null = null;
 
