@@ -996,6 +996,7 @@ export default (
         polygon_zkevm: ["0x61f4ECD130291e5D5D7809A112f9F9081b8Ed3A5"],
       },
     },
+    // deprecated
     {
       id: "2763",
       name: "Dove Swap",
@@ -1003,6 +1004,7 @@ export default (
         polygon_zkevm: ["0xc4212b4f901C8Afac75A27C8E8be7b9fa82D74d8"],
       },
     },
+    // deprecated
     {
       id: "2762",
       name: "Dove Swap",
