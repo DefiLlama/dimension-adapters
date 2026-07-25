@@ -24,6 +24,7 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
   const lpTokens = await api.fetchList({ lengthAbi: ABIs.getNumberOfLBPairs, itemAbi: ABIs.getLBPairAtIndex, target: FACTORY_ADDRESS })
   const [tokens0, tokens1] = await Promise.all(['address:getTokenX', 'address:getTokenY'].map((abi: string) => api.multiCall({ abi, calls: lpTokens })));
 
@@ -52,6 +53,10 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
       // protocol share (<= 25%) is carved out of totalFees; the rest stays with LPs.
       dailyRevenue.add(tokenX, protocolFeesX, METRIC.PROTOCOL_FEES)
       dailyRevenue.add(tokenY, protocolFeesY, METRIC.PROTOCOL_FEES)
+
+      dailyHoldersRevenue.add(tokenX, protocolFeesX, METRIC.STAKING_REWARDS)
+      dailyHoldersRevenue.add(tokenY, protocolFeesY, METRIC.STAKING_REWARDS)
+
       dailySupplySideRevenue.add(tokenX, totalFeesX - protocolFeesX, METRIC.LP_FEES)
       dailySupplySideRevenue.add(tokenY, totalFeesY - protocolFeesY, METRIC.LP_FEES)
     })
@@ -63,7 +68,7 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -80,7 +85,7 @@ const breakdownMethodology = {
   UserFees: { [METRIC.SWAP_FEES]: "Total swap fees charged to traders." },
   Revenue: { [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees." },
   SupplySideRevenue: { [METRIC.LP_FEES]: "Swap fees paid to liquidity providers." },
-  HoldersRevenue: { [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees paid to LUM stakers." },
+  HoldersRevenue: { [METRIC.STAKING_REWARDS]: "Protocol share of swap fees paid to LUM stakers." },
 }
 
 const adapter: SimpleAdapter = {
