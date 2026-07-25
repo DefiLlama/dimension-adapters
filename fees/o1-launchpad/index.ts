@@ -1,20 +1,17 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-// https://basescan.org/address/0x833589fcd6edb6e08f4c7c32d4f71b54bda02913
-const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-// https://robinhoodchain.blockscout.com/address/0x5fc5360d0400a0fd4f2af552add042d716f1d168
-const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+const ZERO_ADDRESS = ADDRESSES.null;
+const BASE_USDC = ADDRESSES.base.USDC;
+const ROBINHOOD_USDG = ADDRESSES.robinhood.USDG;
 
 const TOKEN_LAUNCH_FEES = "Token Launch Fees";
 const SWAP_FEES_TO_CREATORS = "Swap Fees to Creators";
 const SWAP_FEES_TO_REFERRERS = "Swap Fees to Referrers";
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees to Protocol";
 const TOKEN_LAUNCH_FEES_TO_PROTOCOL = "Token Launch Fees to Protocol";
-// One normal indexed read followed by at most two direct RPC recovery reads.
-const MAX_LOG_FETCH_ATTEMPTS = 3;
 
 const TRADE_EVENT =
   "event Trade(bytes32 indexed id, address indexed executor, address indexed referrer, address feeCurrency, uint256 totalFee, bytes32 comment)";
@@ -222,19 +219,6 @@ const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | Credi
   return allocations;
 };
 
-const mergeLogs = <TArgs>(current: DecodedLog<TArgs>[], incoming: DecodedLog<TArgs>[]) => {
-  const logs = new Map<string, DecodedLog<TArgs>>();
-  for (const log of current) {
-    const position = positionOf(log);
-    logs.set(`${normalizeAddress(log.address)}:${position.transactionHash}:${position.blockNumber}:${position.logIndex}`, log);
-  }
-  for (const log of incoming) {
-    const position = positionOf(log);
-    logs.set(`${normalizeAddress(log.address)}:${position.transactionHash}:${position.blockNumber}:${position.logIndex}`, log);
-  }
-  return [...logs.values()];
-};
-
 const decodeTrade = (log: DecodedLog<TradeArgs>): TradeEvent => ({
   ...positionOf(log),
   referrer: normalizeAddress(log.args.referrer),
@@ -273,40 +257,29 @@ const reconcileSuite = (
   return allocations;
 };
 
-const fetchSuiteAllocations = async (options: FetchOptions, suite: Suite, legacyQuotes: Set<string>) => {
-  let tradeLogs: DecodedLog<TradeArgs>[] = [];
-  let creditLogs: DecodedLog<CreditArgs>[] = [];
-  let reconciliationError: unknown;
+const fetchAllocations = async (options: FetchOptions, config: ChainConfig) => {
+  const { suites, legacyQuotes } = config;
+  const tradeLogsPerHook = await options.getLogs({
+    targets: suites.map((suite) => suite.hook),
+    eventAbi: TRADE_EVENT,
+    entireLog: true,
+    parseLog: true,
+    flatten: false,
+  });
+  const creditLogsPerEscrow = await options.getLogs({
+    targets: suites.map((suite) => suite.feeEscrow),
+    eventAbi: CREDITED_EVENT,
+    entireLog: true,
+    parseLog: true,
+    flatten: false,
+  });
 
-  for (let attempt = 0; attempt < MAX_LOG_FETCH_ATTEMPTS; attempt += 1) {
-    const retryDirectly = attempt > 0;
-    const incomingTrades = await options.getLogs({
-      target: suite.hook,
-      eventAbi: TRADE_EVENT,
-      entireLog: true,
-      parseLog: true,
-      skipCacheRead: retryDirectly,
-      skipIndexer: retryDirectly,
-    }) as DecodedLog<TradeArgs>[];
-    const incomingCredits = await options.getLogs({
-      target: suite.feeEscrow,
-      eventAbi: CREDITED_EVENT,
-      entireLog: true,
-      parseLog: true,
-      skipCacheRead: retryDirectly,
-      skipIndexer: retryDirectly,
-    }) as DecodedLog<CreditArgs>[];
-    tradeLogs = retryDirectly ? mergeLogs(tradeLogs, incomingTrades) : incomingTrades;
-    creditLogs = retryDirectly ? mergeLogs(creditLogs, incomingCredits) : incomingCredits;
-
-    try {
-      return reconcileSuite(suite, legacyQuotes, tradeLogs, creditLogs);
-    } catch (error) {
-      reconciliationError = error;
-    }
-  }
-
-  throw reconciliationError;
+  return suites.map((suite, index) => reconcileSuite(
+    suite,
+    legacyQuotes,
+    tradeLogsPerHook[index] ?? [],
+    creditLogsPerEscrow[index] ?? [],
+  ));
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -327,9 +300,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const suite of config.suites) {
-    const allocations = await fetchSuiteAllocations(options, suite, config.legacyQuotes);
-    for (const { trade, creatorFee, referrerFee, platformFee } of allocations) {
+  const allocationsBySuite = await fetchAllocations(options, config);
+  for (const [suiteIndex, suite] of config.suites.entries()) {
+    for (const { trade, creatorFee, referrerFee, platformFee } of allocationsBySuite[suiteIndex]) {
       if (suite.legacyFeeCurrency && !config.legacyQuotes.has(trade.currency)) continue;
       addToken(dailyFees, trade.currency, trade.totalFee, METRIC.SWAP_FEES);
       addToken(dailyUserFees, trade.currency, trade.totalFee, METRIC.SWAP_FEES);
@@ -392,7 +365,6 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  isExpensiveAdapter: true,
   fetch,
   adapter: chainConfig,
   methodology,
