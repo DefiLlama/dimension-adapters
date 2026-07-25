@@ -1,26 +1,32 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
-import { queryEvents } from "../../helpers/sui";
+import { getObject, queryEvents } from "../../helpers/sui";
 
 // https://volosui.gitbook.io/volo/liquid-staking/volo-liquid-staking-api-reference
 const PACKAGE =
   "0x68d22cf8bdbcd11ecba1e094922873e4080d4d11133e2443fddda0bfd11dae20";
+const STAKE_POOL =
+  "0x2d914e23d82fedef1b5f56a32d5c64bdcc3087ccfea2b4d6ea51a71f587840e5";
+const BPS = 10_000;
 
 const fetchVoloLst = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [epochEvents, stakeEvents, unstakeEvents] = await Promise.all([
+  const [epochEvents, stakeEvents, unstakeEvents, stakePool] = await Promise.all([
     queryEvents({ eventType: `${PACKAGE}::stake_pool::EpochChangedEvent`, options }),
     queryEvents({ eventType: `${PACKAGE}::stake_pool::StakeEventExt`, options }),
     queryEvents({ eventType: `${PACKAGE}::stake_pool::UnstakeEventExt`, options }),
+    getObject(STAKE_POOL),
   ]);
 
+  const rewardFeeBps = Number(stakePool.fields.fee_config.fields.reward_fee_bps);
+
   for (const e of epochEvents) {
-    const grossRewards = Number(e.new_sui_supply) - Number(e.old_sui_supply);
     const protocolFee = Number(e.reward_fee);
+    const grossRewards = rewardFeeBps > 0 ? (protocolFee * BPS) / rewardFeeBps : 0;
     if (grossRewards > 0) {
       dailyFees.addCGToken("sui", grossRewards / 1e9, METRIC.STAKING_REWARDS);
       dailyRevenue.addCGToken("sui", protocolFee / 1e9, METRIC.PERFORMANCE_FEES);
@@ -93,7 +99,7 @@ const adapter: SimpleAdapter = {
       start: "2025-05-09",
     },
   },
-  pullHourly: true,
+  //pullHourly: true,
   methodology,
   breakdownMethodology,
 };
