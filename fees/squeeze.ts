@@ -3,8 +3,9 @@
  *
  * Methodology (on-chain receipts — Clanker / Flaunch style):
  * - EVM (Base + Robinhood): count numeraire ERC-20s received by the Squeeze
- *   platform wallet **from the chain Airlock** (fee-collect sender). That wallet
- *   is the Airlock `integrator` and the 47.5% swap-fee beneficiary.
+ *   platform wallet **from the Doppler fee contracts** (multicurve initializer
+ *   collectFees payouts + Airlock). That wallet is the Airlock `integrator`
+ *   and the 47.5% swap-fee beneficiary.
  * - Gross pool fees are extrapolated: platform share = 47.5% of pool fees
  *   → dailyFees ≈ dailyRevenue * (100 / 47.5).
  * - Supply-side split of the remaining 52.5%: creator 47.5% + Doppler owner 5%.
@@ -29,10 +30,18 @@ import ADDRESSES from '../helpers/coreAssets.json'
 const IDENTITY = {
   /** Platform fee beneficiary + Doppler Airlock integrator (Base + Robinhood). */
   evmFeeWallet: "0x6C61feE73584670AbEd65101946734006DAB12d6",
-  /** Base Airlock — fee-collect sender + create-path integrator filter. */
+  /** Base Airlock — create-path integrator filter. */
   baseAirlock: "0x660eAaEdEBc968f8f3694354FA8EC0b4c5Ba8D12",
   /** Robinhood Airlock — same role on chain 4663. */
   robinhoodAirlock: "0xeb7c034704ef8dcd2d32324c1545f62fb4ad0862",
+  /**
+   * Doppler UniswapV4MulticurveInitializer — where swap fees are actually
+   * claimed from: the wallet calls collectFees(poolId) on it and receives its
+   * beneficiary share directly (airlock() getter on each ties it to the chain
+   * Airlock above). The Airlock itself never pays the wallet — see #8379.
+   */
+  baseMulticurveInitializer: "0x65de470da664a5be139a5d812be5fda0d76cc951",
+  robinhoodMulticurveInitializer: "0x4e3468951d49f2eea976ed0d6e75ffcb44a9a544",
   /** Raydium LaunchLab platformId for Squeeze-tagged pools. */
   solanaPlatformId: "FpKUW9vDSRPTByNu4MerR2SU4YPkJU9pLWQTnChGAW3h",
   /** LaunchLab claim / platform-admin wallet (platform fee destination). */
@@ -57,14 +66,14 @@ const LABEL_LAUNCHLAB_PLATFORM = "LaunchLab Platform Fees";
 
 const chainConfig: Record<
   string,
-  { start: string; kind: "evm" | "solana"; airlock?: string; feeTokens?: string[] }
+  { start: string; kind: "evm" | "solana"; feeSources?: string[]; feeTokens?: string[] }
 > = {
   [CHAIN.BASE]: {
     // Approx. Squeeze Doppler activity window on Base; tighten after first claim-day spot-check.
     // Source: product launch window documented at https://squeeze.run/docs#defillama
     start: "2025-06-01",
     kind: "evm",
-    airlock: IDENTITY.baseAirlock,
+    feeSources: [IDENTITY.baseAirlock, IDENTITY.baseMulticurveInitializer],
     feeTokens: [ADDRESSES.base.WETH, ADDRESSES.base.USDC]
   },
   [CHAIN.ROBINHOOD]: {
@@ -72,7 +81,7 @@ const chainConfig: Record<
     // Source: DefiLlama robinhood chain listing + Squeeze RH Airlock deploy.
     start: "2026-07-10",
     kind: "evm",
-    airlock: IDENTITY.robinhoodAirlock,
+    feeSources: [IDENTITY.robinhoodAirlock, IDENTITY.robinhoodMulticurveInitializer],
     feeTokens: [
       ADDRESSES.robinhood.WETH,
       ADDRESSES.robinhood.USDG,
@@ -94,16 +103,17 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   if (cfg.kind === "evm") {
-    // Only count numeraire transfers from the chain Airlock → platform wallet.
-    // Excludes unrelated deposits and 0x affiliate (25 bps) that also land in
-    // the same wallet via Squeeze trade proxies (those must not be grossed up
-    // as if they were 47.5% of Doppler pool fees).
+    // Only count numeraire transfers from the Doppler fee contracts → platform
+    // wallet (multicurve initializer collectFees payouts, plus the Airlock for
+    // completeness). Excludes unrelated deposits, the wallet's own swap
+    // proceeds and 0x affiliate (25 bps) that also land in the same wallet
+    // (those must not be grossed up as if they were 47.5% of Doppler pool fees).
     // Note: helper param is historically misspelled `fromAdddesses`.
     const erc20 = await addTokensReceived({
       options,
       target: IDENTITY.evmFeeWallet,
       tokens: cfg.feeTokens,
-      fromAdddesses: cfg.airlock ? [cfg.airlock] : undefined,
+      fromAdddesses: cfg.feeSources,
     });
     dailyRevenue.addBalances(erc20, LABEL_SQUEEZE_PLATFORM);
 
@@ -150,11 +160,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "On Base/Robinhood: gross Doppler pool trading fees (2.5%), extrapolated from Squeeze’s 47.5% Airlock→wallet platform receipts. On Solana: LaunchLab *platform* fees claimed to Squeeze’s claim wallet only (not creator/protocol/referral cuts).",
+    "On Base/Robinhood: gross Doppler pool trading fees (2.5%), extrapolated from Squeeze’s 47.5% Doppler fee-collect receipts. On Solana: LaunchLab *platform* fees claimed to Squeeze’s claim wallet only (not creator/protocol/referral cuts).",
   Revenue:
-    "Squeeze platform share — EVM: 47.5% of Doppler swap fees from Airlock collect; Solana: LaunchLab platform fees to the claim wallet.",
+    "Squeeze platform share — EVM: 47.5% of Doppler swap fees claimed via collectFees; Solana: LaunchLab platform fees to the claim wallet.",
   ProtocolRevenue:
-    "Squeeze platform share — EVM: 47.5% of Doppler swap fees from Airlock collect; Solana: LaunchLab platform fees to the claim wallet.",
+    "Squeeze platform share — EVM: 47.5% of Doppler swap fees claimed via collectFees; Solana: LaunchLab platform fees to the claim wallet.",
   SupplySideRevenue:
     "On EVM: extrapolated creator share (47.5%) and Doppler protocol-owner share (5%). On Solana: not attributed in v1 (those cuts never hit the Squeeze claim wallet).",
 };
@@ -162,13 +172,13 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [LABEL_DOPPLER_POOL_FEES]:
-      "EVM only — user-paid Doppler pool trading fees, extrapolated from 47.5% Airlock→platform receipts.",
+      "EVM only — user-paid Doppler pool trading fees, extrapolated from 47.5% Doppler fee-collect receipts.",
     [LABEL_LAUNCHLAB_PLATFORM]:
       "Solana only — LaunchLab platform fee claims to Squeeze’s claim wallet (platform slice, not gross pool fees).",
   },
   Revenue: {
     [LABEL_SQUEEZE_PLATFORM]:
-      "EVM — numeraires received by Squeeze platform wallet from Airlock.",
+      "EVM — numeraires received by Squeeze platform wallet from the Doppler fee contracts.",
     [LABEL_LAUNCHLAB_PLATFORM]:
       "Solana — LaunchLab platform fees received by Squeeze claim wallet.",
   },
