@@ -13,12 +13,13 @@ const REFERRAL_FEE_LABEL = "Referral Fees"
 async function fetch(options: FetchOptions) {
   const [{ protocol_fees, referral_fees }] = await queryAllium(`
     WITH protocol_fees AS (
-      SELECT txn_id, raw_amount AS protocol_amount
+      SELECT txn_id, SUM(raw_amount) AS protocol_amount
       FROM solana.assets.transfers
       WHERE to_address IN ('${FEE_RECIPIENTS.join("', '")}')
         AND from_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
         AND mint = '${SOL_MINT}'
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      GROUP BY txn_id
     ),
     referral_fees AS (
       SELECT r.raw_amount
@@ -54,8 +55,8 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
-  UserFees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
+  Fees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
+  UserFees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
   Revenue: "The 60% (100% if no referral code is applied) protocol share of Odinbot trading fees retained after affiliate payouts.",
   ProtocolRevenue: "The 60% (100% if no referral code is applied) protocol share of Odinbot trading fees retained after affiliate payouts.",
   SupplySideRevenue: "The 40% affiliate commission paid to referrers in the same transaction, if a referral code is applied.",
@@ -63,10 +64,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL, including affiliate payouts.",
+    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades, including affiliate payouts.",
   },
   UserFees: {
-    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL, including affiliate payouts.",
+    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades, including affiliate payouts.",
   },
   Revenue: {
     [METRIC.TRADING_FEES]: "60% (100% if no referral code is applied) protocol share of Odinbot trading fees.",
