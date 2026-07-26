@@ -176,11 +176,15 @@ const fetch = async (options: FetchOptions) => {
 
     // Revenue = fees kept in-protocol: everything not paid out to referrers or
     // creators (i.e. protocol treasury + the prize pool that goes to holders).
+    // Split revenue by DESTINATION (not fee source): the protocol's own cut vs
+    // the prize pool that flows to card holders (a subset of revenue). Revenue
+    // metrics use destination labels; fee-source labels stay on dailyFees.
     const revenue = await dailyFees.getUSDValue() - await dailySupplySideRevenue.getUSDValue();
-    dailyRevenue.addUSDValue(revenue, METRIC.PROTOCOL_FEES);
-    // Protocol's own cut = revenue minus the holders' share (the prize pool).
     const holders = await dailyHoldersRevenue.getUSDValue();
-    dailyProtocolRevenue.addUSDValue(revenue - holders, METRIC.PROTOCOL_FEES);
+    const protocolCut = revenue - holders;
+    dailyRevenue.addUSDValue(protocolCut, 'Protocol Revenue');
+    dailyRevenue.addUSDValue(holders, 'Prize Pool Rewards');
+    dailyProtocolRevenue.addUSDValue(protocolCut, 'Protocol Revenue');
 
     return {
         dailyVolume,
@@ -217,10 +221,11 @@ const breakdownMethodology = {
         'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
     },
     Revenue: {
-        [METRIC.PROTOCOL_FEES]: "Fees retained in-protocol (protocol treasury + prize pool), plus pack sales",
+        'Protocol Revenue': "The protocol's own retained cut (treasury + 100% of pack sales)",
+        'Prize Pool Rewards': "Prize pool paid to card holders — a subset of revenue",
     },
     ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "The protocol's own cut after the holders' prize-pool share",
+        'Protocol Revenue': "The protocol's own cut after the holders' prize-pool share",
     },
     HoldersRevenue: {
         'Prize Pool Rewards': "Prize pool rewards paid to users holding fractional shares of creator cards",
