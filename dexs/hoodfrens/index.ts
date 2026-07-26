@@ -81,6 +81,8 @@ const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const [tradeLogs, referralLogs, prizeLogs, creatorPaidLogs, creatorAccruedLogs] =
@@ -97,7 +99,7 @@ const fetch = async (options: FetchOptions) => {
         // Sell: priceInWei is net; gross = priceInWei + feeInWei
         const fee = log.feeInWei;
         const grossVolume = log.isBuy ? log.priceInWei : log.priceInWei + fee;
-        dailyVolume.addGasToken(grossVolume);
+        dailyVolume.addGasToken(grossVolume, 'Trading Volume');
         dailyFees.addGasToken(fee, METRIC.TRADING_FEES);
     }
 
@@ -105,8 +107,10 @@ const fetch = async (options: FetchOptions) => {
         dailySupplySideRevenue.addGasToken(log.amountInWei, 'Referral Rewards');
     }
 
+    // Prize pool is distributed to users holding fractional shares of creator
+    // cards — holders revenue (a subset of revenue), not supply-side.
     for (const log of prizeLogs) {
-        dailySupplySideRevenue.addGasToken(log.amountInWei, 'Prize Pool Rewards');
+        dailyHoldersRevenue.addGasToken(log.amountInWei, 'Prize Pool Rewards');
     }
 
     for (const log of creatorPaidLogs) {
@@ -139,17 +143,19 @@ const fetch = async (options: FetchOptions) => {
                 }
             }
             const pairs = [...uniquePairs.values()];
+            // No permitFailure: a claim log always carries a claimConditionIndex
+            // that existed at claim time, so an unresolved condition means a bad
+            // read, not a real state. Fail loudly rather than under-report packs.
             const conditions = await options.api.multiCall({
                 target: PACKSHOP_CONTRACT,
                 abi: GET_CLAIM_CONDITION_ABI,
                 calls: pairs.map((p) => ({ params: [p.tokenId, p.conditionId] })),
-                permitFailure: true,
             });
 
             const priceByPair = new Map<string, { price: bigint; currency: string }>();
             pairs.forEach((p, i) => {
                 const c = conditions[i];
-                if (!c) return;
+                if (!c) throw new Error(`hoodfrens: unresolved pack claim condition (token ${p.tokenId}, index ${p.conditionId})`);
                 priceByPair.set(pairKey(p.tokenId, p.conditionId), {
                     price: BigInt(c.pricePerToken),
                     currency: String(c.currency).toLowerCase(),
@@ -158,25 +164,31 @@ const fetch = async (options: FetchOptions) => {
 
             for (const log of claimLogs) {
                 const cond = priceByPair.get(pairKey(log.tokenId, log.claimConditionIndex));
-                if (!cond) continue;
+                if (!cond) throw new Error(`hoodfrens: missing price for pack claim (token ${log.tokenId}, index ${log.claimConditionIndex})`);
                 if (cond.currency === NATIVE_ETH) cond.currency = NULL_ADDRESS;
                 const paid = cond.price * BigInt(log.quantityClaimed);
                 if (paid === 0n) continue;
-                dailyVolume.add(cond.currency, paid);
+                dailyVolume.add(cond.currency, paid, 'Pack Sales');
                 dailyFees.add(cond.currency, paid, 'Pack Sales');
             }
         }
     }
 
+    // Revenue = fees kept in-protocol: everything not paid out to referrers or
+    // creators (i.e. protocol treasury + the prize pool that goes to holders).
     const revenue = await dailyFees.getUSDValue() - await dailySupplySideRevenue.getUSDValue();
     dailyRevenue.addUSDValue(revenue, METRIC.PROTOCOL_FEES);
+    // Protocol's own cut = revenue minus the holders' share (the prize pool).
+    const holders = await dailyHoldersRevenue.getUSDValue();
+    dailyProtocolRevenue.addUSDValue(revenue - holders, METRIC.PROTOCOL_FEES);
 
     return {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
         dailySupplySideRevenue,
     };
 };
@@ -185,12 +197,17 @@ const methodology = {
     Volume: "Gross ETH traded on card buys/sells plus pack shop primary mint sales",
     Fees: "Trading fees on buy/sell plus the full value of pack shop primary mints (no holder/creator split on packs)",
     UserFees: "Total ETH paid by users — trading fees plus pack shop purchase prices",
-    Revenue: "Part of fees retained by the protocol (trading fees minus prize/referral/creator payouts, plus 100% of pack sales)",
-    ProtocolRevenue: "All the revenue goes to the protocol",
-    SupplySideRevenue: "Referral rewards, prize pool rewards, and creator rewards (trading only — packs do not split)",
+    Revenue: "Fees retained in-protocol — protocol treasury plus the prize pool paid to card holders, plus 100% of pack sales (excludes referral/creator payouts)",
+    ProtocolRevenue: "The protocol's own cut — revenue minus the prize pool distributed to holders",
+    HoldersRevenue: "Prize pool distributed to users holding fractional shares of creator cards",
+    SupplySideRevenue: "Referral rewards and creator rewards (trading only — packs do not split)",
 };
 
 const breakdownMethodology = {
+    Volume: {
+        'Trading Volume': "Gross ETH traded on card buys/sells",
+        'Pack Sales': "Pack shop primary mints — quantity × claim-condition price",
+    },
     Fees: {
         [METRIC.TRADING_FEES]: "Trading fees paid by users",
         'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
@@ -200,14 +217,16 @@ const breakdownMethodology = {
         'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
     },
     Revenue: {
-        [METRIC.PROTOCOL_FEES]: "Part of fees retained by the protocol",
+        [METRIC.PROTOCOL_FEES]: "Fees retained in-protocol (protocol treasury + prize pool), plus pack sales",
     },
     ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "All the revenue goes to the protocol",
+        [METRIC.PROTOCOL_FEES]: "The protocol's own cut after the holders' prize-pool share",
+    },
+    HoldersRevenue: {
+        'Prize Pool Rewards': "Prize pool rewards paid to users holding fractional shares of creator cards",
     },
     SupplySideRevenue: {
         'Referral Rewards': "Referral rewards paid to referrers",
-        'Prize Pool Rewards': "Prize pool rewards paid to users holding fractional shares of creator cards",
         [METRIC.CREATOR_FEES]: "Creator fees paid to the card's creator — a configurable share of each sell",
     },
 };
@@ -220,7 +239,7 @@ const adapter: SimpleAdapter = {
     start: "2026-07-11", // contract deploy block 7003890
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true, // direct prize deposits + prize/referral/creator payouts can exceed same-window fees
+    allowNegativeValue: true, // direct prize deposits (holders revenue) can exceed the day's protocol cut → negative protocol revenue
 };
 
 export default adapter;
