@@ -56,6 +56,7 @@ function getProtocolActiveUsersAdapter(item: typeof routers[0]): Adapter {
     chains: item.chains.concat([CHAIN.CHAIN_GLOBAL]),
     fetch: fetch as any,
     prefetch: prefetch as any,
+    deadFrom: (item as any).deadFrom,
   }
 }
 
@@ -84,6 +85,7 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
     chains: item.chains.concat([CHAIN.CHAIN_GLOBAL]),
     fetch: fetch as any,
     prefetch: prefetch as any,
+    deadFrom: (item as any).deadFrom,
   }
 }
 
@@ -106,6 +108,7 @@ function getChainActiveUsersAdapter(item: typeof chains[0]): Adapter {
     fetch: fetch as any,
     protocolType: ProtocolType.CHAIN,
     start: (item as any).start,
+    deadFrom: (item as any).deadFrom,
   }
 }
 
@@ -126,5 +129,6 @@ function getChainNewUsersAdapter(item: typeof chains[0]): Adapter {
     fetch: fetch as any,
     protocolType: ProtocolType.CHAIN,
     start: (item as any).start,
+    deadFrom: (item as any).deadFrom,
   }
 }

@@ -24,6 +24,7 @@ const sushiV3Configs: Record<string, { factory: string, start: string }> = {
   [CHAIN.SCROLL]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-09-20" },
   [CHAIN.SONIC]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-12-25" },
   [CHAIN.KATANA]: { factory: "0x203e8740894c8955cb8950759876d7e7e45e04c1", start: "2025-07-01" },
+  [CHAIN.ROBINHOOD]: { factory: "0xE51960f1B45f1C9FB6D166E6a884F866fC70433B", start: "2026-07-10"},
 
   // bad rpc chains
   // [CHAIN.FUSE]: { factory: "0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa", start: "2023-04-03" },

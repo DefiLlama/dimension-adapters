@@ -88,7 +88,7 @@ export const chainConfigMap: any = {
   [CHAIN.EDU_CHAIN]: { CGToken: 'EDU', explorer: 'https://educhain.blockscout.com/' },
   [CHAIN.ETHEREAL]: { CGToken: 'ethena-usde', explorer: 'https://explorer.ethereal.trade/' },
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
-  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/' },
+  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/', deadFrom: '2026-05-21' },
   [CHAIN.FLYNET]: { CGToken: 'F2', explorer: 'https://explorer.flynet.org/' },
   [CHAIN.HPP]: { CGToken: 'ethereum', explorer: 'https://explorer.hpp.io/' },
   [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
@@ -150,6 +150,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
   [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', allStatsApi: 'https://b3.calderaexplorer.xyz/stats', start: '2024-07-30' },
   [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
+  [CHAIN.EDEN]: { explorer: 'https://eden.blockscout.com', CGToken: 'celestia', allStatsApi: 'https://eden.blockscout.com/stats-service', start: '2026-01-16', burnRatio: 0 },
 }
 
 function getTimeString(timestamp: number) {

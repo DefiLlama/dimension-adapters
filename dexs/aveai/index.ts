@@ -97,7 +97,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Total USD volume processed by ave.ai router contracts.",
+  Volume: "Total USD value of the swaps ave.ai routes through underlying DEXs. Double-counted, since those same swaps are also reported by the DEXs that actually execute them.",
 };
 
 const adapter: SimpleAdapter = {
@@ -105,6 +105,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
+  doublecounted: true,
   methodology,
 };
 

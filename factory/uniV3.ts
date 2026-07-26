@@ -406,6 +406,18 @@ const configs: Record<string, Record<string, any>> = {
   "robinswap-v3": {
     [CHAIN.ROBINHOOD]: { factory: "0xea561e058313b96011e5070ca7d0f027a44e3748", start: "2026-07-09", userFeesRatio: 1, revenueRatio: 1 / 7, protocolRevenueRatio: 1 / 7 },
   },
+  "parityswap-v3": {
+    [CHAIN.ROBINHOOD]: { factory: "0xd479E71C45aEB1E846A7B549c346D62fE77B39bA", start: "2026-07-20", userFeesRatio: 1, revenueRatio: 1 / 4, protocolRevenueRatio: 1 / 4 },
+  },
+  'sheriff-v3': { 
+    [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
+  },
+  'giga-dex-cl': {
+    [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
+  },
+  "swaphood-v3": {
+    [CHAIN.ROBINHOOD]: { factory: "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7", start: "2026-07-10", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.05, holdersRevenueRatio: 0.95 },
+  },
 
 }
 

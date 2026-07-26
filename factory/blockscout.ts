@@ -130,6 +130,7 @@ const protocolChainMap: Record<string, string> = {
   "shido": CHAIN.SHIDO,
   "b3": CHAIN.B3,
   "degen": CHAIN.DEGEN,
+  "eden-chain": CHAIN.EDEN,
   "bsquared": CHAIN.BSQUARED,
 }
 

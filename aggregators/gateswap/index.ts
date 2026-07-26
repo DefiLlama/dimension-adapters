@@ -14,6 +14,7 @@ const GATE_SWAP_ROUTER_ZKSYNC = "0x00000000599e65803D946115C7f817E2e8C7656a";
 // Alpha routers by chain
 const ALPHA_ROUTER = "0x000000003d55f1535A0116376858e6008De1435a"; // ETH,BSC,Base,ARB,OP,AVAX,Polygon,Bera,GateLayer,ENI,WC
 const ALPHA_ROUTER_LINEA = "0xefE7a50f92b089B06d0e6cbCC85D7584424921B2";
+const ALPHA_ROUTER_ROBINHOOD = "0x0000000055eC25287227AA8693471eE5f89221BE";
 const ALPHA_ROUTER_ZKSYNC = "0xc438733Eb259D18bCA253495b209C3cd82B73902";
 
 const EVENT_SWAP_DETAIL = "event SwapDetail(uint256 amountIn,uint256 amountOut,address tokenIn,address tokenOut,address sender,address receiver)";
@@ -40,6 +41,7 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.ENI]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.SONIC]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.POLYGON]: { start: "2026-03-04", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
+  [CHAIN.ROBINHOOD]: { start: "2026-07-15", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER_ROBINHOOD] },
   [CHAIN.WC]: { start: "2026-02-28", routers: [GATE_SWAP_ROUTER], alphaRouters: [ALPHA_ROUTER] },
   [CHAIN.ERA]: { start: "2025-09-01", routers: [GATE_SWAP_ROUTER_ZKSYNC], alphaRouters: [ALPHA_ROUTER_ZKSYNC] },
 };
@@ -117,8 +119,7 @@ async function fetchSolana(options: FetchOptions) {
 const evmAdapter = Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }]));
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
