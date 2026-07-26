@@ -149,6 +149,13 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultV2Owners: ['0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD'],
         start: '2025-12-22'
       },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: [
+          '0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD',
+          '0x9B97783B747c51b39c3d320050dc9C512868dAa8',
+        ],
+        start: '2025-12-23',
+      },
     },
   },
   "keyring": {
