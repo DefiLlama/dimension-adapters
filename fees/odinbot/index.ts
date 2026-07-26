@@ -5,7 +5,7 @@ import { queryAllium } from "../../helpers/allium"
 import { METRIC } from "../../helpers/metrics"
 
 //https://docs.odinbot.io/tracking-academy/how-to-look-at-your-fees
-const FEE_RECIPIENT = "oDinBoTPS3Pz5gBv3FSTkPZXTyN3v7bZo6A2b3dooNP"
+const FEE_RECIPIENTS = ["oDinBoTPS3Pz5gBv3FSTkPZXTyN3v7bZo6A2b3dooNP", "HGgT2s5ZWWDrLWMKkSgSLKwt2YpTmRLVPLxFhStRRaEV", "MvVPcaHhXpuNE8zX67Z53QLqmyYQxWfhRDW9bMYZtK5"]
 const SOL_MINT = ADDRESSES.solana.SOL
 const REFERRAL_FEE_LABEL = "Referral Fees"
 
@@ -14,7 +14,8 @@ async function fetch(options: FetchOptions) {
     WITH protocol_fees AS (
       SELECT txn_id, raw_amount AS protocol_amount
       FROM solana.assets.transfers
-      WHERE to_address = '${FEE_RECIPIENT}'
+      WHERE to_address IN ('${FEE_RECIPIENTS.join("', '")}')
+        AND from_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
         AND mint = '${SOL_MINT}'
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ),
@@ -23,7 +24,8 @@ async function fetch(options: FetchOptions) {
       FROM solana.assets.transfers r
       INNER JOIN protocol_fees p ON r.txn_id = p.txn_id
       WHERE r.mint = '${SOL_MINT}'
-        AND r.to_address != '${FEE_RECIPIENT}'
+        AND r.from_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
+        AND r.to_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
         AND ABS(r.raw_amount - ROUND(p.protocol_amount * 40.0 / 60.0)) <= 1
         AND r.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND r.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
@@ -78,12 +80,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
-  start: "2025-09-30",
+  start: "2024-03-01",
   methodology,
   breakdownMethodology,
 }
