@@ -150,11 +150,17 @@ const configs: Record<string, CuratorConfig> = {
         start: '2025-12-22'
       },
       [CHAIN.MONAD]: {
+        // Morpho V2 initialOwners, read from the indexed `owner` topic of CreateVaultV2 on factory
+        // 0x8B2F922162FBb60A6a072cC784A2E4168fB0bb0c (not owner(), which has since moved to 0xEe7E...18C8):
+        //   0xC56E...40fD — "hyperUSDCa" (0x7899...F371, fee 0%), "satUSDC" (0x7575...C079, fee 8%), "hyperAUSDd" (0x024C...9614, dust)
+        //   0x9B97...dAa8 — "hypercbBTCa" (0xe09A...8Ea0, fee 10%)
+        // all four curated by 0x75178137D3B4B9A0F771E0e149b00fB8167BA325, which Morpho's curator registry
+        // returns as Hyperithm on chainId 143, the same address it lists for chainIds 1 / 42161 / 747474
         morphoVaultV2Owners: [
           '0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD',
           '0x9B97783B747c51b39c3d320050dc9C512868dAa8',
         ],
-        start: '2025-12-23',
+        start: '2025-12-23', // hyperAUSDd creation, earliest of the four
       },
     },
   },
