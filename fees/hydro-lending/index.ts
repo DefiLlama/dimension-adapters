@@ -1,10 +1,12 @@
 import BigNumber from "bignumber.js";
+import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
 
 // https://docs.hydroprotocol.finance/lending
+// no public Injective archival LCD to supports historical block-height queries
 const LOAN_CONTRACT = "inj1nuw6ala2ra7t457tg4g04k67r94v55mdyq9klr";
 const INJECTIVE_LCD = "https://lcd.injective.network";
 
@@ -57,8 +59,9 @@ const fetch = async (options: FetchOptions) => {
     startAfter = page.asset_states[page.asset_states.length - 1].denom;
   } while (true);
 
-  await Promise.all(
-    asset_states.map(async (assetState) => {
+  await PromisePool.withConcurrency(3)
+    .for(asset_states)
+    .process(async (assetState) => {
       const debtAmount = new BigNumber(assetState.debt.amount);
       if (debtAmount.isZero()) return;
 
@@ -76,8 +79,7 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.add(address, dailyInterest.toString(), METRIC.BORROW_INTEREST);
       dailyRevenue.add(address, protocolFee.toString(), METRIC.PROTOCOL_FEES);
       dailySupplySideRevenue.add(address, supplySide.toString(), METRIC.BORROW_INTEREST);
-    })
-  );
+    });
 
   return {
     dailyFees,
@@ -114,6 +116,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.INJECTIVE],
   fetch,
   start: "2024-09-01",
+  runAtCurrTime: true,
   methodology,
   breakdownMethodology,
 };
