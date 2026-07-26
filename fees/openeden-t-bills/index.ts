@@ -35,6 +35,7 @@ const depositEvents = [
 const CHAIN_CONFIGS: any = {
   [CHAIN.ETHEREUM]: "0xdd50C053C096CB04A3e3362E2b622529EC5f2e8a",
   [CHAIN.ARBITRUM]: "0xF84D28A8D28292842dD73D1c5F99476A80b6666A",
+  [CHAIN.BSC]: "0x5b4681F0d7A01B817675F25892D3Ad73572FD1D9",
   [CHAIN.SOLANA]: "4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6",
   [CHAIN.RIPPLE]: {
     ACCOUNT: 'rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn',
@@ -126,6 +127,11 @@ const adapter: Adapter = {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
       start: '2024-02-13',
+    },
+    [CHAIN.BSC]: {
+      fetch: (options: FetchOptions) =>
+        fetch(CHAIN_CONFIGS[CHAIN.BSC], options),
+      start: '2026-05-25',
     },
     [CHAIN.RIPPLE]: {
       fetch: (options: FetchOptions) =>
