@@ -5,6 +5,7 @@ import { queryAllium } from "../../helpers/allium"
 import { METRIC } from "../../helpers/metrics"
 
 //https://docs.odinbot.io/tracking-academy/how-to-look-at-your-fees
+//https://dune.com/queries/4285625
 const FEE_RECIPIENTS = ["oDinBoTPS3Pz5gBv3FSTkPZXTyN3v7bZo6A2b3dooNP", "HGgT2s5ZWWDrLWMKkSgSLKwt2YpTmRLVPLxFhStRRaEV", "MvVPcaHhXpuNE8zX67Z53QLqmyYQxWfhRDW9bMYZtK5"]
 const SOL_MINT = ADDRESSES.solana.SOL
 const REFERRAL_FEE_LABEL = "Referral Fees"
