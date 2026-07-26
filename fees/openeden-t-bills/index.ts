@@ -13,7 +13,7 @@ const eventAbi = `event ProcessDeposit(
   uint256 assets,
   uint256 shares,
   uint256 oeFee,
-  uint256 pFee,
+  int256 pFee,
   uint256 totalFee,
   address oplTreasury,
   address treasury
@@ -62,7 +62,10 @@ const fetch = async (
     dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES, METRIC.MANAGEMENT_FEES);
 
     logs.forEach((log) => {
-      const feeAmount = log[4];
+      // totalFee is the amount actually transferred to oplTreasury. oeFee is the
+      // pre-rebate gross figure and is often much larger than what is collected,
+      // because a negative partnership fee (pFee) can cancel it out entirely.
+      const feeAmount = log[6];
       dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount, "Transaction Fees");
     });
   }
@@ -73,24 +76,24 @@ const fetch = async (
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions (the totalFee routed to oplTreasury). Base rate is 5 basis points, reduced or waived by a negative partnership fee where one applies.',
   },
   Revenue: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions (the totalFee routed to oplTreasury). Base rate is 5 basis points, reduced or waived by a negative partnership fee where one applies.',
   },
   ProtocolRevenue: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions (the totalFee routed to oplTreasury). Base rate is 5 basis points, reduced or waived by a negative partnership fee where one applies.',
   },
 }
 
 
 const adapter: Adapter = {
   methodology: {
-    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the OpenEden transaction fee (oeFee) of 5 basis points charged on subscriptions/redemptions used to cover operational costs.',
-    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
-    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and transaction fees (5 basis points) charged on subscriptions/redemptions used to cover operational costs.',
+    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership rebate).',
+    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership rebate).',
+    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership rebate).',
   },
   breakdownMethodology,
   version: 2,
