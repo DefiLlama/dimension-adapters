@@ -28,6 +28,11 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2025-12-12',
+    // The CLMM program 6dMXqGZ3ga2dikrYS9ovDXgHGh5RUsb2RTUj6hrQXhk6 is still
+    // deployed but its last transaction was 2026-06-30. mclmm-api.stabble.org
+    // now 404s on every path including the root, so there is nothing left to
+    // read. The AMM (dexs/stabble) is unaffected and still reporting.
+    deadFrom: '2026-06-30',
 };
 
 export default adapter;
