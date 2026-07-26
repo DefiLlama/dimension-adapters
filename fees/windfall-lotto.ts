@@ -30,43 +30,25 @@ const WINDFALL_LOTTO =
 const WINDFALL_FEE_SHARE =
   "0x8d1e76657F469932Dd04d0Bad2f0FCE0bbDb22a5";
 
-/**
- * Polygon PoS DAI used for tickets, jackpots, fees and prize payments.
- */
+/** Polygon PoS DAI used for tickets, jackpots, fees and prize payments. */
 const POLYGON_DAI =
   "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
 
 /**
  * Start boundary for the current production deployment.
- *
- * Source: first production activity of the deployed WindfallLotto system
- * on Polygon.
+ * Source: first production activity of the deployed WindfallLotto system.
  */
 const START_DATE = "2026-04-05";
 
-/**
- * Maximum donor shareholder count defined by WindfallFeeShare.
- *
- * The host treasury is separate from this donor limit.
- */
+/** Maximum donor shareholder count defined by WindfallFeeShare. */
 const MAX_DONOR_SHAREHOLDERS = 200n;
 
-/**
- * Breakdown labels.
- *
- * Every label used in a Balances.add() call is documented in
- * breakdownMethodology below.
- */
 const METRIC = {
   DISTRIBUTED_TICKET_FEES: "Distributed Ticket Fees",
   HOST_TREASURY_SHARE: "Host Treasury Share",
   DONOR_SHAREHOLDER_PAYOUTS: "Donor Shareholder Payouts",
 } as const;
 
-/**
- * Emitted by WindfallFeeShare when the accumulated fee for a draw is
- * allocated between hostTreasury and active donor shareholders.
- */
 const FEE_DISTRIBUTED_EVENT =
   "event FeeDistributed(uint256 amount, uint256 activeShares, uint256 sharePerMember, uint256 remainderToHost)";
 
@@ -76,18 +58,11 @@ type ShareSplit = {
 };
 
 /**
- * Reconstructs the unique donor/host share split represented by
- * FeeDistributed.activeShares.
+ * Reconstructs the unique donor/host share split represented by activeShares.
  *
- * The deployed contract calculates:
- *
+ * Deployed formula:
  *   hostShares = max(1, ceil(activeDonors / 20))
  *   activeShares = activeDonors + hostShares
- *
- * Because FeeDistributed does not emit activeDonors or hostShares separately,
- * all donor counts permitted by the deployed contract are evaluated.
- *
- * Exactly one candidate must satisfy the deployed formula.
  */
 function deriveShareSplit(activeShares: bigint): ShareSplit {
   const candidates: ShareSplit[] = [];
@@ -98,15 +73,10 @@ function deriveShareSplit(activeShares: bigint): ShareSplit {
     activeDonors++
   ) {
     const hostShares =
-      activeDonors === 0n
-        ? 1n
-        : (activeDonors + 19n) / 20n;
+      activeDonors === 0n ? 1n : (activeDonors + 19n) / 20n;
 
     if (activeDonors + hostShares === activeShares) {
-      candidates.push({
-        activeDonors,
-        hostShares,
-      });
+      candidates.push({ activeDonors, hostShares });
     }
   }
 
@@ -138,18 +108,8 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   /**
-   * All income-statement metrics are recognized from FeeDistributed.
-   *
-   * This keeps the following identity true in every fetch period:
-   *
-   *   dailyFees
-   *   =
-   *   dailyRevenue
-   *   +
-   *   dailySupplySideRevenue
-   *
-   * Ticket purchases may occur earlier, but their fee is accumulated by the
-   * draw and only becomes fully allocated when FeeDistributed is emitted.
+   * All income-statement metrics are recognized from FeeDistributed so that:
+   * dailyFees = dailyRevenue + dailySupplySideRevenue in every fetch period.
    */
   const distributionLogs = await options.getLogs({
     target: WINDFALL_FEE_SHARE,
@@ -174,23 +134,11 @@ const fetch = async (options: FetchOptions) => {
       );
     }
 
-    /**
-     * Validate and reconstruct the host/donor split using the deployed
-     * contract formula.
-     */
-    const { activeDonors, hostShares } =
-      deriveShareSplit(activeShares);
+    const { activeDonors, hostShares } = deriveShareSplit(activeShares);
 
     /**
-     * Validate the aggregate values emitted by FeeDistributed:
-     *
-     *   amount
-     *   =
-     *   sharePerMember × activeShares
-     *   +
-     *   remainderToHost
-     *
-     * The split itself is validated separately by deriveShareSplit().
+     * Validate only the aggregate values emitted by FeeDistributed.
+     * The host/donor split is validated separately by deriveShareSplit().
      */
     const reconstructedAmount =
       sharePerMember * activeShares + remainderToHost;
@@ -209,55 +157,20 @@ const fetch = async (options: FetchOptions) => {
     }
 
     /**
-     * hostTreasury receives all host shares plus the integer-division
-     * remainder.
+     * Decompose the already validated distribution using the uniquely
+     * reconstructed host/donor share counts.
      */
     const hostTreasuryRevenue =
       sharePerMember * hostShares + remainderToHost;
 
-    /**
-     * Every active donor shareholder receives one distribution share.
-     */
-    const donorShareholderPayouts =
-      sharePerMember * activeDonors;
+    const donorShareholderPayouts = sharePerMember * activeDonors;
 
-    /**
-     * Verify the income-statement split:
-     *
-     *   gross fees
-     *   =
-     *   protocol revenue
-     *   +
-     *   supply-side payouts
-     */
-    if (
-      hostTreasuryRevenue + donorShareholderPayouts !==
-      amount
-    ) {
-      throw new Error(
-        [
-          "Windfall Lotto income statement mismatch.",
-          `amount=${amount}`,
-          `hostTreasuryRevenue=${hostTreasuryRevenue}`,
-          `donorShareholderPayouts=${donorShareholderPayouts}`,
-          `activeDonors=${activeDonors}`,
-          `hostShares=${hostShares}`,
-        ].join(" "),
-      );
-    }
-
-    /**
-     * Gross protocol fees recognized during this distribution period.
-     */
     dailyFees.add(
       POLYGON_DAI,
       amount,
       METRIC.DISTRIBUTED_TICKET_FEES,
     );
 
-    /**
-     * Revenue retained by the protocol/host treasury.
-     */
     if (hostTreasuryRevenue > 0n) {
       dailyRevenue.add(
         POLYGON_DAI,
@@ -272,9 +185,6 @@ const fetch = async (options: FetchOptions) => {
       );
     }
 
-    /**
-     * Revenue paid to active donor shareholders.
-     */
     if (donorShareholderPayouts > 0n) {
       dailySupplySideRevenue.add(
         POLYGON_DAI,
@@ -296,16 +206,12 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees:
     "Gross accumulated ticket fees recognized when WindfallFeeShare emits FeeDistributed. Recognition is aligned with the allocation period so gross fees equal protocol revenue plus supply-side revenue in every reporting window.",
-
   UserFees:
     "The accumulated 10% fees originally generated by paid Windfall Lotto ticket purchases and recognized when they are distributed.",
-
   Revenue:
     "The portion of each FeeDistributed amount allocated to hostTreasury. Donor shareholder payouts are excluded and classified as supply-side revenue.",
-
   ProtocolRevenue:
     "The hostTreasury allocation, including all host shares and the integer-division remainder assigned exclusively to the host.",
-
   SupplySideRevenue:
     "The portion of each FeeDistributed amount allocated to active donor shareholders. Each active donor receives one distribution share.",
 };
@@ -315,22 +221,18 @@ const breakdownMethodology = {
     [METRIC.DISTRIBUTED_TICKET_FEES]:
       "The complete accumulated ticket-fee amount allocated by a FeeDistributed event.",
   },
-
   UserFees: {
     [METRIC.DISTRIBUTED_TICKET_FEES]:
       "Accumulated 10% ticket-purchase fees recognized at distribution.",
   },
-
   Revenue: {
     [METRIC.HOST_TREASURY_SHARE]:
       "The portion of distributed ticket fees allocated to hostTreasury, including host shares and the integer-division remainder.",
   },
-
   ProtocolRevenue: {
     [METRIC.HOST_TREASURY_SHARE]:
       "The distributed fee amount retained by hostTreasury as protocol revenue.",
   },
-
   SupplySideRevenue: {
     [METRIC.DONOR_SHAREHOLDER_PAYOUTS]:
       "The distributed fee amount paid to active donor shareholders.",
@@ -340,11 +242,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-
   fetch,
   chains: [CHAIN.POLYGON],
   start: START_DATE,
-
   methodology,
   breakdownMethodology,
 };
