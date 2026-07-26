@@ -5,25 +5,29 @@ import { queryAllium } from "../../helpers/allium"
 import { METRIC } from "../../helpers/metrics"
 
 //https://docs.odinbot.io/tracking-academy/how-to-look-at-your-fees
-const FEE_RECIPIENT = "oDinBoTPS3Pz5gBv3FSTkPZXTyN3v7bZo6A2b3dooNP"
+//https://dune.com/queries/4285625
+const FEE_RECIPIENTS = ["oDinBoTPS3Pz5gBv3FSTkPZXTyN3v7bZo6A2b3dooNP", "HGgT2s5ZWWDrLWMKkSgSLKwt2YpTmRLVPLxFhStRRaEV", "MvVPcaHhXpuNE8zX67Z53QLqmyYQxWfhRDW9bMYZtK5"]
 const SOL_MINT = ADDRESSES.solana.SOL
 const REFERRAL_FEE_LABEL = "Referral Fees"
 
 async function fetch(options: FetchOptions) {
   const [{ protocol_fees, referral_fees }] = await queryAllium(`
     WITH protocol_fees AS (
-      SELECT txn_id, raw_amount AS protocol_amount
+      SELECT txn_id, SUM(raw_amount) AS protocol_amount
       FROM solana.assets.transfers
-      WHERE to_address = '${FEE_RECIPIENT}'
+      WHERE to_address IN ('${FEE_RECIPIENTS.join("', '")}')
+        AND from_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
         AND mint = '${SOL_MINT}'
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      GROUP BY txn_id
     ),
     referral_fees AS (
       SELECT r.raw_amount
       FROM solana.assets.transfers r
       INNER JOIN protocol_fees p ON r.txn_id = p.txn_id
       WHERE r.mint = '${SOL_MINT}'
-        AND r.to_address != '${FEE_RECIPIENT}'
+        AND r.from_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
+        AND r.to_address NOT IN ('${FEE_RECIPIENTS.join("', '")}')
         AND ABS(r.raw_amount - ROUND(p.protocol_amount * 40.0 / 60.0)) <= 1
         AND r.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND r.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
@@ -51,8 +55,8 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
-  UserFees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
+  Fees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
+  UserFees: "Odinbot charges a 1% fee on copy-trades (min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades). Total fees are the protocol share received by the Odin fee wallet plus affiliate payouts in the same transaction.",
   Revenue: "The 60% (100% if no referral code is applied) protocol share of Odinbot trading fees retained after affiliate payouts.",
   ProtocolRevenue: "The 60% (100% if no referral code is applied) protocol share of Odinbot trading fees retained after affiliate payouts.",
   SupplySideRevenue: "The 40% affiliate commission paid to referrers in the same transaction, if a referral code is applied.",
@@ -60,10 +64,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL, including affiliate payouts.",
+    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades, including affiliate payouts.",
   },
   UserFees: {
-    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL, including affiliate payouts.",
+    [METRIC.TRADING_FEES]: "1% of trade value, min 0.001 SOL for spot copy trades and 0.1% of position size for perpetual copy trades, including affiliate payouts.",
   },
   Revenue: {
     [METRIC.TRADING_FEES]: "60% (100% if no referral code is applied) protocol share of Odinbot trading fees.",
@@ -78,12 +82,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
-  start: "2025-09-30",
+  start: "2024-03-01",
   methodology,
   breakdownMethodology,
 }
