@@ -2,58 +2,65 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 /**
- * Windfall Lotto core contract on Polygon.
+ * WindfallLotto core contract on Polygon.
  *
  * Role:
  * - Receives DAI ticket payments.
- * - Accumulates the 10% ticket fee inside each draw.
  * - Emits one TicketBought event for every paid ticket.
- * - Transfers the accumulated fee to WindfallFeeShare after draw finalization.
+ * - Accumulates the 10% host fee for each draw.
+ * - Transfers accumulated fees to WindfallFeeShare after draw finalization.
  *
- * Source:
+ * Deployment/start source:
+ * - Current Polygon production deployment.
+ * - Start boundary: 2026-04-05, corresponding to the current deployment's
+ *   first production activity.
+ *
+ * Contract source:
  * https://github.com/windfall-lotto/windfall-lotto.eth/blob/main/contracts/WindfallLotto.sol
  */
 const WINDFALL_LOTTO =
   "0x9650D206c6e0093FBc1D623b2A1e03984D24d3f1";
 
 /**
- * Windfall FeeShare contract on Polygon.
+ * WindfallFeeShare distribution contract on Polygon.
  *
  * Role:
- * - Receives accumulated ticket fees from WindfallLotto.
- * - Allocates revenue between hostTreasury and active donor shareholders.
- * - Emits FeeDistributed with the distribution parameters.
+ * - Receives accumulated draw fees from WindfallLotto.
+ * - Allocates host shares to hostTreasury.
+ * - Allocates one share to each active donor shareholder.
+ * - Assigns integer-division remainders to hostTreasury.
  *
- * Source:
+ * Deployment/start source:
+ * - Current Polygon production deployment used by WINDFALL_LOTTO.
+ *
+ * Contract source:
  * https://github.com/windfall-lotto/windfall-lotto.eth/blob/main/contracts/WindfallFeeShare.sol
  */
 const WINDFALL_FEE_SHARE =
   "0x8d1e76657F469932Dd04d0Bad2f0FCE0bbDb22a5";
 
 /**
- * Polygon PoS DAI used for tickets, jackpot funds, fees and payouts.
+ * Polygon PoS DAI used for ticket payments, jackpot accounting,
+ * protocol fees and prize payouts.
  */
 const POLYGON_DAI =
   "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
 
 /**
- * Current deployment start boundary.
+ * First production date for the current WindfallLotto deployment.
  *
- * This should be the UTC date of the first production TicketBought event
- * emitted by the currently deployed WindfallLotto contract.
- *
- * Source: Polygon on-chain production activity for WINDFALL_LOTTO.
+ * Source: first production activity for WINDFALL_LOTTO on Polygon.
  */
 const START_DATE = "2026-04-05";
 
 /**
- * Contract constants reproduced from WindfallLotto:
+ * Constants reproduced from the deployed WindfallLotto contract:
  *
- * TICKET_PRICE = 1e18
+ * TICKET_PRICE = 1e18 DAI units
  * HOST_FEE_BPS = 1000
  * BPS = 10000
  *
- * Therefore, each paid ticket generates:
+ * Fee per ticket:
  *
  * 1 DAI × 10% = 0.1 DAI
  */
@@ -66,24 +73,33 @@ const FEE_PER_TICKET =
 
 /**
  * Maximum number of donor shareholders permitted by WindfallFeeShare.
- *
- * The host is excluded from this limit.
+ * hostTreasury is separate from this limit.
  */
 const MAX_DONOR_SHAREHOLDERS = 200n;
 
 /**
- * WindfallLotto emits exactly one TicketBought event for each paid ticket.
+ * Breakdown labels.
  *
- * buyTicket emits it once.
- * buyTickets emits it once per ticket inside its loop and then emits a separate
- * TicketsBought batch summary. The batch summary must not be counted because
- * doing so would double-count batch purchases.
+ * These labels must match the corresponding breakdownMethodology keys.
+ */
+const METRIC = {
+  TICKET_PURCHASE_FEES: "Ticket Purchase Fees",
+  HOST_TREASURY_SHARE: "Host Treasury Share",
+  DONOR_SHAREHOLDER_PAYOUTS: "Donor Shareholder Payouts",
+} as const;
+
+/**
+ * WindfallLotto emits one TicketBought event for each paid ticket.
+ *
+ * buyTickets emits this event once per ticket in its loop and also emits a
+ * TicketsBought batch summary. Only TicketBought is counted to avoid
+ * double-counting batch purchases.
  */
 const TICKET_BOUGHT_EVENT =
   "event TicketBought(uint32 indexed drawId, uint256 indexed ticketId, address indexed buyer, uint8[5] numbers)";
 
 /**
- * Emitted by WindfallFeeShare after an accumulated draw fee is allocated.
+ * Emitted by WindfallFeeShare when accumulated draw fees are distributed.
  */
 const FEE_DISTRIBUTED_EVENT =
   "event FeeDistributed(uint256 amount, uint256 activeShares, uint256 sharePerMember, uint256 remainderToHost)";
@@ -94,20 +110,17 @@ type ShareSplit = {
 };
 
 /**
- * Reconstructs and validates the donor/host share split represented by a
- * FeeDistributed.activeShares value.
+ * Reconstructs the donor/host share split from activeShares.
  *
- * The deployed contract calculates:
+ * The deployed WindfallFeeShare contract calculates:
  *
  *   hostShares = max(1, ceil(activeDonors / 20))
  *   activeShares = activeDonors + hostShares
  *
- * The FeeDistributed event does not emit activeDonors or hostShares separately.
- * To avoid assuming an arbitrary split, this function enumerates every donor
- * count allowed by the deployed contract and requires exactly one valid result.
+ * Because FeeDistributed does not emit activeDonors and hostShares
+ * separately, every permitted activeDonors value is evaluated.
  *
- * This validates the split itself. It is independent from the later aggregate
- * check of the FeeDistributed amount.
+ * Exactly one candidate must satisfy the deployed contract formula.
  */
 function deriveShareSplit(activeShares: bigint): ShareSplit {
   const candidates: ShareSplit[] = [];
@@ -134,9 +147,9 @@ function deriveShareSplit(activeShares: bigint): ShareSplit {
     const candidateDescription = candidates
       .map(
         ({ activeDonors, hostShares }) =>
-          `{ activeDonors: ${activeDonors}, hostShares: ${hostShares} }`,
+          `{activeDonors=${activeDonors},hostShares=${hostShares}}`,
       )
-      .join(", ");
+      .join(",");
 
     throw new Error(
       [
@@ -155,18 +168,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   /*
    * FEES
    *
-   * Fees are recognized when users buy tickets.
+   * Fees are recognized when tickets are purchased.
    *
-   * The main contract emits one TicketBought event per paid ticket. Since the
-   * deployed ticket price and fee percentage are immutable constants, the fee
-   * for the period is:
-   *
-   *   TicketBought count × 0.1 DAI
+   * Each TicketBought event corresponds to one paid 1 DAI ticket and
+   * therefore represents 0.1 DAI in fees.
    */
   const ticketLogs = await options.getLogs({
     target: WINDFALL_LOTTO,
@@ -174,21 +184,33 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const ticketCount = BigInt(ticketLogs.length);
-  const ticketFees = ticketCount * FEE_PER_TICKET;
+  const generatedFees = ticketCount * FEE_PER_TICKET;
 
-  if (ticketFees > 0n) {
-    dailyFees.add(POLYGON_DAI, ticketFees);
+  if (generatedFees > 0n) {
+    dailyFees.add(
+      POLYGON_DAI,
+      generatedFees,
+      METRIC.TICKET_PURCHASE_FEES,
+    );
   }
 
   /*
-   * REVENUE
+   * INCOME ALLOCATION
    *
-   * WindfallLotto accumulates ticket fees inside each draw. The cumulative
-   * amount is transferred to WindfallFeeShare only after the draw reaches
-   * COUNTING_DONE and distribution is triggered.
+   * FeeDistributed is emitted when accumulated draw fees are allocated.
    *
-   * Revenue is therefore recognized from FeeDistributed events, separately
-   * from the original daily fee-generation date.
+   * DeFiLlama classification:
+   *
+   * - hostTreasury allocation:
+   *     dailyRevenue
+   *     dailyProtocolRevenue
+   *
+   * - donor shareholder allocation:
+   *     dailySupplySideRevenue
+   *
+   * Donor shareholders provide capital/participation to the FeeShare system.
+   * Their payouts are therefore treated as supply-side costs rather than
+   * protocol or token-holder revenue.
    */
   const distributionLogs = await options.getLogs({
     target: WINDFALL_FEE_SHARE,
@@ -203,31 +225,24 @@ const fetch = async (options: FetchOptions) => {
 
     if (amount <= 0n) {
       throw new Error(
-        `Windfall Lotto FeeDistributed contains a non-positive amount: ${amount}`,
+        `Windfall Lotto FeeDistributed has invalid amount=${amount}`,
       );
     }
 
     if (activeShares <= 0n) {
       throw new Error(
-        `Windfall Lotto FeeDistributed contains invalid activeShares: ${activeShares}`,
+        `Windfall Lotto FeeDistributed has invalid activeShares=${activeShares}`,
       );
     }
 
-    /*
-     * Independently validate and reconstruct the host/donor split from the
-     * deployed share formula.
-     */
     const { activeDonors, hostShares } =
       deriveShareSplit(activeShares);
 
     /*
-     * Validate only the aggregate event accounting:
+     * Validate the aggregate event fields.
      *
-     *   distributed = sharePerMember × activeShares
-     *   amount = distributed + remainderToHost
-     *
-     * This check does not validate the host/donor split. That validation is
-     * performed separately by deriveShareSplit().
+     * This validates only the total distribution amount. The host/donor
+     * split is validated independently by deriveShareSplit().
      */
     const reconstructedAmount =
       sharePerMember * activeShares + remainderToHost;
@@ -246,55 +261,67 @@ const fetch = async (options: FetchOptions) => {
     }
 
     /*
-     * The deployed contract credits hostTreasury with:
+     * hostTreasury receives:
      *
      *   sharePerMember × hostShares + remainderToHost
      *
-     * Every active donor receives exactly one share.
+     * Active donor shareholders receive:
+     *
+     *   sharePerMember × activeDonors
      */
-    const protocolRevenue =
+    const hostTreasuryRevenue =
       sharePerMember * hostShares + remainderToHost;
 
-    const holdersRevenue =
+    const donorShareholderPayouts =
       sharePerMember * activeDonors;
 
     /*
-     * Category reconciliation.
+     * Confirm that the categories account for the complete distribution.
      *
-     * This is not used to validate hostShares. It confirms that the two
-     * categories produced from the independently validated share split fully
-     * account for the emitted distribution amount.
+     * The validity of hostShares itself does not rely on this check;
+     * hostShares was independently derived by deriveShareSplit().
      */
-    const categorizedRevenue =
-      protocolRevenue + holdersRevenue;
-
-    if (categorizedRevenue !== amount) {
+    if (
+      hostTreasuryRevenue + donorShareholderPayouts !==
+      amount
+    ) {
       throw new Error(
         [
-          "Windfall Lotto revenue category mismatch.",
+          "Windfall Lotto distribution category mismatch.",
           `amount=${amount}`,
-          `categorizedRevenue=${categorizedRevenue}`,
-          `protocolRevenue=${protocolRevenue}`,
-          `holdersRevenue=${holdersRevenue}`,
+          `hostTreasuryRevenue=${hostTreasuryRevenue}`,
+          `donorShareholderPayouts=${donorShareholderPayouts}`,
           `activeDonors=${activeDonors}`,
           `hostShares=${hostShares}`,
         ].join(" "),
       );
     }
 
-    dailyRevenue.add(POLYGON_DAI, amount);
+    /*
+     * Revenue is only the hostTreasury share.
+     */
+    if (hostTreasuryRevenue > 0n) {
+      dailyRevenue.add(
+        POLYGON_DAI,
+        hostTreasuryRevenue,
+        METRIC.HOST_TREASURY_SHARE,
+      );
 
-    if (protocolRevenue > 0n) {
       dailyProtocolRevenue.add(
         POLYGON_DAI,
-        protocolRevenue,
+        hostTreasuryRevenue,
+        METRIC.HOST_TREASURY_SHARE,
       );
     }
 
-    if (holdersRevenue > 0n) {
-      dailyHoldersRevenue.add(
+    /*
+     * Donor shareholder payouts are supply-side revenue/costs.
+     */
+    if (donorShareholderPayouts > 0n) {
+      dailySupplySideRevenue.add(
         POLYGON_DAI,
-        holdersRevenue,
+        donorShareholderPayouts,
+        METRIC.DONOR_SHAREHOLDER_PAYOUTS,
       );
     }
   }
@@ -304,8 +331,52 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
+};
+
+const methodology = {
+  Fees:
+    "The 10% fee generated when users purchase Windfall Lotto tickets. Each TicketBought event represents one paid 1 DAI ticket and therefore 0.1 DAI in fees. Fees are recognized on the ticket-purchase date.",
+
+  UserFees:
+    "The 10% portion of every 1 DAI ticket purchase charged to the user.",
+
+  Revenue:
+    "The portion of distributed ticket fees allocated to hostTreasury. Donor shareholder payouts are excluded from protocol revenue and classified as supply-side revenue.",
+
+  ProtocolRevenue:
+    "The hostTreasury allocation, including all host shares and the integer-division remainder assigned to the host.",
+
+  SupplySideRevenue:
+    "The portion of distributed fees paid to active donor shareholders. Each active donor receives one FeeShare distribution share.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TICKET_PURCHASE_FEES]:
+      "The 10% fee generated from paid Windfall Lotto ticket purchases.",
+  },
+
+  UserFees: {
+    [METRIC.TICKET_PURCHASE_FEES]:
+      "The 10% portion of each 1 DAI ticket price paid by users.",
+  },
+
+  Revenue: {
+    [METRIC.HOST_TREASURY_SHARE]:
+      "The FeeShare distribution allocated to hostTreasury, including host shares and the integer-division remainder.",
+  },
+
+  ProtocolRevenue: {
+    [METRIC.HOST_TREASURY_SHARE]:
+      "The portion retained by hostTreasury as protocol revenue.",
+  },
+
+  SupplySideRevenue: {
+    [METRIC.DONOR_SHAREHOLDER_PAYOUTS]:
+      "The portion of FeeShare distributions paid to active donor shareholders.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -316,22 +387,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.POLYGON],
   start: START_DATE,
 
-  methodology: {
-    Fees:
-      "The 10% fee generated when users purchase Windfall Lotto tickets. The adapter counts individual TicketBought events, with each event representing one paid 1 DAI ticket and 0.1 DAI in fees. Fees are recognized on the ticket-purchase date.",
-
-    UserFees:
-      "The 10% portion of every 1 DAI ticket purchase charged to the user as the Windfall Lotto host fee.",
-
-    Revenue:
-      "Accumulated ticket fees distributed through WindfallFeeShare. Revenue is recognized when the FeeDistributed event is emitted after draw finalization.",
-
-    ProtocolRevenue:
-      "The portion of each FeeDistributed amount allocated to hostTreasury. It consists of the value of all host shares plus the integer-division remainder assigned exclusively to the host.",
-
-    HoldersRevenue:
-      "The portion of each FeeDistributed amount allocated to active donor shareholders. Each active donor receives one share, and hostTreasury shares and remainders are excluded.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
