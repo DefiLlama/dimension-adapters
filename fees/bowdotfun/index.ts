@@ -76,10 +76,16 @@ const fetch = async (options: FetchOptions) => {
     if (!row.pool || !launchedPools.has(row.pool.toLowerCase())) continue;
 
     const amount = toBigInt(row.amount ?? 0);
-    const swapFee =
-      row.side === "sold"
-        ? (amount * FEES.POOL_FEE_BPS) / FEES.BPS
-        : (amount * FEES.POOL_FEE_BPS) / (FEES.BPS - FEES.POOL_FEE_BPS);
+    let swapFee: bigint;
+    if (row.side === "sold") {
+      swapFee = (amount * FEES.POOL_FEE_BPS) / FEES.BPS;
+    } else {
+      // WETH-bought rows are WETH output; grossing up by the pool-fee
+      // denominator is a proxy that assumes symmetric fee accrual across the pair
+      // and may otherwise inflate dailyFees.
+      swapFee = (amount * FEES.POOL_FEE_BPS) / (FEES.BPS - FEES.POOL_FEE_BPS);
+    }
+    // Source: bow.fun docs give creators 35% of collected fees; protocol keeps the remaining 65%.
     const creatorFee = (swapFee * FEES.CREATOR_SHARE_BPS) / FEES.BPS;
     const protocolFee = swapFee - creatorFee;
 
