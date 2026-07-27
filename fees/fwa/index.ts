@@ -1,6 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
 
 const FWA = "0xB276F62DB0ce8CA2Ca5bc522695bE604521eAc1c";
 // Splitter: receives all protocol fees via payoutFees(), splits them between the
@@ -29,9 +28,7 @@ const ABIS = {
   DepositorBidAcceptedAsTokens: "event DepositorBidAcceptedAsTokens(uint256 indexed listingId, address indexed purchaser, address indexed depositor, uint256 ethPayout, uint256 retained, uint256 tokenOut)",
   ProtocolFeesToToken: "event ProtocolFeesToToken(uint256 amount)",
   AcquisitionRequested: "event AcquisitionRequested(uint256 indexed requestId, address indexed purchaser, uint256 acquisitionFee, uint256 totalWeight)",
-  AcquisitionExpired: "event AcquisitionExpired(uint256 indexed requestId, uint64 indexed sequence, address indexed purchaser, uint256 refund)",
-  AcquisitionRefundedNoListing: "event AcquisitionRefundedNoListing(uint256 indexed requestId, address indexed purchaser, uint256 refund)",
-  AcquisitionRefundedSlippage: "event AcquisitionRefundedSlippage(uint256 indexed requestId, address indexed purchaser, uint256 refund, uint256 escrowedFee, uint256 liveFee)",
+  NFTAllocated: "event NFTAllocated(uint256 indexed requestId, uint256 indexed listingId, address indexed purchaser, address depositor, uint256 value, uint256 randomWord)",
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -48,7 +45,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.api.call({ target: SPLITTER, abi: 'uint16:ownerShareBps' }),
   ]);
 
-  const [ownerFees, earnings, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, feesToToken, requested, expired, refundedNoListing, refundedSlippage] = await Promise.all([
+  const [ownerFees, earnings, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, feesToToken, allocated] = await Promise.all([
     options.getLogs({ target: FWA, eventAbi: ABIS.OwnerFeesAccrued }),
     options.getLogs({ target: FWA, eventAbi: ABIS.EarningsAccrued }),
     options.getLogs({ target: FWA, eventAbi: ABIS.TopListingFunded }),
@@ -57,18 +54,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.getLogs({ target: FWA, eventAbi: ABIS.DepositorBidAccepted }),
     options.getLogs({ target: FWA, eventAbi: ABIS.DepositorBidAcceptedAsTokens }),
     options.getLogs({ target: FWA, eventAbi: ABIS.ProtocolFeesToToken }),
-    options.getLogs({ target: FWA, eventAbi: ABIS.AcquisitionRequested }),
-    options.getLogs({ target: FWA, eventAbi: ABIS.AcquisitionExpired }),
-    options.getLogs({ target: FWA, eventAbi: ABIS.AcquisitionRefundedNoListing }),
-    options.getLogs({ target: FWA, eventAbi: ABIS.AcquisitionRefundedSlippage }),
+    options.getLogs({ target: FWA, eventAbi: ABIS.NFTAllocated }),
   ]);
 
-  // Gross pull spend: the full acquisition price minus requests refunded back to the purchaser
-  let grossSpend = 0n;
-  requested.forEach((log: any) => { grossSpend += BigInt(log.acquisitionFee); });
-  let refunds = 0n;
-  [...expired, ...refundedNoListing, ...refundedSlippage].forEach((log: any) => { refunds += BigInt(log.refund); });
-  dailyVolume.addGasToken(grossSpend - refunds);
+  // Pull volume: the escrowed acquisition price of each pull, counted when the VRF settlement
+  // allocates the NFT. NFTAllocated doesn't carry the price, so look it up on the matching 
+  // AcquisitionRequested, fetched with a ~1-day block lookback since a request can settle in a later window.
+  const requested = await options.getLogs({
+    target: FWA,
+    eventAbi: ABIS.AcquisitionRequested,
+    fromBlock: Number(await options.getFromBlock()) - 7_200,
+  });
+  const feeByRequest = new Map<string, bigint>();
+  requested.forEach((log: any) => feeByRequest.set(String(log.requestId), BigInt(log.acquisitionFee)));
+  let pullVolume = 0n;
+  allocated.forEach((log: any) => { pullVolume += feeByRequest.get(String(log.requestId)) ?? 0n; });
+  dailyVolume.addGasToken(pullVolume);
 
   // Quick-sell payouts: ETH returned to purchasers who accept the depositor's standing bid
   // (85% of the listing backing) instead of keeping the NFT — the TCG-buyback analog.
@@ -183,7 +184,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   allowNegativeValue: true, // quick-sell payouts and refunds can exceed same-window pull spend
   fetch,
   chains: [CHAIN.ETHEREUM],
