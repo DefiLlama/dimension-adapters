@@ -247,6 +247,7 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: { start: "2024-08-16" },
     [CHAIN.BASE]: { start: "2024-08-16" },
     [CHAIN.ARBITRUM]: { start: "2024-08-16" },
+    [CHAIN.PLASMA]: { start: "2025-11-21" },
   },
   methodology,
   breakdownMethodology,
