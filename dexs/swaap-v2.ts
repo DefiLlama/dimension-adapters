@@ -139,22 +139,18 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       start: '2024-05-14',
     },
-    [CHAIN.MODE]: {
-      start: '2024-05-02',
-      deadFrom: '2025-12-16',
-    },
-    [CHAIN.SCROLL]: {
-      start: '2024-06-27',
-      deadFrom: '2025-03-05',
-    },
-    [CHAIN.LINEA]: {
-      start: '2024-06-27',
-      deadFrom: '2025-10-26',
-    },
-    [CHAIN.MANTLE]: {
-      start: '2024-06-27',
-      deadFrom: '2025-10-26',
-    },
+    // [CHAIN.MODE]: {
+    //   start: '2024-05-02',
+    // },
+    // [CHAIN.SCROLL]: {
+    //   start: '2024-06-27',
+    // },
+    // [CHAIN.LINEA]: {
+    //   start: '2024-06-27',
+    // },
+    // [CHAIN.MANTLE]: {
+    //   start: '2024-06-27',
+    // },
   },
 };
 
