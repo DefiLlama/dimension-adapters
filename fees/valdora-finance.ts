@@ -100,6 +100,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [METRIC.STAKING_REWARDS]: "90% of staking rewards distributed to stZIG holders, accruing value to their stZIG position over time.",
   },
+  Incentives: "Tokens allocated to users through liquidity mining, vault incentives, staking rewards, or ecosystem reward programs.",
 };
 
 const adapter: SimpleAdapter = {
