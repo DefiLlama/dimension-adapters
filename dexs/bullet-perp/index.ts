@@ -12,7 +12,7 @@ async function fetch(_: any) {
 
   const perpSymbols = new Set<string>(
     exchangeInfo.symbols
-      .filter((s: any) => s.contractType === "Perp")
+      .filter((s: any) => s.contractType.includes("Perp"))
       .map((s: any) => s.symbol)
   );
 
