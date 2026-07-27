@@ -39,8 +39,7 @@ function buildDuneQuery(options: FetchOptions) {
     WHERE blockchain = '${duneChain}'
       AND project = 'uniswap'
       AND version = '3'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+      AND TIME_RANGE
       AND t.token = ${weth}
     GROUP BY project_contract_address, t.side`;
 }
