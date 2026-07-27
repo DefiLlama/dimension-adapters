@@ -22,11 +22,27 @@ const abis = {
   token0: "address:token0",
   token1: "address:token1",
   managerFeePIPS: "uint256:managerFeePIPS",
+  isInversed: "bool:isInversed",
 };
 
-// Every Arrakis LP module emits this whenever the manager fee is actually taken out of
-// the position, which happens on rebalance, on withdraw and on withdrawManagerBalance().
-// Amounts are always emitted in token0/token1 order (the module un-inverses them first).
+// The Uniswap V4 module family emitted LogWithdrawManagerBalance in pool currency order,
+// with no isInversed handling at any of its emit sites, until the shared module beacon was
+// upgraded from UniV4StandardModulePrivate to UniV4StandardModuleV2Private on 2026-06-25.
+// The new implementation swaps the amounts into vault token order when the module is
+// inversed. Below these blocks an inversed module's amounts therefore have to be swapped
+// back before they can be matched to token0()/token1(). Verified against the actual token
+// transfers to the manager in both regimes, inversed and not.
+const UNIV4_TOKEN_ORDER_FIX_BLOCK: Record<string, number> = {
+  [CHAIN.ETHEREUM]: 25393368, // 2026-06-25 08:12 UTC
+  [CHAIN.BASE]: 47792207, // 2026-06-25 07:49 UTC
+  [CHAIN.ARBITRUM]: 477126256, // 2026-06-25 07:49 UTC
+};
+
+// Emitted whenever the manager fee is actually taken out of the position, on rebalance, on
+// withdraw and on withdrawManagerBalance(). The amounts are not reliably in token0/token1
+// order, see UNIV4_TOKEN_ORDER_FIX_BLOCK. UniswapV3StandardModulePrivate is the one module
+// family that never emits it at all, it pays the manager by plain token transfer instead,
+// so those vaults are not covered here.
 const MANAGER_FEE_EVENT =
   "event LogWithdrawManagerBalance(address manager, uint256 amount0, uint256 amount1)";
 
@@ -76,29 +92,48 @@ const fetch = async (options: FetchOptions) => {
 
   const modules: string[] = await api.multiCall({ abi: abis.module, calls: vaults });
 
-  const [token0s, token1s, feePIPSAtWindowStart, feeLogs, rateLogs] = await Promise.all([
-    api.multiCall({ abi: abis.token0, calls: modules }),
-    api.multiCall({ abi: abis.token1, calls: modules }),
-    fromApi.multiCall({ abi: abis.managerFeePIPS, calls: modules }),
-    getLogs({
-      targets: modules,
-      eventAbi: MANAGER_FEE_EVENT,
-      entireLog: true,
-      parseLog: true,
-    }),
-    getLogs({
-      targets: modules,
-      eventAbi: FEE_RATE_EVENT,
-      entireLog: true,
-      parseLog: true,
-    }),
-  ]);
+  const [token0s, token1s, feePIPSAtWindowStart, isInversed, feeLogs, rateLogs] =
+    await Promise.all([
+      api.multiCall({ abi: abis.token0, calls: modules }),
+      api.multiCall({ abi: abis.token1, calls: modules }),
+      // A vault created during the window has no module deployed at the window's start
+      // block, so this read has to tolerate a revert. It is safe to fall back to zero:
+      // initialize() never sets managerFeePIPS, so such a module can only get a rate from a
+      // setManagerFeePIPS call inside the window, which emits LogSetManagerFeePIPS and is
+      // picked up by the replay below.
+      fromApi.multiCall({
+        abi: abis.managerFeePIPS,
+        calls: modules,
+        permitFailure: true,
+      }),
+      // Only the Uniswap V4 module family exposes isInversed(), so a null here also marks
+      // the module as belonging to a family that has no pool/vault ordering to undo.
+      api.multiCall({ abi: abis.isInversed, calls: modules, permitFailure: true }),
+      getLogs({
+        targets: modules,
+        eventAbi: MANAGER_FEE_EVENT,
+        entireLog: true,
+        parseLog: true,
+      }),
+      getLogs({
+        targets: modules,
+        eventAbi: FEE_RATE_EVENT,
+        entireLog: true,
+        parseLog: true,
+      }),
+    ]);
 
-  const moduleInfo: Record<string, { tokens: string[]; startFeePIPS: bigint }> = {};
+  const tokenOrderFixBlock = UNIV4_TOKEN_ORDER_FIX_BLOCK[options.chain];
+
+  const moduleInfo: Record<
+    string,
+    { tokens: string[]; startFeePIPS: bigint; inversed: boolean }
+  > = {};
   modules.forEach((module: string, i: number) => {
     moduleInfo[module.toLowerCase()] = {
       tokens: [toToken(token0s[i]), toToken(token1s[i])],
-      startFeePIPS: BigInt(feePIPSAtWindowStart[i]),
+      startFeePIPS: BigInt(feePIPSAtWindowStart[i] ?? 0),
+      inversed: isInversed[i] === true,
     };
   });
 
@@ -152,7 +187,16 @@ const fetch = async (options: FetchOptions) => {
         continue;
       }
 
-      event.amounts.forEach((managerFee, i) => {
+      // Undo the pool ordering the pre-upgrade Uniswap V4 implementation emitted with.
+      const swapOrder =
+        info.inversed &&
+        tokenOrderFixBlock !== undefined &&
+        event.block < tokenOrderFixBlock;
+      const amounts = swapOrder
+        ? [event.amounts[1], event.amounts[0]]
+        : event.amounts;
+
+      amounts.forEach((managerFee, i) => {
         if (managerFee === 0n) return;
         const token = info.tokens[i];
 
@@ -175,7 +219,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Gross trading fees earned by all Arrakis Modular vault positions, recovered from the manager fee actually taken out of each position and the manager fee share that was in force for that vault at the moment the fee was taken.",
+  Fees: "Gross trading fees earned by Arrakis Modular vault positions, recovered from the manager fee actually taken out of each position and the manager fee share that was in force for that vault at the moment the fee was taken. Vaults on the Uniswap V3 module, which pays the manager without emitting an event, are not included.",
   Revenue: "Manager fee taken by Arrakis out of the trading fees earned by vault positions.",
   ProtocolRevenue: "Same as Revenue, the manager fee is paid to the Arrakis manager.",
   SupplySideRevenue: "Trading fees left to vault depositors after the manager fee.",
@@ -203,8 +247,6 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: { start: "2024-08-16" },
     [CHAIN.BASE]: { start: "2024-08-16" },
     [CHAIN.ARBITRUM]: { start: "2024-08-16" },
-    [CHAIN.BSC]: { start: "2025-05-15" },
-    [CHAIN.PLASMA]: { start: "2025-11-21" },
   },
   methodology,
   breakdownMethodology,
