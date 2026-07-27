@@ -242,7 +242,14 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
+  // getLogs fans out one eth_getLogs per target, and this adapter reads two events across
+  // every module of every vault: 377 modules today, so 754 log requests per window. Hourly
+  // multiplies that by 24, to roughly 18k requests per day per run, and the shared public
+  // pool cannot absorb it. Only one or two ethereum endpoints in the pool serve a wide
+  // eth_getLogs at all, the rest cap at 25 or 50 blocks or do not support the method, so
+  // once those rate limit the whole run fails. Set back to true once the per module fan out
+  // is replaced by a single chain wide topic filtered scan.
+  pullHourly: false,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2024-08-16" },
