@@ -102,7 +102,7 @@ const getVolume = async (options: FetchOptions) => {
   }
   `;
   const url = config[options.chain].api;
-  const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
+  const graphQLClient = new GraphQLClient(url, { timeout: 30000 });
   const result: Data = await graphQLClient.request(query);
   const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0);
   return {
@@ -141,15 +141,19 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.MODE]: {
       start: '2024-05-02',
+      deadFrom: '2026-07-01',
     },
     [CHAIN.SCROLL]: {
       start: '2024-06-27',
+      deadFrom: '2026-07-01',
     },
     [CHAIN.LINEA]: {
       start: '2024-06-27',
+      deadFrom: '2026-07-01',
     },
     [CHAIN.MANTLE]: {
       start: '2024-06-27',
+      deadFrom: '2026-07-01',
     },
   },
 };
