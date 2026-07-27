@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
+import { Adapter, FetchResult, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
@@ -23,7 +23,7 @@ interface IQueryRange {
   today: IPair[];
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
   const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(options.toTimestamp)
 
@@ -54,11 +54,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     } as IPairs
   });
 
+  const dailyVolume = pairs.reduce((a: number, b: IPairs) => a + Number(b.volumeUSD), 0);
+
   const dailyFees = pairs
     .filter((e: IPairs) => e.volumeUSD)
     .reduce((a: number, b: IPairs) => a + ((Number(b.fee)/10**6) * Number(b.volumeUSD)), 0);
 
   return {
+    dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,

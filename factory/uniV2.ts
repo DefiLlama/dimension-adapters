@@ -1320,12 +1320,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     factoriesName: "factories",
     totalVolume: "volumeUSD",
   },
-  "solidlydex": {
-    endpoints: {
-      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('4GX8RE9TzEWormbkayeGj4NQmmhYE46izVVUvXv8WPDh'),
-    },
-    start: 1672444800,
-  },
   "sonic-market-cpmm": {
     endpoints: {
       [CHAIN.SONIC]: "https://subgraph.satsuma-prod.com/f6a8c4889b7b/clober/cpmm-v2-subgraph-sonic-mainnet/api",
