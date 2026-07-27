@@ -28,7 +28,7 @@ interface Suite {
   hook: string;
   feeEscrow: string;
   legacyFeeCurrency: boolean;
-  supportsLaunchFee: boolean;
+  launchFeeCurrency: "none" | "quote" | "native";
 }
 
 interface ChainConfig {
@@ -99,7 +99,7 @@ const chainConfig: Record<string, ChainConfig> = {
         hook: "0xa068cf4c52abdd3479145c4b3cbd8e3d71542a44",
         feeEscrow: "0xabe87e4af23dafad0a170aa900d574c03d904597",
         legacyFeeCurrency: true,
-        supportsLaunchFee: false,
+        launchFeeCurrency: "none",
       },
       // https://basescan.org/address/0xa52ad458ce0282a971ecc71c051a32f28946bb9f
       {
@@ -108,7 +108,16 @@ const chainConfig: Record<string, ChainConfig> = {
         hook: "0x985c14baa2a18316ffda0aefb3a632fadfca2acc",
         feeEscrow: "0xa2cbd9065cec93c443cafb0837a62800ee7c4a84",
         legacyFeeCurrency: false,
-        supportsLaunchFee: true,
+        launchFeeCurrency: "quote",
+      },
+      // https://basescan.org/address/0x1de58a6769526a03a504d9d59b8757cd8097dc57
+      {
+        id: "base-mainnet-rwa-timestamp-v3",
+        factory: "0x1de58a6769526a03a504d9d59b8757cd8097dc57",
+        hook: "0xbca7774615c74b7991a111f1c7b2d0efea61aacc",
+        feeEscrow: "0xcf9ed8f4145eac9059bcd83227eeb8591fac0a9a",
+        legacyFeeCurrency: false,
+        launchFeeCurrency: "native",
       },
     ],
     legacyQuotes: new Set([ZERO_ADDRESS, BASE_USDC]),
@@ -123,7 +132,7 @@ const chainConfig: Record<string, ChainConfig> = {
         hook: "0xe960e6c80c74cfdf03c91e7af4e1f5f53f096a44",
         feeEscrow: "0xf5681c4c0dc0c2e32c9d127b3cc0fc992b584553",
         legacyFeeCurrency: true,
-        supportsLaunchFee: false,
+        launchFeeCurrency: "none",
       },
       // https://robinhoodchain.blockscout.com/address/0x76f0923ac4df0a079a10f628a7bce6426ccd344a
       {
@@ -132,7 +141,7 @@ const chainConfig: Record<string, ChainConfig> = {
         hook: "0xca4b035a5dbfa2a00fc5dcb08fd1c5a22d0eaa44",
         feeEscrow: "0x00d5701a92794c3744428b62646e7bc4e77a0a9a",
         legacyFeeCurrency: true,
-        supportsLaunchFee: false,
+        launchFeeCurrency: "none",
       },
       // https://robinhoodchain.blockscout.com/address/0x411f21283d3e492bc395027329e08f9f4f560ba5
       {
@@ -141,7 +150,16 @@ const chainConfig: Record<string, ChainConfig> = {
         hook: "0x441f773b3bb1ed4c6457d0528624112e43c02acc",
         feeEscrow: "0x32f7a9a05bd62487d085ad494e14ec42543e19d2",
         legacyFeeCurrency: false,
-        supportsLaunchFee: true,
+        launchFeeCurrency: "quote",
+      },
+      // https://robinhoodchain.blockscout.com/address/0xe64ac4113848bbc1a6dde1a6d1da96720a36f297
+      {
+        id: "robinhood-rwa-timestamp-v4",
+        factory: "0xe64ac4113848bbc1a6dde1a6d1da96720a36f297",
+        hook: "0x778b0c4eea7d35d66513b587ba87fc9084b0eacc",
+        feeEscrow: "0x4f2b1cda8748cd64c56039bf5e2e54bc13d4a3d7",
+        legacyFeeCurrency: false,
+        launchFeeCurrency: "native",
       },
     ],
     legacyQuotes: new Set([ZERO_ADDRESS, ROBINHOOD_USDG]),
@@ -270,26 +288,49 @@ const reconcileSuite = (
 };
 
 const DIRECT_LOG_FETCH_OPTIONS = {
-  skipIndexer: true, //using indexer often throws error 
-  skipCacheRead: true,
+  // The adapter runs hourly; avoid reusing a partial cached response in the RPC fallback.
+  skipIndexer: true,
+  skipCache: true,
 } as const;
 
 const PARSED_LOG_FETCH_OPTIONS = {
   entireLog: true,
   parseLog: true,
-  ...DIRECT_LOG_FETCH_OPTIONS,
 } as const;
+
+type LogFetchParams = {
+  targets: string[];
+  eventAbi: string;
+  flatten: false;
+  entireLog?: boolean;
+  parseLog?: boolean;
+};
+
+const fetchCompleteLogs = async (options: FetchOptions, params: LogFetchParams) => {
+  if (options.chain === CHAIN.BASE) {
+    try {
+      return await options.streamLogs({
+        ...params,
+        clientStreaming: true,
+        collect: true,
+      });
+    } catch {
+      // Local runs and temporary indexer outages still have a bounded RPC path.
+    }
+  }
+  return options.getLogs({ ...params, ...DIRECT_LOG_FETCH_OPTIONS });
+};
 
 const fetchAllocations = async (options: FetchOptions, config: ChainConfig) => {
   const { suites, legacyQuotes } = config;
   const [tradeLogsPerHook, creditLogsPerEscrow] = await Promise.all([
-    options.getLogs({
+    fetchCompleteLogs(options, {
       targets: suites.map((suite) => suite.hook),
       eventAbi: TRADE_EVENT,
       flatten: false,
       ...PARSED_LOG_FETCH_OPTIONS,
     }),
-    options.getLogs({
+    fetchCompleteLogs(options, {
       targets: suites.map((suite) => suite.feeEscrow),
       eventAbi: CREDITED_EVENT,
       flatten: false,
@@ -309,13 +350,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
   if (!config) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
 
-  const launchFeeSuites = config.suites.filter((suite) => suite.supportsLaunchFee);
-  const launchFeeLogs = launchFeeSuites.length
-    ? await options.getLogs({
+  const launchFeeSuites = config.suites.filter((suite) => suite.launchFeeCurrency !== "none");
+  const launchFeeLogsPerFactory = launchFeeSuites.length
+    ? await fetchCompleteLogs(options, {
       targets: launchFeeSuites.map((suite) => suite.factory),
       eventAbi: LAUNCH_FEE_PAID_EVENT,
-      ...DIRECT_LOG_FETCH_OPTIONS,
-    }) as LaunchFeeArgs[]
+      flatten: false,
+    }) as LaunchFeeArgs[][]
     : [];
 
   const dailyFees = options.createBalances();
@@ -337,13 +378,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  for (const log of launchFeeLogs) {
-    const currency = normalizeAddress(log.quote);
-    const amount = toBigInt(log.amount);
-    addToken(dailyFees, currency, amount, TOKEN_LAUNCH_FEES);
-    addToken(dailyUserFees, currency, amount, TOKEN_LAUNCH_FEES);
-    addToken(dailyRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
-    addToken(dailyProtocolRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
+  for (const [suiteIndex, suite] of launchFeeSuites.entries()) {
+    for (const log of launchFeeLogsPerFactory[suiteIndex] ?? []) {
+      const currency = suite.launchFeeCurrency === "native"
+        ? ZERO_ADDRESS
+        : normalizeAddress(log.quote);
+      const amount = toBigInt(log.amount);
+      addToken(dailyFees, currency, amount, TOKEN_LAUNCH_FEES);
+      addToken(dailyUserFees, currency, amount, TOKEN_LAUNCH_FEES);
+      addToken(dailyRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
+      addToken(dailyProtocolRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
+    }
   }
 
   return {
@@ -361,6 +406,7 @@ const methodology = {
   Revenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
   ProtocolRevenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
   SupplySideRevenue: "Swap fees allocated to token creators and referrers.",
+  HoldersRevenue: "No fees are distributed to token holders.",
 };
 
 const breakdownMethodology = {
