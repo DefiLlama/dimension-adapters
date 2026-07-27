@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const URL = "https://mainnet.analytics.tinyman.org/api/v1/general-statistics/"
 
@@ -16,20 +17,42 @@ interface IAPIResponse {
   last_day_algo_price_change: string;
 };
 
-const fetch = async () => {
+const fetch = async (options: FetchOptions) => {
   const response: IAPIResponse = (await fetchURL(URL));
   const dailyVolume = Number(response.last_day_total_volume_in_usd);
 
-  const dailyFees = dailyVolume * TOTAL_FEE;
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(dailyVolume * TOTAL_FEE, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(dailyVolume * PROTOCOL_FEE, "Token Swap Fees to Protocol");
+  dailySupplySideRevenue.addUSDValue(dailyVolume * LP_FEE, "Token Swap Fees to LPs");
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyVolume * PROTOCOL_FEE,
-    dailyProtocolRevenue: dailyVolume * PROTOCOL_FEE,
-    dailySupplySideRevenue: dailyVolume * LP_FEE,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "0.3% fee charged on every swap.",
+  },
+  Revenue: {
+    "Token Swap Fees to Protocol": "1/6 of swap fees (0.05%) sent to the Tinyman Treasury.",
+  },
+  ProtocolRevenue: {
+    "Token Swap Fees to Protocol": "1/6 of swap fees (0.05%) sent to the Tinyman Treasury.",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees to LPs": "5/6 of swap fees (0.25%) distributed to liquidity providers.",
+  }
+}
 
 const adapter: SimpleAdapter = {
   fetch,
@@ -42,6 +65,7 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "1/6 of swap fees (0.05%) sent to the Tinyman Treasury.",
     SupplySideRevenue: "5/6 of swap fees (0.25%) distributed to liquidity providers.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;
