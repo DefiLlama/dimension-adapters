@@ -9,7 +9,7 @@ import { queryDuneSql } from "../../helpers/dune";
 // amount_in resolution:
 // - swap_in: exact from call arg (dex_call_swap_in.amount_in).
 // - swap_out: decoded from the Anchor LogSwap event in call_log_messages
-//   ("Program data: yvLkHCXC..." — base64 payload after 8-byte discriminator + u16 dex_id
+//   ("Program data: yvLkHCXCNCIC..." — base64 payload after 8-byte discriminator + u16 dex_id
 //   + u8 swap_0_to_1, u64 little-endian amount_in at byte 11).
 //
 // Revenue split: LP = fee * (1 - revenue_cut/1e6). Protocol = fee * revenue_cut/1e6.
