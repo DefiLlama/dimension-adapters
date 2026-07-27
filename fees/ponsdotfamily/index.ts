@@ -4,6 +4,7 @@ import { queryDune } from "../../helpers/dune";
 import { addOneToken } from "../../helpers/prices";
 import { filterPools } from "../../helpers/uniswap";
 import { METRIC } from "../../helpers/metrics";
+import { addTokensReceived } from "../../helpers/token";
 
 const factories = [
   "0x0c37a24F5D23A486FA692d1500881d698B1F77a4", // old
@@ -14,6 +15,10 @@ const lpLockers = [
   "0x31ca5E101941A93A7DD6d0497928700625CF54B5", // old
   "0x736D76699C26D0d966744cAe304C000d471f7F35", // new
 ];
+
+const BURNER_WALLET = "0xda4bcee76b29efec9697fcf663601c2042043968";
+const PONS_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
+const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
 const MIN_TVL = 1000;
 const SWAP_FEE = 1 / 100;
@@ -76,7 +81,7 @@ async function fetch(options: FetchOptions) {
     pairs: pairObject,
     createBalances: options.createBalances,
     minUSDValue: MIN_TVL,
-    maxPairSize: 5000,
+    maxPairSize: 20_000,
   });
 
   const filteredPools = new Set(Object.keys(filteredPairs));
@@ -127,23 +132,31 @@ async function fetch(options: FetchOptions) {
     addOneToken({balances: swapFeesToProtocol,token0,amount0: amount0 * SWAP_FEE * protocolShare,token1,amount1: amount1 * SWAP_FEE * protocolShare});
   }
 
+  const dailyBurns = await addTokensReceived({
+    options,
+    fromAddressFilter: BURNER_WALLET,
+    target: DEAD_ADDRESS,
+    token: PONS_TOKEN
+  })
+
   const dailyFees = feesFromSwap.clone(1, METRIC.SWAP_FEES);
   const dailySupplySideRevenue = swapFeesToCreator.clone(1, "Token Swap Fees to Creators");
-  const dailyProtocolRevenue = swapFeesToProtocol.clone(1, "Token Swap Fees to Protocol");
+  const dailyRevenue = swapFeesToProtocol.clone(1, "Token Swap Fees to Protocol");
+  const dailyHoldersRevenue = dailyBurns.clone(1, "Token Swap Fees to Buyback and Burn");
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
+    dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 }
 
 const methodology = {
   Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included).",
   Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
-  ProtocolRevenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted.",
+  HoldersRevenue: "Around 80% of revenue is used to buyback and burn $PONS tokens."
 };
 
 const breakdownMethodology = {
@@ -153,11 +166,11 @@ const breakdownMethodology = {
   Revenue: {
     "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   },
-  ProtocolRevenue: {
-    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
-  },
   SupplySideRevenue: {
     "Token Swap Fees to Creators": "Part of swap fees paid to token creators after protocol revenue is deducted.",
+  },
+  HoldersRevenue: {
+    "Token Swap Fees to Buyback and Burn": "Around 80% of revenue is used to buyback and burn $PONS tokens.",
   },
 };
 
