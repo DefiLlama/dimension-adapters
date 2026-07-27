@@ -3,7 +3,7 @@ import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 
 
 const URL = sdk.graph.modifyEndpoint('4GX8RE9TzEWormbkayeGj4NQmmhYE46izVVUvXv8WPDh');
@@ -25,7 +25,7 @@ interface IQueryRange {
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp)
+  const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(options.toTimestamp)
 
   const todaysBlock = (await getBlock(todaysTimestamp, 'ethereum', {}));
   const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'ethereum', {}));
@@ -49,8 +49,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const yesterday =  graphResDaily.yesterday.find((se: IPair) => se.id === address);
     const today =  graphResDaily.today.find((se: IPair) => se.id === address);
     return {
-      volumeUSD: (yesterday && today) ? Number(yesterday.volumeUSD) - Number(today.volumeUSD) : 0,
-      fee: (yesterday && today) ? Number(yesterday.fee) : 0
+      volumeUSD: (yesterday && today) ? Number(today.volumeUSD) - Number(yesterday.volumeUSD) : 0,
+      fee: (today) ? Number(today.fee) : 0
     } as IPairs
   });
 
