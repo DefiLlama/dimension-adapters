@@ -30,11 +30,22 @@ const abis = {
 const MANAGER_FEE_EVENT =
   "event LogWithdrawManagerBalance(address manager, uint256 amount0, uint256 amount1)";
 
+// managerFeePIPS is mutable, so a rate change inside the window would make a single
+// end-of-window snapshot the wrong divisor for every event emitted before it. This event
+// carries both sides of each change, which lets each withdrawal be matched to the rate
+// that was actually in force when it was emitted.
+const FEE_RATE_EVENT =
+  "event LogSetManagerFeePIPS(uint256 oldFee, uint256 newFee)";
+
+type ModuleEvent =
+  | { block: number; logIndex: number; kind: "fee"; amounts: bigint[] }
+  | { block: number; logIndex: number; kind: "rate"; oldFee: bigint; newFee: bigint };
+
 const toToken = (token: string) =>
   token.toLowerCase() === NATIVE ? ADDRESSES.null : token;
 
 const fetch = async (options: FetchOptions) => {
-  const { api, createBalances, getLogs } = options;
+  const { api, fromApi, createBalances, getLogs } = options;
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -65,58 +76,106 @@ const fetch = async (options: FetchOptions) => {
 
   const modules: string[] = await api.multiCall({ abi: abis.module, calls: vaults });
 
-  const [token0s, token1s, feePIPS, logs] = await Promise.all([
+  const [token0s, token1s, feePIPSAtWindowStart, feeLogs, rateLogs] = await Promise.all([
     api.multiCall({ abi: abis.token0, calls: modules }),
     api.multiCall({ abi: abis.token1, calls: modules }),
-    api.multiCall({ abi: abis.managerFeePIPS, calls: modules }),
+    fromApi.multiCall({ abi: abis.managerFeePIPS, calls: modules }),
     getLogs({
       targets: modules,
       eventAbi: MANAGER_FEE_EVENT,
       entireLog: true,
       parseLog: true,
     }),
+    getLogs({
+      targets: modules,
+      eventAbi: FEE_RATE_EVENT,
+      entireLog: true,
+      parseLog: true,
+    }),
   ]);
 
-  const moduleInfo: Record<string, { tokens: string[]; feePIPS: bigint }> = {};
+  const moduleInfo: Record<string, { tokens: string[]; startFeePIPS: bigint }> = {};
   modules.forEach((module: string, i: number) => {
     moduleInfo[module.toLowerCase()] = {
       tokens: [toToken(token0s[i]), toToken(token1s[i])],
-      feePIPS: BigInt(feePIPS[i]),
+      startFeePIPS: BigInt(feePIPSAtWindowStart[i]),
     };
   });
 
-  for (const log of logs) {
-    const info = moduleInfo[log.address.toLowerCase()];
-    if (!info) continue;
+  const eventsByModule: Record<string, ModuleEvent[]> = {};
+  const push = (address: string, event: ModuleEvent) => {
+    const key = address.toLowerCase();
+    if (!moduleInfo[key]) return;
+    (eventsByModule[key] ??= []).push(event);
+  };
 
-    const amounts = [BigInt(log.args.amount0), BigInt(log.args.amount1)];
-
-    amounts.forEach((managerFee, i) => {
-      if (managerFee === 0n) return;
-      const token = info.tokens[i];
-
-      dailyRevenue.add(token, managerFee, METRIC.MANAGEMENT_FEES);
-
-      // The module computes the emitted amount as grossFees * managerFeePIPS / PIPS at the
-      // moment fees leave the position, so the gross figure is recovered by inverting that.
-      // The rate is read live per module rather than assumed, it is not uniform across
-      // vaults, and setManagerFeePIPS() flushes the outstanding balance at the old rate
-      // before changing it, so a rate change never straddles an unclaimed accrual.
-      // A zero rate cannot produce a non zero manager fee, but guard the division anyway
-      // and keep dailyFees = dailyRevenue + dailySupplySideRevenue if it ever happens.
-      const grossFees =
-        info.feePIPS > 0n ? (managerFee * PIPS) / info.feePIPS : managerFee;
-
-      dailyFees.add(token, grossFees, METRIC.LP_FEES);
-      dailySupplySideRevenue.add(token, grossFees - managerFee, "LP Fees To Depositors");
+  for (const log of feeLogs) {
+    push(log.address, {
+      block: Number(log.blockNumber),
+      logIndex: Number(log.logIndex),
+      kind: "fee",
+      amounts: [BigInt(log.args.amount0), BigInt(log.args.amount1)],
     });
+  }
+
+  for (const log of rateLogs) {
+    push(log.address, {
+      block: Number(log.blockNumber),
+      logIndex: Number(log.logIndex),
+      kind: "rate",
+      oldFee: BigInt(log.args.oldFee),
+      newFee: BigInt(log.args.newFee),
+    });
+  }
+
+  for (const [module, events] of Object.entries(eventsByModule)) {
+    const info = moduleInfo[module];
+
+    events.sort((a, b) => a.block - b.block || a.logIndex - b.logIndex);
+
+    // Rate in force before the first event of the window. setManagerFeePIPS() flushes the
+    // outstanding manager balance in the same transaction, emitting the withdrawal at a
+    // lower log index than the rate change itself, so replaying both streams in log order
+    // is what actually resolves each withdrawal to its own rate. Where the window contains
+    // a rate change, its oldFee is authoritative for everything ahead of it and is used in
+    // preference to the fromApi read, which would be wrong for a change landing on the
+    // window's first block.
+    const firstRateChange = events.find((event) => event.kind === "rate");
+    let feePIPS =
+      firstRateChange && firstRateChange.kind === "rate"
+        ? firstRateChange.oldFee
+        : info.startFeePIPS;
+
+    for (const event of events) {
+      if (event.kind === "rate") {
+        feePIPS = event.newFee;
+        continue;
+      }
+
+      event.amounts.forEach((managerFee, i) => {
+        if (managerFee === 0n) return;
+        const token = info.tokens[i];
+
+        dailyRevenue.add(token, managerFee, METRIC.MANAGEMENT_FEES);
+
+        // The module computes the emitted amount as grossFees * managerFeePIPS / PIPS at
+        // the moment fees leave the position, so the gross figure is recovered by
+        // inverting that with the rate resolved above. A zero rate cannot produce a non
+        // zero manager fee, but guard the division anyway and keep
+        // dailyFees = dailyRevenue + dailySupplySideRevenue if it ever happens.
+        const grossFees = feePIPS > 0n ? (managerFee * PIPS) / feePIPS : managerFee;
+
+        dailyFees.add(token, grossFees, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(token, grossFees - managerFee, "LP Fees To Depositors");
+      });
+    }
   }
 
   return result;
 };
 
 const methodology = {
-  Fees: "Gross trading fees earned by all Arrakis Modular vault positions, recovered from the manager fee actually taken out of each position and that vault's live manager fee share.",
+  Fees: "Gross trading fees earned by all Arrakis Modular vault positions, recovered from the manager fee actually taken out of each position and the manager fee share that was in force for that vault at the moment the fee was taken.",
   Revenue: "Manager fee taken by Arrakis out of the trading fees earned by vault positions.",
   ProtocolRevenue: "Same as Revenue, the manager fee is paid to the Arrakis manager.",
   SupplySideRevenue: "Trading fees left to vault depositors after the manager fee.",
