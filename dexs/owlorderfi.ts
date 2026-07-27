@@ -1,5 +1,6 @@
 import { SimpleAdapter, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 /**
  * OwlOrderFi — non-custodial limit / stop / TWAP / DCA order router for
@@ -50,21 +51,20 @@ const fetch: FetchV2 = async ({ getLogs, chain, createBalances }) => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
 
-  // One call per router rather than a single `targets` call: the shape of a
-  // multi-target result depends on the `flatten` default, and a wrong guess
-  // there iterates arrays instead of logs. Two calls are unambiguous.
-  for (const router of config[chain].routers) {
-    const logs = await getLogs({ target: router, eventAbi: ORDER_EXECUTED });
+  const logs = await getLogs({
+    targets: config[chain].routers,
+    eventAbi: ORDER_EXECUTED,
+    flatten: true,
+  });
 
-    for (const log of logs) {
-      if (BigInt(log.orderType) === CANCEL_SENTINEL) continue;
-      // Input leg only. Adding tokenOut as well would double-count the same
-      // trade, and `amountOut` is already net of the protocol fee.
-      dailyVolume.add(log.tokenIn, log.amountIn);
-      // The fee is taken from the output token, before the remainder is
-      // forwarded to the maker.
-      dailyFees.add(log.tokenOut, log.fee);
-    }
+  for (const log of logs) {
+    if (BigInt(log.orderType) === CANCEL_SENTINEL) continue;
+    // Input leg only. Adding tokenOut as well would double-count the same
+    // trade, and `amountOut` is already net of the protocol fee.
+    dailyVolume.add(log.tokenIn, log.amountIn);
+    // The fee is taken from the output token, before the remainder is
+    // forwarded to the maker.
+    dailyFees.add(log.tokenOut, log.fee, METRIC.PROTOCOL_FEES);
   }
 
   return {
@@ -79,6 +79,10 @@ const fetch: FetchV2 = async ({ getLogs, chain, createBalances }) => {
   };
 };
 
+// Deliberately a separate object from `config`. cli/buildModules.ts deletes
+// every per-chain key that is not in `whitelistedBaseAdapterKeys`, so passing
+// `config` straight through as `adapter` would strip `routers` from the very
+// object `fetch` closes over — no build error, then an undefined at run time.
 const adapters: any = {};
 Object.keys(config).forEach((chain) => {
   adapters[chain] = { fetch, start: config[chain].start };
@@ -86,6 +90,7 @@ Object.keys(config).forEach((chain) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: adapters,
   methodology: {
     Volume:
@@ -94,6 +99,18 @@ const adapter: SimpleAdapter = {
     Revenue: "All fees. The router has no liquidity providers, so nothing is shared out.",
     ProtocolRevenue: "All fees.",
     SupplySideRevenue: "None. Liquidity is Uniswap's; its pool fees are not counted here.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.PROTOCOL_FEES]:
+        "Protocol fee deducted from the output token of each executed order. The rate is signed by the maker as part of the order payload and capped on-chain at 1%.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "All of the fee. The router has no liquidity providers to share it with.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "All of the fee.",
+    },
   },
 };
 
