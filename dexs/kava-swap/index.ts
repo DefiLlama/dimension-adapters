@@ -26,18 +26,24 @@ const swapActions = [
 ];
 
 const coinPattern = /^(\d+)(.+)$/;
+const txSearchPageSize = 100;
 
 async function getSwapTxs(action: string, fromBlock: number, toBlock: number): Promise<any[]> {
   const query = `message.action='${action}' AND tx.height>=${fromBlock} AND tx.height<=${toBlock}`;
   const txs: any[] = [];
   let page = 1;
   while (true) {
-    const url = `${config.rpcs[0]}/tx_search?query=${encodeURIComponent('"' + query + '"')}&page=${page}&per_page=100&order_by=${encodeURIComponent('"asc"')}`;
+    const url = `${config.rpcs[0]}/tx_search?query=${encodeURIComponent('"' + query + '"')}&page=${page}&per_page=${txSearchPageSize}&order_by=${encodeURIComponent('"asc"')}`;
     const res = await fetchURL(url);
-    const result = res?.result ?? res;
-    const pageTxs = result?.txs ?? [];
-    txs.push(...pageTxs);
-    if (!pageTxs.length || txs.length >= Number(result?.total_count ?? 0)) break;
+    if (res?.error || !Array.isArray(res?.result?.txs) || res?.result?.total_count === undefined) {
+      throw new Error(`kava-swap: bad tx_search response for ${action} page ${page}`);
+    }
+    const total = Number(res.result.total_count);
+    txs.push(...res.result.txs);
+    if (txs.length >= total) break;
+    if (!res.result.txs.length) {
+      throw new Error(`kava-swap: tx_search pagination stalled at ${txs.length}/${total} for ${action}`);
+    }
     page++;
   }
   return txs;
@@ -55,10 +61,15 @@ function addLeg(balances: any, coin?: string): boolean {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const { fromBlock, toBlock } = await getBlockRangeForTimestamps(config, options.startTimestamp, options.endTimestamp);
+  const seenTxs = new Set<string>();
 
   for (const action of swapActions) {
     const txs = await getSwapTxs(action, fromBlock, toBlock);
     for (const tx of txs) {
+      if (tx?.hash) {
+        if (seenTxs.has(tx.hash)) continue;
+        seenTxs.add(tx.hash);
+      }
       if (Number(tx?.tx_result?.code ?? 0) !== 0) continue;
       for (const event of tx?.tx_result?.events ?? []) {
         if (event?.type !== "swap_trade") continue;
