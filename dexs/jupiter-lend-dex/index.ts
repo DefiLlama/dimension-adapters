@@ -11,7 +11,7 @@ import { queryDuneSql } from "../../helpers/dune";
 //   the 3 historical swap_out txs decode to 1,283,885 / 1,283,391 / 1,501,258 — matching
 //   the actual token transfers.
 //
-// LogSwap discriminator = [0xCA,0xF2,0xE4,0x1C,0x25,0xC2,0x34,0x22]; base64 prefix "yvLkHCXC".
+// LogSwap discriminator = [0xCA,0xF2,0xE4,0x1C,0x25,0xC2,0x34,0x22]; base64 = "yvLkHCXCNCIC".
 
 const fetch = async (options: FetchOptions) => {
   const sql = `
@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions) => {
       CROSS JOIN UNNEST(s.call_log_messages) AS t(msg)
       WHERE s.call_block_time >= from_unixtime(${options.startTimestamp})
         AND s.call_block_time <  from_unixtime(${options.endTimestamp})
-        AND msg LIKE 'Program data: yvLkHCXC%'
+        AND msg LIKE 'Program data: yvLkHCXCNCIC%'
     ),
     all_swaps AS (
       SELECT pool, swap0to1, amount_in FROM swap_in_vol
@@ -77,7 +77,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Volume:
-      "Notional traded (input-side, priced in the input token) across all Jupiter Lend AMM pools. For exact-in swaps (dex_call_swap_in), amount_in is read directly from the call argument. For exact-out swaps (dex_call_swap_out), amount_in is decoded from the LogSwap Anchor event embedded in call_log_messages (Program data: yvLkHCXC... base64 line): after the 8-byte discriminator and u16/u8 header, the u64 little-endian at byte 11 is amount_in. Per-pool token identity comes from dex_call_init_dex.",
+      "Notional traded (input-side, priced in the input token) across all Jupiter Lend AMM pools. For exact-in swaps (dex_call_swap_in), amount_in is read directly from the call argument. For exact-out swaps (dex_call_swap_out), amount_in is decoded from the LogSwap Anchor event embedded in call_log_messages (Program data: yvLkHCXCNCIC... base64 line): after the 8-byte discriminator and u16/u8 header, the u64 little-endian at byte 11 is amount_in. Per-pool token identity comes from dex_call_init_dex.",
   },
 };
 

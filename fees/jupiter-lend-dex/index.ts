@@ -70,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
       CROSS JOIN UNNEST(s.call_log_messages) AS t(msg)
       WHERE s.call_block_time >= from_unixtime(${options.startTimestamp})
         AND s.call_block_time <  from_unixtime(${options.endTimestamp})
-        AND msg LIKE 'Program data: yvLkHCXC%'
+        AND msg LIKE 'Program data: yvLkHCXCNCIC%'
     ),
     all_swaps AS (
       SELECT pool, swap0to1, call_block_time, amount_in FROM swap_in_rows
