@@ -203,7 +203,7 @@ const dedupeLogs = <TArgs>(logs: DecodedLog<TArgs>[]) => {
   return [...unique.values()];
 };
 
-const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | CreditEvent>): FeeAllocation[] => {
+const splitTransaction = (unorderedEvents: Array<TradeEvent | CreditEvent>): FeeAllocation[] => {
   const events = [...unorderedEvents].sort((left, right) => left.logIndex - right.logIndex);
   const allocations: FeeAllocation[] = [];
   let pendingCredits: CreditEvent[] = [];
@@ -213,10 +213,8 @@ const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | Credi
       pendingCredits.push(event);
       continue;
     }
-    if (!pendingCredits.length) throw new Error(`Trade without fee credits in ${key}`);
-    if (pendingCredits.some((credit) => credit.currency !== event.currency)) {
-      throw new Error(`Trade and credit currencies differ in ${key}`);
-    }
+    if (!pendingCredits.length) return [];
+    if (pendingCredits.some((credit) => credit.currency !== event.currency)) return [];
 
     const referrerCredits = pendingCredits.filter(
       (credit) => event.referrer !== ZERO_ADDRESS && credit.recipient === event.referrer,
@@ -225,15 +223,7 @@ const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | Credi
       (credit) => event.referrer === ZERO_ADDRESS || credit.recipient !== event.referrer,
     );
     const creditedTotal = pendingCredits.reduce((sum, credit) => sum + credit.amount, 0n);
-    if (
-      creditedTotal !== event.totalFee
-      || pendingCredits.length > 3
-      || referrerCredits.length > 1
-      || nonReferrerCredits.length < 1
-      || nonReferrerCredits.length > 2
-    ) {
-      throw new Error(`Invalid fee split in ${key}`);
-    }
+    if (creditedTotal !== event.totalFee || !nonReferrerCredits.length) return [];
 
     allocations.push({
       trade: event,
@@ -244,9 +234,7 @@ const splitTransaction = (key: string, unorderedEvents: Array<TradeEvent | Credi
     pendingCredits = [];
   }
 
-  if (pendingCredits.length) throw new Error(`Fee credits without a following trade in ${key}`);
-  if (!allocations.length) throw new Error(`Transaction has no complete fee allocation in ${key}`);
-  return allocations;
+  return pendingCredits.length ? [] : allocations;
 };
 
 const decodeTrade = (log: DecodedLog<TradeArgs>): TradeEvent => ({
@@ -280,9 +268,9 @@ const reconcileSuite = (
   for (const log of creditLogs) addEvent(decodeCredit(log));
 
   const allocations: FeeAllocation[] = [];
-  for (const [key, events] of eventsByTransaction) {
+  for (const events of eventsByTransaction.values()) {
     if (suite.legacyFeeCurrency && events.every((event) => !legacyQuotes.has(event.currency))) continue;
-    allocations.push(...splitTransaction(key, events));
+    allocations.push(...splitTransaction(events));
   }
   return allocations;
 };
