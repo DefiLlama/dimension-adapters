@@ -62,7 +62,8 @@ const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 // Fee flow (sell):
 //   fees = prizePool + protocolTreasury + referrer(optional) + creator
 // Events used for the supply-side split:
-//   EthPrizeDeposited              -> prize pool inflow (holders revenue)
+//   EthPrizeDeposited              -> prize pool paid out to card holders (supply-side —
+//     card holders are not governance token holders, so this is NOT holders revenue)
 //   ReferralFeePaid                -> actual referrer payouts (supply-side)
 //     (if the referrer transfer fails the amount is redirected to protocol and
 //      ReferralFeeRedirectedToProtocol is emitted instead — correctly excluded)
@@ -72,17 +73,17 @@ const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 // extra), so it must not be added on top of fees — it is a redistribution of
 // fees already counted, exactly like prize and creator.
 //
-// Pack shop primary mints have no holder/referral/creator split: the full sale
-// value flows to the primary sale recipient (protocol treasury), so we book
-// pack sales under dailyFees with the 'Pack Sales' label and they fall through
-// to dailyRevenue via the existing fees − supplySide derivation.
+// Pack shop primary mints are counted as VOLUME only, not fees: mint proceeds
+// are sale revenue, not a fee charged on top of a trade, and the card
+// inventory that backs each pack is bought on the bonding curve up-front —
+// those buys already appear in Trading Volume / Trading Fees, so booking the
+// full mint value as fees would overstate the protocol's take.
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const [tradeLogs, referralLogs, prizeLogs, creatorPaidLogs, creatorAccruedLogs] =
@@ -108,9 +109,10 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // Prize pool is distributed to users holding fractional shares of creator
-    // cards — holders revenue (a subset of revenue), not supply-side.
+    // cards. Card holders are not governance token holders, so per DefiLlama
+    // guidance this is supply-side revenue, not holders revenue.
     for (const log of prizeLogs) {
-        dailyHoldersRevenue.addGasToken(log.amountInWei, 'Prize Pool Rewards');
+        dailySupplySideRevenue.addGasToken(log.amountInWei, 'Prize Pool Rewards');
     }
 
     for (const log of creatorPaidLogs) {
@@ -168,22 +170,17 @@ const fetch = async (options: FetchOptions) => {
                 if (cond.currency === NATIVE_ETH) cond.currency = NULL_ADDRESS;
                 const paid = cond.price * BigInt(log.quantityClaimed);
                 if (paid === 0n) continue;
+                // Volume only — mint proceeds are not fees (see header comment).
                 dailyVolume.add(cond.currency, paid, 'Pack Sales');
-                dailyFees.add(cond.currency, paid, 'Pack Sales');
             }
         }
     }
 
-    // Revenue = fees kept in-protocol: everything not paid out to referrers or
-    // creators (i.e. protocol treasury + the prize pool that goes to holders).
-    // Split revenue by DESTINATION (not fee source): the protocol's own cut vs
-    // the prize pool that flows to card holders (a subset of revenue). Revenue
-    // metrics use destination labels; fee-source labels stay on dailyFees.
-    const revenue = await dailyFees.getUSDValue() - await dailySupplySideRevenue.getUSDValue();
-    const holders = await dailyHoldersRevenue.getUSDValue();
-    const protocolCut = revenue - holders;
+    // Revenue = the protocol treasury's retained cut: fees minus everything
+    // redistributed (prize pool to card holders, referrers, creators). Revenue
+    // metrics use a destination label; fee-source labels stay on dailyFees.
+    const protocolCut = await dailyFees.getUSDValue() - await dailySupplySideRevenue.getUSDValue();
     dailyRevenue.addUSDValue(protocolCut, 'Protocol Revenue');
-    dailyRevenue.addUSDValue(holders, 'Prize Pool Rewards');
     dailyProtocolRevenue.addUSDValue(protocolCut, 'Protocol Revenue');
 
     return {
@@ -192,19 +189,17 @@ const fetch = async (options: FetchOptions) => {
         dailyUserFees: dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
-        dailyHoldersRevenue,
         dailySupplySideRevenue,
     };
 };
 
 const methodology = {
     Volume: "Gross ETH traded on card buys/sells plus pack shop primary mint sales",
-    Fees: "Trading fees on buy/sell plus the full value of pack shop primary mints (no holder/creator split on packs)",
-    UserFees: "Total ETH paid by users — trading fees plus pack shop purchase prices",
-    Revenue: "Fees retained in-protocol — protocol treasury plus the prize pool paid to card holders, plus 100% of pack sales (excludes referral/creator payouts)",
-    ProtocolRevenue: "The protocol's own cut — revenue minus the prize pool distributed to holders",
-    HoldersRevenue: "Prize pool distributed to users holding fractional shares of creator cards",
-    SupplySideRevenue: "Referral rewards and creator rewards (trading only — packs do not split)",
+    Fees: "Trading fees paid by users on card buys/sells (pack primary-mint proceeds are counted as volume, not fees)",
+    UserFees: "Trading fees paid by users on card buys/sells",
+    Revenue: "Trading fees retained by the protocol treasury — fees minus the prize-pool, referral, and creator payouts",
+    ProtocolRevenue: "Same as Revenue — the protocol treasury's retained cut of trading fees",
+    SupplySideRevenue: "Prize-pool rewards distributed to card holders, referral rewards, and creator rewards",
 };
 
 const breakdownMethodology = {
@@ -214,23 +209,18 @@ const breakdownMethodology = {
     },
     Fees: {
         [METRIC.TRADING_FEES]: "Trading fees paid by users",
-        'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
     },
     UserFees: {
         [METRIC.TRADING_FEES]: "Trading fees paid by users",
-        'Pack Sales': "Pack shop primary mints — full sale value accrues to the protocol",
     },
     Revenue: {
-        'Protocol Revenue': "The protocol's own retained cut (treasury + 100% of pack sales)",
-        'Prize Pool Rewards': "Prize pool paid to card holders — a subset of revenue",
+        'Protocol Revenue': "The protocol treasury's retained cut of trading fees",
     },
     ProtocolRevenue: {
-        'Protocol Revenue': "The protocol's own cut after the holders' prize-pool share",
-    },
-    HoldersRevenue: {
-        'Prize Pool Rewards': "Prize pool rewards paid to users holding fractional shares of creator cards",
+        'Protocol Revenue': "The protocol treasury's retained cut of trading fees",
     },
     SupplySideRevenue: {
+        'Prize Pool Rewards': "Prize pool distributed to users holding fractional shares of creator cards",
         'Referral Rewards': "Referral rewards paid to referrers",
         [METRIC.CREATOR_FEES]: "Creator fees paid to the card's creator — a configurable share of each sell",
     },
@@ -244,7 +234,7 @@ const adapter: SimpleAdapter = {
     start: "2026-07-11", // contract deploy block 7003890
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true, // direct prize deposits (holders revenue) can exceed the day's protocol cut → negative protocol revenue
+    allowNegativeValue: true, // direct prize deposits (supply-side, no matching trade fee) can exceed the day's fees → negative revenue
 };
 
 export default adapter;
