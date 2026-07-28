@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const config: CosmosChainMetricConfig = {
   chain: CHAIN.KAVA,
-  rpcs: ["https://rpc.kava.io"],
+  rpcs: ["https://rpc.data.kava.io", "https://rpc.kava.io"],
   denoms: {},
 };
 
@@ -85,9 +85,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.KAVA],
-  start: "2026-07-09",
+  start: "2026-01-15",
   methodology: {
     Volume: "Sum of one side of every trade executed through the chain's native swap module, read from swap_trade events. The input side is counted when it has a reliable price, otherwise the equal-value output side is counted instead.",
   },
