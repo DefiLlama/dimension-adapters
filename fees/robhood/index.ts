@@ -6,7 +6,7 @@ const VE_STAKING = "0x7483D990d53cddE732fB6f92fab9966F80F6679d";
 
 const REWARD_DISTRIBUTED = "event RewardDistributed(uint256 amount)";
 
-const JACKPOT = "Vault"; // 2% of wagers routed to the vault pool
+const JACKPOT = "Wagers to Jackpot Vault";
 
 const fetch = async (options: FetchOptions) => {
   const rewards = await options.getLogs({ target: VE_STAKING, eventAbi: REWARD_DISTRIBUTED })
