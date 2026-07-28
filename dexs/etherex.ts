@@ -95,7 +95,7 @@ async function getBribes(options: FetchOptions) {
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  
+
   // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
     query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
@@ -121,7 +121,7 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
       first,
       skip,
       startOfDay: options.startOfDay,
-    }).then((data) => 
+    }).then((data) =>
       // Transform tokenDayDatas to match expected token format
       data.tokenDayDatas.map((td: any) => ({
         id: td.token.id,
@@ -222,36 +222,30 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
 
-  const swapFeesUSD = stats.clFeesUSD + stats.legacyFeesUSD
-  const holderSwapFeesUSD = stats.clUserFeesRevenueUSD + stats.legacyUserFeesRevenueUSD
-  const protocolSwapFeesUSD = stats.clProtocolRevenueUSD + stats.legacyProtocolRevenueUSD
-  const bribesUSD = stats.clBribeRevenueUSD + stats.legacyBribeRevenueUSD
-
-  // Fees — labelled by source
-  dailyFees.addUSDValue(swapFeesUSD, 'Token Swap Fees')
+  dailyFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
   dailyFees.addUSDValue(stats.dailyXrexInstantExitFeeUSD, 'Instant Exit Fees')
-  dailyFees.addUSDValue(bribesUSD, 'Bribes Rewards')
+  dailyFees.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Rewards')
 
   // User fees — swap fees and the exit penalty are paid by users; bribes come from third parties
-  dailyUserFees.addUSDValue(swapFeesUSD, 'Token Swap Fees')
+  dailyUserFees.addUSDValue(stats.clFeesUSD, 'Token Swap Fees')
   dailyUserFees.addUSDValue(stats.dailyXrexInstantExitFeeUSD, 'Instant Exit Fees')
 
   // Revenue / holders / protocol — labelled by destination
-  dailyRevenue.addUSDValue(holderSwapFeesUSD, 'Token Swap Fees To Holders')
-  dailyRevenue.addUSDValue(protocolSwapFeesUSD, 'Token Swap Fees To Protocol')
+  dailyRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
+  dailyRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
   dailyRevenue.addUSDValue(stats.dailyXrexInstantExitFeeUSD, 'Instant Exit Fees To Holders')
-  dailyRevenue.addUSDValue(bribesUSD, 'Bribes Revenue')
+  dailyRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
 
-  dailyHoldersRevenue.addUSDValue(holderSwapFeesUSD, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addUSDValue(stats.clUserFeesRevenueUSD, 'Token Swap Fees To Holders')
   dailyHoldersRevenue.addUSDValue(stats.dailyXrexInstantExitFeeUSD, 'Instant Exit Fees To Holders')
-  dailyHoldersRevenue.addUSDValue(bribesUSD, 'Bribes Revenue')
+  dailyHoldersRevenue.addUSDValue(stats.clBribeRevenueUSD, 'Bribes Revenue')
 
-  dailyProtocolRevenue.addUSDValue(protocolSwapFeesUSD, 'Token Swap Fees To Protocol')
+  dailyProtocolRevenue.addUSDValue(stats.clProtocolRevenueUSD, 'Token Swap Fees To Protocol')
 
-  dailySupplySideRevenue.addUSDValue(swapFeesUSD - holderSwapFeesUSD - protocolSwapFeesUSD, 'Token Swap Fees To LPs')
+  dailySupplySideRevenue.addUSDValue(stats.clFeesUSD - stats.clUserFeesRevenueUSD - stats.clProtocolRevenueUSD, 'Token Swap Fees To LPs')
 
   return {
-    dailyVolume: stats.clVolumeUSD + stats.legacyVolumeUSD,
+    dailyVolume: stats.clVolumeUSD,
     dailyFees,
     dailyUserFees,
     dailyHoldersRevenue,
@@ -262,7 +256,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Swap fees paid by traders on Etherex concentrated-liquidity and legacy pools, plus the 50% penalty forfeited by xREX holders who exit instantly, plus vote bribes deposited for pools.",
+  Fees: "Swap fees paid by traders on Etherex concentrated-liquidity pools, plus the 50% penalty forfeited by xREX holders who exit instantly, plus vote bribes deposited for pools.",
   UserFees: "Swap fees paid by traders plus the xREX instant-exit penalty. Vote bribes come from third parties and are excluded.",
   Revenue: "Swap fees routed to xREX holders and the treasury, the instant-exit penalty streamed to xREX stakers, and vote bribes.",
   ProtocolRevenue: "Treasury share of swap fees.",
@@ -277,12 +271,12 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      'Token Swap Fees': 'Swap fees paid by traders on Etherex concentrated-liquidity and legacy pools.',
+      'Token Swap Fees': 'Swap fees paid by traders on Etherex concentrated-liquidity pools.',
       'Instant Exit Fees': 'The 50% penalty forfeited by xREX holders who exit instantly, streamed to xREX stakers as rebase rewards.',
       'Bribes Rewards': 'Vote bribes deposited for Etherex pools.',
     },
     UserFees: {
-      'Token Swap Fees': 'Swap fees paid by traders on Etherex concentrated-liquidity and legacy pools.',
+      'Token Swap Fees': 'Swap fees paid by traders on Etherex concentrated-liquidity pools.',
       'Instant Exit Fees': 'The 50% penalty forfeited by xREX holders who exit instantly.',
     },
     Revenue: {
