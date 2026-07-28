@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 
 // Fees = per-swap (input notional * fee_at_that_time / 1e6), priced in the input token.
 // Fee history is init_dex ∪ every subsequent update_fee_and_revenue_cut call, window-joined
@@ -115,10 +116,11 @@ const fetch = async (options: FetchOptions) => {
     const jupiterShare = protocolCut * JUPITER_SHARE_OF_PROTOCOL;
     const fluidShare = protocolCut - jupiterShare;
 
-    dailyFees.add(inputMint, feeInToken);
-    dailySupplySideRevenue.add(inputMint, lpShare + fluidShare);
-    dailyRevenue.add(inputMint, jupiterShare);
-    dailyProtocolRevenue.add(inputMint, jupiterShare);
+    dailyFees.add(inputMint, feeInToken, "Jupiter Lend Dex Swap Fees");
+    dailySupplySideRevenue.add(inputMint, lpShare, "Jupiter Lend Dex Swap Fees to LPs");
+    dailySupplySideRevenue.add(inputMint, fluidShare, "Jupiter Lend Dex Swap Fees to Fluid");
+    dailyRevenue.add(inputMint, jupiterShare, "Jupiter Lend Dex Swap Fees to Protocol");
+    dailyProtocolRevenue.add(inputMint, jupiterShare, "Jupiter Lend Dex Swap Fees to Protocol");
   }
 
   return {
@@ -128,6 +130,22 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue,
   };
 };
+
+const breakdownMethodology = {
+  Fees: {
+    "Jupiter Lend Dex Swap Fees": "Total swap fees, priced in the input token.",
+  },
+  Revenue: {
+    "Jupiter Lend Dex Swap Fees to Protocol": "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
+  },
+  ProtocolRevenue: {
+    "Jupiter Lend Dex Swap Fees to Protocol": "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
+  },
+  SupplySideRevenue: {
+    "Jupiter Lend Dex Swap Fees to LPs": "LP share of swap fees plus Fluid's protocol share. LP share = fees x (1 - revenue_cut/1e6). Fluid receives 50% of the protocol cut per Jupiter Lend / Fluid arrangement.",
+    "Jupiter Lend Dex Swap Fees to Fluid": "Fluid's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -142,6 +160,7 @@ const adapter: SimpleAdapter = {
     Revenue: "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
     ProtocolRevenue: "Same as Revenue - AMM fees do not feed the JUP buyback.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;
