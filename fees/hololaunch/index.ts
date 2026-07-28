@@ -30,6 +30,10 @@ const eventReserveUpdated =
 // emitted when a graduated token's liquidity is moved into the locked full-range Uniswap V3 position
 const eventTransferLiquidityToDex =
   "event TransferLiquidityToDEX(uint256 positionTokenId)";
+// topic0 hashes for the two curve events, used for chain-wide topic scans (one chunked
+// eth_getLogs instead of one request per launched curve)
+const topicReserveUpdated = "0xf69b43589c419cfe01a18f772610b7607315b3c4ae99067295e537260d5e1315";
+const topicTransferLiquidityToDex = "0x4a3e3c33603e83b8c894c2eff0f5ffb67b2ce01e52292366a03dc828b6d5b813";
 // Uniswap V3 position manager fee collection (the protocol claims LP fees of locked positions)
 const eventCollect =
   "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)";
@@ -58,11 +62,16 @@ async function fetch(options: FetchOptions) {
   if (!curves.length)
     return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  const trades = await options.getLogs({
-    targets: curves,
-    eventAbi: eventReserveUpdated,
-    onlyArgs: false,
-  });
+  const curveSet = new Set(curves.map((curve) => curve.toLowerCase()));
+  const trades = (
+    await options.getLogs({
+      eventAbi: eventReserveUpdated,
+      topics: [topicReserveUpdated],
+      noTarget: true,
+      entireLog: true,
+      parseLog: true,
+    })
+  ).filter((log: any) => curveSet.has(log.address.toLowerCase()));
 
   // each launched token pays a flat one-time fee (0.001 ETH, HoloLaunch.getLaunchFee())
   // that goes 100% to the protocol. It is charged at deploy when the creator makes an
@@ -102,18 +111,19 @@ async function fetch(options: FetchOptions) {
 
   // post-graduation: the LP NFT of every graduated token sits locked in the
   // LiquidityManager and the protocol periodically claims its Uniswap V3 LP fees
-  const gradLogs = await options.getLogs({
-    targets: curves,
-    eventAbi: eventTransferLiquidityToDex,
-    fromBlock: START_BLOCK,
-    cacheInCloud: true,
-    flatten: false,
-    onlyArgs: false,
-  });
+  const gradLogs = (
+    await options.getLogs({
+      eventAbi: eventTransferLiquidityToDex,
+      topics: [topicTransferLiquidityToDex],
+      noTarget: true,
+      entireLog: true,
+      parseLog: true,
+      fromBlock: START_BLOCK,
+      cacheInCloud: true,
+    })
+  ).filter((log: any) => curveSet.has(log.address.toLowerCase()));
   const positionToken: Record<string, string> = {};
-  gradLogs.forEach((logs: any[], i: number) => {
-    for (const log of logs ?? []) positionToken[log.args.positionTokenId.toString()] = curves[i];
-  });
+  for (const log of gradLogs) positionToken[log.args.positionTokenId.toString()] = log.address;
 
   if (Object.keys(positionToken).length) {
     const collects = await options.getLogs({
