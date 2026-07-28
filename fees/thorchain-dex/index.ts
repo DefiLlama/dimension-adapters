@@ -4,17 +4,19 @@ import { httpGet } from "../../utils/fetchURL";
 
 // Start dates are each chain's first trading day on THORChain, taken from the first non-zero day in
 // raynalytics swap-volume-fees-by-chain (ETH/BTC/LTC = genesis; the rest are when their pools went live).
-const chainConfig: Record<string, { start: string; symbol: string, deadFrom?: string }> = {
+const chainConfig: Record<string, { start: string; symbol: string, deadFrom?: string, extraSymbols?: string[] }> = {
   [CHAIN.ETHEREUM]: { start: '2021-04-11', symbol: 'ETH' },
   [CHAIN.BITCOIN]: { start: '2021-04-11', symbol: 'BTC' },
   [CHAIN.LITECOIN]: { start: '2021-04-11', symbol: 'LTC' },
   [CHAIN.DOGE]: { start: '2022-01-16', symbol: 'DOGE' },
   // dead: Terra Classic collapsed, no THORChain swaps after 2022-05-10. Kept for historical data; returns 0 since.
   [CHAIN.TERRA]: { start: '2022-03-24', deadFrom: '2022-05-10', symbol: 'TERRA' },
-  // Binance Beacon Chain (feed "BNB", dead 2024-03-25) omitted: no DefiLlama chain key for it (CHAIN.BSC is Binance Smart Chain).
   [CHAIN.COSMOS]: { start: '2022-07-05', symbol: 'GAIA' },
   [CHAIN.AVAX]: { start: '2022-09-23', symbol: 'AVAX' },
-  [CHAIN.BSC]: { start: '2023-09-10', symbol: 'BSC' },
+  // Binance Beacon Chain (feed "BNB", traded 2021-04-11..2024-03-25, ~$8.35M lifetime swap fees) has no
+  // DefiLlama chain key, so its pools are attributed to BSC. Start is BNB's first trading day; native BSC
+  // pools only start 2023-09-10.
+  [CHAIN.BSC]: { start: '2021-04-11', symbol: 'BSC', extraSymbols: ['BNB'] },
   [CHAIN.BITCOIN_CASH]: { start: '2021-04-11', symbol: 'BCH' },
   [CHAIN.BASE]: { start: '2025-01-08', symbol: 'BASE' },
   [CHAIN.THORCHAIN]: { start: '2021-04-11', symbol: 'THOR' },
@@ -82,6 +84,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const fetch: any = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const chainShortName = chainConfig[options.chain].symbol;
+  // Feed symbols this DefiLlama chain claims (e.g. bsc covers both BSC and the dead BNB Beacon Chain).
+  const chainSymbols = new Set([chainShortName, ...(chainConfig[options.chain].extraSymbols || [])]);
   const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   // Daily fee components in USD (gross OUTBOUND_FEE, SLASHING_FEE, ...), full history.
   const incomeExpensesUrl = `https://raynalytics.net/api/income-expenses`;
@@ -105,7 +109,7 @@ const fetch: any = async (options: FetchOptions) => {
 
   const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
 
-  const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => assetFromString(pool.pool)?.chain === chainShortName);
+  const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => chainSymbols.has(assetFromString(pool.pool)?.chain as string));
 
   const runePriceUSD = Number(selectedEarningInterval.runePriceUSD || 0);
   // RUNE amounts are in 1e8 base units; values here are USD fees in the thousands, well within JS precision.
@@ -121,13 +125,13 @@ const fetch: any = async (options: FetchOptions) => {
   const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
   const incomeRow = incomeExpenses.find((r: any) => r.DAY.slice(0, 10) === dateStr);
 
-  const trackedSymbols = new Set(Object.values(chainConfig).map((c: any) => c.symbol));
+  const trackedSymbols = new Set(Object.values(chainConfig).flatMap((c: any) => [c.symbol, ...(c.extraSymbols || [])]));
   const dayVolumeRows = volumeByChain.filter((r: any) => r.DATE.slice(0, 10) === dateStr && trackedSymbols.has(r.CHAIN));
   const totalVolume = sumVolume(dayVolumeRows);
   // Split by swap-volume share. When there is no volume (e.g. exchange halt 2026-05-16..2026-06-21,
   // or raynalytics feed gap) fall back to 0 rather than attributing across chains.
   const volumeShare = totalVolume
-    ? sumVolume(dayVolumeRows.filter((r: any) => r.CHAIN === chainShortName)) / totalVolume
+    ? sumVolume(dayVolumeRows.filter((r: any) => chainSymbols.has(r.CHAIN))) / totalVolume
     : 0;
 
   const outboundFee = Math.max(0, Number(incomeRow?.OUTBOUND_FEE || 0) * volumeShare);
