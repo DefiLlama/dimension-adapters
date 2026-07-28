@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 type IContract = {
   [c: string | Chain]: {
@@ -346,6 +347,13 @@ export const LIFI_API_CHAINS = [
   CHAIN.MOONBEAM, CHAIN.FRAXTAL, CHAIN.CELO, CHAIN.LISK, CHAIN.APECHAIN, CHAIN.INK, CHAIN.MANTLE, CHAIN.METIS, CHAIN.BOBA, CHAIN.FUSE, CHAIN.CRONOS, CHAIN.GRAVITY, CHAIN.KLAYTN, CHAIN.PLUME, CHAIN.IMX, CHAIN.WC, CHAIN.SWELLCHAIN, CHAIN.ETHERLINK, CHAIN.SUPERPOSITION, CHAIN.LENS, CHAIN.BOB, CHAIN.RONIN, CHAIN.VANA, CHAIN.SOPHON, CHAIN.PLASMA, CHAIN.FLOW, CHAIN.HEMI, CHAIN.STABLE,
 ]
 
+// LI.FI dropped support for these chains: they are absent from li.quest/v1/chains and the analytics
+// API answers 400, which burned 3 retries per chain on every run. They stay in LifiDiamonds and
+// LIFI_API_CHAINS so their history is preserved and getLogs (unreliable on all four) is not used.
+const LIFI_UNSUPPORTED_CHAINS: string[] = [
+  CHAIN.TAIKO, CHAIN.SWELLCHAIN, CHAIN.SUPERPOSITION, CHAIN.SOPHON,
+]
+
 export const LifiFeeCollectors: IContract = {
   [CHAIN.ABSTRACT]: {
     id: '0xde6A2171959d7b82aAD8e8B14cc84684C3a186AC',
@@ -552,7 +560,22 @@ export const LifiFeeCollectors: IContract = {
 // ponytail: blunt magnitude cap, catches the egregious 10^8-off errors, not subtle mispricing.
 const MAX_TRANSFER_USD = 50_000_000;
 
+// li.quest 429s when every API-routed chain paginates at once, so all analytics requests from this
+// process go through a single queue with a gap between them. Retrying alone does not help: the
+// retries just rejoin the same stampede.
+// ponytail: one global lock, serial by design. Move to a small concurrency pool if runs get too slow.
+const REQUEST_GAP_MS = 300;
+let requestQueue: Promise<any> = Promise.resolve();
+
+const queuedFetch = (url: string): Promise<any> => {
+  const result = requestQueue.then(() => fetchURLAutoHandleRateLimit(url));
+  requestQueue = result.catch(() => undefined).then(() => sleep(REQUEST_GAP_MS));
+  return result;
+};
+
 export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[], exclude_integrators?: string[], swapType?: 'cross-chain' | 'same-chain'): Promise<number> => {
+  if (LIFI_UNSUPPORTED_CHAINS.includes(chain)) return 0;
+
   let hasMore = true;
   let totalValue = 0;
   let nextCursor: string | undefined;
@@ -574,8 +597,7 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, en
     }
 
     const url = `https://li.quest/v2/analytics/transfers?${params}`;
-    // paginating a busy chain can 429 the analytics API; back off + retry instead of failing
-    const response = await fetchURLAutoHandleRateLimit(url) as LifiResponse;
+    const response = await queuedFetch(url) as LifiResponse;
 
     if (!response?.data || !Array.isArray(response.data)) {
       break;
