@@ -37,6 +37,9 @@ const eventCollect =
 const LAUNCH_FEE_LABEL = "Token Launch Fees";
 const LP_FEE_LABEL = "LP Fees of Graduated Tokens";
 
+// the flat launch fee changes only via admin action - fetch it once per run
+let cachedLaunchFee: Promise<any> | undefined;
+
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -55,27 +58,27 @@ async function fetch(options: FetchOptions) {
   if (!curves.length)
     return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
+  const trades = await options.getLogs({
+    targets: curves,
+    eventAbi: eventReserveUpdated,
+    onlyArgs: false,
+  });
+
   // each launched token pays a flat one-time fee (0.001 ETH, HoloLaunch.getLaunchFee())
   // that goes 100% to the protocol. It is charged at deploy when the creator makes an
   // initial purchase (which emits ReserveUpdated from the constructor), otherwise it is
-  // deducted from the token's first buy - in both cases the fee is paid in the same tx
-  // as the curve's first-ever ReserveUpdated event, so we count a launch fee for every
-  // curve whose first trade falls inside the window.
-  const allTrades = await options.getLogs({
-    targets: curves,
-    eventAbi: eventReserveUpdated,
-    fromBlock: START_BLOCK,
-    cacheInCloud: true,
-    flatten: false,
-    onlyArgs: false,
-  });
-  const [windowFromBlock, windowToBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  const launchFeesPaid = allTrades.filter((logs: any[]) => {
-    if (!logs?.length) return false;
-    const firstBlock = Math.min(...logs.map((log: any) => Number(log.blockNumber)));
-    return firstBlock >= windowFromBlock && firstBlock < windowToBlock;
-  }).length;
-  const launchFee = await options.api.call({ target: HOLOLAUNCH_FACTORY, abi: "uint256:getLaunchFee" });
+  // deducted from the token's first buy. Either way the payer is the first buy on a
+  // curve whose public launchFeePaid flag was still false (or the curve not yet
+  // deployed, resolved as null via permitFailure) at the start of the window.
+  const curvesWithBuys: string[] = [
+    ...new Set(trades.filter((log: any) => log.args.isBuy).map((log: any) => log.address as string)),
+  ];
+  const paidBefore = curvesWithBuys.length
+    ? await options.fromApi.multiCall({ calls: curvesWithBuys, abi: "bool:launchFeePaid", permitFailure: true })
+    : [];
+  const launchFeesPaid = curvesWithBuys.filter((_, i) => !paidBefore[i]).length;
+  cachedLaunchFee ??= options.api.call({ target: HOLOLAUNCH_FACTORY, abi: "uint256:getLaunchFee" });
+  const launchFee = await cachedLaunchFee;
   dailyFees.addGasToken(Number(launchFee) * launchFeesPaid, LAUNCH_FEE_LABEL);
   dailyRevenue.addGasToken(Number(launchFee) * launchFeesPaid, LAUNCH_FEE_LABEL);
 
@@ -83,9 +86,6 @@ async function fetch(options: FetchOptions) {
   // same tx as TokenDeployed, and logs the net (post-fee) amount
   const deployTxs = new Set(allDeploys.map((log: any) => log.transactionHash));
 
-  const trades = allTrades
-    .flat()
-    .filter((log: any) => Number(log.blockNumber) >= windowFromBlock && Number(log.blockNumber) < windowToBlock);
   for (const log of trades) {
     let fee: number;
     if (log.args.isBuy) {
