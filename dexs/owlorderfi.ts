@@ -70,34 +70,24 @@ const fetch: FetchV2 = async ({ getLogs, chain, createBalances }) => {
   return {
     dailyVolume,
     dailyFees,
-    // The whole fee accrues to the protocol: the router has no liquidity
-    // providers of its own. Pool fees belong to Uniswap and are not counted
-    // here.
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
     dailySupplySideRevenue: 0,
   };
 };
 
-// Deliberately a separate object from `config`. cli/buildModules.ts deletes
-// every per-chain key that is not in `whitelistedBaseAdapterKeys`, so passing
-// `config` straight through as `adapter` would strip `routers` from the very
-// object `fetch` closes over — no build error, then an undefined at run time.
-const adapters: any = {};
-Object.keys(config).forEach((chain) => {
-  adapters[chain] = { fetch, start: config[chain].start };
-});
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: adapters,
+  adapter: config,
+  fetch,
   methodology: {
     Volume:
       "Sum of the input amount of every executed order, taken from the router's OrderExecuted logs. Only the input leg is counted, so a single trade is never counted twice. Cancellations, which the previous router encoded as an OrderExecuted with orderType 255, are excluded.",
     Fees: "Protocol fee deducted from the output token of each executed order. The rate is signed by the maker as part of the order and capped on-chain at 1%.",
-    Revenue: "All fees. The router has no liquidity providers, so nothing is shared out.",
-    ProtocolRevenue: "All fees.",
+    Revenue: "All the protocol fees deducted from the output token of each executed order. The router has no liquidity providers, so nothing is shared out.",
+    ProtocolRevenue: "All the protocol fees deducted from the output token of each executed order. The router has no liquidity providers, so nothing is shared out.",
     SupplySideRevenue: "None. Liquidity is Uniswap's; its pool fees are not counted here.",
   },
   breakdownMethodology: {
@@ -106,12 +96,13 @@ const adapter: SimpleAdapter = {
         "Protocol fee deducted from the output token of each executed order. The rate is signed by the maker as part of the order payload and capped on-chain at 1%.",
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: "All of the fee. The router has no liquidity providers to share it with.",
+      [METRIC.PROTOCOL_FEES]: "All the protocol fees deducted from the output token of each executed order. The router has no liquidity providers, so nothing is shared out.",
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "All of the fee.",
+      [METRIC.PROTOCOL_FEES]: "All the protocol fees deducted from the output token of each executed order. The router has no liquidity providers, so nothing is shared out.",
     },
   },
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
