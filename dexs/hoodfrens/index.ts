@@ -86,14 +86,13 @@ const fetch = async (options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    const [tradeLogs, referralLogs, prizeLogs, creatorPaidLogs, creatorAccruedLogs] =
-        await Promise.all([
-            options.getLogs({ target: TRADING_CONTRACT, eventAbi: TRADE_EVENT_ABI }),
-            options.getLogs({ target: TRADING_CONTRACT, eventAbi: REFERRAL_FEE_PAID_ABI }),
-            options.getLogs({ target: TRADING_CONTRACT, eventAbi: ETH_PRIZE_DEPOSITED_ABI }),
-            options.getLogs({ target: TRADING_CONTRACT, eventAbi: CREATOR_FEE_PAID_ABI }),
-            options.getLogs({ target: TRADING_CONTRACT, eventAbi: CREATOR_FEE_ACCRUED_ABI }),
-        ]);
+    // Sequential on purpose: the public Robinhood RPC rate-limits bursts
+    // (parallel getLogs from CI runners intermittently 429s).
+    const tradeLogs = await options.getLogs({ target: TRADING_CONTRACT, eventAbi: TRADE_EVENT_ABI });
+    const referralLogs = await options.getLogs({ target: TRADING_CONTRACT, eventAbi: REFERRAL_FEE_PAID_ABI });
+    const prizeLogs = await options.getLogs({ target: TRADING_CONTRACT, eventAbi: ETH_PRIZE_DEPOSITED_ABI });
+    const creatorPaidLogs = await options.getLogs({ target: TRADING_CONTRACT, eventAbi: CREATOR_FEE_PAID_ABI });
+    const creatorAccruedLogs = await options.getLogs({ target: TRADING_CONTRACT, eventAbi: CREATOR_FEE_ACCRUED_ABI });
 
     for (const log of tradeLogs) {
         // Buy:  priceInWei is gross (includes IPO fees when active)
