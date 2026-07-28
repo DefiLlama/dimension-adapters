@@ -287,12 +287,6 @@ const reconcileSuite = (
   return allocations;
 };
 
-const DIRECT_LOG_FETCH_OPTIONS = {
-  // The adapter runs hourly; avoid reusing a partial cached response in the RPC fallback.
-  skipIndexer: true,
-  skipCache: true,
-} as const;
-
 const PARSED_LOG_FETCH_OPTIONS = {
   entireLog: true,
   parseLog: true,
@@ -333,7 +327,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     ? await options.getLogs({
       targets: launchFeeSuites.map((suite) => suite.factory),
       eventAbi: LAUNCH_FEE_PAID_EVENT,
-      ...DIRECT_LOG_FETCH_OPTIONS,
       flatten: false,
     }) as LaunchFeeArgs[][]
     : [];
