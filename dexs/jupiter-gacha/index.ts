@@ -103,20 +103,22 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: 0,
     dailyUserFees: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: "0",
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Volume: "Gross USDC spent on Jupiter Gacha packs.",
   Fees: "Jupiter Gacha pack sales minus card buyback payouts.",
-  Revenue: "Net pack revenue after card buyback payouts.",
+  Revenue: "Jupiter doesn't retain any revenue, all the revenue belongs to Collector Crypt.",
   UserFees: "Net amount paid by users after card buybacks.",
-  ProtocolRevenue: "Net pack revenue after card buybacks.",
+  ProtocolRevenue: "Jupiter doesn't retain any revenue, all the revenue belongs to Collector Crypt.",
   HoldersRevenue: "No holders revenue.",
+  SupplySideRevenue: "All the revenue from pack sales minus buybacks belongs to Collector Crypt."
 };
 
 const financialBreakdown = {
@@ -141,8 +143,8 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: financialBreakdown,
-    Revenue: financialBreakdown,
-    ProtocolRevenue: financialBreakdown,
+    UserFees: financialBreakdown,
+    SupplySideRevenue: financialBreakdown,
   },
   allowNegativeValue: true, // hourly buyback payouts can exceed pack sales in the same interval
   doublecounted: true, // Jupiter Gacha activity overlaps with Collector Crypt
