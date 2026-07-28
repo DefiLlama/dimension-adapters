@@ -48,34 +48,44 @@ async function fetch(options: FetchOptions) {
     eventAbi: eventTokenDeployed,
     fromBlock: START_BLOCK,
     cacheInCloud: true,
+    onlyArgs: false,
   });
-  const curves: string[] = allDeploys.map((log: any) => log.tokenAddr);
+  const curves: string[] = allDeploys.map((log: any) => log.args.tokenAddr);
 
   if (!curves.length)
     return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  // tokens launched within the window: each launch pays a flat one-time fee
-  // (0.001 ETH, HoloLaunch.getLaunchFee()) that goes 100% to the protocol.
-  // The fee is charged at deploy, or deducted from the first buy when the
-  // creator made no initial purchase - we count it at deploy time.
-  const windowDeploys = await options.getLogs({
-    target: HOLOLAUNCH_FACTORY,
-    eventAbi: eventTokenDeployed,
+  // each launched token pays a flat one-time fee (0.001 ETH, HoloLaunch.getLaunchFee())
+  // that goes 100% to the protocol. It is charged at deploy when the creator makes an
+  // initial purchase (which emits ReserveUpdated from the constructor), otherwise it is
+  // deducted from the token's first buy - in both cases the fee is paid in the same tx
+  // as the curve's first-ever ReserveUpdated event, so we count a launch fee for every
+  // curve whose first trade falls inside the window.
+  const allTrades = await options.getLogs({
+    targets: curves,
+    eventAbi: eventReserveUpdated,
+    fromBlock: START_BLOCK,
+    cacheInCloud: true,
+    flatten: false,
     onlyArgs: false,
   });
+  const [windowFromBlock, windowToBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  const launchFeesPaid = allTrades.filter((logs: any[]) => {
+    if (!logs?.length) return false;
+    const firstBlock = Math.min(...logs.map((log: any) => Number(log.blockNumber)));
+    return firstBlock >= windowFromBlock && firstBlock < windowToBlock;
+  }).length;
   const launchFee = await options.api.call({ target: HOLOLAUNCH_FACTORY, abi: "uint256:getLaunchFee" });
-  dailyFees.addGasToken(Number(launchFee) * windowDeploys.length, LAUNCH_FEE_LABEL);
-  dailyRevenue.addGasToken(Number(launchFee) * windowDeploys.length, LAUNCH_FEE_LABEL);
+  dailyFees.addGasToken(Number(launchFee) * launchFeesPaid, LAUNCH_FEE_LABEL);
+  dailyRevenue.addGasToken(Number(launchFee) * launchFeesPaid, LAUNCH_FEE_LABEL);
 
   // the creator's initial buy is emitted from the token constructor, i.e. in the
   // same tx as TokenDeployed, and logs the net (post-fee) amount
-  const deployTxs = new Set(windowDeploys.map((log: any) => log.transactionHash));
+  const deployTxs = new Set(allDeploys.map((log: any) => log.transactionHash));
 
-  const trades = await options.getLogs({
-    targets: curves,
-    eventAbi: eventReserveUpdated,
-    onlyArgs: false,
-  });
+  const trades = allTrades
+    .flat()
+    .filter((log: any) => Number(log.blockNumber) >= windowFromBlock && Number(log.blockNumber) < windowToBlock);
   for (const log of trades) {
     let fee: number;
     if (log.args.isBuy) {
@@ -156,6 +166,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-14",
