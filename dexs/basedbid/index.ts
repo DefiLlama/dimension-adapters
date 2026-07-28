@@ -56,12 +56,10 @@ const fetchSolana = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: "2025-12-24",
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.SOLANA],
+  start: "2025-12-24",
+  fetch: fetchSolana,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Volume:

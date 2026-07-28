@@ -1,3 +1,4 @@
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -57,6 +58,11 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
 // shares are paid directly to per-token wallets and are not tracked here.
 const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
 const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
+const SOLANA_FEE_MINTS = [
+  ADDRESSES.solana.SOL,
+  ADDRESSES.solana.USDC,
+  "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB", // USD1
+];
 
 const fetchSolana = async (options: FetchOptions) => {
   const rows = await queryAllium(`
@@ -69,6 +75,7 @@ const fetchSolana = async (options: FetchOptions) => {
       AND tx.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND tr.to_address = '${SOLANA_FEE_WALLET}'
       AND tr.from_address != '${SOLANA_FEE_WALLET}'
+      AND tr.mint IN (${SOLANA_FEE_MINTS.map((m) => `'${m}'`).join(", ")})
       AND tx.success = true
       AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
   `);
