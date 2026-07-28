@@ -29,6 +29,8 @@ const DOPPLER_INITIALIZERS = [
 ];
 // Platform keeps 32% of the pool fee → total user-paid fee = platform revenue / 0.32.
 const PLATFORM_SHARE = 0.32;
+const CREATOR_SHARE = 0.63;
+const DOPPLER_SHARE = 0.05;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -45,9 +47,10 @@ const fetch = async (options: FetchOptions) => {
     fromAdddesses: DOPPLER_INITIALIZERS, // count only fee releases (note: helper's param is spelled fromAdddesses)
   });
 
-  dailyRevenue.addBalances(revenue);
-  dailyFees.addBalances(revenue.clone(1 / PLATFORM_SHARE));
-  dailySupplySideRevenue.addBalances(revenue.clone((1 - PLATFORM_SHARE) / PLATFORM_SHARE));
+  dailyRevenue.addBalances(revenue, "Launchpad Fees to Protocol");
+  dailyFees.addBalances(revenue.clone(1 / PLATFORM_SHARE), "Launchpad Fees");
+  dailySupplySideRevenue.addBalances(revenue.clone(CREATOR_SHARE / PLATFORM_SHARE), "Launchpad Fees to Creators");
+  dailySupplySideRevenue.addBalances(revenue.clone(DOPPLER_SHARE / PLATFORM_SHARE), "Launchpad Fees to Doppler");
 
   return {
     dailyFees,
@@ -58,11 +61,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
-  start: "2026-07-15", // first platform WETH release to 0x5bF5805e… (verified on Base).
+  start: "2026-07-15",
   methodology: {
     Fees: "Estimated total fees paid by users on tokens launched via the AGNT launchpad (Doppler V4 on Base): the 1.095% terminal pool fee, derived from the observed on-chain platform fee share. CONSERVATIVE — only the WETH leg is measured (launched-token leg excluded), so figures are a lower bound. In-app swap (trading) fees are not yet included.",
     Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees, measured as WETH released to the platform fee wallet 0x5bF5805e…C5f0 by the Doppler initializers.",
@@ -71,8 +74,14 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: { "Launchpad Fees": "1.095% Doppler terminal fee (WETH leg), estimated as platform WETH share / 0.32." },
-    Revenue: { "Launchpad Fees": "32% platform share, WETH released to 0x5bF5805e…C5f0." },
+    Revenue: { "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet" },
+    ProtocolRevenue: { "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet" },
+    SupplySideRevenue: {
+      "Launchpad Fees to Creators": "63% of launchpad pool fees paid to third-party token creators",
+      "Launchpad Fees to Doppler": "5% of launchpad pool fees paid to the Doppler protocol"
+    },
   },
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
