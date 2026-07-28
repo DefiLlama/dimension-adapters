@@ -32,13 +32,44 @@ const depositEvents = [
   },
 ];
 
-const CHAIN_CONFIGS: any = {
-  [CHAIN.ETHEREUM]: "0xdd50C053C096CB04A3e3362E2b622529EC5f2e8a",
-  [CHAIN.ARBITRUM]: "0xF84D28A8D28292842dD73D1c5F99476A80b6666A",
-  [CHAIN.SOLANA]: "4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6",
+type TBillChainConfig = {
+  target: any;
+  start?: string;
+  runAtCurrTime?: boolean;
+};
+
+const chainConfig: Record<string, TBillChainConfig> = {
+  // https://etherscan.io/token/0xdd50C053C096CB04A3e3362E2b622529EC5f2e8a
+  [CHAIN.ETHEREUM]: {
+    target: "0xdd50C053C096CB04A3e3362E2b622529EC5f2e8a",
+    start: '2023-10-18',
+  },
+  // https://arbiscan.io/token/0xF84D28A8D28292842dD73D1c5F99476A80b6666A
+  [CHAIN.ARBITRUM]: {
+    target: "0xF84D28A8D28292842dD73D1c5F99476A80b6666A",
+    start: '2024-02-13',
+  },
+  // https://bscscan.com/token/0x5b4681F0d7A01B817675F25892D3Ad73572FD1D9
+  // Reports name "OpenEden T-Bills", symbol TBILL. Its implementation
+  // 0xf3c7bbd9f91de0664a3e2ec5063e45872da472d9 is byte-identical to the verified
+  // Ethereum one apart from the immutable self-address, and underlying() returns
+  // BSC USDC, matching coreAssets bsc.USDC at 18 decimals.
+  [CHAIN.BSC]: {
+    target: "0x5b4681F0d7A01B817675F25892D3Ad73572FD1D9",
+    start: '2026-05-25',
+  },
+  // https://solscan.io/token/4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6
+  [CHAIN.SOLANA]: {
+    target: "4MmJVdwYN8LwvbGeCowYjSx7KoEi6BJWg8XXnW4fDDp6",
+    runAtCurrTime: true,
+  },
+  // https://xrpscan.com/account/rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn
   [CHAIN.RIPPLE]: {
-    ACCOUNT: 'rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn',
-    HOT_WALLET: 'rB56JZWRKvpWNeyqM3QYfZwW4fS9YEyPWM',
+    target: {
+      ACCOUNT: 'rJNE2NNz83GJYtWVLwMvchDWEon3huWnFn',
+      HOT_WALLET: 'rB56JZWRKvpWNeyqM3QYfZwW4fS9YEyPWM',
+    },
+    runAtCurrTime: true,
   },
 };
 
@@ -46,9 +77,9 @@ const MANAGEMENT_FEES: number = 0.003;
 const DAILY_MANAGEMENT_FEES: number = MANAGEMENT_FEES / 365;
 
 const fetch = async (
-  config: any,
   { chain, api, getLogs, createBalances }: FetchOptions
 ): Promise<FetchResultV2> => {
+  const config = chainConfig[chain].target;
   const dailyFees = createBalances();
 
   if (chain === CHAIN.RIPPLE) {
@@ -116,28 +147,15 @@ const adapter: Adapter = {
   // (totalAssets * MANAGEMENT_FEES/365), so running 24 hourly pulls would charge a
   // full day's management fee 24 times and overstate fees/revenue.
   pullHourly: false,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: (options: FetchOptions) =>
-        fetch(CHAIN_CONFIGS[CHAIN.ETHEREUM], options),
-      start: '2023-10-18',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: (options: FetchOptions) =>
-        fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
-      start: '2024-02-13',
-    },
-    [CHAIN.RIPPLE]: {
-      fetch: (options: FetchOptions) =>
-        fetch(CHAIN_CONFIGS[CHAIN.RIPPLE], options),
-      runAtCurrTime: true,
-    },
-    [CHAIN.SOLANA]: {
-      fetch: (options: FetchOptions) =>
-        fetch(CHAIN_CONFIGS[CHAIN.SOLANA], options),
-      runAtCurrTime: true,
-    },
-  },
+  adapter: {},
 };
+
+for (const [chain, { start, runAtCurrTime }] of Object.entries(chainConfig)) {
+  (adapter.adapter as any)[chain] = {
+    fetch,
+    ...(start ? { start } : {}),
+    ...(runAtCurrTime ? { runAtCurrTime } : {}),
+  };
+}
 
 export default adapter;
