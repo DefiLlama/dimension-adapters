@@ -142,7 +142,7 @@ const breakdownMethodology = {
     "Jupiter Lend Dex Swap Fees to Protocol": "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
   },
   SupplySideRevenue: {
-    "Jupiter Lend Dex Swap Fees to LPs": "LP share of swap fees plus Fluid's protocol share. LP share = fees x (1 - revenue_cut/1e6). Fluid receives 50% of the protocol cut per Jupiter Lend / Fluid arrangement.",
+    "Jupiter Lend Dex Swap Fees to LPs": "LP share of swap fees. LP share = fees x (1 - revenue_cut/1e6).",
     "Jupiter Lend Dex Swap Fees to Fluid": "Fluid's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
   }
 }
@@ -158,7 +158,7 @@ const adapter: SimpleAdapter = {
     Fees: "Total swap fees, priced in the input token. Per-swap fee = amount_in x (pool.fee / 1e6) where pool.fee is the value live at the swap's block_time (sourced from init_dex plus every update_fee_and_revenue_cut call, window-joined via effective range). amount_in is exact for swap_in (call arg) and swap_out (LogSwap Anchor event decoded from call_log_messages, u64 LE at byte 11 of the payload).",
     SupplySideRevenue: "LP share of swap fees plus Fluid's protocol share. LP share = fees x (1 - revenue_cut/1e6). Fluid receives 50% of the protocol cut per Jupiter Lend / Fluid arrangement.",
     Revenue: "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
-    ProtocolRevenue: "Same as Revenue - AMM fees do not feed the JUP buyback.",
+    ProtocolRevenue: "Jupiter's share of the protocol cut: fees x (revenue_cut/1e6) x 50%.",
   },
   breakdownMethodology,
 };
