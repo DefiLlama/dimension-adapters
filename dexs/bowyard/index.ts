@@ -210,6 +210,7 @@ const adapter: Adapter = {
         "The remaining 60% of Agent trading fees routed to the operating recipient and, when attributed, the ecosystem recipient.",
     },
   },
+  doublecounted: true, //post-graduation swap fees
 };
 
 export default adapter;
