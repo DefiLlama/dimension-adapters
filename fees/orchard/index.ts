@@ -19,8 +19,8 @@
 // 2. Rake, on every revealed round with a winner (Orchard._reveal):
 //      lossPool = totalStake - winningStake
 //      rake     = lossPool * rakeBps / BPS     (10% today)
-//    split into stakers = rake * STAKERS_BPS / BPS (10%, a contract constant),
-//    jackpot = rake * jackpotBps / BPS (50%), treasury = the remainder (40%).
+//    split into stakers = rake * STAKERS_BPS / BPS (a fixed 10%, contract constant),
+//    jackpot = rake * jackpotBps / BPS (50% today), treasury = the remainder (40% today).
 //
 // rakeBps and jackpotBps are owner-adjustable and stored per round, so both are read
 // back from rounds(id) instead of being hardcoded — historical rounds keep their own rate.
@@ -185,21 +185,21 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Total ETH planted on the grid, taken from the Planted and PlantedMany events.",
   Fees:
-    "Every plant pays an admin fee, at the configured adminFeeBps rate (1% at time of writing), on the AAPL bought with it. Every revealed round with a winner pays a 10% rake on the loss pool (the stakes on the 24 plots that did not bloom), split into 10% to SEED stakers, 50% to the Golden Apple jackpot and 40% to the treasury. Rounds where the blooming plot is empty take no rake — the whole pot rolls into the jackpot.",
+    "Every plant pays an admin fee, at the configured adminFeeBps rate (1% at time of writing), on the AAPL bought with it. Every revealed round with a winner pays that round's configured rakeBps on the loss pool (the stakes on the 24 plots that did not bloom), split into a fixed 10% to SEED stakers (STAKERS_BPS, a contract constant), the round's configured jackpotBps share to the Golden Apple jackpot, and the remainder to the treasury. Rounds where the blooming plot is empty take no rake — the whole pot rolls into the jackpot.",
   UserFees: "Same as Fees — both the admin fee and the rake are paid by players out of what they planted.",
   Revenue: "Gross profit: the admin fee plus the stakers and treasury cuts of the rake. The jackpot cut is excluded because it is paid back out to players.",
   ProtocolRevenue: "The admin fee taken on every plant at the configured adminFeeBps rate, withdrawn by the owner via collectAdmin.",
   HoldersRevenue:
-    "Value reaching SEED holders: the 10% of the rake flushed to SeedStaking as AAPL yield for stakers, plus the 40% treasury cut that buys SEED back on the DEX and burns it.",
-  SupplySideRevenue: "The 50% of the rake routed to the Golden Apple jackpot, which is paid back out to players when it hits.",
+    "Value reaching SEED holders: the fixed 10% of each round's rake flushed to SeedStaking as AAPL yield for stakers, plus the treasury remainder that buys SEED back on the DEX and burns it.",
+  SupplySideRevenue: "The round's configured jackpotBps share of its rake, routed to the Golden Apple jackpot and paid back out to players when it hits.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [ADMIN_FEE]: "The configured adminFeeBps share of the AAPL bought on every plant (Planted and PlantedMany events), resolved per event so rate changes apply only from the block they take effect.",
-    [METRIC.STAKING_REWARDS]: "10% of each round's rake, accrued for SEED stakers.",
-    [JACKPOT]: "50% of each round's rake, routed to the Golden Apple jackpot.",
-    [TREASURY]: "40% of each round's rake, accrued to the treasury.",
+    [METRIC.STAKING_REWARDS]: "A fixed 10% of each round's rake (STAKERS_BPS, a contract constant), accrued for SEED stakers.",
+    [JACKPOT]: "The round's configured jackpotBps share of its rake, routed to the Golden Apple jackpot.",
+    [TREASURY]: "The remainder of each round's rake after the staker and jackpot shares, accrued to the treasury.",
   },
   UserFees: {
     [ADMIN_FEE]: "Admin fee paid by players on every plant.",
@@ -209,18 +209,18 @@ const breakdownMethodology = {
   },
   Revenue: {
     [ADMIN_FEE]: "Admin fee on every plant, at the configured adminFeeBps rate.",
-    [METRIC.STAKING_REWARDS]: "10% of the rake accrued for SEED stakers.",
-    [TREASURY]: "40% of the rake accrued to the treasury.",
+    [METRIC.STAKING_REWARDS]: "The fixed 10% staker share of each round's rake.",
+    [TREASURY]: "The treasury remainder of each round's rake.",
   },
   ProtocolRevenue: {
     [ADMIN_FEE]: "Admin fee on every plant at the configured adminFeeBps rate, withdrawn by the owner via collectAdmin.",
   },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "10% of the rake flushed to SeedStaking as AAPL yield for SEED stakers.",
-    [TREASURY]: "40% of the rake spent buying SEED back on the DEX and burning it.",
+    [METRIC.STAKING_REWARDS]: "The fixed 10% staker share of each round's rake, flushed to SeedStaking as AAPL yield for SEED stakers.",
+    [TREASURY]: "The treasury remainder of each round's rake, spent buying SEED back on the DEX and burning it.",
   },
   SupplySideRevenue: {
-    [JACKPOT]: "50% of the rake routed to the Golden Apple jackpot, paid back out to players when it hits.",
+    [JACKPOT]: "The round's configured jackpotBps share of its rake, routed to the Golden Apple jackpot and paid back out to players when it hits.",
   },
 };
 
