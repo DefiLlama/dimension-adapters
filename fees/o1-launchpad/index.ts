@@ -298,39 +298,17 @@ const PARSED_LOG_FETCH_OPTIONS = {
   parseLog: true,
 } as const;
 
-type LogFetchParams = {
-  targets: string[];
-  eventAbi: string;
-  flatten: false;
-  entireLog?: boolean;
-  parseLog?: boolean;
-};
-
-const fetchCompleteLogs = async (options: FetchOptions, params: LogFetchParams) => {
-  if (options.chain === CHAIN.BASE) {
-    try {
-      return await options.streamLogs({
-        ...params,
-        clientStreaming: true,
-        collect: true,
-      });
-    } catch {
-      // Local runs and temporary indexer outages still have a bounded RPC path.
-    }
-  }
-  return options.getLogs({ ...params, ...DIRECT_LOG_FETCH_OPTIONS });
-};
 
 const fetchAllocations = async (options: FetchOptions, config: ChainConfig) => {
   const { suites, legacyQuotes } = config;
   const [tradeLogsPerHook, creditLogsPerEscrow] = await Promise.all([
-    fetchCompleteLogs(options, {
+    options.getLogs({
       targets: suites.map((suite) => suite.hook),
       eventAbi: TRADE_EVENT,
       flatten: false,
       ...PARSED_LOG_FETCH_OPTIONS,
     }),
-    fetchCompleteLogs(options, {
+      options.getLogs({
       targets: suites.map((suite) => suite.feeEscrow),
       eventAbi: CREDITED_EVENT,
       flatten: false,
@@ -352,9 +330,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const launchFeeSuites = config.suites.filter((suite) => suite.launchFeeCurrency !== "none");
   const launchFeeLogsPerFactory = launchFeeSuites.length
-    ? await fetchCompleteLogs(options, {
+    ? await options.getLogs({
       targets: launchFeeSuites.map((suite) => suite.factory),
       eventAbi: LAUNCH_FEE_PAID_EVENT,
+      ...DIRECT_LOG_FETCH_OPTIONS,
       flatten: false,
     }) as LaunchFeeArgs[][]
     : [];
