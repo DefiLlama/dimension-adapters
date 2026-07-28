@@ -54,10 +54,21 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
 // Solana: the BasedBid program transfers the protocol's share of creation/trading/
 // finalize/LP-claim fees (WSOL/USDC/USD1) to the hardcoded admin fee wallet. The wallet
 // also collects fees for other products of the team, so inflows are restricted to
-// transactions that include the BasedBid program. Sub-board, meme-owner and referral
-// shares are paid directly to per-token wallets and are not tracked here.
+// transactions that include the BasedBid program.
+//
+// Supply side: in each bonding-curve trade the sub-board, meme-owner and referral fee
+// shares are paid as separate base-token transfer legs next to the trade principal
+// (the largest leg). Per trade transaction, SUM(non-admin legs) - MAX(principal leg)
+// therefore equals the supply-side payouts. Transactions touching Raydium/Meteora
+// programs are excluded from that measurement (finalization/LP flows, not trades).
 const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
 const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
+const SOLANA_DEX_PROGRAMS = [
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C", // Raydium CPMM
+  "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK", // Raydium CLMM
+  "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG", // Meteora DAMM v2
+  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo", // Meteora DLMM
+];
 const SOLANA_FEE_MINTS = [
   ADDRESSES.solana.SOL,
   ADDRESSES.solana.USDC,
@@ -65,25 +76,59 @@ const SOLANA_FEE_MINTS = [
 ];
 
 const fetchSolana = async (options: FetchOptions) => {
+  const timeFilter = (alias: string) => `
+      ${alias}.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND ${alias}.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
+  const mintFilter = SOLANA_FEE_MINTS.map((m) => `'${m}'`).join(", ");
+
   const rows = await queryAllium(`
-    SELECT COALESCE(SUM(tr.usd_amount), 0) AS daily_fees
-    FROM solana.assets.transfers tr
-    JOIN solana.raw.transactions tx ON tx.txn_id = tr.txn_id
-    WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND tr.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      AND tx.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND tx.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      AND tr.to_address = '${SOLANA_FEE_WALLET}'
-      AND tr.from_address != '${SOLANA_FEE_WALLET}'
-      AND tr.mint IN (${SOLANA_FEE_MINTS.map((m) => `'${m}'`).join(", ")})
-      AND tx.success = true
-      AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
+    WITH program_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions tx
+      WHERE ${timeFilter("tx")}
+        AND tx.success = true
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
+    ),
+    trade_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions tx
+      WHERE ${timeFilter("tx")}
+        AND tx.success = true
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
+        ${SOLANA_DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, tx.account_keys)`).join("\n        ")}
+    ),
+    admin_fees AS (
+      SELECT COALESCE(SUM(tr.usd_amount), 0) AS usd
+      FROM solana.assets.transfers tr
+      JOIN program_txs p ON p.txn_id = tr.txn_id
+      WHERE ${timeFilter("tr")}
+        AND tr.to_address = '${SOLANA_FEE_WALLET}'
+        AND tr.from_address != '${SOLANA_FEE_WALLET}'
+        AND tr.mint IN (${mintFilter})
+    ),
+    trade_legs AS (
+      SELECT tr.txn_id, SUM(tr.usd_amount) AS total_usd, MAX(tr.usd_amount) AS principal_usd
+      FROM solana.assets.transfers tr
+      JOIN trade_txs t ON t.txn_id = tr.txn_id
+      WHERE ${timeFilter("tr")}
+        AND tr.mint IN (${mintFilter})
+        AND tr.to_address != '${SOLANA_FEE_WALLET}'
+        AND tr.from_address != '${SOLANA_FEE_WALLET}'
+        AND tr.to_address != tr.from_address
+      GROUP BY tr.txn_id
+    )
+    SELECT
+      (SELECT usd FROM admin_fees) AS admin_usd,
+      (SELECT COALESCE(SUM(total_usd - principal_usd), 0) FROM trade_legs) AS supply_side_usd
   `);
-  const dailyFees = Number(rows[0].daily_fees);
+
+  const dailyRevenue = Number(rows[0].admin_usd);
+  const dailySupplySideRevenue = Number(rows[0].supply_side_usd);
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees: dailyRevenue + dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -408,10 +453,10 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees:
-      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token. On Solana, fees are the protocol fee share (creation, trading, finalize and LP-claim fees) received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token. On Solana, fees are the protocol fee share received by the BasedBid admin fee wallet plus the sub-board/meme-owner/referral fee legs paid inside bonding-curve trade transactions.",
     Revenue: "Revenue is measured only from FeeCollected inflows emitted by the treasury contract. On Solana, revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
     ProtocolRevenue: "Protocol revenue equals treasury FeeCollected inflows. On Solana, protocol revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
-    SupplySideRevenue: "Includes all fees collected from liquidity added, buyback, reward distributed, and custom wallet fees. Not tracked on Solana.",
+    SupplySideRevenue: "Includes all fees collected from liquidity added, buyback, reward distributed, and custom wallet fees. On Solana, the sub-board, meme-owner and referral fee transfer legs paid inside bonding-curve trade transactions.",
   },
   breakdownMethodology: {
     Fees: {
