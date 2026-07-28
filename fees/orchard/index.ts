@@ -12,7 +12,7 @@
 // Two fees are extracted, both in AAPL:
 //
 // 1. Admin fee, on every plant (Orchard._credit /._creditMany):
-//      adminCut = bought * adminFeeBps / BPS   (1% today)
+//      adminCut = bought * adminFeeBps / BPS   (the configured rate; 1% at time of writing)
 //      stake    = bought - adminCut
 //    Withdrawn by the owner via collectAdmin(address) -> protocol revenue.
 //
@@ -24,6 +24,8 @@
 //
 // rakeBps and jackpotBps are owner-adjustable and stored per round, so both are read
 // back from rounds(id) instead of being hardcoded — historical rounds keep their own rate.
+// adminFeeBps is likewise owner-adjustable; it is resolved per plant from the window's
+// opening value plus any AdminFeeBpsSet emitted inside the window.
 //
 // Rounds where the blooming plot is empty settle through an early return in _reveal:
 // no rake is taken at all and the whole pot rolls into the jackpot, so they contribute
@@ -53,6 +55,7 @@ const PLANTED_MANY =
   "event PlantedMany(address indexed player, uint256 indexed startRound, uint16 roundCount, uint32 plotMask, uint256 ethIn, uint256 totalStake)";
 const REVEALED =
   "event Revealed(uint256 indexed round, uint8 winningPlot, uint256 winningStake, uint256 netLossPool)";
+const ADMIN_FEE_BPS_SET = "event AdminFeeBpsSet(uint16 bps)";
 
 const ROUNDS_ABI =
   "function rounds(uint256) view returns (uint64 sealBlock, bool revealed, bool voided, uint8 winningPlot, uint16 rakeBps, uint16 jackpotBps, uint32 jackpotOdds, uint256 totalStake, uint256 winningStake, uint256 netLossPool, uint256 entryIndex, uint256 jackpotWon)";
@@ -80,31 +83,51 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // --- 1. plants: ETH wagered (volume) + the 1% admin cut on the AAPL bought ---
-  // adminFeeBps is owner-adjustable and not carried in the event, so read the rate
-  // in effect for this window rather than hardcoding it.
-  const adminFeeBps = BigInt(
-    await options.api.call({ abi: "uint16:adminFeeBps", target: ORCHARD })
+  // --- 1. plants: ETH wagered (volume) + the admin cut on the AAPL bought ---
+  // adminFeeBps is owner-adjustable and is not carried in the Planted events, so the
+  // configured rate is resolved per event: start from the value at the window's first
+  // block and replay any AdminFeeBpsSet emitted inside the window on top of it. A rate
+  // change mid-window therefore applies only to the plants that came after it.
+  const startAdminFeeBps = BigInt(
+    await options.fromApi.call({ abi: "uint16:adminFeeBps", target: ORCHARD })
   );
+
+  const feeChanges = (await options.getLogs({ target: ORCHARD, eventAbi: ADMIN_FEE_BPS_SET }))
+    .map((log: any) => ({
+      blockNumber: Number(log.blockNumber),
+      logIndex: Number(log.logIndex),
+      bps: BigInt(log.bps),
+    }))
+    .sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
+
+  // Rate in effect for a log, i.e. the last change emitted strictly before it.
+  const rateAt = (blockNumber: number, logIndex: number): bigint => {
+    let bps = startAdminFeeBps;
+    for (const change of feeChanges) {
+      if (
+        change.blockNumber > blockNumber ||
+        (change.blockNumber === blockNumber && change.logIndex > logIndex)
+      )
+        break;
+      bps = change.bps;
+    }
+    return bps;
+  };
 
   const planted = await options.getLogs({ target: ORCHARD, eventAbi: PLANTED });
   const plantedMany = await options.getLogs({ target: ORCHARD, eventAbi: PLANTED_MANY });
 
-  for (const log of planted) {
+  const addPlant = (log: any, stake: bigint) => {
     dailyVolume.addGasToken(log.ethIn);
-    const adminCut = deriveAdminCut(BigInt(log.stake), adminFeeBps);
+    const bps = rateAt(Number(log.blockNumber), Number(log.logIndex));
+    const adminCut = deriveAdminCut(stake, bps);
     dailyFees.add(AAPL, adminCut, ADMIN_FEE);
     dailyRevenue.add(AAPL, adminCut, ADMIN_FEE);
     dailyProtocolRevenue.add(AAPL, adminCut, ADMIN_FEE);
-  }
+  };
 
-  for (const log of plantedMany) {
-    dailyVolume.addGasToken(log.ethIn);
-    const adminCut = deriveAdminCut(BigInt(log.totalStake), adminFeeBps);
-    dailyFees.add(AAPL, adminCut, ADMIN_FEE);
-    dailyRevenue.add(AAPL, adminCut, ADMIN_FEE);
-    dailyProtocolRevenue.add(AAPL, adminCut, ADMIN_FEE);
-  }
+  for (const log of planted) addPlant(log, BigInt(log.stake));
+  for (const log of plantedMany) addPlant(log, BigInt(log.totalStake));
 
   // --- 2. reveals: the rake and its three destinations ---
   // The emitted netLossPool already has any jackpot payout folded in, so the round
@@ -162,10 +185,10 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Total ETH planted on the grid, taken from the Planted and PlantedMany events.",
   Fees:
-    "Every plant pays a 1% admin fee on the AAPL bought with it. Every revealed round with a winner pays a 10% rake on the loss pool (the stakes on the 24 plots that did not bloom), split into 10% to SEED stakers, 50% to the Golden Apple jackpot and 40% to the treasury. Rounds where the blooming plot is empty take no rake — the whole pot rolls into the jackpot.",
+    "Every plant pays an admin fee, at the configured adminFeeBps rate (1% at time of writing), on the AAPL bought with it. Every revealed round with a winner pays a 10% rake on the loss pool (the stakes on the 24 plots that did not bloom), split into 10% to SEED stakers, 50% to the Golden Apple jackpot and 40% to the treasury. Rounds where the blooming plot is empty take no rake — the whole pot rolls into the jackpot.",
   UserFees: "Same as Fees — both the admin fee and the rake are paid by players out of what they planted.",
   Revenue: "Gross profit: the admin fee plus the stakers and treasury cuts of the rake. The jackpot cut is excluded because it is paid back out to players.",
-  ProtocolRevenue: "The 1% admin fee taken on every plant, withdrawn by the owner via collectAdmin.",
+  ProtocolRevenue: "The admin fee taken on every plant at the configured adminFeeBps rate, withdrawn by the owner via collectAdmin.",
   HoldersRevenue:
     "Value reaching SEED holders: the 10% of the rake flushed to SeedStaking as AAPL yield for stakers, plus the 40% treasury cut that buys SEED back on the DEX and burns it.",
   SupplySideRevenue: "The 50% of the rake routed to the Golden Apple jackpot, which is paid back out to players when it hits.",
@@ -173,7 +196,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [ADMIN_FEE]: "1% of the AAPL bought on every plant (Planted and PlantedMany events).",
+    [ADMIN_FEE]: "The configured adminFeeBps share of the AAPL bought on every plant (Planted and PlantedMany events), resolved per event so rate changes apply only from the block they take effect.",
     [METRIC.STAKING_REWARDS]: "10% of each round's rake, accrued for SEED stakers.",
     [JACKPOT]: "50% of each round's rake, routed to the Golden Apple jackpot.",
     [TREASURY]: "40% of each round's rake, accrued to the treasury.",
@@ -185,12 +208,12 @@ const breakdownMethodology = {
     [TREASURY]: "Treasury portion of the rake paid by players out of the loss pool.",
   },
   Revenue: {
-    [ADMIN_FEE]: "1% admin fee on every plant.",
+    [ADMIN_FEE]: "Admin fee on every plant, at the configured adminFeeBps rate.",
     [METRIC.STAKING_REWARDS]: "10% of the rake accrued for SEED stakers.",
     [TREASURY]: "40% of the rake accrued to the treasury.",
   },
   ProtocolRevenue: {
-    [ADMIN_FEE]: "1% admin fee on every plant, withdrawn by the owner via collectAdmin.",
+    [ADMIN_FEE]: "Admin fee on every plant at the configured adminFeeBps rate, withdrawn by the owner via collectAdmin.",
   },
   HoldersRevenue: {
     [METRIC.STAKING_REWARDS]: "10% of the rake flushed to SeedStaking as AAPL yield for SEED stakers.",
