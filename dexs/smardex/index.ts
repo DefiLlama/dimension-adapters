@@ -36,7 +36,7 @@ async function fetch(options: FetchOptions) {
   return { dailyVolume };
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2 };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true };
 
 Object.keys(CHAIN_CONFIG.FACTORIES).forEach((chain: string) => {
   adapter.adapter![chain] = {

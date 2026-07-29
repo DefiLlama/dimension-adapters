@@ -1,4 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import type { Adapter, FetchOptions } from "../../adapters/types";
 import { getAmmSwapVolume } from "../../dexs/smardex";
 
@@ -34,12 +35,30 @@ const methodology = {
   HoldersRevenue: `0.02% of each swap on Ethereum is collected for staking pool (SDEX holders that staked). On other chains staking is not available and fees are collected for buybacks SDEX and burns.`,
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by users on each trade: 0.07% on Ethereum, 0.1% on other chains.",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "0.05% of each swap on Ethereum and 0.07% on other chains, distributed to liquidity providers.",
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: "0.02% of each swap on Ethereum goes to the SDEX staking pool.",
+    [METRIC.TOKEN_BUY_BACK]: "0.03% of each swap on other chains is used to buy back and burn SDEX.",
+  },
+  HoldersRevenue: {
+    [METRIC.STAKING_REWARDS]: "0.02% of each swap on Ethereum goes to the SDEX staking pool.",
+    [METRIC.TOKEN_BUY_BACK]: "0.03% of each swap on other chains is used to buy back and burn SDEX.",
+  },
+};
+
 async function fetch(options: FetchOptions) {
   const { LP_FEES, POOL_FEES } = FEES[options.chain];
+  const poolLabel = options.chain === CHAIN.ETHEREUM ? METRIC.STAKING_REWARDS : METRIC.TOKEN_BUY_BACK;
   const dailyVolume = await getAmmSwapVolume(options);
-  const dailyFees = dailyVolume.clone(LP_FEES + POOL_FEES);
-  const dailySupplySideRevenue = dailyVolume.clone(LP_FEES);
-  const dailyRevenue = dailyVolume.clone(POOL_FEES);
+  const dailyFees = dailyVolume.clone(LP_FEES + POOL_FEES, METRIC.SWAP_FEES);
+  const dailySupplySideRevenue = dailyVolume.clone(LP_FEES, METRIC.LP_FEES);
+  const dailyRevenue = dailyVolume.clone(POOL_FEES, poolLabel);
 
   return {
     dailyFees,
@@ -51,7 +70,7 @@ async function fetch(options: FetchOptions) {
   };
 }
 
-const adapter: Adapter = { version: 2, adapter: {}, methodology };
+const adapter: Adapter = { version: 2, pullHourly: true, adapter: {}, methodology, breakdownMethodology };
 for (let chain in FEES) {
   adapter.adapter![chain] = {
     fetch,
