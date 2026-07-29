@@ -6,7 +6,6 @@ import { addTokensReceived } from "../../helpers/token";
 // LifiFeeCollectors instead of a hand-maintained copy that drifts out of date.
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: Object.keys(LifiFeeCollectors).reduce((acc, chain) => {
     return {
       ...acc,
@@ -17,7 +16,7 @@ const adapter: SimpleAdapter = {
             target: LifiFeeCollectors[options.chain].id,
           }),
         }),
-        start: LifiFeeCollectors[chain].startTime,
+        start: LifiFeeCollectors[chain].start,
       },
     };
   }, {}),
