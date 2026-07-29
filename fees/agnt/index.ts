@@ -31,6 +31,10 @@ const DOPPLER_INITIALIZERS = [
 const PLATFORM_SHARE = 0.32;
 const CREATOR_SHARE = 0.63;
 const DOPPLER_SHARE = 0.05;
+// Trading: 0.40% in-app swap fee, accrued off-chain by Relay and withdrawn to the SAME
+// fee wallet as USDC from Relay's claim contract on Base. Filtered to that sender so only
+// fee withdrawals count (no prefunding/ops inflows). AGNT keeps 100% of this fee.
+const RELAY_CLAIM_CONTRACT = "0xf70da97812cb96acdf810712aa562db8dfa3dbef";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -52,6 +56,17 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addBalances(revenue.clone(CREATOR_SHARE / PLATFORM_SHARE), "Launchpad Fees to Creators");
   dailySupplySideRevenue.addBalances(revenue.clone(DOPPLER_SHARE / PLATFORM_SHARE), "Launchpad Fees to Doppler");
 
+  // Trading fees — 0.40% swap fee, USDC withdrawn from Relay's claim contract to the fee
+  // wallet. AGNT keeps 100%, so trading fees == trading revenue (no supply side).
+  const tradingFees = await addTokensReceived({
+    options,
+    targets: [PLATFORM_FEE_WALLET],
+    tokens: [CoreAssets.base.USDC],
+    fromAdddesses: [RELAY_CLAIM_CONTRACT],
+  });
+  dailyFees.addBalances(tradingFees, "Trading Fees");
+  dailyRevenue.addBalances(tradingFees, "Trading Fees to Protocol");
+
   return {
     dailyFees,
     dailyRevenue,
@@ -67,21 +82,33 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: "2026-07-15",
   methodology: {
-    Fees: "Estimated total fees paid by users on tokens launched via the AGNT launchpad (Doppler V4 on Base): the 1.095% terminal pool fee, derived from the observed on-chain platform fee share. CONSERVATIVE — only the WETH leg is measured (launched-token leg excluded), so figures are a lower bound. In-app swap (trading) fees are not yet included.",
-    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees, measured as WETH released to the platform fee wallet 0x5bF5805e…C5f0 by the Doppler initializers.",
+    Fees: "Total fees paid by users on AGNT (Base): (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad, derived from the observed on-chain platform fee share (WETH leg only — conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps, measured as USDC withdrawn from Relay's app-fee claim contract to the fee wallet.",
+    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers) plus 100% of the 0.40% swap fee (USDC claimed from Relay), both to the fee wallet 0x5bF5805e…C5f0.",
     ProtocolRevenue: "Same as Revenue — all AGNT launchpad fees accrue to the platform treasury.",
     SupplySideRevenue: "The 68% of launchpad pool fees paid to third-party token creators (63%) and the Doppler protocol (~5%), estimated from the observed platform WETH share.",
   },
   breakdownMethodology: {
-    Fees: { "Launchpad Fees": "1.095% Doppler terminal fee (WETH leg), estimated as platform WETH share / 0.32." },
-    Revenue: { "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet" },
-    ProtocolRevenue: { "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet" },
+    Fees: {
+      "Launchpad Fees": "1.095% Doppler terminal fee (WETH leg), estimated as platform WETH share / 0.32.",
+      "Trading Fees": "0.40% swap fee, USDC withdrawn from Relay's claim contract to the fee wallet."
+    },
+    Revenue: {
+      "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet",
+      "Trading Fees to Protocol": "100% of the 0.40% swap fee, USDC claimed from Relay to the fee wallet"
+    },
+    ProtocolRevenue: {
+      "Launchpad Fees to Protocol": "32% platform share, WETH released to fee recipient wallet",
+      "Trading Fees to Protocol": "100% of the 0.40% swap fee, USDC claimed from Relay to the fee wallet"
+    },
     SupplySideRevenue: {
       "Launchpad Fees to Creators": "63% of launchpad pool fees paid to third-party token creators",
       "Launchpad Fees to Doppler": "5% of launchpad pool fees paid to the Doppler protocol"
     },
   },
-  doublecounted: true, // uniswap
+  // Launchpad fees are Uniswap V4 pool fees (double-counted under Uniswap). The trading
+  // fee is a separate app surcharge (not double-counted), but it's negligible vs launchpad
+  // at current scale — revisit splitting if trading volume grows materially.
+  doublecounted: true, // uniswap (launchpad leg)
 };
 
 export default adapter;
