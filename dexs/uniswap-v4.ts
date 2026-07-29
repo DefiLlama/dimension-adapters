@@ -352,7 +352,7 @@ const adapter: SimpleAdapter = {
     UserFees: 'Swap fees paid by users.',
     Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
-    SupplySideRevenue: 'All fees are distributed to LPs.',
+    SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
     HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
   },
   fetch,
