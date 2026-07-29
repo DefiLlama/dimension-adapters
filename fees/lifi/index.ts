@@ -10,7 +10,7 @@ const FeesForwardedEvent = "event FeesForwarded(address indexed token, (address 
 // a fee router that emits FeesForwarded with the full recipient split. Both are read so refills stay
 // correct across the migration: the old event stops emitting after it, the new one before it.
 const FeeRouters: Record<string, string> = {
-    [CHAIN.ETHEREUM]: '0x685527c551cc40ce1f1c9818cd8683307076e4ed',
+	[CHAIN.ETHEREUM]: '0x685527c551cc40ce1f1c9818cd8683307076e4ed',
 }
 const DefaultFeeRouter = '0xc18d9e84b8687a2645447a61e52c455dac1675e1'
 
@@ -22,81 +22,73 @@ const IntegratorFee = 'Integration & Partnership Fees'
 const LifiProtocolFee = 'LiFi Fees'
 
 const fetch = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
+	const dailyFees = options.createBalances();
+	const dailyRevenue = options.createBalances();
+	const dailySupplySideRevenue = options.createBalances();
 
-    // 0x0000000000000000000000000000000000000000 is the gas token for all chains, we already handle it in the Balances
-    const blacklistForChain = new Set(DefaultDexTokensBlacklisted[options.chain]);
+	// 0x0000000000000000000000000000000000000000 is the gas token for all chains, we already handle it in the Balances
+	const blacklistForChain = new Set(DefaultDexTokensBlacklisted[options.chain]);
 
-    const addFee = (token: string, amount: any, isLifi: boolean) => {
-        if (blacklistForChain.has(token.toLowerCase())) return;
-        const label = isLifi ? LifiProtocolFee : IntegratorFee;
-        dailyFees.add(token, amount, label);
-        (isLifi ? dailyRevenue : dailySupplySideRevenue).add(token, amount, label);
-    };
+	const addFee = (token: string, amount: any, isLifi: boolean) => {
+		if (blacklistForChain.has(token.toLowerCase())) return;
+		const label = isLifi ? LifiProtocolFee : IntegratorFee;
+		dailyFees.add(token, amount, label);
+		(isLifi ? dailyRevenue : dailySupplySideRevenue).add(token, amount, label);
+	};
 
-    const legacy: any[] = await options.getLogs({
-        target: LifiFeeCollectors[options.chain].id,
-        eventAbi: FeeCollectedEvent,
-    });
-    legacy.forEach((log: any) => {
-        addFee(log._token, log._integratorFee, false);
-        addFee(log._token, log._lifiFee, true);
-    });
+	const legacy: any[] = await options.getLogs({
+		target: LifiFeeCollectors[options.chain].id,
+		eventAbi: FeeCollectedEvent,
+	});
+	legacy.forEach((log: any) => {
+		addFee(log._token, log._integratorFee, false);
+		addFee(log._token, log._lifiFee, true);
+	});
 
-    const forwarded: any[] = await options.getLogs({
-        target: FeeRouters[options.chain] ?? DefaultFeeRouter,
-        eventAbi: FeesForwardedEvent,
-    });
-    forwarded.forEach((log: any) => {
-        log.fees.forEach((fee: any) => {
-            addFee(log.token, fee.amount, String(fee.recipient).toLowerCase() === LifiRecipient);
-        });
-    });
+	const forwarded: any[] = await options.getLogs({
+		target: FeeRouters[options.chain] ?? DefaultFeeRouter,
+		eventAbi: FeesForwardedEvent,
+	});
+	forwarded.forEach((log: any) => {
+		log.fees.forEach((fee: any) => {
+			addFee(log.token, fee.amount, String(fee.recipient).toLowerCase() === LifiRecipient);
+		});
+	});
 
-    return {
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
-        dailySupplySideRevenue,
-    };
+	return {
+		dailyFees,
+		dailyRevenue,
+		dailyProtocolRevenue: dailyRevenue,
+		dailySupplySideRevenue,
+	};
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    pullHourly: true,
-    adapter: Object.keys(LifiFeeCollectors).reduce((acc, chain) => {
-        return {
-            ...acc,
-            [chain]: {
-                fetch,
-                start: LifiFeeCollectors[chain].startTime
-            }
-        }
-    }, {}),
-
-    methodology: {
-        Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
-        Revenue: 'Fees are collected by LI.FI protocol.',
-        ProtocolRevenue: 'Fees are collected by LI.FI protocol.',
-        SupplySideRevenue: 'Fees are distributed to LI.FI and intergations and partnerships.',
-    },
-    breakdownMethodology: {
-        Fees: {
-            [LifiProtocolFee]: 'Fees share for LI.FI protocol.',
-            [IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
-        },
-        Revenue: {
-            [LifiProtocolFee]: 'Fees share for LI.FI protocol.',
-        },
-        ProtocolRevenue: {
-            [LifiProtocolFee]: 'Fees share for LI.FI protocol.',
-        },
-        SupplySideRevenue: {
-            [IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
-        },
-    }
+	version: 2,
+	// pullHourly: true,
+	fetch,
+	adapter: LifiFeeCollectors,
+	methodology: {
+		Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
+		Revenue: 'Fees are collected by LI.FI protocol.',
+		ProtocolRevenue: 'Fees are collected by LI.FI protocol.',
+		SupplySideRevenue: 'Fees are distributed to LI.FI and intergations and partnerships.',
+	},
+	breakdownMethodology: {
+		Fees: {
+			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
+			[IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
+		},
+		Revenue: {
+			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
+		},
+		ProtocolRevenue: {
+			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
+		},
+		SupplySideRevenue: {
+			[IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
+		},
+	}
 };
 
 export default adapter;
