@@ -38,6 +38,7 @@ const adapter: SimpleAdapter = {
     Volume:
       "Total filled-order notional (filled quantity x fill price) executed by LiquidBots' grid/DCA/arbitrage bots on Hyperliquid perps.",
   },
+  doublecounted: true, // double counted with hyperliquid
 };
 
 export default adapter;
