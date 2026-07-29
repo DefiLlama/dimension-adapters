@@ -26,8 +26,6 @@ const QUERY = `{
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const chainId = CHAIN_IDS[options.chain];
-  const from = options.startOfDay;
-  const to = from + 86400;
 
   const res = await httpPost(ENDPOINT, { query: QUERY });
   const makers = res?.data?.settlementMakerStats?.makers ?? [];
@@ -36,7 +34,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   for (const m of makers) {
     for (const t of m.trades ?? []) {
       if (t.chainId !== chainId) continue;
-      if (t.timestamp < from || t.timestamp >= to) continue;
+      if (t.timestamp < options.fromTimestamp || t.timestamp >= options.toTimestamp) continue;
       dailyVolume += t.volumeUsd ?? 0;
     }
   }
@@ -46,16 +44,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "Sum of the USD value of the stable (USDT/USDC) leg of every reactor fill on the chain, as indexed from on-chain Fill transactions by the protocol subgraph and served by Textile's public API.",
   },
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2026-06-07" },
-    [CHAIN.BSC]: { fetch, start: "2026-06-07" },
-    [CHAIN.BASE]: { fetch, start: "2026-06-07" },
-    [CHAIN.CELO]: { fetch, start: "2026-06-07" },
-  },
+  fetch,
+  chains: Object.keys(CHAIN_IDS),
+  start: "2026-06-07",
 };
 
 export default adapter;
