@@ -2,6 +2,7 @@ import { cache } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
+import { filterPools2 } from "../../helpers/uniswap";
 import { CHAIN_CONFIG } from "./config";
 import { addUsdnVolume } from "./usdn-volume";
 
@@ -19,6 +20,8 @@ export async function getAmmSwapVolume(options: FetchOptions) {
     token0s = await options.api.multiCall({ abi: "address:token0", calls: pairs });
     token1s = await options.api.multiCall({ abi: "address:token1", calls: pairs });
   }
+
+  ({ pairs, token0s, token1s } = await filterPools2({ fetchOptions: options, pairs, token0s, token1s }));
 
   const dailyVolume = options.createBalances();
   const allLogs = await options.getLogs({ targets: pairs, eventAbi: SWAP_EVENT, flatten: false });
