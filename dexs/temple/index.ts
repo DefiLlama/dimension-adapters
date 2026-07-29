@@ -173,7 +173,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  start: "2026-01-01",
+  start: "2025-12-18",
   // A daily pull keeps backfills bounded to one paginated request set per day.
   pullHourly: false,
   methodology,
