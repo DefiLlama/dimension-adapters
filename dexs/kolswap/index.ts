@@ -13,6 +13,7 @@ const SWAP_EVENT = 'event Swap(address indexed trader,address indexed tokenIn,ui
 const QUOTE_ASSET_METADATA: Record<string, { coingeckoId: string, decimals: number }> = {
   '0x0bd7d308f8e1639fab988df18a8011f41eacad73': { coingeckoId: 'ethereum', decimals: 18 },
 }
+let marketMetadataPromise: Promise<{ pairs: string[], quoteByPool: Map<string, string> }> | undefined
 
 /** Lists pair proxies from the append-only factory using current immutable metadata. */
 async function listPairs(api: FetchOptions['api']): Promise<string[]> {
@@ -22,6 +23,27 @@ async function listPairs(api: FetchOptions['api']): Promise<string[]> {
     abi: 'function allPairs(uint256) view returns (address)',
     calls: Array.from({ length: count }, (_, index) => ({ target: FACTORY, params: [index] })),
   }) as Promise<string[]>
+}
+
+/** Loads immutable pair and quote metadata once per adapter process. */
+async function getMarketMetadata(chain: string) {
+  if (!marketMetadataPromise) {
+    marketMetadataPromise = (async () => {
+      const latestApi = new ChainApi({ chain })
+      const pairs = await listPairs(latestApi)
+      const quotes = pairs.length
+        ? await latestApi.multiCall({ abi: 'address:quoteAsset', calls: pairs }) as string[]
+        : []
+      return {
+        pairs,
+        quoteByPool: new Map(pairs.map((pair, index) => [pair.toLowerCase(), quotes[index]])),
+      }
+    })().catch((error) => {
+      marketMetadataPromise = undefined
+      throw error
+    })
+  }
+  return marketMetadataPromise
 }
 
 /** Adds a raw quote-asset amount using canonical historical pricing when available. */
@@ -40,17 +62,19 @@ function addQuoteAmount(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const latestApi = new ChainApi({ chain: options.chain })
-  const pairs = await listPairs(latestApi)
+  const { pairs, quoteByPool } = await getMarketMetadata(options.chain)
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   if (!pairs.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
-  const quotes = await latestApi.multiCall({ abi: 'address:quoteAsset', calls: pairs }) as string[]
-  const quoteByPool = new Map(pairs.map((pair, index) => [pair.toLowerCase(), quotes[index]]))
-  const logs = await options.getLogs({ targets: pairs, eventAbi: SWAP_EVENT, entireLog: true }) as Array<{
+  const logs = await options.getLogs({
+    noTarget: true,
+    eventAbi: SWAP_EVENT,
+    entireLog: true,
+    maxBlockRange: 500000,
+  }) as Array<{
     address: string
     args: Record<string, string | bigint>
   }>
