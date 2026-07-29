@@ -418,6 +418,9 @@ const configs: Record<string, Record<string, any>> = {
   "swaphood-v3": {
     [CHAIN.ROBINHOOD]: { factory: "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7", start: "2026-07-10", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.05, holdersRevenueRatio: 0.95 },
   },
+  "betterswap-v3": {
+    [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
 
 }
 
@@ -426,6 +429,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "betterswap-v3": {
+    Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
+    Fees: "Users pay each pool's configured fee tier on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "No protocol fee is taken, all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "prism-dex": {
     Volume: "Swap volume from all Prism DEX V3 pools deployed via the Prism DEX V3 factory.",
     Fees: "Users pay each pool's configured V3 fee tier on every swap.",
