@@ -55,7 +55,7 @@ const fetch = async (options: FetchOptions) => {
 
   dailyFees.add(USDC, gross, "Product payments");
   dailySupplySideRevenue.add(USDC, referral, "Affiliate payouts");
-  dailyRevenue.add(USDC, gross - referral, "Protocol share");
+  dailyRevenue.add(USDC, gross - referral, "Payments to operating, dev, POL reserve and DAO");
 
   return {
     dailyFees,
@@ -77,10 +77,10 @@ const breakdownMethodology = {
     "Product payments": "Gross USDC entering the FrostyRevenueSplitter via PaymentSplit events — subscriptions, pay-per-deploy, Architect builds and first-party agent income.",
   },
   Revenue: {
-    "Protocol share": "Gross payments minus affiliate payouts — the operating, dev, POL reserve and DAO buckets.",
+    "Payments to operating, dev, POL reserve and DAO": "Gross payments minus affiliate payouts — the operating, dev, POL reserve and DAO buckets.",
   },
   ProtocolRevenue: {
-    "Protocol share": "Gross payments minus affiliate payouts — the operating, dev, POL reserve and DAO buckets.",
+    "Payments to operating, dev, POL reserve and DAO": "Gross payments minus affiliate payouts — the operating, dev, POL reserve and DAO buckets.",
   },
   SupplySideRevenue: {
     "Affiliate payouts": "USDC credited to third-party referrers via AffiliateCredited events (3-level: 6% / 2.5% / 1.5%).",
@@ -89,6 +89,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   start: "2026-07-26",
