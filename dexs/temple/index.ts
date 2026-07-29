@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -7,6 +7,9 @@ const TICKERS_URL = `${API_BASE_URL}/tickers`;
 const HISTORICAL_TRADES_URL = `${API_BASE_URL}/historical_trades`;
 const PAGE_SIZE = 500;
 const USD_QUOTES = new Set(["USDA", "USDCx"]);
+const MAKER_FEE_BPS = 1;
+const TAKER_FEE_BPS = 2;
+const BPS = 10000;
 
 // These markets are no longer returned by /tickers, but contain Temple's
 // pre-USDA history and must remain queryable for backfills.
@@ -110,7 +113,7 @@ const getTickerVolume = async (
   return volume;
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const startTime = new Date(options.startTimestamp * 1000).toISOString();
   const endTime = new Date(options.endTimestamp * 1000).toISOString();
   const tickers = await getTickers();
@@ -128,12 +131,42 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
       ),
     );
 
-  return { dailyVolume: volumes.reduce((sum, volume) => sum + volume, 0) };
+  const dailyVolume = volumes.reduce((sum, volume) => sum + volume, 0);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees");
+  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
+  };
 };
 
 const methodology = {
   Volume:
     "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Historical trades are fetched for the requested time window, including legacy USDCx markets, and summed using quote-side target_volume.",
+  Fees: "Trading fees charged by the Temple orderbook: 1 bps maker + 2 bps taker = 3 bps applied to settled volume.",
+  Revenue: "All trading fees are retained by the protocol.",
+  ProtocolRevenue: "All trading fees are retained by the protocol.",
+  SupplySideRevenue: "Zero. No trading-fee share is paid to liquidity providers or market makers.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Maker Fees": "1 bps maker fee applied to settled volume.",
+    "Taker Fees": "2 bps taker fee applied to settled volume.",
+  },
+  Revenue: {
+    "Maker Fees": "1 bps maker fee applied to settled volume.",
+    "Taker Fees": "2 bps taker fee applied to settled volume.",
+  },
+  ProtocolRevenue: {
+    "Maker Fees": "1 bps maker fee applied to settled volume.",
+    "Taker Fees": "2 bps taker fee applied to settled volume.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -144,6 +177,7 @@ const adapter: SimpleAdapter = {
   // A daily pull keeps backfills bounded to one paginated request set per day.
   pullHourly: false,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
