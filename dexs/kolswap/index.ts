@@ -4,33 +4,53 @@ import { METRIC } from '../../helpers/metrics'
 import { ChainApi } from '@defillama/sdk'
 import { formatUnits } from 'ethers'
 
-// Verified factory and deployment source: https://robinhoodchain.blockscout.com/address/0xdB2Ec80E55527b5D858b54173083139679f5DE6f
-const FACTORY = '0xdB2Ec80E55527b5D858b54173083139679f5DE6f'
-// Metrics begin on the factory deployment date shown by the verified explorer record above.
-const START = '2026-07-23'
+type ChainConfig = {
+  factory: string
+  start: string
+  maxBlockRange: number
+}
+
+const CHAIN_CONFIGS: Record<string, ChainConfig> = {
+  [CHAIN.ROBINHOOD]: {
+    // Verified factory: https://robinhoodchain.blockscout.com/address/0xdB2Ec80E55527b5D858b54173083139679f5DE6f
+    factory: '0xdB2Ec80E55527b5D858b54173083139679f5DE6f',
+    start: '2026-07-23',
+    maxBlockRange: 500000,
+  },
+  [CHAIN.BSC]: {
+    // Verified factory: https://bscscan.com/address/0x6af79510599dE74E5922A2771b29160dA8b7b4c1
+    factory: '0x6af79510599dE74E5922A2771b29160dA8b7b4c1',
+    start: '2026-07-27',
+    maxBlockRange: 50000,
+  },
+}
 const SWAP_EVENT = 'event Swap(address indexed trader,address indexed tokenIn,uint256 amountIn,uint256 amountOut,uint256 creatorFee,uint256 protocolFee,uint256 lpFee,address indexed recipient)'
 // Canonical WETH quote asset: https://robinhoodchain.blockscout.com/address/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
 const QUOTE_ASSET_METADATA: Record<string, { coingeckoId: string, decimals: number }> = {
   '0x0bd7d308f8e1639fab988df18a8011f41eacad73': { coingeckoId: 'ethereum', decimals: 18 },
+  '0x55d398326f99059ff775485246999027b3197955': { coingeckoId: 'tether', decimals: 18 },
+  '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c': { coingeckoId: 'binancecoin', decimals: 18 },
 }
-let marketMetadataPromise: Promise<{ pairs: string[], quoteByPool: Map<string, string> }> | undefined
+type MarketMetadata = { pairs: string[], quoteByPool: Map<string, string> }
+const marketMetadataPromises = new Map<string, Promise<MarketMetadata>>()
 
 /** Lists pair proxies from the append-only factory using current immutable metadata. */
-async function listPairs(api: FetchOptions['api']): Promise<string[]> {
-  const count = Number(await api.call({ target: FACTORY, abi: 'uint256:allPairsLength' }))
+async function listPairs(api: FetchOptions['api'], factory: string): Promise<string[]> {
+  const count = Number(await api.call({ target: factory, abi: 'uint256:allPairsLength' }))
   if (!count) return []
   return api.multiCall({
     abi: 'function allPairs(uint256) view returns (address)',
-    calls: Array.from({ length: count }, (_, index) => ({ target: FACTORY, params: [index] })),
+    calls: Array.from({ length: count }, (_, index) => ({ target: factory, params: [index] })),
   }) as Promise<string[]>
 }
 
-/** Loads immutable pair and quote metadata once per adapter process. */
-async function getMarketMetadata(chain: string) {
-  if (!marketMetadataPromise) {
-    marketMetadataPromise = (async () => {
+/** Loads immutable pair and quote metadata once per chain and adapter process. */
+async function getMarketMetadata(chain: string, factory: string): Promise<MarketMetadata> {
+  let pending = marketMetadataPromises.get(chain)
+  if (!pending) {
+    pending = (async () => {
       const latestApi = new ChainApi({ chain })
-      const pairs = await listPairs(latestApi)
+      const pairs = await listPairs(latestApi, factory)
       const quotes = pairs.length
         ? await latestApi.multiCall({ abi: 'address:quoteAsset', calls: pairs }) as string[]
         : []
@@ -39,11 +59,12 @@ async function getMarketMetadata(chain: string) {
         quoteByPool: new Map(pairs.map((pair, index) => [pair.toLowerCase(), quotes[index]])),
       }
     })().catch((error) => {
-      marketMetadataPromise = undefined
+      marketMetadataPromises.delete(chain)
       throw error
     })
+    marketMetadataPromises.set(chain, pending)
   }
-  return marketMetadataPromise
+  return pending
 }
 
 /** Adds a raw quote-asset amount using canonical historical pricing when available. */
@@ -62,7 +83,9 @@ function addQuoteAmount(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { pairs, quoteByPool } = await getMarketMetadata(options.chain)
+  const config = CHAIN_CONFIGS[options.chain]
+  if (!config) throw new Error(`Unsupported KOLSwap chain: ${options.chain}`)
+  const { pairs, quoteByPool } = await getMarketMetadata(options.chain, config.factory)
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
@@ -73,7 +96,7 @@ const fetch = async (options: FetchOptions) => {
     noTarget: true,
     eventAbi: SWAP_EVENT,
     entireLog: true,
-    maxBlockRange: 500000,
+    maxBlockRange: config.maxBlockRange,
   }) as Array<{
     address: string
     args: Record<string, string | bigint>
@@ -116,9 +139,16 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  start: START,
-  chains: [CHAIN.ROBINHOOD],
+  adapter: {
+    [CHAIN.ROBINHOOD]: {
+      fetch,
+      start: CHAIN_CONFIGS[CHAIN.ROBINHOOD].start,
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: CHAIN_CONFIGS[CHAIN.BSC].start,
+    },
+  },
   methodology: {
     Volume: 'Gross quote notional; sell fees are added back to net quote output.',
     Fees: 'Creator, protocol, and LP fees paid in quote assets.',
