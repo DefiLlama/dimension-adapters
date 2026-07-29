@@ -26,6 +26,7 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.XLAYER]: "2026-03-08",
   [CHAIN.BSC]: "2026-06-02",
   [CHAIN.POLYGON]: "2026-06-02",
+  [CHAIN.ROBINHOOD]: "2026-07-27",
 }
 
 const FIREPIT : Record<string, string> = {
@@ -40,6 +41,7 @@ const FIREPIT : Record<string, string> = {
   [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
   [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
   [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+  [CHAIN.ROBINHOOD]: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B',
 }
 
 const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
@@ -277,10 +279,10 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
 }
 
 const adapter: SimpleAdapter = {
