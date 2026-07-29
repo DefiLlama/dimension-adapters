@@ -336,9 +336,9 @@ async function fetch(options: FetchOptions) {
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue: 0, // tracked in uniswap-v3 adapter
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
   }
 }
 
@@ -350,10 +350,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
-    Revenue: 'Protocol makes no revenue.',
+    Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
-    HoldersRevenue: 'No revenue for UNI holders.',
+    HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
   },
   fetch,
 };
