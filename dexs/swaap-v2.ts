@@ -127,9 +127,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       start: '2023-06-30',
     },
-    [CHAIN.ARBITRUM]: {
-      start: '2023-10-05',
-    },
+    // [CHAIN.ARBITRUM]: {
+    //   start: '2023-10-05',
+    // }, -> bad data
     [CHAIN.OPTIMISM]: {
       start: '2024-05-29',
     },
@@ -141,16 +141,16 @@ const adapter: SimpleAdapter = {
     },
     // [CHAIN.MODE]: {
     //   start: '2024-05-02',
-    // },
+    // }, -> subgraph not available
     // [CHAIN.SCROLL]: {
     //   start: '2024-06-27',
-    // },
+    // }, -> subgraph not available
     // [CHAIN.LINEA]: {
     //   start: '2024-06-27',
-    // },
+    // }, -> subgraph not available
     // [CHAIN.MANTLE]: {
     //   start: '2024-06-27',
-    // },
+    // }, -> subgraph not available
   },
 };
 
