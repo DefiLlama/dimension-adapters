@@ -1,81 +1,149 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const TICKERS_URL = "https://api.templedigitalgroup.com/api/exchange/tickers";
+const API_BASE_URL = "https://api.templedigitalgroup.com/api/exchange";
+const TICKERS_URL = `${API_BASE_URL}/tickers`;
+const HISTORICAL_TRADES_URL = `${API_BASE_URL}/historical_trades`;
+const PAGE_SIZE = 500;
+const USD_QUOTES = new Set(["USDA", "USDCx"]);
 
-const MAKER_FEE_BPS = 1;
-const TAKER_FEE_BPS = 2;
-const BPS = 10000;
+// These markets are no longer returned by /tickers, but contain Temple's
+// pre-USDA history and must remain queryable for backfills.
+const LEGACY_TICKERS = ["CC_USDCx", "CBTC_USDCx"];
 
 type TempleTicker = {
   ticker_id: string;
-  base_currency: string;
   target_currency: string;
-  target_volume: string;
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+type TempleTrade = {
+  trade_id: number;
+  target_volume: string;
+  trade_timestamp: string;
+  settled: boolean;
+};
+
+type HistoricalTradesResponse = {
+  buy?: TempleTrade[];
+  sell?: TempleTrade[];
+  has_more: boolean;
+  next_cursor?: string;
+};
+
+const getTickers = async (): Promise<string[]> => {
   const tickers: TempleTicker[] = await fetchURL(TICKERS_URL);
   if (!Array.isArray(tickers) || tickers.length === 0)
     throw new Error("Temple tickers response empty or malformed");
 
-  const dailyVolume = tickers.reduce((sum, ticker) => {
-    if (ticker.target_currency !== "USDA")
-      throw new Error(`Unexpected non-USDA quote for ticker ${ticker.ticker_id}: ${ticker.target_currency}`);
+  const currentTickers = tickers
+    .filter((ticker) => USD_QUOTES.has(ticker.target_currency))
+    .map((ticker) => ticker.ticker_id);
 
-    const volume = Number(ticker.target_volume);
-    if (!Number.isFinite(volume))
-      throw new Error(`Invalid target_volume for ticker ${ticker.ticker_id}: ${ticker.target_volume}`);
+  return [...new Set([...LEGACY_TICKERS, ...currentTickers])];
+};
 
-    return sum + volume;
-  }, 0);
+const getTickerVolume = async (
+  tickerID: string,
+  startTimestamp: number,
+  endTimestamp: number,
+  startTime: string,
+  endTime: string,
+): Promise<number> => {
+  let cursor: string | undefined;
+  let volume = 0;
+  const seenCursors = new Set<string>();
+  const seenTradeIDs = new Set<number>();
 
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees")
-  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees")
+  do {
+    const params = new URLSearchParams({
+      ticker_id: tickerID,
+      limit: String(PAGE_SIZE),
+      settled_only: "true",
+      start_time: startTime,
+      end_time: endTime,
+    });
+    if (cursor) params.set("cursor", cursor);
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: 0,
-  };
+    const response: HistoricalTradesResponse = await fetchURL(
+      `${HISTORICAL_TRADES_URL}?${params}`,
+    );
+    if (!response || typeof response.has_more !== "boolean")
+      throw new Error(`Malformed historical trades response for ${tickerID}`);
+
+    for (const trade of [...(response.buy ?? []), ...(response.sell ?? [])]) {
+      if (!trade.settled) continue;
+
+      const tradeTimestamp = Number(trade.trade_timestamp);
+      if (!Number.isFinite(tradeTimestamp))
+        throw new Error(
+          `Invalid timestamp for trade ${trade.trade_id}: ${trade.trade_timestamp}`,
+        );
+      // The API's end_time bound is inclusive; enforce DefiLlama's half-open
+      // interval locally so a midnight trade cannot be counted twice.
+      if (
+        tradeTimestamp < startTimestamp * 1000 ||
+        tradeTimestamp >= endTimestamp * 1000
+      )
+        continue;
+
+      if (seenTradeIDs.has(trade.trade_id))
+        throw new Error(`Duplicate historical trade ${trade.trade_id} for ${tickerID}`);
+      seenTradeIDs.add(trade.trade_id);
+
+      const targetVolume = Number(trade.target_volume);
+      if (!Number.isFinite(targetVolume))
+        throw new Error(
+          `Invalid target_volume for trade ${trade.trade_id}: ${trade.target_volume}`,
+        );
+      volume += targetVolume;
+    }
+
+    if (response.has_more && !response.next_cursor)
+      throw new Error(`Missing next_cursor for paginated ticker ${tickerID}`);
+    if (response.next_cursor && seenCursors.has(response.next_cursor))
+      throw new Error(`Repeated historical trades cursor for ${tickerID}`);
+    if (response.next_cursor) seenCursors.add(response.next_cursor);
+    cursor = response.next_cursor;
+  } while (cursor);
+
+  return volume;
+};
+
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const startTime = new Date(options.startTimestamp * 1000).toISOString();
+  const endTime = new Date(options.endTimestamp * 1000).toISOString();
+  const tickers = await getTickers();
+  const volumes: number[] = [];
+  // Keep calls sequential to stay below the public endpoint's anonymous rate
+  // limit during backfills; pagination still uses the maximum page size.
+  for (const ticker of tickers)
+    volumes.push(
+      await getTickerVolume(
+        ticker,
+        options.startTimestamp,
+        options.endTimestamp,
+        startTime,
+        endTime,
+      ),
+    );
+
+  return { dailyVolume: volumes.reduce((sum, volume) => sum + volume, 0) };
 };
 
 const methodology = {
   Volume:
-    "24h spot orderbook volume across all USDA-quoted Temple markets, summing each ticker's quote-side target_volume from Temple's public exchange-listing API. USDA is a fiat-backed 1:1 USD stablecoin, so quote volume is treated as USD; non-USDA markets are rejected.",
-  Fees: "Trading fees charged by the Temple orderbook: 1 bps maker + 2 bps taker = 3 bps applied to daily volume.",
-  Revenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
-  ProtocolRevenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
-  SupplySideRevenue:
-    "Zero. No trading-fee share is paid to liquidity providers or market makers; the monthly Canton Coin leaderboard is a separately-funded incentive, not a fee redistribution.",
+    "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Historical trades are fetched for the requested time window, including legacy USDCx markets, and summed using quote-side target_volume.",
 };
-
-const breakdownMethodology = {
-  Fees: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
-  },
-  Revenue: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
-  },
-  ProtocolRevenue: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
-  },
-}
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  runAtCurrTime: true,
+  start: "2026-01-01",
+  // A daily pull keeps backfills bounded to one paginated request set per day.
+  pullHourly: false,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
