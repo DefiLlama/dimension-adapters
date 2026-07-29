@@ -41,18 +41,18 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: "Protocol fee charged on shielded withdrawals and swaps, always collected in ETH or USDG (ProtocolFeeCharged events), converted to USD.",
-    Revenue: "All protocol fees are kept by the protocol — there is no supply side.",
-    ProtocolRevenue: "100% of collected protocol fees.",
+    Revenue: "All the fees charged on shielded withdrawals and swaps are retained by the protocol.",
+    ProtocolRevenue: "100% of the fees charged on shielded withdrawals and swaps are retained by the protocol.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.PROTOCOL_FEES]: "Protocol fee taken by the vault on each shielded withdrawal and swap (ProtocolFeeCharged), in ETH or USDG.",
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: "All protocol fees are protocol revenue — there is no supply side.",
+      [METRIC.PROTOCOL_FEES]: "All the fees charged on shielded withdrawals and swaps are retained by the protocol.",
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "100% of collected protocol fees.",
+      [METRIC.PROTOCOL_FEES]: "100% of the fees charged on shielded withdrawals and swaps are retained by the protocol.",
     },
   },
 };
