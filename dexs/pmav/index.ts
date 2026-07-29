@@ -7,9 +7,13 @@ import { METRIC } from "../../helpers/metrics";
 // Every coin launches as a real Uniswap v4 pool. Fee: 1% flat on every trade.
 // Split: 0.7% to creator (supply-side), 0.3% to platform (protocol revenue).
 // Source: https://pmav.fun/mcp → pmav_manifest tool
-
+// https://pmav.fun/pmav-integration-guide.pdf
 const TRADE_EVENT =
   "event Trade(address indexed token, address indexed trader, bool isBuy, uint256 ethGross, uint256 ethNet, uint256 tokenAmount, uint160 sqrtPriceX96, uint128 tokensSold, uint128 raisedWei)";
+
+// Emitted when the hook collects accumulated LP fees from a graduated pool.
+const POOL_FEES_COLLECTED_EVENT =
+  "event PoolFeesCollected(address indexed token, address indexed creatorRecipient, uint256 creatorWei, uint256 creatorTokens, uint256 platformWei, uint256 platformTokens)";
 
 const WETH = ADDRESSES.robinhood.WETH;
 const USDG = ADDRESSES.robinhood.USDG;
@@ -47,6 +51,16 @@ const QUOTED_CURVE_MARKETS: Array<{ quoteToken: string; hooks: string[] }> = [
   { quoteToken: "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c", hooks: ["0x135fe35b21975e95527408f22c1e1e5028b9e8cc"] }, // RDDT
 ];
 
+// quote token lookup
+const HOOK_TO_QUOTE: Record<string, string> = {};
+for (const { quoteToken, hooks } of QUOTED_CURVE_MARKETS) {
+  for (const h of hooks) HOOK_TO_QUOTE[h.toLowerCase()] = quoteToken;
+}
+
+const ALL_QUOTED_HOOKS = QUOTED_CURVE_MARKETS.flatMap(({ hooks }) => hooks);
+
+const ETH_HOOK_SET = new Set(ETH_HOOKS.map((h) => h.toLowerCase()));
+
 function accumulateLogs(logs: any[], token: string, dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any, dailyVolume: any) {
   for (const log of logs) {
     const gross = BigInt(log.ethGross);
@@ -61,23 +75,42 @@ function accumulateLogs(logs: any[], token: string, dailyFees: any, dailyRevenue
   }
 }
 
+function accumulateGraduatedFees(logs: any[], token: string, dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any) {
+  for (const log of logs) {
+    const creatorWei = BigInt(log.creatorWei);
+    const platformWei = BigInt(log.platformWei);
+    const totalFee = creatorWei + platformWei;
+    if (totalFee <= 0n) continue;
+    dailyFees.add(token, totalFee, "Graduated Pool Fees");
+    dailyRevenue.add(token, platformWei, "Graduated Pool Fees to Platform");
+    dailySupplySideRevenue.add(token, creatorWei, "Graduated Pool Fees to Creators");
+  }
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const [ethLogs, ...quotedLogsPerMarket] = await Promise.all([
-    options.getLogs({ targets: ETH_HOOKS, eventAbi: TRADE_EVENT }),
-    ...QUOTED_CURVE_MARKETS.map(({ hooks }) =>
-      options.getLogs({ targets: hooks, eventAbi: TRADE_EVENT })
-    ),
+  // Two getLogs calls total: one for Trade, one for PoolFeesCollected.
+  const [tradeLogs, gradLogs] = await Promise.all([
+    options.getLogs({ targets: [...ETH_HOOKS, ...ALL_QUOTED_HOOKS], eventAbi: TRADE_EVENT, entireLog: true }),
+    options.getLogs({ targets: [...ETH_HOOKS, ...ALL_QUOTED_HOOKS], eventAbi: POOL_FEES_COLLECTED_EVENT, entireLog: true }),
   ]);
 
-  accumulateLogs(ethLogs, WETH, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume);
+  for (const log of tradeLogs) {
+    const addr = log.address?.toLowerCase();
+    const token = ETH_HOOK_SET.has(addr) ? WETH : HOOK_TO_QUOTE[addr];
+    if (!token) continue;
+    accumulateLogs([log.args], token, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume);
+  }
 
-  for (let i = 0; i < QUOTED_CURVE_MARKETS.length; i++) {
-    accumulateLogs(quotedLogsPerMarket[i], QUOTED_CURVE_MARKETS[i].quoteToken, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume);
+  for (const log of gradLogs) {
+    const addr = log.address?.toLowerCase();
+    const token = ETH_HOOK_SET.has(addr) ? WETH : HOOK_TO_QUOTE[addr];
+    if (!token) continue;
+    accumulateGraduatedFees([log.args], token, dailyFees, dailyRevenue, dailySupplySideRevenue);
   }
 
   return {
@@ -92,37 +125,41 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "Gross quote-currency value of every trade (ethGross from the Trade event), covering ETH, USDG, and tokenized-stock curves.",
-  Fees: "Total 1% swap fees across all pmav pools on ETH, USDG, and tokenized-stock curves.",
+  Fees: "Total 1% swap fees across all pmav pools on ETH, USDG, and tokenized-stock curves, plus LP fees collected from permanently locked graduated pool positions.",
   UserFees: "Users pay a 1% flat fee on every trade in pmav-launched Uniswap v4 pools.",
   Revenue: "Platform's 30% share of swap fees (0.3% per trade).",
   ProtocolRevenue: "Platform's 30% share of swap fees (0.3% per trade).",
-  SupplySideRevenue: "Creators' 70% share of swap fees (0.7% per trade), earned in perpetuity.",
+  SupplySideRevenue: "Creators' 70% share of swap fees (0.7% per trade).",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "1% fee on every swap across ETH-curve and quoted-curve (USDG, stocks) pools.",
+    "Graduated Pool Fees": "Quote-token fees collected from the permanently locked full range Uniswap v4 position created at graduation.",
   },
   Revenue: {
     "Swap Fees to Platform": "30% of every swap fee sent to the pmav platform.",
+    "Graduated Pool Fees to Platform": "Platform's share of fees collected from permanently locked graduated pool positions.",
   },
   ProtocolRevenue: {
     "Swap Fees to Platform": "30% of every swap fee sent to the pmav platform.",
+    "Graduated Pool Fees to Platform": "Platform's share of fees collected from permanently locked graduated pool positions.",
   },
   SupplySideRevenue: {
     "Swap Fees to Creators": "70% of every swap fee earned by the token creator, forever.",
+    "Graduated Pool Fees to Creators": "Creator's share of fees collected from permanently locked graduated pool positions.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-16",
   fetch,
   methodology,
   breakdownMethodology,
-  doublecounted: true, // pools are Uniswap v4, also counted by the Uniswap adapter
+  doublecounted: true, // pools are Uniswap v4
 };
 
 export default adapter;
