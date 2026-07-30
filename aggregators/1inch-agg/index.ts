@@ -102,13 +102,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: Object.entries(chainConfig).map(
-    ([chain, { start, deadFrom }]) =>
-      [chain, deadFrom ? { start, deadFrom } : { start }] as [
-        string,
-        { start: string; deadFrom?: string },
-      ],
-  ),
+  adapter: chainConfig,
   prefetch,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
