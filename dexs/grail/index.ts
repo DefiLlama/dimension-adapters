@@ -18,7 +18,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Volume of grail pack sales, tracked as USDC received on the Grail contract."
+  Volume: "Volume of grail pack sales, tracked as USDC received by the Grail contract."
 }
 
 const adapter: SimpleAdapter = {
