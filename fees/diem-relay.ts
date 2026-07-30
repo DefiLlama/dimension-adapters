@@ -14,14 +14,13 @@ const REVENUE_SPLITTERS = [
   "0x213c8d7434E2ae7AA1C392767c5120778D413215", // v3 — feeds sDIEM v2 (live)
 ];
 
-const DISTRIBUTED_EVENT =
-  "event Distributed(address indexed caller, uint256 platformCut, uint256 stakerCut, uint256 timestamp)";
+const DISTRIBUTED_EVENT = "event Distributed(address indexed caller, uint256 platformCut, uint256 stakerCut, uint256 timestamp)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   const logs = await options.getLogs({
     targets: REVENUE_SPLITTERS,
@@ -29,38 +28,55 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
 
   for (const log of logs) {
-    // Fees = total USDC compute revenue distributed (platform + staker cuts).
-    dailyFees.add(USDC, log.platformCut);
-    dailyFees.add(USDC, log.stakerCut);
-    // Platform cut retained by the DIEM Relay platform = protocol revenue.
-    dailyRevenue.add(USDC, log.platformCut);
-    dailyProtocolRevenue.add(USDC, log.platformCut);
-    // Staker cut streamed to sDIEM stakers (the supply side that locks DIEM).
-    dailySupplySideRevenue.add(USDC, log.stakerCut);
+    dailyFees.add(USDC, log.platformCut + log.stakerCut, "Compute Distribution Fees");
+
+    dailyRevenue.add(USDC, log.platformCut, "Compute Distribution Fees to Protocol");
+    dailyRevenue.add(USDC, log.stakerCut, "Compute Distribution Fees to DIEM stakers");
+
+    dailyProtocolRevenue.add(USDC, log.platformCut, "Compute Distribution Fees to Protocol");
+
+    dailyHoldersRevenue.add(USDC, log.stakerCut, "Compute Distribution Fees to DIEM stakers");
   }
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
+const methodology = {
+  Fees: "USDC compute revenue (Venice AI inference sold via cheaptokens.ai) distributed by the DIEM Relay RevenueSplitter contracts.",
+  Revenue: "All the compute revenue (Venice AI inference sold via cheaptokens.ai) either retained by the protocol (currently 10%, historically 20%) or streamed to sDIEM stakers.",
+  ProtocolRevenue: "Platform cut retained by the DIEM Relay platform (currently 10%, historically 20%).",
+  HoldersRevenue: "Staker cut (currently 90%, historically 80%) streamed to sDIEM stakers via notifyRewardAmount.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Compute Distribution Fees": "USDC compute revenue (Venice AI inference sold via cheaptokens.ai) distributed by the DIEM Relay RevenueSplitter contracts.",
+  },
+  Revenue: {
+    "Compute Distribution Fees to Protocol": "Platform cut retained by the DIEM Relay platform (currently 10%, historically 20%).",
+    "Compute Distribution Fees to DIEM stakers": "Staker cut (currently 90%, historically 80%) streamed to sDIEM stakers via notifyRewardAmount.",
+  },
+  ProtocolRevenue: {
+    "Compute Distribution Fees to Protocol": "Platform cut retained by the DIEM Relay platform (currently 10%, historically 20%).",
+  },
+  HoldersRevenue: {
+    "Compute Distribution Fees to DIEM stakers": "Staker cut (currently 90%, historically 80%) streamed to sDIEM stakers via notifyRewardAmount.",
+  },
+}
+
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2026-04-14", // RevenueSplitter v1 deployment
-    },
-  },
-  methodology: {
-    Fees: "USDC compute revenue (Venice AI inference sold via cheaptokens.ai) distributed by the DIEM Relay RevenueSplitter contracts.",
-    Revenue: "Platform cut retained by the DIEM Relay platform (currently 10%, historically 20%).",
-    ProtocolRevenue: "Platform cut retained by the DIEM Relay platform.",
-    SupplySideRevenue: "Staker cut streamed to sDIEM stakers via notifyRewardAmount.",
-  },
+  pullHourly: true,
+  chains: [CHAIN.BASE],
+  start: "2026-04-14", // RevenueSplitter v1 deployment
+  fetch,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
