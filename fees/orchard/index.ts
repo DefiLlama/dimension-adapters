@@ -37,7 +37,6 @@
 
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const ORCHARD = "0xEbB8b167c0992cFdc497A995a8Cf7167acAA0A1A";
 const AAPL = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9";
@@ -45,9 +44,11 @@ const AAPL = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9";
 const BPS = 10000n;
 const STAKERS_BPS = 1000n; // Orchard.STAKERS_BPS, a contract constant: 10% of the rake
 
+const RAKE = "Rake";
 const ADMIN_FEE = "Admin Fee";
-const JACKPOT = "Jackpot";
-const TREASURY = "Treasury Buyback";
+const JACKPOT = "Rake to Jackpot";
+const TREASURY_BUYBACK = "Rake to Buyback";
+const STAKING_REWARDS = "Rake to Stakers";
 
 const PLANTED =
   "event Planted(address indexed player, uint256 indexed round, uint8 plot, uint256 ethIn, uint256 stake)";
@@ -154,20 +155,18 @@ const fetch = async (options: FetchOptions) => {
       const toJackpot = (rake * BigInt(round.jackpotBps)) / BPS;
       const toTreasury = rake - toStakers - toJackpot;
 
-      dailyFees.add(AAPL, toStakers, METRIC.STAKING_REWARDS);
-      dailyFees.add(AAPL, toJackpot, JACKPOT);
-      dailyFees.add(AAPL, toTreasury, TREASURY);
+      dailyFees.add(AAPL, toStakers + toJackpot + toTreasury, RAKE);
 
       // The jackpot is paid back out to players, so it is a cost of revenue.
       dailySupplySideRevenue.add(AAPL, toJackpot, JACKPOT);
 
-      dailyRevenue.add(AAPL, toStakers, METRIC.STAKING_REWARDS);
-      dailyRevenue.add(AAPL, toTreasury, TREASURY);
+      dailyRevenue.add(AAPL, toStakers, STAKING_REWARDS);
+      dailyRevenue.add(AAPL, toTreasury, TREASURY_BUYBACK);
 
       // Both destinations end up with SEED holders: the stakers' cut is flushed to
       // SeedStaking as AAPL yield, the treasury cut buys SEED back and burns it.
-      dailyHoldersRevenue.add(AAPL, toStakers, METRIC.STAKING_REWARDS);
-      dailyHoldersRevenue.add(AAPL, toTreasury, TREASURY);
+      dailyHoldersRevenue.add(AAPL, toStakers, STAKING_REWARDS);
+      dailyHoldersRevenue.add(AAPL, toTreasury, TREASURY_BUYBACK);
     }
   }
 
@@ -197,27 +196,25 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [ADMIN_FEE]: "The configured adminFeeBps share of the AAPL bought on every plant (Planted and PlantedMany events), resolved per event so rate changes apply only from the block they take effect.",
-    [METRIC.STAKING_REWARDS]: "A fixed 10% of each round's rake (STAKERS_BPS, a contract constant), accrued for SEED stakers.",
-    [JACKPOT]: "The round's configured jackpotBps share of its rake, routed to the Golden Apple jackpot.",
-    [TREASURY]: "The remainder of each round's rake after the staker and jackpot shares, accrued to the treasury.",
+    RAKE: "The rake taken on every revealed round with a winner.",
   },
   UserFees: {
     [ADMIN_FEE]: "Admin fee paid by players on every plant.",
-    [METRIC.STAKING_REWARDS]: "Stakers' portion of the rake paid by players out of the loss pool.",
+    [STAKING_REWARDS]: "Stakers' portion of the rake paid by players out of the loss pool.",
     [JACKPOT]: "Jackpot portion of the rake paid by players out of the loss pool.",
-    [TREASURY]: "Treasury portion of the rake paid by players out of the loss pool.",
+    [TREASURY_BUYBACK]: "Buyback portion of the rake paid by players out of the loss pool used to buy SEED back on the DEX and burn it.",
   },
   Revenue: {
     [ADMIN_FEE]: "Admin fee on every plant, at the configured adminFeeBps rate.",
-    [METRIC.STAKING_REWARDS]: "The fixed 10% staker share of each round's rake.",
-    [TREASURY]: "The treasury remainder of each round's rake.",
+    [STAKING_REWARDS]: "The fixed 10% staker share of each round's rake.",
+    [TREASURY_BUYBACK]: "The treasury remainder of each round's rake used to buy SEED back on the DEX and burn it.",
   },
   ProtocolRevenue: {
     [ADMIN_FEE]: "Admin fee on every plant at the configured adminFeeBps rate, withdrawn by the owner via collectAdmin.",
   },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "The fixed 10% staker share of each round's rake, flushed to SeedStaking as AAPL yield for SEED stakers.",
-    [TREASURY]: "The treasury remainder of each round's rake, spent buying SEED back on the DEX and burning it.",
+    [STAKING_REWARDS]: "The fixed 10% staker share of each round's rake, flushed to SeedStaking as AAPL yield for SEED stakers.",
+    [TREASURY_BUYBACK]: "The treasury remainder of each round's rake, spent buying SEED back on the DEX and burning it.",
   },
   SupplySideRevenue: {
     [JACKPOT]: "The round's configured jackpotBps share of its rake, routed to the Golden Apple jackpot and paid back out to players when it hits.",
