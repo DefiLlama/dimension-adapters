@@ -79,6 +79,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: '2026-07-13',
   // Cumulative snapshot diffs + bribe subtraction are composable across hourly windows.
   pullHourly: true,
   methodology,

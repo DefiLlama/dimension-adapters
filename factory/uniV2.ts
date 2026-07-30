@@ -1598,6 +1598,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     factoriesName: "factories",
     totalVolume: "totalVolumeUSD",
     start: '2023-05-31',
+    deadFrom: '2026-07-13',
   },
   "thena-integral": {
     endpoints: {
