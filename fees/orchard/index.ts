@@ -199,10 +199,8 @@ const breakdownMethodology = {
     RAKE: "The rake taken on every revealed round with a winner.",
   },
   UserFees: {
-    [ADMIN_FEE]: "Admin fee paid by players on every plant.",
-    [STAKING_REWARDS]: "Stakers' portion of the rake paid by players out of the loss pool.",
-    [JACKPOT]: "Jackpot portion of the rake paid by players out of the loss pool.",
-    [TREASURY_BUYBACK]: "Buyback portion of the rake paid by players out of the loss pool used to buy SEED back on the DEX and burn it.",
+    [ADMIN_FEE]: "The configured adminFeeBps share of the AAPL bought on every plant (Planted and PlantedMany events), resolved per event so rate changes apply only from the block they take effect.",
+    RAKE: "The rake taken on every revealed round with a winner.",
   },
   Revenue: {
     [ADMIN_FEE]: "Admin fee on every plant, at the configured adminFeeBps rate.",
