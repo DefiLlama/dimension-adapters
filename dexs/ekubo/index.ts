@@ -6,7 +6,8 @@ import BigNumber from "bignumber.js";
 
 const chainConfig: Record<string, { start: string, chainId: String }> = {
   [CHAIN.STARKNET]: { start: '2023-09-19', chainId: "23448594291968334" },
-  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" }
+  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" },
+  [CHAIN.ROBINHOOD]: { start: '2026-07-21', chainId: "4663" },
 }
 
 function toAddress(numberString: string): string {
