@@ -28,8 +28,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Volume:
-      "USDC notional traded through OrderFilled events on Prophet's CTF exchange. Only the collateral (USDC) side of each fill is counted and amounts are halved to correct for maker + taker double counting, matching the Polymarket methodology.",
+    Volume: "USDC volume traded through OrderFilled events on Prophet's CTF exchange. Only the collateral (USDC) side of each fill is counted and amounts are halved to correct for maker + taker double counting, matching the Polymarket methodology.",
+    NotionalVolume: "Notional volume (1 USDC = 1 outcome token) traded through OrderFilled events on Prophet's CTF exchange.",
   },
   chains: [CHAIN.POLYGON],
   start: "2026-05-01", // block 86244025, ProphetCTFExchange deployment
