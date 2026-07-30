@@ -61,11 +61,10 @@ const ALL_QUOTED_HOOKS = QUOTED_CURVE_MARKETS.flatMap(({ hooks }) => hooks);
 
 const ETH_HOOK_SET = new Set(ETH_HOOKS.map((h) => h.toLowerCase()));
 
-function accumulateLogs(logs: any[], token: string, dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any, dailyVolume: any) {
+function accumulateLogs(logs: any[], token: string, dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any) {
   for (const log of logs) {
     const gross = BigInt(log.ethGross);
     const fee = gross - BigInt(log.ethNet);
-    dailyVolume.add(token, gross);
     if (fee <= 0n) continue;
     const creatorFee = (fee * CREATOR_SHARE_BPS) / BPS;
     const platformFee = fee - creatorFee;
@@ -91,7 +90,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyVolume = options.createBalances();
 
   // Two getLogs calls total: one for Trade, one for PoolFeesCollected.
   const [tradeLogs, gradLogs] = await Promise.all([
@@ -103,7 +101,7 @@ const fetch = async (options: FetchOptions) => {
     const addr = log.address?.toLowerCase();
     const token = ETH_HOOK_SET.has(addr) ? WETH : HOOK_TO_QUOTE[addr];
     if (!token) continue;
-    accumulateLogs([log.args], token, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume);
+    accumulateLogs([log.args], token, dailyFees, dailyRevenue, dailySupplySideRevenue);
   }
 
   for (const log of gradLogs) {
@@ -114,7 +112,6 @@ const fetch = async (options: FetchOptions) => {
   }
 
   return {
-    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
@@ -124,7 +121,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Gross quote-currency value of every trade (ethGross from the Trade event), covering ETH, USDG, and tokenized-stock curves.",
   Fees: "Total 1% swap fees across all pmav pools on ETH, USDG, and tokenized-stock curves, plus LP fees collected from permanently locked graduated pool positions.",
   UserFees: "Users pay a 1% flat fee on every trade in pmav-launched Uniswap v4 pools.",
   Revenue: "Platform's 30% share of swap fees (0.3% per trade).",
