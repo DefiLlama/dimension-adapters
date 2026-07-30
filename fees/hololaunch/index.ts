@@ -67,7 +67,7 @@ async function fetch(options: FetchOptions) {
     await options.getLogs({
       eventAbi: eventReserveUpdated,
       topics: [topicReserveUpdated],
-      noTarget: true,
+      noTarget: true, // curveSet would have too many targets, noTarget is faster
       entireLog: true,
       parseLog: true,
     })
@@ -115,7 +115,7 @@ async function fetch(options: FetchOptions) {
     await options.getLogs({
       eventAbi: eventTransferLiquidityToDex,
       topics: [topicTransferLiquidityToDex],
-      noTarget: true,
+      noTarget: true, // curveSet would have too many targets, noTarget is faster
       entireLog: true,
       parseLog: true,
       fromBlock: START_BLOCK,
@@ -153,8 +153,8 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Fees: "Users pay a 1% fee in ETH on every bonding-curve buy and sell, plus a one-time 0.001 ETH launch fee per token. After a token graduates (6.9 ETH raised) its liquidity is locked in a full-range Uniswap V3 position whose LP fees accrue to the protocol.",
-  Revenue: "70% of bonding-curve trading fees, all launch fees, and the claimed LP fees of graduated tokens' locked liquidity positions.",
-  ProtocolRevenue: "Same as Revenue: all revenue goes to the protocol treasury.",
+  Revenue: "70% of bonding-curve trading fees, all launch fees (0.001 ETH per token), and the claimed LP fees of graduated tokens' locked liquidity positions.",
+  ProtocolRevenue: "70% of the 1% bonding-curve trading fee, all launch fees (0.001 ETH per token), and the claimed LP fees of graduated tokens' locked liquidity positions.",
   SupplySideRevenue: "30% of bonding-curve trading fees, paid instantly to token creators.",
 };
 
@@ -182,6 +182,7 @@ const adapter: SimpleAdapter = {
   start: "2026-07-14",
   methodology,
   breakdownMethodology,
+  doublecounted: true, // uniswap
 };
 
 export default adapter;
