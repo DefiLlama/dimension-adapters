@@ -9,6 +9,7 @@ import { CHAIN } from "../helpers/chains";
 
 const LAUNCH_CREATED = 'event LaunchCreated(address indexed token, address indexed issuer, string name, string ticker, string category, string description, uint8 path, string[] issuerFeeLabels, string[] vestingLabels)'
 const TAX_RECEIVED = 'event TaxReceived(uint256 amount, uint256 lpShare, uint256 boardwalkShare, uint256 issuerShare, uint256 referrerShare, uint256 integratorShare)'
+const EPOCH_EXECUTED = 'event EpochExecuted(uint256 indexed epoch, uint8 option, uint256 raiseTokenAmount, bool forced, address destination)'
 const LAUNCH_INFO_ABI = 'function launches(address) view returns (address token, address feeDistributor, address presaleManager, address vestingStream, address lpStaking, address issuer, uint8 path, uint32 createdAt)'
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
@@ -22,10 +23,17 @@ const config: Record<string, { factory: string, fromBlock: number, start: string
 }
 
 // BoardwalkFeeCollector.GOVERNANCE_BPS = 9_000: the Boardwalk share is forwarded
-// 90% to the GovernanceVoter (BWLK governance stakers) and 10% to the treasury.
-// Non-Ethereum revenue is bridged weekly to Ethereum, where this split applies.
-const GOVERNANCE_SHARE = 0.9
-const TREASURY_SHARE = 0.1
+// 10% to the treasury and 90% to the GovernanceVoter on Ethereum (non-Ethereum
+// revenue is bridged weekly to Ethereum first). The governance 90% is only
+// attributed when a weekly epoch executes, per its winning vote option.
+const TREASURY_SHARE = 10n
+
+// GovernanceVoter on Ethereum; vote options from GovernanceVoter.sol
+const GOVERNANCE_VOTER = '0x2c2E06f6a960921861a8CDf760C59636808E7D50'
+const OPTION_TREASURY = 1
+const OPTION_BUY_BURN_BWLK = 2
+const OPTION_BUY_BURN_LP = 3
+const OPTION_PARTICIPATION = 4
 
 const fetch = async (options: FetchOptions) => {
   const { api } = options
@@ -47,35 +55,53 @@ const fetch = async (options: FetchOptions) => {
       .map((info: any, i: number) => ({ token: launchTokens[i], feeDistributor: info.feeDistributor, pair: pairs[i] }))
       .filter((launch: any) => launch.pair !== NULL_ADDRESS)
 
-    if (seeded.length) {
-      const taxLogs = await options.getLogs({ targets: seeded.map((launch: any) => launch.feeDistributor), eventAbi: TAX_RECEIVED, flatten: false })
-      const token0s = await api.multiCall({ abi: 'address:token0', calls: seeded.map((launch: any) => launch.pair) })
-      const token1s = await api.multiCall({ abi: 'address:token1', calls: seeded.map((launch: any) => launch.pair) })
-      const reserves = await api.multiCall({ abi: 'function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)', calls: seeded.map((launch: any) => launch.pair) })
+    const taxLogs = seeded.length
+      ? await options.getLogs({ targets: seeded.map((launch: any) => launch.feeDistributor), eventAbi: TAX_RECEIVED, flatten: false })
+      : []
+    // only price launches that actually collected tax this window
+    const active = seeded
+      .map((launch: any, i: number) => ({ ...launch, logs: taxLogs[i] }))
+      .filter((launch: any) => launch.logs.length)
 
-      seeded.forEach((launch: any, i: number) => {
-        const logs = taxLogs[i]
-        if (!logs.length) return
+    if (active.length) {
+      const token0s = await api.multiCall({ abi: 'address:token0', calls: active.map((launch: any) => launch.pair) })
+      const token1s = await api.multiCall({ abi: 'address:token1', calls: active.map((launch: any) => launch.pair) })
+      const reserves = await api.multiCall({ abi: 'function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)', calls: active.map((launch: any) => launch.pair) })
+
+      active.forEach((launch: any, i: number) => {
         // value the launch-token tax in the pair's raise token (WETH) at spot reserves
         const tokenIs0 = token0s[i].toLowerCase() === launch.token.toLowerCase()
         const raiseToken = tokenIs0 ? token1s[i] : token0s[i]
-        const tokenReserve = tokenIs0 ? reserves[i].reserve0 : reserves[i].reserve1
-        const raiseReserve = tokenIs0 ? reserves[i].reserve1 : reserves[i].reserve0
-        if (tokenReserve.toString() === '0') return
-        const rate = Number(raiseReserve) / Number(tokenReserve)
+        const tokenReserve = BigInt(tokenIs0 ? reserves[i].reserve0 : reserves[i].reserve1)
+        const raiseReserve = BigInt(tokenIs0 ? reserves[i].reserve1 : reserves[i].reserve0)
+        if (tokenReserve === 0n) return // unreachable for a seeded pair (liquidity is permanently locked); guards division only
+        const toRaise = (amount: any) => (BigInt(amount) * raiseReserve) / tokenReserve
 
-        logs.forEach((log: any) => {
-          dailyFees.add(raiseToken, Number(log.amount) * rate, 'Token Tax')
-          dailyRevenue.add(raiseToken, Number(log.boardwalkShare) * rate, 'Token Tax To Protocol')
-          dailyProtocolRevenue.add(raiseToken, Number(log.boardwalkShare) * rate * TREASURY_SHARE, 'Token Tax To Treasury')
-          dailyHoldersRevenue.add(raiseToken, Number(log.boardwalkShare) * rate * GOVERNANCE_SHARE, 'Token Tax To BWLK Stakers')
-          dailySupplySideRevenue.add(raiseToken, Number(log.issuerShare) * rate, 'Token Tax To Creators')
-          dailySupplySideRevenue.add(raiseToken, Number(log.lpShare) * rate, 'Token Tax To LP Stakers')
-          dailySupplySideRevenue.add(raiseToken, Number(log.referrerShare) * rate, 'Token Tax To Referrers')
-          dailySupplySideRevenue.add(raiseToken, Number(log.integratorShare) * rate, 'Token Tax To Integrators')
+        launch.logs.forEach((log: any) => {
+          dailyFees.add(raiseToken, toRaise(log.amount), 'Token Tax')
+          dailyRevenue.add(raiseToken, toRaise(log.boardwalkShare), 'Token Tax To Protocol')
+          dailyProtocolRevenue.add(raiseToken, toRaise(log.boardwalkShare) * TREASURY_SHARE / 100n, 'Token Tax To Treasury')
+          dailySupplySideRevenue.add(raiseToken, toRaise(log.issuerShare), 'Token Tax To Creators')
+          dailySupplySideRevenue.add(raiseToken, toRaise(log.lpShare), 'Token Tax To LP Stakers')
+          dailySupplySideRevenue.add(raiseToken, toRaise(log.referrerShare), 'Token Tax To Referrers')
+          dailySupplySideRevenue.add(raiseToken, toRaise(log.integratorShare), 'Token Tax To Integrators')
         })
       })
     }
+  }
+
+  // the governance 90% is attributed when the weekly epoch executes on Ethereum,
+  // per the winning vote option (WETH amounts, per GovernanceVoter.EpochExecuted)
+  if (options.chain === CHAIN.ETHEREUM) {
+    const weth = await api.call({ abi: 'address:WETH', target: GOVERNANCE_VOTER })
+    const executions = await options.getLogs({ target: GOVERNANCE_VOTER, eventAbi: EPOCH_EXECUTED })
+    executions.forEach((log: any) => {
+      const option = Number(log.option)
+      if (log.forced || option === OPTION_TREASURY) dailyProtocolRevenue.add(weth, log.raiseTokenAmount, 'Governance Epochs To Treasury')
+      else if (option === OPTION_BUY_BURN_BWLK) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'BWLK Buyback Burns')
+      else if (option === OPTION_BUY_BURN_LP) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'Locked BWLK Liquidity')
+      else if (option === OPTION_PARTICIPATION) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'Voter Distributions')
+    })
   }
 
   return {
@@ -91,9 +117,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Transfer tax (0.95% default, higher during the anti-whale decay window after launch) charged on every non-exempt transfer of Boardwalk-launched tokens, valued in WETH at the launch pair spot rate. The Uniswap v2 pair fee is not counted.',
   UserFees: 'Same as Fees: the transfer tax is paid by token senders.',
-  Revenue: "Boardwalk's share of the transfer tax (default 35bps of the 95bps tax, 30bps when a referrer is set).",
-  ProtocolRevenue: '10% of the Boardwalk share, forwarded to the treasury. Revenue from non-Ethereum chains is bridged weekly to Ethereum, where the treasury/governance split applies (net of bridge fees).',
-  HoldersRevenue: '90% of the Boardwalk share, deposited to the GovernanceVoter on Ethereum where weekly sbfBWLK-weighted votes direct it (treasury, BWLK buyback-and-burn, protocol-owned liquidity, or voter distribution). Revenue from non-Ethereum chains is bridged weekly to Ethereum before the split.',
+  Revenue: "Boardwalk's share of the transfer tax (default 35bps of the 95bps tax, 30bps when a referrer is set), split 10% treasury / 90% governance. Revenue from non-Ethereum chains is bridged weekly to Ethereum, where the split applies (net of bridge fees).",
+  ProtocolRevenue: 'The treasury 10% of the Boardwalk share, plus governance epoch budgets that weekly votes direct to the treasury (recognized when the epoch executes on Ethereum).',
+  HoldersRevenue: 'The governance 90% of the Boardwalk share, recognized when each weekly epoch executes on Ethereum with a BWLK-accruing outcome chosen by sbfBWLK-weighted votes: BWLK buyback-and-burn, buyback into permanently locked BWLK/ETH liquidity, or distribution to voters.',
   SupplySideRevenue: 'Tax shares accruing to launch issuers, stakers of the launch Uniswap v2 LP, referrers and integrators.',
 }
 
@@ -101,8 +127,15 @@ const breakdownMethodology = {
   Fees: { 'Token Tax': 'Transfer tax charged on every non-exempt transfer of Boardwalk-launched tokens.' },
   UserFees: { 'Token Tax': 'Transfer tax paid by token senders.' },
   Revenue: { 'Token Tax To Protocol': "Boardwalk's share of the transfer tax (default 35bps, 30bps when a referrer is set)." },
-  ProtocolRevenue: { 'Token Tax To Treasury': '10% of the Boardwalk share, forwarded to the treasury.' },
-  HoldersRevenue: { 'Token Tax To BWLK Stakers': '90% of the Boardwalk share, deposited to the GovernanceVoter for weekly BWLK-staker votes.' },
+  ProtocolRevenue: {
+    'Token Tax To Treasury': '10% of the Boardwalk share, forwarded to the treasury (BoardwalkFeeCollector.GOVERNANCE_BPS).',
+    'Governance Epochs To Treasury': 'Weekly governance epoch budgets whose winning vote (or forced fallback) sends the WETH to the treasury.',
+  },
+  HoldersRevenue: {
+    'BWLK Buyback Burns': 'Epoch budgets swapped to BWLK and burned to the dead address.',
+    'Locked BWLK Liquidity': 'Epoch budgets used to buy BWLK and mint permanently locked BWLK/ETH liquidity.',
+    'Voter Distributions': 'Epoch budgets swapped to BWLK and streamed to the epoch\'s voters.',
+  },
   SupplySideRevenue: {
     'Token Tax To Creators': "Launch issuer's share of the transfer tax (default 35bps).",
     'Token Tax To LP Stakers': 'Share streamed to stakers of the launch Uniswap v2 LP via LPStaking fee epochs (default 15bps).',
