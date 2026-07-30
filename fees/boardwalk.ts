@@ -78,13 +78,20 @@ const fetch = async (options: FetchOptions) => {
         const toRaise = (amount: any) => (BigInt(amount) * raiseReserve) / tokenReserve
 
         launch.logs.forEach((log: any) => {
-          dailyFees.add(raiseToken, toRaise(log.amount), 'Token Tax')
-          dailyRevenue.add(raiseToken, toRaise(log.boardwalkShare), 'Token Tax To Protocol')
-          dailyProtocolRevenue.add(raiseToken, toRaise(log.boardwalkShare) * TREASURY_SHARE / 100n, 'Token Tax To Treasury')
-          dailySupplySideRevenue.add(raiseToken, toRaise(log.issuerShare), 'Token Tax To Creators')
-          dailySupplySideRevenue.add(raiseToken, toRaise(log.lpShare), 'Token Tax To LP Stakers')
-          dailySupplySideRevenue.add(raiseToken, toRaise(log.referrerShare), 'Token Tax To Referrers')
-          dailySupplySideRevenue.add(raiseToken, toRaise(log.integratorShare), 'Token Tax To Integrators')
+          // convert each share once and sum them for the total, so
+          // dailyFees == dailyRevenue + dailySupplySideRevenue holds exactly
+          const boardwalkShare = toRaise(log.boardwalkShare)
+          const issuerShare = toRaise(log.issuerShare)
+          const lpShare = toRaise(log.lpShare)
+          const referrerShare = toRaise(log.referrerShare)
+          const integratorShare = toRaise(log.integratorShare)
+          dailyFees.add(raiseToken, boardwalkShare + issuerShare + lpShare + referrerShare + integratorShare, 'Token Tax')
+          dailyRevenue.add(raiseToken, boardwalkShare, 'Token Tax To Protocol')
+          dailyProtocolRevenue.add(raiseToken, boardwalkShare * TREASURY_SHARE / 100n, 'Token Tax To Treasury')
+          dailySupplySideRevenue.add(raiseToken, issuerShare, 'Token Tax To Creators')
+          dailySupplySideRevenue.add(raiseToken, lpShare, 'Token Tax To LP Stakers')
+          dailySupplySideRevenue.add(raiseToken, referrerShare, 'Token Tax To Referrers')
+          dailySupplySideRevenue.add(raiseToken, integratorShare, 'Token Tax To Integrators')
         })
       })
     }
@@ -98,8 +105,9 @@ const fetch = async (options: FetchOptions) => {
     executions.forEach((log: any) => {
       const option = Number(log.option)
       if (log.forced || option === OPTION_TREASURY) dailyProtocolRevenue.add(weth, log.raiseTokenAmount, 'Governance Epochs To Treasury')
+      // option 3 mints permanently locked protocol-owned BWLK/ETH liquidity (fees stream to treasury)
+      else if (option === OPTION_BUY_BURN_LP) dailyProtocolRevenue.add(weth, log.raiseTokenAmount, 'Locked BWLK Liquidity')
       else if (option === OPTION_BUY_BURN_BWLK) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'BWLK Buyback Burns')
-      else if (option === OPTION_BUY_BURN_LP) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'Locked BWLK Liquidity')
       else if (option === OPTION_PARTICIPATION) dailyHoldersRevenue.add(weth, log.raiseTokenAmount, 'Voter Distributions')
     })
   }
@@ -118,8 +126,8 @@ const methodology = {
   Fees: 'Transfer tax (0.95% default, higher during the anti-whale decay window after launch) charged on every non-exempt transfer of Boardwalk-launched tokens, valued in WETH at the launch pair spot rate. The Uniswap v2 pair fee is not counted.',
   UserFees: 'Same as Fees: the transfer tax is paid by token senders.',
   Revenue: "Boardwalk's share of the transfer tax (default 35bps of the 95bps tax, 30bps when a referrer is set), split 10% treasury / 90% governance. Revenue from non-Ethereum chains is bridged weekly to Ethereum, where the split applies (net of bridge fees).",
-  ProtocolRevenue: 'The treasury 10% of the Boardwalk share, plus governance epoch budgets that weekly votes direct to the treasury (recognized when the epoch executes on Ethereum).',
-  HoldersRevenue: 'The governance 90% of the Boardwalk share, recognized when each weekly epoch executes on Ethereum with a BWLK-accruing outcome chosen by sbfBWLK-weighted votes: BWLK buyback-and-burn, buyback into permanently locked BWLK/ETH liquidity, or distribution to voters.',
+  ProtocolRevenue: 'The treasury 10% of the Boardwalk share, plus governance epoch budgets that weekly votes direct to the treasury or into permanently locked protocol-owned BWLK/ETH liquidity (recognized when the epoch executes on Ethereum).',
+  HoldersRevenue: 'The portion of the governance 90% recognized when each weekly epoch executes on Ethereum with a holder-accruing outcome chosen by sbfBWLK-weighted votes: BWLK buyback-and-burn or distribution to voters.',
   SupplySideRevenue: 'Tax shares accruing to launch issuers, stakers of the launch Uniswap v2 LP, referrers and integrators.',
 }
 
@@ -130,10 +138,10 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     'Token Tax To Treasury': '10% of the Boardwalk share, forwarded to the treasury (BoardwalkFeeCollector.GOVERNANCE_BPS).',
     'Governance Epochs To Treasury': 'Weekly governance epoch budgets whose winning vote (or forced fallback) sends the WETH to the treasury.',
+    'Locked BWLK Liquidity': 'Epoch budgets used to buy BWLK and mint permanently locked protocol-owned BWLK/ETH liquidity.',
   },
   HoldersRevenue: {
     'BWLK Buyback Burns': 'Epoch budgets swapped to BWLK and burned to the dead address.',
-    'Locked BWLK Liquidity': 'Epoch budgets used to buy BWLK and mint permanently locked BWLK/ETH liquidity.',
     'Voter Distributions': 'Epoch budgets swapped to BWLK and streamed to the epoch\'s voters.',
   },
   SupplySideRevenue: {
