@@ -12,7 +12,6 @@ const STARKNET_MINT_AND_WITHDRAW_SELECTOR = '0x02dc261d291ce25f6904f36a80576ecb1
 
 const SOLANA_CCTP_PROGRAM = 'CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe'
 const SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR = '0xe445a52e51cb9a1d4b43e546a27e0047'
-const SOLANA_USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
 //chains can be found here: https://bridge.usdc.com/api/feature-flags
 const chainConfig = {
@@ -120,6 +119,7 @@ async function fetchSolana(options: FetchOptions) {
     // data = 16-byte anchor+event discriminator, then mintRecipient(32) + amount u64 LE(8) + mintToken(32) + feeCollected u64 LE(8)
     const query = `
       select
+        to_base58(VARBINARY_SUBSTRING(data, 57, 32)) as mint_token,
         VARBINARY_TO_UINT256(VARBINARY_REVERSE(VARBINARY_SUBSTRING(data, 89, 8))) as fee_collected
       from solana.instruction_calls
       where executing_account = '${SOLANA_CCTP_PROGRAM}'
@@ -127,10 +127,9 @@ async function fetchSolana(options: FetchOptions) {
         and block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
     `
-    const rows: { fee_collected: string }[] = await queryDuneSql(options, query)
+    const rows: { mint_token: string; fee_collected: string }[] = await queryDuneSql(options, query)
     rows.forEach(row => {
-        const feeCollected = BigInt(row.fee_collected)
-        dailyFees.add(SOLANA_USDC_MINT, feeCollected, "Bridge Fees")
+        dailyFees.add(row.mint_token, row.fee_collected, "Bridge Fees")
     })
 
     return {
