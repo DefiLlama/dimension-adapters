@@ -73,7 +73,9 @@ async function fetchStellar(options: FetchOptions) {
 
     rows.forEach(row => {
         const parsed = JSON.parse(row.data_decoded)
-        const feeEntry = parsed.map.find((e: any) => e.key.symbol === 'fee_collected')
+        const feeEntry = 
+        parsed.map.find((e: any) => e.key.symbol === 'fee_collected')
+        // Stellar classic/SAC assets use 7 decimal places
         dailyFees.addCGToken('usd-coin', Number(feeEntry.val.i128) / 1e7, "Bridge Fees")
     })
 
@@ -124,6 +126,7 @@ async function fetchSolana(options: FetchOptions) {
       from solana.instruction_calls
       where executing_account = '${SOLANA_CCTP_PROGRAM}'
         and VARBINARY_SUBSTRING(data, 1, 16) = ${SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR}
+        and tx_success = true
         and block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
     `
