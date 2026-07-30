@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const FEE_RECIPIENT = "0x79Af6AbA700CCe35f5Ad5573a679674593fC6f0C";
 const DEFAULT_VOLUME_MULTIPLIER = 5_000;
@@ -37,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(log.data);
     if (amount <= 0n) continue;
 
-    dailyFees.add(log.address, amount);
+    dailyFees.add(log.address, amount, METRIC.SWAP_FEES);
     const multiplier = getVolumeMultiplier(options.chain, log.address);
     dailyVolume.add(log.address, amount * BigInt(multiplier));
   }
@@ -54,26 +55,32 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume:
     "Swap volume is back-calculated from fees received by the Yieldzio fee wallet. The standard fees use a 0.02% rate ($1 per $5,000). AVLT fees on Ethereum and HyperEVM use a 0.1% rate ($1 of fees per $1,000 of volume) due to the majority of the AVLT volume coming from the liquidation service which charges a 10bps fee.",
-  Fees: "All ERC-20 payments received by the Yieldzio fee wallet are counted as fees.",
+  Fees: "All ERC-20 payments (0.1% swap fees on AVLT volume, 0.02% on other volume) received by the Yieldzio fee wallet are counted as fees.",
   UserFees:
     "Yieldzio charges 0.1% (10 bps) on AVLT volume on Ethereum and HyperEVM, and 0.02% (2 bps) on other volume.",
-  Revenue: "100% of fees received by the fee wallet are protocol revenue.",
-  ProtocolRevenue: "100% of fees received by the fee wallet are protocol revenue.",
+  Revenue: "100% of fees (0.1% swap fees on AVLT volume, 0.02% on other volume) received by the fee wallet are protocol revenue.",
+  ProtocolRevenue: "100% of fees (0.1% swap fees on AVLT volume, 0.02% on other volume) received by the fee wallet are protocol revenue.",
 };
+
+const commonBreakdown = {
+  [METRIC.SWAP_FEES]: "Yieldzio charges 0.1% (10 bps) on AVLT volume on Ethereum and HyperEVM, and 0.02% (2 bps) on other volume.",
+}
+
+const breakdownMethodology = {
+  Fees: commonBreakdown,
+  UserFees: commonBreakdown,
+  Revenue: commonBreakdown,
+  ProtocolRevenue: commonBreakdown,
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2026-02-01" },
-    [CHAIN.HYPERLIQUID]: { fetch, start: "2026-02-01" },
-    [CHAIN.PLASMA]: { fetch, start: "2026-02-01" },
-    [CHAIN.MONAD]: { fetch, start: "2026-02-01" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2026-02-01" },
-    [CHAIN.OPTIMISM]: { fetch, start: "2026-02-01" },
-    [CHAIN.MEGAETH]: { fetch, start: "2026-02-01" },
-  },
+  fetch,
+  start: "2026-02-01",
+  chains: [CHAIN.ETHEREUM, CHAIN.HYPERLIQUID, CHAIN.PLASMA, CHAIN.MONAD, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.MEGAETH],
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
