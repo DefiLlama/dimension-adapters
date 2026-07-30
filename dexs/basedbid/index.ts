@@ -34,8 +34,8 @@ const fetchSolana = async (options: FetchOptions) => {
       WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
         AND success = true
-        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, account_keys)
-        ${DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, account_keys)`).join("\n        ")}
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
+        ${DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))`).join("\n        ")}
     ),
     trade_amounts AS (
       SELECT tr.txn_id, MAX(tr.usd_amount) AS trade_usd
@@ -50,7 +50,9 @@ const fetchSolana = async (options: FetchOptions) => {
       GROUP BY tr.txn_id
     )
     SELECT COALESCE(SUM(trade_usd), 0) AS daily_volume FROM trade_amounts
-  `);
+    `
+  )
+
   return { dailyVolume: Number(rows[0].daily_volume) };
 };
 
