@@ -87,15 +87,15 @@ const fetchSolana = async (options: FetchOptions) => {
       FROM solana.raw.transactions tx
       WHERE ${timeFilter("tx")}
         AND tx.success = true
-        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
     ),
     trade_txs AS (
       SELECT txn_id
       FROM solana.raw.transactions tx
       WHERE ${timeFilter("tx")}
         AND tx.success = true
-        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, tx.account_keys)
-        ${SOLANA_DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, tx.account_keys)`).join("\n        ")}
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(tx.account_keys, x -> x:pubkey))
+        ${SOLANA_DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, TRANSFORM(tx.account_keys, x -> x:pubkey))`).join("\n        ")}
     ),
     admin_fees AS (
       SELECT COALESCE(SUM(tr.usd_amount), 0) AS usd
