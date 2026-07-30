@@ -71,8 +71,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 }
 
 const adapter: SimpleAdapter = {
-  // v1 is required for Dune-backed adapters: Dune runs once per day, so a v2
-  // (hourly) adapter would needlessly re-run the same expensive query.
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
@@ -82,8 +80,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: 'SOL paid into fanex_curve bonding-curve buys (the decoded buy instruction arg sol_in, fanex_solana.fanex_curve_call_buy). Buy-side only for now — the emit_cpi! Trade event that carries realized sell SOL is not yet decoded by Dune; sells are a negligible share of early volume. Post-graduation Raydium CPMM trading is excluded (counted by Raydium).',
     Fees: 'All value received by the Fanex fee wallet on Solana: the 6% fundraise share plus the 1% platform swap fee taken on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
-    Revenue: 'Fanex retains 100% of what its fee wallet collects, so revenue equals fees.',
-    ProtocolRevenue: 'Equal to revenue — all of it accrues to the Fanex treasury. The 94% creator fundraise share is paid directly to creators and is not received by this wallet.',
+    Revenue: 'All value received by the Fanex fee wallet on Solana: the 6% fundraise share plus the 1% platform swap fee taken on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
+    ProtocolRevenue: 'All value received by the Fanex fee wallet on Solana: the 6% fundraise share plus the 1% platform swap fee taken on every fanex_curve buy/sell, the 3% cut on creator dividend distributions, and harvested Raydium CPMM LP fees.',
   },
   breakdownMethodology: {
     Fees: {
