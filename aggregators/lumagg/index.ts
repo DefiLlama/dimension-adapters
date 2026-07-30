@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const res: StatsResponse = await fetchURL(`${STATS_API}?day=${encodeURIComponent(day)}`);
 
   if (!res?.success || !res.data?.daily?.length) {
-    return { dailyVolume: 0 };
+    throw new Error(`No data found for ${day}`);
   }
 
   const row = res.data.daily[0];
@@ -56,7 +56,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (typeof row.total_amount_in_usd === "number" && Number.isFinite(row.total_amount_in_usd)) {
-    dailyVolume.addUSDValue(row.total_amount_in_usd, "Swap entry notional");
+    dailyVolume.addUSDValue(row.total_amount_in_usd);
   }
 
   return { dailyVolume };
@@ -67,20 +67,12 @@ const methodology = {
     "Sum of user swap entry amounts (token_in notional) through the LumAgg aggregator contract on Stellar. Multi-hop routed volume (entry × serial hops) is excluded. Source: https://api.lumagg.xyz/api/v1/stats",
 };
 
-const breakdownMethodology = {
-  Volume: {
-    "Swap entry notional":
-      "USD entry notional used when token-level amounts are unavailable.",
-  },
-};
-
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.STELLAR],
   start: START,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
