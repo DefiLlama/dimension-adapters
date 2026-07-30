@@ -5,6 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 
 const FACTORY_ADDRESS = '0xaaa20d08e59f6561f242b08513d36266c5a29415';
+const FIRST_SWAP_ONLY_DAY_TIMESTAMP = 1776816000; // 2026-04-22T00:00:00Z
 
 type TStartTime = {
   [key: string]: number;
@@ -54,6 +55,9 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
+        if (options.startOfDay < FIRST_SWAP_ONLY_DAY_TIMESTAMP)
+          throw new Error('Historical RAMSES v1 fees included bribes from a retired source and cannot be safely recomputed.');
+
         const v1Results: any = await feeAdapter!(options as any, {}, options)
 
         const dailyFees = options.createBalances();
