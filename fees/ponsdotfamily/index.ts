@@ -20,7 +20,7 @@ const BURNER_WALLET = "0xda4bcee76b29efec9697fcf663601c2042043968";
 const PONS_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
-const MIN_TVL = 1000;
+const MIN_TVL = 200;
 const SWAP_FEE = 1 / 100;
 const FROM_BLOCK = 8600612;
 
@@ -153,7 +153,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included).",
+  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $200 in TVL are included).",
   Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
   SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted.",
   HoldersRevenue: "Around 80% of revenue is used to buyback and burn $PONS tokens."
@@ -161,7 +161,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included)",
+    [METRIC.SWAP_FEES]: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $200 in TVL are included)",
   },
   Revenue: {
     "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
