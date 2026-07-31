@@ -15,6 +15,7 @@ const BPS = 10_000n;
 // Immutable RoarTreasury split from the production deployment manifest.
 const STAKER_SHARE_BPS = 1_000n;
 
+const MINING_DEPLOYMENTS = "Mining Deployments";
 const ROUND_ADMIN_FEES = "Round Admin Fees";
 const TREASURY_VAULT_FEES = "Treasury Vault Fees";
 const EARLY_CLAIM_FEES = "Early Claim Fees";
@@ -53,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Both direct deployments and deployments made by AutoMiner emit this same event.
   for (const log of deploymentLogs) {
-    dailyVolume.add(WETH, log.totalSettlement);
+    dailyVolume.add(WETH, log.totalSettlement, MINING_DEPLOYMENTS);
   }
 
   const settlementLogs = await options.getLogs({
@@ -169,6 +170,10 @@ const methodology = {
 };
 
 const breakdownMethodology = {
+  Volume: {
+    [MINING_DEPLOYMENTS]:
+      "Gross WETH deployed across all selected grid squares, including deployments submitted through AutoMiner.",
+  },
   Fees: {
     [ROUND_ADMIN_FEES]:
       "The exact admin WETH retained at settlement: totalSettlementDeployed minus treasurySettlement minus totalSettlementRewards from each RoundSettled event.",
