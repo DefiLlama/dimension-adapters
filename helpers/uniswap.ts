@@ -2,10 +2,65 @@ import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
-import { addOneToken } from "./prices";
+import { addOneToken, isCoreAsset } from "./prices";
+import { httpGet } from "../utils/fetchURL";
 import { ethers } from "ethers";
 
 const ZERO_ADDRESS = ADDRESSES.null;
+
+// Wash-trade detection shared by the uniswap v3/v4 adapters: a pool is flagged
+// when a day's flow comes from too few distinct addresses to be organic.
+// Always measured over the whole UTC day - both adapters run hourly, and over a
+// one-hour window a wash pool's fixed address set makes the ratios collapse.
+
+// Test A: trades per EOA. Catches bot pools of any size, including unpriced ones.
+export const WASH_MIN_TRADES = 500;
+export const WASH_TRADES_PER_EOA = 100;
+
+// Test B (ORed with A): USD per EOA. Fake-ticker pools move $725k-$3.9M per
+// address vs ~$95k for the busiest organic pool measured; A misses most of them
+// because they use fewer, larger trades. The trades/EOA floor is what keeps
+// Ethereum PYUSD/USDS ($1.5M per address, 3 trades each) out of it.
+export const WASH_MIN_USD = 1_000_000;
+export const WASH_USD_PER_EOA = 500_000;
+export const WASH_USD_MIN_TRADES_PER_EOA = 30;
+
+// Priced-but-dust pools are never flagged: bot churn on Zora creator coins and
+// the like trips test A while moving negligible USD, so dropping them buys no
+// accuracy and mislabels legit long-tail activity. Pools dex.trades cannot
+// price at all (SUM(amount_usd) IS NULL) stay flagged - catching those is what
+// test A is for.
+export const WASH_DUST_USD = 25_000;
+
+// Never flag a pool whose every side is established, meaning either
+//  - a core asset: concentrated flow on a major/stable pair is just arb bots
+//    (xlayer stablecoin pools peak at 90 trades/EOA, optimism native/USDC at
+//    51), or
+//  - a CoinGecko-listed token per our own price feed: a real project (SOSO,
+//    DUAL, SBC...) whose MM/relayer churn is concentrated but not fake, and a
+//    day-one rug cannot get a CG listing. Listed tokens price at confidence
+//    0.99; the fake-ticker tokens return no price at all. Current listing also
+//    exonerates past days on refills - a token listed today was real then too.
+// Dune has no equivalent signal: prices.day covers anything that trades
+// (source='dex.trades', fakes included) and its coinpaprika subset is ~200
+// tokens per chain. A price-API failure throws rather than guessing either way.
+export async function getEstablishedTokens(chain: string, tokens: string[]): Promise<Set<string>> {
+  const established = new Set<string>();
+  const unknown = new Set<string>();
+  for (const token of tokens.map(t => t.toLowerCase())) {
+    if (token === ZERO_ADDRESS || isCoreAsset(chain, token)) established.add(token);
+    else unknown.add(token);
+  }
+  const pending = [...unknown];
+  for (let i = 0; i < pending.length; i += 100) {
+    const keys = pending.slice(i, i + 100).map(t => `${chain}:${t}`).join(',');
+    const { coins } = await httpGet(`https://coins.llama.fi/prices/current/${keys}?searchWidth=6h`);
+    for (const [key, info] of Object.entries(coins ?? {}) as [string, any][]) {
+      if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
+    }
+  }
+  return established;
+}
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
