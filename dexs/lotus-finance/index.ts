@@ -43,14 +43,18 @@ const fetch = async (options: FetchOptions) => {
   const [, currentTvl, currentCumVolume] = currentRow;
   const [, previousTvl, previousCumVolume] = previousRow;
 
-  const dailyVolumeUsd = Number(currentCumVolume) - Number(previousCumVolume);
+  const currentCumVolumeUsd = Number(currentCumVolume);
+  const previousCumVolumeUsd = Number(previousCumVolume);
+  if (!Number.isFinite(currentCumVolumeUsd) || !Number.isFinite(previousCumVolumeUsd) || currentCumVolumeUsd < previousCumVolumeUsd) {
+    throw new Error(`lotus api returned an invalid cumulative volume for ${options.dateString}`);
+  }
+
+  const dailyVolumeUsd = currentCumVolumeUsd - previousCumVolumeUsd;
   if (dailyVolumeUsd === 0 && currentTvl === previousTvl) {
     throw new Error(`lotus api feed is stale: identical snapshot for consecutive days around ${options.dateString}`);
   }
 
-  if (dailyVolumeUsd > 0) {
-    dailyVolume.addUSDValue(dailyVolumeUsd);
-  }
+  dailyVolume.addUSDValue(dailyVolumeUsd);
 
   return { dailyVolume };
 };
