@@ -52,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
   if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
 
   const poolIds = Object.keys(filteredPairs)
-  // Per active pool: fee rate, communityFee (share to the vault) and the vault's algebraFee (protocol cut).
+  // Per active pool: fee rate, communityFee (share to the vault) and the vault's algebraFee (algebra licensing fees).
   const feeList = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: poolIds })
   const globalStates = await api.multiCall({ abi: globalStateAbi, calls: poolIds })
   const vaults = await api.multiCall({ abi: 'address:communityVault', calls: poolIds })
@@ -63,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   poolIds.forEach((pool, i) => {
     fees[pool] = feeList[i] / 1e6
     const vaultShare = Number(globalStates[i].communityFee) / DENOM   // share to vault
-    const algebraShare = vaultShare * (Number(algebraFees[i]) / DENOM)    // protocol cut
+    const algebraShare = vaultShare * (Number(algebraFees[i]) / DENOM)    // algebra licensing fees
     shares[pool] = { supply: 1 - vaultShare, algebra: algebraShare, holders: vaultShare - algebraShare }
   })
 
