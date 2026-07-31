@@ -27,6 +27,8 @@ const feeWallets = [
 ];
 
 const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+// Axiom stopped trading on BSC: last swap through the contract was 2026-06-29.
+const BSC_DEAD_FROM = '2026-06-30';
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
@@ -41,6 +43,7 @@ const assertIndexed = (options: FetchOptions) => {
 const prefetch = async (options: FetchOptions) => {
   assertIndexed(options);
   const formattedFeeWallets = formatAddresses(feeWallets);
+  const bscIsLive = options.startTimestamp * 1000 < Date.parse(`${BSC_DEAD_FROM}T00:00:00Z`);
 
   return queryDuneSql(options, `
     WITH axiom_txs AS (
@@ -56,34 +59,28 @@ const prefetch = async (options: FetchOptions) => {
         t.tx_id,
         t.trader_id,
         t.amount_usd,
-        t.token_bought_symbol,
-        t.token_sold_symbol,
+        -- one leg per trade: prefer the SOL leg as the notional, else the largest leg
         ROW_NUMBER() OVER (
           PARTITION BY t.tx_id, t.trader_id
           ORDER BY
-            CASE WHEN t.token_bought_symbol = 'WSOL' OR t.token_sold_symbol = 'WSOL' THEN 0 ELSE 1 END,
+            CASE WHEN t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
+                   OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}' THEN 0 ELSE 1 END,
             t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
       JOIN axiom_txs a ON t.tx_id = a.tx_id
       WHERE TIME_RANGE
         AND t.trader_id NOT IN (${formattedFeeWallets})
-        AND (
-          t.token_bought_symbol = 'WSOL'
-          OR t.token_sold_symbol = 'WSOL'
-          OR t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
-          OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
-        )
     )
     SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
-    UNION ALL
+    ${bscIsLive ? `UNION ALL
     SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND TIME_RANGE
-      AND tx_to = ${bscTradeContract}
+      AND tx_to = ${bscTradeContract}` : ''}
   `);
 };
 
@@ -91,7 +88,7 @@ const fetch: any = async (options: FetchOptions) => {
   assertIndexed(options);
 
   const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
-  const row = (options.preFetchedResults || []).find((r: any) => r.chain === target);
+  const row = options.preFetchedResults.find((r: any) => r.chain === target);
 
   return { dailyVolume: row.total_volume };
 };
@@ -102,11 +99,11 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   methodology: {
-    Volume: "Total USD volume of spot swaps made through Axiom. On Solana it counts trades whose transaction paid a fee to Axiom, and on BSC trades routed through Axiom's trading contract.",
+    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor. Axiom stopped trading on BNB Chain on 2026-06-29; earlier BNB Chain swaps are still included.",
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },
-    [CHAIN.BSC]: { start: '2026-01-25' },
+    [CHAIN.BSC]: { start: '2026-01-25', deadFrom: BSC_DEAD_FROM },
   },
   isExpensiveAdapter: true,
   doublecounted: true,

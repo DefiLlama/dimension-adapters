@@ -11,9 +11,14 @@ const LABELS = {
 } as const;
 
 
+// Axiom stopped trading on BSC: last swap through the contract was 2026-06-29.
+const BSC_DEAD_FROM = '2026-06-30';
+
 const chainConfig = {
   [CHAIN.SOLANA]: {
     start: '2025-01-21',
+    // Axiom's own router: 97.9% of fee-paying txs invoke it, 99.4% of its txs pay a fee wallet.
+    routerProgram: 'FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9',
     referralVaultProgram: 'VAULTkV5rgY9WqZtvaMHvctrKMwQw8bCfSJF4nga2D4',
     cashbackWallets: [
       'AxiomRXZAq1Jgjj9pHmNqVP7Lhu67wLXZJZbaK87TTSk',
@@ -44,6 +49,7 @@ const chainConfig = {
   },
   [CHAIN.BSC]: {
     start: '2026-01-25',
+    deadFrom: BSC_DEAD_FROM,
     tradeContract: '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e',
     feeReceiver: '0xdec29d79e8cdf009d2fa33e0558cb5648481cac3',
     supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
@@ -78,7 +84,7 @@ async function fetchSolana(options: FetchOptions) {
     allFeePayments AS (
         SELECT
           tx_id,
-          balance_change AS fee_token_amount
+          SUM(balance_change) AS fee_token_amount
         FROM
           solana.account_activity
         WHERE
@@ -88,20 +94,22 @@ async function fetchSolana(options: FetchOptions) {
             ${formattedFeeWallets}
           )
           AND balance_change > 0
+        GROUP BY tx_id
+    ),
+    routerTxs AS (
+      SELECT id
+      FROM solana.transactions
+      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
+        AND TIME_RANGE
+        AND success = true
+        AND CONTAINS(account_keys, '${solanaConfig.routerProgram}')
     ),
     botTrades AS (
       SELECT
-        trades.tx_id,
-        MAX(fee_token_amount) AS fee
+        feePayments.fee_token_amount AS fee
       FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-      WHERE
-        TIME_RANGE
-        AND trades.trader_id NOT IN (
-            ${formattedFeeWallets}
-          )
-      GROUP BY trades.tx_id
+        allFeePayments AS feePayments
+        JOIN routerTxs ON routerTxs.id = feePayments.tx_id
     ),
     referral_payout_txs AS (
       SELECT
@@ -224,7 +232,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, //claims may happen at later date
   fetch,
   methodology: {
-    Fees: 'Includes all trading fees paid by Axiom users.',
+    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral and cashback payouts users later claim back.",
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
     SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
