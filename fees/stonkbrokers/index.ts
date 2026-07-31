@@ -49,31 +49,30 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const [soldLogs, boughtLogs, loansLogs, activatedLogs, upgradedLogs] = await Promise.all([
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD }),
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT }),
-    options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED }),
-    options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED }),
-    options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATION_UPGRADED }),
-  ]);
+  const soldLogs = await options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD });
+  const boughtLogs = await options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT });
+  const loansLogs = await options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED });
+  const activatedLogs = await options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED });
+  const upgradedLogs = await options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATION_UPGRADED });
 
   for (const log of [...soldLogs, ...boughtLogs]) {
     const bps = log.isSpecific ? SPECIFIC_FEE_BPS : RANDOM_FEE_BPS;
     dailyVolume.addGasToken((log.ethFeePaid * 10_000n) / bps);
 
     dailyFees.addGasToken(log.ethFeePaid, LABELS.AMM_FEES);
-    dailyHoldersRevenue.addGasToken(log.boosterShare, LABELS.AMM_STOCK_DIVIDENDS);
+    dailySupplySideRevenue.addGasToken(log.boosterShare, LABELS.AMM_STOCK_DIVIDENDS);
     dailyProtocolRevenue.addGasToken(log.protocolShare, LABELS.AMM_PROTOCOL_TREASURY);
-    dailyRevenue.addGasToken(log.ethFeePaid, LABELS.AMM_FEES);
+    dailyRevenue.addGasToken(log.protocolShare, LABELS.AMM_PROTOCOL_TREASURY);
   }
 
   for (const log of loansLogs) {
     dailyFees.addGasToken(log.ethFeePaid, LABELS.LOAN_FEES);
-    dailyHoldersRevenue.addGasToken(log.boosterShare, LABELS.LOAN_STOCK_DIVIDENDS);
+    dailySupplySideRevenue.addGasToken(log.boosterShare, LABELS.LOAN_STOCK_DIVIDENDS);
     dailyProtocolRevenue.addGasToken(log.protocolShare, LABELS.LOAN_PROTOCOL_TREASURY);
-    dailyRevenue.addGasToken(log.ethFeePaid, LABELS.LOAN_FEES);
+    dailyRevenue.addGasToken(log.protocolShare, LABELS.LOAN_PROTOCOL_TREASURY);
   }
 
   for (const log of [...activatedLogs, ...upgradedLogs]) {
@@ -89,6 +88,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue,
   };
 };
@@ -106,11 +106,11 @@ const adapter: SimpleAdapter = {
     Fees:
       "ETH fees on NFT AMM trades + NFT-backed loans, plus $STONKBROKER broker activation/upgrade fees.",
     Revenue:
-      "All collected fees: 70% of ETH fees fund stock-token dividends to activated brokers; 30% to ProtocolFeeSink. Activation fees are burned/protocol-split.",
+      "30% of ETH fees (NFT AMM trades + NFT-backed loans) sent to ProtocolFeeSink plus all the $STONKBROKER activation/upgrade fees.",
     ProtocolRevenue:
       "30% of ETH trade/loan fees to ProtocolFeeSink, plus the protocol share of $STONKBROKER activation fees.",
     HoldersRevenue:
-      "70% of ETH trade/loan fees to StockBooster (AAPL/AMZN/NVDA airdrops to activated StonkBroker TBAs), plus burned $STONKBROKER activation fees.",
+      "Half of the $STONKBROKER activation/upgrade fees burned.",
   },
   breakdownMethodology: {
     Fees: {
@@ -119,8 +119,8 @@ const adapter: SimpleAdapter = {
       [LABELS.ACTIVATION_FEES]: "One-time / upgrade $STONKBROKER activation fees.",
     },
     Revenue: {
-      [LABELS.AMM_FEES]: "Full ETH AMM fee (holders + protocol split).",
-      [LABELS.LOAN_FEES]: "Full ETH loan fee (holders + protocol split).",
+      [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
+      [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
       [LABELS.ACTIVATION_FEES]: "Full $STONKBROKER activation fee (burn + protocol).",
     },
     ProtocolRevenue: {
@@ -129,12 +129,12 @@ const adapter: SimpleAdapter = {
       [LABELS.ACTIVATION_PROTOCOL]: "Protocol share of $STONKBROKER activation fees.",
     },
     HoldersRevenue: {
-      [LABELS.AMM_STOCK_DIVIDENDS]:
-        "70% of ETH AMM fees → StockBooster stock-token dividend drops to activated brokers.",
-      [LABELS.LOAN_STOCK_DIVIDENDS]:
-        "70% of ETH loan fees → StockBooster stock-token dividend drops to activated brokers.",
       [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
     },
+    SupplySideRevenue: {
+      [LABELS.AMM_STOCK_DIVIDENDS]: "70% of ETH AMM fees → StockBooster stock-token dividend drops to activated brokers.",
+      [LABELS.LOAN_STOCK_DIVIDENDS]: "70% of ETH loan fees → StockBooster stock-token dividend drops to activated brokers.",
+    }
   },
 };
 
