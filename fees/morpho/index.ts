@@ -177,6 +177,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",
     start: "2026-01-01",
   },
+  [CHAIN.MORPH]: {
+    // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0xAd10d07901Dc3195c3cb5e78E061F4EA8D9B4905",
+    fromBlock: 23180020,
+    start: "2026-05-22",
+  },
   // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
   // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
