@@ -99,8 +99,7 @@ async function fetchSolana(options: FetchOptions) {
     routerTxs AS (
       SELECT id
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND CONTAINS(account_keys, '${solanaConfig.routerProgram}')
     ),
@@ -118,8 +117,7 @@ async function fetchSolana(options: FetchOptions) {
         pre_balances,
         post_balances
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
     ),
@@ -130,8 +128,7 @@ async function fetchSolana(options: FetchOptions) {
         pre_balances,
         post_balances
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND (${cashbackWalletFilter})
         AND NOT CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')

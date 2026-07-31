@@ -89,6 +89,7 @@ const fetch: any = async (options: FetchOptions) => {
 
   const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
   const row = options.preFetchedResults.find((r: any) => r.chain === target);
+  if (!row) throw new Error(`Axiom: no prefetched Dune result for ${target}`);
 
   return { dailyVolume: row.total_volume };
 };
