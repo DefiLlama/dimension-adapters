@@ -6,6 +6,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // Production lineage starts at block 23,394,472; the Game was created at
 // block 23,394,511 and its canonical AutoMiner at block 23,394,788.
 const GAME = "0xB9E308C0de769aB61089Ef47231f0ff92AE8BF69";
+const AUTO_MINER = "0x451e9b91447bE0abeebD3110b8c372988383f72C";
 const TREASURY = "0x809e60F2C2556b5B70A372BCE6F7300f8F216f24";
 const ROAR = "0xf1d3e39cc61Aedd53dc40d8AFFf6aA1dD51875D0";
 const WETH = ADDRESSES.robinhood.WETH;
@@ -17,8 +18,10 @@ const STAKER_SHARE_BPS = 1_000n;
 const ROUND_ADMIN_FEES = "Round Admin Fees";
 const TREASURY_VAULT_FEES = "Treasury Vault Fees";
 const EARLY_CLAIM_FEES = "Early Claim Fees";
+const AUTO_MINER_EXECUTION_FEES = "AutoMiner Execution Fees";
 
 const ADMIN_FEES_TO_PROTOCOL = "Round Admin Fees to Protocol";
+const AUTO_MINER_FEES_TO_EXECUTORS = "AutoMiner Execution Fees to Executors";
 const TREASURY_FEES_TO_BUYBACKS = "Treasury Vault Fees to Buybacks";
 const TREASURY_FEES_TO_BURN = "Treasury Vault Fees to ROAR Burn";
 const TREASURY_FEES_TO_STAKERS = "Treasury Vault Fees to ROAR Stakers";
@@ -31,12 +34,15 @@ const ROUND_SETTLED =
   "event RoundSettled(uint256 indexed roundId, uint8 indexed winningSquare, bool splitReward, bool motherlodeHit, address soloWinner, uint256 totalSettlementDeployed, uint256 treasurySettlement, uint256 totalSettlementRewards, uint256 rewardAmount, uint256 motherlodePayout)";
 const ROUND_CLAIMED =
   "event RoundClaimed(uint256 indexed roundId, address indexed miner, address indexed settlementRecipient, address rewardRecipient, uint256 grossSettlement, uint256 grossReward, uint256 earlyClaimFee, address earlyClaimFeeRecipient, uint256 netReward)";
+const EXECUTED =
+  "event Executed(address indexed user, address indexed executor, uint256 indexed roundId, uint32 mask, uint256 settlementSpent, uint256 executorFee)";
 const VAULTED = "event Vaulted(uint256 settlementAmount)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
@@ -120,11 +126,26 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  const executionLogs = await options.getLogs({
+    target: AUTO_MINER,
+    eventAbi: EXECUTED,
+  });
+
+  for (const log of executionLogs) {
+    dailyFees.add(WETH, log.executorFee, AUTO_MINER_EXECUTION_FEES);
+    dailySupplySideRevenue.add(
+      WETH,
+      log.executorFee,
+      AUTO_MINER_FEES_TO_EXECUTORS
+    );
+  }
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
   };
@@ -134,11 +155,13 @@ const methodology = {
   Volume:
     "Gross WETH deployed across the game grid, including both direct and AutoMiner deployments, taken from the Game's Deployed events.",
   Fees:
-    "User-paid value retained from game activity: round admin WETH, WETH vaulted for treasury buybacks (including final-claim settlement rounding dust), and ROAR charged for claiming mined rewards early. AutoMiner executor compensation is excluded because it is paid directly to third-party keepers and never reaches Roar or ROAR holders.",
+    "User-paid value from game activity: round admin WETH, WETH vaulted for treasury buybacks (including final-claim settlement rounding dust), ROAR charged for claiming mined rewards early, and AutoMiner execution fees paid to third-party executors.",
   UserFees:
-    "Same as Fees. Round fees and treasury-vaulted settlement come from players' deployed WETH, while early-claim fees are deducted from a claimant's ROAR reward.",
+    "Same as Fees. Round fees, treasury-vaulted settlement, and AutoMiner execution fees come from players' WETH, while early-claim fees are deducted from a claimant's ROAR reward.",
   Revenue:
-    "All counted fees accrue either to the configured protocol recipient or to ROAR holders through treasury buybacks and permanent dead-address transfers.",
+    "Fees retained by Roar or accruing to ROAR holders through treasury buybacks and permanent dead-address transfers. AutoMiner execution fees are excluded from revenue because they are paid to third-party executors.",
+  SupplySideRevenue:
+    "AutoMiner execution fees paid to third-party executors for submitting users' configured deployments.",
   ProtocolRevenue:
     "Round admin fees allocated to the configured admin recipient, plus any early-claim fees sent to a non-dead-address recipient.",
   HoldersRevenue:
@@ -153,6 +176,8 @@ const breakdownMethodology = {
       "The exact WETH received by the Roar treasury in Vaulted events: settlement treasury fees plus final-claim settlement rounding dust. On a no-winner round this includes all deployed WETH after the admin fee.",
     [EARLY_CLAIM_FEES]:
       "ROAR deducted from rewards claimed during a round's configured early-claim fee window, taken directly from RoundClaimed events.",
+    [AUTO_MINER_EXECUTION_FEES]:
+      "WETH execution fees charged from AutoMiner users' funded budgets and paid to third-party executors.",
   },
   UserFees: {
     [ROUND_ADMIN_FEES]:
@@ -161,6 +186,12 @@ const breakdownMethodology = {
       "Settlement WETH retained from game rounds and sent to the treasury vault.",
     [EARLY_CLAIM_FEES]:
       "ROAR paid by winners who claim during the early-claim fee window.",
+    [AUTO_MINER_EXECUTION_FEES]:
+      "WETH paid by AutoMiner users for third-party execution of their configured deployments.",
+  },
+  SupplySideRevenue: {
+    [AUTO_MINER_FEES_TO_EXECUTORS]:
+      "AutoMiner execution fees passed through to the third-party executors that submit configured deployments.",
   },
   Revenue: {
     [ADMIN_FEES_TO_PROTOCOL]:
