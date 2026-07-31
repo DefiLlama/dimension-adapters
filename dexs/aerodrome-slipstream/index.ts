@@ -1,7 +1,9 @@
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
+import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
@@ -120,6 +122,11 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const factoryLogs = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, })
     rawPools = rawPools.concat(factoryLogs)
   }
+
+  // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
+  // downstream (volume, fees, revenue splits) derives from rawPools
+  const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(chain))
+  rawPools = rawPools.filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
   const [fees, gaugeFeesStart, gaugeFeesEnd] = await Promise.all([
