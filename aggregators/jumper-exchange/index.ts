@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
+      [chain]: { fetch, start: LifiDiamonds[chain].start, }
     }
   }, {})
 };
