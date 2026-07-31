@@ -2,10 +2,36 @@ import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
-import { addOneToken } from "./prices";
+import { addOneToken, isCoreAsset } from "./prices";
 import { ethers } from "ethers";
 
 const ZERO_ADDRESS = ADDRESSES.null;
+
+// Wash-trade detection shared by the uniswap v3/v4 adapters: a pool is flagged
+// when a day's flow comes from too few distinct addresses to be organic.
+// Always measured over the whole UTC day - both adapters run hourly, and over a
+// one-hour window a wash pool's fixed address set makes the ratios collapse.
+
+// Test A: trades per EOA. Catches bot pools of any size, including unpriced ones.
+export const WASH_MIN_TRADES = 500;
+export const WASH_TRADES_PER_EOA = 100;
+
+// Test B (ORed with A): USD per EOA. Fake-ticker pools move $725k-$3.9M per
+// address vs ~$95k for the busiest organic pool measured; A misses most of them
+// because they use fewer, larger trades. The trades/EOA floor is what keeps
+// Ethereum PYUSD/USDS ($1.5M per address, 3 trades each) out of it.
+export const WASH_MIN_USD = 1_000_000;
+export const WASH_USD_PER_EOA = 500_000;
+export const WASH_USD_MIN_TRADES_PER_EOA = 30;
+
+// Never flag a pool with an established asset on both sides - no fake token in
+// it, so concentrated flow is just arb bots on a major/stable pair. Those are
+// exactly what the ratios get wrong (xlayer stablecoin pools peak at 90
+// trades/EOA, optimism native/USDC at 51).
+export function isEstablishedPair(chain: string, token0: string, token1: string): boolean {
+  const established = (t: string) => t.toLowerCase() === ZERO_ADDRESS || isCoreAsset(chain, t)
+  return established(token0) && established(token1)
+}
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()

@@ -3,7 +3,10 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import {
+  getUniV3LogAdapter, isEstablishedPair, WASH_MIN_TRADES, WASH_MIN_USD,
+  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+} from "../helpers/uniswap";
 
 // Hybrid variant of old dexs/uniswap-v3.ts.
 // Each chain is described once in chainConfig { blockchain, start, fetch }:
@@ -70,7 +73,8 @@ async function fetchHoldersRevenue(options: FetchOptions) {
 // blockchains. UNNEST explodes each swap's bought + sold legs into one row each,
 // so SUM per token gives that token's total traded amount; addOneToken later
 // counts one (priceable) side as volume. No token whitelist: DefiLlama pricing
-// (+ <$10k-TVL rule) does the filtering.
+// (+ <$10k-TVL rule) drops unpriceable tokens, and fetchWashPools drops pools
+// whose flow is too concentrated to be organic.
 function buildQuery(blockchains: string[], options: FetchOptions): string {
   const inList = blockchains.map((b) => `'${b}'`).join(',');
   return `
@@ -88,6 +92,41 @@ function buildQuery(blockchains: string[], options: FetchOptions): string {
     GROUP BY blockchain, project_contract_address, t.token`;
 }
 
+// Same wash test the v4 adapter runs (see there). v3 is barely exposed - 0.4% of
+// volume vs 19.1% - but it's one extra Dune query and stops the scam factories
+// migrating here once v4 is filtered. Measured over the whole UTC day.
+async function fetchWashPools(blockchains: string[], options: FetchOptions): Promise<Record<string, Set<string>>> {
+  const inList = blockchains.map((b) => `'${b}'`).join(',');
+  const dayStart = Math.floor(options.startTimestamp / 86400) * 86400;
+  // v3 pools are their own contracts, so project_contract_address is the pool
+  // and amount_usd is on the same rows - no join needed, unlike v4.
+  const fullQuery = `
+    SELECT blockchain, project_contract_address AS pool
+    FROM dex.trades
+    WHERE blockchain IN (${inList})
+      AND project = 'uniswap'
+      AND version = '3'
+      AND block_time >= from_unixtime(${dayStart})
+      AND block_time < from_unixtime(${dayStart + 86400})
+    GROUP BY blockchain, project_contract_address
+    HAVING (
+      COUNT(*) >= ${WASH_MIN_TRADES}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+    ) OR (
+      COALESCE(SUM(amount_usd), 0) >= ${WASH_MIN_USD}
+      AND COALESCE(SUM(amount_usd), 0) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_PER_EOA}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+    )`;
+
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options);
+  const washPools: Record<string, Set<string>> = {};
+  for (const row of rows) {
+    if (!row.blockchain || !row.pool) continue;
+    (washPools[row.blockchain] ??= new Set()).add(String(row.pool).toLowerCase());
+  }
+  return washPools;
+}
+
 // queryDune fetches at most this many rows; a combined query at/over the cap is
 // probably truncated, so we bail and let each chain query its own slice.
 const DUNE_ROW_LIMIT = 32000;
@@ -99,17 +138,21 @@ const prefetch: any = async (options: FetchOptions) => {
   const blockchains = Object.values(chainConfig)
     .filter((c) => c.fetch === fetchFromDune)
     .map((c) => c.blockchain);
-  const rows: any[] = await queryDune('3996608', { fullQuery: buildQuery(blockchains, options) }, options);
+  const [rows, washPools] = await Promise.all([
+    queryDune('3996608', { fullQuery: buildQuery(blockchains, options) }, options) as Promise<any[]>,
+    fetchWashPools(blockchains, options),
+  ]);
   if (rows.length >= DUNE_ROW_LIMIT) {
     console.error(`uniswap-v3: prefetch returned ${rows.length} rows (>= ${DUNE_ROW_LIMIT} cap), falling back to per-chain queries`);
-    return null;
+    // null byChain sends each chain to its own query; the wash list still applies
+    return { byChain: null, washPools };
   }
   const byChain: Record<string, any[]> = {};
   for (const r of rows) {
     if (!r.blockchain) continue;
     (byChain[r.blockchain] ??= []).push(r);
   }
-  return { byChain };
+  return { byChain, washPools };
 }
 
 async function fetchFromDune(options: FetchOptions) {
@@ -131,6 +174,17 @@ async function fetchFromDune(options: FetchOptions) {
     p.tokens.push(r.token);
     p.amounts.push(r.amount);
   }
+
+  // drop wash pools, except ones that are established-asset pairs - see
+  // isEstablishedPair. Done after grouping because it needs both sides.
+  const washPools: Set<string> = options.preFetchedResults?.washPools?.[blockchain] ?? new Set();
+  for (const pool of Object.keys(byPool)) {
+    if (!washPools.has(pool.toLowerCase())) continue;
+    const { tokens } = byPool[pool];
+    if (tokens.length >= 2 && isEstablishedPair(options.chain, tokens[0], tokens[1])) continue;
+    delete byPool[pool];
+  }
+
   const pools = Object.keys(byPool);
 
   // permitFailure doesn't cover a fully-dead-RPC chunk (sdk multiCall throws on it),
@@ -277,6 +331,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
 }
 
 const methodology = {
+  Volume: "Swap volume, excluding pools whose daily trades come from too few distinct addresses to be organic (wash trading).",
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
   Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
