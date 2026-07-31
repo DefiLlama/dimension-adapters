@@ -35,7 +35,7 @@ const CHAIN_CONFIG: Record<string, { feeWallets: string[]; weth: string; start: 
   [CHAIN.MONAD]: {
     feeWallets: ['0xF9a0C289Eab6B571c6247094a853810987E5B26D'],
     weth: CoreAddresses.monad.WETH,
-    start: "2025-04-01",
+    start: "2025-10-20",
   },
 };
 
