@@ -25,8 +25,13 @@ async function fetch(options: FetchOptions) {
 
   for (const log of feeLogs) {
     dailyFees.addGasToken(log.quoteCollected, METRIC.TRADING_FEES);
+    dailyFees.add(log.token, log.tokenCollected, METRIC.TRADING_FEES);
+
     dailyRevenue.addGasToken(log.quoteToSushi, METRIC.TRADING_FEES);
+    dailyRevenue.add(log.token, log.tokenToSushi, METRIC.TRADING_FEES);
+
     dailySupplySideRevenue.addGasToken(log.quoteToCreator, "Creator Fees");
+    dailySupplySideRevenue.add(log.token, log.tokenToCreator, "Creator Fees");
   }
 
   for (const log of launchLogs) {
