@@ -102,6 +102,9 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // DAU requires day-wide address deduplication; summing hourly unique-user
+  // counts would count users active in multiple hours more than once.
+  pullHourly: false,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30",
