@@ -120,7 +120,9 @@ async function fetchWashPools(blockchains: string[], options: FetchOptions): Pro
     -- priced-but-dust pools are noise either way; NULL usd (unpriceable) stays flagged
     AND NOT (SUM(amount_usd) IS NOT NULL AND SUM(amount_usd) < ${WASH_DUST_USD})`;
 
-  const rows: any[] = await queryDune('3996608', { fullQuery }, options);
+  // extraUIDKey keeps DUNE_BULK_MODE from UNION ALLing this 2-column query with
+  // the 4-column volume query of the same module - the shapes don't match
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options, { extraUIDKey: 'wash' });
   const washPools: Record<string, Set<string>> = {};
   for (const row of rows) {
     if (!row.blockchain || !row.pool) continue;
