@@ -26,9 +26,9 @@ const feeWallets = [
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
 
-const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
-// Axiom stopped trading on BSC: last swap through the contract was 2026-06-29.
-const BSC_DEAD_FROM = '2026-06-30';
+const bscOldTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+const bscNewTradeContract = '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d';
+const BSC_CONTRACT_SWITCH_DATE = '2026-06-29';
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
@@ -43,7 +43,7 @@ const assertIndexed = (options: FetchOptions) => {
 const prefetch = async (options: FetchOptions) => {
   assertIndexed(options);
   const formattedFeeWallets = formatAddresses(feeWallets);
-  const bscIsLive = options.startTimestamp * 1000 < Date.parse(`${BSC_DEAD_FROM}T00:00:00Z`);
+  const bscTradeContract = options.dateString >= BSC_CONTRACT_SWITCH_DATE ? bscNewTradeContract : bscOldTradeContract;
 
   return queryDuneSql(options, `
     WITH axiom_txs AS (
@@ -75,12 +75,12 @@ const prefetch = async (options: FetchOptions) => {
     SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
-    ${bscIsLive ? `UNION ALL
+    UNION ALL
     SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND TIME_RANGE
-      AND tx_to = ${bscTradeContract}` : ''}
+      AND tx_to = ${bscTradeContract}
   `);
 };
 
@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },
-    [CHAIN.BSC]: { start: '2026-01-25', deadFrom: BSC_DEAD_FROM },
+    [CHAIN.BSC]: { start: '2026-01-25' },
   },
   isExpensiveAdapter: true,
   doublecounted: true,
