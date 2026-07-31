@@ -60,7 +60,10 @@ async function fetchStellar(options: FetchOptions) {
     const dailyFees = options.createBalances()
 
     const query = `
-      select data_decoded
+      select
+        sum(try_cast(
+          regexp_extract(data_decoded, '"fee_collected"\\},"val":\\{"i128":"([0-9]+)"\\}', 1) as decimal(38, 0)
+        ) / 1e7) as total_fee
       from stellar.history_contract_events
       where contract_id = '${STELLAR_CCTP_CONTRACT}'
         and successful = true
@@ -69,15 +72,11 @@ async function fetchStellar(options: FetchOptions) {
         and closed_at < from_unixtime(${options.endTimestamp})
     `
 
-    const rows: { data_decoded: string }[] = await queryDuneSql(options, query)
-
-    rows.forEach(row => {
-        const parsed = JSON.parse(row.data_decoded)
-        const feeEntry = 
-        parsed.map.find((e: any) => e.key.symbol === 'fee_collected')
+    const rows: { total_fee: string | null }[] = await queryDuneSql(options, query)
+    if (rows[0]?.total_fee) {
         // Stellar classic/SAC assets use 7 decimal places
-        dailyFees.addCGToken('usd-coin', Number(feeEntry.val.i128) / 1e7, "Bridge Fees")
-    })
+        dailyFees.addCGToken('usd-coin', Number(rows[0].total_fee), "Bridge Fees")
+    }
 
     return {
         dailyFees,
@@ -91,20 +90,21 @@ async function fetchStarknet(options: FetchOptions) {
     const dailyFees = options.createBalances()
 
     const query = `
-      select data, keys
+      select
+        keys[3] as mint_token,
+        cast(sum(varbinary_to_uint256(data[3])) as varchar) as fee_collected
       from starknet.events
       where from_address = ${STARKNET_CCTP_CONTRACT}
         and keys[1] = ${STARKNET_MINT_AND_WITHDRAW_SELECTOR}
         and block_time >= from_unixtime(${options.startTimestamp})
         and block_time < from_unixtime(${options.endTimestamp})
+      group by keys[3]
     `
 
-    const rows: { data: string[]; keys: string[] }[] = await queryDuneSql(options, query)
+    const rows: { mint_token: string; fee_collected: string }[] = await queryDuneSql(options, query)
 
     rows.forEach(row => {
-        const mintToken = row.keys[2]
-        const feeCollected = BigInt(row.data[2]) + (BigInt(row.data[3]) << 128n)
-        dailyFees.add(mintToken, feeCollected, "Bridge Fees")
+        dailyFees.add(row.mint_token, row.fee_collected, "Bridge Fees")
     })
 
     return {
@@ -121,14 +121,20 @@ async function fetchSolana(options: FetchOptions) {
     // data = 16-byte anchor+event discriminator, then mintRecipient(32) + amount u64 LE(8) + mintToken(32) + feeCollected u64 LE(8)
     const query = `
       select
-        to_base58(VARBINARY_SUBSTRING(data, 57, 32)) as mint_token,
-        VARBINARY_TO_UINT256(VARBINARY_REVERSE(VARBINARY_SUBSTRING(data, 89, 8))) as fee_collected
-      from solana.instruction_calls
-      where executing_account = '${SOLANA_CCTP_PROGRAM}'
-        and VARBINARY_SUBSTRING(data, 1, 16) = ${SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR}
-        and tx_success = true
-        and block_time >= from_unixtime(${options.startTimestamp})
-        and block_time < from_unixtime(${options.endTimestamp})
+        mint_token,
+        sum(fee_collected) as fee_collected
+      from (
+        select
+          to_base58(VARBINARY_SUBSTRING(data, 57, 32)) as mint_token,
+          VARBINARY_TO_UINT256(VARBINARY_REVERSE(VARBINARY_SUBSTRING(data, 89, 8))) as fee_collected
+        from solana.instruction_calls
+        where executing_account = '${SOLANA_CCTP_PROGRAM}'
+          and VARBINARY_SUBSTRING(data, 1, 16) = ${SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR}
+          and tx_success = true
+          and block_time >= from_unixtime(${options.startTimestamp})
+          and block_time < from_unixtime(${options.endTimestamp})
+      ) t
+      group by mint_token
     `
     const rows: { mint_token: string; fee_collected: string }[] = await queryDuneSql(options, query)
     rows.forEach(row => {
@@ -169,6 +175,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     dependencies: [Dependencies.DUNE],
+    isExpensiveAdapter: true,
 }
 
 export default adapter
