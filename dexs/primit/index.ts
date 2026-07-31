@@ -32,9 +32,8 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: abi.TradeRecorded,
   });
 
-  // Accumulate as bigint in 1e18 fixed-point USD, then convert once at the
-  // end. price * amount is 1e36 fixed-point, so /1e18 keeps it at 1e18.
-  // Realistic daily USD totals stay well below 2^53 / 1e18 (≈ 9e9 USD).
+  // Accumulate as bigint in 1e18 fixed-point USD. price * amount is 1e36
+  // fixed-point, so /1e18 keeps it at 1e18.
   let totalWeiUsd: bigint = 0n;
   for (const log of logs) {
     // Defense in depth: skip self-trades (backend also filters, but the
@@ -48,7 +47,15 @@ const fetch = async (options: FetchOptions) => {
     totalWeiUsd += (price * amount) / SCALE_18;
   }
 
-  const dailyVolume = Number(totalWeiUsd) / 1e18;
+  // Convert bigint → float in two parts to avoid Number precision loss.
+  // Number can only represent integers exactly up to 2^53 (~9e15); a
+  // single-shot `Number(totalWeiUsd) / 1e18` silently rounds once the
+  // day's wei-USD sum exceeds that (≈ 0.009 USD in wei-USD terms — i.e.
+  // essentially always). Split into whole USD (safe up to ~9 quadrillion
+  // USD/day) plus sub-USD fraction to keep full precision.
+  const wholeUsd = Number(totalWeiUsd / SCALE_18);
+  const fracUsd = Number(totalWeiUsd % SCALE_18) / 1e18;
+  const dailyVolume = wholeUsd + fracUsd;
 
   return { dailyVolume };
 };
