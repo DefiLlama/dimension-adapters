@@ -24,6 +24,7 @@ export enum CHAIN {
   BIFROST = "bifrost",
   BOTANIX = "btnx",
   BEAM = "beam",
+  BULLET = "bullet",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
