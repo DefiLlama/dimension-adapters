@@ -40,10 +40,12 @@ const sushiV3Configs: Record<string, { factory: string, start: string }> = {
   // [CHAIN.FILECOIN]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2024-09-01" },
 }
 
+const holdersRevenueReductionDate = "2025-09-16";
+
 const getUniV3LogAdapterConfig = {
   userFeesRatio: 1,
   dynamicProtocolFees: true,
-  getRevenueRatio: (props: UniGetRevenueRatioProps): { _revenueRatio: number, _protocolRevenueRatio?: number } => {
+  getRevenueRatio: (props: UniGetRevenueRatioProps): { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number } => {
     // Each pool's slot0.feeProtocol sets the protocol cut, packed as one nibble per token.
     // Average the two sides: a pool can set a protocol fee on one token only.
     const { protocolFeeRatioToken0 = 0, protocolFeeRatioToken1 = 0 } = props;
@@ -62,7 +64,11 @@ const getUniV3LogAdapterConfig = {
     // Nov 2025 (+0.0036% over the 7 months to 2026-07-27), and the transfers that used to
     // be read as a 38% xSUSHI leg go to RedSnwapper (0xac4c6e...), Sushi's swap executor,
     // which returns the proceeds to the collector - the input leg of a swap, not a payout.
-    return { _revenueRatio: rate, _protocolRevenueRatio: rate };
+    // since mid of oct 2025, holders revenue has been drastically reduced and now is negligible
+
+    const protocolRevenueRatio = props.options.dateString >= holdersRevenueReductionDate ? 1 : 0.62;
+    const holdersRevenueRatio = props.options.dateString >= holdersRevenueReductionDate ? 0 : 0.38;
+    return { _revenueRatio: rate, _protocolRevenueRatio: rate * protocolRevenueRatio, _holdersRevenueRatio: rate * holdersRevenueRatio };
   }
 }
 
@@ -73,10 +79,15 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   if (results.dailyProtocolRevenue) {
     dailyRevenue.add(results.dailyProtocolRevenue, 'Swap Fees To Treasury')
     dailyProtocolRevenue.add(results.dailyProtocolRevenue, 'Swap Fees To Treasury')
+  }
+  if (results.dailyHoldersRevenue) {
+    dailyRevenue.add(results.dailyHoldersRevenue, 'Swap Fees To xSUSHI Stakers')
+    dailyHoldersRevenue.add(results.dailyHoldersRevenue, 'Swap Fees To xSUSHI Stakers')
   }
   if (results.dailySupplySideRevenue)
     dailySupplySideRevenue.add(results.dailySupplySideRevenue, 'Swap Fees To Liquidity Providers')
@@ -90,6 +101,7 @@ async function fetch(options: FetchOptions) {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -102,7 +114,7 @@ export default {
     Fees: "Traders pay a swap fee set per pool, from 0.01% to 1% on most chains and up to 4% on Katana",
     UserFees: "Users pay the pool's swap fee on every trade, from 0.01% to 1% on most chains and up to 4% on Katana",
     Revenue: "The share of each swap fee Sushi keeps rather than paying to liquidity providers - nothing on most pools, 25% where the protocol fee is switched on, and 50% on Katana",
-    HoldersRevenue: "Zero. SUSHI stakers stopped receiving swap fees in November 2025; the xSUSHI pool has grown 0.0036% in the seven months since, so no part of the fee is counted as going to holders",
+    HoldersRevenue: "Negligible (was 38% before Mid of October 2025). SUSHI stakers stopped receiving major part of swap fees in Mid of October 2025; so no part of the fee is counted as going to holders",
     ProtocolRevenue: "Sushi keeps all of its fee share, collected into a Sushi-controlled treasury wallet on each chain",
     SupplySideRevenue: "Liquidity providers keep the rest of the swap fee in the pools they fund"
   },
@@ -115,12 +127,16 @@ export default {
     },
     Revenue: {
       "Swap Fees To Treasury": "The part of each swap fee Sushi keeps - 25% where the protocol fee is switched on, 50% on Katana.",
+      "Swap Fees To xSUSHI Stakers": "Protocol fee share routed to xSUSHI stakers through the SushiBar flow (Negligible since Mid of October 2025).",
     },
     ProtocolRevenue: {
       "Swap Fees To Treasury": "The part of each swap fee Sushi keeps, collected into a Sushi-controlled treasury wallet on each chain.",
     },
     SupplySideRevenue: {
-      "Swap Fees To Liquidity Providers": "Swap fees retained by liquidity providers after Sushi's share.",
+      "Swap Fees To Liquidity Providers": "Swap fees retained by liquidity providers after protocol fees.",
+    },
+    HoldersRevenue: {
+      "Swap Fees To xSUSHI Stakers": "Protocol fee share routed to xSUSHI stakers through the SushiBar flow (Negligible since Mid of October 2025).",
     },
   },
 }
