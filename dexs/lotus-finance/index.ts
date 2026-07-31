@@ -21,24 +21,33 @@ const fetch = async (options: FetchOptions) => {
 
   const data = await fetchURL(`${LOTUS_BASE}${LOTUS_PATH}?${qs}`);
 
-  let currentDayVolume = 0;
-  let previousDayVolume = 0;
+  let currentRow: any[] | null = null;
+  let previousRow: any[] | null = null;
 
   for (const row of data) {
     if (!Array.isArray(row) || row.length < 5) continue;
 
-    const [timeMs, totalValueLocked, tradingVolumeUsd, activeVaultCount, totalVaultCount] = row;
-    const ts = Number(timeMs) / 1000;
-    
+    const ts = Number(row[0]) / 1000;
+
     if (ts >= startTimestamp && ts < endTimestamp) {
-      currentDayVolume = Number(tradingVolumeUsd);
+      currentRow = row;
     } else if (ts < startTimestamp) {
-      previousDayVolume = Number(tradingVolumeUsd);
+      previousRow = row;
     }
   }
 
-  // Calculate daily volume as difference
-  const dailyVolumeUsd = currentDayVolume - previousDayVolume;
+  if (!currentRow || !previousRow) {
+    throw new Error(`lotus api returned no rows for ${options.dateString}`);
+  }
+
+  const [, currentTvl, currentCumVolume] = currentRow;
+  const [, previousTvl, previousCumVolume] = previousRow;
+
+  const dailyVolumeUsd = Number(currentCumVolume) - Number(previousCumVolume);
+  if (dailyVolumeUsd === 0 && currentTvl === previousTvl) {
+    throw new Error(`lotus api feed is stale: identical snapshot for consecutive days around ${options.dateString}`);
+  }
+
   if (dailyVolumeUsd > 0) {
     dailyVolume.addUSDValue(dailyVolumeUsd);
   }
