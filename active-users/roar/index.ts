@@ -101,7 +101,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30",
