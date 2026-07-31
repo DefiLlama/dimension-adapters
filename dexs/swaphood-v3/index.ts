@@ -1,3 +1,5 @@
+import { cache } from "@defillama/sdk";
+import { ethers } from "ethers";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken, isCoreAsset } from "../../helpers/prices";
@@ -18,8 +20,6 @@ const FACTORY = "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7";
 // SwapHood MasterChef, the gauge registry. Same contract dexs/swaphood-v2 reads.
 // https://robinhoodchain.blockscout.com/address/0x734c9ef24AEeb9654Be9A19f6d3991b5D91c587B
 const MASTERCHEF = "0x734c9ef24AEeb9654Be9A19f6d3991b5D91c587B";
-// Block of the first PoolCreated on the factory above, 2026-07-11 14:38:23 UTC.
-const FACTORY_FROM_BLOCK = 7020627;
 // gauges() returns this for any address that was never registered in the MasterChef.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -59,12 +59,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const poolLogs = await getLogs({
-    target: FACTORY,
-    eventAbi: POOL_CREATED_EVENT,
-    fromBlock: FACTORY_FROM_BLOCK,
-    cacheInCloud: true,
-  });
+  const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${FACTORY.toLowerCase()}.json`;
+  const iface = new ethers.Interface([POOL_CREATED_EVENT]);
+  let { logs: poolLogs } = await cache.readCache(cacheKey, { readFromR2Cache: true });
+  if (!poolLogs?.length) throw new Error("No pairs found, is there TVL adapter for this already?");
+
+  // bad rpcs return bad log with undefined format, filter them out
+  poolLogs = poolLogs.map((log: any) => iface.parseLog(log)?.args).filter((log: any) => !!log);
 
   // Same TVL filter the uniV3 factory helper applies, so switching to this adapter
   // changes only the fee split and not the set of pools counted.
