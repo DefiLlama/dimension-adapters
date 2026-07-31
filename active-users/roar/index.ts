@@ -1,9 +1,17 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// Round mining and claims; explorer-verified RoarGame source:
+// https://robinhoodchain.blockscout.com/address/0xB9E308C0de769aB61089Ef47231f0ff92AE8BF69?tab=contract
 const GAME = "0xB9E308C0de769aB61089Ef47231f0ff92AE8BF69";
+// User-funded automated mining plans; explorer-verified RoarAutoMiner source:
+// https://robinhoodchain.blockscout.com/address/0x451e9b91447bE0abeebD3110b8c372988383f72C?tab=contract
 const AUTO_MINER = "0x451e9b91447bE0abeebD3110b8c372988383f72C";
+// ROAR staking and reward claims; explorer-verified RoarStaking source:
+// https://robinhoodchain.blockscout.com/address/0xAB9E06E60AafE34257315c12717e0b9E5bFa7631?tab=contract
 const STAKING = "0xAB9E06E60AafE34257315c12717e0b9E5bFa7631";
+// ROAR burial and buybacks; explorer-verified RoarTreasury source:
+// https://robinhoodchain.blockscout.com/address/0x809e60F2C2556b5B70A372BCE6F7300f8F216f24?tab=contract
 const TREASURY = "0x809e60F2C2556b5B70A372BCE6F7300f8F216f24";
 
 const activityEvents = [
@@ -69,7 +77,7 @@ const activityEvents = [
 async function fetch(options: FetchOptions) {
   const logsByEvent = await Promise.all(
     activityEvents.map(({ target, eventAbi }) =>
-      options.getLogs({ target, eventAbi, onlyArgs: false })
+      options.getLogs({ targets: [target], eventAbi, onlyArgs: false })
     )
   );
 
