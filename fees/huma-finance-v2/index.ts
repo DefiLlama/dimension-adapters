@@ -13,11 +13,26 @@ const MODE_ASSETS_REFRESHED_HEX = "d20b16142313504a";
 //   [8:40]  mode_config (pubkey)
 //   [40:48] yield_bps (f64)
 //   [48:56] old_assets_refreshed_at (u64)
-//   [56:64] old_assets (u64)
-//   [64:72] new_assets (u64)
-// Dune varbinary_substring is 1-indexed → old_assets @ 57, new_assets @ 65
+//   [56:72] old_assets (u128) — or u64 in legacy 72-byte events
+//   [72:88] new_assets (u128) — or u64 at [64:72] in legacy events
+// Dune varbinary_substring is 1-indexed.
 //
-// Yield-only (validated): 2026-07-07 TVL +$5.9M, this metric ~$45k (not deposit-contaminated).
+// Program upgrade changed asset fields from u64 (72-byte events) to u128 (88-byte).
+// Only `refresh_pool_assets` emits this event; deposit/withdraw txs do not.
+
+const assetDeltaUsd = `
+  CASE
+    WHEN varbinary_length(event_data) >= 88 THEN (
+      CAST(varbinary_to_uint256(varbinary_reverse(varbinary_substring(event_data, 73, 16))) AS DOUBLE)
+      - CAST(varbinary_to_uint256(varbinary_reverse(varbinary_substring(event_data, 57, 16))) AS DOUBLE)
+    ) / 1e6
+    WHEN varbinary_length(event_data) >= 72 THEN (
+      CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(event_data, 65, 8))) AS DOUBLE)
+      - CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(event_data, 57, 8))) AS DOUBLE)
+    ) / 1e6
+    ELSE 0
+  END
+`;
 
 const fetch = async (options: FetchOptions) => {
   const data: any[] = await queryDuneSql(options, `
@@ -39,11 +54,7 @@ const fetch = async (options: FetchOptions) => {
         AND varbinary_substring(event_data, 1, 8) = from_hex('${MODE_ASSETS_REFRESHED_HEX}')
         AND varbinary_length(event_data) >= 72
     )
-    SELECT
-      COALESCE(SUM(
-        CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(event_data, 65, 8))) AS DOUBLE)
-        - CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(event_data, 57, 8))) AS DOUBLE)
-      ), 0) / 1e6 AS lp_yield_usd
+    SELECT COALESCE(SUM(${assetDeltaUsd}), 0) AS lp_yield_usd
     FROM decoded
   `);
 
@@ -66,7 +77,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "Yield credited on-chain to Huma 2.0 LP token balances (PST/mPST), measured from ModeAssetsRefreshedEvent asset deltas. Net of credit losses; excludes deposit and withdrawal principal.",
+    "Yield credited on-chain to Huma 2.0 LP token balances (PST/mPST), measured from ModeAssetsRefreshedEvent deltas emitted by the refresh_pool_assets instruction. Each delta is new_assets minus old_assets after scheduled yield accrual (net of credit losses). Deposits and withdrawals do not emit this event.",
   Revenue:
     "Zero — the permissionless pool has no protocol fee configured; all PayFi yield flows to LPs.",
   ProtocolRevenue:
