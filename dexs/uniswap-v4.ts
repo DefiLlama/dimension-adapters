@@ -60,8 +60,8 @@ import { queryDune } from "../helpers/dune";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  isEstablishedPair, WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA,
-  WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+  getEstablishedTokens, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
+  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
 
@@ -263,7 +263,10 @@ function getPoolKey(poolId: string): string {
 //
 // Turnover, the Swap log's `sender`, and repeated trade sizes were all measured
 // and none separate wash from a hot memecoin launch - only EOA concentration
-// does, which needs tx.from, hence Dune.
+// does, which needs tx.from, hence Dune. Concentration alone also can't tell
+// wash from MM/relayer churn on a real token, so flagged pools whose sides are
+// all established (core asset or CoinGecko-listed) are spared, and priced-but-
+// dust pools (creator-coin bot churn) are never flagged - see helpers/uniswap.ts.
 //
 // Live, a pool only trips once it clears the daily floor, so its first hours can
 // still land; refilling the day drops them.
@@ -317,14 +320,16 @@ const prefetch: any = async (options: FetchOptions) => {
     SELECT ev.chain, CAST(ev.id AS VARCHAR) AS id
     FROM ev
     LEFT JOIN usd u ON u.blockchain = ev.chain AND u.maker = ev.id
-    WHERE (
+    WHERE ((
       ev.trades >= ${WASH_MIN_TRADES}
       AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
     ) OR (
       COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
       AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
       AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
-    )`;
+    ))
+    -- priced-but-dust pools are noise either way; NULL usd (unpriced by Dune) stays flagged
+    AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
 
   const rows: any[] = await queryDune('3996608', { fullQuery }, options);
   const washPools: Record<string, Set<string>> = {};
@@ -399,6 +404,15 @@ async function fetch(options: FetchOptions) {
 
       const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
+      // flagged pools whose sides are all established (core or CG-listed) are
+      // spared - one batched price lookup, see getEstablishedTokens
+      let establishedTokens = new Set<string>()
+      if (washPools?.size) {
+        const flaggedTokens = Object.values(pools)
+          .filter((p): p is IPool => !!p && washPools.has(p.poolId.toLowerCase()))
+          .flatMap(p => [p.currency0, p.currency1])
+        if (flaggedTokens.length) establishedTokens = await getEstablishedTokens(options.chain, flaggedTokens)
+      }
       for (const event of events) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
@@ -407,7 +421,8 @@ async function fetch(options: FetchOptions) {
             continue;
           }
 
-          if (washPools?.has(poolId.toLowerCase()) && !isEstablishedPair(options.chain, currency0, currency1)) {
+          if (washPools?.has(poolId.toLowerCase())
+            && !(establishedTokens.has(currency0.toLowerCase()) && establishedTokens.has(currency1.toLowerCase()))) {
             continue;
           }
 
@@ -441,7 +456,7 @@ const adapter: SimpleAdapter = {
   adapter: {},
   prefetch,
   methodology: {
-    Volume: 'Swap volume, excluding pools whose daily trades come from too few distinct addresses to be organic (wash trading).',
+    Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
     Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',

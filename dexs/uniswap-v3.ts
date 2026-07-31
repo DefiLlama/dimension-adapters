@@ -4,8 +4,8 @@ import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
 import {
-  getUniV3LogAdapter, isEstablishedPair, WASH_MIN_TRADES, WASH_MIN_USD,
-  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+  getEstablishedTokens, getUniV3LogAdapter, WASH_DUST_USD, WASH_MIN_TRADES,
+  WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 
 // Hybrid variant of old dexs/uniswap-v3.ts.
@@ -109,14 +109,16 @@ async function fetchWashPools(blockchains: string[], options: FetchOptions): Pro
       AND block_time >= from_unixtime(${dayStart})
       AND block_time < from_unixtime(${dayStart + 86400})
     GROUP BY blockchain, project_contract_address
-    HAVING (
+    HAVING ((
       COUNT(*) >= ${WASH_MIN_TRADES}
       AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
     ) OR (
       COALESCE(SUM(amount_usd), 0) >= ${WASH_MIN_USD}
       AND COALESCE(SUM(amount_usd), 0) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_PER_EOA}
       AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
-    )`;
+    ))
+    -- priced-but-dust pools are noise either way; NULL usd (unpriceable) stays flagged
+    AND NOT (SUM(amount_usd) IS NOT NULL AND SUM(amount_usd) < ${WASH_DUST_USD})`;
 
   const rows: any[] = await queryDune('3996608', { fullQuery }, options);
   const washPools: Record<string, Set<string>> = {};
@@ -175,14 +177,18 @@ async function fetchFromDune(options: FetchOptions) {
     p.amounts.push(r.amount);
   }
 
-  // drop wash pools, except ones that are established-asset pairs - see
-  // isEstablishedPair. Done after grouping because it needs both sides.
+  // drop wash pools, except ones where both sides are established (core asset
+  // or CoinGecko-listed) - see getEstablishedTokens. Done after grouping
+  // because it needs both sides; one batched price lookup for all flagged pools.
   const washPools: Set<string> = options.preFetchedResults?.washPools?.[blockchain] ?? new Set();
-  for (const pool of Object.keys(byPool)) {
-    if (!washPools.has(pool.toLowerCase())) continue;
-    const { tokens } = byPool[pool];
-    if (tokens.length >= 2 && isEstablishedPair(options.chain, tokens[0], tokens[1])) continue;
-    delete byPool[pool];
+  const flagged = Object.keys(byPool).filter((pool) => washPools.has(pool.toLowerCase()));
+  if (flagged.length) {
+    const established = await getEstablishedTokens(options.chain, flagged.flatMap((pool) => byPool[pool].tokens));
+    for (const pool of flagged) {
+      const { tokens } = byPool[pool];
+      if (tokens.length >= 2 && tokens.every((t) => established.has(t.toLowerCase()))) continue;
+      delete byPool[pool];
+    }
   }
 
   const pools = Object.keys(byPool);
@@ -331,7 +337,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
 }
 
 const methodology = {
-  Volume: "Swap volume, excluding pools whose daily trades come from too few distinct addresses to be organic (wash trading).",
+  Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
   Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',

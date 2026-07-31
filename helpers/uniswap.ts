@@ -3,6 +3,7 @@ import ADDRESSES from './coreAssets.json'
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
+import { httpGet } from "../utils/fetchURL";
 import { ethers } from "ethers";
 
 const ZERO_ADDRESS = ADDRESSES.null;
@@ -24,13 +25,41 @@ export const WASH_MIN_USD = 1_000_000;
 export const WASH_USD_PER_EOA = 500_000;
 export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 
-// Never flag a pool with an established asset on both sides - no fake token in
-// it, so concentrated flow is just arb bots on a major/stable pair. Those are
-// exactly what the ratios get wrong (xlayer stablecoin pools peak at 90
-// trades/EOA, optimism native/USDC at 51).
-export function isEstablishedPair(chain: string, token0: string, token1: string): boolean {
-  const established = (t: string) => t.toLowerCase() === ZERO_ADDRESS || isCoreAsset(chain, t)
-  return established(token0) && established(token1)
+// Priced-but-dust pools are never flagged: bot churn on Zora creator coins and
+// the like trips test A while moving negligible USD, so dropping them buys no
+// accuracy and mislabels legit long-tail activity. Pools dex.trades cannot
+// price at all (SUM(amount_usd) IS NULL) stay flagged - catching those is what
+// test A is for.
+export const WASH_DUST_USD = 25_000;
+
+// Never flag a pool whose every side is established, meaning either
+//  - a core asset: concentrated flow on a major/stable pair is just arb bots
+//    (xlayer stablecoin pools peak at 90 trades/EOA, optimism native/USDC at
+//    51), or
+//  - a CoinGecko-listed token per our own price feed: a real project (SOSO,
+//    DUAL, SBC...) whose MM/relayer churn is concentrated but not fake, and a
+//    day-one rug cannot get a CG listing. Listed tokens price at confidence
+//    0.99; the fake-ticker tokens return no price at all. Current listing also
+//    exonerates past days on refills - a token listed today was real then too.
+// Dune has no equivalent signal: prices.day covers anything that trades
+// (source='dex.trades', fakes included) and its coinpaprika subset is ~200
+// tokens per chain. A price-API failure throws rather than guessing either way.
+export async function getEstablishedTokens(chain: string, tokens: string[]): Promise<Set<string>> {
+  const established = new Set<string>();
+  const unknown = new Set<string>();
+  for (const token of tokens.map(t => t.toLowerCase())) {
+    if (token === ZERO_ADDRESS || isCoreAsset(chain, token)) established.add(token);
+    else unknown.add(token);
+  }
+  const pending = [...unknown];
+  for (let i = 0; i < pending.length; i += 100) {
+    const keys = pending.slice(i, i + 100).map(t => `${chain}:${t}`).join(',');
+    const { coins } = await httpGet(`https://coins.llama.fi/prices/current/${keys}?searchWidth=6h`);
+    for (const [key, info] of Object.entries(coins ?? {}) as [string, any][]) {
+      if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
+    }
+  }
+  return established;
 }
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
