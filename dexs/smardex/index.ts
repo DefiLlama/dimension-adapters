@@ -24,6 +24,8 @@ export async function getAmmSwapVolume(options: FetchOptions) {
   ({ pairs, token0s, token1s } = await filterPools2({ fetchOptions: options, pairs, token0s, token1s }));
 
   const dailyVolume = options.createBalances();
+  if (!pairs.length) return dailyVolume;
+
   const allLogs = await options.getLogs({ targets: pairs, eventAbi: SWAP_EVENT, flatten: false });
   allLogs.forEach((logs: any[], i: number) => {
     for (const log of logs) {
