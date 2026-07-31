@@ -92,36 +92,26 @@ const fetch = async (options: FetchOptions) => {
 
   const modules: string[] = await api.multiCall({ abi: abis.module, calls: vaults });
 
-  const [token0s, token1s, feePIPSAtWindowStart, isInversed, feeLogs, rateLogs] =
-    await Promise.all([
-      api.multiCall({ abi: abis.token0, calls: modules }),
-      api.multiCall({ abi: abis.token1, calls: modules }),
-      // A vault created during the window has no module deployed at the window's start
-      // block, so this read has to tolerate a revert. It is safe to fall back to zero:
-      // initialize() never sets managerFeePIPS, so such a module can only get a rate from a
-      // setManagerFeePIPS call inside the window, which emits LogSetManagerFeePIPS and is
-      // picked up by the replay below.
-      fromApi.multiCall({
-        abi: abis.managerFeePIPS,
-        calls: modules,
-        permitFailure: true,
-      }),
-      // Only the Uniswap V4 module family exposes isInversed(), so a null here also marks
-      // the module as belonging to a family that has no pool/vault ordering to undo.
-      api.multiCall({ abi: abis.isInversed, calls: modules, permitFailure: true }),
-      getLogs({
-        targets: modules,
-        eventAbi: MANAGER_FEE_EVENT,
-        entireLog: true,
-        parseLog: true,
-      }),
-      getLogs({
-        targets: modules,
-        eventAbi: FEE_RATE_EVENT,
-        entireLog: true,
-        parseLog: true,
-      }),
-    ]);
+  const token0s = await api.multiCall({ abi: abis.token0, calls: modules });
+  const token1s = await api.multiCall({ abi: abis.token1, calls: modules });
+  const feePIPSAtWindowStart = await fromApi.multiCall({
+    abi: abis.managerFeePIPS,
+    calls: modules,
+    permitFailure: true,
+  });
+  const isInversed = await api.multiCall({ abi: abis.isInversed, calls: modules, permitFailure: true });
+  const feeLogs = await getLogs({
+    targets: modules,
+    eventAbi: MANAGER_FEE_EVENT,
+    entireLog: true,
+    parseLog: true,
+  });
+  const rateLogs = await getLogs({
+    targets: modules,
+    eventAbi: FEE_RATE_EVENT,
+    entireLog: true,
+    parseLog: true,
+  });
 
   const tokenOrderFixBlock = UNIV4_TOKEN_ORDER_FIX_BLOCK[options.chain];
 
@@ -242,14 +232,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  // getLogs fans out one eth_getLogs per target, and this adapter reads two events across
-  // every module of every vault: 377 modules today, so 754 log requests per window. Hourly
-  // multiplies that by 24, to roughly 18k requests per day per run, and the shared public
-  // pool cannot absorb it. Only one or two ethereum endpoints in the pool serve a wide
-  // eth_getLogs at all, the rest cap at 25 or 50 blocks or do not support the method, so
-  // once those rate limit the whole run fails. Set back to true once the per module fan out
-  // is replaced by a single chain wide topic filtered scan.
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2024-08-16" },
