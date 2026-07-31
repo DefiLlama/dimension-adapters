@@ -11,9 +11,6 @@ const LABELS = {
 } as const;
 
 
-// Axiom stopped trading on BSC: last swap through the contract was 2026-06-29.
-const BSC_DEAD_FROM = '2026-06-30';
-
 const chainConfig = {
   [CHAIN.SOLANA]: {
     start: '2025-01-21',
@@ -49,8 +46,10 @@ const chainConfig = {
   },
   [CHAIN.BSC]: {
     start: '2026-01-25',
-    deadFrom: BSC_DEAD_FROM,
-    tradeContract: '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e',
+    tradeContracts: [
+      '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+      '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+    ],
     feeReceiver: '0xdec29d79e8cdf009d2fa33e0558cb5648481cac3',
     supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
   },
@@ -181,7 +180,7 @@ async function fetchBsc(options: FetchOptions) {
   const [{ fees_amount, supply_side_amount }] = await queryDuneSql(options, `
     SELECT
       COALESCE(SUM(CASE
-        WHEN "from" = ${bscConfig.tradeContract}
+        WHEN "from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')})
          AND "to" = ${bscConfig.feeReceiver}
         THEN value
         ELSE 0
@@ -198,7 +197,7 @@ async function fetchBsc(options: FetchOptions) {
       AND success = true
       AND value > 0
       AND (
-        ("from" = ${bscConfig.tradeContract} AND "to" = ${bscConfig.feeReceiver})
+        ("from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')}) AND "to" = ${bscConfig.feeReceiver})
         OR
         ("from" = ${bscConfig.feeReceiver} AND "to" <> ${bscConfig.supplySideExcludedReceiver})
       )
