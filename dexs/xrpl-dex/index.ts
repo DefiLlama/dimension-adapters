@@ -9,8 +9,12 @@ const fetch = async (options: FetchOptions) => {
     const query = `select dex_xrp_pair_volume_xrp,amm_xrp_volume_xrp from xrpl.aggregated_metrics_daily where date = Date('${formattedDate}')`;
     const queryResults = await queryDuneSql(options, query);
 
-    const dexVolumeXrp = queryResults.length > 0 ? queryResults[0].dex_xrp_pair_volume_xrp : 0;
-    const ammVolumeXrp = queryResults.length > 0 ? queryResults[0].amm_xrp_volume_xrp : 0;
+    if (!queryResults.length) {
+        throw new Error(`no row in xrpl.aggregated_metrics_daily for ${formattedDate} yet`);
+    }
+
+    const dexVolumeXrp = queryResults[0].dex_xrp_pair_volume_xrp;
+    const ammVolumeXrp = queryResults[0].amm_xrp_volume_xrp;
 
     const dailyVolume = options.createBalances();
     dailyVolume.addCGToken("ripple", Number(ammVolumeXrp) + Number(dexVolumeXrp));
