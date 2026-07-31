@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { uniV2Exports } from "../../helpers/uniswap";
+import { fees_bribes } from './bribes';
 import { METRIC } from "../../helpers/metrics";
 
 
@@ -14,20 +15,36 @@ const startTimeV2: TStartTime = {
   [CHAIN.ARBITRUM]: 1678838400,
 }
 
+const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
+  const fromBlock = await getFromBlock()
+  const bribes = createBalances();
+  const bribes_delta = createBalances();
+  await fees_bribes(fromBlock, toTimestamp, bribes_delta);
+  await fees_bribes(fromBlock, fromTimestamp, bribes);
+  bribes.subtract(bribes_delta);
+  return {
+    timestamp: toTimestamp,
+    dailyBribesRevenue: bribes,
+  };
+};
+
 const methodology = {
-  UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-  ProtocolRevenue: "5% of swap fees go to the protocol.",
-  HoldersRevenue: "75% of swap fees go to holders.",
+  Volume: "Daily swap volume is calculated from on-chain swaps in both historical and current periods.",
+  UserFees: "Through April 21, 2026, user fees include swap fees and bribes; from April 22, 2026, they include swap fees only.",
+  ProtocolRevenue: "5% of swap fees go to the protocol in both historical and current periods.",
+  HoldersRevenue: "75% of swap fees and all bribes go to holders through April 21, 2026; from April 22, 2026, holders receive 75% of swap fees.",
   SupplySideRevenue: "20% of swap fees go to LPs.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Swap fees paid by users",
+    [METRIC.SWAP_FEES]: "Swap fees paid by users in both historical and current periods",
+    ['Bribes']: "Bribes paid by protocols through April 21, 2026",
   },
   Revenue: {
     ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
     ['Swap Fees to holders']: "75% of swap fees go to the holders",
+    ['Bribes to holders']: "All bribes go to holders through April 21, 2026",
   },
   ProtocolRevenue: {
     ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
@@ -37,6 +54,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     ['Swap Fees to holders']: "75% of swap fees go to the holders",
+    ['Bribes to holders']: "All bribes go to holders through April 21, 2026",
   },
 }
 
@@ -45,6 +63,44 @@ const feeAdapter = uniV2Exports({
   [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
 }).adapter![CHAIN.ARBITRUM].fetch
 
+const fetch = async (options: FetchOptions) => {
+  const isHistorical = options.endTimestamp <= FIRST_SWAP_ONLY_DAY_TIMESTAMP;
+  if (!isHistorical && options.fromTimestamp + 1 < FIRST_SWAP_ONLY_DAY_TIMESTAMP)
+    throw new Error('RAMSES v1 fetch window cannot cross the April 22, 2026 historical/current cutoff.');
+
+  const v1Results: any = await feeAdapter!(options as any, {}, options)
+  const bribesResult = isHistorical ? await getBribes(options) : undefined;
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  const swapFees = Number(await v1Results.dailyFees.getUSDValue());
+  const bribeRevenue = bribesResult ? Number(await bribesResult.dailyBribesRevenue.getUSDValue()) : 0;
+
+  dailyFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
+  if (isHistorical)
+    dailyFees.addUSDValue(bribeRevenue, 'Bribes');
+
+  dailyHoldersRevenue.addUSDValue(swapFees * 0.75, 'Swap Fees to holders');
+  dailyProtocolRevenue.addUSDValue(swapFees * 0.05, 'Swap Fees to protocol');
+  dailySupplySideRevenue.addUSDValue(swapFees * 0.20, 'Swap Fees to LPs');
+  if (isHistorical)
+    dailyHoldersRevenue.addUSDValue(bribeRevenue, 'Bribes to holders');
+
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.add(dailyProtocolRevenue);
+
+  return {
+    dailyVolume: v1Results.dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+  };
+};
 
 const adapter: Adapter = {
   version: 2,
@@ -54,38 +110,7 @@ const adapter: Adapter = {
   breakdownMethodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: async (options: FetchOptions) => {
-        if (options.startOfDay < FIRST_SWAP_ONLY_DAY_TIMESTAMP)
-          throw new Error('Historical RAMSES v1 fees included bribes from a retired source and cannot be safely recomputed.');
-
-        const v1Results: any = await feeAdapter!(options as any, {}, options)
-
-        const dailyFees = options.createBalances();
-        const dailyProtocolRevenue = options.createBalances();
-        const dailySupplySideRevenue = options.createBalances();
-        const dailyHoldersRevenue = options.createBalances();
-
-        const swapFees = Number(await v1Results.dailyFees.getUSDValue());
-
-        dailyFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
-
-        dailyHoldersRevenue.addUSDValue(swapFees * 0.75, 'Swap Fees to holders');
-        dailyProtocolRevenue.addUSDValue(swapFees * 0.05, 'Swap Fees to protocol');
-        dailySupplySideRevenue.addUSDValue(swapFees * 0.20, 'Swap Fees to LPs');
-
-        const dailyRevenue = dailyHoldersRevenue.clone();
-        dailyRevenue.add(dailyProtocolRevenue);
-
-        return {
-          dailyVolume: v1Results.dailyVolume,
-          dailyFees,
-          dailyUserFees: dailyFees,
-          dailyRevenue,
-          dailyProtocolRevenue,
-          dailySupplySideRevenue,
-          dailyHoldersRevenue,
-        };
-      },
+      fetch,
       start: startTimeV2[CHAIN.ARBITRUM],
     },
   },
