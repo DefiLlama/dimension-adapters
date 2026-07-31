@@ -18,15 +18,15 @@ const QUOTE_TOKENS = [
 ].map((a) => `'${a}'`).join(',')
 
 const fetch = async (options: FetchOptions) => {
+  // token0_address = base_mint, token1_address = quote_mint (verified against pump_amm createpoolevent)
+  // pumpswap charges fees on the quote side, wash traders create reversed pools (quote = meme token)
+  // so their fees are paid in worthless tokens, we only count pools quoted in whitelisted tokens
   const query = `WITH pool_filter AS (
         SELECT DISTINCT
           liquidity_pool_address
         FROM solana.dex.pools
         WHERE project = 'pumpswap'
-          AND (
-            token0_address IN (${QUOTE_TOKENS})
-            OR token1_address IN (${QUOTE_TOKENS})
-          )
+          AND token1_address IN (${QUOTE_TOKENS})
       ),
       volume_data AS (
         SELECT
@@ -108,7 +108,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Volume: "Volume is the total volume of all pools on PumpSwap where the base/quote token is SOL, mSOL, USDC, USDT, PUMP, or BONK, and the pool has TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
+    Volume: "Volume is the total volume of all pools on PumpSwap where the quote token is SOL, mSOL, USDC, USDT, PUMP, or BONK, and the pool has TVL >= $5,000 and at least 50 unique traders. Pools quoted in other tokens are excluded because trade fees are charged on the quote side, so reversed pools pay fees in worthless tokens and are used for near-free wash trading.",
   }
 }
 
