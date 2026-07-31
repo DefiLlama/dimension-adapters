@@ -55,8 +55,8 @@ const fetch = async (options: FetchOptions) => {
 const info = {
   methodology: {
     Fees: 'All deductions paid by users using Railgun privacy smart contracts.',
-    Revenue: 'All deductions collected by Railgun treasury contracts.',
-    StakerRewards: '4.2% of the treasury is distributed to the claiming mechanism every 2 weeks.',
+    Revenue: 'All deductions paid by users using Railgun privacy smart contracts are collected by Railgun treasury contracts.',
+    StakerRewards: '4.2% (was 2% before July 29, 2026) of the treasury is distributed to the claiming mechanism every 2 weeks.',
   }
 }
 
