@@ -172,12 +172,15 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
+// Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
+const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
+    const communityFees: IJSON<number> = {}
 
     if (!chain) throw new Error('Wrong version?')
 
@@ -209,6 +212,16 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       if (isAlgebraV2) {
         let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
         _states.forEach((state: any, i: number) => { if (state != null) fees[logs[i].pool] = Number(state.fee) / 1e6 })
+      }
+
+      // share of swap fees the protocol keeps, stored in the pool's globalState:
+      // 6th value on Algebra V1/V1.9 pools, 5th on Algebra Integral pools
+      if (algebraCommunityFee) {
+        const abi = isAlgebraV3
+          ? 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee)'
+          : 'function globalState() view returns (uint160 price, int24 tick, uint16 feeZto, uint16 feeOtz, uint16 timepointIndex, uint16 communityFee)'
+        const _states = await api.multiCall({ abi, calls: logs.map((log: any) => log.pool), permitFailure: true })
+        _states.forEach((state: any, i: number) => { if (state != null) communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR })
       }
     } else if (Array.isArray(pools)) {
 
@@ -243,10 +256,10 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       dailyVolume,
       dailyFees: swapFees,
       dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
-      dailyRevenue: revenueRatio !== undefined ? 0 : undefined,
-      dailySupplySideRevenue: revenueRatio !== undefined ? 0 : undefined,
-      dailyProtocolRevenue: protocolRevenueRatio !== undefined ? 0 : undefined,
-      dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
+      dailyRevenue: revenueRatio !== undefined || getRevenueRatio ? 0 : undefined,
+      dailySupplySideRevenue: revenueRatio !== undefined || getRevenueRatio ? 0 : undefined,
+      dailyProtocolRevenue: protocolRevenueRatio !== undefined || getRevenueRatio ? 0 : undefined,
+      dailyHoldersRevenue: holdersRevenueRatio !== undefined || getRevenueRatio ? 0 : undefined,
     }
 
     const pairs = Object.keys(filteredPairs)
@@ -291,6 +304,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           poolFeeTier: feeTier,
           protocolFeeRatioToken0: dynamicProtocolFees ? protocolFeeRatios[pair]?.token0 : undefined,
           protocolFeeRatioToken1: dynamicProtocolFees ? protocolFeeRatios[pair]?.token1 : undefined,
+          communityFeeRatio: algebraCommunityFee ? communityFees[pair] : undefined,
         })
 
         if (!pairRevenueRatio) pairRevenueRatio = _revenueRatio;
@@ -363,6 +377,8 @@ export interface UniGetRevenueRatioProps {
   poolFeeTier: number;
   protocolFeeRatioToken0?: number;
   protocolFeeRatioToken1?: number;
+  // Algebra community fee, as a share of the pool's swap fees
+  communityFeeRatio?: number;
 }
 
 type UniV3Config = {
@@ -381,6 +397,8 @@ type UniV3Config = {
   blacklistPools?: Array<string>,
   pools?: string[], // alternative to providing factory
   dynamicProtocolFees?: boolean,
+  // read each Algebra pool's community fee and pass it to getRevenueRatio
+  algebraCommunityFee?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };

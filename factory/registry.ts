@@ -40,6 +40,7 @@ function resolveFactoryPath(factoryPath: string) {
 // Use 'name:export' to reference a named export (e.g. 'uniV2:fees')
 const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'fees': [
+    'injectiveBigQuery:fees',
     'helpers/liquity',
     'helpers/balancer',
     'helpers/friend-tech',
@@ -70,6 +71,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'polymarket:fees',
   ],
   'dexs': [
+    'injectiveBigQuery',
     'helpers/crypto-card',
     'helpers/balancer',
     'uniV2',

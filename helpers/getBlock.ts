@@ -28,7 +28,6 @@ const blacklistedChains: string[] = [
   "phantasma",
   "starknet",
   "carbon",
-  "vechain",
   "wax",
   "injective",
   "obyte",

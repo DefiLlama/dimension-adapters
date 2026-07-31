@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { cache } from "@defillama/sdk";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -176,6 +177,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",
     start: "2026-01-01",
   },
+  [CHAIN.MORPH]: {
+    // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0xAd10d07901Dc3195c3cb5e78E061F4EA8D9B4905",
+    fromBlock: 23180020,
+    start: "2026-05-22",
+  },
   // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
   // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
@@ -332,7 +339,13 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id) ?? [];
+  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+
+  const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
+
+  const insolventMarketsDetails = await cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
+  const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+  const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
 
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
@@ -341,7 +354,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if (blacklistedIds.includes(log.id)) interest = 0;
+    if (blacklistedIds.includes(log.id.toLowerCase()) || stuckMarkets.includes(log.id.toLowerCase()) || insolventMarkets.includes(log.id.toLowerCase())) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),
