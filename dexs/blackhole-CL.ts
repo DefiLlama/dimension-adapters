@@ -47,10 +47,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
-  const dailyProtocolRevenue = createBalances()
   const dailyHoldersRevenue = createBalances()
 
-  if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
+  if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
 
   const poolIds = Object.keys(filteredPairs)
   // Per active pool: fee rate, communityFee (share to the vault) and the vault's algebraFee (protocol cut).
@@ -60,12 +59,12 @@ const fetch = async (options: FetchOptions) => {
   const algebraFees = await api.multiCall({ abi: 'function algebraFee() view returns (uint16)', calls: vaults })
 
   const fees: IJSON<number> = {}
-  const shares: IJSON<{ supply: number, protocol: number, holders: number }> = {}
+  const shares: IJSON<{ supply: number, algebra: number, holders: number }> = {}
   poolIds.forEach((pool, i) => {
     fees[pool] = feeList[i] / 1e6
     const vaultShare = Number(globalStates[i].communityFee) / DENOM   // share to vault
-    const protocol = vaultShare * (Number(algebraFees[i]) / DENOM)    // protocol cut
-    shares[pool] = { supply: 1 - vaultShare, protocol, holders: vaultShare - protocol }
+    const algebraShare = vaultShare * (Number(algebraFees[i]) / DENOM)    // protocol cut
+    shares[pool] = { supply: 1 - vaultShare, algebra: algebraShare, holders: vaultShare - algebraShare }
   })
 
   const allLogs = await getLogs({ targets: poolIds, eventAbi: poolSwapEvent, flatten: false })
@@ -74,19 +73,18 @@ const fetch = async (options: FetchOptions) => {
     const pair = poolIds[index]
     const [token0, token1] = pairObject[pair]
     const fee = fees[pair]
-    const { supply, protocol, holders } = shares[pair]
+    const { supply, algebra, holders } = shares[pair]
     logs.forEach((log: any) => {
       const fee0 = log.amount0.toString() * fee
       const fee1 = log.amount1.toString() * fee
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
       addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * supply, amount1: fee1 * supply })
-      addOneToken({ chain, balances: dailyProtocolRevenue, token0, token1, amount0: fee0 * protocol, amount1: fee1 * protocol })
+      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * algebra, amount1: fee1 * algebra })
       addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0 * holders, amount1: fee1 * holders })
     })
   })
 
-  dailyRevenue.addBalances(dailyProtocolRevenue)
   dailyRevenue.addBalances(dailyHoldersRevenue)
 
   return {
@@ -95,7 +93,6 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue,
     dailyHoldersRevenue,
   }
 }
@@ -107,9 +104,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "All swap fees paid by traders.",
     UserFees: "All swap fees paid by traders.",
-    SupplySideRevenue: "Swap fees kept by liquidity providers. Currently zero: every active pool routes 100% of its swap fees to the gauge, and LPs instead earn BLACK emissions; this is non-zero only for pools whose community fee is set below 100%.",
-    Revenue: "Swap fees routed to the community vault — the veBLACK voters' share plus the protocol treasury's cut.",
-    ProtocolRevenue: "The protocol treasury's cut of vault-routed swap fees.",
+    SupplySideRevenue: "Includes algebra licensing fees and Swap fees kept by liquidity providers, Currently zero: every active pool routes 100% of its swap fees to the gauge, and LPs instead earn BLACK emissions; this is non-zero only for pools whose community fee is set below 100%.",
+    Revenue: "Swap fees routed to the community vault — the veBLACK voters' share.",
     HoldersRevenue: "The remaining vault-routed swap fees, distributed to veBLACK voters.",
   },
   chains: [CHAIN.AVAX],
