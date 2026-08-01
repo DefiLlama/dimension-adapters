@@ -116,6 +116,8 @@ const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  throw new Error("GMGN adapter is temporarily disabled due to excessive runtime");
+
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
   if ((options.toTimestamp * 1000) > tenHoursAgo) {
     throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
