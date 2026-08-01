@@ -57,32 +57,32 @@ const historicalFetcher = getGraphDimensions2({
 });
 
 const methodology = {
-  Volume: "Through July 13, 2026, volume comes from the historical Graph source; from July 14, 2026, volume is calculated from on-chain swaps for every factory pool.",
-  UserFees: "Through July 13, 2026, user fees include swap fees and bribes; from July 14, 2026, this adapter reports volume only.",
-  ProtocolRevenue: "Through July 13, 2026, 8% of swap fees go to the protocol; no fee or revenue dimensions are emitted from July 14, 2026.",
-  HoldersRevenue: "Through July 13, 2026, 72% of swap fees and all bribes go to holders; no fee or revenue dimensions are emitted from July 14, 2026.",
-  SupplySideRevenue: "Through July 13, 2026, 20% of swap fees go to LPs; no fee or revenue dimensions are emitted from July 14, 2026.",
+  Volume: "Swap volume.",
+  UserFees: "Swap fees from users and bribes from protocols.",
+  ProtocolRevenue: "Swap fees going to the protocol.",
+  HoldersRevenue: "Swap fees and bribes going to holders.",
+  SupplySideRevenue: "Swap fees going to LPs.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Swap fees paid by users through July 13, 2026",
-    ['Bribes']: "Bribes paid by protocols through July 13, 2026",
+    [METRIC.SWAP_FEES]: "Swap fees paid by users",
+    ['Bribes']: "Bribes paid by protocols",
   },
   Revenue: {
-    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury through July 13, 2026",
-    ['Swap Fees to holders']: "72% of swap fees go to holders through July 13, 2026",
-    ['Bribes to holders']: "All bribes go to holders through July 13, 2026",
+    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury",
+    ['Swap Fees to holders']: "72% of swap fees go to holders",
+    ['Bribes to holders']: "All bribes go to holders",
   },
   ProtocolRevenue: {
-    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury through July 13, 2026",
+    ['Swap Fees to protocol']: "8% of swap fees go to the protocol treasury",
   },
   SupplySideRevenue: {
-    ['Swap Fees to LPs']: "20% of swap fees go to LPs through July 13, 2026",
+    ['Swap Fees to LPs']: "20% of swap fees go to LPs",
   },
   HoldersRevenue: {
-    ['Swap Fees to holders']: "72% of swap fees go to holders through July 13, 2026",
-    ['Bribes to holders']: "All bribes go to holders through July 13, 2026",
+    ['Swap Fees to holders']: "72% of swap fees go to holders",
+    ['Bribes to holders']: "All bribes go to holders",
   },
 }
 

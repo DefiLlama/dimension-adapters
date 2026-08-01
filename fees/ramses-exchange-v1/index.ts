@@ -29,22 +29,22 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const methodology = {
-  Volume: "Daily swap volume is calculated from on-chain swaps in both historical and current periods.",
-  UserFees: "Through April 21, 2026, user fees include swap fees and bribes; from April 22, 2026, they include swap fees only.",
-  ProtocolRevenue: "5% of swap fees go to the protocol in both historical and current periods.",
-  HoldersRevenue: "75% of swap fees and all bribes go to holders through April 21, 2026; from April 22, 2026, holders receive 75% of swap fees.",
-  SupplySideRevenue: "20% of swap fees go to LPs.",
+  Volume: "Swap volume.",
+  UserFees: "Swap fees from users and bribes from protocols.",
+  ProtocolRevenue: "Swap fees going to the protocol.",
+  HoldersRevenue: "Swap fees and bribes going to holders.",
+  SupplySideRevenue: "Swap fees going to LPs.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Swap fees paid by users in both historical and current periods",
-    ['Bribes']: "Bribes paid by protocols through April 21, 2026",
+    [METRIC.SWAP_FEES]: "Swap fees paid by users",
+    ['Bribes']: "Bribes paid by protocols",
   },
   Revenue: {
     ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
     ['Swap Fees to holders']: "75% of swap fees go to the holders",
-    ['Bribes to holders']: "All bribes go to holders through April 21, 2026",
+    ['Bribes to holders']: "All bribes go to holders",
   },
   ProtocolRevenue: {
     ['Swap Fees to protocol']: "5% of swap fees go to the protocol treasury",
@@ -54,7 +54,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     ['Swap Fees to holders']: "75% of swap fees go to the holders",
-    ['Bribes to holders']: "All bribes go to holders through April 21, 2026",
+    ['Bribes to holders']: "All bribes go to holders",
   },
 }
 
