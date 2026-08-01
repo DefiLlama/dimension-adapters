@@ -63,8 +63,9 @@ const CERTIFICATE_BOUGHT =
   "event CertificateBought(uint256 indexed tokenId, address indexed buyer, address indexed recipient, address stockToken, uint256 stockAmount, uint256 spendWei, uint256 feeWei, address wallet)";
 const LOCK_FEES_COLLECTED =
   "event LockFeesCollected(uint256 indexed lockTokenId, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
+// liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
 const LOCK_LIQUIDITY_DECREASED =
-  "event LockLiquidityDecreased(uint256 indexed lockTokenId, uint256 liquidity, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
+  "event LockLiquidityDecreased(uint256 indexed lockTokenId, uint128 liquidity, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
 
 const LABELS = {
   AMM_FEES: "NFT AMM trade fees",
