@@ -6,7 +6,7 @@
  *            + CreateFeeCollected (USDG create fees)
  *   - SupplySide = creator + referral shares from FeeAccrued
  *   - Revenue = protocol + safety credits (+ create fees)
- *   - ProtocolRevenue = protocol credits (+ create fees); safety labeled under Revenue only
+ *   - ProtocolRevenue = protocol + safety (ops-controlled) + create fees
  */
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -26,11 +26,11 @@ const CREATE_FEE_COLLECTED =
 
 const LABEL = {
   TRADING: METRIC.TRADING_FEES,
-  PROTOCOL: METRIC.PROTOCOL_FEES,
+  PROTOCOL: "FeeVault protocol allocation",
   CREATOR: METRIC.CREATOR_FEES,
   REFERRAL: "Referral Fees",
   SAFETY: "Safety Reserve",
-  CREATE: METRIC.SERVICE_FEES,
+  CREATE: "USDG launch creation fee",
 } as const;
 
 const fetch = async (options: FetchOptions) => {
@@ -59,6 +59,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(quote, log.protocolCredited, LABEL.PROTOCOL);
     dailyRevenue.add(quote, log.safetyCredited, LABEL.SAFETY);
     dailyProtocolRevenue.add(quote, log.protocolCredited, LABEL.PROTOCOL);
+    dailyProtocolRevenue.add(quote, log.safetyCredited, LABEL.SAFETY);
   }
 
   const createLogs: any[] = await options.getLogs({
@@ -85,11 +86,11 @@ const methodology = {
   Fees: "Protocol-path trading fees accrued into MerryForgeFeeVault (FeeAccrued.receivedAmount; protocolFeeBps on curve + TradeRouter AMM) plus non-refundable USDG create fees (CreateFeeCollected).",
   UserFees: "Same as Fees for trading and create fees paid by users/creators.",
   Revenue:
-    "Protocol + safety shares of FeeVault accruals (protocolCredited + safetyCredited) plus create fees. Excludes bond forfeit/slash policy inflows.",
+    "Protocol + safety shares of FeeVault accruals (protocolCredited + safetyCredited) plus create fees. Excludes bond forfeit/slash policy inflows. Creator and referral shares are supply-side (holders/users), not protocol revenue.",
   ProtocolRevenue:
-    "FeeVault protocolCredited share plus create fees to protocolTreasury. Safety reserve is under Revenue but not ProtocolRevenue.",
+    "Ops-controlled FeeVault allocations: protocolCredited + safetyCredited (safety is protocol-controlled, not creator claimable) plus create fees to protocolTreasury.",
   SupplySideRevenue:
-    "Creator and L1 referral shares from FeeVault (creatorCredited + referralCredited + referralPaid). Paid out to users.",
+    "Creator and L1 referral shares from FeeVault (creatorCredited + referralCredited + referralPaid).",
 };
 
 const breakdownMethodology = {
@@ -112,8 +113,11 @@ const breakdownMethodology = {
     [LABEL.CREATE]: "Create fees sent to protocolTreasury.",
   },
   ProtocolRevenue: {
-    [LABEL.PROTOCOL]: "Protocol share credited in FeeVault (protocolCredited).",
-    [LABEL.CREATE]: "Create fees retained by protocol treasury.",
+    [LABEL.PROTOCOL]:
+      "FeeVault protocol allocation (protocolCredited) retained as ops-controlled protocol revenue.",
+    [LABEL.SAFETY]:
+      "FeeVault safety reserve (safetyCredited); ops-controlled protocol revenue, not creator/referral supply-side.",
+    [LABEL.CREATE]: "USDG launch creation fee retained by protocol treasury.",
   },
   SupplySideRevenue: {
     [LABEL.CREATOR]:
