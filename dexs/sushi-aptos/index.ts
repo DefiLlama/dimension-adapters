@@ -17,6 +17,8 @@ const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
 const account = '0x31a6675cbe84365bf2b0cbce617ece6c47023ef70826533bde5203d32171dc3c';
 
 const fetchVolume: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+  throw new Error("Sushi Aptos adapter is temporarily disabled due to excessive runtime");
+
   const fromTimestamp = options.fromTimestamp
   const toTimestamp = options.toTimestamp;
   const resources = await getResources(account);
