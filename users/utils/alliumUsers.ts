@@ -1,6 +1,6 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
-import { queryAllium } from "./allium";
-import { CHAIN } from "./chains";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryAllium } from "../../helpers/allium";
+import { CHAIN } from "../../helpers/chains";
 
 // only the names that differ
 const ALLIUM_TO_LLAMA: Record<string, string> = {
@@ -15,10 +15,17 @@ const ALLIUM_TO_LLAMA: Record<string, string> = {
 
 export const alliumToLlamaChain = (chain: string) => ALLIUM_TO_LLAMA[chain] ?? chain;
 
-// queryAllium memoises on query text, so all of them share one run per day.
-const inflight: Record<string, Promise<any>> = {};
+type DexUserRow = {
+  chain: string;
+  project: string;
+  users: string | number;
+  txs: string | number;
+};
 
-function getDexUserRows(options: FetchOptions) {
+// queryAllium memoises on query text, so all of them share one run per day.
+const inflight: Record<string, Promise<DexUserRow[]>> = {};
+
+function getDexUserRows(options: FetchOptions): Promise<DexUserRow[]> {
   // GROUPING SETS returns per-chain and all-chain rows in one pass. The
   // all-chain row cannot be a sum: a wallet on two chains is still one user.
   const query = `
@@ -32,7 +39,12 @@ WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
   AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
 GROUP BY GROUPING SETS ((chain, project), (project))`;
 
-  if (!inflight[query]) inflight[query] = queryAllium(query);
+  // drop a failed run, else every later chain reuses the rejection
+  if (!inflight[query])
+    inflight[query] = queryAllium(query).catch((e: any) => {
+      delete inflight[query];
+      throw e;
+    });
   return inflight[query];
 }
 
@@ -48,7 +60,7 @@ export function alliumDexUsersExport({ project, chains, start }: {
     const rows = await getDexUserRows(options);
     if (!rows.length) throw new Error(`Allium returned no dex trades for ${options.startTimestamp}`);
 
-    const row = rows.find((r: any) => r.project === project && alliumToLlamaChain(r.chain) === options.chain);
+    const row = rows.find((r) => r.project === project && alliumToLlamaChain(r.chain) === options.chain);
     if (!row) return { dailyActiveUsers: 0, dailyTransactionsCount: 0 };
 
     return {

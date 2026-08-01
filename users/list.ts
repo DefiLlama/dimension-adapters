@@ -1,6 +1,7 @@
 import chains from "./chains"
 import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
+import dexUsers from "./dexUsers";
 import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { parseNewUserResponse, parseUserResponse } from "./utils/countUsers";
@@ -25,6 +26,9 @@ routers.concat(chains as any[]).concat(compoundV2 as any[]).forEach((item: any) 
   if (item.activeUsersAdapter) activeUserProtocols[item.id ?? item.name] = item.activeUsersAdapter;
   if (item.newUsersAdapter) newUserProtocols[item.id ?? item.name] = item.newUsersAdapter;
 })
+
+// Active users only: new users needs a full-history first-seen scan
+dexUsers.forEach(({ id, adapter }) => { activeUserProtocols[id] = adapter })
 
 export const { protocolList, getAdapter } = createFactoryExports(activeUserProtocols);
 export const newUsers = createFactoryExports(newUserProtocols);
