@@ -118,6 +118,8 @@ function delay(ms: number): Promise<void> {
 }
 
 async function fetch(options: FetchOptions) {
+    throw new Error("Orca adapter is temporarily disabled due to excessive runtime");
+
     const url = CONFIG[options.chain].url;
     let allWhirlpools: Whirlpool[] = [];
     let nextCursor: string | null = null;
