@@ -15,6 +15,12 @@ import ADDRESSES from "../../helpers/coreAssets.json";
  *     SafetyDepositClockInV3 (90% brokers / 10% protocol wallet)
  *  5. Swap-desk 1% Relay app fee: Base USDC forwarded from the fee wallet
  *     (claimed from Relay, then bridged to StockBooster as ETH)
+ *
+ * Volume (protocol volume chart):
+ *  - NFT AMM notional (ethFeePaid ÷ fee bps)
+ *  - Broker Box ticket notional (PullOpened.ticketWei)
+ *  - Certificate Counter stock purchase (CertificateBought.spendWei)
+ *  - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
  */
 
 const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
@@ -59,6 +65,12 @@ const ACTIVATION_UPGRADED =
   "event ActivationUpgraded(uint256 indexed tokenId, address indexed owner, uint8 fromTier, uint8 toTier, uint256 feePaid)";
 const EDGE_SKIMMED =
   "event EdgeSkimmed(uint256 indexed roundId, uint256 creatorWei, uint256 boosterWei, uint256 protocolWei)";
+const PULL_OPENED =
+  "event PullOpened(uint256 indexed roundId, address indexed player, uint8 tier, bool wantCertificate, uint256 ticketWei, uint256 requestId, uint256 stockReserved)";
+const SOLD_BACK =
+  "event SoldBack(address indexed seller, uint256 stockAmount, uint256 ethOut)";
+const SOLD_BACK_USDG =
+  "event SoldBackUsdg(address indexed seller, uint256 stockAmount, uint256 usdgOut)";
 const CERTIFICATE_BOUGHT =
   "event CertificateBought(uint256 indexed tokenId, address indexed buyer, address indexed recipient, address stockToken, uint256 stockAmount, uint256 spendWei, uint256 feeWei, address wallet)";
 const LOCK_FEES_COLLECTED =
@@ -66,6 +78,9 @@ const LOCK_FEES_COLLECTED =
 // liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
 const LOCK_LIQUIDITY_DECREASED =
   "event LockLiquidityDecreased(uint256 indexed lockTokenId, uint128 liquidity, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
+
+/** USDG on Robinhood Chain — sell-back rail payout token. */
+const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
 
 const LABELS = {
   AMM_FEES: "NFT AMM trade fees",
@@ -80,6 +95,7 @@ const LABELS = {
   GACHA_FEES: "Broker Box gachapon edge (10% of ticket)",
   GACHA_STOCK_DIVIDENDS: "Broker Box edge → StockBooster / creator",
   GACHA_PROTOCOL: "Broker Box edge → protocol accrual",
+  GACHA_SELLBACK: "Broker Box 5% sell-back spread (retained in bankroll)",
   COUNTER_FEES: "Certificate Counter flat $2 fee",
   COUNTER_STOCK_DIVIDENDS: "Certificate Counter fee → StockBooster",
   COUNTER_PROTOCOL: "Certificate Counter fee → treasury",
@@ -195,18 +211,43 @@ const fetchRobinhood = async (options: FetchOptions) => {
     }),
   ]);
 
-  // One chain-wide EdgeSkimmed scan, then keep only production machines.
-  const edgeLogs = (
-    await options.getLogs({
+  // Chain-wide Broker Box scans, then keep only production machines (1 RPC
+  // each instead of 9× per event — Robinhood public RPC rate-limits hard).
+  const [edgeRaw, pullRaw, soldBackRaw, soldBackUsdgRaw] = await Promise.all([
+    options.getLogs({
       noTarget: true,
       eventAbi: EDGE_SKIMMED,
       entireLog: true,
       parseLog: true,
       ...logOpts,
-    })
-  )
-    .filter((log: any) => MACHINE_SET.has(String(log.address).toLowerCase()))
-    .map((log: any) => log.args);
+    }),
+    options.getLogs({
+      noTarget: true,
+      eventAbi: PULL_OPENED,
+      entireLog: true,
+      parseLog: true,
+      ...logOpts,
+    }),
+    options.getLogs({
+      noTarget: true,
+      eventAbi: SOLD_BACK,
+      entireLog: true,
+      parseLog: true,
+      ...logOpts,
+    }),
+    options.getLogs({
+      noTarget: true,
+      eventAbi: SOLD_BACK_USDG,
+      entireLog: true,
+      parseLog: true,
+      ...logOpts,
+    }),
+  ]);
+  const onMachine = (log: any) => MACHINE_SET.has(String(log.address).toLowerCase());
+  const edgeLogs = edgeRaw.filter(onMachine).map((log: any) => log.args);
+  const pullLogs = pullRaw.filter(onMachine).map((log: any) => log.args);
+  const soldBackLogs = soldBackRaw.filter(onMachine).map((log: any) => log.args);
+  const soldBackUsdgLogs = soldBackUsdgRaw.filter(onMachine).map((log: any) => log.args);
 
   // Robinhood is not in addTokensReceived's log-fallback chain map, so locker
   // cuts are read from the fee events + a lockPositions lookup.
@@ -262,9 +303,41 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailyRevenue.addToken(STONKBROKER, fee, LABELS.ACTIVATION_FEES);
   }
 
-  // ── Broker Box gachapon ──────────────────────────────────────────────────
+  // ── Broker Box gachapon volume + fees ────────────────────────────────────
+  // Volume: ticket notional at open + sell-back payouts + counter stock buys.
+  // Fees: EdgeSkimmed (10% of settled ticket) + Certificate Counter $2 fee.
   // Official machines set creator = StockBooster, so creatorWei + boosterWei
   // both fund Clock In stock drops. protocolWei accrues for the treasury.
+  for (const log of pullLogs) {
+    const ticket = BigInt(log.ticketWei);
+    if (ticket > 0n) dailyVolume.addGasToken(ticket);
+  }
+  // Sell-back pays 95% of the mark; the 5% spread stays in the machine bankroll
+  // (reclaimable by treasury on official machines). Implied from payout: spread =
+  // ethOut × 5/95. No separate fee event exists on-chain.
+  for (const log of soldBackLogs) {
+    const ethOut = BigInt(log.ethOut);
+    if (ethOut <= 0n) continue;
+    dailyVolume.addGasToken(ethOut);
+    const spread = (ethOut * 5n) / 95n;
+    if (spread > 0n) {
+      dailyFees.addGasToken(spread, LABELS.GACHA_SELLBACK);
+      dailyProtocolRevenue.addGasToken(spread, LABELS.GACHA_SELLBACK);
+      dailyRevenue.addGasToken(spread, LABELS.GACHA_SELLBACK);
+    }
+  }
+  for (const log of soldBackUsdgLogs) {
+    const usdgOut = BigInt(log.usdgOut);
+    if (usdgOut <= 0n) continue;
+    dailyVolume.addToken(ROBINHOOD_USDG, usdgOut);
+    const spread = (usdgOut * 5n) / 95n;
+    if (spread > 0n) {
+      dailyFees.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
+      dailyProtocolRevenue.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
+      dailyRevenue.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
+    }
+  }
+
   for (const log of edgeLogs) {
     const creator = BigInt(log.creatorWei);
     const booster = BigInt(log.boosterWei);
@@ -278,7 +351,9 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
 
   for (const log of counterLogs) {
+    const spend = BigInt(log.spendWei);
     const fee = BigInt(log.feeWei);
+    if (spend > 0n) dailyVolume.addGasToken(spend);
     if (fee <= 0n) continue;
     const half = fee / 2n;
     const rest = fee - half; // remainder to treasury on odd wei
@@ -389,17 +464,17 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "ETH notional of StonkBrokers NFT AMM fills, derived from ethFeePaid and vault fee bps (10% random / 15% snipe).",
+      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut).",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts; and the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster).",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts; and the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual + counter treasury half, and 10% of locker fees.",
+      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, and 10% of locker fees.",
     ProtocolRevenue:
-      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + counter treasury half; 10% of locker fees → protocol wallet.",
+      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet.",
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster.",
   },
   breakdownMethodology: {
     Fees: {
@@ -407,6 +482,8 @@ const adapter: SimpleAdapter = {
       [LABELS.LOAN_FEES]: "Upfront ETH borrow fees on NFT-backed loans.",
       [LABELS.ACTIVATION_FEES]: "One-time / upgrade $STONKBROKER activation fees.",
       [LABELS.GACHA_FEES]: "10% house edge skimmed from every settled Broker Box ticket.",
+      [LABELS.GACHA_SELLBACK]:
+        "5% sell-back spread retained in the machine bankroll (implied from SoldBack / SoldBackUsdg payouts at 95% of mark).",
       [LABELS.COUNTER_FEES]: "Flat $2 Certificate Counter fee per OTC deed mint.",
       [LABELS.LOCKER_FEES]:
         "Protocol cut on Safety Deposit Box locks from LockFeesCollected / LockLiquidityDecreased (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
@@ -418,6 +495,8 @@ const adapter: SimpleAdapter = {
       [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
       [LABELS.ACTIVATION_FEES]: "Full $STONKBROKER activation fee (burn + protocol).",
       [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
+      [LABELS.GACHA_SELLBACK]:
+        "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
     },
@@ -426,6 +505,8 @@ const adapter: SimpleAdapter = {
       [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
       [LABELS.ACTIVATION_PROTOCOL]: "Protocol share of $STONKBROKER activation fees.",
       [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
+      [LABELS.GACHA_SELLBACK]:
+        "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
     },
