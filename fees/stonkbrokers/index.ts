@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { addTokensReceived, getEVMTokenTransfers } from "../../helpers/token";
+import { getEVMTokenTransfers } from "../../helpers/token";
 
 /**
  * StonkBrokers — Anvil NFTFi + Broker Box + Safety Deposit Box on Robinhood,
@@ -40,7 +40,8 @@ const CERTIFICATE_COUNTER = "0x2599882AaF5C14834562eE59ca7a3D1FFCC229D7";
 // Safety Deposit Box lockers → fee router (live 2026-07-25).
 const LOCKER_V3 = "0xFc96CF67eCC55bE4AdABc3AecBe6Ad6349f11223";
 const LOCKER_V4 = "0x5a28ce098750f73bc9eC142D4bCE464E1A0BBdA6";
-const SAFETY_DEPOSIT_CLOCK_IN = "0x55642A3F10F1Af5145D3d59021B1D6b03BB8692c";
+// Fee sink (not read on-chain here): SafetyDepositClockInV3
+// 0x55642A3F10F1Af5145D3d59021B1D6b03BB8692c — splits locker cuts 90/10.
 
 // Relay swap-desk 1% app fee accrues off-chain, is claimed as Base USDC to the
 // treasury fee wallet, then forwarded via Relay to StockBooster as ETH.
@@ -170,6 +171,8 @@ const fetchRobinhood = async (options: FetchOptions) => {
     upgradedLogs,
     edgeLogs,
     counterLogs,
+    v3CollectLogs,
+    v3DecreaseLogs,
     v4CollectLogs,
     v4DecreaseLogs,
   ] = await Promise.all([
@@ -180,9 +183,10 @@ const fetchRobinhood = async (options: FetchOptions) => {
     options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATION_UPGRADED }),
     options.getLogs({ targets: GACHA_MACHINES, eventAbi: EDGE_SKIMMED }),
     options.getLogs({ target: CERTIFICATE_COUNTER, eventAbi: CERTIFICATE_BOUGHT }),
-    // V3 locker cuts are always ERC20 (WETH/token) and are covered by
-    // addTokensReceived below. V4 native-ETH sides need the collect/decrease
-    // events because they do not emit ERC20 Transfers.
+    // Robinhood is not in addTokensReceived's log-fallback chain map, so
+    // locker cuts are read from the fee events + a lockPositions lookup.
+    options.getLogs({ target: LOCKER_V3, eventAbi: LOCK_FEES_COLLECTED }),
+    options.getLogs({ target: LOCKER_V3, eventAbi: LOCK_LIQUIDITY_DECREASED }),
     options.getLogs({ target: LOCKER_V4, eventAbi: LOCK_FEES_COLLECTED }),
     options.getLogs({ target: LOCKER_V4, eventAbi: LOCK_LIQUIDITY_DECREASED }),
   ]);
@@ -249,86 +253,38 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
 
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
-  // ERC20 cuts (V3 always; V4 when the side is an ERC20) land as Transfer
-  // events locker → SafetyDepositClockIn. Attribute 90/10 to match the
-  // clock-in's hardwired split.
-  const lockerErc20 = await addTokensReceived({
-    options,
-    fromAdddesses: [LOCKER_V3, LOCKER_V4],
-    target: SAFETY_DEPOSIT_CLOCK_IN,
-    fetchTokenList: true,
-  });
-  if (lockerErc20) {
-    dailyFees.addBalances(lockerErc20, LABELS.LOCKER_FEES);
-    dailySupplySideRevenue.addBalances(
-      lockerErc20.clone(Number(LOCKER_BROKER_BPS) / 10_000, LABELS.LOCKER_STOCK_DIVIDENDS),
-    );
-    const protocolShare = lockerErc20.clone(
-      Number(LOCKER_PROTOCOL_BPS) / 10_000,
-      LABELS.LOCKER_PROTOCOL,
-    );
-    dailyProtocolRevenue.addBalances(protocolShare);
-    dailyRevenue.addBalances(protocolShare);
-  }
-
-  // Native-ETH protocol cuts on V4 (currency0 = address(0)) do not emit ERC20
-  // Transfers — pull them from LockFeesCollected / LockLiquidityDecreased.
-  // V3 is always ERC20 (WETH), so it is fully covered by addTokensReceived
-  // above; we still resolve V3 tokens only if we need them for native (we don't).
+  // Attribute 90/10 to match SafetyDepositClockInV3's hardwired split.
+  // Upfront-mode cuts that never emit LockFeesCollected are not visible here
+  // (Robinhood has no Transfer-log fallback in addTokensReceived); collect /
+  // withdraw cuts dominate live volume and are fully covered.
   const lockCache = new Map<string, [string, string]>();
-  const v4Logs = [...v4CollectLogs, ...v4DecreaseLogs];
-  if (v4Logs.length > 0) {
-    const ids = [...new Set(v4Logs.map((l: any) => String(l.lockTokenId)))];
-    await resolveLockTokens(options, LOCKER_V4, ids, true, lockCache);
-    for (const log of v4Logs) {
-      const pair = lockCache.get(`${LOCKER_V4}:${String(log.lockTokenId)}`);
+  const lockerBatches: { locker: string; isV4: boolean; logs: any[] }[] = [
+    { locker: LOCKER_V3, isV4: false, logs: [...v3CollectLogs, ...v3DecreaseLogs] },
+    { locker: LOCKER_V4, isV4: true, logs: [...v4CollectLogs, ...v4DecreaseLogs] },
+  ];
+  for (const batch of lockerBatches) {
+    if (batch.logs.length === 0) continue;
+    const ids = [...new Set(batch.logs.map((l) => String(l.lockTokenId)))];
+    await resolveLockTokens(options, batch.locker, ids, batch.isV4, lockCache);
+    for (const log of batch.logs) {
+      const pair = lockCache.get(`${batch.locker}:${String(log.lockTokenId)}`);
       if (!pair) continue;
-      const [c0, c1] = pair;
-      // Only count native sides here — ERC20 sides already counted via Transfer.
-      if (c0 === ZERO) {
-        addProtocolCut(dailyFees, ZERO, BigInt(log.protocolAmount0), LABELS.LOCKER_FEES);
-        addProtocolCut(
-          dailySupplySideRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount0) * LOCKER_BROKER_BPS) / 10_000n,
-          LABELS.LOCKER_STOCK_DIVIDENDS,
-        );
-        addProtocolCut(
-          dailyProtocolRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount0) * LOCKER_PROTOCOL_BPS) / 10_000n,
-          LABELS.LOCKER_PROTOCOL,
-        );
-        addProtocolCut(
-          dailyRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount0) * LOCKER_PROTOCOL_BPS) / 10_000n,
-          LABELS.LOCKER_PROTOCOL,
-        );
-      }
-      if (c1 === ZERO) {
-        addProtocolCut(dailyFees, ZERO, BigInt(log.protocolAmount1), LABELS.LOCKER_FEES);
-        addProtocolCut(
-          dailySupplySideRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount1) * LOCKER_BROKER_BPS) / 10_000n,
-          LABELS.LOCKER_STOCK_DIVIDENDS,
-        );
-        addProtocolCut(
-          dailyProtocolRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount1) * LOCKER_PROTOCOL_BPS) / 10_000n,
-          LABELS.LOCKER_PROTOCOL,
-        );
-        addProtocolCut(
-          dailyRevenue,
-          ZERO,
-          (BigInt(log.protocolAmount1) * LOCKER_PROTOCOL_BPS) / 10_000n,
-          LABELS.LOCKER_PROTOCOL,
-        );
+      const amounts: [string, bigint][] = [
+        [pair[0], BigInt(log.protocolAmount0)],
+        [pair[1], BigInt(log.protocolAmount1)],
+      ];
+      for (const [token, amount] of amounts) {
+        if (amount <= 0n) continue;
+        const brokerAmt = (amount * LOCKER_BROKER_BPS) / 10_000n;
+        const protocolAmt = (amount * LOCKER_PROTOCOL_BPS) / 10_000n;
+        addProtocolCut(dailyFees, token, amount, LABELS.LOCKER_FEES);
+        addProtocolCut(dailySupplySideRevenue, token, brokerAmt, LABELS.LOCKER_STOCK_DIVIDENDS);
+        addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
+        addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
       }
     }
   }
+
   return {
     dailyVolume,
     dailyFees,
@@ -397,7 +353,7 @@ const adapter: SimpleAdapter = {
       [LABELS.GACHA_FEES]: "10% house edge skimmed from every settled Broker Box ticket.",
       [LABELS.COUNTER_FEES]: "Flat $2 Certificate Counter fee per OTC deed mint.",
       [LABELS.LOCKER_FEES]:
-        "Protocol cut on Safety Deposit Box locks (0.5% upfront / 20% of LP fee collects / 1% withdraw).",
+        "Protocol cut on Safety Deposit Box locks from LockFeesCollected / LockLiquidityDecreased (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
       [LABELS.SWAP_DESK_FEES]:
         "1% Relay app fee on the crypto swap desk, measured as Base USDC forwarded from the fee wallet toward StockBooster.",
     },
