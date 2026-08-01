@@ -5,13 +5,14 @@
  *   - Curve: TokensPurchased.quoteAmountIn + TokensSold.quoteOut on each launch curve
  *   - Official AMM: BoughtAmmExactIn.quoteSpent + SoldAmmExactIn.quoteGross on TradeRouter
  *
- * Excludes graduation, bonds, create fees.
+ * Volume (curve + official AMM). Excludes graduation, bonds, create fees.
  */
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// --- Robinhood mainnet (4663) ---
+// Deployed config (Robinhood mainnet 4663). Values from monorepo SoT:
+// LaunchFactory creation block 24875635 (≈ 2026-08-01 UTC) via RH Blockscout contract creation.
 const LAUNCH_FACTORY = "0x3b5e8FE8d61B00b35e021275c96F754424b1B9A8";
 const TRADE_ROUTER = "0x0913FE5c3f28721EDD92413c2D29BB1034D75e70";
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -25,6 +26,7 @@ const TOKENS_SOLD =
 const BOUGHT_AMM =
   "event BoughtAmmExactIn(address indexed launchToken, address indexed buyer, address indexed recipient, address payAsset, address quoteToken, uint256 payAmount, uint256 quoteSpent, uint256 feeAmount, uint256 tokensOut)";
 
+// Full on-chain signature (includes unwrapToNative)
 const SOLD_AMM =
   "event SoldAmmExactIn(address indexed launchToken, address indexed seller, address indexed recipient, address quoteToken, uint256 tokenAmountIn, uint256 quoteGross, uint256 feeAmount, uint256 quoteOutNet, bool unwrapToNative)";
 
@@ -89,13 +91,17 @@ async function resolveQuoteTokens(
     target: LAUNCH_FACTORY,
     abi: "function tokenQuoteToken(address) view returns (address)",
     calls: tokens,
-    permitFailure: true,
   });
 
   const map: Record<string, string> = {};
   tokens.forEach((token, i) => {
     const q = quotes[i];
-    if (q && q !== ZERO) map[token.toLowerCase()] = q;
+    if (!q || q === ZERO) {
+      throw new Error(
+        `MerryForge volume: unresolved quote token for launch token ${token}`,
+      );
+    }
+    map[token.toLowerCase()] = q;
   });
   return map;
 }
@@ -116,12 +122,24 @@ const fetch = async (options: FetchOptions) => {
   const quoteByToken = await resolveQuoteTokens(options.api, launchTokens);
 
   for (const log of buys) {
-    const quote = quoteByToken[String(log.token).toLowerCase()];
-    if (quote) dailyVolume.add(quote, log.quoteAmountIn);
+    const tokenKey = String(log.token).toLowerCase();
+    const quote = quoteByToken[tokenKey];
+    if (!quote) {
+      throw new Error(
+        `MerryForge volume: missing quote for buy log token ${log.token}`,
+      );
+    }
+    dailyVolume.add(quote, log.quoteAmountIn);
   }
   for (const log of sells) {
-    const quote = quoteByToken[String(log.token).toLowerCase()];
-    if (quote) dailyVolume.add(quote, log.quoteOut);
+    const tokenKey = String(log.token).toLowerCase();
+    const quote = quoteByToken[tokenKey];
+    if (!quote) {
+      throw new Error(
+        `MerryForge volume: missing quote for sell log token ${log.token}`,
+      );
+    }
+    dailyVolume.add(quote, log.quoteOut);
   }
 
   const [ammBuys, ammSells] = await Promise.all([
@@ -148,6 +166,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
+  // Factory deploy day (block 24875635); see addresses comment above.
   start: "2026-08-01",
   methodology: {
     Volume:
