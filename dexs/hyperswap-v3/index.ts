@@ -4,15 +4,50 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const GRAPH_URL = 'https://api.subgraph.ormilabs.com/api/public/33c67399-d625-4929-b239-5709cd66e422/subgraphs/hyperswap-v3/v0.1.2/gn'
-// const SWAP_TOKEN = '0x03832767bdf9a8ef007449942125ad605acfadb8';
-// const BURN_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-// feeProtocol=6 on every pool (verified via slot0()): 1/6 of swap fees go to the protocol,
-// split 75% buyback-and-burn / 25% treasury. Remaining 5/6 stays with LPs.
-const PROTOCOL_FEE_SHARE = 1 / 6
-const LP_SHARE = 1 - PROTOCOL_FEE_SHARE
-const BUYBACK_SHARE = PROTOCOL_FEE_SHARE * 0.75
-const TREASURY_SHARE = PROTOCOL_FEE_SHARE * 0.25
+const SLOT0_ABI = "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)"
+
+// Of the protocol's cut, 75% buys back and burns SWAP and 25% goes to the treasury.
+const BUYBACK_SHARE = 0.75
+const TREASURY_SHARE = 0.25
+
+// slot0.feeProtocol packs one 4-bit fee denominator per token (0 = no protocol fee).
+// Pools are deployed with it at 0 and switched on later, one pool at a time, so it has
+// to be read per pool at the block being priced rather than assumed. Today every active
+// pool reads 102 (0x66) = 1/6 on both tokens.
+const protocolFeeShare = (feeProtocol: number): number => {
+  const token0Denominator = feeProtocol & 0x0f
+  const token1Denominator = (feeProtocol >> 4) & 0x0f
+  const token0Share = token0Denominator > 0 ? 1 / token0Denominator : 0
+  const token1Share = token1Denominator > 0 ? 1 / token1Denominator : 0
+  return (token0Share + token1Share) / 2
+}
+
+const getPoolDayDatas = async (startOfDay: number) => {
+  const poolDayDatas: any[] = []
+  let cursor = ''
+
+  while (true) {
+    const query = gql`
+      query q{
+        poolDayDatas(where: {date: ${startOfDay}, id_gt: "${cursor}"}, first: 1000, orderBy: id, orderDirection: asc) {
+          id
+          volumeUSD
+          feesUSD
+          pool {
+            id
+          }
+        }
+      }
+    `
+    const data = await request(GRAPH_URL, query)
+    poolDayDatas.push(...data.poolDayDatas)
+    if (data.poolDayDatas.length < 1000) break
+    cursor = data.poolDayDatas[data.poolDayDatas.length - 1].id
+  }
+
+  return poolDayDatas
+}
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
@@ -22,39 +57,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const query = gql`
-      query q{
-        uniswapDayDatas(where: {date: ${options.startOfDay}}, first: 1000, orderBy: volumeUSD, orderDirection: desc) {
-          volumeUSD
-          feesUSD
-        }
-      }
-    `
+  const poolDayDatas = await getPoolDayDatas(options.startOfDay)
 
-  const data = await request(GRAPH_URL, query)
-
-  data.uniswapDayDatas.forEach((e: any) => {
-    dailyVolume.addUSDValue(Number(e.volumeUSD))
-    dailyFees.addUSDValue(Number(e.feesUSD), METRIC.SWAP_FEES)
-    dailyRevenue.addUSDValue(Number(e.feesUSD) * TREASURY_SHARE, 'Token Swap Fees To Protocol')
-    dailyRevenue.addUSDValue(Number(e.feesUSD) * BUYBACK_SHARE, 'Token Swap Fees To Buy Back And Burn SWAP')
-    dailyProtocolRevenue.addUSDValue(Number(e.feesUSD) * TREASURY_SHARE, 'Token Swap Fees To Protocol')
-    dailySupplySideRevenue.addUSDValue(Number(e.feesUSD) * LP_SHARE, 'Token Swap Fees To LPs')
-    dailyHoldersRevenue.addUSDValue(Number(e.feesUSD) * BUYBACK_SHARE, METRIC.TOKEN_BUY_BACK)
+  const slot0s = await options.toApi.multiCall({
+    abi: SLOT0_ABI,
+    calls: poolDayDatas.map((e: any) => e.pool.id),
   })
 
-  // const dailyHoldersRevenue = options.createBalances();
-  // // Track token burns
-  // const burnLogs = await options.getLogs({
-  //   target: SWAP_TOKEN,
-  //   eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-  //   topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", "", BURN_ADDRESS],
-  // });
+  poolDayDatas.forEach((e: any, i: number) => {
+    const fees = Number(e.feesUSD)
+    const protocolFees = fees * protocolFeeShare(Number(slot0s[i].feeProtocol))
 
-  // for (const log of burnLogs) {
-  //   dailyRevenue.add(SWAP_TOKEN, log.value, 'Token Burns');
-  //   dailyHoldersRevenue.add(SWAP_TOKEN, log.value, 'Token Burns');
-  // }
+    dailyVolume.addUSDValue(Number(e.volumeUSD))
+    dailyFees.addUSDValue(fees, METRIC.SWAP_FEES)
+    dailyRevenue.addUSDValue(protocolFees * TREASURY_SHARE, 'Token Swap Fees To Protocol')
+    dailyRevenue.addUSDValue(protocolFees * BUYBACK_SHARE, 'Token Swap Fees To Buy Back And Burn SWAP')
+    dailyProtocolRevenue.addUSDValue(protocolFees * TREASURY_SHARE, 'Token Swap Fees To Protocol')
+    dailySupplySideRevenue.addUSDValue(fees - protocolFees, 'Token Swap Fees To LPs')
+    dailyHoldersRevenue.addUSDValue(protocolFees * BUYBACK_SHARE, METRIC.TOKEN_BUY_BACK)
+  })
 
   return {
     dailyVolume,
@@ -68,11 +89,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
 const methodology = {
+  Volume: "Total value of tokens swapped across all HyperSwap V3 pools.",
   Fees: "Total swap fees paid by traders across all HyperSwap V3 pools.",
-  Revenue: "The protocol keeps one sixth (about 16.7%) of every swap fee via the pool fee switch; the rest goes to liquidity providers. Of the protocol's share, 25% is kept by the treasury and 75% buys back and burns SWAP.",
-  ProtocolRevenue: "The treasury's cut — a quarter of the protocol's one-sixth fee share, about 4.2% of all swap fees.",
-  SupplySideRevenue: "Liquidity providers earn five sixths (about 83.3%) of every swap fee.",
-  HoldersRevenue: "Three quarters of the protocol's one-sixth fee share, about 12.5% of all swap fees, used to buy back and burn SWAP.",
+  UserFees: "Total swap fees paid by traders across all HyperSwap V3 pools.",
+  Revenue: "On pools where HyperSwap has switched the protocol fee on, it keeps one sixth of the swap fee and liquidity providers keep the rest. Pools trade with the fee switched off until HyperSwap enables it, and those pools give the entire swap fee to liquidity providers, so each pool's share is read individually for the day being measured. Of whatever the protocol keeps, 25% goes to the treasury and 75% buys back and burns SWAP.",
+  ProtocolRevenue: "The treasury's quarter of the protocol's share of swap fees.",
+  SupplySideRevenue: "The part of every swap fee that liquidity providers keep — five sixths on pools with the protocol fee switched on, and the entire fee on pools where it is still off.",
+  HoldersRevenue: "The three quarters of the protocol's share of swap fees that is used to buy back and burn SWAP.",
 }
 
 const breakdownMethodology = {
@@ -80,14 +103,14 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Total swap fees paid by traders across all HyperSwap V3 pools.",
   },
   Revenue: {
-    'Token Swap Fees To Protocol': "The treasury's 25% cut of the protocol's one-sixth fee share (about 4.2% of total fees).",
-    'Token Swap Fees To Buy Back And Burn SWAP': "The 75% of the protocol's one-sixth fee share (about 12.5% of total fees) used to buy back and burn SWAP.",
+    'Token Swap Fees To Protocol': "The treasury's 25% of whatever swap fees the protocol keeps.",
+    'Token Swap Fees To Buy Back And Burn SWAP': "The 75% of the swap fees the protocol keeps that is used to buy back and burn SWAP.",
   },
   SupplySideRevenue: {
-    'Token Swap Fees To LPs': "Five sixths (about 83.3%) of swap fees paid to liquidity providers.",
+    'Token Swap Fees To LPs': "Swap fees paid to liquidity providers — five sixths of the fee on pools with the protocol fee switched on, and all of it on pools where it is still off.",
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "SWAP bought back and burned using 75% of the protocol's one-sixth fee share.",
+    [METRIC.TOKEN_BUY_BACK]: "SWAP bought back and burned using 75% of the swap fees the protocol keeps.",
   },
 }
 
