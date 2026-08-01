@@ -28,9 +28,9 @@ async function fetch(options: FetchOptions) {
   CROSS JOIN market_report_agg mr
   `
   const data: {
-    cash_volume: string,
-    open_interest: string,
-    notional_volume: string,
+    cash_volume: string | null,
+    open_interest: string | null,
+    notional_volume: string | null,
   }[] = await queryDuneSql(options, query)
 
   if (!data?.length || data[0].cash_volume == null) {
