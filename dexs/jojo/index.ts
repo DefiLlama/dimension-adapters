@@ -1,71 +1,38 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter, Fetch } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter, FetchV2, FetchResultV2 } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 
-const historicalVolumeEndpointZk = (symbol: string, chain: string) => `https://api.`+ chain +`-mainnet.jojo.exchange/v1/klines?marketId=${symbol}&interval=1D&startTime=1687017600000&limit=500`
-const coins = {
-    'ethusdc': 'coingecko:ethereum',
-    'btcusdc': 'coingecko:bitcoin',
-    'arbusdc': 'coingecko:arbitrum',
-    'solusdc': 'coingecko:solana',
-    'linkusdc': 'coingecko:link',
-    'memeusdc': 'coingecko:meme',
-    'ordiusdc': 'coingecko:ordi',
-    'wldusdc': 'coingecko:wld',
-    'agixusdc': 'coingecko:agix',
-    'arusdc': 'coingecko:ar',
-    'tiausdc': 'coingecko:tia',
-    'strkusdc': 'coingecko:strk',
-    'avaxusdc': 'coingecko:avax',
-    'xrpusdc': 'coingecko:xrp',
-    'trxusdc': 'coingecko:trx',
-    'rndrusdc': 'coingecko:rndr',
-    'adausdc': 'coingecko:ada',
-    'altusdc': 'coingecko:alt',
-    'dogeusdc': 'coingecko:doge',
-    'xaiusdc': 'coingecko:xai'
-}
+const OrderFilledEvent = "event OrderFilled(bytes32 indexed orderHash,address indexed trader,address indexed perp,int256 orderFilledPaperAmount,int256 filledCreditAmount,uint256 positionSerialNum,int256 fee)";
+const PositionFinalizeLogEvent = "event PositionFinalizeLog(address indexed trader, int256 paperAmount, int256 creditAmount, int256 fee, int256 pnl, string perp)"
 
-interface IVolumeall {
-    id: string;
-    volume: string;
-    timestamp: number;
-    quoteVolume: string;
-}
-const getVolume = async (timestamp: number, chain: string) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historical = (await Promise.all(Object.keys(coins).map((coins: string) => fetchURL(historicalVolumeEndpointZk(coins, chain)))))
-        .map((a: any, index: number) => a.map((e: any) => { return { timestamp: e.time / 1000, volume: e.volume, id: Object.values(coins)[index], quoteVolume: e.quote_volume } })).flat()
-
-    const historicalUSD = historical.map((e: IVolumeall) => {
-        return {
-            ...e,
-            volumeUSD: Number(e.quoteVolume)
-        }
-    });
-    const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
+const degenDealerAddress = '0xb7ffeaf4af97aece3c9ae7e5f68b9cd66d02f8ac';
+const perpAddress = '0x2f7c3cF9D9280B165981311B822BecC4E05Fe635';
+const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { createBalances, getLogs, api } = options
+    const dailyVolume = createBalances()
+    const orderLogs = await getLogs({
+        target: perpAddress,
+        eventAbi: OrderFilledEvent,
+    })
+    const positionFinalizeLog = await getLogs({
+        target: degenDealerAddress,
+        eventAbi: PositionFinalizeLogEvent,
+    })
+    orderLogs.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.filledCreditAmount) / Number(1e6))))
+    positionFinalizeLog.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.creditAmount) / Number(1e6))))
     return {
-        totalVolume: `${totalVolume}`,
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-        timestamp: dayTimestamp,
-    };
-};
-
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-    return getVolume(timestamp, chain);
+        dailyVolume
+    }
 }
 
 const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
     adapter: {
-        [CHAIN.ARBITRUM]: {
-            fetch: getFetch("arbitrum"),
-            start: 1687017600,
-        },
-    },
-};
+        [CHAIN.BASE]: {
+            fetch: getFetch,
+            start: '2024-04-09',
+        }
+    }
+}
 
-export default adapter;
+export default adapter

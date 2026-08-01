@@ -1,22 +1,30 @@
-import { ChainBlocks, FetchOptions } from '../../adapters/types';
-import { httpPost } from "../../utils/fetchURL";
+import { CHAIN } from '../../helpers/chains';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { queryAllium } from '../../helpers/allium'
 
-async function last24h(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
-  const { data: { pools } } = await httpPost('https://saberqltest.aleph.cloud/', { "query": "{  pools {    stats  { vol24h_usd    }  }  }" })
-  const dailyVolume = createBalances()
-  pools.forEach((pool: any) => dailyVolume.addCGToken('tether', pool.stats.vol24h_usd))
-  return {
-    dailyVolume,
-    timestamp: Math.floor(Date.now() / 1e3)
-  }
+async function fetch(options: FetchOptions) {
+  const query = `
+    select
+      sum(usd_amount) as volume 
+    from solana.dex.trades 
+    where project='saber'
+      and block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+      and block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+  `
+  const data = await queryAllium(query)
+  const dailyVolume = data[0].volume
+
+  return { dailyVolume }
 }
 
-export default {
-  adapter: {
-    "solana": {
-      fetch: last24h,
-      runAtCurrTime: true,
-      start: 0,
-    }
-  }
+const adapter : SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2021-05-28",
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true
 }
+
+export default adapter

@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 /// Project URL: https://voodoo.trade
 /// Contact: chickenjuju@proton.me
 ///
@@ -10,14 +11,13 @@
 /// kind for perpetual DEXs.
 
 import { GraphQLClient, gql } from "graphql-request";
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 // Smart contract pads values with 10^30. I.e. 10 USD is stored as 10 * 10^30
 const DECIMAL_PLACES = BigInt(10)**BigInt(30);
 
-const graphQLClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/chicken-juju/voodoo-base-stats");
+const graphQLClient = new GraphQLClient(sdk.graph.modifyEndpoint('6eeKiwCJQECCwhE7doeoKCAqSK7VatCsv3piHomYzi6o'));
 
 const GET_FEE_BY_ID = gql`query getFeeById($id: ID!) {
   feeStat(id: $id) {
@@ -48,13 +48,11 @@ function sumOfFees(feeStat: FeeStat | null): bigint {
   return BigInt(marginAndLiquidation) + BigInt(swap) + BigInt(mint) + BigInt(burn);
 }
 
-const getFetch = () => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
+const fetch = async (options: FetchOptions) => {
   const {
     feeStat,
   } = await graphQLClient.request<GetFeeByIdResponse>(GET_FEE_BY_ID, {
-    id: `${dayTimestamp}:daily`
+    id: `${options.startOfDay}:daily`
   });
 
   // Hack to retain 2 decimal places. BigInt division doesn't preserve decimal places.
@@ -87,13 +85,12 @@ const getFetch = () => async (timestamp: number) => {
   const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
 
   return {
-    timestamp: dayTimestamp,
-    dailyFees: dailyFees.toFixed(2),
-    dailyUserFees: dailyFees.toFixed(2),
-    dailySupplySideRevenue: dailySupplySideRevenue.toFixed(2),
-    dailyHoldersRevenue: dailyHoldersRevenue.toFixed(2),
-    dailyProtocolRevenue: dailyProtocolRevenue.toFixed(2),
-    dailyRevenue: dailyRevenue.toFixed(2)
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyRevenue
   };
 }
 
@@ -107,15 +104,10 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: getFetch(),
-      start: 1693997105,
-      meta: {
-        methodology
-      }
-    },
-  },
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2023-09-06',
+  methodology,
 }
 
 export default adapter;

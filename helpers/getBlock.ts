@@ -1,13 +1,11 @@
-import { ChainBlocks } from "../adapters/types";
-import { providers } from "@defillama/sdk/build/general"
-import type { Chain } from "@defillama/sdk/build/general"
+import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
-import { httpGet } from "../utils/fetchURL";
+import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
-  "tron",
   "juno",
   "cardano",
   "litecoin",
@@ -17,24 +15,21 @@ const blacklistedChains: string[] = [
   "elrond",
   "defichain",
   "stacks",
-  "KARURA",
-  "hedera",
+  "karura",
   "eos",
   "icon",
   "stellar",
   "algorand",
   "mixin",
   "thorchain",
-  "flow",
   "aptos",
+  "polkadex",
   "neo",
   "phantasma",
   "starknet",
   "carbon",
-  "vechain",
   "wax",
   "injective",
-  "ton",
   "obyte",
   "sora",
   "cosmos",
@@ -42,7 +37,6 @@ const blacklistedChains: string[] = [
   "icp",
   "hydradx",
   "osmosis",
-  "sei",
   "ergo",
   "radixdlt",
   "near",
@@ -50,75 +44,110 @@ const blacklistedChains: string[] = [
   "sui",
   "neutron",
   "terra2",
+  "move",
+  "heco",
+  "dymension",
+  CHAIN.DOGECHAIN,
+  // CHAIN.SEI,
+  CHAIN.ICP,
 ];
 
+const cache = {
+
+} as any
+
 async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
-    if (blacklistedChains.includes(chain)) {
-        return null
-    }
-    if (chainBlocks[chain] !== undefined)
-        return chainBlocks[chain]
-
-
-
-    let block: number | undefined
-    try {
-        if (chain === CHAIN.WAVES)
-            timestamp = Math.floor(timestamp * 1000)
-        block = await sdk.blocks.getBlockNumber(chain, timestamp)
-    } catch (e) { console.log('error fetching block', e) }
-
-    if (block) {
-        chainBlocks[chain] = block
-        return block
-    }
-
-    if (chain === CHAIN.CELO)
-        block = Number((await retry(async () => (await httpGet("https://explorer.celo.org/api?module=block&action=getblocknobytime&timestamp=" + timestamp + "&closest=before").catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.result?.blockNumber)));
-    else if (chain === CHAIN.KAVA)
-        block = Number((await retry(async () => (await httpGet(`https://explorer.kava.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.result?.blockNumber)));
-    else if (chain === CHAIN.ONUS)
-        block = Number((await retry(async () => (await httpGet(`https://explorer.onuschain.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.result?.blockNumber)));
-    else if (chain as CHAIN === CHAIN.POLYGON_ZKEVM || chain === CHAIN.VISION || chain as CHAIN === CHAIN.ERA)
-        return sdk.api.util.lookupBlock(timestamp, { chain }).then((blockData: any) => blockData.block) // TODO after get block support chain  polygon_zkevm then swith to use api https://coins.llama.fi/block
-    else if (chain as CHAIN === CHAIN.WAVES)
-        block = Number((await retry(async () => (await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${(timestamp * 1000)}`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.height, { retries: 3 })));
-    else if (chain === CHAIN.BASE)
-        block = Number((await retry(async () => (await httpGet(`https://base.blockscout.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.result?.blockNumber)));
-    else if (chain === CHAIN.SCROLL)
-        block = Number((await retry(async () => (await httpGet(`https://blockscout.scroll.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.result?.blockNumber)));
-    else
-        block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`).catch((e) => {
-            throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
-        }))?.height, { retries: 1 })));
+  try {
+    if (!cache[chain]) cache[chain] = {}
+    if (!cache[chain][timestamp]) cache[chain][timestamp] = _getBlock(timestamp, chain, {})
+    const block = await cache[chain][timestamp]
     if (block) chainBlocks[chain] = block
     return block
-    // https://base.blockscout.com
-    // https://explorer.kava.io
-    //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
+  } catch (e) {
+    console.log('error fetching block' + chain + ' ' + (e as any)?.message)
+    return null
+  }
+}
 
+async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as ChainBlocks) {
+  if (blacklistedChains.includes(chain)) {
+    return null
+  }
+  if (chainBlocks[chain] !== undefined)
+    return chainBlocks[chain]
+
+  let block: number | undefined
+  try {
+    if (chain === CHAIN.WAVES)
+      timestamp = Math.floor(timestamp * 1000)
+
+    if (chain === CHAIN.TON)
+      block = await getTonBlock(timestamp)
+    else if (chain === CHAIN.CHIA)
+      block = await getChiaBlock(timestamp)
+    else
+      block = await sdk.blocks.getBlockNumber(chain, timestamp)
+  } catch (e) {
+    console.log('error fetching block', e)
+  }
+
+  if (block) {
+    chainBlocks[chain] = block
+    return block
+  }
+
+  block = Number((await retry(async () => (await httpGet(`https://coins.llama.fi/block/${chain}/${timestamp}`, { timeout: 10000 }).catch((e) => {
+    throw new Error(`Error getting block: ${chain} ${timestamp} ${e.message}`)
+  }))?.height, { retries: 1 })));
+
+  if (block) chainBlocks[chain] = block
+  return block
+  // https://base.blockscout.com
+  // https://explorer.kava.io
+  //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
+
+}
+
+async function getTonBlock(unixTS: number) {
+  const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
+  return data.result.seqno
+}
+
+/**
+ * Resolves a unix timestamp to the nearest Chia block height via the spacescan API.
+ * Retries with backoff to ride out the free-tier rate limit (5 req/min).
+ */
+async function getChiaBlock(unixTS: number) {
+  // spacescan returns the nearest block to the timestamp (number is a string).
+  // Retry with backoff as insurance against rate-limit bursts during backfill.
+  const res = await retry(
+    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`, {
+      headers: { "x-api-key": getEnv("SPACESCAN_API_KEY") },
+    }),
+    { retries: 3, minTimeout: 6000 }
+  )
+  const block = Number(res.data.number)
+  if (!Number.isFinite(block)) throw new Error(`Chia: invalid block for timestamp ${unixTS}`)
+  return block
 }
 
 async function getBlocks(chain: Chain, timestamps: number[]) {
-    return Promise.all(timestamps.map(t => getBlock(t, chain, {})))
+  return Promise.all(timestamps.map(t => getBlock(t, chain, {})))
 }
 
-const canGetBlock = (chain: string) => Object.keys(providers).includes(chain)
+const canGetBlock = (chain: string) => Object.keys(sdk.api2.config.providers).includes(chain)
+
+async function getHydrationBlock(unixTs: number) {
+  const data = await httpPost('https://hydration.api.subscan.io/api/scan/block', {
+    "block_timestamp": unixTs,
+    "only_head": true
+  })
+  return data.data.block_num
+}
 
 export {
-    getBlock,
-    canGetBlock,
-    getBlocks
+  getBlock,
+  canGetBlock,
+  getBlocks,
+  getHydrationBlock,
 }

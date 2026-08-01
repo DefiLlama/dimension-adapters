@@ -1,0 +1,175 @@
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
+import fetchURL from "../../utils/fetchURL";
+
+// Hylo Protocol fee accounts
+const HYUSD_FEE_ACCOUNT = "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS";
+const JITOSOL_FEE_ACCOUNT = "FpLaqELxKRm6S3bjfNSknwZu43TL89VYkwuMDwsRMj59";
+const HYLOSOL_FEE_ACCOUNT = "CZbazc6YTRC9QyvxqPJpmerChyuzEHAdX854CB7PbQGb";
+
+const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
+const JITOSOL_MINT = "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn";
+const HYLOSOL_MINT = "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT";
+
+const fetchFromApi = async (options: FetchOptions) => {
+  const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const to_date = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10);
+
+  // includes v2 fees, to verify data on chain: Bz6Xsr7vTo2oSFxjmJVpoC4bVNGVpP5egbdVk4Jeu1JZ, oacVCceELzvyK944xDJaMGhVKzwkaY9yBHw2uifhLJ8
+  const url = `https://api.hylo.so/activity/volumes?from=${date}&to=${to_date}`;
+  const res = await fetchURL(url);
+  const row = res?.volumes?.find((v: any) => v.date === date);
+  if (!row) throw new Error(`Hylo API returned no data for ${date}`);
+
+  const dailyRevenue = options.createBalances();
+  const dailyYields = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  // Amounts are decimal strings in human units; convert to raw using token decimals.
+  dailyRevenue.addUSDValue(+row.fee_hyusd); // hyUSD is pegged to $1
+  dailyRevenue.add(JITOSOL_MINT, Math.floor(+row.fee_jitosol * 1e9));
+  dailyRevenue.add(HYLOSOL_MINT, Math.floor(+row.fee_hylosol * 1e9));
+
+  // yield_harvested is denominated in hyUSD (stability pool yields distributed to users)
+  dailyYields.addUSDValue(+row.yield_harvested);
+
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailyYields);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailyYields,
+  };
+};
+
+const fetchFromDune = async (options: FetchOptions) => {
+  const dailyRevenue = options.createBalances();
+  const dailyYields = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  // Query for protocol fees (revenue)
+  const revenueQuery = `
+    SELECT
+      token_mint_address,
+      SUM(amount) AS total_fees,
+      'revenue' AS data_type
+    FROM
+      tokens_solana.transfers
+    WHERE
+      TIME_RANGE
+      AND (
+        (to_owner = '${HYUSD_FEE_ACCOUNT}' AND token_mint_address = '5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E') 
+        OR 
+        (to_owner = '${JITOSOL_FEE_ACCOUNT}' AND token_mint_address = 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn')
+        OR 
+        (to_owner = '${HYLOSOL_FEE_ACCOUNT}' AND token_mint_address = 'hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT')
+        
+      )
+    GROUP BY
+      token_mint_address
+  `;
+
+  // Query for stability pool yields distributed to users
+  const yieldsQuery = `
+    WITH stability_pool_yields AS (
+      SELECT 
+        tx_id,
+        token_mint_address,
+        amount
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND to_owner = '5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd'
+        AND token_mint_address = '5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E'
+        AND from_owner IS NULL  -- Only actual mints
+    ),
+    xsol_transfer_txs AS (
+      SELECT DISTINCT tx_id
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND token_mint_address = '4sWNB8zGWHkh6UnmwiEtzNxL4XrN7uK9tosbESbJFfVs'  -- xSOL
+        AND amount > 0
+    )
+    SELECT 
+      token_mint_address,
+      SUM(amount) AS total_fees,
+      'yield' AS data_type
+    FROM stability_pool_yields s
+    LEFT JOIN xsol_transfer_txs x ON s.tx_id = x.tx_id
+    WHERE x.tx_id IS NULL  -- Exclude transactions with any xSOL transfers
+                           -- This is because stability pool operations also mint/burn hyUSD to this wallet,
+                           -- so if a transaction has xSOL movement it means it's not a yield distribution but just a swap
+    GROUP BY token_mint_address
+  `;
+  // Combine both queries into one to reduce query cost
+  const combinedQuery = `
+    WITH revenue_data AS (
+      ${revenueQuery}
+    ),
+    yields_data AS (
+      ${yieldsQuery}
+    )
+    SELECT * FROM revenue_data
+    UNION ALL 
+    SELECT * FROM yields_data
+  `;
+  const combinedData = await  queryDuneSql(options, combinedQuery)
+  const revenue = combinedData.filter(i => i.data_type === 'revenue');
+  const yields = combinedData.filter(i => i.data_type === 'yield');
+
+  // Process protocol fees (revenue)
+  revenue.forEach((row: any) => {
+    if (row.token_mint_address === '5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E') {
+      // hyUSD is pegged to $1, so we can add it as USD value directly
+      dailyRevenue.addUSDValue(row.total_fees / 1e6); // 6 decimals for hyUSD
+    } else {
+      // For other tokens (like jitoSOL), use automatic price conversion
+      dailyRevenue.add(row.token_mint_address, row.total_fees);
+    }
+  });
+
+  // Process stability pool yields
+  yields.forEach((row: any) => {
+    if (row.token_mint_address === '5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E') {
+      // hyUSD is pegged to $1, so we can add it as USD value directly
+      dailyYields.addUSDValue(row.total_fees / 1e6); // 6 decimals for hyUSD
+    }
+  });
+
+  // Calculate total user fees (revenue + yields)
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailyYields);
+
+  return {
+    dailyRevenue,           // Protocol revenue only
+    dailySupplySideRevenue: dailyYields, // Stability pool yields distributed to users
+    dailyFees          // Protocol revenue + stability pool yields
+  }
+}
+
+const fetch: any = async (options: FetchOptions) => {
+  return fetchFromApi(options);
+  try {
+    return await fetchFromApi(options);
+  } catch (e) {
+    // Fall back to Dune query if the Hylo API is unavailable
+    return await fetchFromDune(options);
+  }
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  start: '2025-04-01',
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Stability pool yields (in hyUSD) distributed to users.",
+    Revenue: "Swap fees, and part of reserve LSTs yield",
+    SupplySideRevenue: "Stability pool yields (in hyUSD) distributed to users.",
+  },
+};
+
+export default adapter;

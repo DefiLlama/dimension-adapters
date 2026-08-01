@@ -10,33 +10,25 @@ interface IVolumeall {
   date: number;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances();
-  const totalVolume = createBalances();
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint(startOfDay))).marketPlaceDayDatas;
-  historicalVolume
-    .filter(volItem => (new Date(volItem.date).getTime()) <= startOfDay)
-    .map(({ dailyVolume }) => totalVolume.addGasToken(dailyVolume))
 
   dailyVolume.addGasToken(historicalVolume
     .find(dayItem => (new Date(dayItem.date).getTime()) === startOfDay)?.dailyVolume)
 
 
   return {
-    timestamp: startOfDay,
-    // totalVolume, 
     dailyVolume,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: 1630584906,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: '2021-09-02',
+  deadFrom: "2025-12-20",
 };
 
 export default adapter;

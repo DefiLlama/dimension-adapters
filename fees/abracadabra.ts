@@ -1,100 +1,108 @@
-import { Adapter, ChainBlocks } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { getBlock } from "../helpers/getBlock";
+import request, { gql } from "graphql-request";
+import { METRIC } from "../helpers/metrics";
 
-
-const endpoints = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-mainnet-fees",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-fantom-fees",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-avalanche-fees",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-binancesmartchain-fees",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/ap0calyp/abracadabra-arbitrum-fees"
+type ChainConfig = {
+  start: string;
+  endpoint: string;
 }
 
-type DataResponse = {
-  startValue: [{
-    accrueInfoFeesEarned: number,
-    accrueInfoFeesWithdrawn: number
-  }]
-  endValue: [{
-    accrueInfoFeesEarned: number,
-    accrueInfoFeesWithdrawn: number
-  }]
+type DailySnapshot = {
+  borrowFeesGenerated: string;
+  interestFeesGenerated: string;
+  liquidationFeesGenerated: string;
 }
 
-const getFees = (data: DataResponse): number => {
-  const startFees = data.startValue.reduce((prev, curr) => {
-    return prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn)
-  }, 0)
-
-  const endFees = data.endValue.reduce((prev, curr) => {
-    return prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn)
-  }, 0)
-  return endFees - startFees;
+type GraphResponse = {
+  protocolDailySnapshots: DailySnapshot[];
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number, _: ChainBlocks) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-      const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+const MIM = "magic-internet-money";
+const BORROW_FEES = "Borrow Fees";
+const BASE_URL = "https://api.studio.thegraph.com/query/56065";
 
-      const startBlock = (await getBlock(todaysTimestamp, chain, {}));
-      const endBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-      const graphQuery = gql
-      `query fees($startBlock: Int!, $endBlock: Int!) {
-        startValue: cauldronFees(block: { number: $startBlock }) {
-          accrueInfoFeesEarned
-          accrueInfoFeesWithdrawn
-        }
-        endValue: cauldronFees(block: { number: $endBlock }) {
-          accrueInfoFeesEarned
-          accrueInfoFeesWithdrawn
-        }
-      }`;
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.ETHEREUM]: { start: "2021-09-01", endpoint: `${BASE_URL}/cauldrons/version/latest` },
+  [CHAIN.OPTIMISM]: { start: "2022-10-28", endpoint: `${BASE_URL}/cauldrons-optimism/version/latest` },
+  [CHAIN.FANTOM]: { start: "2021-09-01", endpoint: `${BASE_URL}/cauldrons-fantom/version/latest` },
+  [CHAIN.KAVA]: { start: "2023-05-01", endpoint: "https://kava.graph.abracadabra.money/subgraphs/name/cauldrons" },
+  [CHAIN.ARBITRUM]: { start: "2021-09-01", endpoint: `${BASE_URL}/cauldrons-arbitrum/version/latest` },
+  [CHAIN.AVAX]: { start: "2021-09-01", endpoint: `${BASE_URL}/cauldrons-avalanche/version/latest` },
+};
 
-      const graphRes: DataResponse = await request(graphUrls[chain], graphQuery, {startBlock, endBlock});
-      const dailyFee = getFees(graphRes);
+const graphQuery = gql`
+  query Fees($timestamp: Int!) {
+    protocolDailySnapshots(where: { timestamp: $timestamp }) {
+      borrowFeesGenerated
+      interestFeesGenerated
+      liquidationFeesGenerated
+    }
+  }
+`;
 
-      const dailyFeeUsd = dailyFee;
-      const dailyRevenue = dailyFeeUsd * .5;
-      return {
-        timestamp,
-        dailyFees: dailyFeeUsd.toString(),
-        dailyRevenue: dailyRevenue.toString(),
-      };
-    };
+const fetch = async (options: FetchOptions) => {
+  const { protocolDailySnapshots } = await request<GraphResponse>(
+    chainConfig[options.chain].endpoint,
+    graphQuery,
+    { timestamp: options.startOfDay },
+  );
+  const snapshot = protocolDailySnapshots[0];
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  if (snapshot) {
+    dailyFees.addCGToken(MIM, Number(snapshot.interestFeesGenerated), METRIC.BORROW_INTEREST);
+    dailyFees.addCGToken(MIM, Number(snapshot.borrowFeesGenerated), BORROW_FEES);
+    dailyFees.addCGToken(MIM, Number(snapshot.liquidationFeesGenerated), METRIC.LIQUIDATION_FEES);
+    dailyRevenue.addCGToken(MIM, Number(snapshot.interestFeesGenerated) / 2, METRIC.PROTOCOL_FEES);
+    dailyRevenue.addCGToken(MIM, Number(snapshot.borrowFeesGenerated) / 2, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.addCGToken(MIM, Number(snapshot.interestFeesGenerated) / 2, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addCGToken(MIM, Number(snapshot.borrowFeesGenerated) / 2, BORROW_FEES);
+    dailySupplySideRevenue.addCGToken(MIM, Number(snapshot.liquidationFeesGenerated), METRIC.LIQUIDATION_FEES);
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
+const methodology = {
+  Fees: "Daily fees generated by Abracadabra Cauldrons, including interest, borrow/opening fees, and liquidation fees reported by Abracadabra analytics subgraphs.",
+  Revenue: "50% of Cauldron interest and borrow/opening fees retained by the Abracadabra protocol. Liquidation fees are excluded as they are paid to liquidators.",
+  ProtocolRevenue: "50% of Cauldron interest and borrow/opening fees retained by the Abracadabra protocol. Liquidation fees are excluded as they are paid to liquidators.",
+  SupplySideRevenue: "50% of Cauldron interest and borrow/opening fees distributed to lenders and fee recipients, plus 100% of liquidation fees paid to liquidators.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest fees generated by Abracadabra Cauldrons.",
+    [BORROW_FEES]: "Borrow/opening fees generated when users borrow from Cauldrons.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation fees generated by Cauldron liquidations.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "50% of interest and borrow/opening fees retained by the Abracadabra protocol.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "50% of interest and borrow/opening fees retained by the Abracadabra protocol.",
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "50% of interest fees distributed to lenders and fee recipients.",
+    [BORROW_FEES]: "50% of borrow/opening fees distributed to lenders and fee recipients.",
+    [METRIC.LIQUIDATION_FEES]: "100% of liquidation fees paid to liquidators.",
+  },
+};
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-        fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-        start: 1630468800,
-    },
-    [CHAIN.FANTOM]: {
-        fetch: graphs(endpoints)(CHAIN.FANTOM),
-        start: 1630468800,
-    },
-    [CHAIN.AVAX]: {
-        fetch: graphs(endpoints)(CHAIN.AVAX),
-        start: 1630468800,
-    },
-    [CHAIN.BSC]: {
-        fetch: graphs(endpoints)(CHAIN.BSC),
-        start: 1630468800,
-    },
-    [CHAIN.ARBITRUM]: {
-        fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: 1630468800,
-    },
-  }
-}
+  version: 1,
+  adapter: chainConfig,
+  fetch,
+  methodology,
+  breakdownMethodology,
+};
 
 export default adapter;

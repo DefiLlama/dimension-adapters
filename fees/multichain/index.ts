@@ -1,7 +1,6 @@
-import { Adapter } from "../../adapters/types";
-// import { BSC, FANTOM, OPTIMISM } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
 
 const stableStatsUrl = "https://bridgeapi.anyswap.exchange/data/stats/stable";
 const statsUrl = "https://bridgeapi.anyswap.exchange/data/stats";
@@ -11,28 +10,22 @@ interface IStats {
   allfee: string;
 };
 
-const fetch = async (timestamp: number) => {
-  const stats: IStats[] = (await Promise.all([fetchURL(stableStatsUrl),fetchURL(statsUrl)]))
-  const fees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.h24fee), 0);
-  const totalFees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.allfee), 0);
+const fetch = async (_options: FetchOptions) => {
+  const stats: IStats[] = (await Promise.all([fetchURL(stableStatsUrl), fetchURL(statsUrl)]))
+  const fees = stats.reduce((prev: number, curr: IStats) => prev + Number(curr.h24fee), 0);
+
   return {
-    timestamp,
-    totalFees: totalFees.toString(),
-    dailyFees: fees.toString(),
-    totalRevenue: "0",
+    dailyFees: fees,
     dailyRevenue: "0",
   };
 };
 
 
 const adapter: Adapter = {
-  adapter: {
-    ["anyswap"]: {
-        fetch: fetch,
-        runAtCurrTime: true,
-        start: 0,
-    },
-  },
+  version: 1,
+  fetch,
+  chains: ['anyswap'],
+  runAtCurrTime: true,
 }
 
 export default adapter;

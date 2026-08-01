@@ -1,58 +1,59 @@
-import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { httpGet, fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import PromisePool from "@supercharge/promise-pool";
 
-var lighterV2VolumeEndpoint =
-  "https://api.lighter.xyz/v2/volume?blockchain_id=42161";
+const chainConfig: Record<string, { api: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: {
+    api: "https://mainnet.zklighter.elliot.ai/api/v1",
+    start: "2025-01-17",
+  },
+};
 
-interface IVolumeall {
-  totalVolume: number;
-  dailyVolume: number;
-}
+const fetch = async (options: FetchOptions) => {
+  let dailyVolume = 0;
+  const start = options.startOfDay;
+  const { api } = chainConfig[options.chain];
 
-const marketurl = "https://api.lighter.xyz/v2/order_book_metas?blockchain_id=42161";
-interface IMarket {
-  id: string;
-  symbol: string;
-}
+  // Get all markets
+  const markets = await httpGet(`${api}/orderBooks?market_id=255`);
+  options.api.log('Lighter markets #', markets?.order_books?.length || 0);
 
-interface ICandlesticks {
-  volume0: number;
-  volume1: number;
-  close: number;
-  timestamp: number;
-}
+  // Filter markets to only include those with market_id < 2048
+  const filteredMarkets = markets.order_books.filter(({ market_id }: any) => market_id < 2048);
+  options.api.log('Filtered markets (market_id < 2048) #', filteredMarkets?.length || 0);
 
-const url = (symbol: string, end:  number) => `https://api.lighter.xyz/v2/candlesticks?blockchain_id=42161&order_book_symbol=${symbol}&resolution=1d&start_timestamp=1697144400&end_timestamp=${end}&count_back=100`
-const fetchV2 = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  lighterV2VolumeEndpoint = lighterV2VolumeEndpoint.concat(
-    `&timestamp=${dayTimestamp}`
-  );
+  await PromisePool.withConcurrency(1)
+    .for(filteredMarkets)
+    .process(async ({ market_id }: any) => {
+      const params = {
+        market_id,
+        resolution: "1d",
+        start_timestamp: start,
+        end_timestamp: start + 1,
+        count_back: 1,
+      }
+      const url = `${api}/candles?${new URLSearchParams(params as any).toString()}`;
+      const data = await fetchURLAutoHandleRateLimit(url);
 
-  const result: IVolumeall = (await fetchURL(lighterV2VolumeEndpoint));
-  const markets = (await fetchURL(marketurl)) as IMarket[]
-  const res = (await Promise.all(markets.map(async ({ symbol }) => fetchURL(url(symbol, dayTimestamp + 86400)))))
-    .map((res) => res)
-    .map((res) => res.candlesticks).flat() as ICandlesticks[]
-  const dailyVolume = res.filter(e => e.timestamp === dayTimestamp)
-    .reduce((acc, { volume0, close }) => acc + (volume0) * close, 0)
+      const candle = data?.c?.[0];
+      if (!candle) return;
 
-  return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    totalVolume: result ? `${result.totalVolume}` : undefined,
-    timestamp: dayTimestamp,
-  };
+        dailyVolume += Number(candle.V || 0); // already in $;
+      });
+
+  return { dailyVolume, };
+};
+
+const methodology = {
+  Volume:
+    "Daily trading volume is taken from Lighter's candlestick API (`resolution=1d`). `volume1` is already reported in USD notional.",
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchV2,
-      start: 1697144400,
-    },
-  },
+  fetch,
+  adapter: chainConfig,
+  methodology,
 };
 
 export default adapter;

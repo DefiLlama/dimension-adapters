@@ -1,0 +1,134 @@
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
+import { ethers } from "ethers";
+
+const CONFIG = {
+  PoolFactory: "0xDa12F450580A4cc485C3b501BAB7b0B3cbc3B31B",
+};
+
+const event_topics = {
+  swap: "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+};
+
+const eventAbis = {
+  event_pool_created:
+    "event PairCreated(address indexed token0,address indexed token1,bool stable,address pair,uint)",
+  event_swap:
+    "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)",
+};
+
+const abis = {
+  fees: "function getFee(address pool, bool _stable) external view returns (uint256)",
+};
+
+
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const [toBlock, fromBlock] = await Promise.all([
+    options.getToBlock(),
+    options.getFromBlock(),
+  ]);
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  const rawPoolsData = await options.getLogs({
+    target: CONFIG.PoolFactory,
+    fromBlock: 28543,
+    toBlock,
+    eventAbi: eventAbis.event_pool_created,
+  });
+  const rawPools = rawPoolsData.map((i) => {
+    return {
+      token0: i[0],
+      token1: i[1],
+      stable: i[2],
+      pool: i[3],
+    };
+  });
+  const fees = await options.api.multiCall({
+    abi: abis.fees,
+    target: CONFIG.PoolFactory,
+    calls: rawPools.map((i) => ({
+      params: [i.pool, i.stable],
+    })),
+  });
+  const poolInfoMap = {} as any;
+  const kittenswapPoolSet = new Set();
+  rawPools.forEach(({ token0, token1, stable, pool }, index) => {
+    pool = pool.toLowerCase();
+    const fee = fees[index] / 1e4;
+    poolInfoMap[pool] = { token0, token1, stable, fee };
+    kittenswapPoolSet.add(pool);
+  });
+
+  const logs = await options.getLogs({
+    noTarget: true,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.event_swap,
+    topics: [event_topics.swap],
+    entireLog: true,
+  });
+  const iface = new ethers.Interface([eventAbis.event_swap]);
+
+  logs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase();
+    if (!kittenswapPoolSet.has(pool)) return;
+    const parsedLog = iface.parseLog(log);
+    const { token0, token1, fee } = poolInfoMap[pool];
+    const amount0 =
+      Number(parsedLog!.args.amount0In) +
+      Number(parsedLog!.args.amount0Out);
+    const amount1 =
+      Number(parsedLog!.args.amount1In) +
+      Number(parsedLog!.args.amount1Out);
+    const fee0 = amount0 * fee;
+    const fee1 = amount1 * fee;
+    addOneToken({
+      chain: options.chain,
+      balances: dailyVolume,
+      token0,
+      token1,
+      amount0,
+      amount1,
+    });
+    addOneToken({
+      chain: options.chain,
+      balances: dailyFees,
+      token0,
+      token1,
+      amount0: fee0,
+      amount1: fee1,
+    });
+  });
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: 0,
+  };
+};
+
+const methodology = {
+  Fees: "All swap fees paid by traders across kittenswap pools.",
+  UserFees: "All swap fees paid by traders.",
+  Revenue: "100% of swap fees — the protocol retains the full fee to redistribute to voters.",
+  ProtocolRevenue: "Zero. Under ve(3,3) the treasury takes no cut of swap fees.",
+  HoldersRevenue: "100% of swap fees are distributed weekly to veKITTEN voters/holders.",
+  SupplySideRevenue: "Zero. Liquidity providers are rewarded with KITTEN emissions (incentives), not swap fees.",
+};
+
+const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: "2025-02-18",
+  methodology,
+};
+
+export default adapters;

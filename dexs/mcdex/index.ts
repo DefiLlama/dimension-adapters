@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://stats.mux.network/api/public/dashboard/e1134798-4660-489f-a45a-45d9adb05918/dashcard/14/card/15?parameters=[]"
@@ -24,38 +23,9 @@ const chainsMap: chains = {
   [CHAIN.FANTOM]: "Trading - Fantom"
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
-
-    const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
-      const [time, title, volume] = e;
-      return {
-        time,
-        volume,
-        title
-      } as IVolumeall;
-    });
-
-    const historical = historicalVolume.filter((e: IVolumeall)  => e.title === chainsMap[chain]);
-    const totalVolume = historical
-      .filter(volItem => getUniqStartOfTodayTimestamp(new Date(volItem.time)) <= dayTimestamp)
-      .reduce((acc, { volume }) => acc + Number(volume), 0)
-
-    const dailyVolume = historical
-      .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
-
-    return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      timestamp: dayTimestamp,
-    };
-  }
-};
-
-const getStartTimestamp = async (chain: Chain) => {
+const fetch = async (options: FetchOptions) => {
   const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint))?.data.rows;
+
   const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
     const [time, title, volume] = e;
     return {
@@ -65,19 +35,21 @@ const getStartTimestamp = async (chain: Chain) => {
     } as IVolumeall;
   });
 
-  const historicalCall = historicalVolume.filter((e: IVolumeall)  => e.title === chainsMap[chain]);
-  const historical = historicalCall.sort((a: IVolumeall,b: IVolumeall)=> new Date(a.time).getTime() - new Date(b.time).getTime());
-  return (new Date(historical[0].time).getTime()) / 1000
-}
+  const historical = historicalVolume.filter((e: IVolumeall) => e.title === chainsMap[options.chain]);
+  const dailyVolume = historical
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === options.startOfDay)?.volume
+
+  return {
+    dailyVolume: dailyVolume,
+  };
+};
 
 const adapter: SimpleAdapter = {
   adapter: Object.keys(chainsMap).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
-        fetch: fetch(chain as Chain),
-        start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, fetch),
+        fetch,
       }
     }
   }, {})

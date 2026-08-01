@@ -1,59 +1,65 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const thalaDappURL = 'https://app.thala.fi';
-const volumeQueryURL = `${thalaDappURL}/api/trading-volume-chart?timeframe=`;
-const feesQueryURL = `${thalaDappURL}/api/trading-fee-chart?timeframe=`;
-const protocolRatioQueryURL = `${thalaDappURL}/api/protocol-revenue-ratio`;
+const thalaDappURL = "https://app.thala.fi";
+const volumeQueryURL = `${thalaDappURL}/api/defillama/trading-volume-chart?timeframe=`;
+const feesQueryURL = `${thalaDappURL}/api/defillama/trading-fee-chart?timeframe=`;
+const revenueQueryURL = `${thalaDappURL}/api/defillama/protocol-revenue-chart?project=thalaswap&timeframe=`;
 
-const volumeEndpoint = (endTimestamp: number, timeframe: string) => 
-endTimestamp ? volumeQueryURL + timeframe + `&endTimestamp=${endTimestamp}` : volumeQueryURL + timeframe;
+const volumeEndpoint = (endTimestamp: number, timeframe: string) =>
+  endTimestamp
+    ? volumeQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
+    : volumeQueryURL + timeframe;
 
-const feesEndpoint = (endTimestamp: number, timeframe: string) => 
-endTimestamp ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}` : feesQueryURL + timeframe;
+const feesEndpoint = (endTimestamp: number, timeframe: string) =>
+  endTimestamp
+    ? feesQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
+    : feesQueryURL + timeframe;
+
+const revenueEndpoint = (endTimestamp: number, timeframe: string) =>
+  endTimestamp
+    ? revenueQueryURL + timeframe + `&endTimestamp=${endTimestamp}`
+    : revenueQueryURL + timeframe;
 
 interface IVolumeall {
   value: number;
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
-    const dayVolumeQuery = (await fetchURL(volumeEndpoint(timestamp, "1D"))).data;
-    const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+const fetch = async (options: FetchOptions) => {
+  const dayVolumeQuery = (await fetchURL(volumeEndpoint(options.toTimestamp, "1D")))?.data;
+  const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalVolumeQuery = (await fetchURL(volumeEndpoint(0, "ALL"))).data;
-    const totalVolume = totalVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const dayFeesQuery = (await fetchURL(feesEndpoint(timestamp, "1D"))).data;
-    const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dayFeesQuery = (await fetchURL(feesEndpoint(options.toTimestamp, "1D")))?.data;
+  const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
-    const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL"))).data;
-    const totalFees = totalFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
-    
-    const protocolFeeRatio = (await fetchURL(protocolRatioQueryURL)).data;
-    const dailyProtocolRevenue = dailyFees * protocolFeeRatio;
-    const totalProtocolRevenue = totalFees * protocolFeeRatio;
+
+  const dayRevenueQuery = (await fetchURL(revenueEndpoint(options.toTimestamp, "1D")))?.data;
+  const dailyRevenue = dayRevenueQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: `${dailyVolume}`,
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    totalProtocolRevenue: `${totalProtocolRevenue}`,
-    dailyProtocolRevenue: `${dailyProtocolRevenue}`,
-    timestamp,
+    dailyVolume: dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailyFees - dailyRevenue,
   };
 };
 
+const methodology = {
+  Volume: "Trading volume across all ThalaSwap pools, summed from the protocol's trading-volume API.",
+  Fees: "Total swap fees paid by traders (0.05% on stable pools, 0.15% on weighted pools, up to 1% on LBPs), summed from the protocol's trading-fee API.",
+  Revenue: "The protocol's cut of swap fees that accrues to the treasury, from the protocol's protocol-revenue API.",
+  SupplySideRevenue: "The portion of swap fees that accrues to liquidity providers, computed as total fees minus protocol revenue.",
+};
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: 1680652406 
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2023-04-05",
+  methodology,
 };
 
 export default adapter;

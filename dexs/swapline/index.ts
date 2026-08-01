@@ -10,7 +10,7 @@ interface IVolumeall {
   date: number;
 }
 
-const fetch = async (_timestamp: number , _: ChainBlocks, { startOfDay,api, createBalances }: FetchOptions) => {
+const fetch = async ({ startOfDay,api, createBalances }: FetchOptions) => {
   const dayTimestamp = startOfDay
   const dailyVolume = createBalances();
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + api.getChainId()))[0]?.chainEntries;
@@ -24,7 +24,7 @@ const fetch = async (_timestamp: number , _: ChainBlocks, { startOfDay,api, crea
   }
 }
 
-const fetchObject = { fetch, start:1680048000 }
+const fetchObject = { fetch, start: '2023-03-29' }
 
 const adapter: SimpleAdapter = {
   adapter: {

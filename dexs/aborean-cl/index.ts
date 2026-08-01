@@ -1,0 +1,148 @@
+import * as sdk from '@defillama/sdk';
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from '../../helpers/prices';
+import { ethers } from "ethers";
+import { handleBribeToken } from "../aborean/utils";
+
+const CONFIG = {
+  factory: '0x8cfE21F272FdFDdf42851f6282c0f998756eEf27',
+  voter: '0xC0F53703e9f4b79fA2FB09a2aeBA487FA97729c9',
+  GaugeFactory: '0xF0361d1aD99971791C002E9c281B18739e9abad8'
+}
+
+
+const eventAbis = {
+  event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
+  event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
+  event_gaugeCreated: 'event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)',
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)',
+  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)',
+}
+
+const abis = {
+  fee: 'uint256:fee'
+}
+
+
+const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
+  const { createBalances, getLogs, startTimestamp } = fetchOptions
+  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
+
+  const dailyBribesRevenue = createBalances()
+  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 20524597, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
+  if (!logs_gauge_created?.length) return { dailyBribesRevenue };
+
+  const bribes_contract: string[] = logs_gauge_created
+    .filter((log) => log[2].toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
+    .map((log) => log[4].toLowerCase())
+  const bribeSet = new Set(bribes_contract)
+
+  const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
+  logs.forEach((log: any) => {
+    const contract = (log.address || log.source).toLowerCase()
+    if (!bribeSet.has(contract)) return;
+    const parsedLog = iface.parseLog(log)
+    const token = parsedLog!.args.reward.toLowerCase()
+    const amount = parsedLog!.args.amount
+
+    // Try to handle pre-launch token conversion
+    handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
+  })
+  return { dailyBribesRevenue }
+}
+
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
+  const { api, createBalances, getToBlock, chain, getLogs } = fetchOptions
+  const dailyVolume = createBalances()
+  const dailyFees = createBalances()
+  const toBlock = await getToBlock()
+
+  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 20524597, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, })
+  const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
+  const fees = await api.multiCall({ abi: abis.fee, calls: _pools })
+  const aeroPoolSet = new Set()
+  const poolInfoMap = {} as any
+  rawPools.forEach(({ token0, token1, pool }, index) => {
+    pool = pool.toLowerCase()
+    const fee = fees[index] / 1e6
+    poolInfoMap[pool] = { token0, token1, fee }
+    aeroPoolSet.add(pool)
+  })
+
+  const iface = new ethers.Interface([eventAbis.event_swap]);
+
+  const logs = await getLogs({
+    noTarget: true,
+    eventAbi: eventAbis.event_swap,
+    entireLog: true,
+  })
+  logs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase()
+    if (!aeroPoolSet.has(pool)) return;
+    const { token0, token1, fee } = poolInfoMap[pool]
+    const parsedLog = iface.parseLog(log)
+    const amount0 = Number(parsedLog!.args.amount0)
+    const amount1 = Number(parsedLog!.args.amount1)
+    const fee0 = amount0 * fee
+    const fee1 = amount1 * fee
+    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+    addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+  })
+
+  const { dailyBribesRevenue } = await getBribes(fetchOptions)
+
+  const dailyRevenue = fetchOptions.createBalances()
+  const dailyHoldersRevenue = fetchOptions.createBalances()
+  const totalFees = fetchOptions.createBalances()
+
+  totalFees.addBalances(dailyFees, 'Token Swap Fees')
+  totalFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
+
+  dailyRevenue.addBalances(dailyFees, 'Token Swap Fees To Holders')
+  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  dailyHoldersRevenue.addBalances(dailyFees, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+
+  return {
+    dailyVolume,
+    dailyFees: totalFees,
+    dailyUserFees: totalFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+  }
+}
+
+const adapters: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ABSTRACT],
+  start: '2025-10-02',
+  methodology: {
+    Fees: "Swap fees paid by users plus external bribes deposited for Aborean concentrated liquidity pools.",
+    UserFees: "Swap fees paid by users plus external bribes deposited for Aborean concentrated liquidity pools.",
+    Revenue: "Swap fees and external bribes distributed to ABR holders.",
+    HoldersRevenue: "Swap fees and external bribes distributed to ABR holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean concentrated liquidity pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean concentrated liquidity pools.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by users on Aborean concentrated liquidity pools.',
+      'Bribes Rewards': 'External bribes deposited for Aborean concentrated liquidity pools.',
+    },
+    Revenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+    HoldersRevenue: {
+      'Token Swap Fees To Holders': 'Swap fees distributed to ABR holders.',
+      'Bribes Revenue': 'External bribes distributed to ABR holders.',
+    },
+  }
+}
+export default adapters;

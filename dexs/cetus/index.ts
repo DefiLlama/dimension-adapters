@@ -1,55 +1,30 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-type IUrl = {
-  [s: string]: string;
-}
+async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
+  if (chain === CHAIN.APTOS && endTimestamp > 1747958400){
+    return { dailyVolume: 0 }
+  }
 
-const url: IUrl = {
-  [CHAIN.APTOS]: "https://api.cetus.zone/v1/histogram?date_type=day&typ=vol",
-  [CHAIN.SUI]: "https://api-sui.cetus.zone/v2/sui/histogram?date_type=day&typ=vol"
-}
+  let list  = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/clmm/histogram?beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&dateType=hour`)).data.list;
 
-interface IVolumeall {
-  num: string;
-  date: string;
-}
+  let dailyVolume = 0;
+  for (const item of list) {
+    dailyVolume += Number(item.value);
+  }
+  // const hackDay = (+new Date('2025-05-22')) / 1e3
+  // if (endTimestamp > hackDay) return { dailyVolume: 0 }  // dex is paused
+  //const dailyVolume = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/vol/time_range?date_type=hour&start_time=${startTimestamp}&end_time=${endTimestamp}`)).data.vol_in_usd;
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolumeall[] = (await fetchURL(url[chain])).data.list;
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.date.split('T')[0]).getTime() / 1000) <= dayTimestamp)
-      .reduce((acc, { num }) => acc + Number(num), 0)
-
-    const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
-
-    return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      timestamp: dayTimestamp,
-    };
-  };
-}
-
-
+  return { dailyVolume };
+};
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetch(CHAIN.APTOS),
-      start: 1666224000,
-    },
-    [CHAIN.SUI]: {
-      fetch: fetch(CHAIN.SUI),
-      start: 1682985600,
-    }
-  },
+  version: 2,
+  fetch,
+  chains: [CHAIN.SUI, CHAIN.APTOS],
+  start: '2023-05-02',
 };
 
 export default adapter;

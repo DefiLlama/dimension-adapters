@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://waves.exchange/api/v1/liquidity_pools/stats"
@@ -13,7 +13,7 @@ interface IAPIResponse {
   volumes: IVolume[];
 };
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_: any) => {
   const response: IAPIResponse[] = (await fetchURL(URL)).items;
   const dailyVolume = response.map(e => e.volumes.filter(p => p.interval === "1d")
     .map(x => x)).flat()
@@ -21,20 +21,14 @@ const fetch = async (timestamp: number) => {
     .reduce((a: number, b: IVolume) => a + Number(b.quote_volume) , 0);
 
   return {
-    dailyVolume: `${dailyVolume}`,
-    timestamp: timestamp,
+    dailyVolume: dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.WAVES]: {
-      fetch,
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    },
-  }
+  fetch,
+  chains: [CHAIN.WAVES],
+  runAtCurrTime: true,
 };
 
 export default adapter;

@@ -1,9 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://pabc.endjgfsv.link/swapv2/scan/getAllLiquidityVolume"
 
@@ -12,20 +9,13 @@ interface IVolumeall {
   time: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).data;
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.time <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
-
   const dailyVolume = historicalVolume
-    .find(dayItem =>dayItem.time === dayTimestamp)?.volume
+    .find(dayItem =>dayItem.time === options.startOfDay)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 };
 
@@ -34,7 +24,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TRON]: {
       fetch,
-      start: 1639440000,
+      start: '2021-12-14',
     },
   },
 };

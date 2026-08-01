@@ -1,12 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from 'graphql-request';
-import { Fetch, SimpleAdapter } from '../../adapters/types';
+import { SimpleAdapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import {
-  getUniqStartOfTodayTimestamp,
-} from '../../helpers/getUniSubgraphVolume';
 
 const ENDPOINTS: { [key: string]: string } = {
-  [CHAIN.XDAI]: 'https://api.thegraph.com/subgraphs/name/bryant11112/mu-beta',
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('7LkMoW2UtUVauMkexF75bowQp2DE6bNB3jUXySYtBp9x'),
 };
 const SDAI_DECIMALS: { [key: string]: number } = {
   [CHAIN.XDAI]: 18,
@@ -25,42 +23,26 @@ const getVolume = gql`
   }
 `;
 
-interface IGraphResponse {
-  id: string,
-  tradeVolume: string,
-  marketDayDatas: Array<{
-    id: string,
-    tradeVolume: string,
-  }>;
-}
-
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayIndex = Math.floor(timestamp / 86400);
-  const { market: response } = await request(ENDPOINTS[chain],
+const fetch = async (options: FetchOptions) => {
+  const dayIndex = Math.floor(options.toTimestamp / 86400);
+  const { market: response } = await request(ENDPOINTS[options.chain],
     getVolume, {
-      id: String(dayIndex),
-    });
+    id: String(dayIndex),
+  });
 
   return {
-    timestamp: getUniqStartOfTodayTimestamp(new Date((timestamp * 1000))),
     dailyVolume:
       response.marketDayDatas.length === 1
         ? (BigInt(response.marketDayDatas[0].tradeVolume) /
-          BigInt(10 ** SDAI_DECIMALS[chain])).toString()
+          BigInt(10 ** SDAI_DECIMALS[options.chain])).toString()
         : undefined,
-    totalVolume: (BigInt(response.tradeVolume) /
-      BigInt(10 ** SDAI_DECIMALS[chain])).toString(),
-
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.XDAI]: {
-      fetch: getFetch(CHAIN.XDAI),
-      start: 1699488000,
-    },
-  },
+  fetch,
+  chains: [CHAIN.XDAI],
+  start: '2023-11-09',
 };
 
 export default adapter;

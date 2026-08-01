@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TMarketPlaceAddress = {
@@ -16,51 +16,44 @@ const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.LINEA]: '0x1A7b46C660603EBB5FBe3AE51e80AD21dF00bDd1'
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = createBalances()
-    const dailyRevenue = createBalances();
-    (await getLogs({
-      target: marketplace_address[chain],
-      eventAbi: 'event ZonicBasicOrderFulfilled (address offerer, address buyer, address token, uint256 identifier, address currency, uint256 totalPrice, uint256 creatorFee, uint256 marketplaceFee, address saleId)'
-    })).forEach((e: any) => {
-      dailyFees.addGasToken(e.marketplaceFee)
-      dailyFees.addGasToken(e.creatorFee)
-      dailyRevenue.addGasToken(e.marketplaceFee)
-    })
-    return { dailyFees, dailyRevenue, timestamp }
-  }
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances();
+  (await getLogs({
+    target: marketplace_address[chain],
+    eventAbi: 'event ZonicBasicOrderFulfilled (address offerer, address buyer, address token, uint256 identifier, address currency, uint256 totalPrice, uint256 creatorFee, uint256 marketplaceFee, address saleId)'
+  })).forEach((e: any) => {
+    dailyFees.addGasToken(e.marketplaceFee)
+    dailyFees.addGasToken(e.creatorFee)
+    dailyRevenue.addGasToken(e.marketplaceFee)
+  })
+  return { dailyFees, dailyRevenue, }
 }
 
 const adapter: Adapter = {
+  fetch,
+  deadFrom: "2024-04-21",
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM_NOVA]: {
-      fetch: fetch(CHAIN.ARBITRUM_NOVA),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ERA]: {
-      fetch: fetch(CHAIN.ERA),
-      start: 1679961600,
+      start: '2023-03-28',
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetch(CHAIN.POLYGON_ZKEVM),
-      start: 1679961600,
+      start: '2023-03-28',
     },
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: 1692662400,
+      start: '2023-08-22',
     },
     [CHAIN.LINEA]: {
-      fetch: fetch(CHAIN.LINEA),
-      start: 1692662400,
+      start: '2023-08-22',
     }
   }
 }

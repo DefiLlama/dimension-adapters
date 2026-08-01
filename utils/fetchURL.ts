@@ -1,4 +1,7 @@
 import axios, { AxiosRequestConfig } from "axios"
+import { sleep } from "./utils"
+import { getEnv } from "../helpers/env"
+import https from 'https';
 
 export default async function fetchURL(url: string, retries = 3) {
   try {
@@ -10,12 +13,12 @@ export default async function fetchURL(url: string, retries = 3) {
   }
 }
 
-export async function postURL(url: string, data: any, retries = 3) {
+export async function postURL(url: string, data: any, retries = 3, options?: AxiosRequestConfig) {
   try {
-    const res = await httpPost(url, data)
+    const res = await httpPost(url, data, options)
     return res
   } catch (error) {
-    if (retries > 0) return postURL(url, data, retries - 1)
+    if (retries > 0) return postURL(url, data, retries - 1, options)
     throw error
   }
 }
@@ -43,13 +46,58 @@ export async function httpGet(url: string, options?: AxiosRequestConfig, { withM
   }
 }
 
-export async function httpPost(url: string, data: any, options?: AxiosRequestConfig) {
+export async function httpPost(url: string, data: any, options?: AxiosRequestConfig, { withMetadata = false } = {}) {
   try {
     const res = await axios.post(url, data, options)
     if (!successCodes.includes(res.status)) throw new Error(`Error fetching ${url}: ${res.status} ${res.statusText}`)
     if (!res.data) throw new Error(`Error fetching ${url}: no data`)
     return res.data
   } catch (error) {
+    if (withMetadata) throw error
     throw formAxiosError(url, error, { method: 'POST' })
+  }
+}
+
+export async function fetchURLAutoHandleRateLimit(url: string, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await httpGet(url)
+    } catch (error) {
+      if (i < retries - 1) {
+        await sleep(5000)
+      } else {
+        throw error
+      }
+    }
+  }
+}
+
+
+export async function proxiedFetch(url: string) {
+  const authInfo = getEnv('PROXY_AUTH')
+  if (!authInfo) return httpGet(url)
+
+  const [host, username, password] = authInfo.split(':')
+
+  try {
+
+    const client = axios.create({
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+    });
+    const { data } = await client
+      .get(url.toString(), {
+        proxy: {
+          protocol: "https",
+          host,
+          port: 8000,
+          auth: { username, password },
+        },
+      })
+    return data
+  } catch (error) {
+    console.error(`Error fetching ${url} through proxy:`, error)
+    return httpGet(url)
   }
 }

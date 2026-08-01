@@ -1,6 +1,5 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { httpGet } from "../utils/fetchURL";
 
 const API_URL = "https://sns-api.bonfida.com/v2/defilama/fees-adapter";
@@ -10,17 +9,12 @@ interface IData {
   total_fees: number;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
-  const url = `${API_URL}?from=${todaysTimestamp}&to=${timestamp}`;
+const fetch = async ({fromTimestamp, toTimestamp}: FetchOptions): Promise<FetchResultFees> => {
+  const url = `${API_URL}?from=${fromTimestamp}&to=${toTimestamp}`;
   const data: IData = await httpGet(url);
   return {
-    timestamp: todaysTimestamp,
-    dailyFees: data.daily_fees.toString(),
-    dailyRevenue: data.daily_fees.toString(),
-    totalFees: data.total_fees.toString(),
-    totalRevenue: data.total_fees.toString(),
+    dailyFees: data.daily_fees,
+    dailyRevenue: data.daily_fees,
   };
 };
 
@@ -30,15 +24,10 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: 1624941677,
-      meta: {
-        methodology,
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2021-06-29',
+  methodology,
 };
 
 export default adapter;

@@ -1,11 +1,4 @@
-// import { Chain } from "@defillama/sdk/build/general"
-// import { FetchResultFees, SimpleAdapter } from "../adapters/types"
-// import { getBlock } from "../helpers/getBlock"
-// import * as sdk from "@defillama/sdk";
-// import { CHAIN } from "../helpers/chains";
-// import { getPrices } from "../utils/prices";
-
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -36,92 +29,151 @@ const fetchApi = async (from_timestamp: number) => {
 }
 
 
-const fetchFees = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const fromTimestamp = timestamp - 60 * 60 * 24
-    const data: IData[] = await fetchApi(fromTimestamp);
-    const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-    const dailyItem: IData | undefined = data.find((e: IData) => e.datetime.split('T')[0] === dateString)
-    const result: IData = dailyItem || { datetime: '', items: [] };
-    const dailyFees = result.items.filter((e: Item) => e.chain === chain)
-      .reduce((a: number, b: Item) => a + b.total_fees, 0);
-    const dailyRevenue = result.items.filter((e: Item) => e.chain === chain)
-      .reduce((a: number, b: Item) => a + b.total_revenue, 0);
-    return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyRevenue}`,
-      timestamp
-    }
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const fromTimestamp = options.toTimestamp - 60 * 60 * 24
+  const data: IData[] = await fetchApi(fromTimestamp);
+  const dailyItem: IData | undefined = data.find((e: IData) => e.datetime.split('T')[0] === options.dateString)
+  const result: IData = dailyItem || { datetime: '', items: [] };
+  const dailyFees = result.items.filter((e: Item) => e.chain === options.chain)
+    .reduce((a: number, b: Item) => a + b.total_fees, 0);
+  const dailyRevenue = result.items.filter((e: Item) => e.chain === options.chain)
+    .reduce((a: number, b: Item) => a + b.total_revenue, 0);
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 
+
+const breakdownMethodology = {
+  Fees: {
+    'LP management fees': 'Performance and management fees charged on liquidity provider positions managed by Gamma across all integrated DEXs'
+  },
+  Revenue: {
+    'Protocol revenue': 'All management fees collected are retained by Gamma Protocol'
+  },
+  ProtocolRevenue: {
+    'Protocol revenue': 'All management fees collected are retained by Gamma Protocol'
+  }
+};
+
 const adapter: SimpleAdapter = {
+  fetch,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
-      start: 1682121600,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchFees(CHAIN.POLYGON),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetchFees(CHAIN.POLYGON_ZKEVM),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
-      start: 1682121600,
+      start: '2023-04-22',
+    },
+    [CHAIN.ARBITRUM]: {
+      start: '2023-04-22',
     },
     [CHAIN.BSC]: {
-      fetch: fetchFees("binance"),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.MOONBEAM]: {
-      fetch: fetchFees("moonbeam"),
-      start: 1682121600,
+      start: '2023-04-22',
+    },
+    [CHAIN.CELO]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.AVAX]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.FANTOM]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.MANTLE]: {
+      start: '2023-04-22',
     },
     [CHAIN.ROLLUX]: {
-      fetch: fetchFees(CHAIN.ROLLUX),
-      start: 1682121600,
+      start: '2023-04-22',
     },
     [CHAIN.LINEA]: {
-      fetch: fetchFees(CHAIN.LINEA),
-      start: 1682121600,
+      start: '2023-04-22',
     },
-     [CHAIN.MANTA]: {
-      fetch: fetchFees("manta"),
-      start: 1682121600,
+    [CHAIN.BASE]: {
+      start: '2023-04-22',
     },
-     [CHAIN.BASE]: {
-      fetch: fetchFees("base"),
-      start: 1682121600,
+    [CHAIN.KAVA]: {
+      start: '2023-04-22',
     },
-     [CHAIN.AVAX]: {
-      fetch: fetchFees("avalanche"),
-      start: 1682121600,
+    [CHAIN.OP_BNB]: {
+      start: '2023-04-22',
     },
-     [CHAIN.XDAI]: {
-      fetch: fetchFees("gnosis"),
-      start: 1682121600,
+    [CHAIN.MANTA]: {
+      start: '2023-04-22',
     },
-     [CHAIN.MANTLE]: {
-      fetch: fetchFees("mantle"),
-      start: 1682121600,
+    [CHAIN.METIS]: {
+      start: '2023-04-22',
     },
-     [CHAIN.CELO]: {
-      fetch: fetchFees("celo"),
-      start: 1682121600,
+    [CHAIN.XDAI]: {
+      start: '2023-04-22',
     },
-     [CHAIN.METIS]: {
-      fetch: fetchFees("metis"),
-      start: 1682121600,
+    // [CHAIN.ASTRZK]: {
+    //   start: '2023-04-22',
+    // },
+    [CHAIN.IMX]: {
+      start: '2023-04-22',
     },
-  }
+    [CHAIN.SCROLL]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.BLAST]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.XLAYER]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.MODE]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.TAIKO]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.ROOTSTOCK]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.SEI]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.IOTAEVM]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.CORE]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.ZIRCUIT]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.WC]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.APECHAIN]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.SONIC]: {
+      start: '2023-04-22',
+    },
+    [CHAIN.BOB]: {
+      start: '2023-04-22',
+    },
+  },
+  methodology: {
+    Fees: 'All yields are generated from liquidity providers.',
+    Revenue: 'All yields are distributed to Gamma Protocol.',
+    ProtocolRevenue: 'All yields are distributed to Gamma Protocol.',
+  },
+
 }
 
 export default adapter;

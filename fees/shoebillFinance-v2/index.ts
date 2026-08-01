@@ -12,26 +12,34 @@ const unitrollers = {
   ]
 }
 
-const fetch: any = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (options: FetchOptions) => {
   const { chain, createBalances, } = options
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   for (const market of unitrollers[chain]) {
     await getFees(market, options, { dailyFees, dailyRevenue, abis: { reserveFactor: "uint256:reserveFactorMantissa", } });
   }
-  return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, };
 };
 
 const adapter: Adapter = {
+  version: 2,
+  methodology: {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "Share of interest into protocol governance token holders.",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+  },
   adapter: {
     [CHAIN.MANTA]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
     },
     [CHAIN.WEMIX]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
     }
   },

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -16,31 +16,26 @@ export const lyraVolumeEndpoint = (endTime: number) => {
 
 export const v2_adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.LYRA]: {
       fetch: fetchLyraVolumeData,
-      start: 1702630075
+      start: '2023-12-15'
     },
   },
 };
 
 export async function fetchLyraVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
-  let timestamp_in_ms = timestamp * 1000
+  let timestamp_in_ms = options.toTimestamp * 1000
   const lyraVolumeData = await getLyraVolumeData(lyraVolumeEndpoint(timestamp_in_ms));
 
-  const dailyNotionalVolume = Number(lyraVolumeData.daily_notional_volume).toFixed(2);
-  const dailyPremiumVolume =  Number(lyraVolumeData.daily_premium_volume).toFixed(2);
-  const totalNotionalVolume = Number(lyraVolumeData.total_notional_volume).toFixed(2);
-  const totalPremiumVolume = Number(lyraVolumeData.total_premium_volume).toFixed(2);
+  const dailyNotionalVolume = lyraVolumeData.daily_notional_volume
+  const dailyPremiumVolume =  lyraVolumeData.daily_premium_volume
 
   return {
-    timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 

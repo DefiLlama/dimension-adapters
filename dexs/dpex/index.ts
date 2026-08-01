@@ -1,11 +1,10 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/dpex-io/core",
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('2k6i4iv8DHfp7ZdimWZvc4jGY3NR5oPeAaDx43zszuUj'),
 }
 
 const historicalDataSwap = gql`
@@ -26,42 +25,19 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: `${String(dayTimestamp)}:daily`,
+const fetch = async (options: FetchOptions) => {
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDataSwap, {
+    id: `${String(options.startOfDay)}:daily`,
     period: 'daily',
-  })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
+  });
 
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : '0',
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
-  }
-}
-
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.POLYGON]: 1667520000,
+  return { dailyVolume: dailyData.volumeStats.length == 1 ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30) : '0' };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.POLYGON),
-      start: startTimestamps[CHAIN.POLYGON],
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2022-11-04',
 };
 
 export default adapter;

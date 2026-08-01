@@ -1,8 +1,5 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.paycashswap.com/"
@@ -17,32 +14,29 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
+  const dayString = new Date(options.toTimestamp * 1000).toISOString().split('T')[0]
   const historicalVolume: IVolumeall[] = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + Number(value), 0)
+  const volumeItem = historicalVolume
+    .find(dayItem => dayItem.timestamp.split('T')[0] === dayString)?.value
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value
+  let dailyVolume = Number(volumeItem)
+  if (dayString === '2025-10-01') {
+    // remove volume from these pools
+    // https://paycashswap.com/en/pool/LQMB, https://paycashswap.com/en/pool/LQKN, https://paycashswap.com/en/pool/LQC, https://paycashswap.com/en/pool/LQKF
+    dailyVolume -= (75864392 + 38941142 + 5631236 + 1355978)
+  }
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.EOS]: {
-      fetch,
-      start: 1618370204,
-      customBackfill: customBackfill(CHAIN.EOS as Chain, (_chian: string) => fetch)
-    },
-  },
+  fetch,
+  chains: [CHAIN.EOS],
+  start: '2021-04-14',
 };
 
 export default adapter;

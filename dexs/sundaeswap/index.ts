@@ -1,36 +1,87 @@
-import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, DISABLED_ADAPTER_KEY, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { request, gql } from "graphql-request";
+import {
+  FetchOptions,
+  FetchResult,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
-const historicalVolumeEndpoint = "https://stats.sundaeswap.finance/api/defillama/v0/global-stats/2100"
+const endpoint = "https://api.sundae.fi/graphql";
 
-interface IVolumeall {
-  volumeLovelace: number;
-  day: string;
+interface VolumeStat {
+  asset: {
+    id: string;
+  };
+  quantity: string;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions): Promise<FetchResultVolume> => {
-  const dailyVolume = createBalances()
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).response;
-
-  dailyVolume.addGasToken(historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.day)) === startOfDay)?.volumeLovelace as any)
-  return {
-    dailyVolume,
-    timestamp: startOfDay,
+interface GraphQLResponse {
+  stats: {
+    volume: VolumeStat;
   };
+}
+
+const query = gql`
+  query StatsVolume {
+    stats {
+      volume {
+        asset {
+          id
+        }
+        quantity
+      }
+    }
+  }
+`;
+
+const fetch = async (
+  options: FetchOptions,
+): Promise<FetchResult> => {
+  const dailyVolume =
+    options.createBalances();
+
+  const response =
+    await request<GraphQLResponse>(
+      endpoint,
+      query,
+    );
+
+  const volume =
+    response.stats.volume;
+
+  if (!volume) {
+    return { dailyVolume };
+  }
+
+  const assetId =
+    volume.asset.id;
+
+  const quantity =
+    Number(volume.quantity);
+
+  if (
+    assetId === "ada.lovelace" ||
+    assetId === "lovelace"
+  ) {
+    dailyVolume.addGasToken(
+      quantity,
+    );
+  } else {
+    dailyVolume.add(
+      assetId,
+      quantity,
+    );
+  }
+
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.CARDANO]: {
-      fetch,
-      start: 1643673600,
-    },
-  },
+  version: 1,
+  chains: [CHAIN.CARDANO],
+  fetch,
+  //start: "2022-02-01",
+  runAtCurrTime: true,
 };
 
 export default adapter;

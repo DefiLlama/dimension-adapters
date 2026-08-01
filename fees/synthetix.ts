@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from "../adapters/types";
 import { addTokensReceived } from '../helpers/token';
 
 
@@ -19,37 +19,30 @@ const contract_address: IContract = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.sUSD,
   [CHAIN.OPTIMISM]: ADDRESSES.optimism.sUSD
 }
-const graphs = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-    const token = contract_address[chain]
-    const dailyFee = await addTokensReceived({ tokens: [token], options, target: '0xfeefeefeefeefeefeefeefeefeefeefeefeefeef' })
+const fetch = async (options: FetchOptions) => {
+  const token = contract_address[options.chain]
+  const dailyFee = await addTokensReceived({ tokens: [token], options, target: '0xfeefeefeefeefeefeefeefeefeefeefeefeefeef' })
 
-    return {
-      timestamp,
-      dailyUserFees: dailyFee,
-      dailyFees: dailyFee,
-      dailyRevenue: dailyFee,
-      dailyHoldersRevenue: dailyFee
-    };
+  return {
+    dailyUserFees: dailyFee,
+    dailyFees: dailyFee,
+    dailyRevenue: dailyFee,
+    dailyHoldersRevenue: dailyFee
   };
 };
 
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
+  methodology,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: graphs(CHAIN.ETHEREUM),
-      start: 1653523200,
-      meta: {
-        methodology
-      }
+      start: '2022-05-26',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: graphs(CHAIN.OPTIMISM),
-      start: 1636606800,
-      meta: {
-        methodology
-      }
+      start: '2021-11-11',
     },
   }
 }

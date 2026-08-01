@@ -1,70 +1,65 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://api.llama.fi/";
-const startTimestamp = 1675209600; // 04.01.2023
+
 const chains = [
-  "ethereum",
-  "bsc",
-  "polygon",
-  "optimism",
-  "arbitrum",
-  "avax",
+  CHAIN.ETHEREUM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.OPTIMISM,
+  CHAIN.ARBITRUM,
+  CHAIN.AVAX,
   "gnosis",
-  "fantom",
-  "klaytn",
-  "aurora",
-  "celo",
-  "cronos",
-  "dogechain",
-  "moonriver",
+  CHAIN.FANTOM,
+  CHAIN.KLAYTN,
+  CHAIN.AURORA,
+  CHAIN.CELO,
+  CHAIN.CRONOS,
+  CHAIN.DOGECHAIN,
+  CHAIN.MOONRIVER,
   "bttc",
-  "oasis",
-  "velas",
-  "heco",
-  "harmony",
-  "boba",
-  "okexchain",
-  "fuse",
-  "moonbeam",
-  "canto",
-  "zksync",
+  CHAIN.OASIS,
+  CHAIN.VELAS,
+  CHAIN.HECO,
+  CHAIN.HARMONY,
+  CHAIN.BOBA,
+  CHAIN.OKEXCHAIN,
+  CHAIN.FUSE,
+  CHAIN.MOONBEAM,
+  CHAIN.CANTO,
+  CHAIN.ZKSYNC,
   "polygonzkevm",
   "ontology",
-  "kava",
-  "pulse",
-  "metis",
-  "base",
+  CHAIN.KAVA,
+  CHAIN.PULSECHAIN,
+  CHAIN.METIS,
+  CHAIN.BASE,
 ];
 
-const fetch =
-  (chain: string) =>
-    async (timestamp: number): Promise<FetchResult> => {
-      const dayTimestamp = timestamp;
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const chain = options.chain
+  if (chain === CHAIN.HECO) { return {} } // skip HECO for now
 
-      const dailyVolume = await fetchURL(
-        `${URL}getSwapDailyVolume/?timestamp=${dayTimestamp}&chain=${chain}`
-      );
-      const totalVolume = await fetchURL(
-        `${URL}getSwapTotalVolume/?timestamp=${dayTimestamp}&chain=${chain}`
-      );
+  const dailyVolume = await fetchURL(
+    `${URL}getSwapDailyVolume/?timestamp=${options.toTimestamp}&chain=${chain}`
+  );
 
-      return {
-        dailyVolume: dailyVolume.volume,
-        totalVolume: totalVolume.volume,
-        timestamp: dayTimestamp,
-      };
-    };
+  return {
+    dailyVolume: dailyVolume.volume,
+  };
+}
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {},
 };
 
 chains.map((chain) => {
   adapter.adapter[chain] = {
-    fetch: fetch(chain),
-    start: startTimestamp,
+    fetch,
+    start: '2023-01-04',
   };
 });
 

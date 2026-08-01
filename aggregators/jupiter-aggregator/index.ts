@@ -1,47 +1,64 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { Dependencies, FetchOptions } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
 
+const DEX_TRADES_START = '2025-09-01'; //aggregator_swaps coverage incomplete from here
 
-const historicalVolumeEndpoint = "https://cache.jup.ag/stats/day"
+const newQuery = (options: FetchOptions) => `
+  SELECT COALESCE(SUM(amount_usd), 0) AS volume_24
+  FROM (
+    SELECT
+      amount_usd,
+      -- dex_solana.trades has one row per pool hop, so a multi-hop route would
+      -- otherwise be counted once per hop. One Jupiter swap is one outer
+      -- instruction, and a transaction can carry several of them.
+      ROW_NUMBER() OVER (
+        PARTITION BY tx_id, trader_id, outer_instruction_index
+        ORDER BY amount_usd DESC
+      ) AS rn
+    FROM dex_solana.trades
+    WHERE block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time <  from_unixtime(${options.endTimestamp})
+      AND trade_source = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'
+  )
+  WHERE rn = 1
+`;
 
-interface IVolumeall {
-  groupTimestamp: string;
-  amount: string;
-}
+const legacyQuery = (options: FetchOptions) => `
+  SELECT sum(COALESCE(input_usd, output_usd)) as volume_24
+  FROM jupiter_solana.aggregator_swaps
+  WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
+`;
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.groupTimestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { amount }) => acc + Number(amount), 0)
+const fetch = async (options: FetchOptions) => {
+  const useDexTrades = options.dateString >= DEX_TRADES_START;
+  if (useDexTrades) {
+    const now = Date.now();
+    const tenHoursAgo = now - 10 * 60 * 60 * 1000;
+    if (options.toTimestamp * 1000 > tenHoursAgo) {
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+    }
+  }
+  const sql = useDexTrades ? newQuery(options) : legacyQuery(options);
+  const data = await queryDuneSql(options, sql);
 
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.groupTimestamp).getTime() / 1000) === dayTimestamp)?.amount
-
+  const chainData = data[0];
+  if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: chainData.volume_24
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  return (new Date(historicalVolume[historicalVolume.length - 1].groupTimestamp).getTime() / 1000);
-}
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
-    }
+const adapter: any = {
+  version: 1,
+  dependencies: [Dependencies.DUNE],
+  fetch,
+  start: '2023-04-16',
+  methodology: {
+    Volume:
+      "Volume routed through the Jupiter aggregator on Solana. From 2025-09 sourced from dex_solana.trades (Jupiter v6 program), as jupiter_solana.aggregator_swaps has incomplete coverage from that point; earlier dates use jupiter_solana.aggregator_swaps.",
   },
+  chains: [CHAIN.SOLANA],
 };
 
 export default adapter;

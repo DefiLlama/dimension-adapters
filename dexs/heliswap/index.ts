@@ -1,22 +1,22 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // https://heliswap-prod-362307.oa.r.appspot.com/query
 import { gql, GraphQLClient } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const tokens: string[] = [
 '0x00000000000000000000000000000000002cc823',
-'0x000000000000000000000000000000000008437c',
-'0x0000000000000000000000000000000000101Ae3',
-'0x000000000000000000000000000000000006f89a',
-'0x0000000000000000000000000000000000101aF0',
-'0x0000000000000000000000000000000000101aFb',
+ADDRESSES.hedera.WETH_HTS,
+ADDRESSES.hedera.USDC_HTS,
+ADDRESSES.hedera.USDC,
+ADDRESSES.hedera.USDT_HTS,
+ADDRESSES.hedera.WBTC_HTS,
 '0x0000000000000000000000000000000000107d76',
-'0x0000000000000000000000000000000000101Af5',
+ADDRESSES.hedera.DAI_HTS,
 '0x0000000000000000000000000000000000083E9E',
-'0x00000000000000000000000000000000000cbA44',
-'0x00000000000000000000000000000000000Ec585',
+ADDRESSES.hedera.HBARX,
+ADDRESSES.hedera.HST,
 '0x00000000000000000000000000000000000D1ea6',
 '0x0000000000000000000000000000000000098779',
 '0x00000000000000000000000000000000000E22B1',
@@ -29,7 +29,7 @@ const tokens: string[] = [
 '0x000000000000000000000000000000000012E088',
 '0x00000000000000000000000000000000001d90C9',
 '0x00000000000000000000000000000000000ff4DA',
-'0x000000000000000000000000000000000022D6de',
+ADDRESSES.hedera.KARATE,
 '0x00000000000000000000000000000000002D4720',
 '0x00000000000000000000000000000000002A30A8',
 '0x000000000000000000000000000000000021226e',
@@ -53,28 +53,22 @@ interface IGraphResponse {
   volume24hUsd: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(query, { tokens: tokens})).poolsConsistingOf;
   const dailyVolume = historicalVolume
     .filter((e: IGraphResponse) => Number(e.volume24hUsd) < 10_000_000)
     .reduce((a: number, b: IGraphResponse) => a+Number(b.volume24hUsd), 0)
 
   return {
-    // totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: 1664928000
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: '2022-10-05',
+  runAtCurrTime: true,
 };
 
 export default adapter;

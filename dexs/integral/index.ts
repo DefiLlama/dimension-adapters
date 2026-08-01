@@ -1,48 +1,25 @@
 import { BaseAdapter, SimpleAdapter } from "../../adapters/types";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import {
-  DEFAULT_DAILY_VOLUME_FIELD,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  getChainVolume,
-} from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-export const chains = [
+const chains = [
   CHAIN.ARBITRUM,
-  CHAIN.ETHEREUM
-];
-export const endpoints = {
-  [CHAIN.ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/integralhq/integral-size",
-  [CHAIN.ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/integralhq/integral-size-arbitrum",
+  CHAIN.ETHEREUM,
+]
+
+const factories: any = {
+  [CHAIN.ETHEREUM]: '0xC480b33eE5229DE3FbDFAD1D2DCD3F3BAD0C56c6',
+  [CHAIN.ARBITRUM]: '0x717EF162cf831db83c51134734A15D1EBe9E516a',
 };
 
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: "dayData",
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-  },
-});
-
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: graphs(chain as Chain),
-        start: getStartTimestamp({
-          endpoints: endpoints,
-          chain,
-          volumeField: DEFAULT_DAILY_VOLUME_FIELD,
-          dailyDataField: "dayDatas",
-        }),
+        // no revenue from fees: https://docs.integral.link/size/getting-started/liquidity-provider/earning-fees#mechanism
+        fetch: getUniV2LogAdapter({ factory: factories[chain], revenueRatio: 0 }),
       },
     };
   }, {} as BaseAdapter),

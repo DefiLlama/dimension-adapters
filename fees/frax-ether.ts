@@ -1,53 +1,68 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
 
-const fetch = (): any => {
-  return async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
-    const dailyFees = options.createBalances();
+const LABELS = {
+  StakingRewards: 'frxETH Staking Rewards',
+  ProtocolFee: 'frxETH Protocol Fee',
+  StakerRewards: 'frxETH Staker Rewards',
+}
 
-    const logs = await queryIndexer(`
-      SELECT
-        block_time,
-        encode(transaction_hash, 'hex') AS HASH,
-        encode(data, 'hex') AS data
-      FROM
-        ethereum.event_logs
-      WHERE
-        contract_address = '\\xac3e018457b222d93114458476f3e3416abbe38f'
-        and block_number > 15686281
-        AND topic_0 = '\\x2fa39aac60d1c94cda4ab0e86ae9c0ffab5b926e5b827a4ccba1d9b5b2ef596e'
-        AND block_time BETWEEN llama_replace_date_range  `, options);
+const fetch = async (options: FetchOptions) => {
+  const rewards = options.createBalances();
 
-      // event NewRewardsCycle (index_topic_1 uint32 cycleEnd, uint256 rewardAmount)
+  const logs = await options.getLogs({
+    target: '0xac3e018457b222d93114458476f3e3416abbe38f',
+    eventAbi: 'event NewRewardsCycle (uint32 indexed cycleEnd, uint256 rewardAmount)',
+  })
 
-      logs.map((p: any) => dailyFees.addGasToken('0x'+p.data))
-      dailyFees.resizeBy(1/0.9)
+  // Emitted rewardAmount is the 90% share distributed to stakers.
+  for (const log of logs) {
+    rewards.addGasToken(log.rewardAmount);
+  }
 
+  // Gross fees = staker rewards / 0.9; protocol keeps a 10% fee.
+  const dailyFees = rewards.clone(1 / 0.9, LABELS.StakingRewards);
+  const dailyRevenue = dailyFees.clone(0.1, LABELS.ProtocolFee);
+  const dailySupplySideRevenue = rewards.clone(1, LABELS.StakerRewards);
 
-      const dailySupplySideRevenue = dailyFees.clone();
-      dailySupplySideRevenue.resizeBy(0.9);
-      const dailyRevenue = dailyFees.clone();
-      dailyRevenue.resizeBy(0.1);
-
-
-    return {
-      timestamp,
-      dailyFees,
-      dailySupplySideRevenue: dailySupplySideRevenue,
-      dailyRevenue: dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailyHoldersRevenue: '0',
-      dailyUserFees: '0',
-    }
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
+    dailyUserFees: 0,
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(),
-        start: 1665014400,
+      fetch,
+      start: '2021-12-22',
+    },
+  },
+  methodology: {
+    Fees: 'All staking rewards from ETH validators.',
+    Revenue: 'Share of 10% staking rewards.',
+    ProtocolRevenue: 'Share of 10% staking rewards to Frax protocol.',
+    SupplySideRevenue: '90% of staking rewards are distributed to stakers.',
+    HoldersRevenue: 'No revenue share to token holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [LABELS.StakingRewards]: 'All staking rewards from ETH validators.',
+    },
+    Revenue: {
+      [LABELS.ProtocolFee]: '10% of staking rewards taken as protocol fee.',
+    },
+    ProtocolRevenue: {
+      [LABELS.ProtocolFee]: '10% of staking rewards kept by the Frax protocol.',
+    },
+    SupplySideRevenue: {
+      [LABELS.StakerRewards]: '90% of staking rewards distributed to stakers.',
     },
   }
 }

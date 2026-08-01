@@ -1,40 +1,55 @@
-import { Adapter } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
-import { request, } from "graphql-request";
-import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import * as sdk from "@defillama/sdk";
+import { FetchOptions, Adapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { request } from "graphql-request";
 
-const endpoints = {
-  [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/aladdindaogroup/aladdin-fees",
+const endpoints: Record<string, string> = {
+  [CHAIN.ETHEREUM]:
+    sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
 };
 
-const graph = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (_timestamp: number, _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
-      const dailyRevenue = createBalances()
-      const dateId = Math.floor(startOfDay);
+const fetch = async ({ createBalances, startOfDay, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dateId = Math.floor(startOfDay);
 
-      const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { cvxRevenue fraxRevenue } }`;
+  const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { cvxRevenue fraxRevenue } }`;
 
-      const { dailyRevenueSnapshot: snapshot } = await request(graphUrls[chain], graphQuery);
-      if (!snapshot) throw new Error("No data found");
+  const { dailyRevenueSnapshot: snapshot } = await request(
+    endpoints[chain],
+    graphQuery
+  );
+  if (!snapshot) throw new Error("No data found");
 
-      dailyRevenue.addCGToken("convex-finance", snapshot.cvxRevenue);
-      dailyRevenue.addCGToken("frax", snapshot.fraxRevenue);
-      const dailyFees = dailyRevenue.clone(2);
-      return { timestamp: startOfDay, dailyFees, dailyRevenue, }
-    };
-  };
+  const cvxAmount = Number(snapshot.cvxRevenue);
+  const fraxAmount = Number(snapshot.fraxRevenue);
+
+  dailyFees.addCGToken("convex-finance", cvxAmount * 2, "CVX harvest fees");
+  dailyFees.addCGToken("frax", fraxAmount * 2, "FRAX harvest fees");
+
+  dailyRevenue.addCGToken("convex-finance", cvxAmount, "CVX protocol revenue");
+  dailyRevenue.addCGToken("frax", fraxAmount, "FRAX protocol revenue");
+
+  return { dailyFees, dailyRevenue };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "CVX harvest fees": "Total fees collected from CVX token harvests, representing the full fee amount before the protocol revenue split.",
+    "FRAX harvest fees": "Total fees collected from FRAX token harvests, representing the full fee amount before the protocol revenue split.",
+  },
+  Revenue: {
+    "CVX protocol revenue": "Protocol share (50%) of CVX harvest fees retained by CLever as revenue.",
+    "FRAX protocol revenue": "Protocol share (50%) of FRAX harvest fees retained by CLever as revenue.",
+  },
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [ETHEREUM]: {
-      fetch: graph(endpoints)(ETHEREUM),
-      start: 1681908702,
-    },
-  },
+  version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-04-19',
+  breakdownMethodology,
 };
 
 export default adapter;

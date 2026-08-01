@@ -1,16 +1,13 @@
-import { Chain } from "@defillama/sdk/build/general";
+import * as sdk from "@defillama/sdk";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-
-interface IData {
-  totalTradeFee: string;
-}
 
 interface IProtocolData {
-  protocolByDay: IData;
-  protocol: IData;
+  protocol: {
+    totalTradeFee: number
+  }
 }
 
 type IURL = {
@@ -18,43 +15,43 @@ type IURL = {
 };
 
 const endpoints: IURL = {
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/immortalx-io/immortalx",
+  [CHAIN.CELO]: sdk.graph.modifyEndpoint('DGN3dMffNnXZRAHFyCAq3csJbe2o7g9Jdg2XHe2mzVdG'),
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
-    const graphQuery = gql`
-      {
-        protocolByDay(id: "${todayTimestamp}") {
-          totalTradeFee
+const fetch = async ({ getFromBlock, getToBlock, chain }: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([
+    getFromBlock(), getToBlock()
+  ])
+  const graphQuery = gql`
+    query query_total($block: Int) {
+      protocol(
+        id: "1"
+        block: {
+          number: $block
         }
-        protocol(id: "1") {
-          totalTradeFee
-        }
+      ) {
+        totalTradeFee
       }
-    `;
+    }`;
 
-    const res: IProtocolData = await request(endpoints[chain], graphQuery);
-    const dailyFees = Number(res.protocolByDay.totalTradeFee) / 10 ** 18;
-    const totalFees = Number(res.protocol.totalTradeFee) / 10 ** 18;
+  const [beforeRes, afterRes]: IProtocolData[] = await Promise.all([
+    request(endpoints[chain], graphQuery, { block: fromBlock }),
+    request(endpoints[chain], graphQuery, { block: toBlock }),
+  ])
 
-    return {
-      timestamp,
-      dailyFees: dailyFees.toString(),
-      totalFees: totalFees.toString(),
-    };
+  const dailyFees = (afterRes.protocol.totalTradeFee - beforeRes.protocol.totalTradeFee) / 10 ** 18;
+
+  return {
+    dailyFees,
   };
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.CELO]: {
-      fetch: fetch(CHAIN.CELO),
-      start: 1690848000,
-    },
-  },
+  version: 2,
+  fetch,
+  chains: [CHAIN.CELO],
+  start: '2023-08-01',
+  deadFrom: "2025-08-15", //Beta program ended
 };
 
 export default adapter;

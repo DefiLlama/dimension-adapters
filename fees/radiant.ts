@@ -1,93 +1,63 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
-const topic0NewTransferAdded = '0xc5e1cdb94ac0a9f4f65e1a23fd59354025cffdf472eb03020ac4ba0e92d9969f';
 
 type TAddress = {
   [l: string | Chain]: string;
 }
 
-const address: TAddress  = {
+// Radiant MiddleFeeDistribution (proxy) on each chain. It collects the protocol's
+// platform fees, transfers `operationExpenseRatio` of them to the operationExpenses
+// treasury (protocol revenue), then forwards the remainder to MultiFeeDistribution
+// for dLP lockers and emits NewTransferAdded with that remaining (post-cut) amount.
+const address: TAddress = {
   [CHAIN.ARBITRUM]: '0xE10997B8d5C6e8b660451f61accF4BBA00bc901f',
   [CHAIN.BSC]: '0xcebdff400A23E5Ad1CDeB11AfdD0087d5E9dFed8',
-  [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797'
+  [CHAIN.ETHEREUM]: '0x28E395a54a64284DBA39652921Cd99924f4e3797',
+  [CHAIN.BASE]: '0xC49b4D1e6CbbF4cAEf542f297449696d8B47E411'
 }
 
-interface ITx {
-  data: string;
-  transactionHash: string;
-  topics: string[];
+// operationExpenseRatio = 4000 / RATIO_DIVISOR 10000 = 40%, verified live on the
+// MiddleFeeDistribution proxy on every chain (Arbitrum/BSC/Ethereum/Base). So the
+// emitted lpUsdValue (post-cut) is the 60% locker share; the protocol keeps 40%.
+const OPEX_FRAC = 0.4;
+
+const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+  // lpUsdValue is emitted AFTER the operationExpense cut, so it is the lockers' share.
+  const lockerRewards = createBalances()
+  const logs = await getLogs({ target: address[chain], eventAbi: 'event NewTransferAdded (address indexed asset, uint256 lpUsdValue)' })
+  logs.forEach((log) => lockerRewards.addUSDValue(Number(log.lpUsdValue) / 1e18))
+
+  // lpUsdValue = (1 - OPEX_FRAC) of the platform fee. Gross up to recover the full
+  // platform fee and the protocol (operationExpense) cut taken before the event.
+  const dailyHoldersRevenue = lockerRewards                                      // forwarded to dLP lockers (60%)
+  const dailyProtocolRevenue = lockerRewards.clone(OPEX_FRAC / (1 - OPEX_FRAC))  // operationExpense treasury (40%)
+  const dailyFees = createBalances()
+  dailyFees.addBalances(dailyHoldersRevenue)
+  dailyFees.addBalances(dailyProtocolRevenue)
+  const dailyRevenue = dailyFees.clone(1)                                        // whole platform fee is protocol revenue
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
 }
 
-interface IData {
-  contract_address: string;
-  amount: number;
-}
-
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-    const logs: ITx[] = (await sdk.getEventLogs({
-      target: address[chain],
-      fromBlock: fromBlock,
-      toBlock: toBlock,
-      topics: [topic0NewTransferAdded],
-      chain: chain
-    })).map((e: any) => { return { data: e.data.replace('0x', ''), transactionHash: e.transactionHash, topics: e.topics } as ITx});
-    const raw_data_logs: IData[] = logs.map((tx: ITx) => {
-      const amount = Number('0x'+tx.data);
-      const address = tx.topics[1];
-      const contract_address = '0x' + address.slice(26, address.length);
-      return {
-        amount,
-        contract_address,
-        tx: tx.transactionHash
-      };
-    })
-    const feesAmuntsUSD: any[] = raw_data_logs.map((d: any) => {
-      return {amount: d.amount / 10 ** 18, tx: d.tx, a: d.contract_address} // debug
-    });
-    const dailyFee = feesAmuntsUSD.reduce((a: number, b: any) => a+b.amount, 0);
-    const supplySideRev = dailyFee * 0.25;
-    const dailyHoldersRevenue = dailyFee * .60;
-    const protocolRev = dailyFee * .15;
-
-    return {
-      dailyFees: dailyFee.toString(),
-      dailySupplySideRevenue: supplySideRev.toString(),
-      dailyHoldersRevenue: dailyHoldersRevenue.toString(),
-      dailyProtocolRevenue: protocolRev.toString(),
-      dailyRevenue: (protocolRev + dailyHoldersRevenue).toString(),
-      timestamp
-    }
-  }
+const methodology = {
+  Fees: "Platform fees collected by Radiant (reserve-factor cut of borrow interest) and routed through MiddleFeeDistribution.",
+  Revenue: "All platform fees are kept by the protocol (split between the operationExpenses treasury and dLP lockers).",
+  ProtocolRevenue: "operationExpenseRatio of platform fees (read on-chain) sent to the Radiant operationExpenses treasury.",
+  HoldersRevenue: "Remaining platform fees forwarded to MultiFeeDistribution and distributed to dLP lockers.",
 }
 
 const adapter: Adapter = {
+  fetch, methodology,
+  version: 2,
+  pullHourly: true,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1679097600,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: 1679788800,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: 1698796800,
-    },
+    [CHAIN.ARBITRUM]: { start: '2023-03-18', },
+    [CHAIN.BSC]: { start: '2023-03-26', },
+    [CHAIN.ETHEREUM]: { start: '2023-11-01', },
+    [CHAIN.BASE]: { start: '2024-06-28', },
   }
 }
-
 
 export default adapter;

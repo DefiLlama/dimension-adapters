@@ -1,4 +1,5 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
+import { CHAIN } from "./chains";
 import { httpPost } from '../utils/fetchURL';
 
 
@@ -11,15 +12,21 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
             "origin": url,
         }
     });
-    const feesToday = dailyFees.split("\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
-    return Number(feesToday?.split(",")[2].slice(1, -2))
+    const feesToday = dailyFees.split("\r\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
+
+    if (!feesToday) {
+        throw Error('no fee found for totay from etherscan')
+    }
+
+    return Number(feesToday?.split(",")[2].slice(1, -1))
 }
 
 export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string) {
     const adapter: Adapter = {
+        version: 2,
         adapter: {
             [chain]: {
-                fetch: async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+                fetch: async (options: FetchOptions) => {
                     const amount = await getEtherscanFees(options, url)
                     const dailyFees = options.createBalances()
                     if (cgToken)
@@ -27,16 +34,16 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                     else
                         dailyFees.addGasToken(amount)
 
-                    if (options.chain === 'fantom') {
+                    if (options.chain === CHAIN.FANTOM) {
                         const dailyRevenue = dailyFees.clone(0.3)
                         return { timestamp: options.startOfDay, dailyFees, dailyRevenue }
                     }
 
                     return {
-                        timestamp: options.startOfDay, dailyFees,
+                        dailyFees,
                     };
                 },
-                start: 1690761600
+                start: '2023-07-31'
             },
         },
         protocolType: ProtocolType.CHAIN

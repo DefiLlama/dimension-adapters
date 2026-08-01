@@ -1,24 +1,24 @@
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
-
+import { FetchResult, FetchOptions } from "../../adapters/types";
 
 export default {
+    methodology: {
+        Volume: 'Leverage trading volume'
+    },
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: 1700000000,
-            meta: {
-                methodology: {
-                    DailyVolume: 'Leverage trading volume',
-                    DataSource: 'Data collected by the re:doubt team, available at https://beta.redoubt.online/tracker'
-                },
-            },
-            fetch: async () => {
-                const response = await fetchURL('https://api.redoubt.online/dapps/v1/export/defi/storm')
+            start: '2023-11-14',
+            fetch: async (options: FetchOptions): Promise<FetchResult> => {
+                const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${options.toTimestamp}`)
+
+                if (!response) {
+                    throw new Error('Error during API call')
+                }
 
                 return {
-                    dailyVolume: response.volume.toString(),
-                    timestamp: response.timestamp
+                    dailyVolume: parseInt(response.exchangedDailyTradingVolume) / 1e9,
                 }
             },
         },

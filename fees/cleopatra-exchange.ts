@@ -1,64 +1,64 @@
-import { SimpleAdapter, FetchResultFees, BaseAdapter } from "../adapters/types";
-import { MANTLE, CHAIN } from "../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniV3LogAdapter, } from "../helpers/uniswap";
+import { METRIC } from "../helpers/metrics";
 
+const fetch = async (options: FetchOptions) => {
+  const adapter = getUniV3LogAdapter({
+    factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42',
+  })
+  const res = await adapter(options)
 
-import {
-    getGraphDimensions,
-    DEFAULT_DAILY_VOLUME_FACTORY,
-    DEFAULT_TOTAL_VOLUME_FIELD,
-  } from "../helpers/getUniSubgraph"
+  // Create labeled fee balances
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(res.dailyFees, METRIC.SWAP_FEES);
 
-type TStartTime = {
-[key: string]: number;
+  const dailyRevenue = res?.dailyFees.clone(.8, METRIC.SWAP_FEES)
+  const dailyHoldersRevenue = res?.dailyFees.clone(.72, METRIC.SWAP_FEES)
+  const dailyProtocolRevenue = res?.dailyFees.clone(.08, METRIC.SWAP_FEES)
+  const dailySupplySideRevenue = res?.dailyFees.clone(.2, METRIC.LP_FEES)
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
 }
-const startTimeV2:TStartTime = {
-[CHAIN.MANTLE]: 1704326400,
+
+const methodology = {
+  Fees: "User pays 0.05%, 0.30%, or 1% on each swap.",
+  ProtocolRevenue: "Revenue going to the protocol.",
+  HoldersRevenue: "User fees are distributed among holders.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Fees paid by users on each swap, with variable rates of 0.05%, 0.30%, or 1% depending on pool tier',
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: 'Portion of swap fees kept by the protocol (80% of total), split between token holders and protocol treasury',
+  },
+  HoldersRevenue: {
+    [METRIC.SWAP_FEES]: 'Portion of swap fees distributed to token holders (72% of total fees)',
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: 'Portion of swap fees retained by protocol treasury (8% of total fees)',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'Portion of swap fees distributed to liquidity providers (20% of total fees)',
+  }
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.MANTLE],
+  start: '2024-01-04',
+  methodology,
+  breakdownMethodology,
 }
 
-
-const v2Endpoints = {
-    [CHAIN.MANTLE]: "https://subgraph-api.mantle.xyz/subgraphs/name/cleoexchange/cl-subgraph",
-  };
-
-const VOLUME_USD = "volumeUSD";
-
-const v2Graphs = getGraphDimensions({
-    graphUrls: v2Endpoints,
-    totalVolume: {
-        factory: "factories",
-        field: DEFAULT_TOTAL_VOLUME_FIELD,
-    },
-    dailyVolume: {
-        factory: DEFAULT_DAILY_VOLUME_FACTORY,
-        field: VOLUME_USD,
-    },
-    feesPercent: {
-        type: "fees",
-        HoldersRevenue: 50,
-        UserFees: 100, // User fees are 100% of collected fees
-        Revenue: 50, // Revenue is 50% of collected fees
-        SupplySideRevenue: 50,
-    }
-    });
-
-    const methodology = {
-    UserFees: "User pays 0.3% fees on each swap.",
-    ProtocolRevenue: "Revenue going to the protocol.",
-    HoldersRevenue: "User fees are distributed among holders."
-    }
-
-    const adapter: SimpleAdapter = {
-        adapter: {
-          [CHAIN.MANTLE]: {fetch: v2Graphs(MANTLE),
-            start: startTimeV2[CHAIN.MANTLE],
-            meta: {
-              methodology: {
-                ...methodology,
-                UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
-              }
-            }
-          },
-        }
-      };
-
-export default adapter;
+export default adapter

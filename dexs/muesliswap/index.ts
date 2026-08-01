@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 interface IVolumeall {
   time: number;
@@ -10,37 +10,27 @@ interface IVolumeall {
 
 const historicalVolumeEndpoint = "https://analyticsv3.muesliswap.com/historical-volume";
 
-const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
-  const dailyVolume = createBalances();
-  const totalVolume = createBalances();
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const totalVolume = options.createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   vols
-    .filter((volItem: IVolumeall) => Number(volItem.time) <= startOfDay)
+    .filter((volItem: IVolumeall) => Number(volItem.time) <= options.startOfDay)
     .map(({ volume }) => totalVolume.addGasToken(volume));
-  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === startOfDay)?.volume)
+  dailyVolume.addGasToken(vols.find(dayItem => dayItem.time === options.startOfDay)?.volume)
 
   return {
-    timestamp: startOfDay,
     dailyVolume,
-    // totalVolume,
   }
 }
 
-const adapters = (() => {
-  const milkomeda = univ2Adapter({
-      [CHAIN.MILKOMEDA]: "https://milkomeda.muesliswap.com/graph/subgraphs/name/muesliswap/exchange"
-    }, {
-    factoriesName: "pancakeFactories",
-    dayData: "pancakeDayData",
-  });
-
-  milkomeda.adapter[CHAIN.CARDANO] = {
-    start: 1638057600,
-    fetch: fetch,
-  };
-  return milkomeda;
-})();
-
-
-adapters.adapter.milkomeda.start = 1648427924;
-export default adapters;
+export default {
+  adapter: {
+    // [CHAIN.MILKOMEDA]: {  // milkomeda chain is dead
+    //   fetch: async (options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
+    // },
+    [CHAIN.CARDANO]: {
+      fetch,
+    }
+  },
+};

@@ -1,8 +1,9 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume, getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 type RadixPlazaResponse = {
 	date: number,
@@ -14,15 +15,14 @@ type RadixPlazaResponse = {
 	swaps: number
 }
 
-const thegraph_endpoints = "https://api.thegraph.com/subgraphs/name/omegasyndicate/defiplaza";
+const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKYN9QRmuzSsizVXhjKa');
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
+	version: 2,
 	adapter: {
 		[CHAIN.ETHEREUM]: {
-			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const toTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-				const fromTimestamp = timestamp - 86400;
+			fetch: async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
 				const graphData = (await request(thegraph_endpoints, gql`
 					{
 						factories(first: 1) {
@@ -30,66 +30,91 @@ const adapter: SimpleAdapter = {
 							totalTradeVolumeUSD
 							totalFeesEarnedUSD
 						}
-						dailies(first: 1, where:{date_lte: ${toTimestamp}, date_gte: ${fromTimestamp}}, orderBy: date, orderDirection:desc) {
+						dailies(first: 1, where:{date_lte: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
 							date
 							tradeVolumeUSD
 							swapUSD
 							feesUSD
+							swapCount
 						}
 					}`));
-				const dailySupplySideRevenue = graphData.dailies[0].feesUSD;
-				const dailyFees = dailySupplySideRevenue;
-				const dailyUserFees = dailyFees;
+        
+        if (graphData.dailies.length === 0) {
+          return {
+            dailyVolume: 0,
+            dailyFees: createBalances(),
+            dailyUserFees: createBalances(),
+            dailyRevenue: createBalances(),
+            dailyProtocolRevenue: createBalances(),
+            dailySupplySideRevenue: createBalances(),
+          }
+        }
+
+				const swap_fee_usd = Number(graphData.dailies[0].feesUSD);
+				const rev_usd = Number(graphData.dailies[0].swapCount) * 0.5;
+
+				const dailyFees = createBalances();
+				const dailyRevenue = createBalances();
+				const dailySupplySideRevenue = createBalances();
+
+				dailyFees.addUSDValue(swap_fee_usd + rev_usd, METRIC.SWAP_FEES);
+				dailyRevenue.addUSDValue(rev_usd, METRIC.PROTOCOL_FEES);
+				dailySupplySideRevenue.addUSDValue(swap_fee_usd, METRIC.LP_FEES);
 
 				return {
-					totalVolume: graphData.factories[0].totalTradeVolumeUSD,
 					dailyVolume: graphData.dailies[0].tradeVolumeUSD,
-
-					totalFees: graphData.factories[0].totalFeesEarnedUSD,
-					dailyUserFees,
 					dailyFees,
+					dailyUserFees: dailyFees,
+					dailyRevenue,
+					dailyProtocolRevenue: dailyRevenue,
 					dailySupplySideRevenue,
-					timestamp
 				}
 			},
-			meta: {
-				methodology: {
-					Fees: "User pays a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
-					SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
-				}
-			},
-			start: 1633237008
+			start: '2021-10-03'
 		},
 		[CHAIN.RADIXDLT]: {
-			fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
+			fetch: async ({ endTimestamp, createBalances }: FetchOptions) => {
+				const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${endTimestamp}`));
+				const dailyFees = createBalances();
+				const dailyRevenue = createBalances();
+				const dailySupplySideRevenue = createBalances();
 
-				const dailySupplySideRevenue = daily.feesUSD;
-				const dailyProtocolRevenue = daily.royaltiesUSD;
-				const dailyRevenue = dailyProtocolRevenue;
-				const dailyFees = dailySupplySideRevenue + dailyRevenue;
-				const dailyUserFees = dailyFees;
+				dailyFees.addUSDValue(daily.feesUSD + daily.royaltiesUSD, METRIC.SWAP_FEES);
+				dailyRevenue.addUSDValue(daily.royaltiesUSD, METRIC.PROTOCOL_FEES);
+				dailySupplySideRevenue.addUSDValue(daily.feesUSD, METRIC.LP_FEES);
 
 				return {
 					dailyVolume: daily.volumeUSD,
-					dailyUserFees,
+					dailyUserFees: dailyFees,
 					dailyFees,
 					dailyRevenue,
-					dailyProtocolRevenue,
+					dailyProtocolRevenue: dailyRevenue,
 					dailySupplySideRevenue,
-					timestamp
 				}
 			},
-			meta: {
-				methodology: {
-					Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
-					Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
-					SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
-				}
-			},
-			start: 1700784000
+			start: '2023-11-24'
 		}
 	},
+	methodology: {
+		Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
+		Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+		ProtocolRevenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+		SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
+	},
+	breakdownMethodology: {
+		Fees: {
+			[METRIC.SWAP_FEES]: "Total swap fees paid by users, 0.5% per swap (doubled for multi-hop swaps between pairs)",
+		},
+		Revenue: {
+			[METRIC.PROTOCOL_FEES]: "Protocol fee of $0.05 USD per swap (doubled for multi-hop swaps) on Ethereum; royalties from swaps on Radix",
+		},
+		ProtocolRevenue: {
+			[METRIC.PROTOCOL_FEES]: "Protocol fee of $0.05 USD per swap (doubled for multi-hop swaps) on Ethereum; royalties from swaps on Radix",
+		},
+		SupplySideRevenue: {
+			[METRIC.LP_FEES]: "Liquidity provider fees from the 0.5% swap fee after deducting the protocol's $0.05 flat fee",
+		},
+	}
 };
 
 export default adapter;

@@ -1,12 +1,35 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { request, gql } from "graphql-request";
-import { getBlock } from "./getBlock";
-import { BaseAdapter, ChainBlocks } from "../adapters/types";
-import { SimpleAdapter } from "../adapters/types";
-import { DEFAULT_DATE_FIELD, getStartTimestamp } from "./getStartTimestamp";
-import { Balances } from "@defillama/sdk";
-import { wrapGraphError } from "./getUniSubgraph";
+import {  FetchOptions, FetchResultV2 } from "../adapters/types";
+import BigNumber from "bignumber.js";
 
+interface IGetChainFeeParams {
+  totalFees?: number,
+  protocolFees?: number,
+  revenue?: number,
+  userFees?: number,
+  supplySideRevenue?: number,
+  holdersRevenue?: number,
+}
+
+function handleFeeConfig(feeConfig: IGetChainFeeParams, response: FetchResultV2) {
+  const chainDailyVolume = response.dailyVolume as number;
+  if (chainDailyVolume !== undefined) {
+    if (feeConfig.totalFees !== undefined)
+      response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.totalFees).toString()
+    if (feeConfig.userFees !== undefined)
+      response["dailyUserFees"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.userFees).toString()
+    if (feeConfig.revenue !== undefined)
+      response["dailyRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.revenue).toString()
+    if (feeConfig.holdersRevenue !== undefined)
+      response["dailyHoldersRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.holdersRevenue).toString()
+    if (feeConfig.supplySideRevenue !== undefined)
+      response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.supplySideRevenue).toString()
+    if (feeConfig.protocolFees !== undefined)
+      response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.protocolFees).toString()
+  }
+  return response
+}
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var date_utc = Date.UTC(
@@ -22,15 +45,16 @@ const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   return Math.floor(timestamp / 86400) * 86400;
 };
 
-// To get ID for daily data https://docs.uniswap.org/protocol/V2/reference/API/entities
-const getUniswapDateId = (date?: Date) => getUniqStartOfTodayTimestamp(date) / 86400;
-
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
 
 const DEFAULT_DAILY_VOLUME_FACTORY = "uniswapDayData";
 const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolumeUSD";
-const DEFAULT_DAILY_DATE_FIELD = "date";
+const DEFAULT_TOTAL_FEES_FACTORY = "factories";
+const DEFAULT_TOTAL_FEES_FIELD = "totalFeesUSD";
+
+const DEFAULT_DAILY_FEES_FACTORY = "uniswapDayData";
+const DEFAULT_DAILY_FEES_FIELD = "feesUSD";
 
 interface IGetChainVolumeParams {
   graphUrls: {
@@ -38,32 +62,20 @@ interface IGetChainVolumeParams {
   },
   totalVolume: {
     factory: string,
-    field: string
-  },
-  dailyVolume?: {
-    factory: string,
     field: string,
-    dateField?: string,
   },
-  customDailyVolume?: string,
-  hasDailyVolume?: boolean
+  totalFeesField?: string,
   hasTotalVolume?: boolean
   getCustomBlock?: (timestamp: number) => Promise<number>
 }
 
-function getChainVolume({
+function getChainVolume2({
   graphUrls,
   totalVolume = {
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
-  dailyVolume = {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: DEFAULT_DAILY_DATE_FIELD
-  },
-  customDailyVolume = undefined,
-  hasDailyVolume = true,
+  totalFeesField,
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {
@@ -72,162 +84,86 @@ function getChainVolume({
     block: { number: $block }
     ) {
       ${totalVolume.field}
+      ${totalFeesField ? totalFeesField : ''}
     }
     `;
 
-  const dailyVolumeQuery =
-    customDailyVolume ||
-    gql`
-    ${dailyVolume.factory} (id: $id) {
-          ${dailyVolume.field}
-      }`;
-
-  const alternativeDaily = (timestamp: number) => gql`{
-      ${dailyVolume.factory}s(where: {${dailyVolume.dateField}: ${timestamp}}) {
-          ${dailyVolume.dateField}
-          ${dailyVolume.field}
-      }
-  }`;
-
-  const graphQueryTotalVolume = gql`${hasTotalVolume ? `query get_total_volume($block: Int) { ${totalVolumeQuery} }` : ""}`
-  const graphQueryDailyVolume = gql`${hasDailyVolume ? `query get_daily_volume($id: Int) { ${dailyVolumeQuery} }` : ""}`;
+  const graphQueryTotalVolume = gql`query get_total_volume($block: Int) { ${totalVolumeQuery} }`
 
   return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const block =
-        (getCustomBlock ?
-          await getCustomBlock(timestamp).catch(e => console.log(e.message)) :
-          await getBlock(timestamp, chain, chainBlocks).catch(e => console.log(e.message))) ?? undefined;
-      const id = getUniswapDateId(new Date(timestamp * 1000));
-      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block }).catch(e => {
-        try {
-          return JSON.parse(e.response.error).data
-        } catch (error) {
-          console.error(`Failed to get total volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
-        }
-      }) : undefined;
-      let graphResDaily = hasDailyVolume ? await request(graphUrls[chain], graphQueryDailyVolume, { id }).catch(e => {
-        try {
-          return JSON.parse(e.response.error).data
-        } catch (error) {
-          console.error(`Failed to get daily volume on ${chain} ${graphUrls[chain]}: ${wrapGraphError(e).message}`)
-        }
-      }) : undefined;
-      let dailyVolumeValue = graphResDaily ? graphResDaily[dailyVolume.factory]?.[dailyVolume.field] : undefined
-      if (hasDailyVolume && !dailyVolumeValue) {
-        graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)))).catch(e => {
-          try {
-            return JSON.parse(e.response.error).data
-          } catch (error) {
-            console.error(`Failed to get daily volume via alternative query on ${graphUrls[chain]} ${chain}: ${wrapGraphError(e).message}`)
-          }
-        });
-        const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
-        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
-      }
+    return async (options: FetchOptions) => {
+      const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
 
-      return {
-        timestamp,
-        block,
-        totalVolume: graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined,
+      const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock())) ?? undefined;
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) : getStartBlock())) ?? undefined;
+
+      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }) : undefined;
+      const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+      const totalFees = totalFeesField && graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
+
+      const graphResPrevTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }) : undefined;
+      const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+      const prevTotalFees = totalFeesField && graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
+
+      let dailyVolumeValue = total - prevTotal
+
+      const response: any = {
         dailyVolume: dailyVolumeValue,
-      };
-    };
-  };
-}
-
-function getChainVolumeWithGasToken({
-  graphUrls,
-  totalVolume = {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: 'totalVolumeETH',
-  },
-  dailyVolume = {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: 'dailyVolumeETH',
-    dateField: DEFAULT_DAILY_DATE_FIELD
-  },
-  customDailyVolume = undefined,
-  hasDailyVolume = true,
-  hasTotalVolume = true,
-  getCustomBlock = undefined,
-  priceToken,
-}: IGetChainVolumeParams & {priceToken:string}) {
-  const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
-  return (chain: Chain) => {
-    return async (timestamp: number, chainBlocks: ChainBlocks) => {
-      const {
-        block,
-        totalVolume,
-        dailyVolume,
-      } = await basic(chain)(timestamp, chainBlocks);
-
-      const balances = new Balances({ chain, timestamp})
-      balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
-
-      return {
-        timestamp,
-        block,
-        dailyVolume: await balances.getUSDString()
       }
+      if (totalFeesField)
+        response.dailyFees = totalFees - prevTotalFees
+
+      // Gate fees zero-out on totalFeesField — configs that derive fees from
+      // volume via feeConfig leave prevTotalFees intentionally undefined, and
+      // a combined check would zero out a healthy prevTotal alongside it.
+      // Use === undefined so a legitimately-zero prev cumulative (new protocol)
+      // produces a correct diff instead of being treated as missing data.
+      if (prevTotal === undefined) {
+        response.dailyVolume = 0;
+      }
+      if (totalFeesField && prevTotalFees === undefined) {
+        response.dailyFees = 0;
+      }
+
+      return response
     };
   };
 }
 
-function univ2Adapter(endpoints: {
-  [chain: string]: string
-}, {
+function univ2Adapter2({
+  endpoints = {} as { [chain: string]: string },
   factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
-  dayData = DEFAULT_DAILY_VOLUME_FACTORY,
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
-  dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
-  dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
-  hasTotalVolume = true,
-  gasToken = null as string|null
+  totalFeesField = null as string | null,
+  feeConfig = undefined as IGetChainFeeParams | undefined,
 }) {
-  const graphs = (gasToken === null?getChainVolume:getChainVolumeWithGasToken as typeof getChainVolume)({
+  const graphs = getChainVolume2({
     graphUrls: endpoints,
-    hasTotalVolume,
     totalVolume: {
       factory: factoriesName,
       field: totalVolume
     },
-    dailyVolume: {
-      factory: dayData,
-      field: dailyVolume,
-      dateField: dailyVolumeTimestampField
-    },
-    priceToken: gasToken
+    totalFeesField,
   } as any);
-
-  const adapter: SimpleAdapter = {
-    adapter: Object.keys(endpoints).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: graphs(chain as Chain),
-          start: getStartTimestamp({
-            endpoints: endpoints,
-            chain,
-            volumeField: dailyVolume,
-            dailyDataField: dayData + "s",
-            dateField: dailyVolumeTimestampField
-          }),
-        }
-      }
-    }, {} as BaseAdapter)
-  };
-
-  return adapter;
+  return async (options: FetchOptions) => {
+    const response = await graphs(options.chain)(options);
+    if (feeConfig) {
+      handleFeeConfig(feeConfig, response);
+    }
+    return response;
+  }
 }
 
 export {
   getUniqStartOfTodayTimestamp,
-  getChainVolume,
-  getChainVolumeWithGasToken,
-  univ2Adapter,
+  getChainVolume2,
+  univ2Adapter2,
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
+  DEFAULT_TOTAL_FEES_FACTORY,
+  DEFAULT_TOTAL_FEES_FIELD,
+  DEFAULT_DAILY_FEES_FACTORY,
+  DEFAULT_DAILY_FEES_FIELD,
 };

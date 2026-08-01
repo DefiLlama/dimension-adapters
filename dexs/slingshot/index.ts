@@ -1,9 +1,8 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type TContract = {
-  [s: string | Chain]: string[];
+  [s: string | CHAIN]: string[];
 }
 const topic0 = '0x899a8968d68f840cf01fdaf129bf72e96ca51b8ecad8c4f7566938e7a2ba6bcf';
 interface ILog {
@@ -11,6 +10,7 @@ interface ILog {
   transactionHash: string;
   topics: string[];
 }
+
 const contract_address: TContract = {
   [CHAIN.ARBITRUM]: [
     '0xe8c97bf6d084880de38aec1a56d97ed9fdfa0c9b',
@@ -36,51 +36,28 @@ const contract_address: TContract = {
   ]
 }
 
-const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, }: FetchOptions): Promise<FetchResultVolume> => {
-    const dailyVolume = createBalances()
-    const logs: ILog[] = await getLogs({ targets: contract_address[chain], topics: [topic0] })
-    logs.map((log: ILog) => {
-      const data = log.data.replace('0x', '');
-      const token0 = data.slice(0, 64);
-      const token1 = data.slice(64, 128);
-      const token0Amount = Number('0x' + data.slice(128, 192));
-      const token1Amount = Number('0x' + data.slice(192, 256));
-      const token0Address = `0x${token0.slice(24, 64)}`;
-      const token1Address = `0x${token1.slice(24, 64)}`;
-      dailyVolume.add(token0Address, token0Amount);
-    })
-    return {
-      timestamp, dailyVolume,
-    }
-  }
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const { createBalances, getLogs, chain } = options;
+  const dailyVolume = createBalances()
+  const logs: ILog[] = await getLogs({ targets: contract_address[chain], topics: [topic0] })
+  logs.map((log: ILog) => {
+    const data = log.data.replace('0x', '');
+    const token0 = data.slice(0, 64);
+    const token1 = data.slice(64, 128);
+    const token0Amount = Number('0x' + data.slice(128, 192));
+    const token1Amount = Number('0x' + data.slice(192, 256));
+    const token0Address = `0x${token0.slice(24, 64)}`;
+    const token1Address = `0x${token1.slice(24, 64)}`;
+    dailyVolume.add(token0Address, token0Amount);
+  })
+  return { dailyVolume }
 }
+
 const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: 1683590400
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: 1683590400
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchVolume(CHAIN.POLYGON),
-      start: 1683590400
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: 1683590400
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchVolume(CHAIN.BSC),
-      start: 1683590400
-    },
-    [CHAIN.CANTO]: {
-      fetch: fetchVolume(CHAIN.CANTO),
-      start: 1683590400
-    }
-  }
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: Object.keys(contract_address),
+  start: '2023-05-09',
 }
 export default adapters;

@@ -1,9 +1,8 @@
-import { Chain } from "@defillama/sdk/build/general";
+import * as sdk from "@defillama/sdk";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
   return gql`{
@@ -14,7 +13,7 @@ const getDailyVolume = () => {
   }`
 }
 
-const graphQLClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/spartan-protocol/pool-factory");
+const graphQLClient = new GraphQLClient(sdk.graph.modifyEndpoint('9vN1kRac6B224oTjNnFe9vYnJXj5fxaa3ivDfg1hh3v5'));
 const getGQLClient = () => {
   return graphQLClient
 }
@@ -24,31 +23,21 @@ interface IGraphResponse {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).metricsGlobalDays;
-  const totalVolume = historicalVolume
-  .filter(volItem => (Number(volItem.timestamp)) <= dayTimestamp)
-  .reduce((acc, { volUSD }) => acc + Number(volUSD)/1e18, 0)
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
+    .find(dayItem => (Number(dayItem.timestamp)) === options.startOfDay)?.volUSD
 
   return {
-    totalVolume: `${totalVolume}`,
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
-    timestamp: dayTimestamp,
   }
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: 1633305600,
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
-    },
-  },
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2021-10-04',
 };
 
 export default adapter;

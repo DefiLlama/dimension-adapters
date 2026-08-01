@@ -1,73 +1,142 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain, } from "@defillama/sdk/build/general";
-import { queryIndexer } from "../helpers/indexer";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 
-type TAddress = {
-  [l: string | Chain]: string;
+const prefetch = async (options: FetchOptions) => {
+  const now = new Date();
+  if (now.getUTCHours() === 0 && now.getUTCMinutes() < 59) {
+    throw new Error("cow-swap adapter is disabled b/w 00:00 and 00:59 AM UTC");
+  }
+  const sql = getSqlFromFile("helpers/queries/cow-protocol.sql", {
+    start: options.startOfDay
+  });
+  return await queryDuneSql(options, sql);
 }
-const address: TAddress = {
-  [CHAIN.ETHEREUM]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41',
-  [CHAIN.XDAI]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41'
-}
 
+const fetch = async (options: FetchOptions) => {
+  const preFetchedResults = options.preFetchedResults || [];
+  const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain === CHAIN.BSC ? 'bnb' : options.chain;
+  const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
-    const logs = await options.getLogs({
-      target: address[chain],
-      eventAbi: "event Trade (address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)",
-    })
-    const dailyFees = options.createBalances();
-    logs.map((tx: any) => dailyFees.add(tx.sellToken, tx.feeAmount))
-    const dailyRevenue = dailyFees.clone()
-    if (chain === CHAIN.ETHEREUM) {
-      const gasUsed = await queryIndexer(`
-            SELECT
-              COUNT(ethereum.event_logs.transaction_hash) as _count,
-              ethereum.transactions.gas_used * ethereum.transactions.gas_price AS sum
-            FROM
-              ethereum.event_logs
-              INNER JOIN ethereum.blocks ON ethereum.event_logs.block_number = ethereum.blocks.number
-              INNER JOIN ethereum.transactions on ethereum.event_logs.transaction_hash = ethereum.transactions.hash
-            WHERE
-              ethereum.event_logs.contract_address = '\\x9008d19f58aabd9ed0d60971565aa8510560ab41'
-              AND ethereum.event_logs.topic_0 = '\\xed99827efb37016f2275f98c4bcf71c7551c75d59e9b450f79fa32e60be672c2'
-              AND success = TRUE
-              AND ethereum.event_logs.block_time BETWEEN llama_replace_date_range
-              GROUP by sum`, options);
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-      gasUsed.map((e: any) => dailyRevenue.add(ADDRESSES.ethereum.WETH, e.sum * -1 / e._count))
+  if (data) {
+    // All values are now in ETH from the new dune query
+    const protocolFee = data.protocol_fee_revenue || 0;
+    const partnerFeePartner = data.partner_fee_partner_revenue || 0;
+    const mevBlockerFee = data.mev_blocker_fee || 0;
+    const mevBlockerSaleUsd = Number(data.mev_blocker_sale_usd || 0); // full sale proceeds in USD (paid on-chain in mixed USDC/ETH)
+    const partnerFeeCow = data.partner_fee_cow_revenue || 0;
+
+    let totalFees = protocolFee + partnerFeeCow + partnerFeePartner + (mevBlockerFee * 2); // ETH-denominated; MEV sale added separately in USD. beaverbuild receive same amount for mevBlockerFee
+    // let protocolRevenue = protocolFee + partnerFeeCow + mevBlockerFee; // Excluding partner fees
+
+    // Sanity check for Gnosis chain
+    if (options.chain === CHAIN.XDAI && totalFees > 5) {
+      throw new Error(`Total fees ${totalFees} ETH very high for gnosis. Protocol: ${protocolFee}, Partner(Partner): ${partnerFeePartner}, Partner(COW): ${partnerFeeCow}, MEV: ${mevBlockerFee}`);
     }
 
-    return { dailyUserFees: dailyFees, dailyFees, dailyRevenue, timestamp }
+    if(options.chain === CHAIN.ETHEREUM && totalFees > 1000) {
+      throw new Error(`Total fees ${totalFees} ETH very high for ethereum. Protocol: ${protocolFee}, Partner(Partner): ${partnerFeePartner}, Partner(COW): ${partnerFeeCow}, MEV: ${mevBlockerFee}`);
+    }
+
+    // User-paid trade fees
+    dailyUserFees.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyUserFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
+    dailyUserFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
+    dailyUserFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
+
+    // Total fees = user fees + stake-sale proceeds (the sale is not a user fee, so it stays out of dailyUserFees)
+    dailyFees.addBalances(dailyUserFees);
+    dailyFees.addUSDValue(mevBlockerSaleUsd, 'MEV Blocker Sale');
+
+    dailySupplySideRevenue.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
+    dailySupplySideRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees to Beaver Build');
+    dailySupplySideRevenue.addUSDValue(mevBlockerSaleUsd / 2, 'MEV Blocker Sale Amount to Beaver Build');
+
+    dailyRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees to CoW DAO');
+    dailyRevenue.addUSDValue(mevBlockerSaleUsd / 2, 'MEV Blocker Sale Amount to CoW DAO');
+    dailyRevenue.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
+  } else {
+    if (options.chain === CHAIN.LENS) return {}
+    throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+  }
+
+  return {
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
 const methodology = {
-  UserFees: "Trading fees",
-  Fees: "Trading fees",
-  Revenue: "Trading fees - transation fees",
+  UserFees: "Swap fees from the sell token: protocol fees (50% surplus + 2bps volume), partner fees, and MEV Blocker fees",
+  Fees: "Swap fees from the sell token: protocol fees (50% surplus + 2bps volume), partner fees, and MEV Blocker fees",
+  Revenue: "CoW DAO share: protocol fees, ~25% partner service fee, and 50% of MEV Blocker fees/sale proceeds",
+  ProtocolRevenue: "CoW DAO share: protocol fees, ~25% partner service fee, and 50% of MEV Blocker fees/sale proceeds",
+  SupplySideRevenue: "Partner integrator share and 50% of MEV Blocker fees/sale proceeds to Beaver Build",
+  HoldersRevenue: "No revenue to COW token holders",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'CoW Protocol Fees': '50% of user surplus and 2bps on volume.',
+    'Partner Fees for CoW': 'Service fee from partner integrations (~25% on average). Converted to WETH.',
+    'Partner Fees for Partners': 'Fees paid to widget/API integrators.',
+    'MEV Blocker Fees': 'Per-block fees from block builders. Split 50/50 with Beaver Build.',
+    'MEV Blocker Sale': 'MEV Blocker stake sale (CIP-73): quarterly installments through Oct 2028, tracked on-chain. Split 50/50 with Beaver Build.',
+  },
+  UserFees: {
+    'CoW Protocol Fees': '50% of user surplus and 2bps on volume.',
+    'Partner Fees for CoW': 'Service fee from partner integrations (~25% on average). Converted to WETH.',
+    'Partner Fees for Partners': 'Fees paid to widget/API integrators.',
+    'MEV Blocker Fees': 'Per-block fees from block builders. Split 50/50 with Beaver Build.',
+  },
+  Revenue: {
+    'CoW Protocol Fees': '50% of user surplus and 2bps on volume.',
+    'Partner Fees for CoW': 'Service fee from partner integrations (~25% on average). Converted to WETH.',
+    'MEV Blocker Fees to CoW DAO': 'CoW DAO share of MEV Blocker fees.',
+    'MEV Blocker Sale Amount to CoW DAO': 'CoW DAO share of MEV Blocker sale proceeds (buyer: SMG / Consensys).',
+  },
+  ProtocolRevenue: {
+    'CoW Protocol Fees': '50% of user surplus and 2bps on volume.',
+    'Partner Fees for CoW': 'Service fee from partner integrations (~25% on average). Converted to WETH.',
+    'MEV Blocker Fees to CoW DAO': 'CoW DAO share of MEV Blocker fees.',
+    'MEV Blocker Sale Amount to CoW DAO': 'CoW DAO share of MEV Blocker sale proceeds (buyer: SMG / Consensys).',
+  },
+  SupplySideRevenue: {
+    'Partner Fees for Partners': 'Fees paid to widget/API integrators.',
+    'MEV Blocker Fees to Beaver Build': 'Beaver Build share of MEV Blocker fees.',
+    'MEV Blocker Sale Amount to Beaver Build': 'Beaver Build share of MEV Blocker sale proceeds.',
+  },
+}
+
+const chainConfig = {
+  [CHAIN.ETHEREUM]: { start: '2023-02-03' },
+  [CHAIN.ARBITRUM]: { start: '2024-05-20' },
+  [CHAIN.BASE]: { start: '2024-12-02' },
+  [CHAIN.XDAI]: { start: '2023-02-03' },
+  [CHAIN.AVAX]: { start: '2025-06-30' },
+  [CHAIN.POLYGON]: { start: '2025-06-30' },
+  [CHAIN.BSC]: { start: '2025-09-04' },
+  [CHAIN.LENS]: { start: '2025-06-16', },
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM) as any,
-      start: 1675382400,
-      meta: {
-        methodology
-      }
-    },
-    // [CHAIN.XDAI]: {
-    //   fetch: fetch(CHAIN.XDAI) as any,
-    //   start: 1675382400,
-    //   meta: {
-    //     methodology
-    //   }
-    // }
-  }
+  fetch,
+  adapter: chainConfig,
+  dependencies: [Dependencies.DUNE],
+  methodology,
+  breakdownMethodology,
+  prefetch,
+  isExpensiveAdapter: true,
 }
 
 export default adapter;

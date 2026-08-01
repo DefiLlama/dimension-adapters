@@ -1,11 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
 
 
-const URL = "https://api.thegraph.com/subgraphs/name/0xc30/solidly";
+const URL = sdk.graph.modifyEndpoint('4GX8RE9TzEWormbkayeGj4NQmmhYE46izVVUvXv8WPDh');
 interface IPair {
   id: string;
   fee: string;
@@ -22,9 +23,9 @@ interface IQueryRange {
   today: IPair[];
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
+  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp)
 
   const todaysBlock = (await getBlock(todaysTimestamp, 'ethereum', {}));
   const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'ethereum', {}));
@@ -58,20 +59,16 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     .reduce((a: number, b: IPairs) => a + ((Number(b.fee)/10**6) * Number(b.volumeUSD)), 0);
 
   return {
-    timestamp,
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(),
-    dailyHoldersRevenue: dailyFees.toString(),
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
 
   }
 }
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: 1672444800
-    },
-  }
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2022-12-31',
 }
 
 export default adapter;

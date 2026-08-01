@@ -1,4 +1,4 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -9,7 +9,7 @@ interface IBlockHeader {
   totalFee: number,
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getFromBlock, getToBlock }: FetchOptions) => {
+const fetch = async ({ createBalances, getFromBlock, getToBlock }: FetchOptions) => {
   const dailyFees = createBalances()
 
   let startBlock = await getFromBlock();
@@ -29,14 +29,15 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getFro
 
   dailyFees.add(wavesToken, blockHeaders.reduce((acc, header) => acc + header.totalFee, 0))
 
-  return { timestamp, dailyFees, };
+  return { dailyFees, };
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.WAVES]: {
       fetch,
-      start: 1623024000
+      start: '2021-06-07'
     },
   },
   protocolType: ProtocolType.CHAIN

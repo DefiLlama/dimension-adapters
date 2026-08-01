@@ -1,35 +1,41 @@
-import { Adapter, ChainEndpoints } from "../../adapters/types";
+import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import { httpGet } from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
 
-const endpoints = {
-    [CHAIN.BSC]: "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all",
+const FeesAndRevenueURL = "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
+
+const fetch = async (options: FetchOptions) => {
+
+  const { data: { alpFeeVOFor24Hour } } = await fetchURL(FeesAndRevenueURL)
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(alpFeeVOFor24Hour.fee, METRIC.TRADING_FEES);
+
+  return {
+    dailyFees,
+    // dailyRevenue: alpFeeVOFor24Hour.revenue || 0,  // skipping this as we dont have a breakdown on how is returned as rebate
+  };
 }
 
-const request = (urls: ChainEndpoints) => {
-    return (chain: Chain) => {
-        return async (timestamp: number) => {
-            const { data } = await httpGet(urls[chain]);
-            const { alpFeeVOFor24Hour, allAlpFeeVO } = data
-            return {
-                timestamp,
-                dailyFees: alpFeeVOFor24Hour.fee || 0,
-                dailyRevenue: alpFeeVOFor24Hour.revenue || 0,
-                totalFees: allAlpFeeVO.fee || 0,
-                totalRevenue: allAlpFeeVO.revenue || 0,
-            };
-        }
-    }
+const methodology = {
+  Fees: "All trading fees collected from perpetual futures trading, including opening/closing positions and funding fees"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Trading fees paid by users on perpetual futures contracts, including position open/close fees and funding rate fees"
+  }
 }
 
 const adapter: Adapter = {
-    adapter: {
-        [CHAIN.BSC]: {
-            fetch: request(endpoints)(CHAIN.BSC),
-            start: 1689609600,
-        },
-    }
+  version: 1,
+  skipBreakdownValidation: true, // skipping breakdown validation as we dont have a breakdown on how much of the fee is returned as rebate
+  fetch,
+  start: '2023-07-17',
+  chains: [CHAIN.OFF_CHAIN],
+  runAtCurrTime: true,
+  methodology,
+  breakdownMethodology
 }
 
 export default adapter;

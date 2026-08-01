@@ -1,150 +1,122 @@
-import { Adapter, FetchResult } from "../adapters/types";
-import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
+import dexAdapter from "../dexs/curve";
 
-
-const endpoints = {
-  [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-mainnet",
-  [OPTIMISM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-optimism",
-  [ARBITRUM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-arbitrum",
-  [POLYGON]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-matic",
-  [AVAX]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-avalanche",
-  [FANTOM]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-fantom",
-  [XDAI]:
-    "https://api.thegraph.com/subgraphs/name/convex-community/volume-xdai",
-};
-
-const graph = (graphUrls: ChainEndpoints) => {
-  const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)
-  {
-    dailyPoolSnapshots (
-      orderBy: timestamp
-      orderDirection: desc
-      first: 1000
-      where: {
-        timestamp_gte: $timestampFrom
-        timestamp_lte: $timestampTo
-        totalDailyFeesUSD_lte: 1000000
-      }
-    ) {
-      totalDailyFeesUSD
-      adminFeesUSD
-      lpFeesUSD
-      pool {
-        symbol
-      }
-      timestamp
-    }
-  }`;
-
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-
-      const fromTimestamp = timestamp - 60 * 60 * 24
-      const toTimestamp = timestamp
-      const graphRes = await request(graphUrls[chain], graphQuery, {
-        timestampFrom: fromTimestamp,
-        timestampTo: toTimestamp
-      });
-
-      const blacklist = ['ypaxCrv', 'A3CRV-f', 'STETHETH_C-f']
-      const feesPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
-        return parseFloat(vol.totalDailyFeesUSD);
-      })
-      const revPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
-        return parseFloat(vol.adminFeesUSD);
-      });
-      const revLPPerPool = graphRes.dailyPoolSnapshots.filter((v: any) => !blacklist.includes(v.pool.symbol)).map((vol: any): number => {
-        return parseFloat(vol.lpFeesUSD);
-      });
-
-      const res: FetchResult = { timestamp, dailyProtocolRevenue: "0", }
-      if (feesPerPool.length > 0) {
-        const dailyFee = feesPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-        res["dailyUserFees"] = dailyFee.toString()
-        res["dailyFees"] = dailyFee.toString()
-      }
-      if (revPerPool.length > 0) {
-        const dailyRev = revPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-        res["dailyHoldersRevenue"] = dailyRev.toString()
-        res["dailyRevenue"] = dailyRev.toString()
-      }
-      if (revLPPerPool.length > 0) {
-        const dailyLPRev = revLPPerPool.reduce((acc: number, curr: number) => acc + curr, 0.);
-        res["dailySupplySideRevenue"] = dailyLPRev.toString()
-      }
-      return res
-    }
-  }
-};
-
-const methodology = {
-  UserFees: "Users pay a trading fee from 0.04% to 0.4% on each swap (as of July 2022, the fee on all pools was 0.04%)",
-  Fees: "Trading fees paid by users",
-  Revenue: "A 50% of the trading fee is collected by veCRV holders",
-  ProtocolRevenue: "Treasury have no revenue",
-  HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
-  SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
+const LABELS = {
+  CurveDEXSwapFees: 'CurveDEX Swap Fees',
+  CurveDEXSwapRevenue: 'CurveDEX Admin Fees',
+  CurveDEXFeesTreasury: 'CurveDEX Admin Fees To Treasury',
+  CurveDEXFeesHolders: 'CurveDEX Fees To veCRV Holders',
+  CurveDEXFeesLPs: 'CurveDEX Fees To LPs',
+  CurveBribesRewards: 'CurveDEX Bribes Rewards',
+  CurveBribesRevenue: 'CurveDEX Bribes Revenue',
 }
 
-const adapter: Adapter = {
-  adapter: {
-    [ETHEREUM]: {
-      fetch: graph(endpoints)(ETHEREUM),
-      start: 1577854800,
-      meta: {
-        methodology
-      }
+const fetchBribesRevenue = async (options: FetchOptions) => {
+  const dailyBribesRevenue = options.createBalances()
+
+  if (options.chain !== CHAIN.ETHEREUM) {
+    return dailyBribesRevenue;
+  }
+
+  const stats = await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)
+  const daily: any[] = stats.claimsLast365Days?.claims ?? []
+  const inception: any[] = stats.claimsSinceInception?.claims ?? []
+
+  // Recent days: claimsLast365Days is a daily-updating cumulative total, so a
+  // day's bribes = cumulative(endOfDay) - cumulative(startOfDay). Used whenever
+  // the day is covered by the daily series (not entirely before it begins).
+  if (daily.length && options.endTimestamp > daily[0].timestamp) {
+    const closestTo = (target: number) => daily.reduce((closest, item) =>
+      Math.abs(item.timestamp - target) < Math.abs(closest.timestamp - target) ? item : closest
+    )
+    const startOfDay = closestTo(options.startTimestamp)
+    const endOfDay = closestTo(options.endTimestamp)
+    dailyBribesRevenue.addUSDValue(Math.max(0, Number(endOfDay.value) - Number(startOfDay.value)))
+    return dailyBribesRevenue;
+  }
+
+  // Older days fall back to claimsSinceInception, a cumulative total that only
+  // steps on each (bi-)weekly claim settlement (~15-day cadence). Count the full
+  // epoch delta only on the day its settlement snapshot lands; zero otherwise.
+  const idx = inception.findIndex((c) => c.timestamp >= options.startTimestamp && c.timestamp < options.endTimestamp)
+  if (idx >= 0) {
+    const prevValue = idx > 0 ? Number(inception[idx - 1].value) : 0
+    dailyBribesRevenue.addUSDValue(Math.max(0, Number(inception[idx].value) - prevValue))
+  }
+
+  return dailyBribesRevenue;
+}
+
+const baseDexAdapter = dexAdapter.adapter as BaseAdapter
+
+const fetch = async (options: FetchOptions) => {
+  const dexData: any = await (baseDexAdapter[options.chain].fetch as FetchV2)(options)
+  if (!dexData) throw Error('failed to run curve-dex adapter');
+  
+  const dailyBribesRevenue = await fetchBribesRevenue(options)
+  
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  
+  dailyFees.add(dexData.dailyFees, LABELS.CurveDEXSwapFees);
+  dailyFees.add(dailyBribesRevenue, LABELS.CurveBribesRewards);
+
+  dailyRevenue.add(dexData.dailyRevenue, LABELS.CurveDEXSwapRevenue);
+  dailyRevenue.add(dailyBribesRevenue, LABELS.CurveBribesRevenue);
+
+  dailyHoldersRevenue.add(dexData.dailyHoldersRevenue, LABELS.CurveDEXFeesHolders);
+  dailyHoldersRevenue.add(dailyBribesRevenue, LABELS.CurveBribesRevenue);
+  
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: dexData.dailyProtocolRevenue.clone(1, LABELS.CurveDEXFeesTreasury),
+    dailySupplySideRevenue: dexData.dailySupplySideRevenue.clone(1, LABELS.CurveDEXFeesLPs),
+  }
+}
+
+// https://resources.curve.finance/pools/overview/#pool-fees
+const adapter: SimpleAdapter = {
+  version: 2,
+  // pullHourly: true, // curve api doesn't support hourly pull
+  adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
+    all[chain] = {
+      fetch,
+      start: baseDexAdapter[chain].start,
+    }
+    return all
+  }, {} as any),
+  methodology: {
+    Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
+    UserFees: "Trading and liquidity fees paid by users",
+    Revenue: "Fees distributed to veCRV holders and protocol treasury",
+    ProtocolRevenue: "Fees allocated to the protocol treasury",
+    HoldersRevenue: "Fees distributed to veCRV governance token holders",
+    SupplySideRevenue: "Fees distributed to liquidity providers"
+  },
+  breakdownMethodology: {
+    Fees: {
+      [LABELS.CurveDEXSwapFees]: 'Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)',
+      [LABELS.CurveBribesRewards]: 'All bribes rewards collected',
     },
-    [OPTIMISM]: {
-      fetch: graph(endpoints)(OPTIMISM),
-      start: 1620532800,
-      meta: {
-        methodology
-      }
+    Revenue: {
+      [LABELS.CurveDEXSwapRevenue]: 'Fees distributed to veCRV holders and protocol treasury',
+      [LABELS.CurveBribesRevenue]: 'All bribes revenue to holders',
     },
-    [ARBITRUM]: {
-      fetch: graph(endpoints)(ARBITRUM),
-      start: 1632110400,
-      meta: {
-        methodology
-      }
+    ProtocolRevenue: {
+      [LABELS.CurveDEXFeesTreasury]: 'Fees allocated to the protocol treasury',
     },
-    [POLYGON]: {
-      fetch: graph(endpoints)(POLYGON),
-      start: 1620014400,
-      meta: {
-        methodology
-      }
+    HoldersRevenue: {
+      [LABELS.CurveDEXFeesHolders]: 'Fees distributed to veCRV governance token holders',
+      [LABELS.CurveBribesRevenue]: 'All bribes revenue to holders',
     },
-    [AVAX]: {
-      fetch: graph(endpoints)(AVAX),
-      start: 1633492800,
-      meta: {
-        methodology
-      }
-    },
-    [FANTOM]: {
-      fetch: graph(endpoints)(FANTOM),
-      start: 1620532800,
-      meta: {
-        methodology
-      }
-    },
-    [XDAI]: {
-      fetch: graph(endpoints)(XDAI),
-      start: 1620532800,
-      meta: {
-        methodology
-      }
+    SupplySideRevenue: {
+      [LABELS.CurveDEXFeesLPs]: 'Fees distributed to liquidity providers',
     },
   }
 }

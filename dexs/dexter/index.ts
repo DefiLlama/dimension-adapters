@@ -1,29 +1,19 @@
-import {SimpleAdapter} from "../../adapters/types";
-import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import {getDimensions, IDimensions} from "./dimensions";
-import {getStartTimestamp} from "./startTimestamp";
 
-const fetch = async (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
-  const dayTimestamp = getUniqStartOfTodayTimestamp(date);
-  const dateStr = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`;
-  const dimensions: IDimensions = await getDimensions(dateStr);
+const fetch = async (options: FetchOptions) => {
+  const dimensions: IDimensions = await getDimensions(options.dateString);
 
   return {
-    // totalVolume: `${dimensions.totalVolume}`,
     dailyVolume: dimensions.dailyVolume ? `${dimensions.dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    persistence: {
-      fetch,
-      runAtCurrTime: false,
-      start: 1679875200,
-    },
-  },
+  fetch,
+  chains: [CHAIN.PERSISTENCE],
+  start: '2023-03-27',
 };
 
 export default adapter;

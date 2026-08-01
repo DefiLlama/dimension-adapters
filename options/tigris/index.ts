@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -8,7 +8,6 @@ const API_ENDPOINT = "https://flask.tigristrade.info";
 interface ApiResponse {
   dailyNotionalVolume: number;
   day: number;
-  totalNotionalVolume: number;
 }
 
 const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
@@ -37,36 +36,30 @@ function startOfDayTimestamp(timestamp: number): number {
   return Math.floor(date.getTime() / 1000);
 }
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number) => {
-    const dataPoints = await fetchFromAPI(chain, timestamp);
+const fetch = async (options: FetchOptions) => {
+  const dataPoints = await fetchFromAPI(options.chain, options.toTimestamp);
 
-    const adjustedTimestamp = startOfDayTimestamp(timestamp);
+  const adjustedTimestamp = startOfDayTimestamp(options.toTimestamp);
 
-    const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
+  const matchingData = dataPoints.find(e => e.day === adjustedTimestamp);
 
-    if (!matchingData)
-      throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
+  if (!matchingData)
+    throw new Error(`No matching data found for timestamp ${adjustedTimestamp}. Returning zero values.`);
 
-    return {
-      dailyPremiumVolume: '0',
-      totalPremuimVolume: '0',
-      dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-      totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
-      timestamp: matchingData.day
-    };
-  }
+  return {
+    dailyPremiumVolume: '0',
+    dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
+  };
 }
 
 const adapter: Adapter = {
+  fetch,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: 1663023600,
+      start: '2022-09-13',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: 1663023600,
+      start: '2022-09-13',
     }
   }
 }

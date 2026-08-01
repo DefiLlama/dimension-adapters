@@ -1,7 +1,6 @@
-import { Fetch, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from 'graphql-request';
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 // TODO: change these endpoints
 const apiEndPoints = [
@@ -32,51 +31,34 @@ const historicalDataSwap = gql`
 `;
 
 
-const fetch: Fetch = async(timestamp): Promise<FetchResultFees> => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
-    let totalFees = 0;
-    const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    for (const api of apiEndPoints){
+    for (const api of apiEndPoints) {
         const response: FeeStatsQuery = await request(api, historicalDataSwap, {
-            id: String(t),
+            id: String(startOfDay),
             period: "daily",
         })
         dailyFees += response.feeStats.length ? Number(
             Object.values(response.feeStats[0] || {}).reduce((sum, element) =>
                 String(Number(sum) + Number(element))
             )
-            ) : 0;
+        ) : 0;
 
-        const totalResponse: FeeStatsQuery = await request(api, historicalDataSwap, {
-            id: "total",
-            period: "total",
-        })
-
-        totalFees += totalResponse.feeStats.length ? Number(
-            Object.values(totalResponse.feeStats[0] || {}).reduce((sum, element) =>
-                String(Number(sum) + Number(element))
-            )
-            ) : 0;
     }
     dailyFees /= 1e30
-    totalFees /= 1e30
     return {
-        timestamp,
-        dailyFees: dailyFees.toString(),
-        totalFees: totalFees.toString(),
+        dailyFees,
     }
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.ARBITRUM]: {
-            start: 1704758400,
-            fetch,
-            meta:{
-                methodology: "api calls from grpahql"
-            }
-        }
+    version: 1,
+    fetch,
+    chains: [CHAIN.ARBITRUM],
+    start: '2024-01-09',
+    methodology: {
+        Fees: "Trading fees queried from api calls from grpahql",
     }
 }
 

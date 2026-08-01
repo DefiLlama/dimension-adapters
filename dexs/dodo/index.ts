@@ -1,9 +1,8 @@
-import { Adapter, ChainEndpoints, Fetch, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
 import dailyVolumePayload from "./dailyVolumePayload";
-import totalVolumePayload from "./totalVolumePayload";
+import { addOneToken } from "../../helpers/prices";
 
 /* const endpoints = {
   [CHAIN.ARBITRUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
@@ -11,25 +10,25 @@ import totalVolumePayload from "./totalVolumePayload";
   [CHAIN.BSC]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.ETHEREUM]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
   [CHAIN.POLYGON]: "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData",
-  // [MOONRIVER]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-moonriver",
-  // [AVAX]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-avax",
-  // [BOBA]: "https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2-boba"
+  // [MOONRIVER]: sdk.graph.modifyEndpoint('G4HFPFJue7zf2BktJuKETh72DscimLJRybVA6iD6A7yM'),
+  // [AVAX]: sdk.graph.modifyEndpoint('8GUXi8PNrW4ACf968KCWxH9AkeNt8YEQin7MDa7RuULW'),
+  // [BOBA]: sdk.graph.modifyEndpoint('6PVfSucTfTimvx3aMgWsatmRDBNxW7yQKayyZ7Mxrf73')
   // [HECO]: "https://n10.hg.network/subgraphs/name/dodoex-mine-v3-heco/heco",
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */
 const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
-const totalEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardInfoData&apikey=graphqldefiLlamadodoYzj5giof"
 const chains = [
   CHAIN.ARBITRUM,
-   CHAIN.BSC,
-   CHAIN.ETHEREUM,
-   CHAIN.POLYGON,
-   CHAIN.AVAX,
-   CHAIN.OPTIMISM,
-   CHAIN.BASE,
-   CHAIN.LINEA,
-   CHAIN.SCROLL,
+  CHAIN.BSC,
+  CHAIN.ETHEREUM,
+  CHAIN.POLYGON,
+  CHAIN.AVAX,
+  CHAIN.OPTIMISM,
+  CHAIN.BASE,
+  CHAIN.LINEA,
+  CHAIN.SCROLL,
   //  CHAIN.MANTA
+  // CHAIN.DFIO_META_MAIN,
 ]
 
 interface IDailyResponse {
@@ -45,42 +44,57 @@ interface IDailyResponse {
   }
 }
 
-interface ITotalResponse {
-  data: {
-    dashboard_pairs_count_data: {
-      totalVolume: string
-    }
-  }
-}
+// const dfioFetch = async (options: FetchOptions) => {
 
-const getFetch = (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+//   const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
+
+//   const poolCreatedLogs = await options.getLogs({
+//     target: dvmFactory,
+//     eventAbi: "event NewDVM (address baseToken, address quoteToken, address creator, address dvm)",
+//     fromBlock: 3510162,
+//     cacheInCloud: true,
+//   });
+
+//   const pools = poolCreatedLogs.map((log) => log.dvm);
+
+//   const SWAP_ABI =
+//     "event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)";
+
+//   const dailyVolume = options.createBalances();
+
+//   const swapLogs = await options.getLogs({
+//     targets: pools,
+//     eventAbi: SWAP_ABI,
+//   });
+
+//   for (const log of swapLogs) {
+//     addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+//   }
+
+//   return {
+//     dailyVolume,
+//   };
+// }
+
+const fetch = async (options: FetchOptions) => {
+  const chain = chainConversion(options.chain)
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
-  // const totalResponse = (await postURL(totalEndpoint, totalVolumePayload(chain))) as ITotalResponse
 
   return {
-    timestamp: dayTimestamp,
-    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === dayTimestamp)?.volume[chain],
-    // totalVolume: totalResponse.data.dashboard_pairs_count_data.totalVolume
+    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[chain],
   }
-}
-
-const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
-  const response = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
-  const firstDay = response.data.dashboard_chain_day_data.list.find((item: any) => item.volume[chain] !== '0')
-  return firstDay?.timestamp ?? 0
 }
 
 const chainConversion = (chain: string): string => {
   switch (chain) {
     case CHAIN.SCROLL:
-        return 'scr';
+      return 'scr';
     case CHAIN.MANTA:
-        return 'manta';
+      return 'manta';
     case CHAIN.AVAX:
-        return 'avalanche';
+      return 'avalanche';
     default:
-        return chain;
+      return chain;
   }
 }
 
@@ -88,14 +102,16 @@ const volume = chains.reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: getFetch(chainConversion(chain)),
-      start: getStartTimestamp(chainConversion(chain))
+      fetch,
     },
   }),
   {}
 );
 
+
 const adapter: SimpleAdapter = {
   adapter: volume
 };
-export default adapter;
+
+
+export default adapter

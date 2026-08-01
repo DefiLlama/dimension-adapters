@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 
@@ -13,24 +13,20 @@ interface GetVolumeReturn {
     timestamp: number;
 }
 
-const fetch  =  async (_timestamp: number) => {
+const fetch = async (_options: FetchOptions) => {
     const volumeData: GetVolumeReturn = (await fetchURL(getVolumeURL));
 
     return {
-            totalVolume: volumeData.totalVolume.toString(),
-            dailyVolume: volumeData.dailyVolume.toString(),
-            timestamp: volumeData.timestamp,
-        };
+        dailyVolume: volumeData.dailyVolume.toString(),
+        timestamp: volumeData.timestamp,
+    };
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch,
-            runAtCurrTime: true,
-            start: 1684003134,
-        }
-    },
+    fetch,
+    chains: [CHAIN.SUI],
+    start: '2023-05-13',
+    runAtCurrTime: true,
 };
 
 export default adapter;

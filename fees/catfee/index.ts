@@ -1,0 +1,108 @@
+import { FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
+import { getEnv } from "../../helpers/env";
+const plimit = require('p-limit');
+const limits = plimit(1);
+
+const CONFIG = {
+    CATFEE_ADDRESS: "TCatFee7NWfcD7nD372Udn49H5ok8rYy6Q",
+    API_BASE_URL: "https://apilist.tronscanapi.com/api/transfer/trx",
+    PAGE_LIMIT: 50,
+    START_TIMESTAMP: 1735210273,
+} as const;
+
+interface TronTransaction {
+    amount: string;
+    // Add other fields as needed
+}
+
+interface TronAPIResponse {
+    data: TronTransaction[];
+    page_size: number;
+}
+
+async function fetchTransactionPage(params: {
+    fromTimestamp: number;
+    endTimestamp: number;
+    start: number;
+}): Promise<TronAPIResponse> {
+    const url = new URL(CONFIG.API_BASE_URL);
+    const queryParams = {
+        address: CONFIG.CATFEE_ADDRESS,
+        start: params.start.toString(),
+        limit: CONFIG.PAGE_LIMIT.toString(),
+        direction: "2",
+        reverse: "false",
+        // FetchOptions timestamps are in seconds; Tronscan expects milliseconds.
+        start_timestamp: (params.fromTimestamp * 1000).toString(),
+        end_timestamp: (params.endTimestamp * 1000).toString(),
+    };
+
+    Object.entries(queryParams).forEach(([key, value]) =>
+        url.searchParams.append(key, value)
+    );
+
+    const apiKey = getEnv("TRONSCAN_API_KEY");
+    if (!apiKey) throw new Error("TRONSCAN_API_KEY is not set");
+    const headers = { "TRON-PRO-API-KEY": apiKey };
+    return limits(() => httpGet(url.toString(), { headers }));
+}
+
+async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promise<number> {
+    let start = 0;
+    let totalFees = 0;
+
+    while (true) {
+        const response = await fetchTransactionPage({ fromTimestamp, endTimestamp, start });
+
+        if (response?.page_size === 0) break;
+        if (response?.data?.length === 0 || !response?.data) break;
+
+        totalFees += response.data.reduce(
+            (acc, tx) => acc + Number(tx?.amount || 0) / 1_000_000,
+            0
+        );
+
+        if (response?.page_size < CONFIG.PAGE_LIMIT) break;
+        start += CONFIG.PAGE_LIMIT;
+    }
+
+    return totalFees;
+}
+
+async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptions) {
+    const dailyFees = createBalances();
+    const totalFees = await getDailyFees(fromTimestamp, endTimestamp);
+    dailyFees.addCGToken('tron', totalFees, 'Buying Energy');
+
+    return {
+        dailyFees,
+        dailySupplySideRevenue: dailyFees,
+        dailyRevenue: 0, // catfee takes no comission or fees
+    };
+}
+
+export default {
+    methodology: {
+        Fees: "All fees paid by users for buying energy.",
+        SupplySideRevenue: "All fees are distributed to supply side TRX stakers.",
+        Revenue: "No revenue for protocol.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            'Buying Energy': 'All fees paid by users for buying energy.',
+        },
+        SupplySideRevenue: {
+            'Buying Energy': 'All fees are distributed to supply side TRX stakers.',
+        },
+        Revenue: {
+            'Buying Energy': 'No revenue for protocol.',
+        },
+    },
+    version: 2,
+    fetch,
+    chains: [CHAIN.TRON],
+    start: CONFIG.START_TIMESTAMP,
+    pullHourly: true,
+};

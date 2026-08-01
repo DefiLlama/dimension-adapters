@@ -1,112 +1,105 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
-interface IConfigs {
-  pairs: IPairData[];
-}
-
-interface IPairData {
-  pair_name: string;
-  pair_byte: string;
-  underlying_asset: string;
-  collateral_asset: string;
-}
-
 interface IDailyData {
-  all: string;
-  long: string;
-  short: string;
-}
-interface IChartData {
   date: string;
-  daily_data: IDailyData;
+  short: string;
+  long: string;
+  total: string;
 }
-interface IChart {
-  type: string;
-  data: IChartData[];
-}
-interface IChartRes {
-  charts: IChart[];
-  pair_names: string[];
+interface IRes {
+  data: IDailyData[];
 }
 
-interface IEndpoint {
-  pairData: string;
-  tradingVolume: string;
-  openInterest: string;
-}
-
-const endpoints: Record<Chain, IEndpoint> = {
-  [CHAIN.AVAX]: {
-    pairData: "https://app.fwx.finance/api/43114/v1//configs",
-    tradingVolume: "https://app.fwx.finance/api/43114/v1//chart/trading-volume",
-    openInterest: "https://app.fwx.finance/api/43114/v1//chart/open-interest",
-  },
+const CHAIN_ID = {
+  [CHAIN.AVAX]: 43114,
+  [CHAIN.BASE]: 8453,
+  [CHAIN.BSC]: 56,
 };
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1e3)
-    );
-    const date = new Date(dayTimestamp * 1e3);
-    const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
+const endpoints = {
+  tradingVolume: `https://analytics.fwx.finance/api/trade/daily-trade-volume`,
+  openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
+};
 
-    // * call api for daily volume
-    const pairDataRes = await httpPost(endpoints[chain].pairData, {});
-    const pairData = pairDataRes as IConfigs
-    const pairs = pairData.pairs.map((p: IPairData) => p.pair_name);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const date = new Date(options.startOfDay * 1e3);
+  const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
-    // * call api for daily volume
-    const tradingVolumeRes = await httpPost(endpoints[chain].tradingVolume, {
-      from_date: formattedDate,
-      to_date: formattedDate,
-      pair_names: pairs,
-      type: ["all"],
-    });
-    const tradingVolume = tradingVolumeRes as IChartRes
-    const totalVolumeData = tradingVolume.charts.find(
-      (x: IChart) => x.type == "all"
-    );
-    const dailyVolumeData = totalVolumeData?.data.find(
-      (x: IChartData) =>
-        new Date(x.date).getTime() == new Date(formattedDate).getTime()
-    )?.daily_data;
+  // * call api for daily volume
+  const tradingVolumePerpRes = await httpPost(endpoints.tradingVolume, {
+    from_date: formattedDate,
+    to_date: formattedDate,
+    chain_id: CHAIN_ID[options.chain],
+    is_perp: true,
+  });
 
-    // * call api for daily open interest
-    const openInterestRes = await httpPost(endpoints[chain].openInterest, {
-      from_date: formattedDate,
-      to_date: formattedDate,
-      pair_names: pairs,
-      type: ["all"],
-    });
-    const openInterest = openInterestRes as  IChartRes 
-    const openInterestData = openInterest.charts.find(
-      (x: IChart) => x.type == "all"
-    );
-    const dailyOpenInterestData = openInterestData?.data.find(
-      (x: IChartData) =>
-        new Date(x.date).getTime() == new Date(formattedDate).getTime()
-    )?.daily_data;
+  const tradingVolumePerp = tradingVolumePerpRes as IRes;
+  const dailyPerpVolumeData = tradingVolumePerp?.data.find(
+    (x: IDailyData) =>
+      new Date(x.date).getTime() == new Date(formattedDate).getTime()
+  );
 
-    return {
-      dailyVolume: dailyVolumeData?.all,
-      dailyOpenInterest: dailyOpenInterestData?.all,
-      timestamp: timestamp,
-    };
+  const tradingVolumeAphRes = await httpPost(endpoints.tradingVolume, {
+    from_date: formattedDate,
+    to_date: formattedDate,
+    chain_id: CHAIN_ID[options.chain],
+    is_perp: false,
+  });
+  const tradingVolumeAph = tradingVolumeAphRes as IRes;
+  const dailyAphVolumeData = tradingVolumeAph?.data.find(
+    (x: IDailyData) =>
+      new Date(x.date).getTime() == new Date(formattedDate).getTime()
+  );
+
+  // * call api for daily open interest
+  const openInterestRes = await httpPost(endpoints.openInterest, {
+    from_date: formattedDate,
+    to_date: formattedDate,
+    chain_id: CHAIN_ID[options.chain],
+  });
+
+  const openInterestData = openInterestRes as IRes;
+  const dailyOpenInterestData = openInterestData?.data.find(
+    (x: IDailyData) =>
+      new Date(x.date).getTime() == new Date(formattedDate).getTime()
+  );
+
+  const openInterestValue = BigInt(dailyOpenInterestData?.total || "0");
+  return {
+    dailyVolume: convertStringNumber(
+      BigInt(dailyPerpVolumeData?.total || "0") +
+      BigInt(dailyAphVolumeData?.total || "0")
+    ),
+    openInterestAtEnd: convertStringNumber(
+      openInterestValue < 0 ? -openInterestValue : openInterestValue
+    ),
   };
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
   adapter: {
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: 1701907200,
-    },
+    [CHAIN.AVAX]: { start: "2023-12-07"  },
+    [CHAIN.BASE]: { start: "2024-09-04" },
+    [CHAIN.BSC]: { start: "2024-01-22" },
   },
 };
 
 export default adapter;
+
+// divide by 1e18
+function convertStringNumber(number: bigint) {
+  const divisor = BigInt(1e18);
+  let integerPart = number / divisor;
+  let fractionalPart = number % divisor;
+
+  // Ensure fractional part is positive for correct formatting
+  if (fractionalPart < 0) {
+    fractionalPart = -fractionalPart;
+  }
+
+  let fractionalString = fractionalPart.toString().padStart(18, "0");
+  return `${integerPart}.${fractionalString}`;
+}

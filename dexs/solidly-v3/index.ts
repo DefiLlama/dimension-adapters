@@ -1,18 +1,48 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/64631/solidly-v3-base/version/latest",
-  [CHAIN.OPTIMISM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-optimism",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-arbitrum",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/solidlylabs/solidly-v3-fantom"
-}, {
-  factoriesName: "factories",
-  dayData: "solidlyDayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "totalVolumeUSD",
-});
+const configs: any = {
+  [CHAIN.ETHEREUM]: {
+    factory: '0x70Fe4a44EA505cFa3A57b95cF2862D4fd5F0f687',
+    start: '2023-08-18',
+  },
+  [CHAIN.OPTIMISM]: {
+    factory: '0x70fe4a44ea505cfa3a57b95cf2862d4fd5f0f687',
+    start: '2024-01-24',
+  },
+  [CHAIN.BASE]: {
+    factory: '0x70fe4a44ea505cfa3a57b95cf2862d4fd5f0f687',
+    start: '2024-01-24',
+  },
+  [CHAIN.ARBITRUM]: {
+    factory: '0x70fe4a44ea505cfa3a57b95cf2862d4fd5f0f687',
+    start: '2024-01-24',
+  },
+  // [CHAIN.FANTOM]: {
+  //   factory: '0x70fe4a44ea505cfa3a57b95cf2862d4fd5f0f687',
+  //   start: '2024-01-24',
+  // },
+  [CHAIN.SONIC]: {
+    factory: '0x777fAca731b17E8847eBF175c94DbE9d81A8f630',
+    start: '2024-12-17',
+  },
+}
 
-adapters.adapter.ethereum.start = 1693526400;
-export default adapters;
+const fetch = async (options:FetchOptions) => {
+  return await getUniV3LogAdapter({
+    factory: configs[options.chain].factory,
+    revenueRatio: 0.2,
+    holdersRevenueRatio: 0.2,
+  })(options);
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  adapter: configs,
+  skipBreakdownValidation: true,
+  pullHourly: true,
+}
+
+export default adapter;

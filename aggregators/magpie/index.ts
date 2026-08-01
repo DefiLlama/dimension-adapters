@@ -1,0 +1,161 @@
+import { postURL } from "../../utils/fetchURL";
+import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date"
+import { CHAIN } from "../../helpers/chains";
+
+const inflatedVolumes: { [key: string]: string[] } = {
+  [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19", "2026-04-28", "2026-06-02"],
+  [CHAIN.BSC]: ["2026-06-03", "2026-06-04", "2026-06-17"],
+}
+
+const fetch = async ({ chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
+  if (inflatedVolumes[chain] && inflatedVolumes[chain].includes(dateString)) {
+    return {
+      dailyVolume: 0,
+    };
+  }
+  const unixTimestamp = getTimestampAtStartOfDayUTC(startOfDay)
+  const data = await postURL(`https://prewimvk04.execute-api.us-west-1.amazonaws.com/prod/llama`, { timestamp: unixTimestamp, chain: chain }, 10);
+  const chainData = data.result
+  if (chainData === undefined) {
+    return {
+      dailyVolume: 0,
+    };
+  } else {
+    return {
+      dailyVolume: chainData.dailyVolume,
+    };
+  }
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.POLYGON]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.AVAX]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.SCROLL]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.MANTA]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.TAIKO]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    // [CHAIN.BLAST]: {
+    //   fetch,
+    //   start: '2022-09-08',
+    // },
+    [CHAIN.METIS]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.FANTOM]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.SONIC]: {
+      fetch,
+      start: '2024-12-26',
+    },
+    [CHAIN.ERA]: {
+      fetch,
+      start: '2022-09-08',
+    },
+    [CHAIN.BERACHAIN]: {
+      fetch,
+      start: '2025-02-10',
+    },
+    [CHAIN.LINEA]: {
+      fetch,
+      start: '2025-02-11',
+    },
+    [CHAIN.INK]: {
+      fetch,
+      start: '2025-02-11',
+    },    
+    [CHAIN.ABSTRACT]: {
+      fetch,
+      start: '2025-07-01',
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch,
+      start: '2025-07-01',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch,
+      start: '2025-10-01',
+    },
+    [CHAIN.PLASMA]: {
+      fetch,
+      start: '2025-10-01',
+    },
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: '2025-11-15',
+    },
+    [CHAIN.MONAD]: {
+      fetch,
+      start: '2025-11-22',
+    },
+    [CHAIN.MEGAETH]: {
+      fetch,
+      start: '2026-01-30',
+    },
+    [CHAIN.MORPH]: {
+      fetch,
+      start: '2026-01-13',
+    },
+    [CHAIN.FOGO]: {
+      fetch,
+      start: '2026-04-01',
+    },    
+    [CHAIN.KATANA]: {
+      fetch,
+      start: '2026-04-01',
+    },    
+    [CHAIN.TELOS]: {
+      fetch,
+      start: '2026-04-01',
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch,
+      start: '2026-07-01',
+    },
+  },
+};
+
+export default adapter;

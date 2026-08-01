@@ -1,44 +1,67 @@
+import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import * as sdk from "@defillama/sdk";
 
 interface IGraph {
-	volumeEth: string;
-	volumeUsdc: string;
+	volume: string;
+	totalFees: string;
 	id: string;
 }
 
-const URL = 'https://api.studio.thegraph.com/query/43986/pingu-sg/0.1.0';
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-	const chain = CHAIN.ARBITRUM;
-	const balances = new sdk.Balances({ chain, timestamp })
-	const query = gql`
-    {
-			dayData(id: ${dayTimestamp * 1000}) {
-				volumeEth
-				volumeUsdc
-			}
-		}`;
-	const response: IGraph = (await request(URL, query)).dayData;
-	const element = response;
-	balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, element.volumeUsdc);
-	balances._add(ADDRESSES.arbitrum.WETH, element.volumeEth);
+const ARBITRUM_URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb-2/0.0.1/';
+const ARBITRUM_ASSETS = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
 
+const MONAD_ID = 'G3dQNfEnDw4q3bn6QRSJUmcLzi7JKTDGYGWwPeYWYa6X';
+const MONAD_USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+const MONAD_ASSETS = [MONAD_USDC, ADDRESSES.null];
+
+const CONFIGS: Record<string, any> = {
+  [CHAIN.ARBITRUM]: {
+    graph: ARBITRUM_URL,
+    assets: ARBITRUM_ASSETS,
+  },
+  [CHAIN.MONAD]: {
+    graph: sdk.graph.modifyEndpoint(MONAD_ID),
+    assets: MONAD_ASSETS,
+  },
+}
+
+const fetch = async ({ chain, createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => { 
+  
+	const dailyVolume = createBalances()
+	const dailyFees = createBalances()
+	
+	for (const asset of CONFIGS[chain].assets) {
+		const query = gql`
+     	{
+				dayAssetData(id: "${startOfDay * 1000}-${asset.toLowerCase()}") {
+					volume
+					totalFees
+				}
+			}`;
+		const response: IGraph = (await request(CONFIGS[chain].graph, query)).dayAssetData;
+		const element = response;
+		if (element && element.volume) {
+			dailyVolume.add(asset, element.volume);
+			dailyFees.add(asset, element.totalFees);
+		}
+	}
 	return {
-		dailyVolume: await balances.getUSDString(),
-		timestamp: dayTimestamp,
+		dailyVolume,
+		dailyFees,
 	};
 }
 
 const adapter: SimpleAdapter = {
+	fetch,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
-			fetch: fetch,
-			start: async () => 1704844800,
+			start: '2024-01-10',
+		},
+		[CHAIN.MONAD]: {
+			start: '2025-11-24',
 		},
 	},
 };

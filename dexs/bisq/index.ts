@@ -2,14 +2,14 @@ import fetchURL from "../../utils/fetchURL"
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const historicalVolumeEndpoint = "https://bisq.markets/bisq/api/markets/volumes?interval=day"
+const historicalVolumeEndpoint = "https://markets.bisq.network/api/volumes?interval=day"
 
 interface IVolumeall {
   volume: string;
   period_start: number;
 }
 
-const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }: FetchOptions) => {
+const fetch = async ({startOfDay, createBalances, }: FetchOptions) => {
   const totalVolume = createBalances()
   const dailyVolume = createBalances()
 
@@ -23,15 +23,14 @@ const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }:
   dailyVolume.addCGToken('bitcoin', +(dailyVol as any))
 
   return {
-    // totalVolume,
-    dailyVolume, timestamp: startOfDay };
+    dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: 1525651200,
+      start: '2018-05-07',
     },
   },
 };

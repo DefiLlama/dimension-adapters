@@ -1,126 +1,98 @@
 import fetchURL from "../../utils/fetchURL";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { request, gql } from "graphql-request";
 
 const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
+const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
 export enum KanaChainID {
   "solana" = 1,
   "aptos" = 2,
   "polygon" = 3,
-  "ethereum" = 4,
-  "bsc" = 5,
-  "klaytn" = 6,
-  "sui" = 8,
-  "Arbitrum" = 9,
+  "bsc" = 4,
+  "sui" = 5,
+  "ethereum" = 6,
+  "base" = 7,
+  "klaytn" = 8,
+  "zkSync" = 9,
   "Avalanche" = 10,
-  "zkSync" = 11,
-  "base" = 12,
+  "Arbitrum" = 11,
+  "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = await fetchURL(
-      `${URL}?timestamp=${timestamp}&chainId=${chain}`
-    );
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+const fetch = (chain: KanaChainID) => async (options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
+  const data = await fetchURL(
+    `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
+  );
+  return {
+    dailyVolume: data.today.volume,
+  };
 };
 
-const fetchDerivatives = (chain: KanaChainID) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  try {
-    const data = await fetchURL(
-      `${TRADE_URL}?timestamp=${timestamp}&chainId=${chain}`
-    );
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: data.today.volume,
-      totalVolume: data.totalVolume.volume,
-    };
-  } catch (err) {
-    console.log(err);
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: "0",
-      totalVolume: "0",
-    };
-  }
+const fetchAptos = async (options: FetchOptions) => {
+  const dayTimestamp = options.startOfDay + 86400;
+  const query = gql`
+    query getTransactionVolumesForTransactions($timestamp: Float!, $chainId: Float!) {
+      getTransactionVolumesForTransactions(timestamp: $timestamp, chainId: $chainId)
+    }
+  `;
+  const variables = {
+    timestamp: dayTimestamp - 1,
+    chainId: KanaChainID.aptos,
+  };
+  const data = await request(GRAPHQL_URL, query, variables);
+  
+  const result = data.getTransactionVolumesForTransactions;
+  
+  return {
+    dailyVolume: result.today.volume,
+  };
 };
 
-const startTimeBlock = 1695897800;
+const start = '2023-09-08';
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(KanaChainID.ethereum),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.BSC]: {
       fetch: fetch(KanaChainID.bsc),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(KanaChainID.Avalanche),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(KanaChainID.Arbitrum),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(KanaChainID.polygon),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.ERA]: {
       fetch: fetch(KanaChainID.zkSync),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.APTOS]: {
-      fetch: async (timestamp: number) => {
-        const swap = await fetch(KanaChainID.aptos)(timestamp);
-        const trade = await fetchDerivatives(KanaChainID.aptos)(timestamp);
-        return {
-          dailyVolume: (+swap.dailyVolume + +trade.dailyVolume).toString(),
-          totalVolume: (+swap.totalVolume + +trade.totalVolume).toString(),
-          timestamp,
-        };
-      },
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      fetch: fetchAptos,
+      start: start,
     },
     [CHAIN.SUI]: {
       fetch: fetch(KanaChainID.sui),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(KanaChainID.solana),
-      runAtCurrTime: false,
-      start: startTimeBlock,
+      start: start,
     },
   },
 };
 
-// Export the adapter
 export default adapter;
