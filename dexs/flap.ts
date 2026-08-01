@@ -36,6 +36,8 @@ const eventAbis = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  throw new Error("Flap adapter is temporarily disabled due to excessive runtime");
+
   const { portal, fromBlock } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
