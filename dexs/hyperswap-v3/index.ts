@@ -15,6 +15,12 @@ const TREASURY_SHARE = 0.25
 // Pools are deployed with it at 0 and switched on later, one pool at a time, so it has
 // to be read per pool at the block being priced rather than assumed. Today every active
 // pool reads 102 (0x66) = 1/6 on both tokens.
+//
+// Each swap pays the protocol fee on its input token only, so the two denominators are
+// averaged: a pool with one side unset charges the fee on roughly half its flow, and a
+// symmetric pool reduces to that single share. Averaging assumes balanced two-way flow,
+// which is the best available approximation since the subgraph reports one combined fee
+// figure per pool rather than a per-token split.
 const protocolFeeShare = (feeProtocol: number): number => {
   const token0Denominator = feeProtocol & 0x0f
   const token1Denominator = (feeProtocol >> 4) & 0x0f
@@ -92,9 +98,9 @@ const methodology = {
   Volume: "Total value of tokens swapped across all HyperSwap V3 pools.",
   Fees: "Total swap fees paid by traders across all HyperSwap V3 pools.",
   UserFees: "Total swap fees paid by traders across all HyperSwap V3 pools.",
-  Revenue: "On pools where HyperSwap has switched the protocol fee on, it keeps one sixth of the swap fee and liquidity providers keep the rest. Pools trade with the fee switched off until HyperSwap enables it, and those pools give the entire swap fee to liquidity providers, so each pool's share is read individually for the day being measured. Of whatever the protocol keeps, 25% goes to the treasury and 75% buys back and burns SWAP.",
+  Revenue: "Each pool sets how much of its swap fee the protocol keeps, and HyperSwap switches that on one pool at a time, so the share is read from each pool individually for the day being measured. Pools trade with it switched off until HyperSwap enables it, and those give their entire swap fee to liquidity providers. Every pool that has it enabled currently keeps one sixth. Of whatever the protocol keeps, 25% goes to the treasury and 75% buys back and burns SWAP.",
   ProtocolRevenue: "The treasury's quarter of the protocol's share of swap fees.",
-  SupplySideRevenue: "The part of every swap fee that liquidity providers keep — five sixths on pools with the protocol fee switched on, and the entire fee on pools where it is still off.",
+  SupplySideRevenue: "The part of every swap fee that liquidity providers keep: the entire fee on pools where the protocol fee is still switched off, and whatever is left after the protocol's share on pools where it is on — currently five sixths.",
   HoldersRevenue: "The three quarters of the protocol's share of swap fees that is used to buy back and burn SWAP.",
 }
 
@@ -107,7 +113,7 @@ const breakdownMethodology = {
     'Token Swap Fees To Buy Back And Burn SWAP': "The 75% of the swap fees the protocol keeps that is used to buy back and burn SWAP.",
   },
   SupplySideRevenue: {
-    'Token Swap Fees To LPs': "Swap fees paid to liquidity providers — five sixths of the fee on pools with the protocol fee switched on, and all of it on pools where it is still off.",
+    'Token Swap Fees To LPs': "Swap fees paid to liquidity providers — the entire fee on pools where the protocol fee is switched off, and whatever is left after the protocol's share where it is on (currently five sixths).",
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "SWAP bought back and burned using 75% of the swap fees the protocol keeps.",
