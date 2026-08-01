@@ -25,6 +25,8 @@ const USD_DECIMALS = 1e6;
 
 // the Aptos indexer caps a single response at 100 rows regardless of the requested limit
 const PAGE_SIZE = 100;
+// runaway-pagination guard: the busiest day on record is ~600 deposits, so 200 pages is
+// far past any real window and only trips if the loop stops terminating
 const MAX_ROWS = 20000;
 
 interface DailyStatsResponse {
@@ -81,6 +83,9 @@ const getTreasuryDepositsUsd = async (
       },
       { headers: { Authorization: `Bearer ${getEnv("DECIBEL_API_KEY")}` } }
     );
+    if (response.errors)
+      throw new Error(`decibel: treasury deposit query failed: ${response.errors.map((error: any) => error.message).join("; ")}`);
+
     const activities: {
       amount: string;
       asset_type: string;
