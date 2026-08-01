@@ -27,13 +27,17 @@ async function fetch(options: FetchOptions) {
   FROM trade_report_agg tr
   CROSS JOIN market_report_agg mr
   `
-  const data: { 
+  const data: {
     cash_volume: string,
     open_interest: string,
     notional_volume: string,
   }[] = await queryDuneSql(options, query)
-  
-  const dailyVolume = Number(data[0]?.cash_volume) || 0
+
+  if (!data?.length || data[0].cash_volume == null) {
+    throw new Error(`no rows in kalshi.trade_report on dune for ${dateString} yet`)
+  }
+
+  const dailyVolume = Number(data[0].cash_volume)
   const openInterestAtEnd = Number(data[0]?.open_interest) || 0
   const dailyNotionalVolume = Number(data[0]?.notional_volume) || 0
 
