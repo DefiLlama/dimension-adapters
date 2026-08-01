@@ -1,7 +1,6 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getEVMTokenTransfers } from "../../helpers/token";
 
 /**
  * StonkBrokers — Anvil NFTFi + Broker Box + Safety Deposit Box on Robinhood,
@@ -295,16 +294,27 @@ const fetchRobinhood = async (options: FetchOptions) => {
   };
 };
 
+const TRANSFER =
+  "event Transfer(address indexed from, address indexed to, uint256 value)";
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+function padAddress(addr: string): string {
+  return "0x" + addr.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+}
+
 /** Base: Relay swap-desk 1% app fee, measured as Base USDC leaving the fee wallet
  *  on its way to StockBooster via Relay (the wallet's only USDC outflows). */
 const fetchBase = async (options: FetchOptions) => {
-  const transferred = await getEVMTokenTransfers({
-    options,
-    fromAddresses: [RELAY_FEE_WALLET],
-    tokens: [BASE_USDC],
-  });
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(transferred, LABELS.SWAP_DESK_FEES);
+  const logs = await options.getLogs({
+    target: BASE_USDC,
+    eventAbi: TRANSFER,
+    topics: [TRANSFER_TOPIC, padAddress(RELAY_FEE_WALLET)] as any,
+  });
+  for (const log of logs) {
+    dailyFees.addToken(BASE_USDC, BigInt(log.value), LABELS.SWAP_DESK_FEES);
+  }
 
   return {
     dailyFees,
@@ -320,7 +330,6 @@ const fetchBase = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ROBINHOOD]: {
       fetch: fetchRobinhood,
@@ -355,7 +364,7 @@ const adapter: SimpleAdapter = {
       [LABELS.LOCKER_FEES]:
         "Protocol cut on Safety Deposit Box locks from LockFeesCollected / LockLiquidityDecreased (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
       [LABELS.SWAP_DESK_FEES]:
-        "1% Relay app fee on the crypto swap desk, measured as Base USDC forwarded from the fee wallet toward StockBooster.",
+        "1% Relay app fee on the crypto swap desk, measured as Base USDC Transfer outflows from the fee wallet toward StockBooster.",
     },
     Revenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
