@@ -4,9 +4,8 @@ import { queryDuneSql } from '../../helpers/dune';
 
 // Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
 const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
-const TOKEN_MANAGER_V2 = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
 
-// Quote token: a supported ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if it moves to/from TokenManager2 in most of a token's trades, else BNB (native BNB pays emit no transfer).
+// Quote token: ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if any supported stable moves in the same tx (router/PCS paths never touch TokenManager2 directly); else BNB.
 const fetch = async (options: FetchOptions) => {
   const query = `
     WITH v2_trades AS (
@@ -16,14 +15,11 @@ const fetch = async (options: FetchOptions) => {
       SELECT evt_tx_hash, token, cost FROM four_meme_bnb.tokenmanager2_evt_tokensale
       WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
     ),
-    tx_tokens AS (SELECT DISTINCT evt_tx_hash, token FROM v2_trades),
-    token_trades AS (SELECT token AS meme, COUNT(DISTINCT evt_tx_hash) AS n_tx FROM v2_trades GROUP BY 1),
-    stable_hits AS (
-      SELECT tt.token AS meme, tr.contract_address AS base, COUNT(DISTINCT tt.evt_tx_hash) AS tx_hits
-      FROM erc20_bnb.evt_transfer tr
-      JOIN tx_tokens tt ON tt.evt_tx_hash = tr.evt_tx_hash
+    tx_any_stable AS (
+      SELECT DISTINCT t.evt_tx_hash, tr.contract_address AS base
+      FROM v2_trades t
+      JOIN erc20_bnb.evt_transfer tr ON tr.evt_tx_hash = t.evt_tx_hash
       WHERE tr.evt_block_time >= from_unixtime(${options.startTimestamp}) AND tr.evt_block_time < from_unixtime(${options.endTimestamp})
-        AND (tr."to" = ${TOKEN_MANAGER_V2} OR tr."from" = ${TOKEN_MANAGER_V2})
         AND tr.contract_address IN (
           0x55d398326f99059ff775485246999027b3197955, -- USDT
           0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d, -- USD1
@@ -31,18 +27,16 @@ const fetch = async (options: FetchOptions) => {
           0xe9e7cea3dedca5984780bafc599bd69add087d56, -- BUSD
           0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82  -- CAKE
         )
-      GROUP BY 1, 2
     ),
-    stable_base AS (
-      SELECT meme, base FROM (
-        SELECT s.meme, s.base, ROW_NUMBER() OVER (PARTITION BY s.meme ORDER BY s.tx_hits DESC) AS rn
-        FROM stable_hits s JOIN token_trades tt ON tt.meme = s.meme
-        WHERE s.tx_hits * 2 >= tt.n_tx
+    tx_base AS (
+      SELECT evt_tx_hash, base FROM (
+        SELECT evt_tx_hash, base, ROW_NUMBER() OVER (PARTITION BY evt_tx_hash ORDER BY base) AS rn
+        FROM tx_any_stable
       ) x WHERE rn = 1
     ),
     per_base AS (
-      SELECT COALESCE(sb.base, ${WBNB}) AS base_token, SUM(t.cost) AS amount
-      FROM v2_trades t LEFT JOIN stable_base sb ON sb.meme = t.token
+      SELECT COALESCE(tb.base, ${WBNB}) AS base_token, SUM(t.cost) AS amount
+      FROM v2_trades t LEFT JOIN tx_base tb ON tb.evt_tx_hash = t.evt_tx_hash
       GROUP BY 1
       UNION ALL
       SELECT ${WBNB} AS base_token, SUM(amount) AS amount FROM (
