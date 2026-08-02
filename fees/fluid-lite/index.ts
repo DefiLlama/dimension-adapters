@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
+
   // Add revenue delta to daily revenue
   const revenueDelta = Number(currentRevenueValue) - Number(startRevenueValue)
   dailyRevenue.add(stETHAddress, revenueDelta, 'Lite Vaults Fees');
@@ -72,20 +73,20 @@ const adapter: Adapter = {
   pullHourly: true,
   methodology: {
     Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee, collected by the Instadapp treasury. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee, retained by the vault.',
-    Revenue: 'ETH Lite Vault performance and exit fees are collected by the Instadapp treasury. USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
+    Revenue: 'ETH Lite Vault performance and exit fees are collected by the Instadapp treasury. USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation.',
   },
   breakdownMethodology: {
     Fees: {
       'Lite Vaults Fees': 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee.',
-      'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions and recognized during reconciliation.',
     },
     Revenue: {
       'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
-      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation.',
     },
     ProtocolRevenue: {
       'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
-      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation.',
     },
   },
   fetch,
