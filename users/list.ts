@@ -3,6 +3,8 @@ import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
 import dexUsers from "./dexUsers";
 import lendingUsers from "./lendingUsers";
+import hyperliquidUsers from "./hyperliquidUsers";
+import tokenUsers from "./tokenUsers";
 import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { parseNewUserResponse, parseUserResponse } from "./utils/countUsers";
@@ -29,7 +31,7 @@ routers.concat(chains as any[]).concat(compoundV2 as any[]).forEach((item: any) 
 })
 
 // Active users only: new users needs a full-history first-seen scan
-dexUsers.concat(lendingUsers).forEach(({ id, adapter }) => { activeUserProtocols[id] = adapter })
+dexUsers.concat(lendingUsers).concat(hyperliquidUsers).concat(tokenUsers).forEach(({ id, adapter }) => { activeUserProtocols[id] = adapter })
 
 export const { protocolList, getAdapter } = createFactoryExports(activeUserProtocols);
 export const newUsers = createFactoryExports(newUserProtocols);
