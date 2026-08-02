@@ -43,7 +43,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-"sogo-terminal": {
+  "sogo-terminal": {
     addresses: ["0x980adfdcb7655198ea69d2e19eb7daca594a9e67"],
     start: "2026-07-12",
     methodology: {
