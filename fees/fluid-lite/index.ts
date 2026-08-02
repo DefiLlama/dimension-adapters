@@ -71,8 +71,8 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee. All fees are collected by the Instadapp treasury.',
-    Revenue: 'ETH Lite Vault performance and exit fees plus USD Lite Vault withdrawal fees, all collected by the Instadapp treasury.',
+    Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee, collected by the Instadapp treasury. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee, retained by the vault.',
+    Revenue: 'ETH Lite Vault performance and exit fees are collected by the Instadapp treasury. USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
   },
   breakdownMethodology: {
     Fees: {
@@ -80,11 +80,11 @@ const adapter: Adapter = {
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions.',
     },
     Revenue: {
-      'Lite Vaults Fees': 'ETH Lite Vault performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
     },
     ProtocolRevenue: {
-      'Lite Vaults Fees': 'ETH Lite Vault performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
     },
   },
