@@ -11,34 +11,27 @@ const tokenUsers = [
     start: "2020-12-18",
   },
   {
-    id: "2914", // Binance staked ETH
-    chain: CHAIN.ETHEREUM,
-    token: "0xa2E3356610840701BDf5611a53974510Ae27E2e1", // wBETH
-    start: "2023-04-26",
-  },
-  {
     id: "2626", // ether.fi Stake
     chain: CHAIN.ETHEREUM,
     token: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", // eETH, the stake receipt; weETH only wraps it
+    // Withdrawals park eETH here and burn later on claim.
+    exitAddresses: ["0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c"], // Withdraw Request NFT
     start: "2023-11-16",
   },
   {
     id: "900", // Rocket Pool
     chain: CHAIN.ETHEREUM,
-    token: "0xae78736Cd615f374D3085123A210448E74Fc6393", // rETH
+    token: "0xae78736Cd615f374D3085123A210448E74Fc6393", // rETH, burns straight to zero on redeem
     start: "2021-10-07",
   },
   {
     id: "3946", // Kelp
     chain: CHAIN.ETHEREUM,
     token: "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7", // rsETH
+    // Every rsETH exit goes here and none burns to zero; without it the adapter
+    // saw 10 users in a week where the protocol saw 50.
+    exitAddresses: ["0x62De59c08eB5dAE4b7E6F7a8cAd3006d6965ec16"], // LRTWithdrawalManager
     start: "2023-12-06",
-  },
-  {
-    id: "277", // StakeWise V2
-    chain: CHAIN.ETHEREUM,
-    token: "0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38", // osETH
-    start: "2023-11-01",
   },
 ];
 
