@@ -156,6 +156,10 @@ const configs: Record<string, CuratorConfig> = {
         ],
         start: '2025-12-23', // hyperAUSDd creation, earliest of the four
       },
+      [CHAIN.HYPERLIQUID]: {
+        morphoVaultOwners: ['0x51afd54ff95c77A15E40E83DB020908f33557c97'],
+        start: '2025-07-09', // hyperUSDT0, the earliest vault
+      },
     },
   },
   "keyring": {
