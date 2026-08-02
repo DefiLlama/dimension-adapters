@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -33,10 +32,9 @@ async function fetch(options: FetchOptions) {
   if (pools.length) {
     // token0/token1 are immutable, so read them at the latest block - the
     // window's block is historical and the public RPC is not archival.
-    const api = new sdk.ChainApi({ chain: options.chain });
     const [token0s, token1s] = await Promise.all([
-      api.multiCall({ abi: "address:token0", calls: pools }),
-      api.multiCall({ abi: "address:token1", calls: pools }),
+      options.api.multiCall({ abi: "address:token0", calls: pools }),
+      options.api.multiCall({ abi: "address:token1", calls: pools }),
     ]);
     pools.forEach((pool, i) => {
       pairs[pool.toLowerCase()] = [token0s[i], token1s[i]];
@@ -112,6 +110,7 @@ const adapter: Adapter = {
   start: "2026-07-28",
   methodology,
   breakdownMethodology,
+  doublecounted: true, // sushiswap
 };
 
 export default adapter;
