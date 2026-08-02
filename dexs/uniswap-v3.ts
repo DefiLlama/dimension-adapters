@@ -4,7 +4,7 @@ import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
 import {
-  getEstablishedTokens, getUniV3LogAdapter, WASH_DUST_USD, WASH_MIN_TRADES,
+  getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 
@@ -97,7 +97,7 @@ function buildQuery(blockchains: string[], options: FetchOptions): string {
 // migrating here once v4 is filtered. Measured over the whole UTC day.
 async function fetchWashPools(blockchains: string[], options: FetchOptions): Promise<Record<string, Set<string>>> {
   const inList = blockchains.map((b) => `'${b}'`).join(',');
-  const dayStart = Math.floor(options.startTimestamp / 86400) * 86400;
+  const dayStart = washDayStart(options);
   // v3 pools are their own contracts, so project_contract_address is the pool
   // and amount_usd is on the same rows - no join needed, unlike v4.
   const fullQuery = `

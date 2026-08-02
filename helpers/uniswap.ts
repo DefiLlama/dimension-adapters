@@ -33,13 +33,21 @@ export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 // test A is for.
 export const WASH_DUST_USD = 25_000;
 
+// UTC start of the day being recorded. runAdapter hands fetch a window of
+// [dayStart - 1s, dayEnd), so flooring startTimestamp lands on the PREVIOUS
+// day and the filter would apply yesterday's flag list - fatal for fake-ticker
+// pools that live a single day. Key off endTimestamp instead.
+export function washDayStart(options: FetchOptions): number {
+  return Math.floor((options.endTimestamp - 1) / 86400) * 86400;
+}
+
 // The day's wash-flagged pool set for one project+chain, for adapters whose
 // pools are their own contracts in dex.trades (uniswap-v3 style). The caller's
 // prefetch stores it and fetch drops those pools unless getEstablishedTokens
 // clears every side. A Dune failure throws - reporting unfiltered would
 // republish the wash volume as real.
 export async function getWashPools(options: FetchOptions, { blockchain, project, version }: { blockchain: string; project: string; version?: string }): Promise<Set<string>> {
-  const dayStart = Math.floor(options.startTimestamp / 86400) * 86400;
+  const dayStart = washDayStart(options);
   const fullQuery = `
     SELECT CAST(project_contract_address AS VARCHAR) AS pool
     FROM dex.trades
