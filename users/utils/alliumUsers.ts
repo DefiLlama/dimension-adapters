@@ -22,17 +22,30 @@ type UserRow = {
   txs: string | number;
 };
 
-// queryAllium memoises on query text, so all of them share one run per day.
-const inflight: Record<string, Promise<UserRow[]>> = {};
+// One entry per query text, so one per day window. Bounded so a long backfill
+// does not retain every window's rows, but large enough that all adapters asking
+// for the same window still share a single run.
+const MAX_CACHED_WINDOWS = 8;
+const inflight = new Map<string, Promise<UserRow[]>>();
 
 function runOnce(query: string): Promise<UserRow[]> {
-  // drop a failed run, else every later chain reuses the rejection
-  if (!inflight[query])
-    inflight[query] = queryAllium(query).catch((e: any) => {
-      delete inflight[query];
-      throw e;
-    });
-  return inflight[query];
+  const cached = inflight.get(query);
+  if (cached) {
+    inflight.delete(query);
+    inflight.set(query, cached);
+    return cached;
+  }
+
+  const run = queryAllium(query).catch((e: any) => {
+    inflight.delete(query);
+    throw e;
+  });
+  inflight.set(query, run);
+
+  while (inflight.size > MAX_CACHED_WINDOWS) {
+    inflight.delete(inflight.keys().next().value as string);
+  }
+  return run;
 }
 
 function getDexUserRows(options: FetchOptions): Promise<UserRow[]> {
@@ -53,9 +66,7 @@ GROUP BY GROUPING SETS ((chain, project), (project))`;
 }
 
 // Liquidations are excluded: the address acting is a liquidator bot, not someone
-// using the protocol. COALESCE(project, protocol) because project is null for
-// some protocols (compound_v2), and because project is what separates forks that
-// share a protocol lineage (spark and aave are both protocol = aave_v3).
+// using the protocol.
 const LENDING_EVENTS = ["deposits", "withdrawals", "loans", "repayments"];
 
 function getLendingUserRows(options: FetchOptions): Promise<UserRow[]> {
