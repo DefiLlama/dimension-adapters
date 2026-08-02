@@ -55,7 +55,7 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Fees: "All protocol ETH revenue arriving at the PlatformFeeCollector: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, and the locker's fee-claim cut (FeesReceived logs).",
-  Revenue: "Identical to Fees — there is no supply-side cut.",
+  Revenue: "All protocol ETH revenue arriving at the PlatformFeeCollector: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, and the locker's fee-claim cut (FeesReceived logs).",
   HoldersRevenue: "The half of every distribution delivered to GovernanceToken holders as native-ETH dividends (FeesDistributed logs).",
   ProtocolRevenue: "The half of every distribution delivered to the protocol owner (FeesDistributed logs).",
 };
@@ -81,7 +81,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true, // pure EVM-log adapter, safe to run hourly
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   chains: [CHAIN.ROBINHOOD],
