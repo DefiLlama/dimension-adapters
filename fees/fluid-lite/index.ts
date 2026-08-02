@@ -6,9 +6,13 @@ const iETHv2_VAULT = "0xA0D3707c569ff8C87FA923d3823eC5D81c98Be78";
 const stETHAddress = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const EventLogCollectRevenue = 'event LogCollectRevenue(uint256 amount, address indexed to)';
 
+const USDLiteVAULT = '0x273DA948ACa9261043fbdb2a857BC255ECC29012';
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const EventWithdrawFee = 'event LogWithdrawFee(address indexed owner, uint256 fee)';
+
 const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
-  const [currentRevenueValue, startRevenueValue] = await Promise.all([
+  const [currentRevenueValue, startRevenueValue, withdrawFeeLogs] = await Promise.all([
     options.api.call({
       abi: 'function revenue() view returns (uint256)',
       target: iETHv2_VAULT,
@@ -17,6 +21,13 @@ const fetch = async (options: FetchOptions) => {
     options.fromApi.call({
       abi: 'function revenue() view returns (uint256)',
       target: iETHv2_VAULT,
+    }),
+
+    options.getLogs({
+      target: USDLiteVAULT,
+      eventAbi: EventWithdrawFee,
+      fromBlock: Number(options.fromApi.block),
+      toBlock: Number(options.api.block),
     }),
   ]);
 
@@ -46,6 +57,13 @@ const fetch = async (options: FetchOptions) => {
 
   dailyRevenue.add(stETHAddress, collectedRevenueAmount.toFixed(), 'Lite Vaults Fees');
 
+  const withdrawFeeAmount: BigNumber = withdrawFeeLogs.reduce(
+    (acc, log) => acc.plus(new BigNumber(log.fee)),
+    new BigNumber(0)
+  );
+
+  dailyRevenue.add(USDC, withdrawFeeAmount.toFixed(), 'USD Lite Vault Withdraw Fees');
+
   return { dailyFees: dailyRevenue, dailyRevenue }
 };
 
@@ -53,18 +71,21 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Fees: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
-    Revenue: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
+    Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee. All fees are collected by the Instadapp treasury.',
+    Revenue: 'ETH Lite Vault performance and exit fees plus USD Lite Vault withdrawal fees, all collected by the Instadapp treasury.',
   },
   breakdownMethodology: {
     Fees: {
-      'Lite Vaults Fees': 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee.',
+      'Lite Vaults Fees': 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions.',
     },
     Revenue: {
-      'Lite Vaults Fees': 'Lite vaults performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'Lite Vaults Fees': 'ETH Lite Vault performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
     },
     ProtocolRevenue: {
-      'Lite Vaults Fees': 'Lite vaults performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'Lite Vaults Fees': 'ETH Lite Vault performance fee is collected as revenue and transferred to the Instadapp treasury.',
+      'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue.',
     },
   },
   fetch,
