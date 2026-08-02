@@ -15,27 +15,30 @@ import ADDRESSES from "../helpers/coreAssets.json";
 
 // deployments/<chainId>.json → the PlatformFeeCollector proxy (UUPS — the address is stable
 // across upgrades, only the impl behind it rotates).
-const COLLECTORS: Partial<Record<CHAIN, string>> = {
-  [CHAIN.ROBINHOOD]: "0x949a6e0530119d7cDBE5e904e47056b39BE1f156",
-};
+const COLLECTOR = "0x949a6e0530119d7cDBE5e904e47056b39BE1f156";
 
 const FEES_RECEIVED = "event FeesReceived(address indexed from, uint256 amount)";
 const FEES_DISTRIBUTED = "event FeesDistributed(uint256 holdersAmount, uint256 ownerAmount)";
 
+// One label per stream. FeesReceived carries no per-source discriminator worth decoding (the
+// sender set is open-ended: sales, pads, tokens, locker), so collected fees are one bucket.
+const PLATFORM_FEES = "Platform Fees";
+const FEES_TO_HOLDERS = "Fees To Governance Holders";
+const FEES_TO_TREASURY = "Fees To Treasury";
+
 async function fetch(options: FetchOptions) {
-  const collector = COLLECTORS[options.chain as CHAIN]!;
   const dailyFees = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   const [received, distributed] = await Promise.all([
-    options.getLogs({ target: collector, eventAbi: FEES_RECEIVED }),
-    options.getLogs({ target: collector, eventAbi: FEES_DISTRIBUTED }),
+    options.getLogs({ target: COLLECTOR, eventAbi: FEES_RECEIVED }),
+    options.getLogs({ target: COLLECTOR, eventAbi: FEES_DISTRIBUTED }),
   ]);
-  for (const log of received) dailyFees.add(ADDRESSES.null, log.amount);
+  for (const log of received) dailyFees.add(ADDRESSES.null, log.amount, PLATFORM_FEES);
   for (const log of distributed) {
-    dailyHoldersRevenue.add(ADDRESSES.null, log.holdersAmount);
-    dailyProtocolRevenue.add(ADDRESSES.null, log.ownerAmount);
+    dailyHoldersRevenue.add(ADDRESSES.null, log.holdersAmount, FEES_TO_HOLDERS);
+    dailyProtocolRevenue.add(ADDRESSES.null, log.ownerAmount, FEES_TO_TREASURY);
   }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue, dailyProtocolRevenue };
@@ -48,13 +51,32 @@ const methodology = {
   ProtocolRevenue: "The half of every distribution delivered to the protocol owner (FeesDistributed logs).",
 };
 
-export default {
-  version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-08-01", // genesis deploy on Robinhood Chain (2026-08-01T16:24:06Z)
-    },
+const breakdownMethodology = {
+  Fees: {
+    [PLATFORM_FEES]:
+      "ETH received by the PlatformFeeCollector from every protocol stream: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, and the locker's fee-claim cut (FeesReceived logs).",
   },
+  Revenue: {
+    [PLATFORM_FEES]: "Identical to Fees — all collected fees are protocol revenue, there is no supply-side cut.",
+  },
+  HoldersRevenue: {
+    [FEES_TO_HOLDERS]:
+      "The half of every distribution paid to GovernanceToken holders as native-ETH dividends (holdersAmount of FeesDistributed).",
+  },
+  ProtocolRevenue: {
+    [FEES_TO_TREASURY]:
+      "The half of every distribution paid to the protocol owner (ownerAmount of FeesDistributed).",
+  },
+};
+
+const adapter: Adapter = {
+  version: 2,
+  pullHourly: true, // pure EVM-log adapter, safe to run hourly
   methodology,
-} as Adapter;
+  breakdownMethodology,
+  chains: [CHAIN.ROBINHOOD],
+  fetch,
+  start: "2026-08-01", // genesis deploy on Robinhood Chain (2026-08-01T16:24:06Z)
+};
+
+export default adapter;
