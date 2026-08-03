@@ -1,13 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import BigNumber from 'bignumber.js';
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const iETHv2_VAULT = "0xA0D3707c569ff8C87FA923d3823eC5D81c98Be78";
 const stETHAddress = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const EventLogCollectRevenue = 'event LogCollectRevenue(uint256 amount, address indexed to)';
 
 const USDLiteVAULT = '0x273DA948ACa9261043fbdb2a857BC255ECC29012';
-const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const USDC = ADDRESSES.ethereum.USDC;
 const EventWithdrawFee = 'event LogWithdrawFee(address indexed owner, uint256 fee)';
 
 const fetch = async (options: FetchOptions) => {
@@ -26,8 +27,6 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       target: USDLiteVAULT,
       eventAbi: EventWithdrawFee,
-      fromBlock: Number(options.fromApi.block),
-      toBlock: Number(options.api.block),
     }),
   ]);
 
