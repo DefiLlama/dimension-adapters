@@ -50,8 +50,9 @@ const getBribes = async (fetchOptions: FetchOptions, bribeSet: Set<string>): Pro
   const dailyBribesRevenue = createBalances()
   if (bribeSet.size === 0) return { dailyBribesRevenue };
 
-  // need to manually parse logs, auto parsing fails for some reason
-  const logs = await fetchOptions.getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
+  // Scope to the known bribe contracts (only ~13). entireLog + manual parse stays — auto parsing
+  // fails for this event; entireLog keeps log.address for the safety-net filter below.
+  const logs = await fetchOptions.getLogs({ targets: Array.from(bribeSet), eventAbi: eventAbis.event_notify_reward, entireLog: true, })
   logs.forEach((log: any) => {
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
