@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // HookOS trading volume, from the two venues HookOS runs itself:
@@ -18,34 +18,41 @@ import { CHAIN } from "../helpers/chains";
 // are excluded too. Addresses are the canonical deployment registry
 // (protocol/contracts/deployments/addresses.json).
 type ChainConfig = {
-  BondingCurve?: string;
-  PoolFactory?: string;
+  BondingCurve: string;
+  PoolFactory: string;
+  start: string;
 };
 
 const CONFIG: Record<string, ChainConfig> = {
   [CHAIN.BASE]: {
     BondingCurve: "0x3C4b0F2D3d5bBdf4E0B323f0a8Eec7B02Cce6d40",
     PoolFactory:  "0xEE71e51e757a3B36F027400CDb7182710564654A",
+    start: "2026-06-05",
   },
   [CHAIN.HYPERLIQUID]: {
     BondingCurve: "0x93f35a190E6B7ed05E7bBAb78199720C0c849dDE",
     PoolFactory:  "0xF2F1C1D5089995c55C9Bf0395ebb70EBBF17b61D",
+    start: "2026-06-07",
   },
   [CHAIN.MEGAETH]: {
     BondingCurve: "0x6A2fAa5Da2B9F1515661f18160C0A0d584c0AC15",
     PoolFactory:  "0x1106A0257bbB2f7950f5bcf366e966D24c6F5cDd",
+    start: "2026-06-14",
   },
   [CHAIN.BSC]: {
     BondingCurve: "0xbb141A22B4cAef996052b2ecC9F9ef2Cde259bcA",
     PoolFactory:  "0x0d04627b6eFc9f546702969fF1faBD7a9642886f",
+    start: "2026-06-17",
   },
   [CHAIN.ETHEREUM]: {
     BondingCurve: "0xc841eF17b424B00A46C5acebDEEbE2976F168AC7",
     PoolFactory:  "0xcDfD3B997EC5A2F9CA59955d9aCE30eD8dFbFEff",
+    start: "2026-06-18",
   },
   [CHAIN.ROBINHOOD]: {
     BondingCurve: "0x93f35a190E6B7ed05E7bBAb78199720C0c849dDE",
     PoolFactory:  "0xF2F1C1D5089995c55C9Bf0395ebb70EBBF17b61D",
+    start: "2026-07-02",
   },
 };
 
@@ -73,7 +80,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // A pool's input token may be a launched token DeFiLlama cannot price, which
   // contributes zero rather than a fabricated value.
   if (c.PoolFactory) {
-    const count = Number(await api.call({ target: c.PoolFactory, abi: 'uint256:getPoolCount' }).catch(() => 0));
+    const count = await api.call({ target: c.PoolFactory, abi: 'uint256:getPoolCount' });
     if (count > 0) {
       const pools: string[] = await api.multiCall({
         abi: 'function allPools(uint256) view returns (address)',
@@ -90,17 +97,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyVolume };
 };
 
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
   version: 2,
   fetch,
-  chains: [
-    [CHAIN.BASE, { start: '2026-06-05' }],
-    [CHAIN.HYPERLIQUID, { start: '2026-06-07' }],
-    [CHAIN.MEGAETH, { start: '2026-06-14' }],
-    [CHAIN.BSC, { start: '2026-06-17' }],
-    [CHAIN.ETHEREUM, { start: '2026-06-18' }],
-    [CHAIN.ROBINHOOD, { start: '2026-07-02' }],
-  ],
+  adapter: CONFIG,
   methodology: {
     Volume: "Trading on the venues HookOS runs itself: bonding-curve buys and sells (native gas token in and out) and swaps through HookPool — the in-house AMM and the graduation target on HyperEVM, counted on the input leg. Uniswap trading is excluded and counted by Uniswap's own adapters: that covers post-graduation pools and the $HOOK v4 pool on Robinhood, which trades on a Uniswap PoolManager that Uniswap's v4 adapter already reports. Arena wagers, copy-trade records and launch fees are not trading volume and are excluded.",
   },
