@@ -87,7 +87,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   methodology: {
-    Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee, collected by the Instadapp treasury. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee, retained by the vault and USD vault reserves which increases when vault yield exceeds the fixed rate paid to depositors.',
+    Fees: 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee, collected by the Instadapp treasury. USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee, retained by the vault. USD vault reserves which increases when vault yield exceeds the fixed rate paid to depositors.',
     Revenue: 'ETH Lite Vault performance and exit fees are collected by the Instadapp treasury. USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation. USD Lite Vault reserves which increases when vault yield exceeds the fixed rate paid to depositors are recognized as protocol revenue.',
   },
   breakdownMethodology: {
@@ -97,12 +97,12 @@ const adapter: Adapter = {
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions and recognized during reconciliation.',
     },
     Revenue: {
-      'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
+      'ETH Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
       'USD Lite Vaults Fees': 'USD Lite Vault reserves which increases when vault yield exceeds the fixed rate paid to depositors are recognized as protocol revenue.',
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation.',
     },
     ProtocolRevenue: {
-      'Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
+      'ETH Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
       'USD Lite Vaults Fees': 'USD Lite Vault reserves which increases when vault yield exceeds the fixed rate paid to depositors are recognized as protocol revenue.',
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault withdrawal fees are retained by the vault as protocol revenue and recognized during reconciliation.',
     },
@@ -110,6 +110,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-02-13',
+  allowNegativeValue: true, // USD vault reserves can yield negative values
 };
 
 export default adapter;
