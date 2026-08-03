@@ -7,8 +7,6 @@ const API = "https://api.leokit.dev/explorer/transactions";
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 300;
 
-const VOLUME_LABEL = "Cross-chain Swaps";
-
 // LeoDex asset ids are "<CHAIN>.<SYMBOL>[-<address>]"; volume is attributed to the source chain
 const PREFIX_TO_CHAIN: Record<string, string> = {
   ARB: CHAIN.ARBITRUM,
@@ -37,8 +35,7 @@ const PREFIX_TO_CHAIN: Record<string, string> = {
 };
 
 interface ExplorerTransaction {
-  created_at: string; // the swap timestamp; the underlying table calls it swap_date
-  swap_date?: string;
+  created_at: string;
   from_asset: string;
   volume_usd: number | null;
 }
@@ -49,25 +46,25 @@ interface ExplorerResponse {
   has_more: boolean;
 }
 
-// One paging pass per time window, shared across the per-chain fetch calls
-const windowCache: Record<string, Promise<Record<string, number>>> = {};
+// One paging pass per day, shared across the per-chain fetch calls
+const dayCache: Record<string, Promise<Record<string, number>>> = {};
 
-function fetchWindowVolumeByChain(options: FetchOptions): Promise<Record<string, number>> {
-  const key = `${options.fromTimestamp}-${options.toTimestamp}`;
-  if (!windowCache[key]) {
-    windowCache[key] = (async () => {
-      const startMs = options.fromTimestamp * 1000;
-      const endMs = (options.toTimestamp + 1) * 1000;
+async function prefetch(options: FetchOptions): Promise<Record<string, number>> {
+  const key = options.dateString;
+  if (!dayCache[key]) {
+    dayCache[key] = (async () => {
+      const dayStartMs = options.startOfDay * 1000;
+      const dayEndMs = dayStartMs + 86400 * 1000;
       const sums: Record<string, number> = {};
-      // Cursor pages newest-first with swap_date < cursor, so start at the end of the window
-      let cursor = new Date(endMs).toISOString();
+      // Cursor pages newest-first with swap_date < cursor, so start at the end of the day
+      let cursor = new Date(dayEndMs).toISOString();
       for (let page = 0; page < MAX_PAGES; page++) {
         const res: ExplorerResponse = await httpGet(
           `${API}?limit=${PAGE_LIMIT}&cursor=${encodeURIComponent(cursor)}`
         );
         const rows = res.data ?? [];
         for (const row of rows) {
-          if (new Date(row.swap_date ?? row.created_at).getTime() < startMs) return sums;
+          if (new Date(row.created_at).getTime() < dayStartMs) return sums;
           const prefix = row.from_asset.split(".")[0].split("-")[0].toUpperCase();
           const chain = PREFIX_TO_CHAIN[prefix];
           if (!chain) continue; // non-chain-prefixed asset ids, excluded from the breakdown
@@ -77,36 +74,25 @@ function fetchWindowVolumeByChain(options: FetchOptions): Promise<Record<string,
         cursor = res.next_cursor;
       }
       throw new Error(`leodex: exceeded ${MAX_PAGES} pages for ${key}`);
-    })().catch((error) => {
-      delete windowCache[key];
-      throw error;
-    });
+    })();
   }
-  return windowCache[key];
+  return dayCache[key];
 }
 
 const fetch = async (options: FetchOptions) => {
-  const volumeByChain = await fetchWindowVolumeByChain(options);
-  const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(volumeByChain[options.chain] || 0, VOLUME_LABEL);
-  return { dailyVolume };
+  const volumeByChain = options.preFetchedResults
+  return { dailyVolume: volumeByChain[options.chain] || 0 };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1, // external API returns per-swap records; volume is aggregated per fixed UTC day
   fetch,
+  prefetch,
   chains: [...new Set(Object.values(PREFIX_TO_CHAIN))],
   start: "2024-04-01",
   methodology: {
     Volume:
       "Cross-chain swap volume routed through LeoDex across its supported protocols (THORChain, Maya Protocol, Chainflip, NEAR Intents, Relay and others), read from LeoDex's public swap explorer API and attributed to the source chain of each swap.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      [VOLUME_LABEL]:
-        "USD value of each swap routed through LeoDex, counted once on the source chain of the swap.",
-    },
   },
 };
 
