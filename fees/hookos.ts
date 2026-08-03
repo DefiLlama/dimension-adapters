@@ -14,6 +14,11 @@ import { CHAIN } from "../helpers/chains";
 //      module that paid it. This also makes launch/registration fees exact even
 //      though they are USD-pegged on-chain (TokenFactory.effectiveLaunchFee),
 //      where a flat-rate assumption would be wrong.
+//      `feeSources` is deliberately a SUPERSET of what has actually routed: most
+//      of these modules pay a treasury that an admin can repoint at FeeRouter, so
+//      they are mapped in advance and attributed the moment they do route. To
+//      date only TokenFactory and BondingCurve ever have. An unmapped sender is
+//      still counted, under LABEL.other, so a new module cannot go unreported.
 //   2. DIRECT. Most modules never touch FeeRouter — they pay a treasury inline or
 //      accrue to a pull ledger — so each is read at its own event: creator fees,
 //      hook-author revenue, V3 launch LP fees, the $HOOK and stock pool taxes,
@@ -53,8 +58,10 @@ type ChainConfig = {
   PresaleVault?: string;
   BotTradeRouter?: string[];
   LPFeeSplitter?: string;
-  // App-layer modules. All native-only (no ERC-20 path) and none of them route
-  // through FeeRouter — each keeps its cut until an admin sweep.
+  // App-layer modules. All native-only (no ERC-20 path). Each keeps its cut
+  // until an admin sweep, so all are read at their own event, at accrual — and
+  // excluded as FeeRouter senders, since the sweep recipient is caller-chosen
+  // and could be FeeRouter itself.
   CreatorMarketplace?: string;
   CampaignMarketplace?: string;
   ProfileMonetization?: string;
@@ -345,12 +352,10 @@ const botSoldAbi = "event Sold(address indexed user, address indexed token, byte
 // LPFeeSplitter — the LP fees of graduated v4 positions, split creator/protocol
 // into a pull ledger. Distinct from the per-swap hook cut above.
 const feesSplitAbi = "event FeesSplit(uint256 indexed positionId, address indexed token, uint256 creatorShare, uint256 protocolShare)";
-// StockTaxHook — tokenized-stock pool tax, always taken on the USDG leg.
+// StockTaxHook — tokenized-stock pool tax, taken on the pool's quote leg. The
+// slot is named `usdg` but is read live, because the Robinhood deployment has it
+// pointed at 18dp WETH (see step 11).
 const stockTaxSplitAbi = "event TaxSplit(bytes32 indexed poolId, bool isBuy, uint256 creatorFee, uint256 platformFee, uint256 vaultFee)";
-// HookOSV3FeeVault position record. `pairToken` is the currency the position is
-// denominated in: the ethTo* legs are native only when it is the wrapped native,
-// and are $HOOK on a $HOOK-paired launch (the event cannot be disambiguated
-// without this read).
 // App-layer fee events. Each carries the protocol's cut explicitly; the
 // counterparty leg (a seller's product revenue, a creator's tip, a quest
 // reward) is a payout, not a HookOS fee, and is not counted.
@@ -362,6 +367,10 @@ const questSponsoredAbi = "event QuestSponsored(uint256 indexed questId, address
 const questBoostedAbi = "event QuestBoosted(uint256 indexed questId, address indexed sponsor, uint256 durationDays, uint256 boostExpiry, uint256 amountPaid)";
 const proSubscribedAbi = "event ProSubscribed(address indexed wallet, uint256 indexed walletId, uint256 monthsPaid, uint256 amountPaid, uint256 newExpiry)";
 const extensionPurchasedAbi = "event ExtensionPurchased(address indexed wallet, uint256 indexed extensionId, uint256 amountPaid, uint256 expiry)";
+// HookOSV3FeeVault position record. `pairToken` is the currency the position is
+// denominated in: the ethTo* legs are native only when it is the wrapped native,
+// and are $HOOK on a $HOOK-paired launch (the event cannot be disambiguated
+// without this read).
 const v3PositionsAbi = "function positions(address) view returns (address token, uint256 tokenId, address creator, address locker, uint256 lockId, uint8 dex, uint8 pair, address pairToken, bool registered)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -405,7 +414,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // on a chain with no watched hook, excluding it would drop fees outright.
     if (c.v4PoolManager && watchesAHook) skip.add(c.v4PoolManager.toLowerCase());
     // Unwrapped hook fees re-entering FeeRouter; already counted at the hook.
-    if (c.wrappedNative) skip.add(c.wrappedNative.toLowerCase());
+    // Gated the same way: with no watched hook there is no hook fee to have
+    // counted already, so skipping the unwrap would drop a fee outright.
+    if (c.wrappedNative && watchesAHook) skip.add(c.wrappedNative.toLowerCase());
+    // App-layer modules accrue their cut internally and are read at their own
+    // event in step 12, i.e. at accrual. Their admin sweep takes a caller-chosen
+    // recipient, so it CAN be pointed at FeeRouter — which would re-emit
+    // FeeReceived for fees already booked. Skipping them keeps each fee counted
+    // once, at the source that measures it. Same principle as the PoolManager.
+    for (const mod of [c.CreatorMarketplace, c.CampaignMarketplace, c.ProfileMonetization, c.QuestSponsorship, c.WalletProSubscription]) {
+      if (mod) skip.add(mod.toLowerCase());
+    }
     const feeLogs = await getLogs({ target: c.FeeRouter, eventAbi: feeReceivedAbi });
     for (const log of feeLogs) {
       const from = String(log.from).toLowerCase();
@@ -608,9 +627,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // Revenue = all fees minus the creator/hook-author (supply-side) share; of
   // that, the holder legs are split out and the rest is retained by the protocol.
-  dailyRevenue.addBalances(dailyFees);
+  // skipBreakdown: subtract() is not label-aware, so carrying the fee breakdown
+  // across would leave Revenue itemised by gross-fee labels that still include
+  // the supply-side legs it just subtracted — totals right, breakdown wrong.
+  // Only Fees, SupplySideRevenue and HoldersRevenue publish a breakdown.
+  dailyRevenue.addBalances(dailyFees, undefined, { skipBreakdown: true });
   dailyRevenue.subtract(dailySupplySideRevenue);
-  dailyProtocolRevenue.addBalances(dailyRevenue);
+  dailyProtocolRevenue.addBalances(dailyRevenue, undefined, { skipBreakdown: true });
   dailyProtocolRevenue.subtract(dailyHoldersRevenue);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
@@ -630,9 +653,9 @@ const breakdownMethodology = {
     [LABEL.launch]: 'Fee charged per token launch (USD-pegged on-chain, so the exact amount paid is used).',
     [LABEL.registration]: 'Fee charged per hook registration.',
     [LABEL.arena]: 'Protocol cut of settled arena battle pots.',
-    [LABEL.v4]: 'HookOS cut of swaps on graduated Uniswap-v4 pools, taken by HookOSV4Hook.',
-    [LABEL.quickLaunch]: 'HookOS cut of swaps on Quick Launch direct-to-v4 pools, taken by LaunchHook.',
-    [LABEL.v3Launch]: 'LP fees collected from HookOS-V3 direct-to-DEX launch positions, both the quote leg (native, or the pair token on a non-native-paired launch) and the launched-token leg.',
+    [LABEL.v4]: 'HookOS cut of swaps on graduated Uniswap-v4 pools, taken by HookOSV4Hook and by UniversalGraduationHook.',
+    [LABEL.quickLaunch]: 'Quick Launch revenue on Robinhood: the HookOS cut of swaps on direct-to-v4 pools taken by LaunchHook, plus the launch fees RHLaunchpad routes to FeeRouter.',
+    [LABEL.v3Launch]: 'HookOS-V3 direct-to-DEX launch revenue: LP fees collected from the launch positions — both the quote leg (native, or the pair token on a non-native-paired launch) and the launched-token leg — plus the launch fees HookOSV3Launcher routes to FeeRouter.',
     [LABEL.hookTax]: 'Tax skimmed from the WETH leg of every $HOOK Uniswap-v4 swap.',
     [LABEL.marketplace]: 'Creator and campaign marketplace fees.',
     [LABEL.copyTrading]: 'Copy-trading fees.',
