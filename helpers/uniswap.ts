@@ -10,6 +10,8 @@ const ZERO_ADDRESS = ADDRESSES.null;
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
+  if (balanceCalls.length && res.every((bal: any) => bal == null))
+    throw new Error(`filterPools: every pooled balance call failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as empty`)
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   res.forEach((bal, i) => {
