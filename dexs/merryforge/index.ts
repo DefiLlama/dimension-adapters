@@ -45,31 +45,6 @@ async function listCurves(api: FetchOptions["api"]): Promise<string[]> {
   return curves.filter((c) => c && c !== ZERO);
 }
 
-async function getLogsForTargets(
-  options: FetchOptions,
-  targets: string[],
-  eventAbi: string,
-): Promise<any[]> {
-  if (!targets.length) return [];
-
-  // Prefer multi-target when the helper supports it
-  try {
-    const logs = await options.getLogs({
-      targets,
-      eventAbi,
-    } as any);
-    if (Array.isArray(logs)) return logs;
-  } catch {
-    // fall through to per-target
-  }
-
-  const out: any[] = [];
-  for (const target of targets) {
-    const part = await options.getLogs({ target, eventAbi });
-    if (part?.length) out.push(...part);
-  }
-  return out;
-}
 
 async function resolveQuoteTokens(
   api: FetchOptions["api"],
@@ -111,8 +86,8 @@ const fetch = async (options: FetchOptions) => {
   const curves = await listCurves(options.api);
 
   const [buys, sells] = await Promise.all([
-    getLogsForTargets(options, curves, TOKENS_PURCHASED),
-    getLogsForTargets(options, curves, TOKENS_SOLD),
+    options.getLogs({ targets: curves, eventAbi: TOKENS_PURCHASED }),
+    options.getLogs({ targets: curves, eventAbi: TOKENS_SOLD }),
   ]);
 
   const launchTokens: string[] = [];
@@ -147,12 +122,12 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ target: TRADE_ROUTER, eventAbi: SOLD_AMM }),
   ]);
 
-  for (const log of ammBuys as any[]) {
+  for (const log of ammBuys) {
     if (log.quoteToken && log.quoteSpent != null) {
       dailyVolume.add(log.quoteToken, log.quoteSpent);
     }
   }
-  for (const log of ammSells as any[]) {
+  for (const log of ammSells) {
     if (log.quoteToken && log.quoteGross != null) {
       dailyVolume.add(log.quoteToken, log.quoteGross);
     }
