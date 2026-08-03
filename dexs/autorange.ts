@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { chainConfig } from "../fees/aave-v3";
 import { CHAIN } from "../helpers/chains";
 
 // AutoRange — non-custodial Uniswap V3 concentrated-liquidity vault
@@ -9,14 +10,16 @@ import { CHAIN } from "../helpers/chains";
 // rebalance() (every subsequent re-mint after the price leaves the range or
 // on the owner's configured interval). See RangeVault.sol's PositionInitialized
 // and Rebalanced events.
-const config: Record<string, { factory: string; positionManager: string }> = {
+const config: Record<string, { factory: string; positionManager: string; start: string }> = {
   [CHAIN.CELO]: {
     factory: "0xa431a0bD0978d872C720cD3E3277e31cd6026e90",
     positionManager: "0x3d79EdAaBC0EaB6F08ED885C05Fc0B014290D95A",
+    start: "2026-07-16",
   },
   [CHAIN.ARBITRUM]: {
     factory: "0x93590F9a18Ed444dD90ECBeCA094aa9367452472",
     positionManager: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    start: "2026-07-18",
   },
 };
 
@@ -77,11 +80,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.CELO]: { start: "2026-07-16" },
-    [CHAIN.ARBITRUM]: { start: "2026-07-18" },
-  },
+  adapter: chainConfig,
   methodology,
 };
 
