@@ -35,12 +35,30 @@ interface OphisDayResponse {
   chains: OphisChainDay[];
 }
 
+const dailyResponseCache = new Map<string, Promise<OphisDayResponse>>();
+
+function getOphisDayResponse(dateString: string): Promise<OphisDayResponse> {
+  let response = dailyResponseCache.get(dateString);
+  if (!response) {
+    response = fetchURL(`${URL}?date=${dateString}`).then((data: OphisDayResponse) => {
+      if (!data.ok || data.date !== dateString || !Array.isArray(data.chains)) {
+        throw new Error(`Invalid Ophis daily metrics response for ${dateString}`);
+      }
+      return data;
+    });
+    dailyResponseCache.set(dateString, response);
+  }
+  return response;
+}
+
+/**
+ * Fetches the Ophis daily metrics for `options.chain` on `options.dateString`.
+ * @param options DefiLlama fetch options identifying the requested chain and UTC date.
+ * @returns The matching chain metrics, or `undefined` when the daily response has no data for that chain.
+ */
 export async function fetchOphisChainDay(options: FetchOptions): Promise<OphisChainDay | undefined> {
   const chainId = OPHIS_CHAINS[options.chain];
   if (chainId === undefined) throw new Error(`Unsupported Ophis chain ${options.chain}`);
-  const response: OphisDayResponse = await fetchURL(`${URL}?date=${options.dateString}`);
-  if (!response.ok || response.date !== options.dateString || !Array.isArray(response.chains)) {
-    throw new Error(`Invalid Ophis daily metrics response for ${options.dateString}`);
-  }
+  const response = await getOphisDayResponse(options.dateString);
   return response.chains.find((row) => row.chainId === chainId);
 }
