@@ -48,8 +48,6 @@ function runOnce(query: string): Promise<UserRow[]> {
 }
 
 function getDexUserRows(options: FetchOptions): Promise<UserRow[]> {
-  // GROUPING SETS gives per-chain and all-chain rows in one pass; the all-chain
-  // row can't be a sum, a wallet on two chains is one user.
   const query = `
 SELECT
   COALESCE(chain, '${CHAIN.CHAIN_GLOBAL}') AS chain,
@@ -91,7 +89,6 @@ function getHyperliquidUserRows(options: FetchOptions): Promise<UserRow[]> {
   const window = `timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
     AND timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
-  // FLATTEN unpacks both sides in one scan; a self-UNION would read the day twice.
   const query = `
 SELECT
   '${CHAIN.HYPERLIQUID}' AS chain,
@@ -138,13 +135,20 @@ export type TokenUsersConfig = {
   start: string;
 };
 
-// Module-level so every token adapter emits the same SQL and shares a run.
 const tokenConfigs: TokenUsersConfig[] = [];
 
 function getTokenUserRows(options: FetchOptions): Promise<UserRow[]> {
   const tokens = tokenConfigs.map((c) => `'${c.token.toLowerCase()}'`).join(", ");
-  const exits = [ZERO_ADDRESS, ...tokenConfigs.flatMap((c) => c.exitAddresses ?? [])]
-    .map((a) => `'${a.toLowerCase()}'`).join(", ");
+
+  // Each exit address belongs to one protocol, so it is paired with its own token
+  const entryOrExit = [
+    `LOWER(from_address) = '${ZERO_ADDRESS}'`,
+    `LOWER(to_address) = '${ZERO_ADDRESS}'`,
+    ...tokenConfigs
+      .filter((c) => c.exitAddresses?.length)
+      .map((c) => `(LOWER(token_address) = '${c.token.toLowerCase()}'`
+        + ` AND LOWER(to_address) IN (${c.exitAddresses!.map((a) => `'${a.toLowerCase()}'`).join(", ")}))`),
+  ].join("\n    OR ");
 
   const query = `
 SELECT
@@ -156,7 +160,9 @@ FROM crosschain.assets.transfers
 WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
   AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   AND LOWER(token_address) IN (${tokens})
-  AND (LOWER(from_address) = '${ZERO_ADDRESS}' OR LOWER(to_address) IN (${exits}))
+  AND (
+    ${entryOrExit}
+  )
 GROUP BY 1, 2`;
 
   return runOnce(query);
@@ -236,8 +242,6 @@ export function alliumDexUsersExport(config: {
   });
 }
 
-// transaction_from_address, not depositor_address: the depositor is often a vault
-// or curator contract.
 export function alliumLendingUsersExport(config: {
   project: string;
   chains: string[] | Record<string, string>;

@@ -31,7 +31,6 @@ routers.concat(chains as any[]).concat(compoundV2 as any[]).forEach((item: any) 
   if (item.newUsersAdapter) newUserProtocols[item.id ?? item.name] = item.newUsersAdapter;
 })
 
-// Active users only: new users needs a full-history first-seen scan
 dexUsers.concat(lendingUsers).concat(duneLendingUsers).concat(hyperliquidUsers).concat(tokenUsers).forEach(({ id, adapter }) => { activeUserProtocols[id] = adapter })
 
 export const { protocolList, getAdapter } = createFactoryExports(activeUserProtocols);
