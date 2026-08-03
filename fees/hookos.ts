@@ -492,15 +492,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    when it is native.
   //    GraduationHook (UniversalGraduationHook) is the hook actually wired into
   //    graduated pools; HookOSV4Hook is the older standalone one.
-  const v4Hooks = [
-    [c.GraduationHook, LABEL.v4],
-    [c.HookOSV4Hook, LABEL.v4],
-    [c.LaunchHook, LABEL.quickLaunch],
-  ].filter(([addr]) => Boolean(addr)) as [string, string][];
-  for (const [hook, label] of v4Hooks) {
-    const hookLogs = await getLogs({ target: hook, eventAbi: hookProtocolFeeAbi });
+  //    All three emit the same event, so they are queried by label group rather
+  //    than one call per hook — the graduation pair shares a single query.
+  const v4HookGroups: [string, (string | undefined)[]][] = [
+    [LABEL.v4, [c.GraduationHook, c.HookOSV4Hook]],
+    [LABEL.quickLaunch, [c.LaunchHook]],
+  ];
+  await Promise.all(v4HookGroups.map(async ([label, addrs]) => {
+    const targets = addrs.filter(Boolean) as string[];
+    if (!targets.length) return;
+    const hookLogs = await getLogs({ targets, eventAbi: hookProtocolFeeAbi, flatten: true });
     for (const log of hookLogs) addToken(dailyFees, log.token, log.amount, label);
-  }
+  }));
   // Creator accruals on those pools are supply-side. A BUY-side accrual is paid
   // in the freshly launched token, which contributes zero while it is unpriceable
   // rather than a fabricated value.
