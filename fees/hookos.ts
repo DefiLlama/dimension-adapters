@@ -631,9 +631,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // across would leave Revenue itemised by gross-fee labels that still include
   // the supply-side legs it just subtracted — totals right, breakdown wrong.
   // Only Fees, SupplySideRevenue and HoldersRevenue publish a breakdown.
-  dailyRevenue.addBalances(dailyFees, undefined, { skipBreakdown: true });
+  // It has to be passed as the SECOND argument: the SDK's getOptions() defaults
+  // a missing second argument to {} and then assigns it over the third, so
+  // addBalances(x, undefined, { skipBreakdown }) silently drops the flag. The
+  // cast is needed only because the option is typed on the third parameter.
+  const skipBreakdown = { skipBreakdown: true } as any;
+  dailyRevenue.addBalances(dailyFees, skipBreakdown);
   dailyRevenue.subtract(dailySupplySideRevenue);
-  dailyProtocolRevenue.addBalances(dailyRevenue, undefined, { skipBreakdown: true });
+  dailyProtocolRevenue.addBalances(dailyRevenue, skipBreakdown);
   dailyProtocolRevenue.subtract(dailyHoldersRevenue);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
