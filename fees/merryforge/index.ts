@@ -1,14 +1,3 @@
-/**
- * MerryForge fees + revenue adapter for DefiLlama dimension-adapters.
- *
- * Methodology:
- *   - Fees = FeeVault FeeAccrued.receivedAmount (protocol-path trading fees)
- *            + CreateFeeCollected (USDG create fees)
- *   - SupplySide = creator + referral shares from FeeAccrued
- *   - Revenue = protocol + safety credits (+ create fees)
- *   - ProtocolRevenue = protocol + safety (ops-controlled) + create fees
- */
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
