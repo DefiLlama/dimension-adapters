@@ -25,6 +25,18 @@ const tokenUsers = [
     start: "2021-10-07",
   },
   {
+    id: "4133", // Ethena USDe
+    chain: CHAIN.ETHEREUM,
+    token: "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497",
+    start: "2023-11-21",
+  },
+  {
+    id: "6790", // Falcon Finance
+    chain: CHAIN.ETHEREUM,
+    token: "0xc8CF6D7991f15525488b2A83Df53468D682Ba4B0",
+    start: "2025-02-12",
+  },
+  {
     id: "3946", // Kelp
     chain: CHAIN.ETHEREUM,
     token: "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7", // rsETH
