@@ -37,7 +37,8 @@ const PREFIX_TO_CHAIN: Record<string, string> = {
 };
 
 interface ExplorerTransaction {
-  created_at: string;
+  created_at: string; // the swap timestamp; the underlying table calls it swap_date
+  swap_date?: string;
   from_asset: string;
   volume_usd: number | null;
 }
@@ -66,7 +67,7 @@ function fetchWindowVolumeByChain(options: FetchOptions): Promise<Record<string,
         );
         const rows = res.data ?? [];
         for (const row of rows) {
-          if (new Date(row.created_at).getTime() < startMs) return sums;
+          if (new Date(row.swap_date ?? row.created_at).getTime() < startMs) return sums;
           const prefix = row.from_asset.split(".")[0].split("-")[0].toUpperCase();
           const chain = PREFIX_TO_CHAIN[prefix];
           if (!chain) continue; // non-chain-prefixed asset ids, excluded from the breakdown
