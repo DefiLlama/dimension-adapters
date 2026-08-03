@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { addTokensReceived } from "../../helpers/token";
 
 /**
  * StonkBrokers — Anvil NFTFi + Broker Box + Safety Deposit Box on Robinhood,
@@ -171,7 +172,6 @@ function addProtocolCut(
   else balances.addToken(token, amount, label);
 }
 
-const MACHINE_SET = new Set(GACHA_MACHINES.map((a) => a.toLowerCase()));
 const LOCKER_META: { addr: string; isV4: boolean }[] = [
   { addr: LOCKER_V3, isV4: false },
   { addr: LOCKER_V4, isV4: true },
@@ -186,68 +186,42 @@ const fetchRobinhood = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  // Robinhood's public RPC rate-limits hard under CI's 24× hourly fan-out.
-  // Fetch in small batches, use noTarget for multi-machine EdgeSkimmed (1
-  // request instead of 9), and cacheInCloud so retries hit Llama's cache.
-  const logOpts = { cacheInCloud: true } as const;
-
   const [soldLogs, boughtLogs, loansLogs] = await Promise.all([
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD, ...logOpts }),
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT, ...logOpts }),
-    options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED, ...logOpts }),
+    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD,}),
+    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT,}),
+    options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED,}),
   ]);
 
   const [activatedLogs, upgradedLogs, counterLogs] = await Promise.all([
-    options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED, ...logOpts }),
+    options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED,}),
     options.getLogs({
       target: ACTIVATION_MANAGER,
       eventAbi: ACTIVATION_UPGRADED,
-      ...logOpts,
     }),
     options.getLogs({
       target: CERTIFICATE_COUNTER,
       eventAbi: CERTIFICATE_BOUGHT,
-      ...logOpts,
     }),
   ]);
 
-  // Chain-wide Broker Box scans, then keep only production machines (1 RPC
-  // each instead of 9× per event — Robinhood public RPC rate-limits hard).
-  const [edgeRaw, pullRaw, soldBackRaw, soldBackUsdgRaw] = await Promise.all([
+  const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
     options.getLogs({
-      noTarget: true,
+      targets: GACHA_MACHINES,
       eventAbi: EDGE_SKIMMED,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
     options.getLogs({
-      noTarget: true,
+      targets: GACHA_MACHINES,
       eventAbi: PULL_OPENED,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
     options.getLogs({
-      noTarget: true,
+      targets: GACHA_MACHINES,
       eventAbi: SOLD_BACK,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
     options.getLogs({
-      noTarget: true,
+      targets: GACHA_MACHINES,
       eventAbi: SOLD_BACK_USDG,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
   ]);
-  const onMachine = (log: any) => MACHINE_SET.has(String(log.address).toLowerCase());
-  const edgeLogs = edgeRaw.filter(onMachine).map((log: any) => log.args);
-  const pullLogs = pullRaw.filter(onMachine).map((log: any) => log.args);
-  const soldBackLogs = soldBackRaw.filter(onMachine).map((log: any) => log.args);
-  const soldBackUsdgLogs = soldBackUsdgRaw.filter(onMachine).map((log: any) => log.args);
 
   // Robinhood is not in addTokensReceived's log-fallback chain map, so locker
   // cuts are read from the fee events + a lockPositions lookup.
@@ -255,16 +229,10 @@ const fetchRobinhood = async (options: FetchOptions) => {
     options.getLogs({
       targets: [LOCKER_V3, LOCKER_V4],
       eventAbi: LOCK_FEES_COLLECTED,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
     options.getLogs({
       targets: [LOCKER_V3, LOCKER_V4],
       eventAbi: LOCK_LIQUIDITY_DECREASED,
-      entireLog: true,
-      parseLog: true,
-      ...logOpts,
     }),
   ]);
 
@@ -369,9 +337,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // (Robinhood has no Transfer-log fallback in addTokensReceived); collect /
   // withdraw cuts dominate live volume and are fully covered.
   const lockCache = new Map<string, [string, string]>();
-  const lockerLogs = [...lockerCollectLogs, ...lockerDecreaseLogs].filter((log: any) =>
-    LOCKER_SET.has(String(log.address).toLowerCase()),
-  );
+  const lockerLogs = [...lockerCollectLogs, ...lockerDecreaseLogs];
   // Group by locker so lockPositions multicalls stay batched.
   const byLocker = new Map<string, { isV4: boolean; logs: any[] }>();
   for (const log of lockerLogs) {
@@ -381,7 +347,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
       bucket = { isV4: LOCKER_SET.get(addr)!, logs: [] };
       byLocker.set(addr, bucket);
     }
-    bucket.logs.push(log.args ?? log);
+    bucket.logs.push( log);
   }
   for (const [locker, batch] of byLocker) {
     const ids = [...new Set(batch.logs.map((l) => String(l.lockTokenId)))];
@@ -415,37 +381,21 @@ const fetchRobinhood = async (options: FetchOptions) => {
   };
 };
 
-const TRANSFER =
-  "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-
-function padAddress(addr: string): string {
-  return "0x" + addr.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-}
-
 /** Base: Relay swap-desk 1% app fee, measured as Base USDC leaving the fee wallet
  *  on its way to StockBooster via Relay (the wallet's only USDC outflows). */
 const fetchBase = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const logs = await options.getLogs({
-    target: BASE_USDC,
-    eventAbi: TRANSFER,
-    topics: [TRANSFER_TOPIC, padAddress(RELAY_FEE_WALLET)] as any,
-    cacheInCloud: true,
-  });
-  for (const log of logs) {
-    dailyFees.addToken(BASE_USDC, BigInt(log.value), LABELS.SWAP_DESK_FEES);
-  }
+  const swapDeskFees = await addTokensReceived({options, fromAddressFilter: RELAY_FEE_WALLET, tokens: [BASE_USDC]});
+  
+  const dailyFees = swapDeskFees.clone(1, LABELS.SWAP_DESK_FEES);
 
   return {
     dailyFees,
     // Entire desk fee is forwarded to StockBooster as a Clock In bonus top-up —
     // supply-side only (mirrors how NFTFi booster share is attributed).
     dailySupplySideRevenue: dailyFees,
-    dailyRevenue: options.createBalances(),
-    dailyProtocolRevenue: options.createBalances(),
-    dailyHoldersRevenue: options.createBalances(),
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: 0,
   };
 };
 
