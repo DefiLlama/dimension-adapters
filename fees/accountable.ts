@@ -40,20 +40,28 @@ const fetch = async (options: FetchOptions) => {
   );
 
   // Days with no accrual are filtered out upstream, so a gap inside the covered
-  // range is a genuine zero, while a date past the last row means the upstream
-  // accounting is behind.
+  // range is a genuine zero. Outside that range the data is simply not there,
+  // which must fail rather than be reported as no fees.
   if (!row) {
-    const lastDate = rows.reduce(
-      (max, r) => (r.chain === options.chain && r.date > max ? r.date : max),
-      "",
+    const covered = rows.reduce(
+      (acc, r) => {
+        if (r.chain !== options.chain) return acc;
+        if (!acc.first || r.date < acc.first) acc.first = r.date;
+        if (r.date > acc.last) acc.last = r.date;
+        return acc;
+      },
+      { first: "", last: "" },
     );
-    if (options.dateString > lastDate)
+    if (
+      !covered.first ||
+      options.dateString < covered.first ||
+      options.dateString > covered.last
+    )
       throw new Error(
-        `Accountable: fee data for ${options.chain} ends at ${lastDate}, asked for ${options.dateString}`,
+        `Accountable: no fee data for ${options.chain} on ${options.dateString}, covered range is ${covered.first || "empty"}..${covered.last || "empty"}`,
       );
     return {
       dailyFees: 0,
-      dailyUserFees: 0,
       dailySupplySideRevenue: 0,
       dailyRevenue: 0,
       dailyProtocolRevenue: 0,
@@ -61,10 +69,21 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const fees = row.fees_usd ?? 0;
-  const depositors = row.supply_side_usd ?? 0;
   const protocol = row.protocol_revenue_usd ?? 0;
-  const manager =
-    row.manager_revenue_usd ?? Math.max(0, fees - depositors - protocol);
+  if (protocol > fees)
+    throw new Error(
+      `Accountable: protocol revenue ${protocol} exceeds fees ${fees} for ${options.chain} on ${options.dateString}`,
+    );
+
+  // Everything that is not the protocol's cut is a cost of funds, so deriving the
+  // supply side keeps dailyFees === dailyRevenue + dailySupplySideRevenue exact
+  // even if the upstream components ever disagree by a rounding step. Within it,
+  // the manager's share is either reported or the remainder after depositors.
+  const supplySide = fees - protocol;
+  const managerReported =
+    row.manager_revenue_usd ?? fees - (row.supply_side_usd ?? 0) - protocol;
+  const manager = Math.min(Math.max(managerReported, 0), supplySide);
+  const depositors = supplySide - manager;
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -94,9 +113,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Interest accrued by borrowers drawing on Accountable vaults, including the performance fee charged on it, aggregated per day and chain.",
-  UserFees:
-    "Same as Fees — the whole amount is paid by borrowers drawing on the vaults.",
+  Fees: "Interest accrued by borrowers drawing on Accountable vaults, including the performance fee charged on it, aggregated per day and chain. Borrowers pay the whole amount.",
   Revenue: "The Accountable protocol's share of the performance fee.",
   ProtocolRevenue: "The Accountable protocol's share of the performance fee.",
   SupplySideRevenue:
@@ -107,9 +124,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]:
       "All interest accrued by borrowers on drawn vault capital, before the performance fee is taken out of it.",
-  },
-  UserFees: {
-    [METRIC.BORROW_INTEREST]: "Borrowers pay the whole amount.",
   },
   Revenue: {
     "Performance Fee To Protocol":
@@ -127,15 +141,20 @@ const breakdownMethodology = {
   },
 };
 
+const chainConfig = {
+  [CHAIN.MONAD]: { start: "2025-11-27" },
+  [CHAIN.ETHEREUM]: { start: "2026-01-16" },
+  [CHAIN.BASE]: { start: "2026-04-23" },
+  [CHAIN.ARBITRUM]: { start: "2026-05-19" },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  adapter: {
-    [CHAIN.MONAD]: { start: "2025-11-27" },
-    [CHAIN.ETHEREUM]: { start: "2026-01-16" },
-    [CHAIN.BASE]: { start: "2026-04-23" },
-    [CHAIN.ARBITRUM]: { start: "2026-05-19" },
-  },
+  // The upstream accounting is a daily aggregate per (date, chain), so an hourly
+  // pull would report the same daily figure in every window and overcount.
+  pullHourly: false,
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
 };
