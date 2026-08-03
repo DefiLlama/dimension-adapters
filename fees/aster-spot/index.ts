@@ -45,21 +45,26 @@ async function fetch(options: FetchOptions) {
 
     return {
         dailyFees,
+        dailyRevenue: dailyHoldersRevenue,
         dailyHoldersRevenue,
     }
 }
 
 const methodology = {
-    Fees: "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot, directed to ASTER stakers.",
-    HoldersRevenue: "Aster token strategic buybacks from platform fees. (Used to be burnt before Feb 2nd, 2026, now directed to ASTER stakers)"
+    Fees: "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot. Listing fees are collected weekly and enter the platform-fee buyback program.",
+    Revenue: "Aster buybacks are treated as revenue. Buybacks were sent to the burn wallet through Feb 2, 2026; there was no tracked allocation from Feb 3 through Jun 16, 2026; from Jun 17, 2026, 99% of daily platform fees is used to buy back ASTER via TWAP for veASTER stakers.",
+    HoldersRevenue: "ASTER buybacks directed to token holders: buybacks were sent to the burn wallet through Feb 2, 2026; from Jun 17, 2026, 99% of daily platform fees is used to buy back ASTER via TWAP and distributed to veASTER stakers. This adapter currently captures ASTER transfers into the published buyback wallet indexed on BSC; it does not infer the execution contract from the ERC-20 Transfer sender, and Aster Chain transfers are not included because the repository has no supported Aster Chain source."
 }
 
 const breakdownMethodology = {
     Fees: {
-      "Listing Fees": "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot, directed to ASTER stakers.",
+      "Listing Fees": "USDT listing fees (50K per listing) from permissionless token listings on Aster Spot. Listing fees are collected weekly and enter the platform-fee buyback program.",
+    },
+    Revenue: {
+      [METRIC.TOKEN_BUY_BACK]: "ASTER buybacks: burn-wallet purchases through Feb 2, 2026, and 99% of daily platform fees bought back via TWAP for veASTER stakers from Jun 17, 2026.",
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: "Aster tokens purchased by the protocol treasury through TWAP contract for strategic buybacks, funded by accumulated platform fees. (Used to be burnt before Feb 2nd, 2026, now directed to ASTER stakers)",
+      [METRIC.TOKEN_BUY_BACK]: "ASTER transfers into the published buyback wallet indexed on BSC: burn-wallet purchases through Feb 2, 2026, and the post-Jun 17, 2026 wallet settlement for the TWAP-funded veASTER buyback program. ERC-20 Transfer senders may be liquidity or processor contracts rather than the TWAP executor; Aster Chain transfers are out of scope.",
     }
 };
 
