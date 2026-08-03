@@ -35,7 +35,12 @@ function toTokenAmount(rawAmount: string, decimals: number): number {
     throw new Error("Liquidium fees API returned an invalid token amount");
   }
 
-  const amount = Number(rawAmount) / 10 ** decimals;
+  const divisor = 10 ** decimals;
+  if (!Number.isFinite(divisor)) {
+    throw new Error("Liquidium fees API returned an invalid token amount");
+  }
+
+  const amount = Number(rawAmount) / divisor;
   if (!Number.isFinite(amount)) {
     throw new Error("Liquidium fees API returned an invalid token amount");
   }
