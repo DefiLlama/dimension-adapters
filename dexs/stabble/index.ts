@@ -23,13 +23,14 @@ const fetch = async (options: FetchOptions) => {
   // `fees` is the LP share only (70% of gross) and `revenue` is the treasury's 30%,
   // so gross swap fees are the sum of the two.
   dailyFees.addUSDValue(stats.fees + stats.revenue, METRIC.SWAP_FEES);
-  dailyRevenue.addUSDValue(stats.revenue, 'Token Swap Fees To Protocol');
+  dailyRevenue.addUSDValue(stats.revenue, 'Token Swap Fees To $STB staking pool');
   dailySupplySideRevenue.addUSDValue(stats.fees, 'Token Swap Fees To LPs');
 
   return {
     dailyVolume: stats.volume,
     dailyFees,
     dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -38,6 +39,7 @@ const methodology = {
   Volume: "Trading volume across stabble's stable and weighted AMM pools.",
   Fees: "Total swap fees paid by traders — the liquidity providers' share plus the protocol's cut.",
   Revenue: "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
+  HoldersRevenue: "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
   SupplySideRevenue: "The 70% of swap fees kept by liquidity providers.",
 };
 
@@ -46,7 +48,10 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Gross swap fees charged on trades routed through stabble's stable and weighted AMM pools, before the LP/treasury split.",
   },
   Revenue: {
-    'Token Swap Fees To Protocol': "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
+    'Token Swap Fees To $STB staking pool': "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
+  },
+  HoldersRevenue: {
+    'Token Swap Fees To $STB staking pool': "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
   },
   SupplySideRevenue: {
     'Token Swap Fees To LPs': "The 70% of swap fees kept by the liquidity providers of each pool.",
