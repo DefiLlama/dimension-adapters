@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 // HookOS — programmable token launchpad built on Uniswap v4 hooks.
 //
@@ -80,6 +81,18 @@ type ChainConfig = {
   feeSources: Record<string, string>;
 };
 
+// Wherever helpers/metrics already defines an equivalent, the shared METRIC is
+// used rather than a near-duplicate string, so this adapter does not fragment
+// series that other protocols also report: creator fees, LP fees, bot trading,
+// subscriptions, buybacks and the unmapped-sender bucket. All three LP sources
+// (V3 launch positions, the graduated-v4 splitter, the LP locker) therefore
+// share one LP Fees line.
+//
+// The rest are HookOS products with no equivalent in the enum. They are kept
+// distinct rather than collapsed into METRIC.SWAP_FEES because the whole point
+// of the breakdown is showing which venue earns — the bonding curve, graduated
+// v4 pools, the $HOOK pool and the tokenized-stock pools are separate products
+// with separate economics. Happy to collapse them if maintainers prefer.
 const LABEL = {
   curve: 'Bonding Curve Fees',
   launch: 'Token Launch Fees',
@@ -87,7 +100,6 @@ const LABEL = {
   arena: 'Arena Battle Fees',
   v4: 'Graduated V4 Pool Fees',
   quickLaunch: 'Quick Launch Fees',
-  v3Launch: 'V3 Launch LP Fees',
   hookTax: 'HOOK Pool Tax',
   marketplace: 'Marketplace Fees',
   copyTrading: 'Copy Trading Fees',
@@ -95,19 +107,18 @@ const LABEL = {
   partner: 'Partner Fees',
   profile: 'Profile Monetization Fees',
   quest: 'Quest Sponsorship Fees',
-  subscription: 'Subscription Fees',
   kernel: 'Kernel Fees',
-  lpLocker: 'LP Locker Fees',
   tournament: 'Tournament Fees',
   presale: 'Presale Fees',
-  botTrading: 'Bot Trading Fees',
-  lpSplit: 'Graduated LP Fees',
   stockTax: 'Stock Pool Tax',
   stockRewards: 'Stock Holder Rewards',
-  other: 'Other Protocol Fees',
-  creator: 'Creator Fees',
   hookAuthor: 'Hook Author Fees',
-  buyback: 'Buyback and Burn',
+  creator: METRIC.CREATOR_FEES,
+  lpFees: METRIC.LP_FEES,
+  botTrading: METRIC.TRADING_FEES,
+  subscription: METRIC.SERVICE_FEES,
+  buyback: METRIC.TOKEN_BUY_BACK,
+  other: METRIC.PROTOCOL_FEES,
 };
 
 const CONFIG: Record<string, ChainConfig> = {
@@ -129,7 +140,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x1a4bbd3cb922ffd6167f0a75fd037a3760d63b63": LABEL.arena,         // Arena
       "0xc841ef17b424b00a46c5acebdeebe2976f168ac7": LABEL.curve,         // BondingCurve
       "0x0dde71f9711693cabb46fad461e9f0cb27b96f53": LABEL.tournament,    // Events
-      "0xcdc35bed68be2ad6245d93f8d310408d4ab93167": LABEL.v3Launch,      // HookOSV3Launcher
+      "0xcdc35bed68be2ad6245d93f8d310408d4ab93167": LABEL.launch,        // HookOSV3Launcher
     },
   },
   [CHAIN.BSC]: {
@@ -166,8 +177,8 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x8e6f4653f4a5060cfcce84f5a249609d04568e81": LABEL.quest,         // QuestSponsorship
       "0xa3e5de74cd1d42a97a5cc0f45b7a24a73fb52736": LABEL.subscription,  // WalletProSubscription
       "0x2d7c972fb70b340aa0c9668395b8cf817ee71a74": LABEL.kernel,        // HookOSKernel
-      "0x751232f04b05bf0cb9fe36ab9e0009feb97f49a4": LABEL.lpLocker,      // LPLocker
-      "0xab058c222baae520cc83440f941628abf2f876fd": LABEL.v3Launch,      // HookOSV3Launcher
+      "0x751232f04b05bf0cb9fe36ab9e0009feb97f49a4": LABEL.lpFees,        // LPLocker
+      "0xab058c222baae520cc83440f941628abf2f876fd": LABEL.launch,        // HookOSV3Launcher
       "0xa8cfb668a65236f678bfae6ba41ec3e61d8a0044": LABEL.v4,            // HookOSV4Hook
     },
   },
@@ -194,7 +205,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x9b3d636c27ad4cdebfbe1f182b2b63f66be7ade5": LABEL.arena,         // Arena
       "0x93f35a190e6b7ed05e7bbab78199720c0c849dde": LABEL.curve,         // BondingCurve
       "0x47c839295754307e635dc6bef89856267932dd38": LABEL.tournament,    // Events
-      "0x2db1b1e2123c3d61b0cafe4af5864e4fab3a5f74": LABEL.v3Launch,      // HookOSV3Launcher
+      "0x2db1b1e2123c3d61b0cafe4af5864e4fab3a5f74": LABEL.launch,        // HookOSV3Launcher
     },
   },
   [CHAIN.MEGAETH]: {
@@ -230,7 +241,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x47a66a65fc90349eaafb1d51c18b61a2d4ffb91d": LABEL.quest,         // QuestSponsorship
       "0x58235f1112de75606d18ecfd6a136d3745cb70a7": LABEL.subscription,  // WalletProSubscription
       "0xb740b22560b93a7581f88acfe205d08432da71ea": LABEL.kernel,        // HookOSKernel
-      "0x528bcecff5da16ce65c198fbe42da55a0088d4c2": LABEL.v3Launch,      // HookOSV3Launcher
+      "0x528bcecff5da16ce65c198fbe42da55a0088d4c2": LABEL.launch,        // HookOSV3Launcher
     },
   },
   // Robinhood (4663) is HookOS's flagship chain: the only one running Quick
@@ -271,8 +282,8 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x75bd4983c60147217f3693cb7c45212a98cd3a1c": LABEL.quest,         // QuestSponsorship
       "0x155c388f118c2b8eb58ac2d4b23f1ba99f95fd3b": LABEL.subscription,  // WalletProSubscription
       "0xda4764d68789012416392455205c863bbbadd2d2": LABEL.kernel,        // HookOSKernel
-      "0x316022a060284b84d6711a203e2578ee452c7858": LABEL.quickLaunch,   // RHLaunchpad
-      "0x9b8d992704ddf38729535a641502bcc55734e0b8": LABEL.v3Launch,      // HookOSV3Launcher
+      "0x316022a060284b84d6711a203e2578ee452c7858": LABEL.launch,        // RHLaunchpad
+      "0x9b8d992704ddf38729535a641502bcc55734e0b8": LABEL.launch,        // HookOSV3Launcher
       "0x85d5027ad0d3a8d58734db244cde2de019fb0044": LABEL.v4,            // HookOSV4Hook
       "0xa71b7482439c4f147abfe23cba5312770f31c0c4": LABEL.quickLaunch,   // LaunchHook
     },
@@ -311,8 +322,8 @@ const CONFIG: Record<string, ChainConfig> = {
       "0xfee62e423b3c4be75315cecef08eb6ae8d4f4293": LABEL.quest,         // QuestSponsorship
       "0xdd569e1e0224a7b413d1cd86493667450df8242f": LABEL.subscription,  // WalletProSubscription
       "0xe2ed29b574f5260f75cea5187880740c92694e20": LABEL.kernel,        // HookOSKernel
-      "0x471e566b43b8c2693b18600ec0982e40787f06bd": LABEL.lpLocker,      // LPLocker
-      "0x094e2b0b5b750441fc36a72b4754f6833231d76e": LABEL.v3Launch,      // HookOSV3Launcher
+      "0x471e566b43b8c2693b18600ec0982e40787f06bd": LABEL.lpFees,        // LPLocker
+      "0x094e2b0b5b750441fc36a72b4754f6833231d76e": LABEL.launch,        // HookOSV3Launcher
       "0x624a452dd93df9716085988c916c72219d8c8044": LABEL.v4,            // HookOSV4Hook
     },
   },
@@ -425,6 +436,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const mod of [c.CreatorMarketplace, c.CampaignMarketplace, c.ProfileMonetization, c.QuestSponsorship, c.WalletProSubscription]) {
       if (mod) skip.add(mod.toLowerCase());
     }
+    // BotTradeRouter pays its skim STRAIGHT to FeeRouter, in the same tx that
+    // emits Bought/Sold — so the identical wei arrives here as FeeReceived and
+    // again at step 9. Observed on Base: same block, same amount, both counted.
+    for (const bot of c.BotTradeRouter ?? []) skip.add(bot.toLowerCase());
     const feeLogs = await getLogs({ target: c.FeeRouter, eventAbi: feeReceivedAbi });
     for (const log of feeLogs) {
       const from = String(log.from).toLowerCase();
@@ -529,13 +544,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const quote = (bal: any, amount: any, label: string) =>
           isNative ? bal.addGasToken(amount, label) : bal.add(pair, amount, label);
 
-        quote(dailyFees, log.ethToCreator + log.ethToProtocol + log.ethToBuyback, LABEL.v3Launch);
+        quote(dailyFees, log.ethToCreator + log.ethToProtocol + log.ethToBuyback, LABEL.lpFees);
         quote(dailySupplySideRevenue, log.ethToCreator, LABEL.creator);
         quote(dailyHoldersRevenue, log.ethToBuyback, LABEL.buyback);
 
         const tokenSide = log.tokenToCreator + log.tokenToProtocol;
         if (tokenSide > 0n) {
-          addToken(dailyFees, log.token, tokenSide, LABEL.v3Launch);
+          addToken(dailyFees, log.token, tokenSide, LABEL.lpFees);
           addToken(dailySupplySideRevenue, log.token, log.tokenToCreator, LABEL.creator);
         }
       }
@@ -584,7 +599,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   if (c.LPFeeSplitter) {
     const splitLogs = await getLogs({ target: c.LPFeeSplitter, eventAbi: feesSplitAbi });
     for (const log of splitLogs) {
-      addToken(dailyFees, log.token, log.creatorShare + log.protocolShare, LABEL.lpSplit);
+      addToken(dailyFees, log.token, log.creatorShare + log.protocolShare, LABEL.lpFees);
       addToken(dailySupplySideRevenue, log.token, log.creatorShare, LABEL.creator);
     }
   }
@@ -655,12 +670,12 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [LABEL.curve]: 'Protocol fee on bonding-curve buys and sells.',
-    [LABEL.launch]: 'Fee charged per token launch (USD-pegged on-chain, so the exact amount paid is used).',
+    [LABEL.launch]: 'Fees charged to launch a token, across every launch route: the bonding-curve factory, the HookOS-V3 direct-to-DEX launcher and Robinhood Quick Launch. USD-pegged on-chain, so the exact amount paid is used.',
     [LABEL.registration]: 'Fee charged per hook registration.',
     [LABEL.arena]: 'Protocol cut of settled arena battle pots.',
     [LABEL.v4]: 'HookOS cut of swaps on graduated Uniswap-v4 pools, taken by HookOSV4Hook and by UniversalGraduationHook.',
-    [LABEL.quickLaunch]: 'Quick Launch revenue on Robinhood: the HookOS cut of swaps on direct-to-v4 pools taken by LaunchHook, plus the launch fees RHLaunchpad routes to FeeRouter.',
-    [LABEL.v3Launch]: 'HookOS-V3 direct-to-DEX launch revenue: LP fees collected from the launch positions — both the quote leg (native, or the pair token on a non-native-paired launch) and the launched-token leg — plus the launch fees HookOSV3Launcher routes to FeeRouter.',
+    [LABEL.quickLaunch]: 'HookOS cut of swaps on Robinhood Quick Launch direct-to-v4 pools, taken by LaunchHook.',
+    [LABEL.lpFees]: 'LP fees on the positions HookOS custodies: HookOS-V3 direct-to-DEX launch positions (both the quote leg — native, or the pair token on a non-native-paired launch — and the launched-token leg), graduated Uniswap-v4 positions held by LPFeeSplitter, and locked positions held by LPLocker.',
     [LABEL.hookTax]: 'Tax skimmed from the WETH leg of every $HOOK Uniswap-v4 swap.',
     [LABEL.marketplace]: 'Creator and campaign marketplace fees.',
     [LABEL.copyTrading]: 'Copy-trading fees.',
@@ -670,10 +685,8 @@ const breakdownMethodology = {
     [LABEL.quest]: 'Quest sponsorship fees.',
     [LABEL.subscription]: 'Wallet Pro subscription fees.',
     [LABEL.kernel]: 'HookOS kernel module fees.',
-    [LABEL.lpLocker]: 'LP locker fees.',
     [LABEL.presale]: 'Percentage of the raise taken when a presale settles, plus the flat presale creation fee.',
     [LABEL.botTrading]: 'Skim on buys and sells routed through the HookOS trading bot.',
-    [LABEL.lpSplit]: 'LP fees earned by graduated Uniswap-v4 positions custodied by LPFeeSplitter.',
     [LABEL.stockTax]: 'Tax on tokenized-stock pool swaps, taken on the pool\'s quote leg (read live from the hook — WETH on the current Robinhood deployment).',
     [LABEL.tournament]: 'Protocol cut of tournament and event prize pools.',
     [LABEL.other]: 'Native fees routed to FeeRouter by a HookOS module not individually mapped.',
