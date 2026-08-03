@@ -1,5 +1,4 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { chainConfig } from "../fees/aave-v3";
 import { CHAIN } from "../helpers/chains";
 
 // AutoRange — non-custodial Uniswap V3 concentrated-liquidity vault
@@ -57,15 +56,25 @@ const fetch = async (options: FetchOptions) => {
   const anyRebalances = rebalancedLogs.some((logs: any[]) => logs?.length);
   if (anyRebalances) {
     const increaseLogs = await options.getLogs({ target: positionManager, eventAbi: increaseLiquidityAbi });
-    const byTokenId = new Map<string, any>();
-    (increaseLogs ?? []).forEach((log: any) => byTokenId.set(String(log.tokenId), log));
+
+    const byTokenId = new Map<string, any[]>();
+    (increaseLogs ?? []).forEach((log: any) => {
+      const key = String(log.tokenId);
+      const existing = byTokenId.get(key);
+      if (existing) existing.push(log);
+      else byTokenId.set(key, [log]);
+    });
 
     vaults.forEach((_, i) => {
       (rebalancedLogs[i] ?? []).forEach((log: any) => {
-        const match = byTokenId.get(String(log.newTokenId));
-        if (!match) return; // best-effort — see methodology
-        dailyVolume.add(token0s[i], match.amount0);
-        dailyVolume.add(token1s[i], match.amount1);
+        const matches = (byTokenId.get(String(log.newTokenId)) ?? []).filter(
+          (m: any) => m.transactionHash === log.transactionHash,
+        );
+        if (!matches.length) return;
+        matches.forEach((match) => {
+          dailyVolume.add(token0s[i], match.amount0);
+          dailyVolume.add(token1s[i], match.amount1);
+        });
       });
     });
   }
@@ -82,7 +91,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  adapter: config,
   methodology,
 };
 
