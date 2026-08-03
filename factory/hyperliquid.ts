@@ -43,6 +43,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "sogo-terminal": {
+    addresses: ["0x980adfdcb7655198ea69d2e19eb7daca594a9e67"],
+    start: "2026-07-12",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades routed through SOGO Terminal's non-custodial Telegram interface.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades executed through SOGO Terminal.",
+      Revenue: "Builder code fees collected by SOGO Terminal from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by SOGO Terminal from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "stablejack-perps": {
     addresses: [
       "0x68b7e8be8f1a62f99e37f1ac191dd23486e8a2ad",
