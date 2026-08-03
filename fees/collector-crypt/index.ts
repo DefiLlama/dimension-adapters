@@ -7,6 +7,9 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 // On-chain crypto gacha sinks. All non-team USDC inflows are pack purchases, so there is no
 // price-tier filter: CC keeps launching new tiers (150/151/420/5000 in Jul-2026) and a hardcoded
 // tier list silently drops their revenue until someone notices. Same rule as the fiat rail below.
+// Verified against tx memos: every inflow carries a storefront memo (cc-/jupiter-/slabz-/sol-/...)
+// with action open (99.5%) or gift (0.5%, a paid pack sent to another wallet), so the sinks receive
+// nothing but pack payments. Storefront overlap is fine - jupiter-gacha is flagged doublecounted.
 const GACHA_ONCHAIN_ADDRESSES = [
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z', // decommissioned pre-Dec-2025, kept for history
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3', // primary on-chain sink
