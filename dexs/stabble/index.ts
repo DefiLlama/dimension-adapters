@@ -15,19 +15,20 @@ const fetch = async (options: FetchOptions) => {
   const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const stats: DailyStats = await fetchURL(url);
 
+  // `fees` is the LP share only (70% of gross) and `revenue` is the treasury's 30%,
   return {
     dailyVolume: stats.volume,
-    dailyFees: stats.fees,
+    dailyFees: stats.fees + stats.revenue,
     dailyRevenue: stats.revenue,
-    dailySupplySideRevenue: stats.fees - stats.revenue,
+    dailySupplySideRevenue: stats.fees,
   };
 };
 
 const methodology = {
   Volume: "Trading volume across stabble's stable and weighted AMM pools.",
-  Fees: "Total swap fees paid by traders.",
-  Revenue: "The protocol's cut of swap fees (treasury / $STB staking pool).",
-  SupplySideRevenue: "The portion of swap fees distributed to liquidity providers.",
+  Fees: "Total swap fees paid by traders — the liquidity providers' share plus the protocol's cut.",
+  Revenue: "The 30% of swap fees sent to the stabble multisig treasury that funds the $STB staking pool.",
+  SupplySideRevenue: "The 70% of swap fees kept by liquidity providers.",
 };
 
 const adapter: SimpleAdapter = {
