@@ -34,7 +34,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     addresses: ["0xfa4a0d1ca5288478f2c515d5574d53631e7fa711"],
     start: "2026-04-23",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades executed through whale.ag.",
+      Volume: "Notional volume of Hyperliquid perpetual trades executed through whale.ag's non-custodial copy-trading platform and perps terminal.",
       Fees: "Builder code fees (0.05%) paid by users on Hyperliquid perpetual trades executed through whale.ag.",
       Revenue: "Builder code fees collected by whale.ag from Hyperliquid perpetual trades.",
       ProtocolRevenue: "Builder code fees collected by whale.ag from Hyperliquid perpetual trades.",
