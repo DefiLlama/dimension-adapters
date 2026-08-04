@@ -34,11 +34,13 @@ const POOLS_BY_CHAIN: Record<string, readonly PoolConfig[]> = {
     ],
     [CHAIN.BSC]: [
         {
+            // BNB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
             address: "0x00007904d186680C709519e71f4Dc3e2Df8f1b99",
             feeModel: "dark_pools_v2",
             tokenXOverride: ADDRESSES.bsc.WBNB,
         },
         {
+            // BTCB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
             address: "0x0B1ce37bc7eE857916B4e2dF9F69775c36831B99",
             feeModel: "dark_pools_v2",
         },
