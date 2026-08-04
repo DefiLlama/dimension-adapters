@@ -70,26 +70,30 @@ const fetch = async (options: FetchOptions) => {
   const bribes = await getBribes(options);
   const bribeUSD = Number(await bribes.getUSDValue());
 
-  result.dailyHoldersRevenue.addUSDValue(bribeUSD, 'Bribes to holders');
+  result.dailyFees.addUSDValue(bribeUSD, 'Bribes');
+  result.dailyRevenue.addUSDValue(bribeUSD, 'Bribes to Voters');
+  result.dailyHoldersRevenue.addUSDValue(bribeUSD, 'Bribes to Voters');
 
   return result;
 };
 
 const methodology = {
   Volume: "Sum of traded volume across all pools created by the CL factory.",
-  Fees: "Swap fees paid by users on each trade.",
-  Revenue: "80% of swap fees, split between the protocol treasury and token holders.",
+  Fees: "Swap fees paid by users on each trade plus external bribes paid to influence gauge votes.",
+  Revenue: "80% of swap fees, split between the protocol treasury and token holders plus external bribes paid to holders who vote.",
   SupplySideRevenue: "20% of swap fees, distributed to LPs.",
   ProtocolRevenue: "8% of swap fees, allocated to the protocol treasury.",
-  HoldersRevenue: "72% of swap fees, plus all bribes (off-statement tokenholder income), allocated to token holders.",
+  HoldersRevenue: "72% of swap fees allocated to token holders, plus all bribes paid to holders who vote.",
 }
 
 const breakdownMethodology = {
   Fees: {
     'Token Swap Fees': "Swap fees paid by users on each trade.",
+    'Bribes': "External bribes paid to influence gauge votes.",
   },
   Revenue: {
     'Protocol fees': "80% of swap fees, split between the protocol treasury and token holders.",
+    'Bribes to Voters': "External bribes paid to influence gauge votes.",
   },
   SupplySideRevenue: {
     'LP fees': "20% of swap fees, distributed to LPs.",
@@ -99,7 +103,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     'Tokenholder fees': "72% of swap fees, allocated to token holders.",
-    'Bribes to holders': "External bribes paid to influence gauge votes, paid out entirely to token holders who vote (off-statement tokenholder income).",
+    'Bribes to Voters': "External bribes paid to influence gauge votes, paid out entirely to token holders who vote.",
   },
 }
 
