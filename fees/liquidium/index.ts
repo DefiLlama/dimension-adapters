@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
-const FEES_API = "https://app.liquidium.fi/api/sdk/v1/history/fees";
+const FEES_API = "https://app.liquidium.fi/api/defi-llama/fees";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin",
@@ -18,11 +18,11 @@ type FeeHistoryItem = {
   poolId: string;
   chain: string;
   asset: string;
-  decimals: number;
+  decimals: unknown;
   ledgerId?: string;
-  fees: string;
-  revenue: string;
-  supplySideRevenue: string;
+  fees: unknown;
+  revenue: unknown;
+  supplySideRevenue: unknown;
 };
 
 type FeeHistoryResponse = {
@@ -30,8 +30,20 @@ type FeeHistoryResponse = {
   items: FeeHistoryItem[];
 };
 
-function toTokenAmount(rawAmount: string, decimals: number): number {
-  if (!/^\d+$/.test(rawAmount) || !Number.isInteger(decimals) || decimals < 0) {
+function parseRawTokenAmount(rawAmount: unknown): bigint {
+  if (typeof rawAmount !== "string" || !/^\d+$/.test(rawAmount)) {
+    throw new Error("Liquidium fees API returned an invalid token amount");
+  }
+
+  return BigInt(rawAmount);
+}
+
+function toTokenAmount(rawAmount: bigint, decimals: unknown): number {
+  if (
+    typeof decimals !== "number" ||
+    !Number.isInteger(decimals) ||
+    decimals < 0
+  ) {
     throw new Error("Liquidium fees API returned an invalid token amount");
   }
 
@@ -63,6 +75,16 @@ async function fetch(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
 
   for (const item of response.items) {
+    const fees = parseRawTokenAmount(item.fees);
+    const revenue = parseRawTokenAmount(item.revenue);
+    const supplySideRevenue = parseRawTokenAmount(item.supplySideRevenue);
+
+    if (fees !== revenue + supplySideRevenue) {
+      throw new Error(
+        `Liquidium fees API returned inconsistent accounting for pool ${item.poolId}`,
+      );
+    }
+
     const coingeckoId = COINGECKO_IDS[item.asset];
     if (!coingeckoId) {
       throw new Error(`Missing CoinGecko ID for Liquidium asset ${item.asset}`);
@@ -70,17 +92,17 @@ async function fetch(options: FetchOptions) {
 
     dailyFees.addCGToken(
       coingeckoId,
-      toTokenAmount(item.fees, item.decimals),
+      toTokenAmount(fees, item.decimals),
       METRIC.BORROW_INTEREST,
     );
     dailyRevenue.addCGToken(
       coingeckoId,
-      toTokenAmount(item.revenue, item.decimals),
+      toTokenAmount(revenue, item.decimals),
       "Borrow Interest To Treasury",
     );
     dailySupplySideRevenue.addCGToken(
       coingeckoId,
-      toTokenAmount(item.supplySideRevenue, item.decimals),
+      toTokenAmount(supplySideRevenue, item.decimals),
       "Borrow Interest To Lenders",
     );
   }
