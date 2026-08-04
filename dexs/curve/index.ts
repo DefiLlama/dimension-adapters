@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
 
-const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
+const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
   [CHAIN.ETHEREUM]: {
     start: '2020-09-06',
     stable_factory: [
@@ -212,6 +212,12 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     start: '2021-06-12',
     stable_factory: [
       '0xb17b674D9c5CB2e441F8e196a2f048A81355d031',
+    ],
+    factory_stable_ng: [
+      '0x6a8cbed756804b16e05e741edabd5cb544ae21bf',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
     ],
     customPools: {
       [ContractVersion.main]: [
@@ -533,14 +539,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
+// admin fees: 90% veCRV holders, 10% DAO treasury
+const HOLDERS_SHARE_OF_ADMIN_FEES = 0.9
+const TREASURY_SHARE_OF_ADMIN_FEES = 0.1
+
+// only for chains the API doesn't cover - any other failure must propagate
+class ChainNotInApiError extends Error { }
+
 async function fetchFromApi(options: FetchOptions) {
-  if (options.startOfDay < 1704067200) throw Error('Can not fetch data from api older than 2024-01-01');
-  
+  if (options.startOfDay < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
+
   const apiResponse = await fetchCurveApiData(options.startOfDay);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
   if (!chainData) {
-    throw new Error(`No data for chain ${options.chain} in API response`);
+    throw new ChainNotInApiError(`No data for chain ${options.chain} in API response`);
   }
 
   const dailyFees = options.createBalances();
@@ -554,9 +567,10 @@ async function fetchFromApi(options: FetchOptions) {
   dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury);
   dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp);
   dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao);
-  
+
   return {
-    dailyVolume: chainData.total_volume,
+    // trading_volume only - total_volume also counts add/remove liquidity
+    dailyVolume: chainData.trading_volume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
@@ -574,14 +588,15 @@ async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) 
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  
+
   const lpRevenue = swapFees.clone(1);
   lpRevenue.subtract(adminFees);
 
   dailyFees.add(swapFees);
   dailyRevenue.add(adminFees);
   dailySupplySideRevenue.add(lpRevenue);
-  dailyHoldersRevenue.add(adminFees);
+  dailyHoldersRevenue.add(adminFees.clone(HOLDERS_SHARE_OF_ADMIN_FEES));
+  dailyProtocolRevenue.add(adminFees.clone(TREASURY_SHARE_OF_ADMIN_FEES));
 
   return {
     dailyVolume,
@@ -594,19 +609,30 @@ async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) 
   };
 }
 
-export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
+const methodology = {
+  Volume: "Value swapped in Curve pools, counting one side of each trade. Deposits and withdrawals are not counted as volume.",
+  Fees: "Swap fees paid by traders, set per pool (roughly 0.01% on stable pools, up to a few percent on volatile pools).",
+  UserFees: "Swap fees paid by traders.",
+  Revenue: "The share of swap fees taken by the protocol rather than paid to liquidity providers - usually half of the fee.",
+  ProtocolRevenue: "10% of the protocol's share, sent to the Curve DAO treasury.",
+  HoldersRevenue: "90% of the protocol's share, distributed to veCRV holders.",
+  SupplySideRevenue: "The share of swap fees paid to liquidity providers - usually half of the fee.",
+}
+
+export function getCurveExport(configs: { [key: string]: ICurveDexConfig }) {
   const adapter: SimpleAdapter = {
     version: 2,
+    methodology,
     adapter: Object.keys(configs).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
-          fetch: async function(options: FetchOptions): Promise<FetchResultV2> {
-            // Try API first, fall back to on-chain if chain not in API or API fails
+          fetch: async function (options: FetchOptions): Promise<FetchResultV2> {
+            // Fall back to onchain only when the chain isn't covered by the API.
             try {
               return await fetchFromApi(options);
             } catch (e) {
-              // Fall back to on-chain if API fails or chain not supported
+              if (!(e instanceof ChainNotInApiError)) throw e;
               return await fetchFromOnChain(options, configs[chain]);
             }
           },
