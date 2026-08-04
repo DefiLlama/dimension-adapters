@@ -35,6 +35,7 @@ const config: Record<string, ChainCfg> = {
   [CHAIN.MODE]: {
     factory: LEAF_FACTORY, start: '2024-12-11',
     gaugeCreated: { voter: LEAF_VOTER, fromBlock: 15405187, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
+    // ICL (Ironclad) bribe token, unreliable DefiLlama price — dropped so it doesn't inflate bribe revenue.
     badToken: '0x95177295A394f2b9B04545FFf58f4aF0673E839d',
   },
   [CHAIN.BOB]: {
@@ -75,18 +76,18 @@ const collectGaugesAndBribes = async (options: FetchOptions, cfg: ChainCfg) => {
   // Voter is shared with the Slipstream CL factory — keep only this factory's
   // gauges so CL bribes don't leak into v2 fees.
   const gaugeLogs = await getLogs({ target: voter, fromBlock, toBlock: await getToBlock(), eventAbi: abi, cacheInCloud: true })
-  const bribeContracts: string[] = []
+  const bribeContracts = new Set<string>()
   gaugeLogs.forEach((e: any) => {
     if (e.poolFactory.toLowerCase() !== factory) return
     const gauge = e.gauge?.toLowerCase()
     if (gauge && gauge !== ZERO) {
       const pool = e.pool.toLowerCase()
-      ;(poolToGauges[pool] = poolToGauges[pool] || new Set()).add(gauge)
+        ; (poolToGauges[pool] = poolToGauges[pool] || new Set()).add(gauge)
     }
-    if (e[bribeField] && e[bribeField] !== ZERO) bribeContracts.push(e[bribeField])
+    if (e[bribeField] && e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
   })
-  if (bribeContracts.length > 0) {
-    const logs = await getLogs({ targets: bribeContracts, eventAbi: notifyRewardFull })
+  if (bribeContracts.size > 0) {
+    const logs = await getLogs({ targets: [...bribeContracts], eventAbi: notifyRewardFull })
     logs.forEach((e: any) => dailyBribes.add(e.reward, e.amount))
   }
 
@@ -114,12 +115,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersFees = createBalances()
   const dailySupplySideRevenue = createBalances()
 
+  const { poolToGauges, dailyBribes } = await collectGaugesAndBribes(options, cfg)
+
   if (pools.length) {
     // per-pool fee tier; getFee is in basis points of 10000
     const stables = await api.multiCall({ abi: 'bool:stable', calls: pools })
     const feeRaw = await api.multiCall({ target: cfg.factory, abi: getFeeAbi, calls: pools.map((p, i) => ({ params: [p, !!stables[i]] })) as any })
-
-    const { poolToGauges, dailyBribes } = await collectGaugesAndBribes(options, cfg)
 
     // staked share per pool = sum(pool.balanceOf(gauge)) / pool.totalSupply
     const totalSupplies = await api.multiCall({ abi: 'erc20:totalSupply', calls: pools })
@@ -152,26 +153,24 @@ const fetch = async (options: FetchOptions) => {
         if (share < 1) addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * (1 - share), amount1: fee1 * (1 - share) })
       })
     })
-
-    const totalFees = createBalances()
-    const totalHoldersRevenue = createBalances()
-    const totalSupplySide = createBalances()
-    totalFees.add(dailyFees, 'Token Swap Fees')
-    totalFees.add(dailyBribes, 'External Bribes Rewards')
-    totalHoldersRevenue.add(dailyHoldersFees, 'Staked-LP Swap Fees')
-    totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
-    totalSupplySide.add(dailySupplySideRevenue, 'Unstaked-LP Swap Fees')
-
-    return {
-      dailyVolume,
-      dailyFees: totalFees,
-      dailyRevenue: totalHoldersRevenue,
-      dailyHoldersRevenue: totalHoldersRevenue,
-      dailySupplySideRevenue: totalSupplySide,
-    }
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees, dailySupplySideRevenue }
+  const totalFees = createBalances()
+  const totalHoldersRevenue = createBalances()
+  const totalSupplySide = createBalances()
+  totalFees.add(dailyFees, 'Token Swap Fees')
+  totalFees.add(dailyBribes, 'External Bribes Rewards')
+  totalHoldersRevenue.add(dailyHoldersFees, 'Staked-LP Swap Fees')
+  totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
+  totalSupplySide.add(dailySupplySideRevenue, 'Unstaked-LP Swap Fees')
+
+  return {
+    dailyVolume,
+    dailyFees: totalFees,
+    dailyRevenue: totalHoldersRevenue,
+    dailyHoldersRevenue: totalHoldersRevenue,
+    dailySupplySideRevenue: totalSupplySide,
+  }
 }
 
 const adapter: SimpleAdapter = {
