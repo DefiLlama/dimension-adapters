@@ -1,8 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-const POOLS_BY_CHAIN = {
+type PoolConfig = {
+    address: string;
+    feeModel: "legacy" | "dark_pools_v2";
+    tokenXOverride?: string;
+    tokenYOverride?: string;
+};
+
+const POOLS_BY_CHAIN: Record<string, readonly PoolConfig[]> = {
     [CHAIN.BASE]: [
         {
             address: "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
@@ -28,6 +36,7 @@ const POOLS_BY_CHAIN = {
         {
             address: "0x00007904d186680C709519e71f4Dc3e2Df8f1b99",
             feeModel: "dark_pools_v2",
+            tokenXOverride: ADDRESSES.bsc.WBNB,
         },
         {
             address: "0x0B1ce37bc7eE857916B4e2dF9F69775c36831B99",
@@ -109,9 +118,9 @@ const fetch = async (options: FetchOptions) => {
     );
 
     for (let i = 0; i < POOLS.length; i++) {
-        const { address: pool, feeModel } = POOLS[i];
-        const tokenX = tokenXs[i];
-        const tokenY = tokenYs[i];
+        const { address: pool, feeModel, tokenXOverride, tokenYOverride } = POOLS[i];
+        const tokenX = tokenXOverride ?? tokenXs[i];
+        const tokenY = tokenYOverride ?? tokenYs[i];
         const logs = swapLogs[i];
         if (!logs?.length) continue;
         if (typeof tokenX !== "string" || typeof tokenY !== "string") {
