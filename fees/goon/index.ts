@@ -7,16 +7,21 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 const GOON = "0x80ea4cd0e33f8323cd3d33d7006f247733177a9e";
 const USDG = ADDRESSES.robinhood.USDG;
 const FROM_BLOCK = 15102260; // Goon deploy block
-const MIN_TVL = 100;
-const MAX_POOLS = 5000;
+const MIN_TVL = 100; // Minimum TVL for a pool to be considered, in USD. Pools with less than this are considered dust and ignored.
+const MAX_POOLS = 10_000; // Maximum number of pools to consider. Launchpads can have thousands of pools, but we only want to consider the largest ones.
 
 const LAUNCHED =
   "event Launched(address token, uint256 supply, string name, string symbol, string image, address creator, address pool, address lock)";
 const SWAP_EVENT =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
+// Selector 0x3850c7bd - feeProtocol is a uint8 packing two nibbles: bits 0-3 for token0's
+// protocol fee denominator, bits 4-7 for token1's (0 = fee switch off for that side).
+const SLOT0_ABI =
+  "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)";
 
 const SWAP_FEES_TO_PROTOCOL = "Token Swap Fees to Protocol";
 const SWAP_FEES_TO_CREATOR = "Token Swap Fees to Creators";
+const SWAP_FEES_TO_UNISWAP = "Token Swap Fees to Uniswap";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -46,11 +51,14 @@ const fetch = async (options: FetchOptions) => {
   const pools = Object.keys(filteredPools);
 
   if (pools.length) {
-    const feeTiers = await options.api.multiCall({
-      abi: "function fee() view returns (uint24)",
-      calls: pools,
-      permitFailure: true,
-    });
+    const [feeTiers, slot0Results] = await Promise.all([
+      options.api.multiCall({
+        abi: "function fee() view returns (uint24)",
+        calls: pools,
+        permitFailure: true,
+      }),
+      options.api.multiCall({ abi: SLOT0_ABI, calls: pools, permitFailure: true }),
+    ]);
 
     const swapLogsByPool = await options.getLogs({
       targets: pools,
@@ -63,24 +71,33 @@ const fetch = async (options: FetchOptions) => {
       const feeTier = Number(feeTiers[i] ?? 0) / 1e6;
       if (!feeTier) return;
 
+      // Uniswap's fee switch diverts part of the LP fee to Uniswap itself
+      const feeProtocol = Number(slot0Results[i]?.feeProtocol ?? 0);
+      const usdRatioToUniswap = feeProtocol & 0x0f ? 1 / (feeProtocol & 0x0f) : 0;
+      const tokenRatioToUniswap = (feeProtocol >> 4) & 0x0f ? 1 / ((feeProtocol >> 4) & 0x0f) : 0;
+
       for (const log of logs) {
         const usdgRaw = Number(log.amount0);
-        const usdgIn = usdgRaw > 0;
+        const usdgIn = usdgRaw > 0; // launcher enforces usd to always be token0
         const usdgLeg = Math.abs(usdgRaw);
 
         if (usdgIn) {
-          // USD was the input, fee is charged directly in USD and goes to the protocol.
-          const protocolFee = usdgLeg * feeTier;
-          dailyFees.add(USDG, protocolFee, METRIC.SWAP_FEES);
-          dailyRevenue.add(USDG, protocolFee, SWAP_FEES_TO_PROTOCOL);
+          // USD was the input - fee is charged directly in USD, split between Uniswap and protocol.
+          const totalFee = usdgLeg * feeTier;
+          const uniswapCut = totalFee * usdRatioToUniswap;
+          dailyFees.add(USDG, totalFee, METRIC.SWAP_FEES);
+          dailyRevenue.add(USDG, totalFee - uniswapCut, SWAP_FEES_TO_PROTOCOL);
+          if (uniswapCut) dailySupplySideRevenue.add(USDG, uniswapCut, SWAP_FEES_TO_UNISWAP);
         } else {
-          // The launch token was the input, fee is charged in that token and goes to the
-          // creator. We can't reliably price the arbitrary launch token itself, but we can
-          // value the fee in USD-equivalent terms using this same swap's implied exchange
-          // rate (grossing up the USD output by the fee rate).
-          const creatorFee = (usdgLeg * feeTier) / (1 - feeTier);
-          dailyFees.add(USDG, creatorFee, METRIC.SWAP_FEES);
-          dailySupplySideRevenue.add(USDG, creatorFee, SWAP_FEES_TO_CREATOR);
+          // The launch token was the input, fee is charged in that token and split between
+          // Uniswap and the creator. We can't reliably price the arbitrary launch token itself,
+          // but we can value the fee in USD-equivalent terms using this same swap's implied
+          // exchange rate (grossing up the USD output by the fee rate).
+          const totalFee = (usdgLeg * feeTier) / (1 - feeTier);
+          const uniswapCut = totalFee * tokenRatioToUniswap;
+          dailyFees.add(USDG, totalFee, METRIC.SWAP_FEES);
+          dailySupplySideRevenue.add(USDG, totalFee - uniswapCut, SWAP_FEES_TO_CREATOR);
+          if (uniswapCut) dailySupplySideRevenue.add(USDG, uniswapCut, SWAP_FEES_TO_UNISWAP);
         }
       }
     });
@@ -96,23 +113,24 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Uniswap V3 swap fees generated by Goon-launched pools (pools with under $100 TVL are excluded as dust).",
-  Revenue: "The USD share of swap fees accrue to the protocol treasury.",
+  Revenue: "The USD share of swap fees, minus whatever Uniswap's protocol fee switch (read live per pool via slot0().feeProtocol) diverts to Uniswap itself.",
   ProtocolRevenue: "Same as Revenue.",
-  SupplySideRevenue: "The Token share of swap fees accrue to the token creator .",
+  SupplySideRevenue: "The token share of swap fees paid to the token creator, plus Uniswap's diverted cut of both swap fee legs (read live per pool via slot0().feeProtocol).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Uniswap V3 swap fees generated by Goon-launched pools, split by which side of the swap was the input: USD-input fees (to protocol) and Token-input fees (to creator). Pools with under $100 TVL are excluded as dust.",
+    [METRIC.SWAP_FEES]: "Uniswap V3 swap fees generated by Goon-launched pools, split by which side of the swap was the input: USD-input fees (to protocol/Uniswap) and Token-input fees (to creator/Uniswap). Pools with under $100 TVL are excluded as dust.",
   },
   Revenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Swap fees charged when USD was the input token always accrue to the protocol treasury.",
+    [SWAP_FEES_TO_PROTOCOL]: "Swap fees charged when USD was the input token, minus Uniswap's live per-pool protocol fee cut, accrue to the protocol treasury.",
   },
   ProtocolRevenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Swap fees charged when USD was the input token always accrue to the protocol treasury.",
+    [SWAP_FEES_TO_PROTOCOL]: "Swap fees charged when USD was the input token, minus Uniswap's live per-pool protocol fee cut, accrue to the protocol treasury.",
   },
   SupplySideRevenue: {
-    [SWAP_FEES_TO_CREATOR]: "Swap fees charged when the Token was the input token accrue to the token creator",
+    [SWAP_FEES_TO_CREATOR]: "Swap fees charged when the Token was the input token, minus Uniswap's live per-pool protocol fee cut, accrue to the token creator.",
+    [SWAP_FEES_TO_UNISWAP]: "Uniswap's protocol fee switch cut of both swap fee legs, read live per pool via slot0().feeProtocol - no longer reaches Goon's protocol or the token creator.",
   },
 };
 
