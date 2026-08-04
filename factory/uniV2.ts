@@ -1591,14 +1591,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalFeesField: "totalFeeUSD",
     deadFrom: "2026-01-15",
   },
-  "ramses-exchange-v2": {
-    endpoints: {
-      [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATQTt3wRTgXy4canCh6t1yeczAz4ZuEkFQL2mrLXEMyQ'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    start: '2023-05-31',
-  },
   "thena-integral": {
     endpoints: {
       [CHAIN.BSC]: sdk.graph.modifyEndpoint('BoHp9H2rGzVFPiqc56PJ1Gw7EPDaiHMcupsUuksMGp2K'),
