@@ -8,12 +8,6 @@ import { METRIC } from "../../helpers/metrics";
 const FACTORY_ADDRESS = '0xaaa20d08e59f6561f242b08513d36266c5a29415';
 const FIRST_SWAP_ONLY_DAY_TIMESTAMP = 1776816000; // 2026-04-22T00:00:00Z
 
-type TStartTime = {
-  [key: string]: number;
-}
-const startTimeV2: TStartTime = {
-  [CHAIN.ARBITRUM]: 1678838400,
-}
 
 const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBlock, }: FetchOptions): Promise<any> => {
   const fromBlock = await getFromBlock()
@@ -68,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
   if (!isHistorical && options.fromTimestamp + 1 < FIRST_SWAP_ONLY_DAY_TIMESTAMP)
     throw new Error('RAMSES v1 fetch window cannot cross the April 22, 2026 historical/current cutoff.');
 
-  const v1Results: any = await feeAdapter!(options as any, {}, options)
+  const v1Results: any = await feeAdapter!(options)
   const bribesResult = isHistorical ? await getBribes(options) : undefined;
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
@@ -111,7 +105,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: startTimeV2[CHAIN.ARBITRUM],
+      start: '2023-03-15',
     },
   },
 };
