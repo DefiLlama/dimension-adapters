@@ -50,6 +50,8 @@ export interface ITokenExchangeEvent {
   tokens_sold: number;
   bought_id: number;
   tokens_bought: number;
+  // twocrypto/tricrypto only: exact fee charged, in the bought token
+  fee?: number;
 }
 
 export const CurveContractAbis: { [key: string]: any } = {
@@ -97,6 +99,8 @@ async function getVersionPools(options: FetchOptions, version: ContractVersion, 
   let allPoos: Array<string> = []
 
   for (const factory of factories) {
+    // keep permitFailure: factories deployed after the backfilled day legitimately revert.
+    // getAllPools catches the RPC-outage case instead.
     const pool_count = await options.api.call({
       target: factory,
       abi: CurveContractAbis[version].pool_count,
@@ -118,7 +122,8 @@ async function getVersionPools(options: FetchOptions, version: ContractVersion, 
     allPoos = allPoos.concat(pool_list);
   }
 
-  return allPoos;
+  // one pool can be listed by two factories - querying it twice would double count
+  return Array.from(new Set(allPoos.map(formatAddress)));
 }
 
 export async function getAllPools(options: FetchOptions, config: ICurveDexConfig): Promise<{[key: string]: Array<string>}> {
@@ -154,6 +159,14 @@ export async function getAllPools(options: FetchOptions, config: ICurveDexConfig
     customPools.factory_stable_ng = customPools.factory_stable_ng ? customPools.factory_stable_ng : []
     customPools.factory_stable_ng = customPools.factory_stable_ng.concat(await getVersionPools(options, ContractVersion.factory_stable_ng, config.factory_stable_ng));
     customPools.factory_stable_ng = customPools.factory_stable_ng.filter(p => !blacklistedPools.includes(p))
+  }
+
+  // all factories failing at once means a broken RPC, not an empty chain - don't report $0
+  const declaresFactories = Boolean(config.stable_factory || config.factory_crypto || config.factory_crvusd
+    || config.factory_twocrypto || config.factory_tricrypto || config.factory_stable_ng)
+  const poolsFound = Object.values(customPools).reduce((total, pools) => total + pools.length, 0)
+  if (declaresFactories && poolsFound === 0) {
+    throw new Error(`curve: every factory returned no pools on ${options.chain} - treating this as zero volume would be wrong`)
   }
 
   return customPools;
@@ -202,6 +215,12 @@ export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<
     calls: poolAddresses,
     permitFailure: true,
   })
+  // ng crypto pools have no admin_fee(), only an immutable ADMIN_FEE constant
+  const adminFeeConstResults = await options.api.multiCall({
+    abi: 'uint256:ADMIN_FEE',
+    calls: poolAddresses,
+    permitFailure: true,
+  })
 
   for (let i = 0; i < poolAddresses.length; i++) {
     // coins
@@ -228,12 +247,15 @@ export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<
       }
     }
 
+    // exactly one of the two resolves, depending on pool type
+    const adminFee = adminFeeResults[i] ?? adminFeeConstResults[i]
+
     pools[poolAddresses[i]] = {
       pool: poolAddresses[i],
       tokens: tokens,
       underlyingTokens: underlyingTokens,
       feeRate: feeResults[i] ? Number(feeResults[i]) / FEE_DENOMINATOR : 0,
-      adminFeeRate: adminFeeResults[i] ? Number(adminFeeResults[i]) / FEE_DENOMINATOR : 0,
+      adminFeeRate: adminFee ? Number(adminFee) / FEE_DENOMINATOR : 0,
     }
   }
 
