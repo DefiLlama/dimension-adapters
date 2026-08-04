@@ -24,6 +24,16 @@ const POOLS_BY_CHAIN = {
             feeModel: "dark_pools_v2",
         },
     ],
+    [CHAIN.BSC]: [
+        {
+            address: "0x00007904d186680C709519e71f4Dc3e2Df8f1b99",
+            feeModel: "dark_pools_v2",
+        },
+        {
+            address: "0x0B1ce37bc7eE857916B4e2dF9F69775c36831B99",
+            feeModel: "dark_pools_v2",
+        },
+    ],
 } as const;
 
 const poolAbis = {
@@ -194,6 +204,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: { fetch, start: "2026-03-19" },
         [CHAIN.MONAD]: { fetch, start: "2026-04-30" },
+        [CHAIN.BSC]: { fetch, start: "2026-07-25" },
     },
     methodology,
     breakdownMethodology,
