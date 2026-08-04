@@ -31,15 +31,16 @@ const fetch = async (options: FetchOptions) => {
 
     logsV2.forEach((log: any) => {
         const token = log.token;
-        if (log.feeType === 0) {
+        const feeType = Number(log.feeType);
+        if (feeType === 0) {
             // Platform Fees
             dailyFees.add(token, log.affiliateFee, 'Platform Fees');
             dailyRevenue.add(token, log.affiliateFee, 'Platform Fees');
-        } else if (log.feeType === 1) {
+        } else if (feeType === 1) {
             // Affiliate Fees
             dailyFees.add(token, log.affiliateFee, 'Affiliate Fees');
             dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees');
-        } else if (log.feeType === 2) {
+        } else if (feeType === 2) {
             // Destination Executor Fees
             // dailyFees.add(token, log.affiliateFee, 'Destination Executor Fees');
             // dailySupplySideRevenue.add(token, log.affiliateFee, 'Destination Executor Fees');
