@@ -31,8 +31,19 @@ const fetch = async (options: FetchOptions) => {
 
     logsV2.forEach((log: any) => {
         const token = log.token;
-        dailyFees.add(token, log.affiliateFee, 'Affiliate Fees');
-        dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees');
+        if (log.feeType === 0) {
+            // Platform Fees
+            dailyFees.add(token, log.affiliateFee, 'Platform Fees');
+            dailyRevenue.add(token, log.affiliateFee, 'Platform Fees');
+        } else if (log.feeType === 1) {
+            // Affiliate Fees
+            dailyFees.add(token, log.affiliateFee, 'Affiliate Fees');
+            dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees');
+        } else if (log.feeType === 2) {
+            // Destination Executor Fees
+            // dailyFees.add(token, log.affiliateFee, 'Destination Executor Fees');
+            // dailySupplySideRevenue.add(token, log.affiliateFee, 'Destination Executor Fees');
+        }
     })
 
     return {
@@ -73,7 +84,7 @@ const chainConfig: Record<string, { start: string, contractAddress?: string }> =
     [CHAIN.METIS]: { start: '2024-05-25' },
     [CHAIN.MODE]: { start: '2024-07-07' },
     [CHAIN.TAIKO]: { start: '2024-11-18' },
-    // [CHAIN.XLAYER]: { start: '2023-06-11' },
+    [CHAIN.XLAYER]: { start: '2023-06-11' },
 }
 
 const adapter: Adapter = {
