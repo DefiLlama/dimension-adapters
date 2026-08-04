@@ -23,27 +23,104 @@ function toBase64QueryMsg(msg: Record<string, unknown>): string {
 
 async function queryContract({
   contract,
+  height,
 }: {
   contract: string;
+  height: number;
 }) {
   const query = encodeURIComponent(toBase64QueryMsg(FEES_QUERY_MSG));
   const url = `${ORAI_LCD}/cosmwasm/wasm/v1/contract/${contract}/smart/${query}`;
-  const res = await httpGet(url);
+  const res = await httpGet(url, {
+    headers: { "x-cosmos-block-height": String(height) },
+  });
   return res.data;
 }
 
-function readFeesValue(payload: unknown): number {
-  if (typeof payload === "number") return Number.isFinite(payload) ? payload : 0;
-  if (typeof payload === "string") return Number(payload) || 0;
-  if (!payload || typeof payload !== "object") return 0;
+const blockCache: Record<number, number> = {};
+
+async function getBlockTimestamp(height: number): Promise<number> {
+  if (blockCache[height]) return blockCache[height];
+  const res = await httpGet(
+    `${ORAI_LCD}/cosmos/base/tendermint/v1beta1/blocks/${height}`
+  );
+  if (!res?.block?.header?.time)
+    throw new Error(`orai-quant-terminal: no block header at height ${height}`);
+  const ts = Math.floor(new Date(res.block.header.time).getTime() / 1000);
+  blockCache[height] = ts;
+  return ts;
+}
+
+async function getLatestBlock(): Promise<{ height: number; timestamp: number }> {
+  const res = await httpGet(
+    `${ORAI_LCD}/cosmos/base/tendermint/v1beta1/blocks/latest`
+  );
+  if (!res?.block?.header?.height || !res?.block?.header?.time)
+    throw new Error("orai-quant-terminal: failed to fetch latest block");
+  const height = Number(res.block.header.height);
+  const timestamp = Math.floor(new Date(res.block.header.time).getTime() / 1000);
+  blockCache[height] = timestamp;
+  return { height, timestamp };
+}
+
+const BLOCK_TIME_PROBE = 100000;
+const HEIGHT_TOLERANCE_SECONDS = 120;
+const MAX_REFINEMENTS = 6;
+
+async function getHeightAt(
+  timestamp: number,
+  latest: { height: number; timestamp: number }
+): Promise<number> {
+  if (timestamp >= latest.timestamp) return latest.height;
+
+  const probeHeight = latest.height - BLOCK_TIME_PROBE;
+  const probeTimestamp = await getBlockTimestamp(probeHeight);
+  const blockTime = (latest.timestamp - probeTimestamp) / BLOCK_TIME_PROBE;
+  if (!Number.isFinite(blockTime) || blockTime <= 0)
+    throw new Error(
+      `orai-quant-terminal: could not measure oraichain block time (${blockTime})`
+    );
+
+  let height = Math.floor(
+    latest.height - (latest.timestamp - timestamp) / blockTime
+  );
+  for (let i = 0; i < MAX_REFINEMENTS; i++) {
+    const ts = await getBlockTimestamp(height);
+    const drift = ts - timestamp;
+    if (Math.abs(drift) <= HEIGHT_TOLERANCE_SECONDS) return height;
+    height = Math.min(
+      latest.height,
+      Math.max(1, height - Math.round(drift / blockTime))
+    );
+  }
+  return height;
+}
+
+function readFeesValue(payload: unknown): number | null {
+  if (typeof payload === "number")
+    return Number.isFinite(payload) ? payload : null;
+  if (typeof payload === "string") {
+    const parsed = Number(payload);
+    return payload.trim() !== "" && Number.isFinite(parsed) ? parsed : null;
+  }
+  if (!payload || typeof payload !== "object") return null;
   const data = payload as Record<string, unknown>;
 
   for (const value of Object.values(data)) {
     const nested = readFeesValue(value);
-    if (nested) return nested;
+    if (nested !== null) return nested;
   }
 
-  return 0;
+  return null;
+}
+
+async function getCumulativeFees(contract: string, height: number) {
+  const snapshot = await queryContract({ contract, height });
+  const value = readFeesValue(snapshot);
+  if (value === null)
+    throw new Error(
+      `orai-quant-terminal: unreadable get_fees response for ${contract} at height ${height}`
+    );
+  return value;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
@@ -51,17 +128,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const contractSnapshots = await Promise.all(
-    FEES_SOURCES.map(({ contract }) =>
-      queryContract({
-        contract,
-      })
-    )
+  const latest = await getLatestBlock();
+  const previousHeight = await getHeightAt(
+    latest.timestamp - 24 * 3600,
+    latest
   );
 
-  contractSnapshots.forEach((snapshot: unknown) => {
-    const totalFeesUsd = readFeesValue(snapshot);
-    const humanReadableFeesUsd = totalFeesUsd / 1e6;
+  const deltas = await Promise.all(
+    FEES_SOURCES.map(async ({ contract }) => {
+      const [current, previous] = await Promise.all([
+        getCumulativeFees(contract, latest.height),
+        getCumulativeFees(contract, previousHeight),
+      ]);
+      if (current < previous)
+        throw new Error(
+          `orai-quant-terminal: get_fees went backwards for ${contract} (${previous} -> ${current}), it is not the cumulative total this adapter assumes`
+        );
+      return current - previous;
+    })
+  );
+
+  deltas.forEach((delta) => {
+    const humanReadableFeesUsd = delta / 1e6;
 
     dailyFees.addUSDValue(humanReadableFeesUsd, PERFORMANCE_FEE_LABEL);
     dailyRevenue.addUSDValue(humanReadableFeesUsd, PERFORMANCE_FEE_LABEL);
@@ -97,11 +185,11 @@ const adapter: SimpleAdapter = {
   runAtCurrTime: true,
   methodology: {
     Fees:
-      "Fees are calculated from performance fees collected by Quant Terminal vaults.",
+      "Daily change in the cumulative performance fees the Quant Terminal stats contract reports, read 24h apart.",
     Revenue:
-      "Revenue represents gross performance-fee income generated by vault profits.",
+      "Daily change in cumulative performance-fee income generated by vault profits.",
     ProtocolRevenue:
-      "ProtocolRevenue is the share of performance-fee income allocated to protocol treasury.",
+      "Daily change in the share of performance-fee income allocated to protocol treasury.",
   },
   breakdownMethodology,
 };
