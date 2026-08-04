@@ -79,6 +79,7 @@ type ChainConfig = {
   wrappedNative?: string;
   // FeeReceived sender ⇒ breakdown label. Lowercased.
   feeSources: Record<string, string>;
+  start: string;
 };
 
 // Wherever helpers/metrics already defines an equivalent, the shared METRIC is
@@ -142,6 +143,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x0dde71f9711693cabb46fad461e9f0cb27b96f53": LABEL.tournament,    // Events
       "0xcdc35bed68be2ad6245d93f8d310408d4ab93167": LABEL.launch,        // HookOSV3Launcher
     },
+    start: '2026-06-18',
   },
   [CHAIN.BSC]: {
     FeeRouter: "0x1a4BBd3cB922Ffd6167f0a75fd037A3760d63B63",
@@ -181,6 +183,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0xab058c222baae520cc83440f941628abf2f876fd": LABEL.launch,        // HookOSV3Launcher
       "0xa8cfb668a65236f678bfae6ba41ec3e61d8a0044": LABEL.v4,            // HookOSV4Hook
     },
+    start: "2026-06-17",
   },
   // Stable (988) has no core deployment — no BondingCurve, no FeeRouter, no v4.
   // Its only live launch path, and therefore its only fee source, is the HookOS
@@ -189,6 +192,7 @@ const CONFIG: Record<string, ChainConfig> = {
     HookOSV3FeeVault: "0x8DebEd7101B2e6577909fA07491F484fC2A8Ad2c",
     PresaleVault: "0x2542575fF17770c5743F12A8a6705A63206de361",
     feeSources: {},
+    start: "2026-07-23",
   },
   [CHAIN.HYPERLIQUID]: {
     FeeRouter: "0x8DebEd7101B2e6577909fA07491F484fC2A8Ad2c",
@@ -207,6 +211,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x47c839295754307e635dc6bef89856267932dd38": LABEL.tournament,    // Events
       "0x2db1b1e2123c3d61b0cafe4af5864e4fab3a5f74": LABEL.launch,        // HookOSV3Launcher
     },
+    start: "2026-06-07",
   },
   [CHAIN.MEGAETH]: {
     FeeRouter: "0x69A8C492056F5f58e19d5DA65EBd1869BA24815b",
@@ -243,6 +248,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0xb740b22560b93a7581f88acfe205d08432da71ea": LABEL.kernel,        // HookOSKernel
       "0x528bcecff5da16ce65c198fbe42da55a0088d4c2": LABEL.launch,        // HookOSV3Launcher
     },
+    start: "2026-06-14",
   },
   // Robinhood (4663) is HookOS's flagship chain: the only one running Quick
   // Launch (RHLaunchpad + LaunchHook) and the $HOOK v4 pool behind HookWethTax.
@@ -287,6 +293,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x85d5027ad0d3a8d58734db244cde2de019fb0044": LABEL.v4,            // HookOSV4Hook
       "0xa71b7482439c4f147abfe23cba5312770f31c0c4": LABEL.quickLaunch,   // LaunchHook
     },
+    start: "2026-07-02",
   },
   [CHAIN.BASE]: {
     FeeRouter: "0x64E3167b2B4eA1b8e3DdCaFe66a5b435BE7cD75f",
@@ -326,6 +333,7 @@ const CONFIG: Record<string, ChainConfig> = {
       "0x094e2b0b5b750441fc36a72b4754f6833231d76e": LABEL.launch,        // HookOSV3Launcher
       "0x624a452dd93df9716085988c916c72219d8c8044": LABEL.v4,            // HookOSV4Hook
     },
+    start: "2026-06-05",
   },
 };
 
@@ -399,6 +407,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!token || token === ZERO) bal.addGasToken(amount, label);
     else bal.add(token, amount, label);
   };
+  // Protocol-retained fees: booked into Fees, Revenue and ProtocolRevenue under
+  // the same label, so the three breakdowns stay aligned without a late subtract.
+  const addProtocol = (token: string | null, amount: any, label: string) => {
+    if (!token || token === ZERO) {
+      dailyFees.addGasToken(amount, label);
+      dailyRevenue.addGasToken(amount, label);
+      dailyProtocolRevenue.addGasToken(amount, label);
+    } else {
+      addToken(dailyFees, token, amount, label);
+      addToken(dailyRevenue, token, amount, label);
+      addToken(dailyProtocolRevenue, token, amount, label);
+    }
+  };
+  const addProtocolGas = (amount: any, label: string) => addProtocol(null, amount, label);
+  // Holder-accruing fees: in Fees + Revenue + HoldersRevenue, not ProtocolRevenue.
+  const addHolders = (token: string | null, amount: any, feeLabel: string, holdersLabel: string) => {
+    if (!token || token === ZERO) {
+      dailyFees.addGasToken(amount, feeLabel);
+      dailyRevenue.addGasToken(amount, holdersLabel);
+      dailyHoldersRevenue.addGasToken(amount, holdersLabel);
+    } else {
+      addToken(dailyFees, token, amount, feeLabel);
+      addToken(dailyRevenue, token, amount, holdersLabel);
+      addToken(dailyHoldersRevenue, token, amount, holdersLabel);
+    }
+  };
 
   // HookPool AMM pools, enumerated for their creator fees below. NB: HookPool
   // pays its PROTOCOL fee with an ERC-20 transfer to FeeRouter, and receive()
@@ -406,7 +440,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // an acknowledged under-count. No pool exists on any chain today.
   let hookPools: string[] = [];
   if (c.PoolFactory) {
-    const count = Number(await api.call({ target: c.PoolFactory, abi: 'uint256:getPoolCount' }).catch(() => 0));
+    const count = await api.call({ target: c.PoolFactory, abi: 'uint256:getPoolCount' });
     if (count > 0) {
       hookPools = await api.multiCall({
         abi: 'function allPools(uint256) view returns (address)',
@@ -444,7 +478,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const log of feeLogs) {
       const from = String(log.from).toLowerCase();
       if (skip.has(from)) continue;
-      dailyFees.addGasToken(log.amount, c.feeSources[from] ?? LABEL.other);
+      addProtocolGas(log.amount, c.feeSources[from] ?? LABEL.other);
     }
   }
 
@@ -502,7 +536,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const targets = addrs.filter(Boolean) as string[];
     if (!targets.length) return;
     const hookLogs = await getLogs({ targets, eventAbi: hookProtocolFeeAbi, flatten: true });
-    for (const log of hookLogs) addToken(dailyFees, log.token, log.amount, label);
+    for (const log of hookLogs) addProtocol(log.token, log.amount, label);
   }));
   // Creator accruals on those pools are supply-side. A BUY-side accrual is paid
   // in the freshly launched token, which contributes zero while it is unpriceable
@@ -544,17 +578,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         // Native only when the quote side is the wrapped native (or unknown on a
         // chain with no wrapped-native mapping, which is the WETH-paired default).
         const isNative = !pair || !wrapped || pair.toLowerCase() === wrapped;
+        const quoteToken = isNative ? null : pair;
         const quote = (bal: any, amount: any, label: string) =>
           isNative ? bal.addGasToken(amount, label) : bal.add(pair, amount, label);
 
-        quote(dailyFees, log.ethToCreator + log.ethToProtocol + log.ethToBuyback, LABEL.lpFees);
+        // Creator / protocol / buyback legs are booked separately so Fees,
+        // Revenue and ProtocolRevenue share the same labels without a late subtract.
+        quote(dailyFees, log.ethToCreator, LABEL.lpFees);
         quote(dailySupplySideRevenue, log.ethToCreator, LABEL.creator);
-        quote(dailyHoldersRevenue, log.ethToBuyback, LABEL.buyback);
+        addProtocol(quoteToken, log.ethToProtocol, LABEL.lpFees);
+        addHolders(quoteToken, log.ethToBuyback, LABEL.lpFees, LABEL.buyback);
 
-        const tokenSide = log.tokenToCreator + log.tokenToProtocol;
-        if (tokenSide > 0n) {
-          addToken(dailyFees, log.token, tokenSide, LABEL.lpFees);
+        if (log.tokenToCreator > 0n || log.tokenToProtocol > 0n) {
+          addToken(dailyFees, log.token, log.tokenToCreator, LABEL.lpFees);
           addToken(dailySupplySideRevenue, log.token, log.tokenToCreator, LABEL.creator);
+          addProtocol(log.token, log.tokenToProtocol, LABEL.lpFees);
         }
       }
     }
@@ -570,7 +608,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const taxLogs = await getLogs({ target: c.HookWethTax, eventAbi: taxCollectedAbi });
     for (const log of taxLogs) {
       if (!log.inWeth) continue;
-      addToken(dailyFees, c.wrappedNative!, log.amount, LABEL.hookTax);
+      addProtocol(c.wrappedNative!, log.amount, LABEL.hookTax);
     }
   }
 
@@ -582,8 +620,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       getLogs({ target: c.PresaleVault, eventAbi: raiseFeeTakenAbi }),
       getLogs({ target: c.PresaleVault, eventAbi: creationFeeTakenAbi }),
     ]);
-    for (const log of raiseLogs) dailyFees.addGasToken(log.amount, LABEL.presale);
-    for (const log of creationLogs) dailyFees.addGasToken(log.amount, LABEL.presale);
+    for (const log of raiseLogs) addProtocolGas(log.amount, LABEL.presale);
+    for (const log of creationLogs) addProtocolGas(log.amount, LABEL.presale);
   }
 
   // 9. Bot trading fees: a skim on every buy and sell routed through the trading
@@ -593,7 +631,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       getLogs({ targets: c.BotTradeRouter, eventAbi: botBoughtAbi, flatten: true }),
       getLogs({ targets: c.BotTradeRouter, eventAbi: botSoldAbi, flatten: true }),
     ]);
-    for (const log of [...boughtLogs, ...soldLogs]) dailyFees.addGasToken(log.fee, LABEL.botTrading);
+    for (const log of [...boughtLogs, ...soldLogs]) addProtocolGas(log.fee, LABEL.botTrading);
   }
 
   // 10. LP fees earned by graduated Uniswap-v4 positions, split creator/protocol
@@ -602,8 +640,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   if (c.LPFeeSplitter) {
     const splitLogs = await getLogs({ target: c.LPFeeSplitter, eventAbi: feesSplitAbi });
     for (const log of splitLogs) {
-      addToken(dailyFees, log.token, log.creatorShare + log.protocolShare, LABEL.lpFees);
+      addToken(dailyFees, log.token, log.creatorShare, LABEL.lpFees);
       addToken(dailySupplySideRevenue, log.token, log.creatorShare, LABEL.creator);
+      addProtocol(log.token, log.protocolShare, LABEL.lpFees);
     }
   }
 
@@ -614,12 +653,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //     WETH (18dp) — so it is read from the contract rather than assumed, or
   //     6dp USDG accounting would overstate these fees by a factor of 1e12.
   if (c.StockTaxHook) {
-    const taxToken = await api.call({ target: c.StockTaxHook, abi: 'address:usdg' }).catch(() => undefined);
+    const taxToken = await api.call({ target: c.StockTaxHook, abi: 'address:usdg' });
     const stockLogs = taxToken ? await getLogs({ target: c.StockTaxHook, eventAbi: stockTaxSplitAbi }) : [];
     for (const log of stockLogs) {
-      addToken(dailyFees, taxToken, log.creatorFee + log.platformFee + log.vaultFee, LABEL.stockTax);
+      addToken(dailyFees, taxToken, log.creatorFee, LABEL.stockTax);
       addToken(dailySupplySideRevenue, taxToken, log.creatorFee, LABEL.creator);
-      addToken(dailyHoldersRevenue, taxToken, log.vaultFee, LABEL.stockRewards);
+      addProtocol(taxToken, log.platformFee, LABEL.stockTax);
+      addHolders(taxToken, log.vaultFee, LABEL.stockTax, LABEL.stockRewards);
     }
   }
 
@@ -640,24 +680,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const [target, eventAbi, field, label] of appFees) {
     if (!target) continue;
     const logs = await getLogs({ target, eventAbi });
-    for (const log of logs) dailyFees.addGasToken(log[field], label);
+    for (const log of logs) addProtocolGas(log[field], label);
   }
 
-  // Revenue = all fees minus the creator/hook-author (supply-side) share; of
-  // that, the holder legs are split out and the rest is retained by the protocol.
-  // skipBreakdown: subtract() is not label-aware, so carrying the fee breakdown
-  // across would leave Revenue itemised by gross-fee labels that still include
-  // the supply-side legs it just subtracted — totals right, breakdown wrong.
-  // Only Fees, SupplySideRevenue and HoldersRevenue publish a breakdown.
-  // It has to be passed as the SECOND argument: the SDK's getOptions() defaults
-  // a missing second argument to {} and then assigns it over the third, so
-  // addBalances(x, undefined, { skipBreakdown }) silently drops the flag. The
-  // cast is needed only because the option is typed on the third parameter.
-  const skipBreakdown = { skipBreakdown: true } as any;
-  dailyRevenue.addBalances(dailyFees, skipBreakdown);
-  dailyRevenue.subtract(dailySupplySideRevenue);
-  dailyProtocolRevenue.addBalances(dailyRevenue, skipBreakdown);
-  dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+  // Revenue and ProtocolRevenue are booked alongside Fees at each source above
+  // (via addProtocol / addHolders), so their breakdowns use the same labels and
+  // already exclude supply-side / holder legs — no late subtract needed.
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -696,6 +724,56 @@ const breakdownMethodology = {
     [LABEL.creator]: 'Share of trading and LP fees routed to token creators.',
     [LABEL.hookAuthor]: 'Share of the protocol fee credited to the authors of the hooks a token runs.',
   },
+  // Same product labels as Fees, but only the protocol-retained / holder-accruing
+  // legs — supply-side creator and hook-author shares are omitted here.
+  Revenue: {
+    [LABEL.curve]: 'Bonding-curve protocol fee retained by HookOS.',
+    [LABEL.launch]: 'Token launch fees retained by HookOS.',
+    [LABEL.registration]: 'Hook registration fees retained by HookOS.',
+    [LABEL.arena]: 'Arena battle fees retained by HookOS.',
+    [LABEL.v4]: 'Graduated v4 hook cut retained by HookOS.',
+    [LABEL.quickLaunch]: 'Quick Launch hook cut retained by HookOS.',
+    [LABEL.lpFees]: 'Protocol share of custodied LP fees (V3 launch vault and graduated LPFeeSplitter).',
+    [LABEL.hookTax]: '$HOOK pool tax retained by HookOS.',
+    [LABEL.marketplace]: 'Marketplace fees retained by HookOS.',
+    [LABEL.copyTrading]: 'Copy-trading fees retained by HookOS.',
+    [LABEL.feedBoost]: 'Feed boost auction fees retained by HookOS.',
+    [LABEL.partner]: 'Partner program fees retained by HookOS.',
+    [LABEL.profile]: 'Profile monetization fees retained by HookOS.',
+    [LABEL.quest]: 'Quest sponsorship fees retained by HookOS.',
+    [LABEL.subscription]: 'Wallet Pro subscription fees retained by HookOS.',
+    [LABEL.kernel]: 'Kernel module fees retained by HookOS.',
+    [LABEL.presale]: 'Presale fees retained by HookOS.',
+    [LABEL.botTrading]: 'Bot trading fees retained by HookOS.',
+    [LABEL.stockTax]: 'Platform share of the stock pool tax retained by HookOS.',
+    [LABEL.tournament]: 'Tournament fees retained by HookOS.',
+    [LABEL.other]: 'Unmapped FeeRouter fees retained by HookOS.',
+    [LABEL.buyback]: 'Launch LP fee leg spent buying back and burning $HOOK.',
+    [LABEL.stockRewards]: 'Stock pool tax routed to the holder reward vault.',
+  },
+  ProtocolRevenue: {
+    [LABEL.curve]: 'Bonding-curve protocol fee retained by the treasury.',
+    [LABEL.launch]: 'Token launch fees retained by the treasury.',
+    [LABEL.registration]: 'Hook registration fees retained by the treasury.',
+    [LABEL.arena]: 'Arena battle fees retained by the treasury.',
+    [LABEL.v4]: 'Graduated v4 hook cut retained by the treasury.',
+    [LABEL.quickLaunch]: 'Quick Launch hook cut retained by the treasury.',
+    [LABEL.lpFees]: 'Protocol share of custodied LP fees retained by the treasury.',
+    [LABEL.hookTax]: '$HOOK pool tax retained by the treasury.',
+    [LABEL.marketplace]: 'Marketplace fees retained by the treasury.',
+    [LABEL.copyTrading]: 'Copy-trading fees retained by the treasury.',
+    [LABEL.feedBoost]: 'Feed boost auction fees retained by the treasury.',
+    [LABEL.partner]: 'Partner program fees retained by the treasury.',
+    [LABEL.profile]: 'Profile monetization fees retained by the treasury.',
+    [LABEL.quest]: 'Quest sponsorship fees retained by the treasury.',
+    [LABEL.subscription]: 'Wallet Pro subscription fees retained by the treasury.',
+    [LABEL.kernel]: 'Kernel module fees retained by the treasury.',
+    [LABEL.presale]: 'Presale fees retained by the treasury.',
+    [LABEL.botTrading]: 'Bot trading fees retained by the treasury.',
+    [LABEL.stockTax]: 'Platform share of the stock pool tax retained by the treasury.',
+    [LABEL.tournament]: 'Tournament fees retained by the treasury.',
+    [LABEL.other]: 'Unmapped FeeRouter fees retained by the treasury.',
+  },
   SupplySideRevenue: {
     [LABEL.creator]: 'Token creator earnings.',
     [LABEL.hookAuthor]: 'Hook author earnings.',
@@ -709,17 +787,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [
-    [CHAIN.BASE, { start: '2026-06-05' }],
-    [CHAIN.HYPERLIQUID, { start: '2026-06-07' }],
-    [CHAIN.MEGAETH, { start: '2026-06-14' }],
-    [CHAIN.BSC, { start: '2026-06-17' }],
-    [CHAIN.ETHEREUM, { start: '2026-06-18' }],
-    [CHAIN.ROBINHOOD, { start: '2026-07-02' }],
-    // Stable's only HookOS deployment is the V3 stack; the fee vault's first
-    // block on chain 988 is 32821789 (2026-07-23).
-    [CHAIN.STABLE, { start: '2026-07-23' }],
-  ],
+  adapter: CONFIG,
   methodology,
   breakdownMethodology,
   pullHourly: true,
