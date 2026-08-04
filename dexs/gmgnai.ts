@@ -92,16 +92,8 @@ const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
   return { dailyVolume: Number(rows[0].daily_volume) };
 };
 
-const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
-  const config = chainConfig[options.chain];
-  const dailyVolume = options.createBalances();
-  const nativeTokens = new Set([ADDRESSES.null, config.wrappedNative?.toLowerCase()]);
-
-  const logs = await options.getLogs({
-    target: config.contract,
-    eventAbi: config.swapEvent,
-  });
-
+// Process one batch of swap logs into the running volume total.
+const processSwapLogs = (logs: any[], dailyVolume: any, nativeTokens: Set<string | undefined>) => {
   logs.forEach((log: any) => {
     const firstDesc = log.descs[0];
     const lastDesc = log.descs[log.descs.length - 1];
@@ -111,21 +103,52 @@ const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
     if (nativeTokens.has(tokenIn)) dailyVolume.addGasToken(log.amountIn);
     else if (nativeTokens.has(tokenOut)) dailyVolume.addGasToken(log.amountOut);
   });
+};
+
+const BLOCKS_PER_BATCH = 10000;
+
+const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
+  const config = chainConfig[options.chain];
+  const dailyVolume = options.createBalances();
+  const nativeTokens = new Set([ADDRESSES.null, config.wrappedNative?.toLowerCase()]);
+
+  // Fetch logs in block-range batches and aggregate incrementally instead of
+  // pulling the whole day's logs into memory at once. A single getLogs call for
+  // the full window OOMs on the high-volume chains; batching bounds peak memory
+  // to one batch since each decoded array is released before the next fetch.
+  // (streamLogs is not usable here: the indexer cannot decode this event's
+  // nested tuple-array `descs`, so it returns empty args.)
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  for (let start = fromBlock; start <= toBlock; start += BLOCKS_PER_BATCH) {
+    const end = Math.min(start + BLOCKS_PER_BATCH - 1, toBlock);
+    const logs = await options.getLogs({
+      target: config.contract,
+      eventAbi: config.swapEvent,
+      fromBlock: start,
+      toBlock: end,
+      skipCacheRead: true,
+    });
+    processSwapLogs(logs, dailyVolume, nativeTokens);
+  }
 
   return { dailyVolume };
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  throw new Error("GMGN adapter is temporarily disabled due to excessive runtime");
-
-  const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+  if (options.chain === CHAIN.SOLANA) {
+    // Solana volume comes from Dune, which lags ~a few hours behind head.
+    const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);
+    if ((options.toTimestamp * 1000) > tenHoursAgo) {
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
+    }
+    return await fetchSolana(options);
   }
 
-  return options.chain === CHAIN.SOLANA
-    ? await fetchSolana(options)
-    : await fetchEvm(options);
+  return await fetchEvm(options);
 };
 
 const adapter: SimpleAdapter = {
