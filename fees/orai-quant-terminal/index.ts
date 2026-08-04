@@ -62,7 +62,11 @@ async function getLatestBlock(): Promise<{ height: number; timestamp: number }> 
   return { height, timestamp };
 }
 
+// oraichain blocks are ~0.68s, so 100k blocks is ~19h of history: long enough to
+// average out jitter, short enough to stay inside what lcd.orai.io keeps (it serves
+// block headers back ~1.8m blocks and 404s below that)
 const BLOCK_TIME_PROBE = 100000;
+// ~180 blocks of slack, small next to a 24h window
 const HEIGHT_TOLERANCE_SECONDS = 120;
 const MAX_REFINEMENTS = 6;
 
@@ -92,25 +96,16 @@ async function getHeightAt(
       Math.max(1, height - Math.round(drift / blockTime))
     );
   }
-  return height;
+  throw new Error(
+    `orai-quant-terminal: could not resolve a block within ${HEIGHT_TOLERANCE_SECONDS}s of ${timestamp}`
+  );
 }
 
 function readFeesValue(payload: unknown): number | null {
-  if (typeof payload === "number")
-    return Number.isFinite(payload) ? payload : null;
-  if (typeof payload === "string") {
-    const parsed = Number(payload);
-    return payload.trim() !== "" && Number.isFinite(parsed) ? parsed : null;
-  }
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload as Record<string, unknown>;
-
-  for (const value of Object.values(data)) {
-    const nested = readFeesValue(value);
-    if (nested !== null) return nested;
-  }
-
-  return null;
+  if (typeof payload !== "number" && typeof payload !== "string") return null;
+  if (typeof payload === "string" && payload.trim() === "") return null;
+  const parsed = Number(payload);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 async function getCumulativeFees(contract: string, height: number) {
@@ -129,16 +124,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyProtocolRevenue = options.createBalances();
 
   const latest = await getLatestBlock();
-  const previousHeight = await getHeightAt(
-    latest.timestamp - 24 * 3600,
-    latest
-  );
+  const [endHeight, startHeight] = await Promise.all([
+    getHeightAt(options.toTimestamp, latest),
+    getHeightAt(options.fromTimestamp, latest),
+  ]);
 
   const deltas = await Promise.all(
     FEES_SOURCES.map(async ({ contract }) => {
       const [current, previous] = await Promise.all([
-        getCumulativeFees(contract, latest.height),
-        getCumulativeFees(contract, previousHeight),
+        getCumulativeFees(contract, endHeight),
+        getCumulativeFees(contract, startHeight),
       ]);
       if (current < previous)
         throw new Error(
@@ -149,6 +144,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   );
 
   deltas.forEach((delta) => {
+    // get_fees is reported in micro-USD, same 6-decimal scale as get_tvl
+    // (953362900000 -> $953,362.90 against the $953k tvl on defillama)
     const humanReadableFeesUsd = delta / 1e6;
 
     dailyFees.addUSDValue(humanReadableFeesUsd, PERFORMANCE_FEE_LABEL);
