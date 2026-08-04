@@ -3,21 +3,24 @@ import { getAzverseDailyStats } from "../../helpers/azverse";
 import { CHAIN } from "../../helpers/chains";
 
 const fetch = async (options: FetchOptions) => {
-  const { fees, builderRevenue, protocolRevenue } = await getAzverseDailyStats(options.dateString, "spot");
+  const { volume, fees, builderRevenue, protocolRevenue } = await getAzverseDailyStats(options.dateString, "spot");
+  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
+  dailyVolume.addUSDValue(volume);
   dailyFees.addUSDValue(fees, "Spot Trading Fees");
   dailyUserFees.addUSDValue(fees, "Spot Trading Fees");
   dailySupplySideRevenue.addUSDValue(builderRevenue, "Builder Revenue Share");
   dailyRevenue.addUSDValue(protocolRevenue, "Protocol Revenue");
 
-  return { dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue };
+  return { dailyVolume, dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue };
 };
 
 const methodology = {
+  Volume: "USD notional volume traded on AZverse spot markets.",
   Fees: "Trading fees paid by users on AZverse spot markets.",
   UserFees: "All spot trading fees are paid directly by users.",
   SupplySideRevenue: "The builder fee share distributed to AZverse builders.",
