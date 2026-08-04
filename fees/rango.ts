@@ -23,9 +23,9 @@ const fetch = async (options: FetchOptions) => {
         dailyFees.add(token, log.affiliateFee, 'Affiliate Fees');
         // dailyFees.add(token, log.destinationExecutorFee, 'Destination Executor Fees');
 
-        dailyRevenue.add(token, log.platformFee, 'Platform Fees');
+        dailyRevenue.add(token, log.platformFee, 'Platform Fees to Protocol');
 
-        dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees');
+        dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees to Affiliates');
         // dailySupplySideRevenue.add(token, log.destinationExecutorFee, 'Destination Executor Fees');
     })
 
@@ -35,11 +35,11 @@ const fetch = async (options: FetchOptions) => {
         if (feeType === 0) {
             // Platform Fees
             dailyFees.add(token, log.affiliateFee, 'Platform Fees');
-            dailyRevenue.add(token, log.affiliateFee, 'Platform Fees');
+            dailyRevenue.add(token, log.affiliateFee, 'Platform Fees to Protocol');
         } else if (feeType === 1) {
             // Affiliate Fees
             dailyFees.add(token, log.affiliateFee, 'Affiliate Fees');
-            dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees');
+            dailySupplySideRevenue.add(token, log.affiliateFee, 'Affiliate Fees to Affiliates');
         } else if (feeType === 2) {
             // Destination Executor Fees
             // dailyFees.add(token, log.affiliateFee, 'Destination Executor Fees');
@@ -106,13 +106,13 @@ const adapter: Adapter = {
             // 'Destination Executor Fees': 'Fee covering execution costs on the destination chain.',
         },
         Revenue: {
-            'Platform Fees': 'Platform fees are kept by Rango.',
+            'Platform Fees to Protocol': 'Platform fees are kept by Rango.',
         },
         ProtocolRevenue: {
-            'Platform Fees': 'Platform fees are kept by Rango.',
+            'Platform Fees to Protocol': 'Platform fees are kept by Rango.',
         },
         SupplySideRevenue: {
-            'Affiliate Fees': 'Affiliate fees are paid out to the integrator that routed the transaction.',
+            'Affiliate Fees to Affiliates': 'Affiliate fees are paid out to the integrator that routed the transaction.',
             // 'Destination Executor Fees': 'Destination executor fees are paid to executors that complete the transfer on the destination chain.',
         },
     },
