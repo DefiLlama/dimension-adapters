@@ -58,18 +58,24 @@ const fetch = async (options: FetchOptions) => {
   // double counted. A negative net is a day where payouts exceeded stakes.
   if (!(staked >= 0)) throw new Error(`mesha: invalid staked total ${staked}`);
 
+  const grossGamingRevenue = staked - paidOut;
+
+  const dailyFees = options.createBalances();
+
+  dailyFees.addUSDValue(grossGamingRevenue, "Gross Gaming Revenue");
+
   return {
     dailyVolume: staked,
-    dailyFees: staked - paidOut,
-    dailyUserFees: staked - paidOut,
-    dailyRevenue: staked - paidOut,
-    dailyProtocolRevenue: staked - paidOut,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
-  // v1: one UTC-day window per run, which is the granularity the pool flow is aggregated at.
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-17", // first day with pool activity on chain
@@ -77,11 +83,24 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume:
       "USDG staked into Mesha's pool, summed from ERC-20 Transfer logs on Robinhood Chain. Only relayer-submitted EIP-3009 transfers are counted (each emits AuthorizationUsed in the same transaction), which excludes plain deposits and treasury withdrawals. USDG is a 1:1 USD stablecoin, so the figure is already in USD.",
-    Fees: "USDG staked into the pool minus USDG paid out of the pool on positions that settled in the money, both read from the same Transfer logs. Negative on days when payouts exceed stakes.",
-    UserFees: "Same as Fees - the net amount paid to the pool.",
-    Revenue: "Same as Fees. The pool is the counterparty to every position, so the net is retained by the protocol.",
-    ProtocolRevenue:
-      "Same as Revenue. No portion is currently distributed to token holders, so nothing is reported as holders revenue.",
+    Fees: "Gross gaming revenue (GGR): USDG staked into the pool minus USDG paid out of the pool on positions that settled in the money, both read from the same Transfer logs. Negative on days when payouts exceed stakes.",
+    UserFees: "USDG staked into the pool minus USDG paid out on winning positions.",
+    Revenue: "USDG staked into the pool minus USDG paid out on winning positions.",
+    ProtocolRevenue: "USDG staked into the pool minus USDG paid out on winning positions.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Gross Gaming Revenue": "USDG staked into the pool minus USDG paid out on winning positions.",
+    },
+    UserFees: {
+      "Gross Gaming Revenue": "USDG staked into the pool minus USDG paid out on winning positions.",
+    },
+    Revenue: {
+      "Gross Gaming Revenue": "USDG staked into the pool minus USDG paid out on winning positions.",
+    },
+    ProtocolRevenue: {
+      "Gross Gaming Revenue": "USDG staked into the pool minus USDG paid out on winning positions.",
+    },
   },
 };
 
