@@ -1,46 +1,111 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryAllium } from "../../helpers/allium";
 import { AbiCoder, keccak256 } from "ethers";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const PCS_HOOK_PARAMETERS = "0x0000000000000000000000000000000000000000000000000000000000c80cc2";
 
-const TREASURY_CONTRACTS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "0x64de97c78f9285C6853F75607E83436eF9698c85",
-  [CHAIN.BSC]: "0x64de97c78f9285C6853F75607E83436eF9698c85",
-  [CHAIN.BASE]: "0x64de97c78f9285C6853F75607E83436eF9698c85",
-  [CHAIN.MEGAETH]: "0x64de97c78f9285C6853F75607E83436eF9698c85",
-  [CHAIN.ROBINHOOD]: "0xbD66B5E936877505A63ce61b09A5059012b34fc3",
-};
+const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: string; HOOK_CONTRACTS: { target: string; dexType: "uniV4" | "pcs" }[]; start: string; fromBlock: number }> = {
+  [CHAIN.ETHEREUM]: {
+    TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
+    CORE_CONTRACT: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682",
+    HOOK_CONTRACTS: [
+      { target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" },
+      { target: "0x72ec860218A711E54c7ca5A390c9A625947890Cc", dexType: "uniV4" },
+    ],
+    start: "2025-11-17",
+    fromBlock: 23820626,
+  },
+  [CHAIN.BSC]: {
+    TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
+    CORE_CONTRACT: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c",
+    HOOK_CONTRACTS: [
+      { target: "0x80DAefeFb1FC0942c7aC6CC65766A9bb085990cc", dexType: "uniV4" },
+      { target: "0x30f290ce49d4C75a86a2c6d538848693C64750Cc", dexType: "uniV4" },
+      { target: "0x106f144922330D6263cd33d71a9B1603bBa0DCCC", dexType: "pcs" },
+      { target: "0xB030d77Cbc0084772084b41799E0CD55120803ef", dexType: "pcs" },
+    ],
+    start: "2025-11-17",
+    fromBlock: 68536068,
+  },
+  [CHAIN.BASE]: {
+    TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
+    CORE_CONTRACT: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286",
+    HOOK_CONTRACTS: [
+      { target: "0xea6e57d5FA362C1Fba4F52EE19138a4E79F310CC", dexType: "uniV4" },
+      { target: "0x1995280EC8cbE8136DAfE96645b24c52dF3590CC", dexType: "uniV4" },
+      { target: "0xFeA466d80bF94D06c63ccA0C555a8c9A114E60db", dexType: "pcs" },
+      { target: "0x934Ce79eb5f768602991892a4074DcdC217564A1", dexType: "pcs" },
+    ],
+    start: "2025-11-17",
+    fromBlock: 38305943,
+  },
+  [CHAIN.MEGAETH]: {
+    TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
+    CORE_CONTRACT: "0x695e175c9704432cdFB98e3C193966F95a5F119D",
+    HOOK_CONTRACTS: [{ target: "0xf35301c240fE5a5eDc59ee660eA0893aEe9aD0cc", dexType: "uniV4" },],
+    start: "2026-02-09",
+    fromBlock: 7852141,
+  },
+  [CHAIN.ROBINHOOD]: {
+    TREASURY_CONTRACT: "0xbD66B5E936877505A63ce61b09A5059012b34fc3",
+    CORE_CONTRACT: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d",
+    HOOK_CONTRACTS: [
+      { target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" },
+      { target: "0xe3f404b9ADfdCFD444853336dD3a89A8dF6110Cc", dexType: "uniV4" },
+    ],
+    start: "2026-07-09",
+    fromBlock: 4791637,
+  },
+}
 
-const CORE_CONTRACTS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682",
-  [CHAIN.BSC]: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c",
-  [CHAIN.BASE]: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286",
-  [CHAIN.MEGAETH]: "0x695e175c9704432cdFB98e3C193966F95a5F119D",
-  [CHAIN.ROBINHOOD]: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d",
-};
+// Solana: the BasedBid program transfers the protocol's share of creation/trading/
+// finalize/LP-claim fees (WSOL/USDC/USD1) to the hardcoded admin fee wallet. The wallet
+// also collects fees for other products of the team, so inflows are restricted to
+// transactions that include the BasedBid program.
+//
+// Only the protocol fee share is counted. The sub-board, meme-owner and referral fee
+// shares are paid directly to per-token wallets configured at token creation; they
+// cannot be isolated from transfer data alone (a trade also contains the principal leg
+// and temporary WSOL account funding, either of which can exceed the fee legs), and
+// there is no decoded model for this program to read the split from. Solana fees are
+// therefore a conservative undercount limited to the protocol share.
+const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
+const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
+const SOLANA_FEE_MINTS = [
+  ADDRESSES.solana.SOL,
+  ADDRESSES.solana.USDC,
+  "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB", // USD1
+];
 
-const HOOK_CONTRACTS: Record<string, Array<{ target: string; dexType: "uniV4" | "pcs" }>> = {
-  [CHAIN.ETHEREUM]: [{ target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" }],
-  [CHAIN.BSC]: [
-    { target: "0x80DAefeFb1FC0942c7aC6CC65766A9bb085990cc", dexType: "uniV4" },
-    { target: "0x106f144922330D6263cd33d71a9B1603bBa0DCCC", dexType: "pcs" },
-  ],
-  [CHAIN.BASE]: [
-    { target: "0xea6e57d5FA362C1Fba4F52EE19138a4E79F310CC", dexType: "uniV4" },
-    { target: "0xFeA466d80bF94D06c63ccA0C555a8c9A114E60db", dexType: "pcs" },
-  ],
-  [CHAIN.MEGAETH]: [{ target: "0xf35301c240fE5a5eDc59ee660eA0893aEe9aD0cc", dexType: "uniV4" }],
-  [CHAIN.ROBINHOOD]: [{ target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" }],
-};
+const fetchSolana = async (options: FetchOptions) => {
+  const rows = await queryAllium(`
+    WITH program_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND success = true
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
+    )
+    SELECT COALESCE(SUM(tr.usd_amount), 0) AS daily_fees
+    FROM solana.assets.transfers tr
+    JOIN program_txs p ON p.txn_id = tr.txn_id
+    WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND tr.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND tr.to_address = '${SOLANA_FEE_WALLET}'
+      AND tr.from_address != '${SOLANA_FEE_WALLET}'
+      AND tr.mint IN (${SOLANA_FEE_MINTS.map((m) => `'${m}'`).join(", ")})
+  `);
 
-const chainConfig: Record<string, { start: string; fromBlock: number }> = {
-  [CHAIN.ETHEREUM]: { start: "2025-11-17", fromBlock: 23820626 },
-  [CHAIN.BSC]: { start: "2025-11-17", fromBlock: 68536068 },
-  [CHAIN.BASE]: { start: "2025-11-17", fromBlock: 38305943 },
-  [CHAIN.MEGAETH]: { start: "2026-02-09", fromBlock: 7852141 },
-  [CHAIN.ROBINHOOD]: { start: "2026-07-09", fromBlock: 4791637 },
+  const dailyFees = Number(rows[0].daily_fees);
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const METRICS = {
@@ -91,14 +156,11 @@ const toBigInt = (value: any): bigint => {
   return BigInt(0);
 };
 
-const isNativeToken = (token: string) => token === ZERO_ADDRESS;
-
 const addTokenAmount = (balances: any, token: string | undefined, amount: any, label?: string) => {
   if (!token) return;
   const parsedAmount = toBigInt(amount);
   if (parsedAmount === BigInt(0)) return;
-  if (isNativeToken(token)) balances.addGasToken(parsedAmount, label);
-  else balances.add(token!, parsedAmount, label);
+  balances.add(token!, parsedAmount, label);
 };
 
 const sortAddresses = (tokenA: string, tokenB: string) =>
@@ -132,64 +194,63 @@ type HookMeta = {
 
 type PositionManagerMeta = { poolManager: string; dexType: "uniV4" | "pcs" };
 
-const getHookByAddress = (options: FetchOptions, hookAddress: string | undefined) =>
-  (HOOK_CONTRACTS[options.chain] ?? []).find((hook) => toAddress(hook.target) === hookAddress);
+const getHookByAddress = (HOOK_CONTRACTS: { target: string; dexType: "uniV4" | "pcs" }[], hookAddress: string | undefined) =>
+  HOOK_CONTRACTS.find((hook) => toAddress(hook.target) === hookAddress);
 
 const fetch = async (options: FetchOptions) => {
-  const core = CORE_CONTRACTS[options.chain];
-  const treasury = TREASURY_CONTRACTS[options.chain];
-  const config = chainConfig[options.chain];
-  if (!core || !treasury || !config) throw new Error(`Missing basedbid contract for chain ${options.chain}`);
+  const { TREASURY_CONTRACT, CORE_CONTRACT, HOOK_CONTRACTS, fromBlock } = chainConfig[options.chain];
+  const treasury = TREASURY_CONTRACT;
+  const core = CORE_CONTRACT;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const revenueLogs = await options.getLogs({ target: treasury, eventAbi: ABI.feeCollected }).catch(() => []);
+  const revenueLogs = await options.getLogs({ target: treasury, eventAbi: ABI.feeCollected });
   revenueLogs.forEach((log: any) => {
-    const token = toAddress(log.token ?? log[0]);
-    const amount = log.amount ?? log[1] ?? 0;
+    const token = toAddress(log.token);
+    const amount = log.amount;
     addTokenAmount(dailyRevenue, token, amount, METRICS.treasuryRevenue);
     addTokenAmount(dailyProtocolRevenue, token, amount, METRICS.treasuryRevenue);
   });
 
-  const [subBoardFees, memeOwnerFees, referralFees] = await Promise.all([
-    options.getLogs({ target: core, eventAbi: ABI.subBoardFeeCollected }),
-    options.getLogs({ target: core, eventAbi: ABI.memeOwnerFeeCollected }),
-    options.getLogs({ target: core, eventAbi: ABI.referralFeeCollected }),
-  ]);
+  const subBoardFeeLogs = await options.getLogs({ target: core, eventAbi: ABI.subBoardFeeCollected });
+  const memeOwnerFeeLogs = await options.getLogs({ target: core, eventAbi: ABI.memeOwnerFeeCollected });
+  const referralFeeLogs = await options.getLogs({ target: core, eventAbi: ABI.referralFeeCollected });
 
-  subBoardFees.forEach((log: any) =>
-    addTokenAmount(dailyFees, toAddress(log.token ?? log[1]), log.amount ?? log[2] ?? 0, METRICS.subBoardFees),
-  );
-  memeOwnerFees.forEach((log: any) =>
-    addTokenAmount(dailyFees, toAddress(log.token ?? log[1]), log.amount ?? log[2] ?? 0, METRICS.memeOwnerFees),
-  );
-  referralFees.forEach((log: any) =>
-    addTokenAmount(dailyFees, toAddress(log.token ?? log[1]), log.amount ?? log[2] ?? 0, METRICS.referralFees),
-  );
+  subBoardFeeLogs.forEach((log: any) =>{
+    addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.subBoardFees),
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.subBoardFees)
+  });
+  memeOwnerFeeLogs.forEach((log: any) =>{
+    addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.memeOwnerFees),
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.memeOwnerFees)
+  });
+  referralFeeLogs.forEach((log: any) =>{
+    addTokenAmount(dailyFees, toAddress(log.token), log.amount, METRICS.referralFees),
+    addTokenAmount(dailySupplySideRevenue, toAddress(log.token), log.amount, METRICS.referralFees)
+  });
 
-  const [flashV4Created, finalizedV4, routerAllowed, v4PositionManagerUpdated] = await Promise.all([
-    options.getLogs({ target: core, eventAbi: ABI.flashV4Created, fromBlock: config.fromBlock, cacheInCloud: true }).catch(() => []),
-    options.getLogs({ target: core, eventAbi: ABI.finalizedV4, fromBlock: config.fromBlock, cacheInCloud: true }).catch(() => []),
-    options.getLogs({ target: core, eventAbi: ABI.routerAllowed, fromBlock: config.fromBlock, cacheInCloud: true }).catch(() => []),
-    options.getLogs({ target: core, eventAbi: ABI.v4PositionManagerUpdated, fromBlock: config.fromBlock, cacheInCloud: true }).catch(() => []),
-  ]);
+  const flashV4CreatedLogs = await options.getLogs({ target: core, eventAbi: ABI.flashV4Created, fromBlock, cacheInCloud: true });
+  const finalizedV4Logs = await options.getLogs({ target: core, eventAbi: ABI.finalizedV4, fromBlock, cacheInCloud: true });
+  const routerAllowedLogs = await options.getLogs({ target: core, eventAbi: ABI.routerAllowed, fromBlock, cacheInCloud: true });
+  const v4PositionManagerUpdatedLogs = await options.getLogs({ target: core, eventAbi: ABI.v4PositionManagerUpdated, fromBlock, cacheInCloud: true });
 
   const managerByPositionManager: Record<string, PositionManagerMeta> = {};
-  routerAllowed.forEach((log: any) => {
-    const positionManager = toAddress(log.routerOrPositionManager ?? log[0]);
-    const isAllowed = Number(log.isAllowed ?? log[1] ?? 0);
-    const poolManager = toAddress(log.poolManager ?? log[2]);
+  routerAllowedLogs.forEach((log: any) => {
+    const positionManager = toAddress(log.routerOrPositionManager);
+    const isAllowed = Number(log.isAllowed);
+    const poolManager = toAddress(log.poolManager);
     if (!positionManager || !poolManager) return;
     if (isAllowed === 4) managerByPositionManager[positionManager] = { poolManager, dexType: "uniV4" };
     if (isAllowed === 14) managerByPositionManager[positionManager] = { poolManager, dexType: "pcs" };
   });
-  v4PositionManagerUpdated.forEach((log: any) => {
-    const positionManager = toAddress(log.positionManager ?? log[0]);
-    const isAvailable = Boolean(log.isAvailable ?? log[1]);
-    const poolManager = toAddress(log.poolManager ?? log[2]);
-    const dexTypeValue = Number(log.dexType ?? log[4] ?? 0);
+  v4PositionManagerUpdatedLogs.forEach((log: any) => {
+    const positionManager = toAddress(log.positionManager);
+    const isAvailable = Boolean(log.isAvailable);
+    const poolManager = toAddress(log.poolManager);
+    const dexTypeValue = Number(log.dexType);
     if (!positionManager || !poolManager || !isAvailable) return;
     managerByPositionManager[positionManager] = { poolManager, dexType: dexTypeValue === 1 ? "pcs" : "uniV4" };
   });
@@ -214,7 +275,7 @@ const fetch = async (options: FetchOptions) => {
   }) => {
     if (!token || !positionManager || !hooks || hooks === ZERO_ADDRESS) return;
 
-    const hookConfig = getHookByAddress(options, hooks);
+    const hookConfig = getHookByAddress(HOOK_CONTRACTS, hooks);
     if (!hookConfig) return;
 
     const [token0, token1] = sortAddresses(token, baseToken && baseToken !== ZERO_ADDRESS ? baseToken : ZERO_ADDRESS);
@@ -237,67 +298,80 @@ const fetch = async (options: FetchOptions) => {
     };
   };
 
-  flashV4Created.forEach((log: any) => {
-    const token = toAddress(log.token ?? log[0]);
-    const positionManager = toAddress(log.poolInitialData?.positionManager ?? log[1]?.positionManager);
-    const baseToken = toAddress(log.poolInitialData?.baseToken ?? log[1]?.baseToken) ?? ZERO_ADDRESS;
-    const hooks = toAddress(log.flashLaunchV4Pool?.hooks ?? log[2]?.hooks);
-    const rewardToken = toAddress(log.flashLaunchV4Pool?.v4HookData?.rewardToken ?? log[2]?.v4HookData?.rewardToken);
+  flashV4CreatedLogs.forEach((log: any) => {
+    const token = toAddress(log.token);
+    const positionManager = toAddress(log.poolInitialData?.positionManager);
+    const baseToken = toAddress(log.poolInitialData?.baseToken) ?? ZERO_ADDRESS;
+    const hooks = toAddress(log.flashLaunchV4Pool?.hooks);
+    const rewardToken = toAddress(log.flashLaunchV4Pool?.v4HookData?.rewardToken);
     addHookPoolMeta({
       token,
       positionManager,
       baseToken,
       hooks,
       rewardToken,
-      fee: toBigInt(log.poolInitialData?.feeTier ?? log[1]?.feeTier ?? 0),
+      fee: toBigInt(log.poolInitialData?.feeTier ?? 0),
       tickSpacing: BigInt(200),
     });
   });
 
-  finalizedV4.forEach((log: any) => {
+  finalizedV4Logs.forEach((log: any) => {
     addHookPoolMeta({
-      token: toAddress(log.memeToken ?? log[0]),
-      positionManager: toAddress(log.positionManager ?? log[1]),
+      token: toAddress(log.memeToken),
+      positionManager: toAddress(log.positionManager),
       baseToken: ZERO_ADDRESS,
-      hooks: toAddress(log.hooks ?? log[5]),
-      fee: toBigInt(log.fee ?? log[3] ?? 0),
-      tickSpacing: toBigInt(log.tickSpacing ?? log[4] ?? 200),
+      hooks: toAddress(log.hooks),
+      fee: toBigInt(log.fee ?? 0),
+      tickSpacing: toBigInt(log.tickSpacing ?? 200),
     });
   });
 
-  const hookEventLogs = await Promise.all(
-    (HOOK_CONTRACTS[options.chain] ?? []).map(async (hook) => ({
-      ...hook,
-      target: toAddress(hook.target)!,
-      liquidityAdded: await options.getLogs({ target: hook.target, eventAbi: ABI.liquidityAdded }).catch(() => []),
-      buyback: await options.getLogs({ target: hook.target, eventAbi: ABI.buyback }).catch(() => []),
-      rewardDistributed: await options.getLogs({ target: hook.target, eventAbi: ABI.rewardDistributed }).catch(() => []),
-      customWalletFeeDistributed: await options
-        .getLogs({ target: hook.target, eventAbi: ABI.customWalletFeeDistributed })
-        .catch(() => []),
-    })),
-  );
+  const hookTargets = (HOOK_CONTRACTS ?? []).map((hook) => hook.target);
+  const liquidityAddedLogs = await options.getLogs({ targets: hookTargets, eventAbi: ABI.liquidityAdded, flatten: false });
+  const buybackLogs = await options.getLogs({ targets: hookTargets, eventAbi: ABI.buyback, flatten: false });
+  const rewardDistributedLogs = await options.getLogs({ targets: hookTargets, eventAbi: ABI.rewardDistributed, flatten: false });
+  const customWalletFeeDistributedLogs = await options.getLogs({ targets: hookTargets, eventAbi: ABI.customWalletFeeDistributed, flatten: false });
+  const hookEventLogs = (HOOK_CONTRACTS ?? []).map((hook, i) => ({
+    ...hook,
+    target: toAddress(hook.target)!,
+    liquidityAdded: liquidityAddedLogs[i] ?? [],
+    buyback: buybackLogs[i] ?? [],
+    rewardDistributed: rewardDistributedLogs[i] ?? [],
+    customWalletFeeDistributed: customWalletFeeDistributedLogs[i] ?? [],
+  }));
 
   const rewardPoolCalls = hookEventLogs.flatMap(({ target, dexType, rewardDistributed }) =>
     rewardDistributed.map((log: any) => ({ target, dexType, poolId: String(log.poolId ?? log[0]).toLowerCase() })),
   );
-  const rewardPoolKeys = await Promise.all(
-    rewardPoolCalls.map((call) =>
-      options.api
-        .call({
-          target: call.target,
-          abi: call.dexType === "pcs" ? ABI.pcsRewardSwapPoolKey : ABI.uniRewardSwapPoolKey,
-          params: [call.poolId],
-        })
-        .catch(() => undefined),
-    ),
-  );
+  const rewardPoolKeys: any[] = new Array(rewardPoolCalls.length);
+  const pcsIndices: number[] = [];
+  const uniIndices: number[] = [];
+  rewardPoolCalls.forEach((call, i) => {
+    if (call.dexType === "pcs") pcsIndices.push(i);
+    else uniIndices.push(i);
+  });
+  if (pcsIndices.length) {
+    const pcsKeys = await options.api.multiCall({
+      abi: ABI.pcsRewardSwapPoolKey,
+      calls: pcsIndices.map((i) => ({ target: rewardPoolCalls[i].target, params: [rewardPoolCalls[i].poolId] })),
+      permitFailure: true,
+    });
+    pcsKeys.forEach((key, j) => { rewardPoolKeys[pcsIndices[j]] = key; });
+  }
+  if (uniIndices.length) {
+    const uniKeys = await options.api.multiCall({
+      abi: ABI.uniRewardSwapPoolKey,
+      calls: uniIndices.map((i) => ({ target: rewardPoolCalls[i].target, params: [rewardPoolCalls[i].poolId] })),
+      permitFailure: true,
+    });
+    uniKeys.forEach((key, j) => { rewardPoolKeys[uniIndices[j]] = key; });
+  }
   rewardPoolCalls.forEach((call, i) => {
     const poolMeta = hookPoolMeta[call.poolId];
     const rewardPoolKey = rewardPoolKeys[i];
     if (!poolMeta || !rewardPoolKey) return;
-    const currency0 = toAddress(rewardPoolKey.currency0 ?? rewardPoolKey[0]);
-    const currency1 = toAddress(rewardPoolKey.currency1 ?? rewardPoolKey[1]);
+    const currency0 = toAddress(rewardPoolKey.currency0);
+    const currency1 = toAddress(rewardPoolKey.currency1);
     if (currency0 === ZERO_ADDRESS && currency1 === poolMeta.nonProjectToken) poolMeta.rewardToken = ZERO_ADDRESS;
     if (currency1 === ZERO_ADDRESS && currency0 === poolMeta.nonProjectToken) poolMeta.rewardToken = ZERO_ADDRESS;
     if (currency0 && currency0 !== ZERO_ADDRESS && currency0 !== poolMeta.nonProjectToken) poolMeta.rewardToken = currency0;
@@ -306,23 +380,28 @@ const fetch = async (options: FetchOptions) => {
 
   hookEventLogs.forEach(({ liquidityAdded, buyback, rewardDistributed, customWalletFeeDistributed }) => {
     liquidityAdded.forEach((log: any) => {
-      const poolMeta = hookPoolMeta[String(log.poolId ?? log[0]).toLowerCase()];
+      const poolMeta = hookPoolMeta[String(log.poolId).toLowerCase()];
       if (!poolMeta) return;
-      addTokenAmount(dailyFees, poolMeta.token0, log.liquidity0 ?? log[1] ?? 0, METRICS.hookLiquidityFees);
-      addTokenAmount(dailyFees, poolMeta.token1, log.liquidity1 ?? log[2] ?? 0, METRICS.hookLiquidityFees);
+      addTokenAmount(dailyFees, poolMeta.token0, log.liquidity0, METRICS.hookLiquidityFees);
+      addTokenAmount(dailyFees, poolMeta.token1, log.liquidity1, METRICS.hookLiquidityFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.token0, log.liquidity0, METRICS.hookLiquidityFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.token1, log.liquidity1, METRICS.hookLiquidityFees);
     });
     buyback.forEach((log: any) => {
-      const poolMeta = hookPoolMeta[String(log.poolId ?? log[0]).toLowerCase()];
+      const poolMeta = hookPoolMeta[String(log.poolId).toLowerCase()];
       if (!poolMeta) return;
-      addTokenAmount(dailyFees, poolMeta.projectToken, log.projectTokenAmount ?? log[1] ?? 0, METRICS.hookBuybackFees);
+      addTokenAmount(dailyFees, poolMeta.projectToken, log.projectTokenAmount, METRICS.hookBuybackFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.projectToken, log.projectTokenAmount, METRICS.hookBuybackFees);
     });
     rewardDistributed.forEach((log: any) => {
-      const poolMeta = hookPoolMeta[String(log.poolId ?? log[0]).toLowerCase()];
+      const poolMeta = hookPoolMeta[String(log.poolId).toLowerCase()];
       if (!poolMeta) return;
-      addTokenAmount(dailyFees, poolMeta.rewardToken, log.amount ?? log[1] ?? 0, METRICS.hookRewardFees);
+      addTokenAmount(dailyFees, poolMeta.rewardToken, log.amount, METRICS.hookRewardFees);
+      addTokenAmount(dailySupplySideRevenue, poolMeta.rewardToken, log.amount, METRICS.hookRewardFees);
     });
     customWalletFeeDistributed.forEach((log: any) => {
-      addTokenAmount(dailyFees, ZERO_ADDRESS, log.amount ?? log[2] ?? 0, METRICS.hookCustomWalletFees);
+      addTokenAmount(dailyFees, ZERO_ADDRESS, log.amount, METRICS.hookCustomWalletFees);
+      addTokenAmount(dailySupplySideRevenue, ZERO_ADDRESS, log.amount, METRICS.hookCustomWalletFees);
     });
   });
 
@@ -332,6 +411,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -339,12 +419,20 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  dependencies: [Dependencies.ALLIUM],
+  adapter: {
+    ...chainConfig,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: "2025-12-24",
+    },
+  },
   methodology: {
     Fees:
-      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token.",
-    Revenue: "Revenue is measured only from FeeCollected inflows emitted by the treasury contract.",
-    ProtocolRevenue: "Protocol revenue equals treasury FeeCollected inflows.",
+      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token. On Solana, fees are the protocol fee share (creation, trading, finalize and LP-claim fees) received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    Revenue: "Revenue is measured only from FeeCollected inflows emitted by the treasury contract. On Solana, revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    ProtocolRevenue: "Protocol revenue equals treasury FeeCollected inflows. On Solana, protocol revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    SupplySideRevenue: "Includes all fees collected from liquidity added, buyback, reward distributed, and custom wallet fees. Not tracked on Solana, where sub-board, meme-owner and referral shares are paid directly to per-token wallets.",
   },
   breakdownMethodology: {
     Fees: {
@@ -363,7 +451,17 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: {
       [METRICS.treasuryRevenue]: "Token amounts from treasury FeeCollected events.",
     },
+    SupplySideRevenue: {
+      [METRICS.subBoardFees]: "SubBoardFeeCollected amounts emitted by BasedBid core contracts.",
+      [METRICS.memeOwnerFees]: "MemeOwnerFeeCollected amounts emitted by BasedBid core contracts.",
+      [METRICS.referralFees]: "ReferralFeeCollected amounts emitted by BasedBid core contracts.",
+      [METRICS.hookLiquidityFees]: "LiquidityAdded token0 and token1 amounts emitted by BasedBid hook contracts.",
+      [METRICS.hookBuybackFees]: "Buyback projectTokenAmount emitted by BasedBid hook contracts.",
+      [METRICS.hookRewardFees]: "RewardDistributed amounts valued in the configured reward token.",
+      [METRICS.hookCustomWalletFees]: "CustomWalletFeeDistributed amounts valued as native coin.",
+    },
   },
+  doublecounted: true, //uniswap & pcs
 };
 
 export default adapter;

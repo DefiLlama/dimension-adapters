@@ -1,340 +1,169 @@
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { isCoreAsset } from "../../helpers/prices";
-import { AbiCoder, keccak256 } from "ethers";
+import { queryAllium } from "../../helpers/allium";
 
-const CORE_CONTRACTS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682",
-  [CHAIN.BSC]: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c",
-  [CHAIN.BASE]: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286",
-  [CHAIN.MEGAETH]: "0x695e175c9704432cdFB98e3C193966F95a5F119D",
-  [CHAIN.ROBINHOOD]: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d",
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+// BasedBid core diamond per EVM chain. The bonding curve lives in its TradeFacet.
+const chainConfig: Record<string, { CORE_CONTRACT: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { CORE_CONTRACT: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682", start: "2025-11-17" },
+  [CHAIN.BSC]: { CORE_CONTRACT: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c", start: "2025-11-17" },
+  [CHAIN.BASE]: { CORE_CONTRACT: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286", start: "2025-11-17" },
+  [CHAIN.MEGAETH]: { CORE_CONTRACT: "0x695e175c9704432cdFB98e3C193966F95a5F119D", start: "2026-02-09" },
+  [CHAIN.ROBINHOOD]: { CORE_CONTRACT: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d", start: "2026-07-09" },
 };
 
-const ROUTER_CONTRACTS: Record<string, string[]> = {
-  [CHAIN.BASE]: ["0xd8Ba9D1a99Fc21f0ECA24e9b85737c28A194a4E2"],
-  [CHAIN.ROBINHOOD]: [
-    "0x8876789976decbfcbbbe364623c63652db8c0904", // UniversalRouter
-    "0xCaf681a66D020601342297493863E78C959E5cb2", // SwapRouter02
-  ],
-};
-
-const FLASH_HOOKS: Record<string, Set<string>> = {
-  [CHAIN.BASE]: new Set(["0x4d667e420bd4a42969cb27251a3f9a24661fd0cc"]),
-  [CHAIN.ROBINHOOD]: new Set(["0x2485f30207230128276da25ca030c77ea3ddd0cc"]),
-};
-
-const chainConfig: Record<string, { start: string; fromBlock: number }> = {
-  [CHAIN.ETHEREUM]: { start: "2025-11-17", fromBlock: 23820626 },
-  [CHAIN.BSC]: { start: "2025-11-17", fromBlock: 68536068 },
-  [CHAIN.BASE]: { start: "2025-11-17", fromBlock: 38305943 },
-  [CHAIN.MEGAETH]: { start: "2026-02-09", fromBlock: 7852141 },
-  [CHAIN.ROBINHOOD]: { start: "2026-07-09", fromBlock: 4791637 },
-};
+const DEX_STRUCT =
+  "(address routerOrPositionManager, uint256 poolId, uint24 fee, int24 tickSpacing, uint24 per, bool isLPBurn, uint8 _padding)[] dex";
+const INITIAL_DATA_STRUCT =
+  `(address baseTokenForPair, uint256 liquidityForHardcap, uint256 liquidityForSoftcap, uint256 marketCap, uint256 maxAllocationPerUser, uint256 maxAllocationPerWhitelistedUser, bytes32 whitelistMerkleRoot, uint24 buyReferralFeePer, uint24 sellMemeTokenOwnerFeePer, uint24 buyMemeTokenOwnerFeePer, uint24 finalizeFeePer, uint24 delayTradeTime, uint40 startTime, uint40 endTime, bool isWhitelist, uint48 _padding, ${DEX_STRUCT}, string metaData) initialData`;
+const FEE_STRUCT =
+  "(uint256 listingFee, uint256 listingReferralFee, uint24 buyFeePer, uint24 sellFeePer, uint24 finalizeFeePer, uint24 flashLaunchFeePer, uint24 tradingFeeAfterLaunchPer, uint8 _padding) fee";
 
 const ABI = {
+  // Emitted by TradeFacet (and by CreationFacet for the creator's initial buy, with an
+  // identical signature). amountIn is the base-token leg, amountOut the meme-token leg.
   bought:
     "event Bought(address indexed buyer, address indexed memeToken, address referrer, uint256 amountIn, uint256 amountOut, uint256 amountOwnerFee, uint256 amountSubBoardFee, uint256 amountMemeTokenOwnerFee, uint256 amountReferralFee, uint256 volumn, uint256 virtualReserveETH, uint256 virtualReserveToken, bool isHardCapReached, uint8 decimals, uint256 virtualReserveETHHardcap, uint256 virtualReserveETHSoftcap)",
+  // amountIn is the meme-token leg; amountOut is the base-token leg paid to the seller,
+  // already net of the three fee shares that the curve withholds from it.
   sold:
     "event Sold(address indexed seller, address indexed memeToken, uint256 amountIn, uint256 amountOut, uint256 amountOwnerFee, uint256 amountSubBoardFee, uint256 amountMemeTokenOwnerFee, uint256 volumn, uint256 virtualReserveETH, uint256 virtualReserveToken, bool isHardCapReached, uint8 decimals, uint256 virtualReserveETHHardcap, uint256 virtualReserveETHSoftcap)",
-  flashV3Created:
-    "event FlashLaunchV3TokenCreated(address token, (address positionManager, uint24 feeTier, uint8 decimals, bool isTokenBurn, uint8 _padding1, uint256 virtualEth, uint256 totalSupply, address baseToken, uint8 _padding2, uint256 maxWalletAmount, uint256 maxTxAmount, uint256 protectBlocks, uint160 sqrtPriceX96_1, uint8 _padding3, uint160 sqrtPriceX96_2, uint8 _padding4, int24 tickLower_1, int24 tickUpper_1, int24 tickLower_2, int24 tickUpper_2, uint8 _padding5) poolInitialData, (address owner, bool isTokenBurn, uint8 _padding1, bytes32 subBoard, string metaData, address positionManager, uint8 _padding2, uint256 poolId, address pool) flashLaunchV3Pool)",
-  flashV4Created:
-    "event FlashLaunchV4TokenCreated(address token, (address positionManager, uint24 feeTier, uint8 decimals, bool isTokenBurn, uint8 _padding1, uint256 virtualEth, uint256 totalSupply, address baseToken, uint8 _padding2, uint256 maxWalletAmount, uint256 maxTxAmount, uint256 protectBlocks, uint160 sqrtPriceX96_1, uint8 _padding3, uint160 sqrtPriceX96_2, uint8 _padding4, int24 tickLower_1, int24 tickUpper_1, int24 tickLower_2, int24 tickUpper_2, uint8 _padding5) poolInitialData, (address owner, bool isTokenBurn, uint8 _padding1, address baseToken, uint8 _padding2, bytes32 subBoard, string metaData, address positionManager, uint8 _padding3, uint256 poolId, address hooks, (bool hasV4Hook, (uint16 liquidityFeeBps, uint16 buybackFeeBps, uint16 rewardFeeBps, address[] customWallets, uint16[] customWalletBps) hookFeeDistributionConfig, uint256 feeThreshold, address rewardToken, (address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) rewardPoolKey, uint8 feeKind, uint24 staticPoolFeeBpsBuy, uint24 staticPoolFeeBpsSell, uint24 hookFeeBpsBuy, uint24 hookFeeBpsSell, (uint24 minBaseFeeBpsBuy, uint24 minBaseFeeBpsSell, uint24 maxBaseFeeBpsBuy, uint24 maxBaseFeeBpsSell, uint32 baseFeeFactorBuy, uint32 baseFeeFactorSell, uint24 defaultBaseFeeBpsBuy, uint24 defaultBaseFeeBpsSell, uint32 surgeDecayPeriodSeconds, uint32 surgeMultiplierPpm, bool perSwapMode, uint32 capAutoTuneStepPpm, uint32 capAutoTuneIntervalSeconds) dynamicFeeConfig, (uint16[] buyFeesBps, uint16[] sellFeesBps, uint256[] buyFeeTierAmountLevels, uint256[] sellFeeTierAmountLevels) tieredFeeConfig, uint48 protectPeriod, uint256 maxBuyPerOrigin, bool isAntiSandwich, uint32 cooldownSeconds, uint24 penaltyFeeBps, (uint32 volumeIntervalSeconds, uint256[] volumeLevels, uint16[] volumeMultiplierBps) volumeConfig) v4HookData) flashLaunchV4Pool)",
-  finalizedV3:
-    "event LogMemeTokenLPV3Locked(address memeToken, address positionManager, uint256 tokenId, uint24 fee, int24 tickSpacing, address pair)",
-  finalizedV4:
-    "event LogMemeTokenLPV4Locked(address memeToken, address positionManager, uint256 poolId, uint24 fee, int24 tickSpacing, address hooks)",
-  routerAllowed:
-    "event LogRouterOrPositionManagerAllowedChanged(address routerOrPositionManager, uint256 isAllowed, address poolManager)",
-  v3Swap:
-    "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)",
-  v4Swap:
-    "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)",
-  pcsSwap:
-    "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)",
-  token0: "function token0() view returns (address)",
-  token1: "function token1() view returns (address)",
-  routerSwap:
-    "event Swap(address indexed payer, address indexed receiver, address indexed feeToken, uint256 amountIn, uint256 amountOut, (uint8 swapType, address tokenIn, address tokenOut, address poolAddress, uint24 fee, int24 tickSpacing, address hooks, bytes hookData)[] descs)",
+  getMemeTokenData: `function getMemeTokenData(address memeToken) view returns ((address memeOwner, uint256 volumn, uint256 virtualReserveETH, uint256 virtualReserveToken, uint256 initialVirtualReserveETH, uint256 initialVirtualReserveToken, uint256 virtualReserveETHHardcap, uint256 virtualReserveETHSoftcap, bytes32 subBoard, bytes32 keyForXSale, uint8 package, bool isXSale, bool isListed, bool isCancelled, bool isTaxToken, uint8 _padding, ${INITIAL_DATA_STRUCT}, ${FEE_STRUCT}, uint256 tokenVersion))`,
 };
 
-const SWAP_TOPIC_V4 = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-const SWAP_TOPIC_PCS = "0x3c48f385280c8ca3102dccfbb0f4a355106f5f55ddcb0cb8f7c26449e0c4f5f3";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const FLASH_V4_TICK_SPACING = 200;
-const abiCoder = AbiCoder.defaultAbiCoder();
+// Each meme token is priced in the base token chosen at creation: the chain's native coin
+// (stored as the zero address, or as WETH which the curve still settles natively) or an
+// arbitrary ERC20. The Bought/Sold events carry only raw amounts, so the base token is
+// read from the diamond for every meme token traded in the period.
+const getBaseTokens = async (options: FetchOptions, core: string, memeTokens: string[]) => {
+  const baseTokens: Record<string, string> = {};
+  if (!memeTokens.length) return baseTokens;
 
-const FALLBACK_POSITION_MANAGERS: Record<string, Record<string, { poolManager: string; dexType: "uniV4" | "pcs" }>> = {
-  [CHAIN.BASE]: {
-    "0x7c5f5a4bbd8fd63184577525326123b519429bdc": {
-      poolManager: "0x498581ff718922c3f8e6a244956af099b2652b2b",
-      dexType: "uniV4",
-    },
-  },
+  const results = await options.api.multiCall({
+    abi: ABI.getMemeTokenData,
+    calls: memeTokens.map((memeToken) => ({ target: core, params: [memeToken] })),
+    permitFailure: true,
+  });
+
+  results.forEach((data: any, i: number) => {
+    const baseToken = data?.initialData?.baseTokenForPair;
+    // A failed or undecodable read falls back to the native coin, which is the base token
+    // for the overwhelming majority of launches.
+    baseTokens[memeTokens[i]] = typeof baseToken === "string" ? baseToken.toLowerCase() : ZERO_ADDRESS;
+  });
+
+  return baseTokens;
 };
 
-const toAddress = (value: any): string | undefined => {
-  if (!value) return undefined;
-  if (typeof value !== "string") return undefined;
-  return value.toLowerCase();
-};
-
-const toBigInt = (value: any): bigint => {
-  if (typeof value === "bigint") return value;
-  if (typeof value === "number") return BigInt(Math.trunc(value));
-  if (typeof value === "string") return BigInt(value);
-  return 0n;
-};
-
-const sortAddresses = (tokenA: string, tokenB: string) =>
-  BigInt(tokenA) < BigInt(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
-
-const computeUniV4PoolId = (token: string, baseToken: string | undefined, fee: bigint, tickSpacing: bigint, hooks: string | undefined) => {
-  const [token0, token1] = sortAddresses(token, baseToken && baseToken !== ZERO_ADDRESS ? baseToken : ZERO_ADDRESS);
-  const hookAddress = hooks && hooks !== ZERO_ADDRESS ? hooks : ZERO_ADDRESS;
-  const encoded = abiCoder.encode(
-    ["address", "address", "uint24", "int24", "address"],
-    [token0, token1, Number(fee), Number(tickSpacing), hookAddress],
-  );
-
-  return {
-    poolId: keccak256(encoded).toLowerCase(),
-    token0,
-    token1,
-  };
-};
-
-const addRouteVolume = (options: FetchOptions, dailyVolume: any, tokenIn: string | undefined, amountIn: bigint, tokenOut: string | undefined, amountOut: bigint) => {
-  if (!tokenIn || !tokenOut) return;
-  const normalizedAmountIn = amountIn < 0n ? -amountIn : amountIn;
-  const normalizedAmountOut = amountOut < 0n ? -amountOut : amountOut;
-  if (tokenIn === ZERO_ADDRESS) {
-    dailyVolume.addGasToken(normalizedAmountIn);
-    return;
-  }
-  if (tokenOut === ZERO_ADDRESS) {
-    dailyVolume.addGasToken(normalizedAmountOut);
-    return;
-  }
-  if (isCoreAsset(options.chain, tokenIn)) {
-    dailyVolume.add(tokenIn, normalizedAmountIn);
-    return;
-  }
-  if (isCoreAsset(options.chain, tokenOut)) {
-    dailyVolume.add(tokenOut, normalizedAmountOut);
-  }
-};
-
-const fetch = async (options: FetchOptions) => {
-  const core = CORE_CONTRACTS[options.chain];
-  const config = chainConfig[options.chain];
-  if (!core || !config) throw new Error(`Missing basedbid config for chain ${options.chain}`);
-  const discoveryFromBlock = config.fromBlock;
-
+const fetchEVM = async (options: FetchOptions) => {
+  const { CORE_CONTRACT: core } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
 
-  const [buyLogs, sellLogs] = await Promise.all([
+  const [boughtLogs, soldLogs] = await Promise.all([
     options.getLogs({ target: core, eventAbi: ABI.bought }),
     options.getLogs({ target: core, eventAbi: ABI.sold }),
   ]);
 
-  const routerSwapLogs = await Promise.all(
-    (ROUTER_CONTRACTS[options.chain] ?? []).map((target) =>
-      options.getLogs({ target, eventAbi: ABI.routerSwap }).catch(() => []),
-    ),
-  );
+  // Volume is the gross base-token leg of each trade, fees included, on both sides: a buy
+  // pays amountIn gross and the curve withholds its fees from it, whereas a sell's
+  // amountOut is already net, so the withheld shares are added back.
+  const trades = [
+    ...boughtLogs.map((log: any) => ({
+      memeToken: String(log.memeToken).toLowerCase(),
+      amount: BigInt(log.amountIn),
+    })),
+    ...soldLogs.map((log: any) => ({
+      memeToken: String(log.memeToken).toLowerCase(),
+      amount:
+        BigInt(log.amountOut) +
+        BigInt(log.amountOwnerFee) +
+        BigInt(log.amountSubBoardFee) +
+        BigInt(log.amountMemeTokenOwnerFee),
+    })),
+  ];
 
-  routerSwapLogs.flat().forEach((log: any) => {
-    const firstRoute = log.descs?.[0] ?? log[5]?.[0];
-    const routeHook = toAddress(firstRoute?.hooks ?? firstRoute?.[6]);
-    const allowedHooks = FLASH_HOOKS[options.chain];
-    if (allowedHooks?.size && (!routeHook || !allowedHooks.has(routeHook))) return;
-    addRouteVolume(
-      options,
-      dailyVolume,
-      toAddress(firstRoute?.tokenIn ?? firstRoute?.[1]),
-      toBigInt(log.amountIn ?? log[3] ?? 0),
-      toAddress(firstRoute?.tokenOut ?? firstRoute?.[2]),
-      toBigInt(log.amountOut ?? log[4] ?? 0),
-    );
+  const baseTokens = await getBaseTokens(options, core, [...new Set(trades.map((t) => t.memeToken))]);
+
+  trades.forEach(({ memeToken, amount }) => {
+    const baseToken = baseTokens[memeToken];
+    if (baseToken === ZERO_ADDRESS) dailyVolume.addGasToken(amount);
+    else dailyVolume.add(baseToken, amount);
   });
-
-  buyLogs.forEach((log: any) => {
-    dailyVolume.addGasToken(log.amountIn ?? log[3] ?? "0");
-  });
-
-  sellLogs.forEach((log: any) => {
-    const amountOut = toBigInt(log.amountOut ?? log[3] ?? 0);
-    const ownerFee = toBigInt(log.amountOwnerFee ?? log[4] ?? 0);
-    const subBoardFee = toBigInt(log.amountSubBoardFee ?? log[5] ?? 0);
-    const memeOwnerFee = toBigInt(log.amountMemeTokenOwnerFee ?? log[6] ?? 0);
-    dailyVolume.addGasToken(amountOut + ownerFee + subBoardFee + memeOwnerFee);
-  });
-
-  const [flashV3Created, flashV4Created, finalizedV3, finalizedV4, routerAllowed] = await Promise.all([
-    options.getLogs({ target: core, eventAbi: ABI.flashV3Created, fromBlock: discoveryFromBlock, cacheInCloud: true }),
-    options.getLogs({ target: core, eventAbi: ABI.flashV4Created, fromBlock: discoveryFromBlock, cacheInCloud: true }).catch(() => []),
-    options.getLogs({ target: core, eventAbi: ABI.finalizedV3, fromBlock: discoveryFromBlock, cacheInCloud: true }),
-    options.getLogs({ target: core, eventAbi: ABI.finalizedV4, fromBlock: discoveryFromBlock, cacheInCloud: true }),
-    options.getLogs({ target: core, eventAbi: ABI.routerAllowed, fromBlock: discoveryFromBlock, cacheInCloud: true }),
-  ]);
-
-  const v3Pools = new Set<string>();
-  const v4PoolKeys: Array<{ token: string; positionManager: string; baseToken: string | undefined; fee: bigint; tickSpacing: bigint; hooks: string | undefined }> = [];
-
-  flashV3Created.forEach((log: any) => {
-    const pool = toAddress(log?.flashLaunchV3Pool?.pool ?? log?.[2]?.pool);
-    if (pool) v3Pools.add(pool);
-  });
-  finalizedV3.forEach((log: any) => {
-    const pair = toAddress(log?.pair ?? log?.[5]);
-    if (pair) v3Pools.add(pair);
-  });
-
-  flashV4Created.forEach((log: any) => {
-    const token = toAddress(log?.token ?? log?.[0]);
-    const positionManager = toAddress(log?.poolInitialData?.positionManager ?? log?.[1]?.positionManager);
-    if (!token || !positionManager) return;
-    v4PoolKeys.push({
-      token,
-      positionManager,
-      baseToken: toAddress(log?.poolInitialData?.baseToken ?? log?.[1]?.baseToken) ?? ZERO_ADDRESS,
-      fee: toBigInt(log?.poolInitialData?.feeTier ?? log?.[1]?.feeTier ?? 0),
-      tickSpacing: BigInt(FLASH_V4_TICK_SPACING),
-      hooks: toAddress(log?.flashLaunchV4Pool?.hooks ?? log?.[2]?.hooks),
-    });
-  });
-  finalizedV4.forEach((log: any) => {
-    const token = toAddress(log?.memeToken ?? log?.[0]);
-    const positionManager = toAddress(log?.positionManager ?? log?.[1]);
-    if (!token || !positionManager) return;
-    v4PoolKeys.push({
-      token,
-      positionManager,
-      baseToken: ZERO_ADDRESS,
-      fee: toBigInt(log?.fee ?? log?.[3] ?? 0),
-      tickSpacing: toBigInt(log?.tickSpacing ?? log?.[4] ?? FLASH_V4_TICK_SPACING),
-      hooks: toAddress(log?.hooks ?? log?.[5]),
-    });
-  });
-
-  if (v3Pools.size) {
-    const pools = [...v3Pools];
-    const [token0s, token1s] = await Promise.all([
-      options.api.multiCall({ abi: ABI.token0, calls: pools, permitFailure: true }),
-      options.api.multiCall({ abi: ABI.token1, calls: pools, permitFailure: true }),
-    ]);
-
-    const tokenMap: Record<string, { token0: string; token1: string }> = {};
-    pools.forEach((pool, i) => {
-      const token0 = toAddress(token0s[i]);
-      const token1 = toAddress(token1s[i]);
-      if (token0 && token1) tokenMap[pool] = { token0, token1 };
-    });
-
-    await Promise.all(
-      pools.map(async (pool) => {
-        const poolTokens = tokenMap[pool];
-        if (!poolTokens) return;
-
-        const logs = await options.getLogs({ target: pool, eventAbi: ABI.v3Swap });
-        logs.forEach((log: any) => {
-          addRouteVolume(
-            options,
-            dailyVolume,
-            poolTokens.token0,
-            toBigInt(log.amount0 ?? log[2] ?? 0),
-            poolTokens.token1,
-            toBigInt(log.amount1 ?? log[3] ?? 0),
-          );
-        });
-      }),
-    );
-  }
-
-  type PoolManagerMeta = { poolManager: string; dexType: "uniV4" | "pcs" };
-  const managerByPositionManager: Record<string, PoolManagerMeta> = {};
-  Object.assign(managerByPositionManager, FALLBACK_POSITION_MANAGERS[options.chain] ?? {});
-  routerAllowed.forEach((log: any) => {
-    const positionManager = toAddress(log?.routerOrPositionManager ?? log?.[0]);
-    const isAllowed = Number(log?.isAllowed ?? log?.[1] ?? 0);
-    const poolManager = toAddress(log?.poolManager ?? log?.[2]);
-    if (!positionManager || !poolManager) return;
-    if (isAllowed === 4) managerByPositionManager[positionManager] = { poolManager, dexType: "uniV4" };
-    if (isAllowed === 14) managerByPositionManager[positionManager] = { poolManager, dexType: "pcs" };
-  });
-
-  const poolInfoById: Record<string, { token0: string; token1: string; poolManager: string; dexType: "uniV4" | "pcs" }> = {};
-
-  v4PoolKeys.forEach(({ token, positionManager, baseToken, fee, tickSpacing, hooks }) => {
-    const meta = managerByPositionManager[positionManager];
-    if (!meta || meta.dexType !== "uniV4") return;
-    const poolKey = computeUniV4PoolId(token, baseToken, fee, tickSpacing, hooks);
-    poolInfoById[poolKey.poolId] = {
-      token0: poolKey.token0,
-      token1: poolKey.token1,
-      poolManager: meta.poolManager,
-      dexType: meta.dexType,
-    };
-  });
-  const v4PoolGroups: Record<string, Set<string>> = {};
-  Object.entries(poolInfoById).forEach(([poolId, info]) => {
-    const key = `${info.poolManager}:${info.dexType}`;
-    if (!v4PoolGroups[key]) v4PoolGroups[key] = new Set();
-    v4PoolGroups[key].add(poolId);
-  });
-
-  await Promise.all(
-    Object.entries(v4PoolGroups).map(async ([groupKey, ids]) => {
-      const [poolManager, dexType] = groupKey.split(":");
-      const topic0 = dexType === "pcs" ? SWAP_TOPIC_PCS : SWAP_TOPIC_V4;
-      const eventAbi = dexType === "pcs" ? ABI.pcsSwap : ABI.v4Swap;
-
-      await Promise.all(
-        [...ids].map(async (poolId) => {
-          const info = poolInfoById[poolId];
-          if (!info) return;
-          const logs = await options.getLogs({
-            target: poolManager,
-            topics: [topic0, poolId],
-            eventAbi,
-            fromBlock: Number(options.fromApi.block),
-            toBlock: Number(options.toApi.block),
-          });
-          logs.forEach((log: any) => {
-            addRouteVolume(
-              options,
-              dailyVolume,
-              info.token0,
-              toBigInt(log.amount0 ?? log[2] ?? 0),
-              info.token1,
-              toBigInt(log.amount1 ?? log[3] ?? 0),
-            );
-          });
-        }),
-      );
-    }),
-  );
 
   return { dailyVolume };
+};
+
+// BasedBid bonding-curve launchpad program on Solana.
+const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
+// Hardcoded admin wallet receiving the protocol fee share — excluded so fees are not
+// counted as trade principal.
+const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
+// Post-graduation DEX programs: transactions touching these are pool finalization or
+// LP fee claims, not bonding-curve trades (that volume belongs to Raydium/Meteora).
+const DEX_PROGRAMS = [
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C", // Raydium CPMM
+  "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK", // Raydium CLMM
+  "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG", // Meteora DAMM v2
+  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo", // Meteora DLMM
+];
+const BASE_MINTS = [
+  ADDRESSES.solana.SOL,
+  ADDRESSES.solana.USDC,
+  "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB", // USD1
+];
+
+// A bonding-curve buy moves the trade principal from the trader to the pool account
+// (plus smaller percentage fees to admin/sub-board/referrer wallets); a sell moves the
+// principal from the pool back to the trader. Per transaction the largest base-token
+// transfer that does not touch the admin fee wallet is the trade principal.
+const fetchSolana = async (options: FetchOptions) => {
+  const rows = await queryAllium(`
+    WITH program_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND success = true
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
+        ${DEX_PROGRAMS.map((p) => `AND NOT ARRAY_CONTAINS('${p}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))`).join("\n        ")}
+    ),
+    trade_amounts AS (
+      SELECT tr.txn_id, MAX(tr.usd_amount) AS trade_usd
+      FROM solana.assets.transfers tr
+      JOIN program_txs p ON p.txn_id = tr.txn_id
+      WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND tr.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND tr.mint IN (${BASE_MINTS.map((m) => `'${m}'`).join(", ")})
+        AND tr.to_address != '${SOLANA_FEE_WALLET}'
+        AND tr.from_address != '${SOLANA_FEE_WALLET}'
+        AND tr.to_address != tr.from_address
+      GROUP BY tr.txn_id
+    )
+    SELECT COALESCE(SUM(trade_usd), 0) AS daily_volume FROM trade_amounts
+    `
+  )
+
+  return { dailyVolume: Number(rows[0].daily_volume) };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {},
+  fetch: fetchEVM,
+  dependencies: [Dependencies.ALLIUM],
+  adapter: {
+    ...chainConfig,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: "2025-12-24",
+    },
+  },
   methodology: {
     Volume:
-      "Sum of bonding-curve trade notional (Bought/Sold) plus swap notional across BasedBid FlashLaunch V3/V4 and finalized liquidity pools.",
+      "Bonding-curve trade volume on BasedBid. On EVM chains it is the base-token leg of every Bought and Sold event emitted by the core diamond's TradeFacet — the base token paid in on a buy and paid out on a sell — priced in the base token configured for each meme token (native coin or ERC20). On Solana it is, per trade, the base-token (SOL/USDC/USD1) amount moved between the trader and the bonding-curve pool. Post-graduation trading is excluded on both: the curve stops emitting once a token lists, and that volume belongs to the DEX it graduated to.",
   },
 };
-
-Object.entries(chainConfig).forEach(([chain, config]) => {
-  (adapter.adapter as BaseAdapter)[chain] = {
-    start: config.start,
-    fetch,
-  };
-});
 
 export default adapter;
