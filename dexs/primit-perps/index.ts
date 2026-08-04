@@ -30,6 +30,8 @@ const methodology = {
     "100% of trading fees collected on Primit-native pairs accrue to the protocol. No LP or affiliate revenue share is applied to this pair set, so Revenue equals Fees.",
   ProtocolRevenue:
     "Same as Revenue. All protocol-native trading fees stay with the protocol.",
+  SupplySideRevenue:
+    "Zero. Primit-native pairs are not backed by an external liquidity-provider vault today — no maker rebate, no LP share, no affiliate share — so nothing from the fee stream accrues to a supply side. Preserves the DeFiLlama contract dailyFees = dailyRevenue + dailySupplySideRevenue.",
 };
 
 const SCALE_18 = 10n ** 18n;
@@ -82,6 +84,11 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    // 100% of fees are protocol revenue on Primit-native pairs today —
+    // no maker rebate, no LP vault, no affiliate share — so the supply
+    // side accrues nothing. Explicit 0 keeps the DeFiLlama contract
+    // dailyFees = dailyRevenue + dailySupplySideRevenue satisfied.
+    dailySupplySideRevenue: 0,
   };
 };
 
