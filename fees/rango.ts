@@ -4,27 +4,16 @@ import { CHAIN } from "../helpers/chains";
 const FeeEvent = "event FeeInfo(address token, address indexed affiliatorAddress, uint256 platformFee, uint256 destinationExecutorFee, uint256 affiliateFee, uint16 indexed dAppTag)";
 const FeeEventV2 = "event FeeInfo(address token, address indexed affiliatorAddress, uint256 affiliateFee, uint8 indexed feeType, uint16 indexed dAppTag)";
 
-const contractAddress = '0x69460570c93f9DE5E2edbC3052bf10125f0Ca22d';
-const differentAddress: Record<string, string> = {
-    [CHAIN.ZKSYNC]: '0x13598FD0986D0E33c402f6907F05Acf720224527', 
-    [CHAIN.BOBA]: '0xd9BdD77E9017C4727D3CdB87D91b7a0Fc7d63da4', 
-    [CHAIN.BOBA_BNB]: '0xd9BdD77E9017C4727D3CdB87D91b7a0Fc7d63da4',
-}
-
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
+    const target = chainConfig[options.chain].contractAddress ?? RANGO_DIAMOND;
+
     const [logs , logsV2] = await Promise.all([
-        options.getLogs({
-            target: differentAddress[options.chain] || contractAddress,
-            eventAbi: FeeEvent,
-        }),
-        options.getLogs({
-            target: differentAddress[options.chain] || contractAddress,
-            eventAbi: FeeEventV2,
-        })
+        options.getLogs({ target, eventAbi: FeeEvent }),
+        options.getLogs({ target, eventAbi: FeeEventV2 }),
     ]);
 
     logs.forEach((log: any) => {
@@ -54,26 +43,30 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const chainConfig: Record<string, { start: string }> = {
+// Rango V2 diamond, deployed at the same address on every chain except the
+// overrides below: https://docs.rango.exchange/smart-contracts/deployment-addresses
+const RANGO_DIAMOND = '0x69460570c93f9DE5E2edbC3052bf10125f0Ca22d';
+
+const chainConfig: Record<string, { start: string, contractAddress?: string }> = {
     [CHAIN.POLYGON]: { start: '2023-06-11' },
     [CHAIN.ARBITRUM]: { start: '2023-06-11' },
     [CHAIN.AVAX]: { start: '2023-06-11' },
-    [CHAIN.OPTIMISM]: { start: '2023-06-11' },       
-    [CHAIN.BSC]: { start: '2023-06-11' },           
-    [CHAIN.FANTOM]: { start: '2023-06-11' },         
-    [CHAIN.CRONOS]: { start: '2023-07-06' },         
-    [CHAIN.POLYGON_ZKEVM]: { start: '2023-06-11' },  
-    [CHAIN.BOBA_BNB]: { start: '2023-07-04' },       
-    [CHAIN.ZORA]: { start: '2024-12-02' },           
+    [CHAIN.OPTIMISM]: { start: '2023-06-11' },
+    [CHAIN.BSC]: { start: '2023-06-11' },
+    [CHAIN.FANTOM]: { start: '2023-06-11' },
+    [CHAIN.CRONOS]: { start: '2023-07-06' },
+    [CHAIN.POLYGON_ZKEVM]: { start: '2023-06-11' },
+    [CHAIN.BOBA_BNB]: { start: '2023-07-04', contractAddress: '0xd9BdD77E9017C4727D3CdB87D91b7a0Fc7d63da4' },
+    [CHAIN.ZORA]: { start: '2024-12-02' },
     [CHAIN.ETHEREUM]: { start: '2023-06-17' },
     [CHAIN.MOONBEAM]: { start: '2023-07-01' },
     [CHAIN.MOONRIVER]: { start: '2023-07-02' },
     [CHAIN.AURORA]: { start: '2023-07-02' },
-    [CHAIN.BOBA]: { start: '2023-07-04' },
+    [CHAIN.BOBA]: { start: '2023-07-04', contractAddress: '0xd9BdD77E9017C4727D3CdB87D91b7a0Fc7d63da4' },
     [CHAIN.XDAI]: { start: '2023-07-04' },
     [CHAIN.LINEA]: { start: '2023-09-12' },
     [CHAIN.BASE]: { start: '2023-09-17' },
-    [CHAIN.ZKSYNC]: { start: '2023-09-19' },
+    [CHAIN.ERA]: { start: '2023-09-19', contractAddress: '0x13598FD0986D0E33c402f6907F05Acf720224527' },
     [CHAIN.SCROLL]: { start: '2024-01-29' },
     [CHAIN.CELO]: { start: '2024-05-01' },
     [CHAIN.BLAST]: { start: '2024-05-07' },
