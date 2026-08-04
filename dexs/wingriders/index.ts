@@ -12,7 +12,10 @@ async function fetch(options: FetchOptions) {
   const data = await fetchURL(url);
 
   const adaAmount = (key: string): number => {
-    const value = Number(data[key]);
+    const raw = data[key];
+    const value = typeof raw === 'number' ? raw
+      : typeof raw === 'string' && raw.trim() !== '' ? Number(raw)
+        : NaN;
     if (!Number.isFinite(value))
       throw new Error(`WingRiders ${url}: '${key}' missing or non-numeric -> ${JSON.stringify(data)}`);
     return value;
