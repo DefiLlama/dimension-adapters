@@ -183,7 +183,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
+    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, plus marketplace and P2P trade settlement volume.",
   Fees:
     "Onchain USDC collected by DYLI contracts and payment wallets after subtracting vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
