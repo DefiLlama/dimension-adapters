@@ -1,74 +1,53 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-
-import {
-  analyticsEndpoint
-} from "../options/hegic";
-import fetchURL from "../utils/fetchURL";
-
-interface HegicPosition {
-  isActive: boolean;
-  closeDate: string | null;
-  premiumPaid: number;
-  payOff: number;
-}
-
-
-function dateStringToTimestamp(dateString: string) {
-  return new Date(dateString).getTime() / 1000;
-}
+import { loadPositions, getDailyPayoffs, USDCE, HEGIC_HERGE_START } from "../options/hegic";
 
 async function fetch(options: FetchOptions): Promise<FetchResultFees> {
-  const dailyFees = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const data = await fetchURL(analyticsEndpoint)
-  const dayData = data.positions.filter((position: HegicPosition) => {
-    if (!position.closeDate) return false
-    const closeDate = dateStringToTimestamp(position.closeDate)
-    return !position.isActive && closeDate >= options.startTimestamp && closeDate <= options.endTimestamp
-  })
-  dailyFees.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.premiumPaid), 0), "Options premiums")
-  dailySupplySideRevenue.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.payOff), 0), "Options payoffs")
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums")
+  const positions = await loadPositions(options);
+
+  const dailyFees = options.createBalances();
+  for (const p of positions) dailyFees.add(USDCE, p.premium, "Options premiums");
+
+  const dailySupplySideRevenue = await getDailyPayoffs(options);
+
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums");
 
   return {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue
+    dailyHoldersRevenue: dailyRevenue,
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   methodology: {
-    Fees: 'All premiums paid by users to purchase options and strategies on Hegic.',
-    SupplySideRevenue: 'Payoffs paid out to options holders who exercised their contracts.',
-    Revenue: 'Net premiums retained by the Hegic Stake & Cover pool (premiums minus payoffs).',
-    HoldersRevenue: '100% of net premiums distributed pro-rata to HEGIC Stake & Cover pool participants.',
+    Fees: "Premiums paid by users to buy options/strategies, recognised when the option is bought. For inverse (option-selling) strategies the premium is the option's fair value, not the net collateral transferred in.",
+    SupplySideRevenue: "Payoffs the Stake & Cover pool pays out when options are exercised in-the-money. Inverse-strategy payoffs return the seller's collateral and are excluded.",
+    Revenue: "Net premiums retained by the Hegic Stake & Cover pool (premiums collected minus payoffs paid out).",
+    HoldersRevenue: "100% of net premiums accrue to HEGIC Stake & Cover pool participants.",
   },
   breakdownMethodology: {
     Fees: {
-      'Options premiums': 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
+      "Options premiums": "Option premiums paid by users across calls, puts, and option strategies.",
     },
     SupplySideRevenue: {
-      'Options payoffs': 'Payoffs paid out to options holders who exercised their contracts.',
+      "Options payoffs": "Payoffs paid to holders who exercised standard options in-the-money.",
     },
     Revenue: {
-      'Options premiums': 'Net premiums retained by the Hegic Stake & Cover pool after paying out exercised options.',
+      "Options premiums": "Net premiums retained by the Stake & Cover pool after paying out exercised options.",
     },
     HoldersRevenue: {
-      'Options premiums': '100% of net premiums distributed to HEGIC Stake & Cover pool participants.',
-
+      "Options premiums": "Net premiums distributed to HEGIC Stake & Cover pool participants.",
     },
   },
-  allowNegativeValue: true, // payoffs can exceed premiums paid
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: "2022-10-25",
-    },
-  },
+  allowNegativeValue: true, // payoffs can exceed same-day premiums
+  chains: [CHAIN.ARBITRUM],
+  fetch,
+  start: HEGIC_HERGE_START,
+  pullHourly: true,
 };
 
 export default adapter;
