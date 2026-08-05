@@ -6,10 +6,8 @@ import { CHAIN } from "../../helpers/chains";
 // Every fill matched on Primit's own engine is emitted as a `TradeRecorded`
 // event by our TradeRecorder contract. This adapter walks the day's event
 // range and sums `price * amount` (both 1e18 fixed-point) to derive daily
-// USD notional, then applies the protocol's flat 4 bps trading fee to
-// report fees and revenue. No off-chain data source — anything DeFiLlama
-// shows for Primit is independently reconstructable from AVAX C-Chain
-// event logs.
+// USD notional. Fees are taken from the event's fee fields rather than a
+// fixed schedule because Primit supports account-specific maker/taker rates.
 //
 // Volume routed through Orderly Network (BTC/ETH/etc) is attributed
 // separately by DeFiLlama's factory/orderly.ts under broker_id=primit
@@ -25,18 +23,10 @@ const methodology = {
   Volume:
     "Sum of `price * amount` for every TradeRecorded event emitted by Primit's TradeRecorder contract (0xC005A9bb11f162329f3EfCCc35F69F9Bb635EeC6 on Avalanche C-Chain) during the UTC day, excluding self-trades where taker == maker. Both `price` and `amount` are 1e18 fixed-point, so the product is scaled by 1e36 and normalized down to floating USD before returning. Data is 100% reconstructable on-chain — no dependency on any Primit-operated HTTP endpoint. Volume routed through Orderly Network (BTC/ETH/etc via broker_id=primit) is attributed separately by factory/orderly.ts and NOT double-counted here.",
   Fees:
-    "Flat 4 bps (0.04%) trading fee applied to daily USD volume matched on Primit's own engine. Computed as `dailyVolume * 4 / 10000` on the same volume figure derived above.",
-  Revenue:
-    "100% of trading fees collected on Primit-native pairs accrue to the protocol. No LP or affiliate revenue share is applied to this pair set, so Revenue equals Fees.",
-  ProtocolRevenue:
-    "Same as Revenue. All protocol-native trading fees stay with the protocol.",
-  SupplySideRevenue:
-    "Zero. Primit-native pairs are not backed by an external liquidity-provider vault today — no maker rebate, no LP share, no affiliate share — so nothing from the fee stream accrues to a supply side. Preserves the DeFiLlama contract dailyFees = dailyRevenue + dailySupplySideRevenue.",
+    "Sum of positive `takerFee` and `makerFee` amounts emitted in each TradeRecorded event. Negative fee values are fee adjustments and are not added to user-paid trading fees. This uses the per-fill fee values, which capture Primit's account-specific rates and discounts.",
 };
 
 const SCALE_18 = 10n ** 18n;
-const FEE_RATE_BPS = 4n;
-const BPS_DENOM = 10_000n;
 
 const fetch = async (options: FetchOptions) => {
   const logs: any[] = await options.getLogs({
@@ -47,6 +37,7 @@ const fetch = async (options: FetchOptions) => {
   // Accumulate as bigint in 1e18 fixed-point USD. price * amount is 1e36
   // fixed-point, so /1e18 keeps it at 1e18.
   let totalWeiUsd: bigint = 0n;
+  let totalFeesWeiUsd: bigint = 0n;
   for (const log of logs) {
     // Defense in depth: skip self-trades (backend also filters, but the
     // adapter shouldn't trust off-chain filtering when the reviewer can
@@ -57,6 +48,13 @@ const fetch = async (options: FetchOptions) => {
     const price = BigInt(log.price.toString());
     const amount = BigInt(log.amount.toString());
     totalWeiUsd += (price * amount) / SCALE_18;
+
+    // Primit emits the actual fee for each fill. Do not derive fees from a
+    // nominal rate: maker/taker rates can vary by account and discount.
+    const takerFee = BigInt(log.takerFee.toString());
+    const makerFee = BigInt(log.makerFee.toString());
+    if (takerFee > 0n) totalFeesWeiUsd += takerFee;
+    if (makerFee > 0n) totalFeesWeiUsd += makerFee;
   }
 
   // Convert bigint → float in two parts to avoid Number precision loss.
@@ -70,25 +68,11 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyVolume = toUsdFloat(totalWeiUsd);
 
-  // Apply flat 4 bps trading fee to the same wei-USD volume figure.
-  // Perform the multiplication in bigint before normalizing to Number to
-  // avoid a second precision loss.
-  const feesWeiUsd = (totalWeiUsd * FEE_RATE_BPS) / BPS_DENOM;
-  const dailyFees = toUsdFloat(feesWeiUsd);
-  // 100% of fees are protocol revenue (no LP / affiliate share on
-  // Primit-native pairs today).
-  const dailyRevenue = dailyFees;
+  const dailyFees = toUsdFloat(totalFeesWeiUsd);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    // 100% of fees are protocol revenue on Primit-native pairs today —
-    // no maker rebate, no LP vault, no affiliate share — so the supply
-    // side accrues nothing. Explicit 0 keeps the DeFiLlama contract
-    // dailyFees = dailyRevenue + dailySupplySideRevenue satisfied.
-    dailySupplySideRevenue: 0,
   };
 };
 
