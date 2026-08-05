@@ -48,6 +48,7 @@ const getBaseTokens = async (options: FetchOptions, core: string, memeTokens: st
   });
 
   results.forEach((data: any, i: number) => {
+    if (!data) return;
     const baseToken = data?.initialData?.baseTokenForPair;
     // A failed or undecodable read falls back to the native coin, which is the base token
     // for the overwhelming majority of launches.
