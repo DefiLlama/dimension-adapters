@@ -13,7 +13,8 @@ const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
 const MARKETPLACE = "0xC74d5002c10c13D2ad258B4584690829387f84dC";
 const TRADING = "0x7627994b4B2d56A05cb2978b813cA0E1ccB22f97";
 const PLATFORM_WALLET = "0xfB1302F5D6c5F107a0715b8Ce7303D1e3C647807";
-// DYLI vault/warehouse payment wallet from production ops; counts external service-fee inflows and excludes internal sweeps.
+// DYLI vault/warehouse payment wallet; counts external service-fee inflows and excludes internal sweeps.
+// Source: https://abscan.org/address/0x04eaa73b518783010a5A5dc471eEa89C4C34eF44
 const VAULT_PAYMENT_WALLET = "0x04eaa73b518783010a5A5dc471eEa89C4C34eF44";
 
 const VENDING_MACHINES = [
