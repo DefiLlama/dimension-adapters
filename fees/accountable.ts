@@ -209,54 +209,13 @@ const fetch = async (options: FetchOptions) => {
     if (protocol > 0n) dailyProtocolRevenue.add(token, protocol, PROTOCOL);
   };
 
-  const legacy = lending.filter(
-    (i) => npStart[i] === null || npEnd[i] === null,
-  );
-  const rebuilt: Record<string, { start: bigint; end: bigint }> = {};
-
-  if (legacy.length) {
-    const targets = legacy.map((i) => strategies[i]);
-    const startBlock = await options.getFromBlock();
-    const toBlock = await options.getToBlock();
-    const [borrows, repays] = await Promise.all([
-      options.getLogs({
-        targets,
-        eventAbi: abis.borrowed,
-        fromBlock: FIRST_BLOCK[options.chain] || 1,
-        toBlock,
-        entireLog: true,
-        parseLog: true,
-      }),
-      options.getLogs({
-        targets,
-        eventAbi: abis.loanRepaid,
-        fromBlock: FIRST_BLOCK[options.chain] || 1,
-        toBlock,
-        entireLog: true,
-        parseLog: true,
-      }),
-    ]);
-
-    for (const i of legacy) rebuilt[strategies[i]] = { start: 0n, end: 0n };
-    const apply = (logs: any[], sign: bigint) => {
-      for (const log of logs || []) {
-        const slot = rebuilt[log.address.toLowerCase()];
-        if (!slot) continue;
-        const v = sign * BigInt(log.args.assets);
-        slot.end += v;
-        if (Number(log.blockNumber) <= startBlock) slot.start += v;
-      }
-    };
-    apply(borrows, 1n);
-    apply(repays, -1n);
-  }
-
-  const drawn = (i: number, np: any, atStart: boolean) => {
+  const drawn = (np: any, loan: any, sf: any) => {
     if (np !== null && np !== undefined) return big(np);
-    const slot = rebuilt[strategies[i]];
-    if (!slot) return 0n;
-    const v = atStart ? slot.start : slot.end;
-    return v > 0n ? v : 0n;
+    if (!loan) return 0n;
+    const scaled = big(loan.outstandingPrincipal);
+    const index = big(sf);
+    if (index <= PRECISION) return scaled;
+    return (scaled * (PRECISION + index)) / (2n * PRECISION);
   };
 
   const elapsed = BigInt(
@@ -292,7 +251,9 @@ const fetch = async (options: FetchOptions) => {
   const active = lending
     .map((i) => {
       const base =
-        (drawn(i, npStart[i], true) + drawn(i, npEnd[i], false)) / 2n;
+        (drawn(npStart[i], loansStart[i], sfStart[i]) +
+          drawn(npEnd[i], loansEnd[i], sfEnd[i])) /
+        2n;
       const previews =
         sfStart[i] !== null && npStart[i] !== null && npEnd[i] !== null;
       const interest = previews
