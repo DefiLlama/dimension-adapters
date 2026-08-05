@@ -29,6 +29,11 @@ const FACTORIES: Record<string, string[]> = {
     "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
     "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
   ],
+  [CHAIN.ROBINHOOD]: [
+    "0x017273Eeb06Ee9f863020269417DB9559FD94173",
+    "0x474B612F970491801743BF0e4B9153620FC36096",
+    "0xA4d6a4aD35fc632aEE1dC48A2aEc2aaa37B51F9f",
+  ],
 };
 
 // aHYPER Looping Vault (vault 0x23b148d8f389C5821739381f1FF87bB7e1162566) is
@@ -66,9 +71,9 @@ const abis = {
 
 const PRECISION = 10n ** 36n;
 const BASIS_POINTS = 1_000_000n;
-const DEPOSITORS = "Borrow Interest To Depositors";
-const MANAGER = "Performance Fee To Vault Manager";
-const PROTOCOL = "Performance Fee To Protocol";
+const DEPOSITORS = "Earnings To Depositors";
+const MANAGER = "Fees To Vault Manager";
+const PROTOCOL = "Fees To Protocol";
 
 const big = (v: any) => (v === null || v === undefined ? 0n : BigInt(v));
 
@@ -480,7 +485,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Value earned by Accountable vaults over the day, read on chain: for credit vaults the interest accrued by borrowers, for NAV vaults the increase in share price plus the fee shares minted out of it.",
+  Fees: "Value earned by Accountable vaults over the day, read on chain: for credit vaults the interest accrued by borrowers, for NAV, looping and fixed-term vaults the increase in share price plus the fee shares minted out of it.",
   Revenue:
     "The Accountable protocol's share of the performance and management fees.",
   ProtocolRevenue:
@@ -494,20 +499,21 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]:
       "Interest accrued by borrowers on drawn credit vault capital, before fees are taken out of it.",
     [METRIC.ASSETS_YIELDS]:
-      "Yield accrued by NAV and looping vaults, measured as share price appreciation, before fees are taken out of it.",
+      "Yield accrued by NAV, looping and fixed-term vaults, measured as share price appreciation, before fees are taken out of it.",
   },
   Revenue: {
     [PROTOCOL]:
-      "The Accountable protocol's share of the fees charged on vault earnings.",
+      "The Accountable protocol's share of the performance and management fees charged on vault earnings.",
   },
   ProtocolRevenue: {
     [PROTOCOL]:
-      "The Accountable protocol's share of the fees charged on vault earnings.",
+      "The Accountable protocol's share of the performance and management fees charged on vault earnings.",
   },
   SupplySideRevenue: {
-    [DEPOSITORS]: "Earnings distributed to vault depositors, net of fees.",
+    [DEPOSITORS]:
+      "Borrow interest or vault yield distributed to depositors, net of fees.",
     [MANAGER]:
-      "The vault manager's share of the fees. The manager is an external party running the strategy, so this is a cost of funds rather than protocol revenue.",
+      "The vault manager's share of the performance and management fees. The manager is an external party running the strategy, so this is a cost of funds rather than protocol revenue.",
   },
 };
 
@@ -524,6 +530,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: "2026-01-16" },
     [CHAIN.BASE]: { start: "2026-04-23" },
     [CHAIN.ARBITRUM]: { start: "2026-05-19" },
+    [CHAIN.ROBINHOOD]: { start: "2026-07-23" },
   },
   methodology,
   breakdownMethodology,
