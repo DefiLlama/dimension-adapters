@@ -11,18 +11,44 @@ const PROTOCOL_FEE_RATIO = 0.01;
 
 type StatsApiResponse = {
   data: {
+    timestamp: number;
     volume24: { value: number; };
     fees24: { value: number; };
   };
 };
 
-const fetch = async (fullSnapEndpoint: string): Promise<FetchResult> => {
+// the interval snapshot stamps the day it covers and used to advance daily,
+// so anything older than two days is a stale snapshot rather than a fresh one
+const MAX_SNAPSHOT_AGE = 2 * 24 * 60 * 60;
+
+const fetch = async (
+  fullSnapEndpoint: string,
+  options: FetchOptions
+): Promise<FetchResult> => {
   const fullSnapResponse = await axios.get<any, StatsApiResponse>(
     fullSnapEndpoint
   );
-  const dailyFees = fullSnapResponse.data.fees24.value;
+
+  const dailyVolume = Number(fullSnapResponse.data.volume24?.value);
+  const dailyFees = Number(fullSnapResponse.data.fees24?.value);
+  const snapshotTimestamp = Number(fullSnapResponse.data.timestamp);
+  if (
+    !Number.isFinite(dailyVolume) ||
+    !Number.isFinite(dailyFees) ||
+    !Number.isFinite(snapshotTimestamp)
+  )
+    throw new Error(
+      `invariant: unreadable stats snapshot from ${fullSnapEndpoint}`
+    );
+
+  const snapshotAge = options.endTimestamp - snapshotTimestamp / 1000;
+  if (snapshotAge > MAX_SNAPSHOT_AGE)
+    throw new Error(
+      `invariant: ${fullSnapEndpoint} last advanced ${Math.floor(snapshotAge / 86400)} days ago (timestamp ${new Date(snapshotTimestamp).toISOString()}), its 24h figures are not current`
+    );
+
   return {
-    dailyVolume: fullSnapResponse.data.volume24.value,
+    dailyVolume,
     dailyFees,
     dailySupplySideRevenue: dailyFees * (1 - PROTOCOL_FEE_RATIO),
     dailyRevenue: dailyFees * PROTOCOL_FEE_RATIO,
@@ -30,12 +56,12 @@ const fetch = async (fullSnapEndpoint: string): Promise<FetchResult> => {
   };
 };
 
-const fetchSolana = async (_options: FetchOptions) => {
-  return fetch(solanaStatsApiEndpoint);
+const fetchSolana = async (options: FetchOptions) => {
+  return fetch(solanaStatsApiEndpoint, options);
 };
 
-const fetchEclipse = async (_options: FetchOptions) => {
-  return fetch(eclipseStatsApiEndpoint);
+const fetchEclipse = async (options: FetchOptions) => {
+  return fetch(eclipseStatsApiEndpoint, options);
 };
 
 const adapter: SimpleAdapter = {
