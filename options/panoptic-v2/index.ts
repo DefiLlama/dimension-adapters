@@ -5,19 +5,30 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getLegNotionalAmount, PanopticLeg } from "./notional";
 
+// Panoptic V2 indexed on-chain activity API.
 const SUBGRAPH_URL =
   "https://api.goldsky.com/api/public/project_cl9gc21q105380hxuh8ks53k3/subgraphs/panoptic-subgraph-mainnet/v2_prod/gn";
+// Panoptic /info historical accrued-premium API.
 const PREMIUM_ENDPOINT = "https://app.panoptic.xyz/data/info-streamia-snapshot";
+// The Graph caps collection queries at 1,000 entities, after which they must be paginated:
+// https://thegraph.com/docs/en/subgraphs/developing/developer-faq/#is-there-a-limit-to-how-many-objects-the-graph-can-return-per-query
 const PAGE_SIZE = 1000;
+const OPTION_NOTIONAL = "Option Mint and Burn Notional";
+const STREAMING_PREMIUM = "Accrued Streaming Premium";
 const PROTOCOL_COMMISSION_FEES = "Protocol Option Commissions";
 const BUILDER_COMMISSION_FEES = "Builder Option Commissions";
 const PROTOCOL_COMMISSION_REVENUE = "Protocol Option Commissions To Treasury";
 const BUILDER_COMMISSION_REVENUE = "Builder Option Commissions To Protocol";
 
 const DAILY_ACTIVITY_QUERY = gql`
-  query DailyActivity($startTimestamp: BigInt!, $endTimestamp: BigInt!, $skip: Int!) {
+  query DailyActivity(
+    $startTimestamp: BigInt!
+    $endTimestamp: BigInt!
+    $pageSize: Int!
+    $skip: Int!
+  ) {
     optionMints(
-      first: 1000
+      first: $pageSize
       skip: $skip
       orderBy: timestamp
       orderDirection: asc
@@ -44,7 +55,7 @@ const DAILY_ACTIVITY_QUERY = gql`
       }
     }
     optionBurns(
-      first: 1000
+      first: $pageSize
       skip: $skip
       orderBy: timestamp
       orderDirection: asc
@@ -71,7 +82,7 @@ const DAILY_ACTIVITY_QUERY = gql`
       }
     }
     commissionPaids(
-      first: 1000
+      first: $pageSize
       skip: $skip
       orderBy: timestamp
       orderDirection: asc
@@ -130,6 +141,7 @@ async function fetchActivityPages(options: FetchOptions): Promise<ActivityPage[]
     const page = await request<ActivityPage>(SUBGRAPH_URL, DAILY_ACTIVITY_QUERY, {
       startTimestamp: options.startTimestamp.toString(),
       endTimestamp: options.endTimestamp.toString(),
+      pageSize: PAGE_SIZE,
       skip,
     });
     pages.push(page);
@@ -173,8 +185,11 @@ async function fetch(options: FetchOptions) {
     fetchPremiumUsd(options.dateString),
   ]);
   const dailyNotionalVolume = options.createBalances();
+  const dailyPremiumVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+
+  dailyPremiumVolume.addUSDValue(premiumUsd, STREAMING_PREMIUM);
 
   for (const page of pages) {
     for (const event of [...page.optionMints, ...page.optionBurns]) {
@@ -185,7 +200,11 @@ async function fetch(options: FetchOptions) {
           BigInt(event.positionSize),
           BigInt(event.tokenId.pool.tickSpacing),
         );
-        dailyNotionalVolume.add(tokens[notional.tokenType], notional.amount);
+        dailyNotionalVolume.add(
+          tokens[notional.tokenType],
+          notional.amount,
+          OPTION_NOTIONAL,
+        );
       }
     }
 
@@ -203,7 +222,7 @@ async function fetch(options: FetchOptions) {
 
   return {
     dailyNotionalVolume,
-    dailyPremiumVolume: premiumUsd,
+    dailyPremiumVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
@@ -212,12 +231,9 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2026-04-06",
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: "2026-04-06",
   methodology: {
     NotionalVolume:
       "Gross underlying exposure of every Panoptic V2 option leg minted or burned. The raw token amounts use the same position-size and geometric-mean tick-range calculation as Panoptic's /info analytics and are valued by DefiLlama.",
@@ -231,6 +247,14 @@ const adapter: SimpleAdapter = {
       "All Panoptic V2 protocol and builder commissions currently controlled by the Panoptic protocol treasury.",
   },
   breakdownMethodology: {
+    NotionalVolume: {
+      [OPTION_NOTIONAL]:
+        "Gross underlying exposure of all Panoptic V2 option legs minted and burned.",
+    },
+    PremiumVolume: {
+      [STREAMING_PREMIUM]:
+        "Streaming premium accrued by Panoptic V2 positions during the UTC day.",
+    },
     Fees: {
       [PROTOCOL_COMMISSION_FEES]:
         "Option commission recorded on-chain as commissionPaidProtocol.",

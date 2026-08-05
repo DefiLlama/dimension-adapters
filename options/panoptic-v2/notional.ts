@@ -1,8 +1,23 @@
+/** Q64.96 fixed-point scale used for Uniswap V3 square-root prices. */
 const Q96 = 1n << 96n;
+/** Q128.128 scale used internally by Uniswap V3 TickMath ratio multiplication. */
 const Q128 = 1n << 128n;
+/** Scale removed when TickMath converts its Q128.128 ratio to Q64.96. */
+const Q32 = 1n << 32n;
+/** Largest uint256, used by TickMath to invert ratios for positive ticks. */
 const MAX_UINT256 = (1n << 256n) - 1n;
+/** Largest absolute tick supported by Uniswap V3 TickMath. */
 const MAX_TICK = 887272n;
+/** Least-significant absolute-tick bit, handled by TickMath's initial ratio. */
+const LOWEST_TICK_BIT = 0x1n;
+/** TickMath multiplier for the least-significant bit of the absolute tick. */
+const ODD_TICK_MULTIPLIER = 0xfffcb933bd6fad37aa2d162d1a594001n;
 
+/**
+ * Remaining absolute-tick bit masks and fixed-point multipliers, ported from
+ * Uniswap V3 TickMath.getSqrtRatioAtTick:
+ * https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol
+ */
 const TICK_MULTIPLIERS: ReadonlyArray<readonly [bigint, bigint]> = [
   [0x2n, 0xfff97272373d413259a46990580e213an],
   [0x4n, 0xfff2e50f5f656932ef12357cf3c7fdccn],
@@ -45,9 +60,9 @@ function getSqrtRatioAtTick(tick: bigint): bigint {
 
   const absoluteTick = tick < 0n ? -tick : tick;
   let ratio =
-    (absoluteTick & 0x1n) === 0n
+    (absoluteTick & LOWEST_TICK_BIT) === 0n
       ? Q128
-      : 0xfffcb933bd6fad37aa2d162d1a594001n;
+      : ODD_TICK_MULTIPLIER;
 
   for (const [mask, multiplier] of TICK_MULTIPLIERS) {
     if ((absoluteTick & mask) !== 0n) {
@@ -59,7 +74,7 @@ function getSqrtRatioAtTick(tick: bigint): bigint {
     ratio = MAX_UINT256 / ratio;
   }
 
-  return divideRoundingUp(ratio, 1n << 32n);
+  return divideRoundingUp(ratio, Q32);
 }
 
 function getLegTicks(strike: bigint, width: bigint, tickSpacing: bigint) {
