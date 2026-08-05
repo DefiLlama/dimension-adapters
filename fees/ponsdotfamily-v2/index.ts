@@ -210,7 +210,6 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   start: "2026-08-03"
-
 }
 
 export default adapter;
