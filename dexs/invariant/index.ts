@@ -17,9 +17,13 @@ type StatsApiResponse = {
   };
 };
 
+const SECONDS_PER_DAY = 24 * 60 * 60;
 // the interval snapshot stamps the day it covers and used to advance daily,
 // so anything older than two days is a stale snapshot rather than a fresh one
-const MAX_SNAPSHOT_AGE = 2 * 24 * 60 * 60;
+const MAX_SNAPSHOT_AGE = 2 * SECONDS_PER_DAY;
+
+const readNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
 
 const fetch = async (
   fullSnapEndpoint: string,
@@ -29,22 +33,24 @@ const fetch = async (
     fullSnapEndpoint
   );
 
-  const dailyVolume = Number(fullSnapResponse.data.volume24?.value);
-  const dailyFees = Number(fullSnapResponse.data.fees24?.value);
-  const snapshotTimestamp = Number(fullSnapResponse.data.timestamp);
+  const dailyVolume = readNumber(fullSnapResponse.data.volume24?.value);
+  const dailyFees = readNumber(fullSnapResponse.data.fees24?.value);
+  const snapshotTimestamp = readNumber(fullSnapResponse.data.timestamp);
   if (
-    !Number.isFinite(dailyVolume) ||
-    !Number.isFinite(dailyFees) ||
-    !Number.isFinite(snapshotTimestamp)
+    dailyVolume === null ||
+    dailyFees === null ||
+    snapshotTimestamp === null ||
+    dailyVolume < 0 ||
+    dailyFees < 0
   )
     throw new Error(
-      `invariant: unreadable stats snapshot from ${fullSnapEndpoint}`
+      `invariant: unreadable stats snapshot from ${fullSnapEndpoint} (volume24 ${JSON.stringify(fullSnapResponse.data.volume24?.value)}, fees24 ${JSON.stringify(fullSnapResponse.data.fees24?.value)}, timestamp ${JSON.stringify(fullSnapResponse.data.timestamp)})`
     );
 
   const snapshotAge = options.endTimestamp - snapshotTimestamp / 1000;
   if (snapshotAge > MAX_SNAPSHOT_AGE)
     throw new Error(
-      `invariant: ${fullSnapEndpoint} last advanced ${Math.floor(snapshotAge / 86400)} days ago (timestamp ${new Date(snapshotTimestamp).toISOString()}), its 24h figures are not current`
+      `invariant: ${fullSnapEndpoint} last advanced ${Math.floor(snapshotAge / SECONDS_PER_DAY)} days ago (timestamp ${new Date(snapshotTimestamp).toISOString()}), its 24h figures are not current`
     );
 
   return {
