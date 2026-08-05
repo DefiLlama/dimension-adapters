@@ -65,7 +65,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const processTradeLogs = (logs: any[]) => {
     logs.forEach((log) => {
-      const quoteToken = quoteTokens[log.token.toLowerCase()] ?? NATIVE_TOKEN;
+      const quoteToken = quoteTokens[log.token.toLowerCase()];
+      if(!quoteToken) return;
       if (quoteToken === NATIVE_TOKEN) {
         dailyVolume.addGasToken(log.eth);
         dailyFees.addGasToken(log.fee, BONDING_CURVE_FEES);
