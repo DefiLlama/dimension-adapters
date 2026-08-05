@@ -31,15 +31,11 @@ const FACTORIES: Record<string, string[]> = {
   ],
 };
 
+// aHYPER Looping Vault (vault 0x23b148d8f389C5821739381f1FF87bB7e1162566) is
+// EOA-deployed rather than created by a registered factory, so enumeration
+// cannot reach it. The TVL adapter carries the same exception.
 const EXTRA_STRATEGIES: Record<string, string[]> = {
   [CHAIN.MONAD]: ["0xE19b272b2fe4a54103A41F9B1c65dB3D2F6d886D"],
-};
-
-const FIRST_BLOCK: Record<string, number> = {
-  [CHAIN.MONAD]: 38219730,
-  [CHAIN.ETHEREUM]: 24243570,
-  [CHAIN.BASE]: 45056526,
-  [CHAIN.ARBITRUM]: 464280530,
 };
 
 const abis = {
@@ -199,10 +195,11 @@ const fetch = async (options: FetchOptions) => {
     interest: bigint,
     manager: bigint,
     protocol: bigint,
+    metric: string,
   ) => {
     if (interest <= 0n) return;
     const depositors = interest - manager - protocol;
-    dailyFees.add(token, interest, METRIC.BORROW_INTEREST);
+    dailyFees.add(token, interest, metric);
     if (depositors > 0n)
       dailySupplySideRevenue.add(token, depositors, DEPOSITORS);
     if (manager > 0n) dailySupplySideRevenue.add(token, manager, MANAGER);
@@ -304,7 +301,10 @@ const fetch = async (options: FetchOptions) => {
 
     active.forEach((a, k) => {
       const token = assets[k];
-      if (!token) return;
+      if (!token)
+        throw new Error(
+          `Accountable: could not read the asset of ${strategies[a.i]} on ${options.chain}`,
+        );
 
       const perfFee = (a.interest * big(perfFees[k])) / BASIS_POINTS;
       const mgmtFee =
@@ -321,7 +321,13 @@ const fetch = async (options: FetchOptions) => {
         (perfPart * perfSplit) / BASIS_POINTS +
         (mgmtPart * mgmtSplit) / BASIS_POINTS;
 
-      book(token, a.interest, manager, charged - manager);
+      book(
+        token,
+        a.interest,
+        manager,
+        charged - manager,
+        METRIC.BORROW_INTEREST,
+      );
     });
   }
 
@@ -434,7 +440,10 @@ const fetch = async (options: FetchOptions) => {
 
     priced.forEach((_, k) => {
       const token = assetAddrs[k];
-      if (!token) return;
+      if (!token)
+        throw new Error(
+          `Accountable: could not read the asset of ${strategies[priced[k]]} on ${options.chain}`,
+        );
       const depositors = big(closeAssets[k]) - big(openAssets[k]);
       const gross =
         (depositors > 0n ? depositors : 0n) +
@@ -444,7 +453,7 @@ const fetch = async (options: FetchOptions) => {
       const fee = (gross * big(pricedPerfFees[k])) / BASIS_POINTS;
       const split = big(pricedSplits[k] ?? pricedLegacySplits[k]);
       const manager = (fee * split) / BASIS_POINTS;
-      book(token, gross, manager, fee - manager);
+      book(token, gross, manager, fee - manager, METRIC.ASSETS_YIELDS);
     });
   }
 
@@ -470,7 +479,9 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]:
-      "Interest accrued by borrowers on drawn vault capital and yield accrued by NAV vaults, before fees are taken out of it.",
+      "Interest accrued by borrowers on drawn credit vault capital, before fees are taken out of it.",
+    [METRIC.ASSETS_YIELDS]:
+      "Yield accrued by NAV and looping vaults, measured as share price appreciation, before fees are taken out of it.",
   },
   Revenue: {
     [PROTOCOL]:
@@ -490,6 +501,11 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  // Vault value is read at the window boundaries and the accrual scales with the
+  // elapsed time, so an hourly window is arithmetically fine, but NAV vaults only
+  // reprice when the DVN publishes (median 24h), which would leave most hours at
+  // zero and spike the rest.
+  pullHourly: false,
   adapter: {
     [CHAIN.MONAD]: { start: "2025-11-27" },
     [CHAIN.ETHEREUM]: { start: "2026-01-16" },
