@@ -56,14 +56,14 @@ const breakdownMethodology = {
   },
   Revenue: {
     "Property Sale Fees to Protocol": "2% of the sale price of the property NFT.",
-    "Property Interest to Protocol": "Net interest earned on property NFTs realised during redemption.",
+    "Property Interest to Protocol": "10% of interest earned on property NFTs realised during redemption.",
   },
   ProtocolRevenue: {
     "Property Sale Fees to Protocol": "2% of the sale price of the property NFT.",
-    "Property Interest to Protocol": "Net interest earned on property NFTs realised during redemption.",
+    "Property Interest to Protocol": "10% of interest earned on property NFTs realised during redemption.",
   },
   SupplySideRevenue: {
-    "Property Interest to NFT Owners": "Net interest earned on property NFTs realised during redemption.",
+    "Property Interest to NFT Owners": "90% of interest earned on property NFTs realised during redemption.",
   },
 }
 
