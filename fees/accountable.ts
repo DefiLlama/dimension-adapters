@@ -1,107 +1,491 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { httpGet } from "../utils/fetchURL";
 
-// Accountable's public read-only endpoint serves one row per (date, chain),
-// already in USD. Citrea vaults are not covered, that chain is not indexed
-// upstream, so its fees are absent from these totals.
-const API_URL = "https://yield.accountable.capital/api/protocol/fees-daily";
+const FACTORIES: Record<string, string[]> = {
+  [CHAIN.MONAD]: [
+    "0x606556A6B544ecDcbf15aF73A63B67516dc16Ad7",
+    "0x8a5Caf00C3EB20aEC11Fc35C153a8601Cd127fEd",
+    "0x2f5CAc28cf80D465d7C8D67a49c8e36710a4B83B",
+    "0x4927Ce3402035b801A1bEdDC498b7fb2fe9eA181",
+    "0x9f1EB2be7b6a7e611c270bbdb0A3358786769518",
+  ],
+  [CHAIN.ETHEREUM]: [
+    "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
+    "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
+    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+  ],
+  [CHAIN.BASE]: [
+    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+  ],
+  [CHAIN.ARBITRUM]: [
+    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
+    "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
+  ],
+};
 
-interface FeeRow {
-  date: string; // YYYY-MM-DD, UTC
-  chain: string;
-  fees_usd: number;
-  supply_side_usd: number;
-  protocol_revenue_usd: number;
-  manager_revenue_usd?: number;
-}
+const EXTRA_STRATEGIES: Record<string, string[]> = {
+  [CHAIN.MONAD]: ["0xE19b272b2fe4a54103A41F9B1c65dB3D2F6d886D"],
+};
 
-// The endpoint returns the whole history on every call, so one in-flight request
-// serves every (chain, day) fetch. A failure is not memoized, otherwise one blip
-// would fail every remaining fetch in the run.
-let rowsPromise: Promise<FeeRow[]> | undefined;
-const getRows = (): Promise<FeeRow[]> => {
-  if (!rowsPromise)
-    rowsPromise = httpGet(API_URL).catch((e: any) => {
-      rowsPromise = undefined;
-      throw e;
-    });
-  return rowsPromise;
+const FIRST_BLOCK: Record<string, number> = {
+  [CHAIN.MONAD]: 38219730,
+  [CHAIN.ETHEREUM]: 24243570,
+  [CHAIN.BASE]: 45056526,
+  [CHAIN.ARBITRUM]: 464280530,
+};
+
+const abis = {
+  getStrategiesCount: "function getStrategiesCount() view returns (uint256)",
+  getStrategiesPaginated:
+    "function getStrategiesPaginated(uint256,uint256) view returns (address[])",
+  scaleFactor: "function scaleFactor() view returns (uint256)",
+  vault: "function vault() view returns (address)",
+  feeManager: "function feeManager() view returns (address)",
+  netPrincipal: "function netPrincipal() view returns (uint256)",
+  asset: "function asset() view returns (address)",
+  totalSupply: "function totalSupply() view returns (uint256)",
+  convertToAssets: "function convertToAssets(uint256) view returns (uint256)",
+  treasury: "function treasury() view returns (address)",
+  performanceFee: "function performanceFee(address) view returns (uint256)",
+  managementFee: "function managementFee(address) view returns (uint256)",
+  managerSplit: "function managerSplit(address,bool) view returns (uint256)",
+  managerSplitLegacy: "function managerSplit(address) view returns (uint256)",
+  delinquencyStartTime:
+    "function delinquencyStartTime() view returns (uint256)",
+  penaltiesEnabled: "function penaltiesEnabled() view returns (bool)",
+  loan: "function loan() view returns ((uint256 minDeposit,uint256 minRedeem,uint256 maxCapacity,uint256 minCapacity,uint256 reserveThreshold,uint256 outstandingPrincipal,uint256 outstandingInterest,uint256 drawableFunds,uint256 interestRate,uint256 lateInterestPenalty,uint256 claimableInterest,uint256 interestInterval,uint256 startTime,uint256 termsSetTime,uint256 termsUpdateTime,uint256 duration,uint256 depositPeriod,uint256 acceptGracePeriod,uint256 withdrawalPeriod,uint256 lateInterestGracePeriod))",
+  feeSharesMinted:
+    "event FeeSharesMinted(address indexed recipient, uint256 shares)",
+  borrowed: "event Borrowed(address indexed borrower, uint256 assets)",
+  loanRepaid: "event LoanRepaid(uint256 assets)",
+};
+
+const PRECISION = 10n ** 36n;
+const BASIS_POINTS = 1_000_000n;
+const DEPOSITORS = "Borrow Interest To Depositors";
+const MANAGER = "Performance Fee To Vault Manager";
+const PROTOCOL = "Performance Fee To Protocol";
+
+const big = (v: any) => (v === null || v === undefined ? 0n : BigInt(v));
+
+const listStrategies = async (api: any): Promise<string[]> => {
+  const factories = FACTORIES[api.chain] || [];
+  const counts = await api.multiCall({
+    abi: abis.getStrategiesCount,
+    calls: factories,
+    permitFailure: true,
+  });
+
+  if (factories.length && counts.every((c: any) => c === null))
+    throw new Error(
+      `Accountable: every factory call failed on ${api.chain}, refusing to report zero`,
+    );
+
+  const pages = factories
+    .map((target, i) => ({ target, count: Number(counts[i] || 0) }))
+    .filter((f) => f.count > 0)
+    .map((f) => ({ target: f.target, params: [0, f.count] }));
+
+  const lists = pages.length
+    ? await api.multiCall({
+        abi: abis.getStrategiesPaginated,
+        calls: pages,
+        permitFailure: true,
+      })
+    : [];
+
+  const seen = new Set<string>();
+  for (const list of lists)
+    for (const s of list || []) seen.add(s.toLowerCase());
+  for (const s of EXTRA_STRATEGIES[api.chain] || []) seen.add(s.toLowerCase());
+  return Array.from(seen);
 };
 
 const fetch = async (options: FetchOptions) => {
-  const rows = await getRows();
-  if (!Array.isArray(rows) || rows.length === 0)
-    throw new Error("Accountable fees endpoint returned no rows");
+  const { fromApi, toApi, createBalances } = options;
 
-  const row = rows.find(
-    (r) => r.date === options.dateString && r.chain === options.chain,
-  );
-
-  // Days with no accrual are filtered out upstream, so a gap inside the covered
-  // range is a genuine zero. Outside that range the data is simply not there,
-  // which must fail rather than be reported as no fees.
-  if (!row) {
-    const covered = rows.reduce(
-      (acc, r) => {
-        if (r.chain !== options.chain) return acc;
-        if (!acc.first || r.date < acc.first) acc.first = r.date;
-        if (r.date > acc.last) acc.last = r.date;
-        return acc;
-      },
-      { first: "", last: "" },
-    );
-    if (
-      !covered.first ||
-      options.dateString < covered.first ||
-      options.dateString > covered.last
-    )
-      throw new Error(
-        `Accountable: no fee data for ${options.chain} on ${options.dateString}, covered range is ${covered.first || "empty"}..${covered.last || "empty"}`,
-      );
+  const strategies = await listStrategies(toApi);
+  if (!strategies.length)
     return {
-      dailyFees: 0,
-      dailySupplySideRevenue: 0,
-      dailyRevenue: 0,
-      dailyProtocolRevenue: 0,
+      dailyFees: createBalances(),
+      dailyUserFees: createBalances(),
+      dailySupplySideRevenue: createBalances(),
+      dailyRevenue: createBalances(),
+      dailyProtocolRevenue: createBalances(),
     };
+
+  const [
+    sfStart,
+    sfEnd,
+    loansStart,
+    loansEnd,
+    feeManagers,
+    vaults,
+    npStart,
+    npEnd,
+    delinqStart,
+    penaltiesOn,
+  ] = await Promise.all([
+    fromApi.multiCall({
+      abi: abis.scaleFactor,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      abi: abis.scaleFactor,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    fromApi.multiCall({
+      abi: abis.loan,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({ abi: abis.loan, calls: strategies, permitFailure: true }),
+    toApi.multiCall({
+      abi: abis.feeManager,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      abi: abis.vault,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    fromApi.multiCall({
+      abi: abis.netPrincipal,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      abi: abis.netPrincipal,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      abi: abis.delinquencyStartTime,
+      calls: strategies,
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      abi: abis.penaltiesEnabled,
+      calls: strategies,
+      permitFailure: true,
+    }),
+  ]);
+
+  const lending: number[] = [];
+  const priced: number[] = [];
+  strategies.forEach((_, i) => {
+    if (!vaults[i]) return;
+    if (sfEnd[i] !== null) lending.push(i);
+    else priced.push(i);
+  });
+
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+
+  const book = (
+    token: string,
+    interest: bigint,
+    manager: bigint,
+    protocol: bigint,
+  ) => {
+    if (interest <= 0n) return;
+    const depositors = interest - manager - protocol;
+    dailyFees.add(token, interest, METRIC.BORROW_INTEREST);
+    if (depositors > 0n)
+      dailySupplySideRevenue.add(token, depositors, DEPOSITORS);
+    if (manager > 0n) dailySupplySideRevenue.add(token, manager, MANAGER);
+    if (protocol > 0n) dailyProtocolRevenue.add(token, protocol, PROTOCOL);
+  };
+
+  const legacy = lending.filter(
+    (i) => npStart[i] === null || npEnd[i] === null,
+  );
+  const rebuilt: Record<string, { start: bigint; end: bigint }> = {};
+
+  if (legacy.length) {
+    const targets = legacy.map((i) => strategies[i]);
+    const startBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
+    const [borrows, repays] = await Promise.all([
+      options.getLogs({
+        targets,
+        eventAbi: abis.borrowed,
+        fromBlock: FIRST_BLOCK[options.chain] || 1,
+        toBlock,
+        entireLog: true,
+        parseLog: true,
+      }),
+      options.getLogs({
+        targets,
+        eventAbi: abis.loanRepaid,
+        fromBlock: FIRST_BLOCK[options.chain] || 1,
+        toBlock,
+        entireLog: true,
+        parseLog: true,
+      }),
+    ]);
+
+    for (const i of legacy) rebuilt[strategies[i]] = { start: 0n, end: 0n };
+    const apply = (logs: any[], sign: bigint) => {
+      for (const log of logs || []) {
+        const slot = rebuilt[log.address.toLowerCase()];
+        if (!slot) continue;
+        const v = sign * BigInt(log.args.assets);
+        slot.end += v;
+        if (Number(log.blockNumber) <= startBlock) slot.start += v;
+      }
+    };
+    apply(borrows, 1n);
+    apply(repays, -1n);
   }
 
-  const fees = row.fees_usd ?? 0;
-  const protocol = row.protocol_revenue_usd ?? 0;
-  if (protocol > fees)
+  const drawn = (i: number, np: any, atStart: boolean) => {
+    if (np !== null && np !== undefined) return big(np);
+    const slot = rebuilt[strategies[i]];
+    if (!slot) return 0n;
+    const v = atStart ? slot.start : slot.end;
+    return v > 0n ? v : 0n;
+  };
+
+  const elapsed = BigInt(
+    Math.round(options.endTimestamp - options.startTimestamp),
+  );
+  const YEAR = 365n * 86400n;
+
+  const DAY = 86400n;
+  const windowStart = BigInt(Math.round(options.startTimestamp));
+  const windowEnd = BigInt(Math.round(options.endTimestamp));
+
+  const analyticInterest = (i: number, base: bigint) => {
+    const loan = loansEnd[i] || loansStart[i];
+    if (!loan) return 0n;
+    const rate = big(loan.interestRate);
+
+    let penaltySeconds = 0n;
+    const started = big(delinqStart[i]);
+    if (penaltiesOn[i] && started > 0n) {
+      const penaltyFrom = started + big(loan.lateInterestGracePeriod);
+      const from = penaltyFrom > windowStart ? penaltyFrom : windowStart;
+      if (windowEnd > from) penaltySeconds = windowEnd - from;
+      if (penaltySeconds > elapsed) penaltySeconds = elapsed;
+    }
+    const penalty = penaltySeconds > 0n ? big(loan.lateInterestPenalty) : 0n;
+
+    return (
+      (base * (rate * elapsed * DAY + penalty * penaltySeconds * YEAR)) /
+      (YEAR * DAY * BASIS_POINTS)
+    );
+  };
+
+  const active = lending
+    .map((i) => {
+      const base =
+        (drawn(i, npStart[i], true) + drawn(i, npEnd[i], false)) / 2n;
+      const previews =
+        sfStart[i] !== null && npStart[i] !== null && npEnd[i] !== null;
+      const interest = previews
+        ? (base * (big(sfEnd[i]) - big(sfStart[i]))) / PRECISION
+        : analyticInterest(i, base);
+      const debt =
+        loansEnd[i] && sfEnd[i]
+          ? (big(loansEnd[i].outstandingPrincipal) * big(sfEnd[i])) / PRECISION
+          : 0n;
+      return { i, interest, aum: debt > 0n ? debt : base };
+    })
+    .filter((s) => s.interest > 0n);
+
+  const orphan = [...active.map((a) => a.i), ...priced].find(
+    (i) => !feeManagers[i],
+  );
+  if (orphan !== undefined)
     throw new Error(
-      `Accountable: protocol revenue ${protocol} exceeds fees ${fees} for ${options.chain} on ${options.dateString}`,
+      `Accountable: no feeManager for ${strategies[orphan]} on ${options.chain}, refusing to book its yield as fee-free`,
     );
 
-  // Everything that is not the protocol's cut is a cost of funds, so deriving the
-  // supply side keeps dailyFees === dailyRevenue + dailySupplySideRevenue exact
-  // even if the upstream components ever disagree by a rounding step. Within it,
-  // the manager's share is either reported or the remainder after depositors.
-  const supplySide = fees - protocol;
-  const managerReported =
-    row.manager_revenue_usd ?? fees - (row.supply_side_usd ?? 0) - protocol;
-  const manager = Math.min(Math.max(managerReported, 0), supplySide);
-  const depositors = supplySide - manager;
+  if (active.length) {
+    const fmCall = (abi: string, extra?: boolean) =>
+      toApi.multiCall({
+        abi,
+        calls: active.map((a) => ({
+          target: feeManagers[a.i],
+          params: (extra === undefined
+            ? [strategies[a.i]]
+            : [strategies[a.i], extra]) as any,
+        })),
+        permitFailure: true,
+      });
 
-  const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+    const [assets, perfFees, mgmtFees, perfSplits, mgmtSplits, legacySplits] =
+      await Promise.all([
+        toApi.multiCall({
+          abi: abis.asset,
+          calls: active.map((a) => vaults[a.i]),
+          permitFailure: true,
+        }),
+        fmCall(abis.performanceFee),
+        fmCall(abis.managementFee),
+        fmCall(abis.managerSplit, true),
+        fmCall(abis.managerSplit, false),
+        fmCall(abis.managerSplitLegacy),
+      ]);
 
-  if (fees > 0) dailyFees.addUSDValue(fees, METRIC.BORROW_INTEREST);
-  if (depositors > 0)
-    dailySupplySideRevenue.addUSDValue(
-      depositors,
-      "Borrow Interest To Depositors",
-    );
-  if (manager > 0)
-    dailySupplySideRevenue.addUSDValue(
-      manager,
-      "Performance Fee To Vault Manager",
-    );
-  if (protocol > 0)
-    dailyProtocolRevenue.addUSDValue(protocol, "Performance Fee To Protocol");
+    active.forEach((a, k) => {
+      const token = assets[k];
+      if (!token) return;
+
+      const perfFee = (a.interest * big(perfFees[k])) / BASIS_POINTS;
+      const mgmtFee =
+        (a.aum * big(mgmtFees[k]) * elapsed) / (YEAR * BASIS_POINTS);
+      const total = perfFee + mgmtFee;
+
+      const charged = total > a.interest ? a.interest : total;
+      const perfPart = total === 0n ? 0n : (charged * perfFee) / total;
+      const mgmtPart = charged - perfPart;
+
+      const perfSplit = big(perfSplits[k] ?? legacySplits[k]);
+      const mgmtSplit = big(mgmtSplits[k] ?? legacySplits[k]);
+      const manager =
+        (perfPart * perfSplit) / BASIS_POINTS +
+        (mgmtPart * mgmtSplit) / BASIS_POINTS;
+
+      book(token, a.interest, manager, charged - manager);
+    });
+  }
+
+  if (priced.length) {
+    const pricedVaults = priced.map((i) => vaults[i]);
+    const [supply0, assetAddrs, treasuries, mintLogs] = await Promise.all([
+      fromApi.multiCall({
+        abi: abis.totalSupply,
+        calls: pricedVaults,
+        permitFailure: true,
+      }),
+      toApi.multiCall({
+        abi: abis.asset,
+        calls: pricedVaults,
+        permitFailure: true,
+      }),
+      toApi.multiCall({
+        abi: abis.treasury,
+        calls: priced.map((i) => feeManagers[i]),
+        permitFailure: true,
+      }),
+      options.getLogs({
+        targets: priced.map((i) => strategies[i]),
+        eventAbi: abis.feeSharesMinted,
+        entireLog: true,
+        parseLog: true,
+      }),
+    ]);
+
+    const mintedByStrategy: Record<
+      string,
+      { recipient: string; shares: bigint }[]
+    > = {};
+    for (const log of mintLogs || []) {
+      const key = log.address.toLowerCase();
+      (mintedByStrategy[key] ||= []).push({
+        recipient: String(log.args.recipient).toLowerCase(),
+        shares: BigInt(log.args.shares),
+      });
+    }
+
+    const shareSplit = priced.map((i, k) => {
+      const treasury = String(treasuries[k] || "").toLowerCase();
+      let protocolShares = 0n;
+      let managerShares = 0n;
+      for (const m of mintedByStrategy[strategies[i]] || []) {
+        if (treasury && m.recipient === treasury) protocolShares += m.shares;
+        else managerShares += m.shares;
+      }
+      return { protocolShares, managerShares };
+    });
+
+    const pricedFmCall = (abi: string, extra?: boolean) =>
+      toApi.multiCall({
+        abi,
+        calls: priced.map((i) => ({
+          target: feeManagers[i],
+          params: (extra === undefined
+            ? [strategies[i]]
+            : [strategies[i], extra]) as any,
+        })),
+        permitFailure: true,
+      });
+
+    const [
+      openAssets,
+      closeAssets,
+      protocolAssets,
+      managerAssets,
+      pricedPerfFees,
+      pricedSplits,
+      pricedLegacySplits,
+    ] = await Promise.all([
+      fromApi.multiCall({
+        abi: abis.convertToAssets,
+        calls: pricedVaults.map((v, k) => ({
+          target: v,
+          params: [supply0[k] || 0],
+        })),
+        permitFailure: true,
+      }),
+      toApi.multiCall({
+        abi: abis.convertToAssets,
+        calls: pricedVaults.map((v, k) => ({
+          target: v,
+          params: [supply0[k] || 0],
+        })),
+        permitFailure: true,
+      }),
+      toApi.multiCall({
+        abi: abis.convertToAssets,
+        calls: pricedVaults.map((v, k) => ({
+          target: v,
+          params: [shareSplit[k].protocolShares.toString()],
+        })),
+        permitFailure: true,
+      }),
+      toApi.multiCall({
+        abi: abis.convertToAssets,
+        calls: pricedVaults.map((v, k) => ({
+          target: v,
+          params: [shareSplit[k].managerShares.toString()],
+        })),
+        permitFailure: true,
+      }),
+      pricedFmCall(abis.performanceFee),
+      pricedFmCall(abis.managerSplit, true),
+      pricedFmCall(abis.managerSplitLegacy),
+    ]);
+
+    priced.forEach((_, k) => {
+      const token = assetAddrs[k];
+      if (!token) return;
+      const depositors = big(closeAssets[k]) - big(openAssets[k]);
+      const gross =
+        (depositors > 0n ? depositors : 0n) +
+        big(protocolAssets[k]) +
+        big(managerAssets[k]);
+
+      const fee = (gross * big(pricedPerfFees[k])) / BASIS_POINTS;
+      const split = big(pricedSplits[k] ?? pricedLegacySplits[k]);
+      const manager = (fee * split) / BASIS_POINTS;
+      book(token, gross, manager, fee - manager);
+    });
+  }
 
   return {
     dailyFees,
@@ -113,48 +497,44 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Interest accrued by borrowers drawing on Accountable vaults, including the performance fee charged on it, aggregated per day and chain. Borrowers pay the whole amount.",
-  Revenue: "The Accountable protocol's share of the performance fee.",
-  ProtocolRevenue: "The Accountable protocol's share of the performance fee.",
+  Fees: "Value earned by Accountable vaults over the day, read on chain: for credit vaults the interest accrued by borrowers, for NAV vaults the increase in share price plus the fee shares minted out of it.",
+  Revenue:
+    "The Accountable protocol's share of the performance and management fees.",
+  ProtocolRevenue:
+    "The Accountable protocol's share of the performance and management fees.",
   SupplySideRevenue:
-    "Interest paid out to vault depositors, plus the vault manager's share of the performance fee, which leaves the protocol and is not protocol revenue.",
+    "Value paid to vault depositors, plus the vault manager's share of the fees, which leaves the protocol and is not protocol revenue.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]:
-      "All interest accrued by borrowers on drawn vault capital, before the performance fee is taken out of it.",
+      "Interest accrued by borrowers on drawn vault capital and yield accrued by NAV vaults, before fees are taken out of it.",
   },
   Revenue: {
-    "Performance Fee To Protocol":
-      "The Accountable protocol's share of the performance fee charged on borrow interest.",
+    [PROTOCOL]:
+      "The Accountable protocol's share of the fees charged on vault earnings.",
   },
   ProtocolRevenue: {
-    "Performance Fee To Protocol":
-      "The Accountable protocol's share of the performance fee charged on borrow interest.",
+    [PROTOCOL]:
+      "The Accountable protocol's share of the fees charged on vault earnings.",
   },
   SupplySideRevenue: {
-    "Borrow Interest To Depositors":
-      "Interest distributed to vault depositors, net of the performance fee.",
-    "Performance Fee To Vault Manager":
-      "The vault manager's share of the performance fee. The manager is an external party running the strategy, so this is a cost of funds rather than protocol revenue.",
+    [DEPOSITORS]: "Earnings distributed to vault depositors, net of fees.",
+    [MANAGER]:
+      "The vault manager's share of the fees. The manager is an external party running the strategy, so this is a cost of funds rather than protocol revenue.",
   },
-};
-
-const chainConfig = {
-  [CHAIN.MONAD]: { start: "2025-11-27" },
-  [CHAIN.ETHEREUM]: { start: "2026-01-16" },
-  [CHAIN.BASE]: { start: "2026-04-23" },
-  [CHAIN.ARBITRUM]: { start: "2026-05-19" },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  // The upstream accounting is a daily aggregate per (date, chain), so an hourly
-  // pull would report the same daily figure in every window and overcount.
-  pullHourly: false,
-  adapter: chainConfig,
+  adapter: {
+    [CHAIN.MONAD]: { start: "2025-11-27" },
+    [CHAIN.ETHEREUM]: { start: "2026-01-16" },
+    [CHAIN.BASE]: { start: "2026-04-23" },
+    [CHAIN.ARBITRUM]: { start: "2026-05-19" },
+  },
   methodology,
   breakdownMethodology,
 };
