@@ -13,6 +13,7 @@ const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
 const MARKETPLACE = "0xC74d5002c10c13D2ad258B4584690829387f84dC";
 const TRADING = "0x7627994b4B2d56A05cb2978b813cA0E1ccB22f97";
 const PLATFORM_WALLET = "0xfB1302F5D6c5F107a0715b8Ce7303D1e3C647807";
+const VAULT_PAYMENT_WALLET = "0x04eaa73b518783010a5A5dc471eEa89C4C34eF44";
 
 const VENDING_MACHINES = [
   "0x92e6f37f41f78b7dd64d9741e2abd304cc3d9f0e",
@@ -20,11 +21,16 @@ const VENDING_MACHINES = [
   "0x270Bbb21B1187Bc6e694F428DCb51432958Eb3d9",
 ];
 
-const SERVICE_FEE_TARGETS = [MAIN_CONTRACT, PLATFORM_WALLET];
+const SERVICE_FEE_TARGETS = [MAIN_CONTRACT, PLATFORM_WALLET, VAULT_PAYMENT_WALLET];
 const INTERNAL_ADDRESSES = new Set(
-  [MAIN_CONTRACT, MARKETPLACE, TRADING, PLATFORM_WALLET, ...VENDING_MACHINES].map((address) =>
-    address.toLowerCase(),
-  ),
+  [
+    MAIN_CONTRACT,
+    MARKETPLACE,
+    TRADING,
+    PLATFORM_WALLET,
+    VAULT_PAYMENT_WALLET,
+    ...VENDING_MACHINES,
+  ].map((address) => address.toLowerCase()),
 );
 
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
@@ -175,16 +181,16 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
+    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, vending-machine card buyback payouts, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and wallet after subtracting vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
+    "Onchain USDC collected by DYLI contracts and payment wallets after subtracting vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Stripe/card payments are excluded.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet and batchRedeem fee paths.",
+    [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet, vault-payment, and batchRedeem fee paths.",
     [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales).",
     [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks).",
     [METRIC.TRADING_FEES]: "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
