@@ -68,6 +68,8 @@ async function getLatestBlock(): Promise<{ height: number; timestamp: number }> 
 const BLOCK_TIME_PROBE = 100000;
 // ~180 blocks of slack, small next to a 24h window
 const HEIGHT_TOLERANCE_SECONDS = 120;
+// the linear estimate lands inside the tolerance in 1-2 passes for every lookback
+// lcd.orai.io still serves headers for (1d-14d back), so 6 is headroom before giving up
 const MAX_REFINEMENTS = 6;
 
 async function getHeightAt(
