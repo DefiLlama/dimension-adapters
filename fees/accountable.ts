@@ -80,6 +80,9 @@ const listStrategies = async (api: any): Promise<string[]> => {
     permitFailure: true,
   });
 
+  // A single null is expected: the factories are CREATE2-deployed, so the same
+  // address is listed on every chain and reverts on the ones it was never
+  // deployed to. All of them failing is an RPC problem, not an empty chain.
   if (factories.length && counts.every((c: any) => c === null))
     throw new Error(
       `Accountable: every factory call failed on ${api.chain}, refusing to report zero`,
@@ -98,9 +101,16 @@ const listStrategies = async (api: any): Promise<string[]> => {
       })
     : [];
 
+  // A page is only requested for a factory that reported a non-zero count, so a
+  // null here is a failed read and must not be silently treated as no vaults.
   const seen = new Set<string>();
-  for (const list of lists)
-    for (const s of list || []) seen.add(s.toLowerCase());
+  lists.forEach((list: any, i: number) => {
+    if (!list)
+      throw new Error(
+        `Accountable: could not list strategies of ${pages[i].target} on ${api.chain}`,
+      );
+    for (const s of list) seen.add(s.toLowerCase());
+  });
   for (const s of EXTRA_STRATEGIES[api.chain] || []) seen.add(s.toLowerCase());
   return Array.from(seen);
 };
@@ -311,6 +321,9 @@ const fetch = async (options: FetchOptions) => {
         (a.aum * big(mgmtFees[k]) * elapsed) / (YEAR * BASIS_POINTS);
       const total = perfFee + mgmtFee;
 
+      // Capped at the interest so that fees = supply side + revenue stays exact.
+      // A management fee accrues on AUM, so in a very low interest window it can
+      // exceed the interest earned; the excess is dropped rather than reported.
       const charged = total > a.interest ? a.interest : total;
       const perfPart = total === 0n ? 0n : (charged * perfFee) / total;
       const mgmtPart = charged - perfPart;
