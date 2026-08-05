@@ -3,9 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
+// https://github.com/MystenLabs/deepbookv3/tree/main/packages/deepbook/sources
 const ORDER_FILLED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::order_info::OrderFilled";
 const POOL_CREATED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::pool::PoolCreated<%";
-const REBATE_EVENT_V1 = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::state::RebateEvent";
+// DEEP and SUI are valued from their own USDC books, the deepest venue for each, as that day's
+// traded quote/base ratio - the query has no other USD reference.
 const DEEP_USDC_POOL = "0xf948981b806057580f91622417534f491da5f61aeaf33d0ed8e69fd5691c95ce";
 const SUI_USDC_POOL = "0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407";
 
@@ -104,19 +106,6 @@ const fetch = async (options: FetchOptions) => {
         AND from_unixtime(CAST(e.timestamp_ms AS double) / 1000) >= from_unixtime(${start})
         AND from_unixtime(CAST(e.timestamp_ms AS double) / 1000) < from_unixtime(${end})
         AND e.date BETWEEN CAST(from_unixtime(${start}) AS date) AND CAST(from_unixtime(${end}) AS date)
-      UNION ALL
-      SELECT
-        e.date,
-        json_extract_scalar(e.event_json, '$.pool_id') AS pool_id,
-        'rebate' AS kind,
-        CAST(0 AS double) AS base_fee,
-        CAST(0 AS double) AS quote_fee,
-        CAST(json_extract_scalar(e.event_json, '$.claim_amount') AS double) AS deep_fee
-      FROM sui.events e
-      WHERE e.event_type = '${REBATE_EVENT_V1}'
-        AND from_unixtime(CAST(e.timestamp_ms AS double) / 1000) >= from_unixtime(${start})
-        AND from_unixtime(CAST(e.timestamp_ms AS double) / 1000) < from_unixtime(${end})
-        AND e.date BETWEEN CAST(from_unixtime(${start}) AS date) AND CAST(from_unixtime(${end}) AS date)
     ),
 
     prices AS (
@@ -185,19 +174,22 @@ const fetch = async (options: FetchOptions) => {
         se.date,
         SUM(
           CASE WHEN se.kind = 'referral' THEN
-            CASE WHEN pp.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pp.deep_usd END
+            CASE WHEN pr.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pr.deep_usd END
             + CASE WHEN pp.qusd IS NULL THEN 0 ELSE se.quote_fee / POWER(10, pp.qdec) * pp.qusd END
             + CASE WHEN pp.qusd IS NULL OR pp.quote_per_base_raw IS NULL THEN 0 ELSE se.base_fee * pp.quote_per_base_raw / POWER(10, pp.qdec) * pp.qusd END
           ELSE 0 END
         ) AS referral_fees_usd,
         SUM(
           CASE WHEN se.kind = 'rebate' THEN
-            CASE WHEN pp.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pp.deep_usd END
+            CASE WHEN pr.deep_usd IS NULL THEN 0 ELSE se.deep_fee / 1e6 * pr.deep_usd END
             + CASE WHEN pp.qusd IS NULL THEN 0 ELSE se.quote_fee / POWER(10, pp.qdec) * pp.qusd END
             + CASE WHEN pp.qusd IS NULL OR pp.quote_per_base_raw IS NULL THEN 0 ELSE se.base_fee * pp.quote_per_base_raw / POWER(10, pp.qdec) * pp.qusd END
           ELSE 0 END
         ) AS rebates_claimed_usd
       FROM supply_events se
+      -- the DEEP leg only needs that day's DEEP price, so it is taken from the date-level prices CTE:
+      -- a rebate claimed on a pool that did not trade that day would otherwise be valued at zero
+      LEFT JOIN prices pr ON se.date = pr.date
       LEFT JOIN priced_pools pp ON se.date = pp.date AND se.pool_id = pp.pool_id
       GROUP BY 1
     ),
@@ -210,11 +202,13 @@ const fetch = async (options: FetchOptions) => {
       SELECT date FROM supply_side
     )
 
+    -- a window with no activity at all is valid and must report zeros, so the outer sums are
+    -- coalesced; a missing column instead means the query shape changed and is caught in JS
     SELECT
-      SUM(tf.daily_fees_usd) AS daily_fees_usd,
-      SUM(COALESCE(b.deep_burned, 0)) AS deep_burned,
-      SUM(COALESCE(ss.referral_fees_usd, 0)) AS referral_fees_usd,
-      SUM(COALESCE(ss.rebates_claimed_usd, 0)) AS rebates_claimed_usd
+      COALESCE(SUM(tf.daily_fees_usd), 0) AS daily_fees_usd,
+      COALESCE(SUM(b.deep_burned), 0) AS deep_burned,
+      COALESCE(SUM(ss.referral_fees_usd), 0) AS referral_fees_usd,
+      COALESCE(SUM(ss.rebates_claimed_usd), 0) AS rebates_claimed_usd
     FROM active_dates d
     LEFT JOIN trading_fees tf ON d.date = tf.date
     LEFT JOIN burns b ON d.date = b.date
@@ -262,7 +256,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Every fee charged on a DeepBook trade, paid by both the taker and the maker. The headline rate is 0.1% on volatile pairs and 0.01% on stable pairs, but three pools (DEEP/SUI, DEEP/USDC, wUSDC/USDC) are fee-free and traders who stake enough DEEP pay half the taker fee, so the rate actually collected is lower.",
-  SupplySideRevenue: "The share of trading fees handed back out: rebates claimed by market makers who stake DEEP, plus fees routed to referrers.",
+  SupplySideRevenue: "The share of trading fees handed back out: rebates claimed by market makers who stake DEEP, plus fees routed to referrers. Rebates are counted when a maker claims them, which can be days after the trades that earned them. Before April 2025 DeepBook reported claims in a form that gave no reliable date, so supply side revenue is understated for that period and revenue is correspondingly overstated.",
   Revenue: "Trading fees left after maker rebates and referral payouts. DeepBook has no way to move collected fees to a treasury, so this money is either burned as DEEP or stays locked in the pool vaults permanently.",
   ProtocolRevenue: "Zero. DeepBook's contracts have no function to move collected trading fees out of a pool, so none of them reach a treasury. The only fee that does is the 500 DEEP charged to create a pool, which is too small to count.",
   HoldersRevenue: "DEEP burned out of collected trading fees, which permanently shrinks the token supply. Burns are settled in batches, so the amount burned on a given day does not match that day's fees.",
