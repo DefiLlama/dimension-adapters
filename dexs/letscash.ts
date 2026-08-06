@@ -10,7 +10,11 @@ import { METRIC } from "../helpers/metrics";
 // Factory: https://robinhoodchain.blockscout.com/address/0x5bd1Fbe78a78fe8236fa00CF48fbEBA74ae34661
 // PoolManager: https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
 const FACTORY = "0x5bd1Fbe78a78fe8236fa00CF48fbEBA74ae34661";
+// First TokenLaunched block observed for the factory:
+// https://robinhoodchain.blockscout.com/block/6160467
 const FIRST_LAUNCH_BLOCK = 6160467;
+// First block containing the vNext LaunchConfigAdded tuple:
+// https://robinhoodchain.blockscout.com/block/28894154
 const VNEXT_CONFIG_BLOCK = 28894154;
 
 const TOKEN_LAUNCHED_EVENT =
@@ -80,14 +84,22 @@ const hooks = new Set<string>();
 let discoveryToBlock = FIRST_LAUNCH_BLOCK - 1;
 let discoveryPromise: Promise<void> | undefined;
 
+/** Converts a decoded log value into a bigint without depending on its ABI wrapper. */
 function asBigInt(value: any): bigint {
   return BigInt(String(value));
 }
 
+/** Normalizes an address-like decoded log value for case-insensitive lookups. */
 function asAddress(value: any): string {
   return String(value).toLowerCase();
 }
 
+/**
+ * Discovers launch configurations, pools, and fee hooks up to the current API block.
+ *
+ * Discovery is extended incrementally because the adapter is called once per hour
+ * during a backfill and the factory's launch history is append-only.
+ */
 async function discoverPools(options: FetchOptions): Promise<Discovery> {
   const toBlock = Number(options.toApi.block);
   if (toBlock <= discoveryToBlock) return { pools, hooks: [...hooks] };
@@ -135,6 +147,7 @@ async function discoverPools(options: FetchOptions): Promise<Discovery> {
   return { pools, hooks: [...hooks] };
 }
 
+/** Fetches LetsCash quote volume, total fees, platform revenue, and creator revenue. */
 async function fetch(options: FetchOptions) {
   const { createBalances, getLogs } = options;
   const dailyVolume = createBalances();
@@ -188,7 +201,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Quote-currency volume reconstructed from each hook's FeeAccrued amount and the pool's on-chain feeRate (fee × 1,000,000 ÷ feeRate). Native ETH and USDG pools are priced by DefiLlama from the quote asset.",
     Fees: "Total launch-tax fees emitted by LetsCash hooks through FeeAccrued events. The launch configuration's fee rate is already reflected in the emitted amount.",
-    UserFees: "Total launch-tax fees paid by traders on LetsCash pools.",
     Revenue: "The platform share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
     ProtocolRevenue: "The platform share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
     SupplySideRevenue: "The creator share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
