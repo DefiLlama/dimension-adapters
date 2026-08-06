@@ -1,31 +1,51 @@
-import fetchURL from "../utils/fetchURL";
-import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-const OVERVIEW_URL = "https://api.synfutures.com/s3/config/info-page/v3/overview.json";
-const SECONDS_PER_DAY = 24 * 60 * 60;
-// the snapshot carries its own build time in `updateAt` and used to move every day,
-// so anything older than two days is a stale file rather than a current reading
-const MAX_SNAPSHOT_AGE = 2 * SECONDS_PER_DAY;
+const OBSERVER = "0xDb166a6E454d2a273Cd50CCD6420703564B2a830";
 
-const readNumber = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+const AMM_STATUS_TRADING = 1;
+
+const abis = {
+  getAllInstruments:
+    "function getAllInstruments() view returns (tuple(address instrumentAddr, string symbol, address market, tuple(uint8 ftype, bool isToken0Quote, address pair, uint64 scaler0, uint64 scaler1) dexV2Feeder, tuple(uint8 ftype, uint64 scaler0, address aggregator0, uint24 heartBeat0, uint64 scaler1, address aggregator1, uint24 heartBeat1) priceFeeder, uint16 initialMarginRatio, uint16 maintenanceMarginRatio, tuple(uint128 minMarginAmount, uint16 tradingFeeRatio, uint16 protocolFeeRatio, uint64 stabilityFeeRatioParam, uint8 qtype, uint128 tip) param, uint256 spotPrice, uint8 condition, tuple(uint32 expiry, uint32 timestamp, uint8 status, int24 tick, uint160 sqrtPX96, uint128 liquidity, uint128 totalLiquidity, uint128 totalShort, uint128 openInterests, uint128 totalLong, uint128 involvedFund, uint128 feeIndex, uint128 protocolFee, uint128 longSocialLossIndex, uint128 shortSocialLossIndex, int128 longFundingIndex, int128 shortFundingIndex, uint128 insuranceFund, uint128 settlementPrice)[] amms, uint256[] markPrices)[], tuple(uint32 timestamp, uint32 height))",
+  getSetting:
+    "function getSetting(address instrument) view returns (tuple(string symbol, address config, address gate, address market, address quote, uint8 decimals, uint16 initialMarginRatio, uint16 maintenanceMarginRatio, tuple(uint128 minMarginAmount, uint16 tradingFeeRatio, uint16 protocolFeeRatio, uint64 stabilityFeeRatioParam, uint8 qtype, uint128 tip) param))",
+};
 
 const fetch = async (options: FetchOptions) => {
-  const overview = await fetchURL(OVERVIEW_URL);
+  const openInterestAtEnd = options.createBalances();
 
-  const openInterestAtEnd = readNumber(overview?.totalOI);
-  const updatedAt = readNumber(overview?.updateAt);
-  if (openInterestAtEnd === null || openInterestAtEnd < 0 || updatedAt === null)
-    throw new Error(
-      `synfutures-v3: unreadable overview snapshot (totalOI ${JSON.stringify(overview?.totalOI)}, updateAt ${JSON.stringify(overview?.updateAt)})`
-    );
+  const [instruments] = await options.api.call({
+    target: OBSERVER,
+    abi: abis.getAllInstruments,
+  });
 
-  const snapshotAge = options.endTimestamp - updatedAt / 1000;
-  if (snapshotAge > MAX_SNAPSHOT_AGE)
-    throw new Error(
-      `synfutures-v3: overview snapshot was last built ${Math.floor(snapshotAge / SECONDS_PER_DAY)} days ago (updateAt ${new Date(updatedAt).toISOString()}), open interest is not current`
-    );
+  const live = instruments.filter((inst: any) =>
+    inst.amms.some(
+      (amm: any) =>
+        Number(amm.status) === AMM_STATUS_TRADING && amm.openInterests !== "0" && Number(amm.openInterests) !== 0
+    )
+  );
+
+  const settings = await options.api.multiCall({
+    calls: live.map((inst: any) => ({ target: OBSERVER, params: [inst.instrumentAddr] })),
+    abi: abis.getSetting,
+  });
+
+  live.forEach((inst: any, i: number) => {
+    const quote = settings[i].quote;
+    const quoteDecimals = Number(settings[i].decimals);
+
+    inst.amms.forEach((amm: any, j: number) => {
+      if (Number(amm.status) !== AMM_STATUS_TRADING) return;
+      const oi = BigInt(amm.openInterests);
+      if (oi === 0n) return;
+      const markPrice = BigInt(inst.markPrices[j]);
+
+      const amount = (oi * markPrice) / 10n ** BigInt(36 - quoteDecimals);
+      openInterestAtEnd.add(quote, amount);
+    });
+  });
 
   return { openInterestAtEnd };
 };
@@ -34,8 +54,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.BASE],
-  start: '2024-06-26',
-  runAtCurrTime: true
+  start: "2024-06-26",
 };
 
 export default adapter;
