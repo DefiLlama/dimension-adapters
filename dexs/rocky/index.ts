@@ -64,8 +64,8 @@ const sumUsdQuoteVolume = (rows: unknown, source: string): number => {
       throw new Error(`Rocky ${source} ticker/24hr row missing symbol`);
     }
     if (!USD_QUOTE_ASSETS.has(quoteAsset(symbol))) continue;
-    const rawVolume = row?.quoteVolume;
-    if (typeof rawVolume !== "string" || rawVolume.length === 0) {
+    const rawVolume = typeof row?.quoteVolume === "string" ? row.quoteVolume.trim() : "";
+    if (rawVolume.length === 0) {
       throw new Error(`Rocky ${source} ticker/24hr row ${symbol} missing quoteVolume`);
     }
     const v = Number(rawVolume);
