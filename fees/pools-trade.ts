@@ -5,89 +5,95 @@ import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-// Uniswap v4 on Robinhood, from InstantLaunchStrategy.poolManager()/positionManager()
+// Uniswap v4 singletons on Robinhood Chain (developers.uniswap.org v4 deployments)
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 const POSITION_MANAGER = "0x58daec3116aae6d93017baaea7749052e8a04fa7";
-// Canonical LBPStrategy v3.1.0, shared chain-wide (developers.uniswap.org/contracts/
-// liquidity-launchpad/deployments): a crowd launch is only pools.trade's when its
-// position lands in a pools.trade FeeSplitter.
-const LBP_STRATEGY = "0x05d552391067389ee44fec3924157ed33f976000";
+// pools.trade token factory — the single contract every launch mints through
+const UERC20_FACTORY = "0x000000e200088d55c39a11f609e5f667729ad49b";
 
-// InstantLaunchStrategy deployments, from the registry the pools.trade app ships in
-// its own bundle (pools.trade/assets/claim-flow-*.js, chainId 4663).
-// The stack has been redeployed ~weekly; new ones must be added here.
-const STRATEGIES = [
-  "0x60d73b21cdf2ea846ab3d58699bbbb8f29d72491", // 2026-07-29, creator fees
-  "0xfce92c70f1fc017b72f6dd7a00d9e38725c7fbd1", // 2026-07-29
-  "0xce57498d3474dcc244dfb6710ffbe6d4441cd2b2", // 2026-07-30, creator fees
-  "0x583a7903152b95831e82fff534448dee081754ec", // 2026-07-30
-  "0x9f67b864b565966dfcc2e0c6ba2483b2d5ff4b00", // 2026-07-30, creator fees
-  "0x16b63f1c8415fd68591c31fb3c6796a333dd640c", // 2026-07-30
-  "0x3f556b542105d5efbbefe7c766a4919c76b960fb", // 2026-08-05, creator fees
-  "0x36bdb859518c89f764337cd5c24762d2aa650f3c", // 2026-08-05
-  "0x23f8209572b4a1c2ad88a42749e830791fb027f1", // 2026-08-05, creator fees, current
-  "0xad44d55e7f8337c3ce113fbb591486e85be104b2", // 2026-08-05, current
-];
-
-// Splits read on-chain from FeeSplitter.getSplits() on each of the five: these three
-// pay the creator vault 40% of the ETH-side fee, the other two compound 100% of both.
-const CREATOR_FEE_SPLITTERS = [
-  "0x7198c32a497c09497e04c86cf8f77a244a9e4b8f",
-  "0x6cc1b74fc1be1ff373fa07f3381856f38103e653",
-  "0xeff166aaf189323c58dc27ed1206eb2c37faacdf",
-];
-const SPLITTERS = [
-  ...CREATOR_FEE_SPLITTERS,
-  "0xdf50f4ea2207f9d2a753a3dae729b36fdef13b23",
-  "0x222d6d4f1ce59b0d48d5505114ec8addc90a4359",
-];
-
-const CREATOR_NATIVE_BPS = 4000; // FeeSplitter native-side share to the creator vault
-const LP_FEE = 2500; // InstantLaunchStrategy.LP_FEE, in pips (2500 = 0.25%)
-
-// TokenLaunched(bytes32 indexed poolId, address indexed token, address indexed finalPositionRecipient, PoolKey key)
-const TOKEN_LAUNCHED = "0x3b3d2bafdcae274a232217e1f80ee4305d3af6aa25c8b14b1681bd68d18042a4";
-// Migrated(address indexed initializer, PoolKey indexed key, uint160 initialSqrtPriceX96, bytes plan)
-const MIGRATED = "0xbcc36534419debbbf0f25857d1fef3e4bbce9527091c805e9a7da93dbfd828f4";
+// TokenCreated(address tokenAddress, (string,string,string,bytes) metadata)
+const TOKEN_CREATED = "0x4ef8284ecf42d4cd19686572ffd87f630858c82398911e776cb831de35eddbf4";
 const ERC721_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-const list = (values: string[]) => values.map(v => `'${v}'`).join(", ");
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const LP_FEE = 2500; // InstantLaunchStrategy.LP_FEE / LBP graduation lpFee, in pips
+
+// UERC20Factory deployment (block 4516017, 2026-07-08 16:55:22 UTC): nothing
+// pools.trade-related exists on the chain before this, so all discovery scans
+// start here. Note this is a constant, NOT options.startTimestamp — a swap in
+// today's window can happen on a pool launched any day since genesis.
+const FACTORY_DEPLOY_TIMESTAMP = 1783529722;
+
+const SPLITS_ABI =
+  "function getSplits() view returns (tuple(address recipient, uint256 currency0Bps, uint256 currency1Bps, uint256 mode)[])";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const query = `
-    WITH pt_pools AS (
-      SELECT DISTINCT topic1 AS pool_id, '0x' || SUBSTR(topic3, 27) AS fee_splitter
+    WITH factory_tokens AS (
+      SELECT DISTINCT '0x' || LOWER(SUBSTR(data, 27, 40)) AS token
       FROM crosschain.raw.logs
       WHERE chain = 'robinhood'
-        AND topic0 = '${TOKEN_LAUNCHED}'
-        AND address IN (${list(STRATEGIES)})
-
-      UNION
-
-      SELECT DISTINCT m.pool_id, p.fee_splitter
+        AND address = '${UERC20_FACTORY}'
+        AND topic0 = '${TOKEN_CREATED}'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${FACTORY_DEPLOY_TIMESTAMP})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ),
+    -- every pools.trade pool: the canonical 0.25% hookless ETH pool of a factory
+    -- token. Instant launches initialize it at creation, crowd launches at
+    -- graduation; a pool key can only be initialized once, so this is exact.
+    pt_pools AS (
+      SELECT
+        i.params:id::STRING AS pool_id,
+        i.transaction_hash AS transaction_hash
+      FROM crosschain.decoded.logs i
+      WHERE i.chain = 'robinhood'
+        AND i.address = '${POOL_MANAGER}'
+        AND i.name = 'Initialize'
+        AND LOWER(i.params:currency0::STRING) = '${ZERO_ADDRESS}'
+        AND LOWER(i.params:hooks::STRING) = '${ZERO_ADDRESS}'
+        AND TRY_TO_NUMBER(i.params:fee::STRING) = ${LP_FEE}
+        AND i.block_timestamp >= TO_TIMESTAMP_NTZ(${FACTORY_DEPLOY_TIMESTAMP})
+        AND i.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND LOWER(i.params:currency1::STRING) IN (SELECT token FROM factory_tokens)
+    ),
+    -- whoever the locked position NFT is minted to in the same transaction is the
+    -- pool's FeeSplitter (or the crowd locker / a third-party recipient)
+    position_recipients AS (
+      -- the position's final holder within the launch tx. Custody is two-hop on
+      -- instant launches (minted to the strategy, then transferred to the
+      -- FeeSplitter one log later), one-hop on crowd graduations (minted straight
+      -- to the locker) — so take the LAST transfer per tx, never the mint.
+      SELECT transaction_hash, recipient
       FROM (
-        SELECT transaction_hash, topic2 AS pool_id
+        SELECT
+          transaction_hash,
+          '0x' || LOWER(SUBSTR(topic2, 27)) AS recipient,
+          ROW_NUMBER() OVER (PARTITION BY transaction_hash ORDER BY log_index DESC) AS rn
         FROM crosschain.raw.logs
-        WHERE chain = 'robinhood' AND address = '${LBP_STRATEGY}' AND topic0 = '${MIGRATED}'
-      ) m
-      JOIN (
-        SELECT transaction_hash, '0x' || SUBSTR(topic2, 27) AS fee_splitter
-        FROM crosschain.raw.logs
-        WHERE chain = 'robinhood' AND address = '${POSITION_MANAGER}' AND topic0 = '${ERC721_TRANSFER}'
-          AND '0x' || SUBSTR(topic2, 27) IN (${list(SPLITTERS)})
-      ) p ON p.transaction_hash = m.transaction_hash
+        WHERE chain = 'robinhood'
+          AND address = '${POSITION_MANAGER}'
+          AND topic0 = '${ERC721_TRANSFER}'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${FACTORY_DEPLOY_TIMESTAMP})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      )
+      WHERE rn = 1
+    ),
+    pools AS (
+      SELECT p.pool_id, MIN(m.recipient) AS recipient
+      FROM pt_pools p
+      LEFT JOIN position_recipients m ON m.transaction_hash = p.transaction_hash
+      GROUP BY p.pool_id
     ),
     swaps AS (
       SELECT
         TO_DECIMAL(l.params:amount0::STRING, 38, 0) AS amount0,
         TO_DECIMAL(l.params:fee::STRING, 38, 0) AS fee,
-        p.fee_splitter AS fee_splitter
+        p.recipient AS recipient
       FROM crosschain.decoded.logs l
-      JOIN pt_pools p ON p.pool_id = l.params:id::STRING
+      JOIN pools p ON p.pool_id = l.params:id::STRING
       WHERE l.chain = 'robinhood'
         AND l.address = '${POOL_MANAGER}'
         AND l.name = 'Swap'
@@ -96,33 +102,46 @@ const fetch = async (options: FetchOptions) => {
     ),
     split AS (
       SELECT
-        ABS(amount0) AS volume,
-        -- the event's fee is the combined rate; Uniswap's protocol fee comes off the
-        -- input before the LP fee, so it backs out as (fee - lpFee) / (1 - lpFee) and
-        -- what is left is the 0.25% that reaches the FeeSplitter
-        ABS(amount0) * fee / 1e6
-          - ABS(amount0) * GREATEST(fee - ${LP_FEE}, 0) / (1 - ${LP_FEE} / 1e6) / 1e6 AS lp_fee,
-        -- creators are paid only out of ETH-side fees, i.e. buys
-        amount0 > 0 AND fee_splitter IN (${list(CREATOR_FEE_SPLITTERS)}) AS pays_creator
+        recipient,
+        ABS(amount0) * fee / 1e6 - ABS(amount0) * GREATEST(fee - ${LP_FEE}, 0) / (1 - ${LP_FEE} / 1e6) / 1e6 AS lp_fee,
+        amount0 < 0 AS is_buy
       FROM swaps
     )
     SELECT
-      SUM(volume) AS volume,
+      recipient,
       SUM(lp_fee) AS lp_fee,
-      SUM(CASE WHEN pays_creator THEN lp_fee * ${CREATOR_NATIVE_BPS} / 1e4 ELSE 0 END) AS creator_fee,
-      SUM(CASE WHEN pays_creator THEN lp_fee * (1e4 - ${CREATOR_NATIVE_BPS}) / 1e4 ELSE lp_fee END) AS compounded_fee
+      SUM(CASE WHEN is_buy THEN lp_fee ELSE 0 END) AS eth_side_lp_fee
     FROM split
+    GROUP BY recipient
   `;
 
-  const [row] = await queryAllium(query);
+  const rows: any[] = await queryAllium(query);
 
-  dailyVolume.addGasToken(row.volume);
-  dailyFees.addGasToken(row.lp_fee, METRIC.SWAP_FEES);
-  dailySupplySideRevenue.addGasToken(row.creator_fee, METRIC.CREATOR_FEES);
-  dailySupplySideRevenue.addGasToken(row.compounded_fee, "Fees Compounded Into Locked Liquidity");
+  const recipients = [...new Set(rows.map((r) => r.recipient).filter(Boolean))];
+  const splits = await options.api.multiCall({
+    abi: SPLITS_ABI,
+    calls: recipients.map((target: string) => ({ target })),
+    permitFailure: true,
+  });
+  const creatorNativeBps: Record<string, number> = {};
+  recipients.forEach((recipient, i) => {
+    creatorNativeBps[recipient] = (splits[i] ?? [])
+      .filter((s: any) => Number(s.currency1Bps) === 0)
+      .reduce((acc: number, s: any) => acc + Number(s.currency0Bps), 0);
+  });
+
+  for (const row of rows) {
+    const bps = creatorNativeBps[row.recipient] ?? 0;
+    const creatorFee = (Number(row.eth_side_lp_fee) * bps) / 1e4;
+    dailyFees.addGasToken(row.lp_fee, METRIC.SWAP_FEES);
+    dailySupplySideRevenue.addGasToken(creatorFee, METRIC.CREATOR_FEES);
+    dailySupplySideRevenue.addGasToken(
+      Number(row.lp_fee) - creatorFee,
+      "Fees Compounded Into Locked Liquidity",
+    );
+  }
 
   return {
-    dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue: 0,
@@ -132,7 +151,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "The ETH side of every trade in a pools.trade pool — ETH spent buying the token and ETH received selling it, counted once per trade.",
   Fees: "The 0.25% fee charged on every trade, taken in whichever token the trader pays with. pools.trade charges nothing to launch a token and takes no cut of the raise. Traders also pay Uniswap's own 0.04% protocol fee on pools where it is switched on; that is Uniswap's charge, not pools.trade's, and is left out here.",
   SupplySideRevenue: "The whole 0.25% trading fee: the creator's share plus the part that is compounded back into the locked liquidity.",
   Revenue: "Zero. pools.trade keeps none of the trading fee — it all goes to the token's creator and back into the pool's own permanently locked liquidity.",
@@ -145,7 +163,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "0.25% of every trade, read per trade from the swap's own fee rate with Uniswap's separate 0.04% protocol fee removed.",
   },
   SupplySideRevenue: {
-    [METRIC.CREATOR_FEES]: "40% of the fees charged in ETH, held for the token's creator to claim. Only paid on launches created with the creator fee enabled, and never out of fees charged in the token.",
+    [METRIC.CREATOR_FEES]: "The creator vault's share of fees charged in ETH (i.e. on buys), read from each pool's FeeSplitter.getSplits() — 40% on current deployments. Only paid on launches created with the creator fee enabled, and never out of fees charged in the token.",
     "Fees Compounded Into Locked Liquidity": "Everything else, added straight back into the pool's permanently locked position instead of being paid out to anyone.",
   },
 };
