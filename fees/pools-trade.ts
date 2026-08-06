@@ -5,13 +5,16 @@ import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
+// Uniswap v4 on Robinhood, from InstantLaunchStrategy.poolManager()/positionManager()
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 const POSITION_MANAGER = "0x58daec3116aae6d93017baaea7749052e8a04fa7";
-// Canonical LBPStrategy, shared chain-wide: a crowd launch is only pools.trade's
-// when its position lands in a pools.trade FeeSplitter.
+// Canonical LBPStrategy v3.1.0, shared chain-wide (developers.uniswap.org/contracts/
+// liquidity-launchpad/deployments): a crowd launch is only pools.trade's when its
+// position lands in a pools.trade FeeSplitter.
 const LBP_STRATEGY = "0x05d552391067389ee44fec3924157ed33f976000";
 
-// InstantLaunchStrategy deployments, from the pools.trade app's own registry.
+// InstantLaunchStrategy deployments, from the registry the pools.trade app ships in
+// its own bundle (pools.trade/assets/claim-flow-*.js, chainId 4663).
 // The stack has been redeployed ~weekly; new ones must be added here.
 const STRATEGIES = [
   "0x60d73b21cdf2ea846ab3d58699bbbb8f29d72491", // 2026-07-29, creator fees
@@ -26,8 +29,8 @@ const STRATEGIES = [
   "0xad44d55e7f8337c3ce113fbb591486e85be104b2", // 2026-08-05, current
 ];
 
-// Splitters paying the creator 40% of the ETH-side fee; the other two send 100%
-// of both sides to the compounder.
+// Splits read on-chain from FeeSplitter.getSplits() on each of the five: these three
+// pay the creator vault 40% of the ETH-side fee, the other two compound 100% of both.
 const CREATOR_FEE_SPLITTERS = [
   "0x7198c32a497c09497e04c86cf8f77a244a9e4b8f",
   "0x6cc1b74fc1be1ff373fa07f3381856f38103e653",
@@ -39,8 +42,8 @@ const SPLITTERS = [
   "0x222d6d4f1ce59b0d48d5505114ec8addc90a4359",
 ];
 
-const CREATOR_NATIVE_BPS = 4000;
-const LP_FEE = 2500;
+const CREATOR_NATIVE_BPS = 4000; // FeeSplitter native-side share to the creator vault
+const LP_FEE = 2500; // InstantLaunchStrategy.LP_FEE, in pips (2500 = 0.25%)
 
 // TokenLaunched(bytes32 indexed poolId, address indexed token, address indexed finalPositionRecipient, PoolKey key)
 const TOKEN_LAUNCHED = "0x3b3d2bafdcae274a232217e1f80ee4305d3af6aa25c8b14b1681bd68d18042a4";
@@ -94,28 +97,29 @@ const fetch = async (options: FetchOptions) => {
     split AS (
       SELECT
         ABS(amount0) AS volume,
-        ABS(amount0) * fee / 1e6 AS total_fee,
-        -- protocol fee comes off the input before the LP fee, so it backs out of
-        -- the event's combined rate as (fee - lpFee) / (1 - lpFee)
-        ABS(amount0) * GREATEST(fee - ${LP_FEE}, 0) / (1 - ${LP_FEE} / 1e6) / 1e6 AS protocol_fee,
+        -- the event's fee is the combined rate; Uniswap's protocol fee comes off the
+        -- input before the LP fee, so it backs out as (fee - lpFee) / (1 - lpFee) and
+        -- what is left is the 0.25% that reaches the FeeSplitter
+        ABS(amount0) * fee / 1e6
+          - ABS(amount0) * GREATEST(fee - ${LP_FEE}, 0) / (1 - ${LP_FEE} / 1e6) / 1e6 AS lp_fee,
         -- creators are paid only out of ETH-side fees, i.e. buys
         amount0 > 0 AND fee_splitter IN (${list(CREATOR_FEE_SPLITTERS)}) AS pays_creator
       FROM swaps
     )
     SELECT
       SUM(volume) AS volume,
-      SUM(total_fee) AS total_fee,
-      SUM(CASE WHEN pays_creator THEN (total_fee - protocol_fee) * ${CREATOR_NATIVE_BPS} / 1e4 ELSE 0 END) AS creator_fee,
-      SUM(total_fee - protocol_fee) AS lp_fee
+      SUM(lp_fee) AS lp_fee,
+      SUM(CASE WHEN pays_creator THEN lp_fee * ${CREATOR_NATIVE_BPS} / 1e4 ELSE 0 END) AS creator_fee,
+      SUM(CASE WHEN pays_creator THEN lp_fee * (1e4 - ${CREATOR_NATIVE_BPS}) / 1e4 ELSE lp_fee END) AS compounded_fee
     FROM split
   `;
 
   const [row] = await queryAllium(query);
 
   dailyVolume.addGasToken(row.volume);
-  dailyFees.addGasToken(row.total_fee, METRIC.SWAP_FEES);
+  dailyFees.addGasToken(row.lp_fee, METRIC.SWAP_FEES);
   dailySupplySideRevenue.addGasToken(row.creator_fee, METRIC.CREATOR_FEES);
-  dailySupplySideRevenue.addGasToken(Number(row.lp_fee) - Number(row.creator_fee), "Fees Compounded Into Locked Liquidity");
+  dailySupplySideRevenue.addGasToken(row.compounded_fee, "Fees Compounded Into Locked Liquidity");
 
   return {
     dailyVolume,
@@ -129,20 +133,20 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "The ETH side of every trade in a pools.trade pool — ETH spent buying the token and ETH received selling it, counted once per trade.",
-  Fees: "The 0.25% fee charged on every trade, plus Uniswap's own 0.04% protocol fee where it has been switched on for the pool. pools.trade charges nothing to launch a token and takes no cut of the raise.",
+  Fees: "The 0.25% fee charged on every trade, taken in whichever token the trader pays with. pools.trade charges nothing to launch a token and takes no cut of the raise. Traders also pay Uniswap's own 0.04% protocol fee on pools where it is switched on; that is Uniswap's charge, not pools.trade's, and is left out here.",
   SupplySideRevenue: "The whole 0.25% trading fee: the creator's share plus the part that is compounded back into the locked liquidity.",
-  Revenue: "Zero. pools.trade keeps none of the trading fee — the 0.25% goes entirely to the token's creator and back into the pool's own locked liquidity. The 0.04% Uniswap charges on top is Uniswap Protocol revenue, burned as UNI, and is counted in the Uniswap adapter rather than here.",
+  Revenue: "Zero. pools.trade keeps none of the trading fee — it all goes to the token's creator and back into the pool's own permanently locked liquidity.",
   ProtocolRevenue: "Zero. pools.trade has no treasury cut, no launch fee and no graduation fee.",
   HoldersRevenue: "Zero. There is no pools.trade token.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "0.25% of every trade, plus Uniswap's 0.04% v4 protocol fee on pools where the fee switch is live (read per trade from the swap's own fee rate).",
+    [METRIC.SWAP_FEES]: "0.25% of every trade, read per trade from the swap's own fee rate with Uniswap's separate 0.04% protocol fee removed.",
   },
   SupplySideRevenue: {
     [METRIC.CREATOR_FEES]: "40% of the fees charged in ETH, held for the token's creator to claim. Only paid on launches created with the creator fee enabled, and never out of fees charged in the token.",
-    "Fees Compounded Into Locked Liquidity": "Everything left of the 0.25% fee, added straight back into the pool's permanently locked position instead of being paid out to anyone.",
+    "Fees Compounded Into Locked Liquidity": "Everything else, added straight back into the pool's permanently locked position instead of being paid out to anyone.",
   },
 };
 
@@ -154,7 +158,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   dependencies: [Dependencies.ALLIUM],
-  doublecounted: true,
+  doublecounted: true, // pools are plain Uniswap V4, also counted by the uniswap adapter
   start: "2026-07-30", // first Instant Launch, 2026-07-30 16:41:56 UTC
 };
 
