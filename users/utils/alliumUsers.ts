@@ -85,43 +85,6 @@ GROUP BY GROUPING SETS ((chain, project), (project))`;
   return runOnce(query);
 }
 
-function getHyperliquidUserRows(options: FetchOptions): Promise<UserRow[]> {
-  const window = `timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-    AND timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
-
-  const query = `
-SELECT
-  '${CHAIN.HYPERLIQUID}' AS chain,
-  CASE WHEN market_type = 'spot' THEN 'spot' ELSE 'perps' END AS project,
-  COUNT(DISTINCT side.value::string) AS users,
-  COUNT(DISTINCT transaction_hash) AS txs
-FROM hyperliquid.dex.trades,
-  LATERAL FLATTEN(input => ARRAY_CONSTRUCT(buyer_address, seller_address)) side
-WHERE ${window}
-  AND (market_type = 'spot' OR is_hip3 = FALSE)
-GROUP BY 1, 2`;
-
-  return runOnce(query);
-}
-
-// Both sides counted: on an orderbook the maker is a user too.
-export function alliumHyperliquidUsersExport({ market, start }: {
-  market: "perps" | "spot";
-  start: string;
-}): SimpleAdapter {
-  return buildUsersAdapter({
-    project: market,
-    chains: [CHAIN.HYPERLIQUID],
-    start,
-    getRows: getHyperliquidUserRows,
-    emptyError: "Allium returned no hyperliquid trades",
-    methodology: {
-      ActiveUsers: `Unique wallets on either side of a ${market === "spot" ? "spot" : "perpetuals"} fill that day. Markets deployed by third parties through HIP-3 are excluded, since those belong to the protocols that deployed them.`,
-      TransactionsCount: `Number of transactions containing at least one ${market === "spot" ? "spot" : "perpetuals"} fill.`,
-    },
-  });
-}
-
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // Token-shaped protocols (liquid staking, RWA) have no curated table: a user is a
