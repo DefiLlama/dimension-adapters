@@ -459,6 +459,7 @@ type UniV2Config = {
   maxPairSize?: number,
   customLogic?: any,
   start?: string,
+  deadFrom?: string,
   blacklistedAddresses?: string[],
   userFeesRatio?: number,
   revenueRatio?: number,
@@ -506,6 +507,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pull
 
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = { fetch: getUniV2LogAdapter(chainConfig), start: chainConfig.start }
+    if (chainConfig.deadFrom) exportObject[chain].deadFrom = chainConfig.deadFrom
   })
 
 
