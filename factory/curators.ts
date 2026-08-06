@@ -394,6 +394,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultV2Owners: ['0xD546Dc0dB55c28860176147b2D0FEFcc533eCf08'],
         start: '2025-12-15',
       },
+      [CHAIN.ROBINHOOD]: {
+        morphoVaultV2Owners: ['0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a', '0xE9c34c8Fe2d8452807eA13148b3F52b91354eA04'],
+        start: '2026-05-29',
+      },
     },
   },
   "telosc": {
