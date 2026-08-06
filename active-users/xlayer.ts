@@ -7,21 +7,18 @@ const fetch = async (options: FetchOptions) => {
   const timestamp = options.startOfDay * 1e3;
   const apiKey = await getOklinkApiKey();
   const headers = { 'x-apikey': apiKey };
-  const [activeData, txData, gasData] = await Promise.all([
+  const [activeData, txData] = await Promise.all([
     httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/activeAddressCount?chain=X1&t=${timestamp}`, { headers }),
     httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/transaction?chain=X1&t=${timestamp}`, { headers }),
-    httpGet(`https://www.oklink.com/api/explorer/v2/common/charts/gasUsedDailyTotal?chain=X1&t=${timestamp}`, { headers }),
   ]);
   const activeEntry = activeData.data.value.find((item: any) => item.timestamp == timestamp);
   const txEntry = txData.data.value.find((item: any) => item.timestamp == timestamp);
-  const gasEntry = gasData.data.value.find((item: any) => item.timestamp == timestamp);
-  if (!activeEntry || !txEntry || !gasEntry) {
+  if (!activeEntry || !txEntry) {
     throw new Error(`No X-Layer user data found for ${timestamp}`);
   }
   return {
     dailyActiveUsers: Number(activeEntry.activeAddressCount),
     dailyTransactionsCount: Number(txEntry.transactionCount),
-    dailyGasUsed: Number(gasEntry.gasUsedDailyTotal),
   };
 };
 
