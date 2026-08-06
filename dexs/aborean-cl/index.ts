@@ -162,10 +162,10 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { dailyBribesRevenue } = await bribesPromise
   const dailyRevenue = createBalances()
 
-  dailyFees.add(dailyBribesRevenue, 'External Bribes')
+  dailyFees.add(dailyBribesRevenue, 'Bribes Rewards')
   dailyRevenue.add(dailyHoldersRevenue, 'Swap Fees To Voters')
-  dailyRevenue.add(dailyBribesRevenue, 'External Bribes To Voters')
-  dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes To Voters')
+  dailyRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
+  dailyHoldersRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
 
   return {
     dailyVolume,
@@ -193,19 +193,19 @@ const adapters: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       'Token Swap Fees': 'Swap fees paid by traders on Aborean concentrated liquidity pools.',
-      'External Bribes': 'External bribes deposited for veABX voters.',
+      'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     UserFees: {
       'Token Swap Fees': 'Swap fees paid by traders on Aborean concentrated liquidity pools.',
-      'External Bribes': 'External bribes deposited for veABX voters.',
+      'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     Revenue: {
       'Swap Fees To Voters': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
-      'External Bribes To Voters': 'External bribes distributed to veABX voters.',
+      'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     HoldersRevenue: {
       'Swap Fees To Voters': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
-      'External Bribes To Voters': 'External bribes distributed to veABX voters.',
+      'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     SupplySideRevenue: {
       'Swap Fees To LPs': 'Swap fees kept by liquidity providers — 90% of unstaked-position fees plus all fees from pools without a gauge.',

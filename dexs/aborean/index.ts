@@ -167,9 +167,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const totalSupplySideRevenue = options.createBalances()
 
   totalFees.add(dailyFees, 'Token Swap Fees')
-  totalFees.add(dailyBribesRevenue, 'External Bribes')
+  totalFees.add(dailyBribesRevenue, 'Bribes Rewards')
   totalHoldersRevenue.add(dailyHoldersRevenue, 'Swap Fees To Voters')
-  totalHoldersRevenue.add(dailyBribesRevenue, 'External Bribes To Voters')
+  totalHoldersRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
   totalSupplySideRevenue.add(dailySupplySideRevenue, 'Swap Fees To LPs')
 
   return {
@@ -198,19 +198,19 @@ const adapters: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       'Token Swap Fees': 'Swap fees paid by traders on Aborean pools.',
-      'External Bribes': 'External bribes deposited for veABX voters.',
+      'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     UserFees: {
       'Token Swap Fees': 'Swap fees paid by traders on Aborean pools.',
-      'External Bribes': 'External bribes deposited for veABX voters.',
+      'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     Revenue: {
       'Swap Fees To Voters': 'Staked-LP share of swap fees, forwarded to veABX voters.',
-      'External Bribes To Voters': 'External bribes distributed to veABX voters.',
+      'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     HoldersRevenue: {
       'Swap Fees To Voters': 'Staked-LP share of swap fees, forwarded to veABX voters.',
-      'External Bribes To Voters': 'External bribes distributed to veABX voters.',
+      'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     SupplySideRevenue: {
       'Swap Fees To LPs': 'Unstaked-LP share of swap fees, plus all fees from pools without a gauge.',
