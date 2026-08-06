@@ -419,7 +419,9 @@ const fetch = async (options: FetchOptions) => {
       const key = log.address.toLowerCase();
       mintedShares[key] = (mintedShares[key] || 0n) + BigInt(log.args.shares);
     }
-    const minted = priced.map((i) => mintedShares[strategies[i]] || 0n);
+    const minted = priced.map(
+      (i) => mintedShares[strategies[i].toLowerCase()] || 0n,
+    );
 
     const pricedFmCall = (abi: string, extra?: boolean) =>
       toApi.multiCall({
