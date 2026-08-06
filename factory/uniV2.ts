@@ -803,12 +803,6 @@ const configs: Record<string, Record<string, any>> = {
   "giga-dex": {
     [CHAIN.ROBINHOOD]: { factory: "0x6Fdf38f92eAd1adFc04B73aaa947ab254f6c0916", fees: 0.003, stableFees: 0.003, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2, start: "2026-07-15" }
   },
-  // Orvex v2 (Lynex-fork Solidly on Robinhood). PairFactoryUpgradeable: https://robinhoodchain.blockscout.com/address/0x5c98b2d892b37c9a1D3b69472bdDc172A64CdC09
-  // stableFee=40, volatileFee=180 (denom 1e5 -> 0.04%/0.18%); 100% of swap fees routed to veORVX holders via
-  // FeeDistributor https://robinhoodchain.blockscout.com/address/0xB9aC1b9763c346696d064E2c666a806D78aB02b9 - no protocol take.
-  "orvex-v2": {
-    [CHAIN.ROBINHOOD]: { factory: "0x5c98b2d892b37c9a1D3b69472bdDc172A64CdC09", fees: 0.0018, stableFees: 0.0004, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1, start: "2026-07-03" }
-  },
   "bulbaswap-v2": {
     [CHAIN.MORPH]: { factory: "0x8D2A8b8F7d200d75Bf5F9E84e01F9272f90EFB8b", fees: 0.0035, userFeesRatio: 1, revenueRatio: 2 / 7, protocolRevenueRatio: 2 / 7, start: "2024-10-27" }
   }
