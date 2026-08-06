@@ -27,40 +27,53 @@ const VNEXT_CONFIG_EVENT =
 
 const FEE_ACCRUED_EVENT = "event FeeAccrued(bytes32 indexed poolId, uint256 amount)";
 
+// creatorFeeBps and platform-share values use the factory's basis-point
+// denominator, where 10,000 represents 100%:
+// https://robinhoodchain.blockscout.com/address/0x3dFd73A63E15920aDd4B6c5C6a4b1b4B768b2c1A?tab=contract
 const BPS = 10_000n;
+// LaunchConfig.feeRate is expressed in parts per million (10,000 = 1%), so
+// this converts FeeAccrued back to quote volume:
+// https://robinhoodchain.blockscout.com/address/0x3dFd73A63E15920aDd4B6c5C6a4b1b4B768b2c1A?tab=contract
 const FEE_RATE_DENOMINATOR = 1_000_000n;
 const PLATFORM_FEES = "Platform Fees";
+// LetsCash documents a fixed platform split: 25% CASHCAT buyback-and-burn,
+// 25% treasury buyback, and 50% operations. The burn lane is holder revenue:
+// https://www.letscash.fun/about
+const PLATFORM_BURN_SHARE_BPS = 2_500n;
 
 // These immutable legacy configurations were emitted before the factory's
 // vNext implementation. The old struct did not carry a quote address; all
 // legacy pools use native ETH. Values are from the factory's LaunchConfigAdded
 // events, retained here because the public log indexer does not consistently
-// return the pre-upgrade tuple event.
-const LEGACY_CONFIGS: Record<string, { creatorFeeBps: bigint; feeRate: bigint }> = {
-  "0": { creatorFeeBps: 5000n, feeRate: 10000n },
-  "1": { creatorFeeBps: 7500n, feeRate: 20000n },
-  "2": { creatorFeeBps: 8334n, feeRate: 30000n },
-  "3": { creatorFeeBps: 8750n, feeRate: 40000n },
-  "4": { creatorFeeBps: 9000n, feeRate: 50000n },
-  "5": { creatorFeeBps: 9167n, feeRate: 60000n },
-  "6": { creatorFeeBps: 9286n, feeRate: 70000n },
-  "7": { creatorFeeBps: 9375n, feeRate: 80000n },
-  "8": { creatorFeeBps: 9445n, feeRate: 90000n },
-  "9": { creatorFeeBps: 9500n, feeRate: 100000n },
-  "10": { creatorFeeBps: 9546n, feeRate: 110000n },
-  "11": { creatorFeeBps: 9584n, feeRate: 120000n },
-  "12": { creatorFeeBps: 9616n, feeRate: 130000n },
-  "13": { creatorFeeBps: 9643n, feeRate: 140000n },
-  "14": { creatorFeeBps: 9667n, feeRate: 150000n },
-  "15": { creatorFeeBps: 5000n, feeRate: 10000n },
-  "16": { creatorFeeBps: 7000n, feeRate: 10000n },
-  "17": { creatorFeeBps: 7000n, feeRate: 10000n },
+// return the pre-upgrade tuple event. The selfBurn flags match the retired
+// factory array: modes 15 and 17 route the creator share to self-burners.
+// Source: https://robinhoodchain.blockscout.com/address/0x3dFd73A63E15920aDd4B6c5C6a4b1b4B768b2c1A?tab=contract
+const LEGACY_CONFIGS: Record<string, { creatorFeeBps: bigint; feeRate: bigint; selfBurn: boolean }> = {
+  "0": { creatorFeeBps: 5000n, feeRate: 10000n, selfBurn: false },
+  "1": { creatorFeeBps: 7500n, feeRate: 20000n, selfBurn: false },
+  "2": { creatorFeeBps: 8334n, feeRate: 30000n, selfBurn: false },
+  "3": { creatorFeeBps: 8750n, feeRate: 40000n, selfBurn: false },
+  "4": { creatorFeeBps: 9000n, feeRate: 50000n, selfBurn: false },
+  "5": { creatorFeeBps: 9167n, feeRate: 60000n, selfBurn: false },
+  "6": { creatorFeeBps: 9286n, feeRate: 70000n, selfBurn: false },
+  "7": { creatorFeeBps: 9375n, feeRate: 80000n, selfBurn: false },
+  "8": { creatorFeeBps: 9445n, feeRate: 90000n, selfBurn: false },
+  "9": { creatorFeeBps: 9500n, feeRate: 100000n, selfBurn: false },
+  "10": { creatorFeeBps: 9546n, feeRate: 110000n, selfBurn: false },
+  "11": { creatorFeeBps: 9584n, feeRate: 120000n, selfBurn: false },
+  "12": { creatorFeeBps: 9616n, feeRate: 130000n, selfBurn: false },
+  "13": { creatorFeeBps: 9643n, feeRate: 140000n, selfBurn: false },
+  "14": { creatorFeeBps: 9667n, feeRate: 150000n, selfBurn: false },
+  "15": { creatorFeeBps: 5000n, feeRate: 10000n, selfBurn: true },
+  "16": { creatorFeeBps: 7000n, feeRate: 10000n, selfBurn: false },
+  "17": { creatorFeeBps: 7000n, feeRate: 10000n, selfBurn: true },
 };
 
 type LaunchConfig = {
   quote: string;
   creatorFeeBps: bigint;
   feeRate: bigint;
+  selfBurn: boolean;
 };
 
 type PoolInfo = LaunchConfig & {
@@ -122,6 +135,7 @@ async function discoverPools(options: FetchOptions): Promise<Discovery> {
         quote: asAddress(config.quote),
         creatorFeeBps: asBigInt(config.creatorFeeBps),
         feeRate: asBigInt(config.feeRate),
+        selfBurn: Boolean(config.selfBurn),
       };
     }
 
@@ -155,6 +169,7 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
   const { pools, hooks } = await discoverPools(options);
 
   // Query only pool hooks discovered from the factory. This covers the legacy
@@ -166,19 +181,28 @@ async function fetch(options: FetchOptions) {
   for (const log of feeLogs) {
     const args = log.args ?? log;
     const pool = pools[String(args.poolId).toLowerCase()];
-    if (!pool) continue;
+    if (!pool) throw new Error(`LetsCash: FeeAccrued for unknown pool ${args.poolId}`);
 
     const totalFee = asBigInt(args.amount);
     if (pool.feeRate === 0n) throw new Error(`LetsCash: zero fee rate for pool ${args.poolId}`);
     const volume = (totalFee * FEE_RATE_DENOMINATOR) / pool.feeRate;
     const creatorFee = (totalFee * pool.creatorFeeBps) / BPS;
     const platformFee = totalFee - creatorFee;
+    const platformBuyback = (platformFee * PLATFORM_BURN_SHARE_BPS) / BPS;
+    const selfBurnFee = pool.selfBurn ? creatorFee : 0n;
+    const creatorRevenue = pool.selfBurn ? 0n : creatorFee;
 
     dailyVolume.add(pool.quote, volume);
     dailyFees.add(pool.quote, totalFee, METRIC.SWAP_FEES);
     dailyRevenue.add(pool.quote, platformFee, PLATFORM_FEES);
-    dailyProtocolRevenue.add(pool.quote, platformFee, PLATFORM_FEES);
-    dailySupplySideRevenue.add(pool.quote, creatorFee, METRIC.CREATOR_FEES);
+    dailyProtocolRevenue.add(pool.quote, platformFee - platformBuyback, PLATFORM_FEES);
+    dailyHoldersRevenue.add(pool.quote, platformBuyback, METRIC.TOKEN_BUY_BACK);
+    if (pool.selfBurn) {
+      dailyRevenue.add(pool.quote, selfBurnFee, METRIC.TOKEN_BUY_BACK);
+      dailyHoldersRevenue.add(pool.quote, selfBurnFee, METRIC.TOKEN_BUY_BACK);
+    } else {
+      dailySupplySideRevenue.add(pool.quote, creatorRevenue, METRIC.CREATOR_FEES);
+    }
   }
 
   return {
@@ -188,6 +212,7 @@ async function fetch(options: FetchOptions) {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -201,9 +226,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Quote-currency volume reconstructed from each hook's FeeAccrued amount and the pool's on-chain feeRate (fee × 1,000,000 ÷ feeRate). Native ETH and USDG pools are priced by DefiLlama from the quote asset.",
     Fees: "Total launch-tax fees emitted by LetsCash hooks through FeeAccrued events. The launch configuration's fee rate is already reflected in the emitted amount.",
-    Revenue: "The platform share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
-    ProtocolRevenue: "The platform share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
-    SupplySideRevenue: "The creator share of launch-tax fees, calculated from each pool's on-chain creatorFeeBps configuration.",
+    Revenue: "The platform share of launch-tax fees, plus the creator share for self-burn pools because that share buys and burns the launched token.",
+    ProtocolRevenue: "75% of the platform share, with the other 25% used for the CASHCAT buyback-and-burn lane.",
+    HoldersRevenue: "25% of the platform share used to buy and burn CASHCAT, plus 100% of the creator share for self-burn pools.",
+    SupplySideRevenue: "The creator share of launch-tax fees for standard pools; self-burn pools have no creator payout.",
   },
   breakdownMethodology: {
     Fees: {
@@ -211,9 +237,13 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [PLATFORM_FEES]: "The fee amount retained by LetsCash after the creator share defined in the pool's launch configuration.",
+      [METRIC.TOKEN_BUY_BACK]: "The creator share of self-burn pools, used to buy and burn the launched token.",
     },
     ProtocolRevenue: {
-      [PLATFORM_FEES]: "The fee amount retained by LetsCash after the creator share defined in the pool's launch configuration.",
+      [PLATFORM_FEES]: "75% of the platform share retained for treasury and operations; 25% funds CASHCAT buyback-and-burn.",
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "25% of the platform share buys and burns CASHCAT; self-burn creator shares buy and burn the launched token.",
     },
     SupplySideRevenue: {
       [METRIC.CREATOR_FEES]: "The creator share defined in the pool's launch configuration.",
