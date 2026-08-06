@@ -6,9 +6,16 @@ const METRIC = {
   SWAP_FEES: 'Token Swap Fees',
   HOLDERS_REVENUE: 'Swap Fees To veORVX Holders',
   PROTOCOL_REVENUE: 'Swap Fees To Protocol',
+  NO_LP_REVENUE: 'No Supply-Side Revenue (Gauge Model)',
 }
 
-const config: any = {
+type ChainConfig = { clPoolManager: string, fromBlock: number, start: string }
+
+// Orvex v4 concentrated-liquidity deployment on Robinhood Chain (Arbitrum Orbit L2, chainId 4663).
+// CLPoolManager creation tx block = fromBlock; the start date is that block's timestamp.
+// CLPoolManager: https://robinhoodchain.blockscout.com/address/0xd01C774d4A66408326Bc65728Ac5Ae5aAf004032
+// Vault singleton (settle/take target, holds all v4 token balances): https://robinhoodchain.blockscout.com/address/0xFe7E25dE55e5cBbEcCcb661F3679F873f72B9b0D
+const config: Record<string, ChainConfig> = {
   [CHAIN.ROBINHOOD]: {
     clPoolManager: '0xd01C774d4A66408326Bc65728Ac5Ae5aAf004032',
     fromBlock: 3074079,
@@ -64,6 +71,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyRevenue = createBalances()
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = protocolRevenue.clone(1, METRIC.PROTOCOL_REVENUE)
+  const dailySupplySideRevenue = createBalances()
 
   const holdersRevenue = swapFees.clone(1)
   holdersRevenue.subtract(protocolRevenue)
@@ -78,6 +86,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue,
   }
 }
 
@@ -90,6 +99,7 @@ const adapter: SimpleAdapter = {
     Revenue: 'All swap fees are revenue - the LP portion is routed to veORVX voters via the gauge system, and any protocol-fee portion goes to the Orvex treasury.',
     ProtocolRevenue: 'Portion of swap fees taken as the on-chain protocolFee (0 by default).',
     HoldersRevenue: 'Portion of swap fees distributed to veORVX voters through the gauge/FeeDistributor flow (fee minus protocolFee).',
+    SupplySideRevenue: 'Zero - liquidity providers stake in gauges and forgo direct swap-fee earnings in exchange for oORVX emissions, so trading fees never accrue to LPs.',
   },
   breakdownMethodology: {
     Fees: {
@@ -104,6 +114,9 @@ const adapter: SimpleAdapter = {
     },
     HoldersRevenue: {
       [METRIC.HOLDERS_REVENUE]: 'Swap fees distributed to veORVX voters via gauges.',
+    },
+    SupplySideRevenue: {
+      [METRIC.NO_LP_REVENUE]: 'Zero - LPs stake in gauges and earn oORVX emissions instead of swap fees; no fees accrue to the supply side.',
     },
   },
 }
