@@ -10,14 +10,14 @@ import fetchURL from "../../utils/fetchURL";
  *   Spot:   https://api.rocky.exchange/api/v3/ticker/24hr
  *
  * Both endpoints return a rolling 24-hour aggregation across every symbol.
- * `quoteVolume` on each row is the USD-denominated notional (Rocky's spot
- * markets quote in USDCx/CUSD and perp markets quote in USD-pegged margin
- * assets, so `quoteVolume` is directly USD).
+ * `quoteVolume` on each row is USD-denominated for USD-quoted markets (Rocky's
+ * spot markets quote in USDCx/CUSD and perp markets margin in USD-pegged
+ * assets), so summing USD-quoted rows directly yields USD notional.
  *
- * runAtCurrTime: true — Rocky's Binance-compat tickers expose a live rolling
- * 24h window only; there is no historical time-travel endpoint. This matches
- * the same posture as pool-party (also Canton) which uses the same period=24h
- * convention.
+ * runAtCurrTime + pullHourly:false — Rocky's Binance-compat tickers expose a
+ * live rolling 24h window only; there is no historical time-travel and no
+ * per-hour bucketing. Same posture as dexs/pool-party (also Canton), which
+ * uses the same rolling-24h source shape.
  */
 
 const API_BASE = "https://api.rocky.exchange";
@@ -52,20 +52,31 @@ type Ticker24hRow = {
   quoteVolume: string;
 };
 
-const sumUsdQuoteVolume = (rows: unknown): number => {
-  if (!Array.isArray(rows)) {
-    throw new Error("Rocky ticker/24hr response was not an array");
+const sumUsdQuoteVolume = (rows: unknown, source: string): number => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(`Rocky ${source} ticker/24hr returned empty or non-array payload`);
   }
   let total = 0;
+  let usdQuotedRowCount = 0;
   for (const row of rows as Ticker24hRow[]) {
-    if (!USD_QUOTE_ASSETS.has(quoteAsset(row?.symbol || ""))) continue;
-    const v = Number(row?.quoteVolume);
+    const symbol = typeof row?.symbol === "string" ? row.symbol.trim() : "";
+    if (!symbol) {
+      throw new Error(`Rocky ${source} ticker/24hr row missing symbol`);
+    }
+    if (!USD_QUOTE_ASSETS.has(quoteAsset(symbol))) continue;
+    const rawVolume = row?.quoteVolume;
+    if (typeof rawVolume !== "string" || rawVolume.length === 0) {
+      throw new Error(`Rocky ${source} ticker/24hr row ${symbol} missing quoteVolume`);
+    }
+    const v = Number(rawVolume);
     if (!Number.isFinite(v) || v < 0) {
-      throw new Error(
-        `Rocky ticker/24hr row has invalid quoteVolume for symbol=${row?.symbol}`,
-      );
+      throw new Error(`Rocky ${source} ticker/24hr row ${symbol} invalid quoteVolume=${rawVolume}`);
     }
     total += v;
+    usdQuotedRowCount += 1;
+  }
+  if (usdQuotedRowCount === 0) {
+    throw new Error(`Rocky ${source} ticker/24hr returned no USD-quoted rows`);
   }
   return total;
 };
@@ -76,7 +87,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     fetchURL(SPOT_TICKER_URL),
   ]);
 
-  const dailyVolume = sumUsdQuoteVolume(perpRows) + sumUsdQuoteVolume(spotRows);
+  const dailyVolume =
+    sumUsdQuoteVolume(perpRows, "perp") + sumUsdQuoteVolume(spotRows, "spot");
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(
@@ -126,16 +138,15 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  adapter: {
-    [CHAIN.CANTON]: {
-      runAtCurrTime: true,
-      start: "2026-07-01",
-      meta: {
-        methodology,
-        breakdownMethodology,
-      },
-    },
-  },
+  chains: [CHAIN.CANTON],
+  start: "2026-07-01",
+  runAtCurrTime: true,
+  // Rocky's ticker/24hr endpoints expose a live rolling 24h window only; there
+  // is no per-hour bucketing available. Set pullHourly:false so the runner
+  // treats this adapter as daily-only.
+  pullHourly: false,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
