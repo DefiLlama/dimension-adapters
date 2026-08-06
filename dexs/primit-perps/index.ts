@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+
 // Primit on-chain trade log (Avalanche C-Chain).
 //
 // Every fill Primit brokers — whether matched on its own engine or routed through
@@ -25,9 +26,27 @@ const abi = {
 const methodology = {
   Volume:
     "Sum of `price * amount` for every TradeRecorded event emitted by Primit's TradeRecorder contract (0xC005A9bb11f162329f3EfCCc35F69F9Bb635EeC6 on Avalanche C-Chain) during the UTC day, excluding self-trades where taker == maker. Both `price` and `amount` are 1e18 fixed-point, so the product is scaled by 1e36 and normalized down to floating USD before returning. Data is 100% reconstructable on-chain — no dependency on any Primit-operated HTTP endpoint. Every fill matched or routed by Primit is captured by this single TradeRecorder event stream, so there is no separate broker-level attribution to deduplicate against.",
-  Fees:
-    "Sum of positive `takerFee` and `makerFee` amounts from each non-self-trade TradeRecorded event. Negative fee values are fee adjustments and are not added to user-paid trading fees. This uses the per-fill fee values, which capture Primit's account-specific rates and discounts.",
+  Fees:"Includes maker and taker fees paid by traders.",
+  Revenue: "Part of trading fees retained by the protocol after deducting fees distributed to makers.",
+  ProtocolRevenue: "Part of trading fees retained by the protocol after deducting fees distributed to makers.",
+  SupplySideRevenue: "Trading Fees paid to Makers"
 };
+
+const breakdownMethodology = {
+  Fees: {
+    "Maker Fees": "Fees paid by makers to the protocol.",
+    "Taker Fees": "Fees paid by takers to the protocol.",
+  },
+  Revenue: {
+    "Trading Fees to Protocol": "Part of trading fees retained by the protocol after deducting fees distributed to makers.",
+  },
+  ProtocolRevenue: {
+    "Trading Fees to Protocol": "Part of trading fees retained by the protocol after deducting fees distributed to makers.",
+  },
+  SupplySideRevenue: {
+    "Trading Fees to Makers": "Trading Fees paid to Makers",
+  }
+}
 
 const SCALE_18 = 10n ** 18n;
 
@@ -40,7 +59,9 @@ const fetch = async (options: FetchOptions) => {
   // Accumulate as bigint in 1e18 fixed-point USD. price * amount is 1e36
   // fixed-point, so /1e18 keeps it at 1e18.
   let totalWeiUsd: bigint = 0n;
-  let totalFeesWeiUsd: bigint = 0n;
+  let totalMakerFeesWeiUsd: bigint = 0n;
+  let totalTakerFeesWeiUsd: bigint = 0n;
+  let totalFeesDistributedWeiUsd: bigint = 0n;
   for (const log of logs) {
     // Defense in depth: skip self-trades (backend also filters, but the
     // adapter shouldn't trust off-chain filtering when the reviewer can
@@ -56,8 +77,9 @@ const fetch = async (options: FetchOptions) => {
     // nominal rate: maker/taker rates can vary by account and discount.
     const takerFee = BigInt(log.takerFee.toString());
     const makerFee = BigInt(log.makerFee.toString());
-    if (takerFee > 0n) totalFeesWeiUsd += takerFee;
-    if (makerFee > 0n) totalFeesWeiUsd += makerFee;
+    if (takerFee > 0n) totalTakerFeesWeiUsd += takerFee;
+    if (makerFee > 0n) totalMakerFeesWeiUsd += makerFee;
+    if (makerFee < 0n) totalFeesDistributedWeiUsd -= makerFee;
   }
 
   // Convert bigint → float in two parts to avoid Number precision loss.
@@ -70,11 +92,25 @@ const fetch = async (options: FetchOptions) => {
     Number(weiUsd / SCALE_18) + Number(weiUsd % SCALE_18) / 1e18;
 
   const dailyVolume = toUsdFloat(totalWeiUsd);
-  const dailyFees = toUsdFloat(totalFeesWeiUsd);
+  const makerFees = toUsdFloat(totalMakerFeesWeiUsd);
+  const takerFees = toUsdFloat(totalTakerFeesWeiUsd);
+  const feesDistributed = toUsdFloat(totalFeesDistributedWeiUsd);
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  dailyFees.addUSDValue(makerFees, "Maker Fees")
+  dailyFees.addUSDValue(takerFees, "Taker Fees")
+  dailyRevenue.addUSDValue(makerFees + takerFees- feesDistributed, "Trading Fees to Protocol")
+  dailySupplySideRevenue.addUSDValue(feesDistributed, "Trading Fees to Makers")
 
   return {
     dailyVolume,
     dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -85,7 +121,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.AVAX],
   start: "2026-07-16",
   methodology,
-  skipBreakdownValidation: true,
+  breakdownMethodology,
 };
 
 export default adapter;
