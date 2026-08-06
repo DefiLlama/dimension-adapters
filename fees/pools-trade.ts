@@ -154,6 +154,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   dependencies: [Dependencies.ALLIUM],
+  doublecounted: true,
   start: "2026-07-30", // first Instant Launch, 2026-07-30 16:41:56 UTC
 };
 
