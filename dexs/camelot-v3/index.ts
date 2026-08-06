@@ -143,6 +143,7 @@ const adapter: SimpleAdapter = {
         ...adapterConfig,
       }),
       start: '2024-06-05',
+      deadFrom: '2026-07-08',
     },
     [CHAIN.REYA]: {
       fetch: getUniV3LogAdapter({
