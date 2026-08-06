@@ -189,7 +189,7 @@ async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyPremiumVolume.addUSDValue(premiumUsd, STREAMING_PREMIUM);
+  dailyPremiumVolume.addUSDValue(premiumUsd);
 
   for (const page of pages) {
     for (const event of [...page.optionMints, ...page.optionBurns]) {
@@ -203,7 +203,6 @@ async function fetch(options: FetchOptions) {
         dailyNotionalVolume.add(
           tokens[notional.tokenType],
           notional.amount,
-          OPTION_NOTIONAL,
         );
       }
     }
@@ -247,14 +246,6 @@ const adapter: SimpleAdapter = {
       "All Panoptic V2 protocol and builder commissions currently controlled by the Panoptic protocol treasury.",
   },
   breakdownMethodology: {
-    NotionalVolume: {
-      [OPTION_NOTIONAL]:
-        "Gross underlying exposure of all Panoptic V2 option legs minted and burned.",
-    },
-    PremiumVolume: {
-      [STREAMING_PREMIUM]:
-        "Streaming premium accrued by Panoptic V2 positions during the UTC day.",
-    },
     Fees: {
       [PROTOCOL_COMMISSION_FEES]:
         "Option commission recorded on-chain as commissionPaidProtocol.",
