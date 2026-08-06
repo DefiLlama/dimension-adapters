@@ -61,6 +61,7 @@ const evmLeg = (chain: string, { table, pools }: EvmChain) => `
 const solanaLeg = `
     SELECT
       'solana' AS chain,
+      -- account_arguments[8] is transact_spl's mint account
       CASE WHEN bytearray_substring(data, 1, 8) = ${TRANSACT_SOL} THEN '${WSOL}' ELSE account_arguments[8] END AS token,
       CAST(bytearray_to_uint256(reverse(bytearray_substring(data,
         CASE WHEN block_time < TIMESTAMP '${SOLANA_MINIFY}' THEN 529 ELSE 497 END, 8))) AS double) AS fee
@@ -81,25 +82,46 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   for (const row of options.preFetchedResults.filter((r: any) => r.chain === options.chain)) {
-    if (row.token === NATIVE) dailyFees.addGasToken(row.fee);
-    else dailyFees.add(row.token, row.fee);
+    if (row.token === NATIVE) {
+      dailyFees.addGasToken(row.fee, 'Withdrawal Fees');
+      dailyRevenue.addGasToken(row.fee, 'Withdrawal Fees To Treasury');
+    } else {
+      dailyFees.add(row.token, row.fee, 'Withdrawal Fees');
+      dailyRevenue.add(row.token, row.fee, 'Withdrawal Fees To Treasury');
+    }
   }
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
-  Fees: "The fee charged on each withdrawal from a shielded pool, taken as the exact amount the pool paid out to Privacy Cash rather than a modelled rate. The published schedule is 0.35% of the amount withdrawn plus a fixed relayer fee (0.006 SOL on Solana, 0.00025 ETH on Base, Ethereum and Robinhood Chain), and swaps and bridge transfers are charged the same way. Deposits are free. Costs a withdrawal passes through to other protocols - Jupiter swap fees and the 0.1% NEAR bridging fee - are paid to those protocols and are not counted here.",
-  UserFees: "The full withdrawal fee charged to the user.",
-  Revenue: "All withdrawal fees. Privacy Cash has no liquidity providers or stakers to pay, so every fee collected is revenue.",
-  ProtocolRevenue: "All withdrawal fees. Every fee is paid to a wallet controlled by Privacy Cash.",
+  Fees: "The fee taken when a user moves funds out of a shielded pool - a withdrawal, a swap or a bridge transfer - read as the exact amount the pool paid Privacy Cash rather than a modelled rate. The published schedule is 0.35% of the amount, plus a flat charge that covers relaying the transaction: 0.006 SOL on Solana (0.008 SOL for swaps), 0.00025 ETH on Base, and a variable network-based charge on Ethereum. Deposits are free. Jupiter swap fees and the 0.1% NEAR bridging fee are paid to those protocols, not to Privacy Cash, and are not counted here.",
+  UserFees: "The full amount charged to the user, which is the same as Fees.",
+  Revenue: "All of it. Privacy Cash has no liquidity providers, lenders or stakers to pay, so nothing is deducted from fees.",
+  ProtocolRevenue: "All of it. Every fee is paid to a Privacy Cash treasury wallet; the relayers that submit withdrawals receive none of it and only cover gas.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Withdrawal Fees': "The 0.35% plus flat relaying charge taken from each withdrawal, swap or bridge transfer out of a shielded pool.",
+  },
+  UserFees: {
+    'Withdrawal Fees': "The full amount charged to the user on each withdrawal, swap or bridge transfer.",
+  },
+  Revenue: {
+    'Withdrawal Fees To Treasury': "Every withdrawal fee, all of which is paid to a Privacy Cash treasury wallet.",
+  },
+  ProtocolRevenue: {
+    'Withdrawal Fees To Treasury': "Every withdrawal fee, all of which is paid to a Privacy Cash treasury wallet.",
+  },
 };
 
 const adapter: Adapter = {
@@ -107,6 +129,7 @@ const adapter: Adapter = {
   fetch,
   prefetch,
   methodology,
+  breakdownMethodology,
   dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.SOLANA]: { start: SOLANA_START },
