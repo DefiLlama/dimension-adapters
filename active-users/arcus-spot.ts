@@ -6,8 +6,7 @@ const API = "https://indexer.spot.arcus.xyz/stats/daily";
 // Robinhood Chain, the only chain the Arcus spot indexer covers.
 const ROBINHOOD_CHAIN_ID = 4663;
 
-// The indexer only serves trailing-day windows (max 365), so ask for enough
-// days to reach the requested date and pick the matching row.
+// Indexer serves only trailing-day windows (max 365), so request enough to reach the date.
 export const fetchSpotStats = async (options: FetchOptions) => {
   const days = Math.min(365, Math.ceil((Date.now() / 1000 - options.startOfDay) / 86400) + 1);
   const { rows } = await fetchURL(`${API}?chainId=${ROBINHOOD_CHAIN_ID}&days=${days}`);

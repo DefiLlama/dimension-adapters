@@ -4,11 +4,15 @@ import fetchURL from "../utils/fetchURL";
 
 const API = "https://api.arcus.xyz/v1/stats/perp/activity/daily";
 
-const fetch = async (options: FetchOptions) => {
+export const fetchPerpStats = async (options: FetchOptions) => {
   const { rows } = await fetchURL(`${API}?from=${options.dateString}&to=${options.dateString}`);
   const row = rows?.find((r: any) => r.date === options.dateString);
   if (!row) throw new Error(`No Arcus perp activity data for ${options.dateString}`);
+  return row;
+};
 
+const fetch = async (options: FetchOptions) => {
+  const row = await fetchPerpStats(options);
   return {
     dailyActiveUsers: row.activeAddresses,
     dailyTransactionsCount: row.transactions,
@@ -19,9 +23,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  // Through 2026-07-01 the endpoint counts pre-launch system transactions
-  // (June reports 14k-27k transactions against 0 active addresses, and
-  // 2026-07-01 reports 30248 against 25). 2026-07-02 is the first user-only day.
+  // Endpoint counts pre-launch system txs through 2026-07-01 (30248 txs vs 25 users).
   start: "2026-07-02",
 };
 

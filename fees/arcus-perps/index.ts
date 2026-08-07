@@ -8,17 +8,22 @@ const API = "https://api.arcus.xyz/v1/stats/perp/fees/daily";
 const MAKER_REBATES = "Maker Rebates";
 const REFERRAL_FEES = "Referral Fees";
 
+// Number('') and Number(null) are 0, so reject non-numeric fields before coercing.
+const parseAmount = (value: any, field: string, date: string) => {
+  const usable = typeof value === "number" || (typeof value === "string" && value.trim() !== "");
+  const amount = usable ? Number(value) : NaN;
+  if (!Number.isFinite(amount)) throw new Error(`Arcus perp fees: bad ${field} for ${date}`);
+  return amount;
+};
+
 const fetch = async (options: FetchOptions) => {
   const { rows } = await fetchURL(`${API}?from=${options.dateString}&to=${options.dateString}`);
   const row = rows?.find((r: any) => r.date === options.dateString);
   if (!row) throw new Error(`No Arcus perp fee data for ${options.dateString}`);
 
-  const feesGross = Number(row.feesGross);
-  const makerRebates = Number(row.makerRebates);
-  const referralPayouts = Number(row.referralPayouts);
-  if (![feesGross, makerRebates, referralPayouts].every(Number.isFinite)) {
-    throw new Error(`Malformed Arcus perp fee row for ${options.dateString}`);
-  }
+  const feesGross = parseAmount(row.feesGross, "feesGross", options.dateString);
+  const makerRebates = parseAmount(row.makerRebates, "makerRebates", options.dateString);
+  const referralPayouts = parseAmount(row.referralPayouts, "referralPayouts", options.dateString);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
