@@ -3,16 +3,12 @@ import { CHAIN } from "../helpers/chains";
 import { postURL } from "../utils/fetchURL";
 
 // Sablier Flow: rate-based recurring payment streams (payroll, grants,
-// subscriptions). Funded by deposits and topups. Volume is the value paid out to
-// recipients on chain: `amountA` on Withdraw actions only.
+// subscriptions). Volume is value paid out to recipients: `amountA` on
+// Withdraw actions.
 //
-// Void and Refund are deliberately excluded and must stay excluded. `_void`
-// moves no tokens at all -- its `amountB` is `writtenOffDebt`, i.e. debt the
-// sender never funded and now never will, which accrues unbounded on an
-// unfunded stream. Refund returns uncommitted deposits to the sender. Data
-// comes from Sablier's public Envio HyperIndex; per-chain queries filter by
-// chainId. Daily figures are lumpy (claim timing) but cumulative equals true
-// streamed value.
+// Void and Refund are excluded and must stay excluded. `_void` moves no tokens;
+// its `amountB` is written-off debt the sender never funded, unbounded on an
+// unfunded stream. Refund returns uncommitted deposits to the sender.
 
 const INDEXER = "https://indexer.hyperindex.xyz/53b7e25/v1/graphql";
 const PAGE_SIZE = 1000;
@@ -46,9 +42,7 @@ interface Row {
   stream: { asset_id: string } | null;
 }
 
-// One query serves every chain in the window and the in-flight promise is
-// shared, so a run costs one paginated pass rather than one per chain. The
-// indexer rate-limits bursts, and the per-chain shape tripped it.
+// One shared query per window, not one per chain -- the indexer rate-limits bursts.
 const CHAIN_IDS = Object.values(CONFIG).map(({ chainId }) => chainId);
 
 const buildQuery = (from: number, to: number, cursor: string) => `{
@@ -69,26 +63,29 @@ const buildQuery = (from: number, to: number, cursor: string) => `{
   }
 }`;
 
-const inFlight: Record<string, Promise<Row[]>> = {};
+const fetchWindow = async (from: number, to: number) => {
+  const all: Row[] = [];
+  let cursor = "";
+  while (true) {
+    const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, {
+      query: buildQuery(from, to, cursor),
+    });
+    const rows = res.data.FlowAction;
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    cursor = rows[rows.length - 1].id;
+  }
+  return all;
+};
+
+// Hold only the active window: keeping all of them grows unbounded on backfills,
+// and dropping on settle refetches per chain when chains run sequentially.
+let cached: { key: string; rows: Promise<Row[]> } | undefined;
 
 const getWindow = (from: number, to: number) => {
   const key = `${from}-${to}`;
-  if (!inFlight[key])
-    inFlight[key] = (async () => {
-      const all: Row[] = [];
-      let cursor = "";
-      while (true) {
-        const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, {
-          query: buildQuery(from, to, cursor),
-        });
-        const rows = res.data.FlowAction;
-        all.push(...rows);
-        if (rows.length < PAGE_SIZE) break;
-        cursor = rows[rows.length - 1].id;
-      }
-      return all;
-    })();
-  return inFlight[key];
+  if (cached?.key !== key) cached = { key, rows: fetchWindow(from, to) };
+  return cached.rows;
 };
 
 const fetch = async (options: FetchOptions) => {
