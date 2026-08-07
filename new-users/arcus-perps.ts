@@ -18,7 +18,9 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-07-01",
+  // Matches active-users/arcus-perps: the endpoint reports pre-launch system
+  // activity through 2026-07-01, so user counts only start on 2026-07-02.
+  start: "2026-07-02",
 };
 
 export default adapter;

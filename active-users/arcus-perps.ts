@@ -19,7 +19,10 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-07-01",
+  // Through 2026-07-01 the endpoint counts pre-launch system transactions
+  // (June reports 14k-27k transactions against 0 active addresses, and
+  // 2026-07-01 reports 30248 against 25). 2026-07-02 is the first user-only day.
+  start: "2026-07-02",
 };
 
 export default adapter;

@@ -16,6 +16,9 @@ const fetch = async (options: FetchOptions) => {
   const feesGross = Number(row.feesGross);
   const makerRebates = Number(row.makerRebates);
   const referralPayouts = Number(row.referralPayouts);
+  if (![feesGross, makerRebates, referralPayouts].every(Number.isFinite)) {
+    throw new Error(`Malformed Arcus perp fee row for ${options.dateString}`);
+  }
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
