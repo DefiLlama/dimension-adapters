@@ -20,19 +20,21 @@ async function fetch() {
 
     for (const pool of pools) {
       const tvl = pool.tvl || 0;
-      const volume = (pool.volume && pool.volume['24h']) ? Number(pool.volume['24h']) : 0;
-      // const protocolFeeRatio = +pool.pool_config.protocol_fee_percentage / 100 || 0;
-      const fees = (pool.fees && pool.fees['24h']) ? Number(pool.fees['24h']) : 0;
-      const protocol_fees = (pool.protocol_fees && pool.protocol_fees['24h']) ? Number(pool.protocol_fees['24h']) : 0;
+      const volume = Number(pool.volume['24h'] || 0);
+      // `fees` is the LP share only, net of the protocol cut — `fees + protocol_fees`
+      // is what the trader paid
+      const lpFees = Number(pool.fees['24h'] || 0);
+      const protocolFees = Number(pool.protocol_fees['24h'] || 0);
+      const fees = lpFees + protocolFees;
 
-      // Ignore if TVL < 1M and volume > 10x TVL
-      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10) || fees > volume * 0.1)
+      // Ignore if TVL < 1M and volume > 10x TVL.
+      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10) || fees > volume * 0.105)
         continue;
 
       dailyVolume += volume;
       dailyFees += fees;
-      dailyRevenue += protocol_fees;
-      dailySupplySideRevenue += fees - protocol_fees;
+      dailyRevenue += protocolFees;
+      dailySupplySideRevenue += lpFees;
     }
 
     const lastPool = pools[pools.length - 1];
@@ -52,8 +54,17 @@ async function fetch() {
   }
 }
 
+const methodology = {
+  Volume: 'Total swap volume across all Meteora DLMM pools.',
+  Fees: 'Swap fees paid by traders — each pool\'s base fee plus any dynamic fee, applied to its volume.',
+  Revenue: 'Meteora\'s cut of the swap fees, taken per pool and sent to the treasury.',
+  ProtocolRevenue: 'Meteora\'s cut of the swap fees, taken per pool and sent to the treasury.',
+  SupplySideRevenue: 'The remainder of the swap fees, paid to liquidity providers.',
+}
+
 export default {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
