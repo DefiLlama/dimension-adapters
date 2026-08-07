@@ -37,6 +37,11 @@ export const OCTOPOOLS = [
 
 export const LP_DIVIDEND_RATIO_ABI = "uint256:lpDividendRatio";
 
+// lpDividendRatio is a wad, 1e18 is the whole fee going to the lps. the usd, eth and btc pools all
+// return 5e17 today, a 50/50 split with the protocol fee receiver, and it is a governance setter
+// (setFeeRatio) so it is read per period rather than hardcoded
+export const WAD = 1e18;
+
 // partner_fee_collector is only deployed on a handful of chains, portal is the bridge side and is on
 // every chain that locks real tokens. start is the earliest of the two, partner_fee_start holds back
 // the collector on chains where the portal came first
@@ -138,15 +143,15 @@ const SYMBOL_CG_IDS: Record<string, string> = {
     QUAI: "quai-network", WQUAI: "quai-network",
 }
 
-// cgId is missing for tokens with no known coingecko id, those fall back to the api spot price
-export type SisToken = { priceUsd: number, decimals: number, cgId?: string }
+export type SisToken = { decimals: number, cgId: string }
 
 // sisTokens is keyed by the synth address on the symbiosis chain, realTokens by the token on its
 // own chain, which is what the synthesis contract reports the mint leg fee in
 export type SisTokens = { sisTokens: Record<string, SisToken>, realTokens: Record<string, SisToken> }
 
-// fees on the symbiosis chain are taken in synthetic tokens that the llama coins api has no
-// price for, so they are valued by coingecko id, falling back to the price symbiosis reports
+// fees on the symbiosis chain are taken in synthetic tokens that the llama coins api has no price
+// for, so they are valued by coingecko id. the token api only reports a spot price, which would
+// misprice every backfilled day, so a token with no known id is left out rather than valued with it
 export const getSisTokens = async (): Promise<SisTokens> => {
     const tokens = await fetchURL(TOKENS_API);
     const sisTokens: Record<string, SisToken> = {};
@@ -157,15 +162,16 @@ export const getSisTokens = async (): Promise<SisTokens> => {
     const sorted = [...tokens].sort((a: any, b: any) => a.chainId - b.chainId);
 
     for (const token of sorted) {
-        if (!token.address || !token.priceUsd) continue;
+        if (!token.address) continue;
 
         const address = token.address.toLowerCase();
 
         // synths are named after the token they mirror, sUSDC is USDC and is worth the same
         let cgId = SYMBOL_CG_IDS[token.symbol];
         if (!cgId) cgId = SYMBOL_CG_IDS[token.symbol.replace(/^s/, "")];
+        if (!cgId) continue;
 
-        const priced = { priceUsd: token.priceUsd, decimals: token.decimals, cgId };
+        const priced = { decimals: token.decimals, cgId };
 
         if (token.chainId === SYMBIOSIS_CHAIN_ID) sisTokens[address] = priced;
         else if (!realTokens[address]) realTokens[address] = priced;

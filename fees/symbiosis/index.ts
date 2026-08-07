@@ -17,6 +17,7 @@ import {
     SisToken,
     SisTokens,
     SYNTHESIZE_COMPLETED_EVENT,
+    WAD,
 } from "./constants";
 
 const LABELS = {
@@ -33,6 +34,7 @@ const LABELS = {
 type DailyBalances = {
     dailyFees: Balances,
     dailyRevenue: Balances,
+    dailyProtocolRevenue: Balances,
     dailySupplySideRevenue: Balances,
 }
 
@@ -40,17 +42,11 @@ type DailyBalances = {
 // period reaches the day they were deployed
 const isLive = (options: FetchOptions, start: string) => options.endTimestamp >= Date.parse(start) / 1000;
 
-// llama prices a coingecko id at the block of the period while the symbiosis api only reports a spot
-// price, so the id is used whenever the token has one
+// tokens are always handed over as a coingecko id so llama prices them at the block of the period,
+// tokens with no known id never make it into the map
 const addFee = (balances: Balances, fee: any, token: SisToken, label: string, share = 1) => {
     const amount = (Number(fee) / 10 ** token.decimals) * share;
-
-    if (token.cgId) {
-        balances.addCGToken(token.cgId, amount, label);
-        return;
-    }
-
-    balances.addUSDValue(amount * token.priceUsd, label);
+    balances.addCGToken(token.cgId, amount, label);
 }
 
 // partners routing a swap through symbiosis charge their own fee on the way in, the share taken by
@@ -76,6 +72,7 @@ const addPartnerFees = async (options: FetchOptions, balances: DailyBalances, to
 
         if (log.partner.toLowerCase() === default_fee_addr?.toLowerCase()) {
             balances.dailyRevenue.add(log.token, log.fee, LABELS.partnerToSymbiosis);
+            balances.dailyProtocolRevenue.add(log.token, log.fee, LABELS.partnerToSymbiosis);
         } else {
             balances.dailySupplySideRevenue.add(log.token, log.fee, LABELS.partnerToPartners);
         }
@@ -91,7 +88,7 @@ const addOctopoolFees = async (options: FetchOptions, balances: DailyBalances, t
     const ratios = await options.api.multiCall({ abi: LP_DIVIDEND_RATIO_ABI, calls: OCTOPOOLS });
 
     logsPerPool.forEach((poolLogs: any[], i: number) => {
-        const lpShare = Number(ratios[i]) / 1e18;
+        const lpShare = Number(ratios[i]) / WAD;
 
         poolLogs.forEach((log: any) => {
             const token = tokens.sisTokens[log.token.toLowerCase()];
@@ -100,6 +97,7 @@ const addOctopoolFees = async (options: FetchOptions, balances: DailyBalances, t
             addFee(balances.dailyFees, log.fee, token, LABELS.swap);
             addFee(balances.dailySupplySideRevenue, log.fee, token, LABELS.swapToLps, lpShare);
             addFee(balances.dailyRevenue, log.fee, token, LABELS.swapToProtocol, 1 - lpShare);
+            addFee(balances.dailyProtocolRevenue, log.fee, token, LABELS.swapToProtocol, 1 - lpShare);
         });
     });
 }
@@ -116,6 +114,7 @@ const addBridgeFees = async (options: FetchOptions, balances: DailyBalances, tok
             if (!token) return;
             addFee(balances.dailyFees, fee, token, LABELS.bridging);
             addFee(balances.dailyRevenue, fee, token, LABELS.bridgingToBridge);
+            addFee(balances.dailyProtocolRevenue, fee, token, LABELS.bridgingToBridge);
         };
 
         // the mint leg reports the real token on its origin chain, priced 1:1 with the synth it mints
@@ -134,6 +133,7 @@ const addBridgeFees = async (options: FetchOptions, balances: DailyBalances, tok
     burnLogs.concat(revertLogs).forEach((log: any) => {
         balances.dailyFees.add(log.token, log.bridgingFee, LABELS.bridging);
         balances.dailyRevenue.add(log.token, log.bridgingFee, LABELS.bridgingToBridge);
+        balances.dailyProtocolRevenue.add(log.token, log.bridgingFee, LABELS.bridgingToBridge);
     });
 }
 
@@ -141,6 +141,7 @@ const fetch = async (options: FetchOptions) => {
     const balances: DailyBalances = {
         dailyFees: options.createBalances(),
         dailyRevenue: options.createBalances(),
+        dailyProtocolRevenue: options.createBalances(),
         dailySupplySideRevenue: options.createBalances(),
     };
 
@@ -159,6 +160,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: "Partner fees charged on swaps routed through symbiosis, octopool swap fees on the symbiosis chain, and the stableBridgingFee deducted on every cross chain transfer.",
     Revenue: "The symbiosis share of partner fees, the octopool fee share sent to the protocol fee receiver, and the whole bridging fee, which is paid to the bridge contract.",
+    ProtocolRevenue: "The same flows as Revenue, all of which are controlled by symbiosis. None of it is distributed to token holders on chain, so there is no holders revenue.",
     SupplySideRevenue: "Partner fees claimed by the partner that routed the swap, and the octopool fee share that stays with the liquidity providers.",
 }
 
@@ -169,6 +171,11 @@ const breakdownMethodology = {
         [LABELS.bridging]: "stableBridgingFee deducted on the destination leg of a transfer, on the mint leg from the Synthesis contract and on the unlock leg from the Portal contract.",
     },
     Revenue: {
+        [LABELS.partnerToSymbiosis]: "Partner fees collected by the symbiosis owned fee address.",
+        [LABELS.swapToProtocol]: "Share of the octopool swap fee sent to the protocol fee receiver, one minus lpDividendRatio.",
+        [LABELS.bridgingToBridge]: "The whole bridging fee, minted or transferred to the BridgeV2 contract which only the owner or admin can withdraw from.",
+    },
+    ProtocolRevenue: {
         [LABELS.partnerToSymbiosis]: "Partner fees collected by the symbiosis owned fee address.",
         [LABELS.swapToProtocol]: "Share of the octopool swap fee sent to the protocol fee receiver, one minus lpDividendRatio.",
         [LABELS.bridgingToBridge]: "The whole bridging fee, minted or transferred to the BridgeV2 contract which only the owner or admin can withdraw from.",
