@@ -4,13 +4,15 @@ import { postURL } from "../utils/fetchURL";
 
 // Sablier Flow: rate-based recurring payment streams (payroll, grants,
 // subscriptions). Funded by deposits and topups. Volume is the value paid out to
-// recipients on chain. We sum two action categories: Withdraw (recipient pulls
-// accrued funds, recorded in `amountA` for Flow's single-party shape) and Void
-// (auto-settles the accrued-but-unwithdrawn portion to the recipient on stream
-// termination, recorded in `amountB` for the two-party shape). Refund is the
-// sender pulling back uncommitted deposits and is excluded. Data comes from
-// Sablier's public Envio HyperIndex; per-chain queries filter by chainId. Daily
-// figures are lumpy (claim/void timing) but cumulative equals true streamed value.
+// recipients on chain: `amountA` on Withdraw actions only.
+//
+// Void and Refund are deliberately excluded and must stay excluded. `_void`
+// moves no tokens at all -- its `amountB` is `writtenOffDebt`, i.e. debt the
+// sender never funded and now never will, which accrues unbounded on an
+// unfunded stream. Refund returns uncommitted deposits to the sender. Data
+// comes from Sablier's public Envio HyperIndex; per-chain queries filter by
+// chainId. Daily figures are lumpy (claim timing) but cumulative equals true
+// streamed value.
 
 const INDEXER = "https://indexer.hyperindex.xyz/53b7e25/v1/graphql";
 const PAGE_SIZE = 1000;
@@ -39,17 +41,21 @@ const CONFIG: Record<string, { chainId: number; start: string }> = {
 
 interface Row {
   id: string;
-  category: "Withdraw" | "Void";
+  chainId: string;
   amountA: string | null;
-  amountB: string | null;
   stream: { asset_id: string } | null;
 }
 
-const buildQuery = (chainId: number, from: number, to: number, cursor: string) => `{
+// One query serves every chain in the window and the in-flight promise is
+// shared, so a run costs one paginated pass rather than one per chain. The
+// indexer rate-limits bursts, and the per-chain shape tripped it.
+const CHAIN_IDS = Object.values(CONFIG).map(({ chainId }) => chainId);
+
+const buildQuery = (from: number, to: number, cursor: string) => `{
   FlowAction(
     where: {
-      category: {_in: [Withdraw, Void]}
-      chainId: {_eq: ${chainId}}
+      category: {_eq: Withdraw}
+      chainId: {_in: [${CHAIN_IDS.join(", ")}]}
       timestamp: {_gte: "${from}", _lt: "${to}"}
       id: {_gt: "${cursor}"}
     }
@@ -57,32 +63,46 @@ const buildQuery = (chainId: number, from: number, to: number, cursor: string) =
     limit: ${PAGE_SIZE}
   ) {
     id
-    category
+    chainId
     amountA
-    amountB
     stream { asset_id }
   }
 }`;
 
+const inFlight: Record<string, Promise<Row[]>> = {};
+
+const getWindow = (from: number, to: number) => {
+  const key = `${from}-${to}`;
+  if (!inFlight[key])
+    inFlight[key] = (async () => {
+      const all: Row[] = [];
+      let cursor = "";
+      while (true) {
+        const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, {
+          query: buildQuery(from, to, cursor),
+        });
+        const rows = res.data.FlowAction;
+        all.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+        cursor = rows[rows.length - 1].id;
+      }
+      return all;
+    })();
+  return inFlight[key];
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const cfg = CONFIG[options.chain];
-  let cursor = "";
-  while (true) {
-    const query = buildQuery(cfg.chainId, options.fromTimestamp, options.toTimestamp, cursor);
-    const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, { query });
-    const rows = res.data.FlowAction;
-    if (!rows.length) break;
-    for (const r of rows) {
-      const amount = r.amountA;
-      if (!amount || amount === "0" || !r.stream?.asset_id || r.category !== "Withdraw") continue;
-      // asset_id format: `asset-<chainId>-<tokenAddress>`; take the address suffix.
-      const parts = r.stream.asset_id.split("-");
-      const token = parts[parts.length - 1];
-      dailyVolume.add(token, amount);
-    }
-    if (rows.length < PAGE_SIZE) break;
-    cursor = rows[rows.length - 1].id;
+  const { chainId } = CONFIG[options.chain];
+  const rows = await getWindow(options.fromTimestamp, options.toTimestamp);
+  for (const r of rows) {
+    if (Number(r.chainId) !== chainId) continue;
+    const amount = r.amountA;
+    if (!amount || amount === "0" || !r.stream?.asset_id) continue;
+    // asset_id format: `asset-<chainId>-<tokenAddress>`; take the address suffix.
+    const parts = r.stream.asset_id.split("-");
+    const token = parts[parts.length - 1];
+    dailyVolume.add(token, amount);
   }
   return { dailyVolume };
 };
