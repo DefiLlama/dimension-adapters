@@ -88,6 +88,22 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
     },
   },
+  "hypersight": {
+    addresses: [
+      // Original builder code (team treasury) used from launch until 2026-07-01.
+      "0x9bdf1a9a2e8b5353d19b2e4978e32d9873da1552",
+      // Dedicated builder wallet, active since 2026-07-01.
+      "0xc9200c6d0e876d5f63c76618f2c57e5d6a080927",
+    ],
+    start: "2026-05-17",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Hypersight.",
+      Fees: "Builder code fees paid by users on trades executed through Hypersight (0.05% on perps, 0.025% on HIP-4 prediction-market closes).",
+      Revenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
+    },
+    breakdownFees: true,
+  },
   "ohayo-perps": {
     addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
     start: "2026-03-15",
