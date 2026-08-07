@@ -170,6 +170,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "defi-saver-perps": {
     addresses: ["0x40e9d9fEBa3Df27E1fB9a924264Bf775230D5260"],
