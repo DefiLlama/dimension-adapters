@@ -153,8 +153,8 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     // both (addOneToken would drop one side — it's for per-swap calls where one side carries the fee).
     if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0, 'Token Swap Fees')
     if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1, 'Token Swap Fees')
-    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0, 'Swap Fees To Voters')
-    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1, 'Swap Fees To Voters')
+    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0, 'Token Swap Fees To Holders')
+    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1, 'Token Swap Fees To Holders')
     if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0, 'Swap Fees To LPs')
     if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Swap Fees To LPs')
   })
@@ -163,7 +163,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyRevenue = createBalances()
 
   dailyFees.add(dailyBribesRevenue, 'Bribes Rewards')
-  dailyRevenue.add(dailyHoldersRevenue, 'Swap Fees To Voters')
+  dailyRevenue.add(dailyHoldersRevenue, 'Token Swap Fees To Holders')
   dailyRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
   dailyHoldersRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
 
@@ -200,11 +200,11 @@ const adapters: SimpleAdapter = {
       'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     Revenue: {
-      'Swap Fees To Voters': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
+      'Token Swap Fees To Holders': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
       'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     HoldersRevenue: {
-      'Swap Fees To Voters': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
+      'Token Swap Fees To Holders': 'Swap fees routed to veABX voters: staked-liquidity fees plus the 10% rake on unstaked-liquidity fees.',
       'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     SupplySideRevenue: {
