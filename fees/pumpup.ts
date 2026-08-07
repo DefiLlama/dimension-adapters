@@ -1,30 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import axios from "axios";
+import { getEnv } from "../helpers/env";
 
-async function call(
-  method: string,
-  params: any,
-  { withMetadata = false } = {}
-) {
-  if (!Array.isArray(params)) params = [params];
-  const {
-    data: { result },
-  } = await axios.post("https://fullnode.mainnet.sui.io/", {
-    jsonrpc: "2.0",
-    id: 1,
-    method,
-    params,
-  });
-
-  return withMetadata ? result : result.data;
-}
-
+// Sui JSON-RPC (suix_getCoinMetadata) is deprecated; migrated to GraphQL Query.coinMetadata.
 async function getCoinMetadata(coinType: string) {
-  const result = await call("suix_getCoinMetadata", [coinType], {
-    withMetadata: true,
+  const { data } = await axios.post(getEnv("SUI_GRAPH_RPC"), {
+    query: `{ coinMetadata(coinType: "${coinType}") { decimals symbol } }`,
   });
-  return result;
+  if (data.errors?.length || !data.data?.coinMetadata)
+    throw new Error(`Failed to fetch coin metadata for ${coinType}: ${data.errors?.[0]?.message ?? "not found"}`);
+  return data.data.coinMetadata;
 }
 
 const fetchFees = async (options: FetchOptions) => {
