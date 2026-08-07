@@ -97,6 +97,16 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
         start: '2025-08-11'
       },
+      // Mystic is a Morpho fork, so its vaults are not reachable through the
+      // Morpho V2 factory lookup - listed by address instead.
+      [CHAIN.FLARE]: {
+        morphoV2: [
+          '0xE8dd6A1e13244A27bDaa19CcBf33013647C675d1', // Core USDT0 on Mystic
+          '0x1aEadA3C251215f1294720B80FcB3D1D005F3585', // Core wFLR on Mystic
+          '0x53184aDaBF312b490BF1EbcFdC896FEfF6019a14', // Core FXRP on Mystic
+        ],
+        start: '2026-02-02',
+      },
     },
   },
   "edge-capital": {
