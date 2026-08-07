@@ -137,14 +137,13 @@ const adapter: SimpleAdapter = {
       }),
       start: '2024-07-04',
     },
-    [CHAIN.RARI]: {
-      fetch: getUniV3LogAdapter({
-        factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
-        ...adapterConfig,
-      }),
-      start: '2024-06-05',
-      deadFrom: '2026-07-08',
-    },
+    // [CHAIN.RARI]: {
+    //   fetch: getUniV3LogAdapter({
+    //     factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
+    //     ...adapterConfig,
+    //   }),
+    //   start: '2024-06-05',
+    // },
     [CHAIN.REYA]: {
       fetch: getUniV3LogAdapter({
         factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
