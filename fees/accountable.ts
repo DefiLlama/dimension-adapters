@@ -297,7 +297,6 @@ const fetch = async (options: FetchOptions) => {
           : 0n;
       return { i, interest, aum: debt > 0n ? debt : base };
     })
-    .filter((s) => s.interest > 0n);
 
   const orphan = [...active.map((a) => a.i), ...priced].find(
     (i) => !feeManagers[i],
@@ -484,7 +483,7 @@ const fetch = async (options: FetchOptions) => {
         );
 
       const depositors = big(closeAssets[k]) - big(openAssets[k]);
-      const gross = (depositors > 0n ? depositors : 0n) + big(mintedAssets[k]);
+      const gross = depositors + big(mintedAssets[k]);
 
       // The fee is booked as it accrues, from the rates the FeeManager holds
       // for the strategy, rather than when it crystallizes into minted shares.
