@@ -70,9 +70,12 @@ const suiFetch = async (options: FetchOptions) => {
         }
       }`,
       variables: { before },
-    });
+    }, { timeout: 60_000 });
 
-    const conn = res.data?.data?.transactions;
+    const payload: any = res.data ?? {};
+    if (payload.errors?.length || !payload.data)
+      throw new Error(`Failed to fetch sui data: ${payload.errors?.[0]?.message ?? "no data returned"}`);
+    const conn = payload.data.transactions;
     if (!conn) break;
     const nodes = conn.nodes; // ascending (oldest -> newest)
     before = conn.pageInfo.hasPreviousPage ? conn.pageInfo.startCursor : null;

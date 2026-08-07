@@ -6,8 +6,9 @@ import { getEnv } from "../helpers/env";
 // Sui JSON-RPC (suix_getCoinMetadata) is deprecated; migrated to GraphQL Query.coinMetadata.
 async function getCoinMetadata(coinType: string) {
   const { data } = await axios.post(getEnv("SUI_GRAPH_RPC"), {
-    query: `{ coinMetadata(coinType: "${coinType}") { decimals symbol } }`,
-  });
+    query: `query ($coinType: String!) { coinMetadata(coinType: $coinType) { decimals symbol } }`,
+    variables: { coinType },
+  }, { timeout: 60_000 });
   if (data.errors?.length || !data.data?.coinMetadata)
     throw new Error(`Failed to fetch coin metadata for ${coinType}: ${data.errors?.[0]?.message ?? "not found"}`);
   return data.data.coinMetadata;

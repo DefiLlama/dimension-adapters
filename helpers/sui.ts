@@ -10,7 +10,7 @@ async function graphqlCall(query: string, variables: any = {}, attempts = 4) {
   let lastErr: any
   for (let i = 1; i <= attempts; i++) {
     try {
-      const res = await http.post(graphEndpoint(), { query, variables })
+      const res = await http.post(graphEndpoint(), { query, variables }, { timeout: 60_000 })
       const { data, errors } = res.data
       if (errors?.length || !data) throw new Error(`Failed to fetch sui data: ${errors?.[0]?.message ?? 'no data returned'}`)
       return { data }
@@ -45,9 +45,10 @@ function wrapStruct(obj: any): any {
 }
 
 function shortenTypeAddresses(type: string): string {
-  return type
-    .replace(/0x0*([0-9a-fA-F])/g, '0x$1')
-    .replace(/0x([0-9a-fA-F]{63})(?![0-9a-fA-F])/g, '0x0$1')
+  return type.replace(/0x([0-9a-fA-F]+)/g, (_m: string, hex: string) => {
+    const stripped = hex.replace(/^0+/, '') || '0'
+    return stripped.length <= 1 ? '0x' + stripped : '0x' + stripped.padStart(64, '0')
+  })
 }
 
 function rewrapWithLayout(value: any, layout: any): any {
@@ -76,10 +77,13 @@ function rewrapWithLayout(value: any, layout: any): any {
 }
 
 function formatObject(obj: any): any {
-  if (!obj) return null
-  const layout = obj.type?.layout
+  if (!obj || !obj.type) return null
+  const layout = obj.type.layout
   if (layout) {
-    const { type, fields } = rewrapWithLayout(obj.json, layout)
+    const rewrapped = rewrapWithLayout(obj.json, layout)
+    if (!rewrapped || typeof rewrapped !== 'object')
+      throw new Error(`Unexpected Sui move object shape for type ${obj.type.repr}`)
+    const { type, fields } = rewrapped
     return { type, fields, dataType: 'moveObject' }
   }
   const type = shortenTypeAddresses(obj.type.repr.replace(/,(?!\s)/g, ', '))
@@ -111,16 +115,33 @@ function toParsedJson(value: any, layout: any): any {
   return value
 }
 
+/**
+ * Fetch a Sui object by id in the legacy JSON-RPC `showContent` shape
+ * (`{ type, fields, dataType }`), with nested structs rebuilt so consumers reading
+ * `.fields.x.fields.y` keep working. Returns null if the object doesn't exist.
+ */
 export async function getObject(objectId: string) {
-  const { data } = await graphqlCall(`{
-    object(address: "${toAddr(objectId)}") {
+  const { data } = await graphqlCall(`query ($address: SuiAddress!) {
+    object(address: $address) {
       asMoveObject { contents { json type { repr layout } } }
     }
-  }`)
+  }`, { address: toAddr(objectId) })
   return formatObject(data.object?.asMoveObject?.contents)
 }
 
-export async function queryEvents({ eventType, eventModule, options, transform = (i: any) => i }: any): Promise<any[]> {
+export interface SuiEventModule {
+  package: string
+  module: string
+}
+
+export interface QueryEventsParams<T = any> {
+  eventType?: string
+  eventModule?: SuiEventModule
+  options: { startTimestamp: number; endTimestamp: number }
+  transform?: (item: any) => T
+}
+
+export async function queryEvents<T = any>({ eventType, eventModule, options, transform = (i: any) => i }: QueryEventsParams<T>): Promise<T[]> {
   let filter = ''
   if (eventModule) {
     filter = `filter: { module: "${eventModule.package}::${eventModule.module}" }`
@@ -143,7 +164,8 @@ export async function queryEvents({ eventType, eventModule, options, transform =
 
     for (const node of nodes) {
       const ts = Date.parse(node.timestamp) / 1e3
-      if (options.startTimestamp < ts && ts < options.endTimestamp) items.push(toParsedJson(node.contents.json, node.contents.type.layout))
+      // half-open window: startTimestamp inclusive, endTimestamp exclusive
+      if (options.startTimestamp <= ts && ts < options.endTimestamp) items.push(toParsedJson(node.contents.json, node.contents.type.layout))
     }
     // stop once the oldest event on this page is already before the window start
     if (!nodes.length || Date.parse(nodes[0].timestamp) / 1e3 <= options.startTimestamp) before = null
