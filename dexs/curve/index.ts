@@ -123,7 +123,7 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     },
   },
   [CHAIN.ARBITRUM]: {
-    start: '2021-09-12',
+    start: '2021-09-21',
     stable_factory: [
       '0xb17b674D9c5CB2e441F8e196a2f048A81355d031'
     ],
@@ -266,7 +266,7 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     customPools: {},
   },
   [CHAIN.FANTOM]: {
-    start: '2021-02-20',
+    start: '2021-09-16',
     stable_factory: [
       '0x686d67265703d1f124c45e33d47d794c566889ba',
     ],
@@ -330,7 +330,7 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     }
   },
   [CHAIN.BASE]: {
-    start: '2023-04-17',
+    start: '2023-08-30',
     stable_factory: [
       '0x3093f9b57a428f3eb6285a589cb35bea6e78c336',
     ],
