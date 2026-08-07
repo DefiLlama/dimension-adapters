@@ -18,19 +18,17 @@ const swappers = [
 async function fetch(options: FetchOptions) {
   const { getLogs, createBalances } = options;
   const dailyVolume = createBalances();
-  for (const { target, eventAbi } of swappers) {
-    const logs = await getLogs({ target, eventAbi });
-    logs.forEach((log: any) => {
-      addOneToken({
-        chain: options.chain,
-        balances: dailyVolume,
-        token0: log.tokenIn,
-        amount0: log.amountIn,
-        token1: log.tokenOut,
-        amount1: log.amountOut
-      })
-    });
-  }
+  const logs = await Promise.all(swappers.map(({ target, eventAbi }) => getLogs({ target, eventAbi })));
+  logs.flat().forEach((log: any) => {
+    addOneToken({
+      chain: options.chain,
+      balances: dailyVolume,
+      token0: log.tokenIn,
+      amount0: log.amountIn,
+      token1: log.tokenOut,
+      amount1: log.amountOut
+    })
+  });
   return { dailyVolume };
 }
 
