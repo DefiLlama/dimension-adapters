@@ -176,7 +176,6 @@ const LOCKER_META: { addr: string; isV4: boolean }[] = [
   { addr: LOCKER_V3, isV4: false },
   { addr: LOCKER_V4, isV4: true },
 ];
-const LOCKER_SET = new Map(LOCKER_META.map((l) => [l.addr.toLowerCase(), l.isV4]));
 
 const fetchRobinhood = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -224,17 +223,17 @@ const fetchRobinhood = async (options: FetchOptions) => {
   ]);
 
   // Robinhood is not in addTokensReceived's log-fallback chain map, so locker
-  // cuts are read from the fee events + a lockPositions lookup.
-  const [lockerCollectLogs, lockerDecreaseLogs] = await Promise.all([
-    options.getLogs({
-      targets: [LOCKER_V3, LOCKER_V4],
-      eventAbi: LOCK_FEES_COLLECTED,
-    }),
-    options.getLogs({
-      targets: [LOCKER_V3, LOCKER_V4],
-      eventAbi: LOCK_LIQUIDITY_DECREASED,
-    }),
-  ]);
+  // cuts are read from the fee events + a lockPositions lookup. Fetched one
+  // locker at a time: getLogs defaults to onlyArgs, so multi-target results
+  // carry no log.address to attribute the emitting locker with.
+  const lockerLogBatches = await Promise.all(
+    LOCKER_META.flatMap(({ addr, isV4 }) => [
+      options.getLogs({ target: addr, eventAbi: LOCK_FEES_COLLECTED })
+        .then((logs) => ({ addr, isV4, logs })),
+      options.getLogs({ target: addr, eventAbi: LOCK_LIQUIDITY_DECREASED })
+        .then((logs) => ({ addr, isV4, logs })),
+    ]),
+  );
 
   // ── NFT AMM + loans ──────────────────────────────────────────────────────
   for (const log of [...soldLogs, ...boughtLogs]) {
@@ -337,17 +336,16 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // (Robinhood has no Transfer-log fallback in addTokensReceived); collect /
   // withdraw cuts dominate live volume and are fully covered.
   const lockCache = new Map<string, [string, string]>();
-  const lockerLogs = [...lockerCollectLogs, ...lockerDecreaseLogs];
   // Group by locker so lockPositions multicalls stay batched.
   const byLocker = new Map<string, { isV4: boolean; logs: any[] }>();
-  for (const log of lockerLogs) {
-    const addr = String(log.address).toLowerCase();
-    let bucket = byLocker.get(addr);
+  for (const { addr, isV4, logs } of lockerLogBatches) {
+    const key = addr.toLowerCase();
+    let bucket = byLocker.get(key);
     if (!bucket) {
-      bucket = { isV4: LOCKER_SET.get(addr)!, logs: [] };
-      byLocker.set(addr, bucket);
+      bucket = { isV4, logs: [] };
+      byLocker.set(key, bucket);
     }
-    bucket.logs.push( log);
+    bucket.logs.push(...logs);
   }
   for (const [locker, batch] of byLocker) {
     const ids = [...new Set(batch.logs.map((l) => String(l.lockTokenId)))];
