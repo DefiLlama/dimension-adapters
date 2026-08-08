@@ -155,9 +155,20 @@ const fetch = async (options: FetchOptions) => {
             // backoff, like the sequential getLogs calls above.
             const txHashes: string[] = [...new Set<string>(claimLogs.map((l: any) => String(l.transactionHash).toLowerCase()))];
             const provider = getProvider(CHAIN.ROBINHOOD);
+            // Retry budget for per-tx lookups on the public Robinhood RPC.
+            // The RPC rate-limits bursts but recovers within about a second;
+            // there is no published rate-limit policy to cite, so the budget
+            // is empirical: sequential fetches with this backoff completed
+            // 711/711 claim txs (incl. the 336-tx day) without exhausting a
+            // single retry budget, while helpers/getTxReceipts' concurrency-20
+            // pool tripped the limiter. 4 attempts with 500ms linear backoff
+            // (0, 500, 1000, 1500ms) caps a hopeless tx at ~3s before the
+            // fail-loud throw below.
+            const TX_FETCH_ATTEMPTS = 4;
+            const TX_FETCH_BACKOFF_MS = 500;
             const withRetry = async (fn: () => Promise<any>): Promise<any> => {
-                for (let attempt = 0; attempt < 4; attempt++) {
-                    if (attempt) await new Promise((r) => setTimeout(r, 500 * attempt));
+                for (let attempt = 0; attempt < TX_FETCH_ATTEMPTS; attempt++) {
+                    if (attempt) await new Promise((r) => setTimeout(r, TX_FETCH_BACKOFF_MS * attempt));
                     const res = await fn().catch(() => null);
                     if (res) return res;
                 }
