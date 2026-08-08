@@ -391,14 +391,34 @@ const configs: Record<string, CuratorConfig> = {
   "steakhouse": {
     breakdownFees: true,
     vaults: {
+      // Steakhouse deploys most V2 vaults from a per-vault deployer rather than one shared safe, so
+      // the V2 owner lists below carry several addresses. Each is the indexed `owner` of that vault's
+      // CreateVaultV2 event, taken from its creation receipt, not the current owner() (nearly all of
+      // these vaults are owned today by 0x4D7bd498 on ethereum and 0x639bfA26 on base). Morpho's
+      // curators API names the curator of every vault called out below "Steakhouse Financial".
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8', '0x255c7705e8BB334DfCae438197f7C4297988085a', '0x0A0e559bc3b0950a7e448F0d4894db195b9cf8DD', '0xc01Ba42d4Bd241892B813FA8bD4589EAa4C60672'],
-        morphoVaultV2Owners: ['0xec0Caa2CbAe100CEAaC91A665157377603a6B766'],
+        morphoVaultV2Owners: [
+          '0xec0Caa2CbAe100CEAaC91A665157377603a6B766', // Prime USDT, Prime ETH, High Yield Instant, Prime Instant
+          '0x328dc4a2950b4A19fD440e9FfC6E9c3a496AFCFd', // Prime EURCV (0xbeef...DB2f), High Yield USDT, Safe x Steakhouse Prime Instant
+          '0x7E17eC774bECD5f4f129fa5f150046dd0eCe5bB0', // Prime USDC (0xbeef...0f51), High Yield USDC. owner() is 0x0A0e559b, already a Steakhouse owner above
+          '0x25FC16504b809FF3c730000544b8583011Ee7545', // Confidential Prime USDC (0xbEEF...542B)
+          '0x966cdEEfFAa232e4137385731413E2be6FCBe0e7', // 3F x Steakhouse USDC (0xBEEf...183D), Prime EURC
+          '0xcb0a0b2f84D0EaD648De7e10B85093b7F0FdA072', // tGBP (0xbeef...f04F)
+          '0x274c71c8C071f2E29f0cC964767a7C8b31F5C544', // Grove x Steakhouse USDC (0xBeeF...4111)
+        ],
         start: '2024-07-29',
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x0A0e559bc3b0950a7e448F0d4894db195b9cf8DD', '0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
-        morphoVaultV2Owners: ['0x351D76EC45f0aD6Deb498806F1320F75F861a114'],
+        morphoVaultV2Owners: [
+          '0x351D76EC45f0aD6Deb498806F1320F75F861a114', // High Yield USDC
+          '0xC7cf133140A6AF6c2379BE2b353Ed5B66511FE04', // High Yield USDC Edition (0xbeef...8845)
+          '0xF1F12e6a1b58fCce6D2Ed181CB55302c831Eb2Ac', // Ethena x Steakhouse USDC (0xBeEf...739e)
+          '0x8A7CdA8322fB96D3457a5B32c8869A7B1a5B1Db7', // Prime EURC, Prime ETH
+          '0x769699C75c4E17EbD5d678a9C58776179ddC254b', // Prime XSGD
+          '0x8396d2B322f5f533531f960B042a15AAa2784529', // Farcaster x Steakhouse Prime
+        ],
         start: '2024-07-29',
       },
       [CHAIN.CORN]: {
@@ -412,6 +432,8 @@ const configs: Record<string, CuratorConfig> = {
       },
       [CHAIN.KATANA]: {
         morphoVaultOwners: ['0xe6FC2a011153DD5a230725a9F0c89a9c81aB4887'],
+        // High Yield USDC (0xbeef...b6c6) and Prime USDC (0xbeef...62D7), both created by this deployer
+        morphoVaultV2Owners: ['0x627E54a84134FfB3c8Ee85a5A675cd50c2Db239b'],
         start: '2025-06-23',
       },
       [CHAIN.MONAD]: {
