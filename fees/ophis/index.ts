@@ -1,51 +1,48 @@
-import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { fetchOphisChainDay, OPHIS_CHAINS } from "../../helpers/ophis";
 
-const FEE_RECIPIENT = "0x858f0F5eE954846D47155F5203c04aF1819eCeF8";
-const START = "2026-06-08";
-const SAFE_RECEIVED_EVENT = "event SafeReceived (address indexed sender, uint256 value)"
+const LABELS = {
+  FEES: "Ophis Volume Fees",
+  REVENUE: "Volume Fees Retained By Ophis",
+  SUPPLY_SIDE: "CoW Protocol Service Share",
+};
 
 const fetch = async (options: FetchOptions) => {
-  const SafeReceivedLogs = await options.getLogs({
-    target: FEE_RECIPIENT,
-    eventAbi: SAFE_RECEIVED_EVENT,
-  })
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const row = await fetchOphisChainDay(options);
 
-  const dailyFees = options.createBalances()
-
-  for (const log of SafeReceivedLogs) {
-    dailyFees.addGasToken(log.value, 'Partner Fees')
+  if (row) {
+    dailyFees.addUSDValue(row.feesUsd, LABELS.FEES);
+    dailyRevenue.addUSDValue(row.revenueUsd, LABELS.REVENUE);
+    dailyProtocolRevenue.addUSDValue(row.revenueUsd, LABELS.REVENUE);
+    dailySupplySideRevenue.addUSDValue(row.supplySideRevenueUsd, LABELS.SUPPLY_SIDE);
   }
-
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "Flat partner fee taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet.",
-  Revenue: "All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.",
-  ProtocolRevenue: "All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.",
+  Fees: "Gross flat volume fee encoded in each settled Ophis order's appData, using the executed USD volume and that order's verified 1, 5, or 10 bps rate.",
+  Revenue: "Ophis retains 100% of its volume fee on Ophis-operated chains and 75% on CoW-hosted chains after CoW Protocol's 25% service share.",
+  ProtocolRevenue: "The volume-fee portion retained by the Ophis protocol.",
+  SupplySideRevenue: "CoW Protocol's 25% service share of Ophis partner fees on CoW-hosted chains; zero on Ophis-operated chains.",
 };
 
 const breakdownMethodology = {
-  Fees: {
-    'Partner Fees': 'Flat partner fee taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet.',
-  },
-  Revenue: {
-    'Partner Fees': 'All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.',
-  },
-  ProtocolRevenue: {
-    'Partner Fees': 'All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.',
-  },
-}
+  Fees: { [LABELS.FEES]: methodology.Fees },
+  Revenue: { [LABELS.REVENUE]: methodology.Revenue },
+  ProtocolRevenue: { [LABELS.REVENUE]: methodology.ProtocolRevenue },
+  SupplySideRevenue: { [LABELS.SUPPLY_SIDE]: methodology.SupplySideRevenue },
+};
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
   fetch,
+  start: "2026-05-14",
+  chains: Object.keys(OPHIS_CHAINS),
   methodology,
   breakdownMethodology,
-  start: START,
-  chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.BSC, CHAIN.XDAI, CHAIN.POLYGON, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.LINEA, CHAIN.INK, CHAIN.PLASMA],
 };
 
 export default adapter;
