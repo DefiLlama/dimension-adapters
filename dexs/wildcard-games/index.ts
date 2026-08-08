@@ -32,13 +32,14 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(log.token, log.totalBetAmount - log.payout, 'Gross Gaming Revenue');
   });
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
   Volume: "Total amount wagered by players, summed from BetSettled events emitted by every game contract.",
   Fees: "Gross gaming revenue: total wagered minus total paid out to players.",
   Revenue: "All gross gaming revenue accrues to the protocol treasury, which acts as the house bankroll.",
+  ProtocolRevenue: "All gross gaming revenue is kept by the protocol treasury.",
 };
 
 const breakdownMethodology = {
@@ -48,20 +49,22 @@ const breakdownMethodology = {
   Revenue: {
     'Gross Gaming Revenue': "All gross gaming revenue is kept by the protocol treasury.",
   },
+  ProtocolRevenue: {
+    'Gross Gaming Revenue': "All gross gaming revenue is kept by the protocol treasury.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
   // The house edge is a flat 5% total-loss chance applied in the base game
   // contract before each roll, so on low-volume days players can win more than
   // they wager and daily gross gaming revenue is legitimately negative.
   allowNegativeValue: true,
   methodology,
   breakdownMethodology,
-  adapter: Object.fromEntries(
-    Object.entries(chainConfig).map(([chain, { start }]) => [chain, { fetch, start }]),
-  ),
+  adapter: chainConfig
 };
 
 export default adapter;
