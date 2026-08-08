@@ -31,6 +31,12 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.SOLANA]: {
     start: '2024-03-20'
   },
+  [CHAIN.XLAYER]: {
+    start: '2026-06-23'
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-03'
+  },
 }
 
 // GMGN's nine Solana fee-collection wallets. Verified on-chain (2026-06) to be
@@ -47,23 +53,6 @@ const SOLANA_FEE_WALLETS = [
   'DymeoWc5WLNiQBaoLuxrxDnDRvLgGZ1QGsEoCAM7Jsrx',
   'dBhdrmwBkRa66XxBuAK4WZeZnsZ6bHeHCCLXa3a8bTJ',
   '6TxjC5wJzuuZgTtnTMipwwULEbMPx5JPW3QwWkdTGnrn',
-  'pWTYaVjwCp8YJswrkmJqz2HgpMt7nknejb9uAERoxgS',
-  'BiW5ekoFcn13c9p18q9HnHnthQhEPkzBGtW4hrF9esRD',
-  'EDMSVKzWZfqknsXEyK59HtwFaBrBtNf3Q3pg3UZNrCtc',
-  'Aa9dCLusPbr3xZBjZ7tZNYvWoaikumtFpnnw9dTKNfXu',
-  '5L76S2zeHDsGinWpfG7GsiMHmdzgqMkpbQL8SDKRjd74',
-  'BL33e7yd7nz1ai5WRonAGjYjmY1y2eWKLBa6iM5uCWts',
-  '3XbDVuVs3kSV2GRfsoAEfiYpFS8dXUBfBp57wKcRwNTA',
-  '9RiGwqiYsmjjQiv4ouxh3EGmLdPy31wvTrjFu1eQViWC',
-  'STUeGc4F7GY9wQxgBxeo2YVH2YbCPesZNeaNVg3HSu7',
-  '6rS1bb8pztcE58zJihCzjoNwntMEwHfX4q6Kreu6BEKj',
-  '589JbiHZq9kfRVe7oQD5QjFv9XFr8eW34y4W79HFFrQH',
-  'BTikXx2NP395SEu3yZREA4ZrVW1c8VqaXViXpqoor22U',
-  '6hn8qmhyF6FQmZus56wTY9ZhxHtkZYTq1wFtV8U1Uefs',
-  'AZ9VWDRSZh6MYryWk7jzCaA38RabmLXmE2aLRnbuhF9C',
-  'HJ7t8ijnd4rJYqJ6faG4oFYwo9vG1b4KsMtWadqSda3A',
-  'jKcVtMU6hCPKgbn547cDQUzmFqyjSUPT8sTmw3QGbeA',
-  '3gFrSb6J9cEnz5qkeygZYvhWVUcBoJNyHKEURXDZzSvj'
 ];
 
 // EVM chains: [Dune `tokens.transfers` blockchain name, canonical USDC].
@@ -77,6 +66,9 @@ const EVM_CHAINS: Record<string, { dune: string; usdc?: string }> = {
   [CHAIN.MONAD]: { dune: 'monad', usdc: (ADDRESSES as any).monad?.USDC },
   [CHAIN.HYPERLIQUID]: { dune: 'hyperevm', usdc: (ADDRESSES as any).hyperliquid?.USDC },
   [CHAIN.MEGAETH]: { dune: 'megaeth' },
+  // usdg is the main stablecoin on robinhood
+  [CHAIN.ROBINHOOD]: { dune: 'robinhood', usdc: ADDRESSES.robinhood.USDG },
+  [CHAIN.XLAYER]: { dune: 'xlayer' },
 };
 
 // Solana referral-distribution wallets: GMGN funds these (mainly from BCNsHAH28…)
