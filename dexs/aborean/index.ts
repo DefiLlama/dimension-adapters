@@ -168,7 +168,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   totalFees.add(dailyFees, 'Token Swap Fees')
   totalFees.add(dailyBribesRevenue, 'Bribes Rewards')
-  totalHoldersRevenue.add(dailyHoldersRevenue, 'Swap Fees To Voters')
+  totalHoldersRevenue.add(dailyHoldersRevenue, 'Token Swap Fees To Holders')
   totalHoldersRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
   totalSupplySideRevenue.add(dailySupplySideRevenue, 'Swap Fees To LPs')
 
@@ -205,11 +205,11 @@ const adapters: SimpleAdapter = {
       'Bribes Rewards': 'External bribes deposited for veABX voters.',
     },
     Revenue: {
-      'Swap Fees To Voters': 'Staked-LP share of swap fees, forwarded to veABX voters.',
+      'Token Swap Fees To Holders': 'Staked-LP share of swap fees, forwarded to veABX voters.',
       'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     HoldersRevenue: {
-      'Swap Fees To Voters': 'Staked-LP share of swap fees, forwarded to veABX voters.',
+      'Token Swap Fees To Holders': 'Staked-LP share of swap fees, forwarded to veABX voters.',
       'Bribes Revenue': 'External bribes distributed to veABX voters.',
     },
     SupplySideRevenue: {
