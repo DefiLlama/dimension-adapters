@@ -3,14 +3,13 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Frontier (frontier.fun) — bonding-curve token launchpad on Robinhood Chain (4663).
+// Frontier (frontier.fun) is a bonding-curve token launchpad on Robinhood Chain (4663).
 //
-// Every launched token trades against a single shared BondingCurve contract that
-// emits Buy/Sell for all markets, so one target covers the whole protocol. When a
-// curve fills, the token contract wraps its raised ETH, pays out the graduation
-// fees and seeds a Uniswap V4 pool (LPSeeded), after which the market trades on
-// the canonical V4 PoolManager. Those post-graduation swaps are already counted by
-// the uniswap-v4 adapter on this chain, so they are deliberately not counted here.
+// Every launched token trades against one shared BondingCurve contract that emits
+// Buy/Sell for all markets. When a curve fills, the token wraps its raised ETH,
+// pays out graduation fees, and seeds a Uniswap V4 pool (LPSeeded); post-graduation
+// swaps are already counted by the uniswap-v4 adapter on this chain and are not
+// double counted here.
 // https://robinhoodchain.blockscout.com/address/0xCCa442899dFD80bf04340fa8C245C7EB02F71DD4
 const BONDING_CURVE = "0xCCa442899dFD80bf04340fa8C245C7EB02F71DD4";
 // https://robinhoodchain.blockscout.com/address/0x3cbC9395046607C083B383DC3588A3e8308dFf54
@@ -22,24 +21,14 @@ const LIQUIDITY_MANAGER = "0x97f3578083396D4ef2042868c6aE9d4eC91007A6";
 const REFERRAL_MANAGER = "0x6Fb1160A663834e8E53E411CC7202A01F1b144DD";
 const WETH = ADDRESSES.robinhood.WETH;
 
-// keccak256("Transfer(address,address,uint256)") — the standard ERC20 topic0.
+// keccak256("Transfer(address,address,uint256)"), the standard ERC20 topic0.
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const asTopic = (address: string) => "0x" + address.slice(2).toLowerCase().padStart(64, "0");
 
-// Both events emit the GROSS ETH notional and the trade fee is withheld from it,
-// but the two legs are denominated differently:
-//
-//   Buy.amount     is msg.value, i.e. fee-inclusive. The fee is 1.5% of the
-//                  post-fee cost, so as a share of the emitted figure it is
-//                  txFee / (10000 + txFee).
-//   Sell.amountOut is the pre-fee proceeds leaving the curve; the seller
-//                  receives amountOut - fee, and the fee is txFee / 10000 of it.
-//
-// Verified against the contract's own books: the BondingCurve retains its fees
-// on-chain and has never been swept (Withdrawn has never fired), so its ETH
-// balance is cumulative lifetime fees. Applying the two rates above to all 5,025
-// trades reproduces that balance to the wei; treating either leg as net of the
-// fee overstates it by 2.47%.
+// Both events emit the GROSS ETH notional, but the fee's share of it differs by leg:
+//   Buy.amount     is msg.value (fee-inclusive), so the fee is txFee / (10000 + txFee).
+//   Sell.amountOut is pre-fee proceeds, so the fee is txFee / 10000.
+// Treating either leg as net of the fee overstates both volume and fees.
 const BUY_EVENT =
   "event Buy(address indexed user, address indexed token, uint256 amount, uint256 amountOut, uint256 totalSupply, uint256 marketCap, uint256 price, uint256 reserveBalance)";
 const SELL_EVENT =
@@ -65,11 +54,9 @@ const INITIAL_TX_FEE_BPS = 150n;
 
 // Fee rates on these contracts are basis points out of 10000.
 const BPS = 10_000n;
-// Split of the curve trade fee: 75% to the token's creator, 25% to the protocol,
-// with any referral reward carved out of the protocol's quarter rather than the
-// creator's. Documented at https://docs.frontier.fun/fees-and-revenue. The curve
-// accrues the whole fee on-chain and the split is applied when it is distributed,
-// so this is the entitlement rather than a settled transfer.
+// Split of the curve trade fee: 75% to the token's creator, 25% to the protocol
+// (referral rewards come out of the protocol's quarter, never the creator's).
+// Documented at https://docs.frontier.fun/fees-and-revenue.
 const CURVE_FEE_CREATOR_BPS = 7_500n;
 
 const LABEL = {
@@ -135,19 +122,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }),
   ]);
 
-  // Rate history, oldest first, so each trade is priced with the rate actually in
-  // force when it executed rather than the one in force at the end of the window.
   const feeTimeline = asTimeline(feeChanges, (log: any) => BigInt(log.args.fee));
   const txFeeBpsAt = (log: any) => valueAt(feeTimeline, log, INITIAL_TX_FEE_BPS);
 
-  // Both legs emit gross notional, so volume is the emitted figure as-is; only
-  // the fee's share of it differs between them (see the event comments above).
   const addTrade = (gross: bigint, fee: bigint) => {
     dailyVolume.addGasToken(gross);
     dailyFees.addGasToken(fee, LABEL.CurveTradeFees);
-    // Three quarters of every curve fee is the creator's, which is unusual for a
-    // launchpad and is the reason this adapter's protocol revenue is a quarter of
-    // its fees rather than all of them.
     const creatorCut = (fee * CURVE_FEE_CREATOR_BPS) / BPS;
     dailySupplySideRevenue.addGasToken(creatorCut, LABEL.TradeFeesToCreators);
     dailyProtocolRevenue.addGasToken(fee - creatorCut, LABEL.TradeFeesToProtocol);
@@ -163,13 +143,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     addTrade(gross, (gross * txFeeBpsAt(log)) / BPS);
   });
 
-  // A referred trade routes part of that same fee to the referrer, paid in WETH
-  // held by the ReferralManager until claimed. It is not additional fee revenue,
-  // so it is moved out of the protocol's quarter rather than added — the docs are
-  // explicit that it never comes out of the creator's share. The reward is 9.09%
-  // of the fee (ReferralManager.directRefFeeBps), well inside that quarter, and it
-  // is emitted in the trade's own transaction, so it lands in the same window as
-  // the trade and the protocol's share cannot go negative.
+  // A referred trade routes part of the protocol's quarter to the referrer, paid
+  // in WETH by the ReferralManager. It comes out of protocol revenue rather than
+  // adding to it, since the docs are explicit it never comes out of the creator's
+  // share (ReferralManager.directRefFeeBps is 9.09% of the fee, well inside that quarter).
   const referralRewards = await options.getLogs({
     target: REFERRAL_MANAGER,
     eventAbi: REFERRAL_REWARD_EVENT,
@@ -186,17 +163,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   if (graduations.length) {
     // At graduation a token wraps its fee share of the ETH it raised and pays it
-    // out — currently 5% to the creator (BCToken.CREATOR_FEE) and 0% to the
-    // factory owner (BCToken.PROTOCOL_FEE) — while the rest seeds the Uniswap V4
-    // pool as native ETH. Reading the WETH transfers instead of applying the
-    // configured rates keeps the split exact across per-token fee settings and
-    // across changes to them.
+    // out, currently 5% to the creator (BCToken.CREATOR_FEE) and 0% to the factory
+    // owner (BCToken.PROTOCOL_FEE), while the rest seeds the Uniswap V4 pool as
+    // native ETH. Reading the WETH transfers instead of applying the configured
+    // rates keeps the split exact across per-token fee settings and changes to them.
     //
-    // Both recipients are resolved from cumulative logs for the same
-    // pruned-RPC reason as the trade fee: the creator from the token's own
-    // CoinDeployed event, and the protocol from the factory's ownership history
-    // (Ownable emits OwnershipTransferred from its constructor, and the owner has
-    // already been rotated once).
+    // The creator comes from the token's own CoinDeployed event, and the protocol
+    // owner from the factory's ownership history, which has been rotated once.
     const [launches, ownershipChanges] = await Promise.all([
       options.getLogs({
         target: FACTORY,
@@ -218,7 +191,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       creatorOf[String(log.token).toLowerCase()] = String(log.creator).toLowerCase();
     });
     // The owner has already been rotated once, so it is resolved per payout
-    // rather than taken as the latest — a graduation that predates the rotation
+    // rather than taken as the latest: a graduation that predates the rotation
     // paid the owner of the day.
     const ownerTimeline = asTimeline(ownershipChanges, (log: any) =>
       String(log.args.newOwner).toLowerCase()
@@ -261,8 +234,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
       // The contract pays exactly two fee legs here: CREATOR_FEE to the creator
       // and PROTOCOL_FEE to the factory owner. Anything else is not a known fee,
-      // so it is reported rather than guessed at — inventing a classification for
-      // an unobserved leg would be worse than surfacing it.
+      // so it is reported rather than guessed at.
       if (recipient === creatorOf[token]) {
         dailyFees.add(WETH, amount, LABEL.GraduationFees);
         dailySupplySideRevenue.add(WETH, amount, LABEL.GraduationToSupplySide);
@@ -296,7 +268,7 @@ const methodology = {
   Volume:
     "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves, taken directly from the shared BondingCurve contract's Buy/Sell events, both of which emit the gross figure. Once a curve fills it graduates to a Uniswap V4 pool on the canonical PoolManager; those swaps are counted by the uniswap-v4 adapter on Robinhood Chain and are not double counted here.",
   Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing, rate tracked on-chain via TxFeeUpdated), plus the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool.",
-  UserFees: "Same as Fees — every fee is paid by traders out of their trade or out of the ETH they raised.",
+  UserFees: "Same as Fees: every fee is paid by traders out of their trade or out of the ETH they raised.",
   Revenue:
     "Protocol revenue: the protocol's 25% of the bonding-curve trade fee, net of the referrer's share on referred trades (which comes out of that 25%), plus the protocol owner's share of graduation payouts. Frontier has no protocol token, so there is no holders revenue and Revenue equals ProtocolRevenue.",
   ProtocolRevenue:
@@ -305,29 +277,26 @@ const methodology = {
     "The creator's 75% of every bonding-curve trade fee, the referrer's share on referred trades, and the graduation fee paid to the token creator (5% of the ETH its curve raised).",
 };
 
+const feesBreakdown = {
+  [LABEL.CurveTradeFees]:
+    "Trade fee withheld by the bonding curve on every buy and sell, at the on-chain txFee rate (150 bps at the time of writing). Buy.amount is fee-inclusive so the fee is txFee/(10000+txFee) of it; Sell.amountOut is pre-fee so the fee is txFee/10000 of it.",
+  [LABEL.GraduationFees]:
+    "WETH paid out of the ETH a token raised when its curve fills, to the creator (5%) and the factory owner (0% at the time of writing). The ETH that seeds the Uniswap V4 pool is liquidity, not a fee, and is excluded.",
+};
+
+const protocolRevenueBreakdown = {
+  [LABEL.TradeFeesToProtocol]:
+    "The protocol's 25% of the bonding-curve trade fee, net of the referrer's share on referred trades.",
+  [LABEL.GraduationToProtocol]: "Graduation payout sent to the factory owner.",
+};
+
 const breakdownMethodology = {
-  Fees: {
-    [LABEL.CurveTradeFees]:
-      "Trade fee withheld by the bonding curve on every buy and sell, at the on-chain txFee rate (150 bps at the time of writing). Buy.amount is fee-inclusive so the fee is txFee/(10000+txFee) of it; Sell.amountOut is pre-fee so the fee is txFee/10000 of it.",
-    [LABEL.GraduationFees]:
-      "WETH paid out of the ETH a token raised when its curve fills, to the creator (5%) and the factory owner (0% at the time of writing). The ETH that seeds the Uniswap V4 pool is liquidity, not a fee, and is excluded.",
-  },
-  UserFees: {
-    [LABEL.CurveTradeFees]:
-      "Trade fee withheld by the bonding curve on every buy and sell, at the on-chain txFee rate (150 bps at the time of writing). Buy.amount is fee-inclusive so the fee is txFee/(10000+txFee) of it; Sell.amountOut is pre-fee so the fee is txFee/10000 of it.",
-    [LABEL.GraduationFees]:
-      "WETH paid out of the ETH a token raised when its curve fills, to the creator (5%) and the factory owner (0% at the time of writing).",
-  },
-  Revenue: {
-    [LABEL.TradeFeesToProtocol]:
-      "The protocol's 25% of the bonding-curve trade fee, net of the referrer's share on referred trades.",
-    [LABEL.GraduationToProtocol]: "Graduation payout sent to the factory owner.",
-  },
-  ProtocolRevenue: {
-    [LABEL.TradeFeesToProtocol]:
-      "The protocol's 25% of the bonding-curve trade fee, net of the referrer's share on referred trades.",
-    [LABEL.GraduationToProtocol]: "Graduation payout sent to the factory owner.",
-  },
+  // dailyUserFees is dailyFees, and dailyRevenue is dailyProtocolRevenue, so those
+  // pairs share the same breakdown.
+  Fees: feesBreakdown,
+  UserFees: feesBreakdown,
+  Revenue: protocolRevenueBreakdown,
+  ProtocolRevenue: protocolRevenueBreakdown,
   SupplySideRevenue: {
     [LABEL.TradeFeesToCreators]:
       "The token creator's 75% of every bonding-curve trade fee.",
