@@ -1,13 +1,13 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const BASE_URL = "https://api.satrush.io/api/v1/integration/stats/game";
 
-const SAT_STRIKE_FEES = "Sat Strike Fees";
-const EPOCH_VAULT_FEES = "Epoch Vault Fees";
-const ONE_BTC_VAULT_FEES = "One BTC Vault Fees";
+const SAT_STRIKE_FEES = "Mining fees to Sat Strike";
+const EPOCH_VAULT_FEES = "Mining fees to Epoch Vault";
+const ONE_BTC_VAULT_FEES = "Mining fees to 1 BTC Vault";
+const PROTOCOL_FEES = "Mining fees to Protocol";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
@@ -24,18 +24,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyFees.addUSDValue(total_strike_fee_usd, SAT_STRIKE_FEES);
   dailyFees.addUSDValue(total_epoch_fee_usd, EPOCH_VAULT_FEES);
   dailyFees.addUSDValue(total_one_btc_fee_usd, ONE_BTC_VAULT_FEES);
-  dailyFees.addUSDValue(total_protocol_fee_usd, METRIC.PROTOCOL_FEES);
+  dailyFees.addUSDValue(total_protocol_fee_usd, PROTOCOL_FEES);
+
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(total_strike_fee_usd, SAT_STRIKE_FEES);
+  dailySupplySideRevenue.addUSDValue(total_epoch_fee_usd, EPOCH_VAULT_FEES);
+  dailySupplySideRevenue.addUSDValue(total_one_btc_fee_usd, ONE_BTC_VAULT_FEES);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addUSDValue(
-    total_protocol_fee_usd,
-    METRIC.PROTOCOL_FEES
-  );
+  dailyProtocolRevenue.addUSDValue(total_protocol_fee_usd, PROTOCOL_FEES);
 
   return {
     dailyVolume: total_deployed_usd || 0,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   };
 };
@@ -45,20 +48,22 @@ const breakdownMethodology = {
     [SAT_STRIKE_FEES]: "Fees accumulated in the Sat Strike prize pool.",
     [EPOCH_VAULT_FEES]: "Fees accumulated in the Epoch prize pool.",
     [ONE_BTC_VAULT_FEES]: "Fees accumulated in the One BTC prize pool.",
-    [METRIC.PROTOCOL_FEES]: "Fees retained by the protocol.",
+    [PROTOCOL_FEES]: "Fees retained by the protocol.",
+  },
+  SupplySideRevenue: {
+    [SAT_STRIKE_FEES]:
+      "Share of the value deployed by miners that goes to the Sat Strike prize pool, paid out to participating miners.",
+    [EPOCH_VAULT_FEES]:
+      "Share of the value deployed by miners that goes to the Epoch prize pool, paid out to participating miners.",
+    [ONE_BTC_VAULT_FEES]:
+      "Share of the value deployed by miners that goes to the One BTC prize pool, paid out to participating miners.",
   },
   Revenue: {
-    [SAT_STRIKE_FEES]:
-      "Share of the value deployed by miners that goes to the Sat Strike prize pool.",
-    [EPOCH_VAULT_FEES]:
-      "Share of the value deployed by miners that goes to the Epoch prize pool.",
-    [ONE_BTC_VAULT_FEES]:
-      "Share of the value deployed by miners that goes to the One BTC prize pool.",
-    [METRIC.PROTOCOL_FEES]:
+    [PROTOCOL_FEES]:
       "Share of the value deployed by miners that funds protocol operations and treasury.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]:
+    [PROTOCOL_FEES]:
       "Share of the value deployed by miners that funds protocol operations and treasury.",
   },
 };
@@ -66,7 +71,9 @@ const breakdownMethodology = {
 const methodology = {
   Volume: "Total value deployed by miners participating in the rounds.",
   Fees: "Fees charged on the value deployed by miners, which fund the outsized rewards pools and the protocol fee.",
-  Revenue: "All collected fees are counted as revenue.",
+  SupplySideRevenue:
+    "Share of fees that fills the prize pools, paid out to miners.",
+  Revenue: "Protocol fee retained by the protocol.",
   ProtocolRevenue:
     "Protocol fee that funds protocol operations and treasury reserves.",
 };
@@ -74,6 +81,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: false,
   chains: [CHAIN.SOLANA],
   start: "2026-08-02",
   methodology,

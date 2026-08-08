@@ -14,7 +14,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-08-02",
