@@ -7,6 +7,17 @@ const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address i
 const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
+// 9mm pools set their protocol fee share in initialize() from their fee tier, half of it goes to
+// holders: https://9mm-pro.gitbook.io/9mm-pro/overview/revenue-sharing-model
+const ninemmRevenueRatio = ({ poolFeeTier }: { poolFeeTier: number }) => {
+  let _revenueRatio = 0.32
+  if (poolFeeTier === 0.0001) _revenueRatio = 0.33
+  if (poolFeeTier === 0.0005) _revenueRatio = 0.34
+
+  const _holdersRevenueRatio = _revenueRatio / 2
+  return { _revenueRatio, _protocolRevenueRatio: _revenueRatio - _holdersRevenueRatio, _holdersRevenueRatio }
+}
+
 const configs: Record<string, Record<string, any>> = {
   "xflows": {
     [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
@@ -153,9 +164,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BSC]: { factory: '0x009c4ef7C0e0Dd6bd1ea28417c01Ea16341367c3', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
   "9mm": {
-    [CHAIN.PULSECHAIN]: { factory: '0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68' },
-    [CHAIN.BASE]: { factory: '0x7b72C4002EA7c276dd717B96b20f4956c5C904E7' },
-    [CHAIN.SONIC]: { factory: '0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5' },
+    [CHAIN.PULSECHAIN]: { factory: '0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, getRevenueRatio: ninemmRevenueRatio },
+    [CHAIN.BASE]: { factory: '0x7b72C4002EA7c276dd717B96b20f4956c5C904E7', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, getRevenueRatio: ninemmRevenueRatio },
+    [CHAIN.SONIC]: { factory: '0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, getRevenueRatio: ninemmRevenueRatio },
   },
   "maia-v3": {
     [CHAIN.METIS]: { factory: '0xf5fd18Cd5325904cC7141cB9Daca1F2F964B9927', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0, start: "2023-04-01" },
@@ -421,11 +432,16 @@ const configs: Record<string, Record<string, any>> = {
 
 }
 
-const optionsMap: Record<string, any> = {
-  "9mm": { swapEvent: protocolFeesSwapEvent, },
-}
-
 const methodologyMap: Record<string, any> = {
+  "9mm": {
+    Volume: "Swap volume from all 9mm V3 pools deployed via the V3 factory.",
+    Fees: "Users pay each pool's configured fee tier on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "Share of the swap fee the pool keeps, set from its fee tier: 33% on the 0.01% tier, 34% on 0.05%, 32% on 0.25% and 1%.",
+    ProtocolRevenue: "Half of the revenue, the share kept by the protocol.",
+    HoldersRevenue: "The other half of the revenue, passed on to token holders.",
+    SupplySideRevenue: "The rest of the swap fee, kept by the liquidity providers.",
+  },
   "betterswap-v3": {
     Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
     Fees: "Users pay each pool's configured fee tier on every swap.",
@@ -656,7 +672,7 @@ const feesMethodologyMap: Record<string, any> = {
 // Build dex protocols
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
-  const adapter = uniV3Exports(config, optionsMap[name])
+  const adapter = uniV3Exports(config)
   adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
