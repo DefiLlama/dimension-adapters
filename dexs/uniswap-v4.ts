@@ -60,7 +60,7 @@ import { queryDune } from "../helpers/dune";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  getEstablishedTokens, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
+  getEstablishedTokens, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
   WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
@@ -296,7 +296,7 @@ const DUNE_CHAIN: Record<string, string> = {
 // pool id. Lets a Dune failure throw - reporting unfiltered would republish the
 // wash volume as real.
 const prefetch: any = async (options: FetchOptions) => {
-  const dayStart = Math.floor(options.startTimestamp / 86400) * 86400;
+  const dayStart = washDayStart(options);
   const chains = Object.values(DUNE_CHAIN).map(c => `'${c}'`).join(',');
   const fullQuery = `
     WITH ev AS (

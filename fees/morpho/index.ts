@@ -20,6 +20,13 @@ const blacklistedMarketIds: Record<string, Array<any>> = {
     from: "2026-07-21",
     id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
   }],
+  [CHAIN.BASE]: [{
+    from: "2026-07-22",
+    id: '0xa4ec527128b425ee3fcb7f60eca37677b63b3d003345ec2a72ef6a2e72da53fc' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
+  }, {
+    from: "2026-08-04",
+    id: '0x41c08085ddcfd1dc1c5eb82d7dc031593d1a1a831958380e8b60469c45bf7d88' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
+  }],
 }
 
 export const MorphoBlues: Record<string, MorphoBlueConfig> = {

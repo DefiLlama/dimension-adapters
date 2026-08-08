@@ -11,7 +11,10 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
   [CHAIN.ETHEREUM]: {
     TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
     CORE_CONTRACT: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682",
-    HOOK_CONTRACTS: [{ target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" }],
+    HOOK_CONTRACTS: [
+      { target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" },
+      { target: "0x72ec860218A711E54c7ca5A390c9A625947890Cc", dexType: "uniV4" },
+    ],
     start: "2025-11-17",
     fromBlock: 23820626,
   },
@@ -20,7 +23,9 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
     CORE_CONTRACT: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c",
     HOOK_CONTRACTS: [
       { target: "0x80DAefeFb1FC0942c7aC6CC65766A9bb085990cc", dexType: "uniV4" },
+      { target: "0x30f290ce49d4C75a86a2c6d538848693C64750Cc", dexType: "uniV4" },
       { target: "0x106f144922330D6263cd33d71a9B1603bBa0DCCC", dexType: "pcs" },
+      { target: "0xB030d77Cbc0084772084b41799E0CD55120803ef", dexType: "pcs" },
     ],
     start: "2025-11-17",
     fromBlock: 68536068,
@@ -30,7 +35,9 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
     CORE_CONTRACT: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286",
     HOOK_CONTRACTS: [
       { target: "0xea6e57d5FA362C1Fba4F52EE19138a4E79F310CC", dexType: "uniV4" },
+      { target: "0x1995280EC8cbE8136DAfE96645b24c52dF3590CC", dexType: "uniV4" },
       { target: "0xFeA466d80bF94D06c63ccA0C555a8c9A114E60db", dexType: "pcs" },
+      { target: "0x934Ce79eb5f768602991892a4074DcdC217564A1", dexType: "pcs" },
     ],
     start: "2025-11-17",
     fromBlock: 38305943,
@@ -45,7 +52,10 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
   [CHAIN.ROBINHOOD]: {
     TREASURY_CONTRACT: "0xbD66B5E936877505A63ce61b09A5059012b34fc3",
     CORE_CONTRACT: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d",
-    HOOK_CONTRACTS: [{ target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" }],
+    HOOK_CONTRACTS: [
+      { target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" },
+      { target: "0xe3f404b9ADfdCFD444853336dD3a89A8dF6110Cc", dexType: "uniV4" },
+    ],
     start: "2026-07-09",
     fromBlock: 4791637,
   },
