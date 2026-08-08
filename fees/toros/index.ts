@@ -71,7 +71,7 @@ const CONFIG = {
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
   [CHAIN.HYPERLIQUID]: {
-    endpoint: 'https://api.subgraph.ormilabs.com/api/public/a5914000-d7d2-47be-b0cb-6719f6678ff0/subgraphs/dhedge/v0.0.3/gn',
+    endpoint: 'https://api.goldsky.com/api/public/project_cmkxyxmvlm2ta01w16jst63i3/subgraphs/dhedge-v2-hyperevm/v0.0.12/gn',
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
 };

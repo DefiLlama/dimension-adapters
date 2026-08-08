@@ -4,9 +4,9 @@ import request, { gql } from "graphql-request";
 import { METRIC } from "../../helpers/metrics";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Sentry (sentry.trading): token launchpad + multi-venue swap frontend
-// on Robinhood Chain. Two fee streams, both indexed by the Sentry
-// Goldsky subgraph:
+// Sentry (sentry.trading): token launchpad + multi-venue swap frontend,
+// live on Robinhood Chain and Ink. Two fee streams, both indexed by the
+// per-chain Sentry Goldsky subgraph:
 //
 // 1. App fee: every swap routed through Sentry's fee-router contracts
 //    (Uniswap V3, Uniswap V2 pairs, Uniswap v4 hook pools, PancakeSwap
@@ -15,9 +15,23 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // 2. LP fees on Sentry-launched pools: every launch locks its
 //    liquidity in a Uniswap V3 1% pool; the factory splits collected
 //    LP fees 70% to the token creator / 30% to the Sentry treasury.
-const ENDPOINT = "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.2.0/gn";
+//
+// Sentry runs the same launch stack on two chains. Robinhood has the fee
+// routers as well as the launch pools; Ink currently has launch pools
+// only, so its router fields come back null and contribute nothing.
+const CHAINS = {
+  [CHAIN.ROBINHOOD]: {
+    endpoint: "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-robinhood/1.2.0/gn",
+    weth: ADDRESSES.robinhood.WETH,
+    start: "2026-07-02",
+  },
+  [CHAIN.INK]: {
+    endpoint: "https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/sentry-ink/1.1.0/gn",
+    weth: ADDRESSES.ink.WETH,
+    start: "2026-03-13",
+  },
+};
 
-const WETH = ADDRESSES.robinhood.WETH;
 const CREATOR_LP_SHARE = 0.7;
 
 const query = gql`
@@ -45,8 +59,9 @@ function scaleWei(wei: bigint, factor: number): bigint {
 }
 
 const fetch = async (options: FetchOptions) => {
+  const { endpoint, weth: WETH } = CHAINS[options.chain];
   const day = Math.floor(options.startOfDay / 86400);
-  const res = await request(ENDPOINT, query, {
+  const res = await request(endpoint, query, {
     routerDayId: `all-${day}`,
     protocolDayId: `${day}`,
   });
@@ -102,9 +117,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1, //graph accepts day
-  fetch,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-07-02",
+  adapter: Object.fromEntries(
+    Object.entries(CHAINS).map(([chain, { start }]) => [chain, { fetch, start }]),
+  ),
   methodology,
   doublecounted: true, // uniswap and pancakeswap
   breakdownMethodology,

@@ -3,6 +3,7 @@ import ADDRESSES from './coreAssets.json'
 import { Balances, ChainApi, cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
+import { queryDune } from "./dune";
 import { httpGet } from "../utils/fetchURL";
 import { ethers } from "ethers";
 
@@ -31,6 +32,44 @@ export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 // price at all (SUM(amount_usd) IS NULL) stay flagged - catching those is what
 // test A is for.
 export const WASH_DUST_USD = 25_000;
+
+// UTC start of the day being recorded. runAdapter hands fetch a window of
+// [dayStart - 1s, dayEnd), so flooring startTimestamp lands on the PREVIOUS
+// day and the filter would apply yesterday's flag list - fatal for fake-ticker
+// pools that live a single day. Key off endTimestamp instead.
+export function washDayStart(options: FetchOptions): number {
+  return Math.floor((options.endTimestamp - 1) / 86400) * 86400;
+}
+
+// The day's wash-flagged pool set for one project+chain, for adapters whose
+// pools are their own contracts in dex.trades (uniswap-v3 style). The caller's
+// prefetch stores it and fetch drops those pools unless getEstablishedTokens
+// clears every side. A Dune failure throws - reporting unfiltered would
+// republish the wash volume as real.
+export async function getWashPools(options: FetchOptions, { blockchain, project, version }: { blockchain: string; project: string; version?: string }): Promise<Set<string>> {
+  const dayStart = washDayStart(options);
+  const fullQuery = `
+    SELECT CAST(project_contract_address AS VARCHAR) AS pool
+    FROM dex.trades
+    WHERE blockchain = '${blockchain}'
+      AND project = '${project}'
+      ${version ? `AND version = '${version}'` : ''}
+      AND block_time >= from_unixtime(${dayStart})
+      AND block_time < from_unixtime(${dayStart + 86400})
+    GROUP BY project_contract_address
+    HAVING ((
+      COUNT(*) >= ${WASH_MIN_TRADES}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+    ) OR (
+      COALESCE(SUM(amount_usd), 0) >= ${WASH_MIN_USD}
+      AND COALESCE(SUM(amount_usd), 0) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_PER_EOA}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+    ))
+    AND NOT (SUM(amount_usd) IS NOT NULL AND SUM(amount_usd) < ${WASH_DUST_USD})`;
+
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options, { extraUIDKey: 'wash' });
+  return new Set(rows.map((r) => String(r.pool ?? '').toLowerCase()).filter(Boolean));
+}
 
 // Never flag a pool whose every side is established, meaning either
 //  - a core asset: concentrated flow on a major/stable pair is just arb bots
@@ -65,6 +104,8 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
+  if (balanceCalls.length && res.every((bal) => bal == null))
+    throw new Error(`filterPools: every pooled balance call failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as empty`)
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   res.forEach((bal, i) => {

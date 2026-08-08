@@ -5,6 +5,7 @@ const FWA = "0xB276F62DB0ce8CA2Ca5bc522695bE604521eAc1c";
 // Splitter: receives all protocol fees via payoutFees(), splits them between the
 // team (ownerShareBps) and the v1 snapshot soulbound-NFT holders (the remainder)
 const SPLITTER = "0x1C175b9F0e8C73eD3e677e1cBb1B5A2DD4373Bfe";
+const BUYBACK = "0xabc98D86eA62919399c4211251890308Ce37A6BF";
 const BPS = 10_000n;
 
 const METRICS = {
@@ -16,6 +17,7 @@ const METRICS = {
   SettlementToNFTHolders: 'Settlement Fees to Snapshot NFT Holders',
   RetainedToNFTHolders: 'Retained Settlement Penalties to Snapshot NFT Holders',
   TokenBuyBack: 'Token Buy Back',
+  RetroactiveBuybacks: 'Retroactive buybacks',
 };
 
 const ABIS = {
@@ -29,6 +31,7 @@ const ABIS = {
   ProtocolFeesToToken: "event ProtocolFeesToToken(uint256 amount)",
   AcquisitionRequested: "event AcquisitionRequested(uint256 indexed requestId, address indexed purchaser, uint256 acquisitionFee, uint256 totalWeight)",
   NFTAllocated: "event NFTAllocated(uint256 indexed requestId, uint256 indexed listingId, address indexed purchaser, address depositor, uint256 value, uint256 randomWord)",
+  Bought: "event Bought(address indexed caller, address indexed recipient, uint256 indexed buybackNumber, uint256 ethSpent, uint256 amountBought, uint256 callerReward)",
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -45,7 +48,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.api.call({ target: SPLITTER, abi: 'uint16:ownerShareBps' }),
   ]);
 
-  const [ownerFees, earnings, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, feesToToken, allocated] = await Promise.all([
+  const [ownerFees, earnings, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, feesToToken, allocated, bought] = await Promise.all([
     options.getLogs({ target: FWA, eventAbi: ABIS.OwnerFeesAccrued }),
     options.getLogs({ target: FWA, eventAbi: ABIS.EarningsAccrued }),
     options.getLogs({ target: FWA, eventAbi: ABIS.TopListingFunded }),
@@ -55,6 +58,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.getLogs({ target: FWA, eventAbi: ABIS.DepositorBidAcceptedAsTokens }),
     options.getLogs({ target: FWA, eventAbi: ABIS.ProtocolFeesToToken }),
     options.getLogs({ target: FWA, eventAbi: ABIS.NFTAllocated }),
+    options.getLogs({ target: BUYBACK, eventAbi: ABIS.Bought }),
   ]);
 
   // Pull volume: the escrowed acquisition price of each pull, counted when the VRF settlement
@@ -140,6 +144,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyRevenue.addGasToken(toTokenBuyback, METRICS.TokenBuyBack);
   dailyHoldersRevenue.addGasToken(toTokenBuyback, METRICS.TokenBuyBack);
 
+  // Retroactive buybacks: 327 ETH of already-earned team fees swapped for FWA on a fixed
+  // 2-hour schedule via the FWABuyback executor. Holders revenue only because the funding fees
+  // were already booked as protocol revenue when they accrued
+  bought.forEach((log: any) => { dailyHoldersRevenue.addGasToken(log.ethSpent, METRICS.RetroactiveBuybacks); });
+
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
@@ -148,7 +157,7 @@ const methodology = {
   Fees: "Net Acquisition fees paid by NFT purchasers, plus settlement fees taken from listing backings.",
   Revenue: "Team share of the protocol's cut of acquisition and settlement fees, plus any fees diverted to FWA-token buybacks.",
   ProtocolRevenue: "Team share of the protocol's fee cut, per the Splitter contract's live split.",
-  HoldersRevenue: "FWA-token buybacks funded from protocol fees.",
+  HoldersRevenue: "FWA-token buybacks funded from protocol fees, plus retroactive scheduled buybacks funded from previously earned team fees.",
   SupplySideRevenue: "Share of net acquisition fees distributed to NFT depositors (equal split across active listings plus the top-listing pot), plus the snapshot soulbound-NFT holders' share of protocol fees via the Splitter.",
 };
 
@@ -179,6 +188,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [METRICS.TokenBuyBack]: "Protocol fees diverted to FWA-token buybacks.",
+    [METRICS.RetroactiveBuybacks]: "Scheduled FWA-token buybacks (327 ETH in 1 ETH slices every 2 hours) funded from previously earned team fees.",
   },
 };
 

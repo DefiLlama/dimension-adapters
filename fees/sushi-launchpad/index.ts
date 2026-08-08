@@ -23,14 +23,44 @@ async function fetch(options: FetchOptions) {
     options.getLogs({ target: LAUNCHPAD, eventAbi: LAUNCH_FEES_WITHDRAWN }),
   ]);
 
+  // FeesDistributed carries no quote-token address, and launches are not all
+  // quoted in the gas token - on Robinhood Chain most pools pair the launch
+  // token against a tokenised stock (GME, AAPL, NVDA, ...) or USDG. Read the
+  // pool's pair and take whichever side is not the launch token.
+  const pools = [...new Set<string>(feeLogs.map((log: any) => log.pool))];
+  const pairs: Record<string, [string, string]> = {};
+  if (pools.length) {
+    // token0/token1 are immutable, so read them at the latest block - the
+    // window's block is historical and the public RPC is not archival.
+    const [token0s, token1s] = await Promise.all([
+      options.api.multiCall({ abi: "address:token0", calls: pools }),
+      options.api.multiCall({ abi: "address:token1", calls: pools }),
+    ]);
+    pools.forEach((pool, i) => {
+      pairs[pool.toLowerCase()] = [token0s[i], token1s[i]];
+    });
+  }
+
+  const quoteToken = (log: any) => {
+    const [token0, token1] = pairs[log.pool.toLowerCase()];
+    const launch = log.token.toLowerCase();
+    if (token0.toLowerCase() === launch) return token1;
+    if (token1.toLowerCase() === launch) return token0;
+    throw new Error(
+      `launch token ${log.token} is not in pool ${log.pool} (${token0}/${token1})`
+    );
+  };
+
   for (const log of feeLogs) {
-    dailyFees.addGasToken(log.quoteCollected, METRIC.TRADING_FEES);
+    const quote = quoteToken(log);
+
+    dailyFees.add(quote, log.quoteCollected, METRIC.TRADING_FEES);
     dailyFees.add(log.token, log.tokenCollected, METRIC.TRADING_FEES);
 
-    dailyRevenue.addGasToken(log.quoteToSushi, METRIC.TRADING_FEES);
+    dailyRevenue.add(quote, log.quoteToSushi, METRIC.TRADING_FEES);
     dailyRevenue.add(log.token, log.tokenToSushi, METRIC.TRADING_FEES);
 
-    dailySupplySideRevenue.addGasToken(log.quoteToCreator, "Creator Fees");
+    dailySupplySideRevenue.add(quote, log.quoteToCreator, "Creator Fees");
     dailySupplySideRevenue.add(log.token, log.tokenToCreator, "Creator Fees");
   }
 
@@ -80,6 +110,7 @@ const adapter: Adapter = {
   start: "2026-07-28",
   methodology,
   breakdownMethodology,
+  doublecounted: true, // sushiswap
 };
 
 export default adapter;

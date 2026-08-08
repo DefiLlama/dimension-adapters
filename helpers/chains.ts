@@ -396,4 +396,5 @@ export enum CHAIN {
   JUPNET = "jupnet",
   INTUITION= "intuition",
   SIS = "sis",
+  ASTER = "aster"
 }

@@ -35,6 +35,8 @@ const eventAbis = {
   tokenQuoteSet: "event TokenQuoteSet(address token, address quoteToken)",
 };
 
+const BLOCKS_PER_BATCH = 10000;
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { portal, fromBlock } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
@@ -42,38 +44,56 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const buyLogs = await options.getLogs({ target: portal, eventAbi: eventAbis.tokenBought });
-  const sellLogs = await options.getLogs({ target: portal, eventAbi: eventAbis.tokenSold });
-  const logs = [...buyLogs, ...sellLogs];
-  if (!logs.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue };
-  const tokens = new Set(logs.map((log) => log.token.toLowerCase()));
+  const [dayFromBlock, dayToBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  // Map every token to its quote token once. TokenQuoteSet fires once per token
+  // at creation, so this is fetched over the full history and cached in cloud.
   const quoteLogs = await options.getLogs({
     target: portal,
     eventAbi: eventAbis.tokenQuoteSet,
     fromBlock,
-    toBlock: await options.getToBlock(),
+    toBlock: dayToBlock,
     cacheInCloud: true,
   });
   const quoteTokens = quoteLogs.reduce((acc, log) => {
-    const token = log.token.toLowerCase();
-    if (tokens.has(token)) acc[token] = log.quoteToken.toLowerCase();
+    acc[log.token.toLowerCase()] = log.quoteToken.toLowerCase();
     return acc;
   }, {} as Record<string, string>);
 
-  logs.forEach((log) => {
-    const quoteToken = quoteTokens[log.token.toLowerCase()] ?? NATIVE_TOKEN;
-    if (quoteToken === NATIVE_TOKEN) {
-      dailyVolume.addGasToken(log.eth);
-      dailyFees.addGasToken(log.fee, BONDING_CURVE_FEES);
-      dailyRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
-      dailyProtocolRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
-    } else {
-      dailyVolume.add(quoteToken, log.eth);
-      dailyFees.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-      dailyRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-      dailyProtocolRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-    }
-  });
+  const processTradeLogs = (logs: any[]) => {
+    logs.forEach((log) => {
+      const quoteToken = quoteTokens[log.token.toLowerCase()];
+      if(!quoteToken) return;
+      if (quoteToken === NATIVE_TOKEN) {
+        dailyVolume.addGasToken(log.eth);
+        dailyFees.addGasToken(log.fee, BONDING_CURVE_FEES);
+        dailyRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
+        dailyProtocolRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
+      } else {
+        dailyVolume.add(quoteToken, log.eth);
+        dailyFees.add(quoteToken, log.fee, BONDING_CURVE_FEES);
+        dailyRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
+        dailyProtocolRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
+      }
+    });
+  };
+
+  // Fetch buy/sell logs in block-range batches and aggregate incrementally
+  // instead of loading the whole day's logs into memory at once. A single
+  // getLogs for the full window OOMs on busy days; batching bounds peak memory
+  // to one batch since each decoded array is released before the next fetch.
+  for (let start = dayFromBlock; start <= dayToBlock; start += BLOCKS_PER_BATCH) {
+    const end = Math.min(start + BLOCKS_PER_BATCH - 1, dayToBlock);
+    const [buyLogs, sellLogs] = await Promise.all([
+      options.getLogs({ target: portal, eventAbi: eventAbis.tokenBought, fromBlock: start, toBlock: end, skipCacheRead: true }),
+      options.getLogs({ target: portal, eventAbi: eventAbis.tokenSold, fromBlock: start, toBlock: end, skipCacheRead: true }),
+    ]);
+    processTradeLogs(buyLogs);
+    processTradeLogs(sellLogs);
+  }
 
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
@@ -103,11 +123,11 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: chainConfig,
   fetch,
   methodology,
   breakdownMethodology,
-  //pullHourly: true,
 };
 
 export default adapter;
