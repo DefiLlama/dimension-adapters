@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 // Game contract addresses come from the protocol's deployment registry and can
 // be verified on https://robinhoodchain.blockscout.com
@@ -30,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
 
   logs.forEach((log: any) => {
     dailyVolume.add(log.token, log.totalBetAmount);
-    dailyFees.add(log.token, log.totalBetAmount - log.payout, METRIC.SERVICE_FEES);
+    dailyFees.add(log.token, log.totalBetAmount - log.payout, 'Gross Gaming Revenue');
   });
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
@@ -44,10 +43,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SERVICE_FEES]: "Wagers minus payouts on every settled bet, i.e. the house gross gaming revenue.",
+    'Gross Gaming Revenue': "Wagers minus payouts on every settled bet, i.e. the house gross gaming revenue.",
   },
   Revenue: {
-    [METRIC.SERVICE_FEES]: "All gross gaming revenue is kept by the protocol treasury.",
+    'Gross Gaming Revenue': "All gross gaming revenue is kept by the protocol treasury.",
   },
 };
 
