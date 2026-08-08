@@ -81,7 +81,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  pullHourly: false,
+  pullHourly: true,
   chains: [CHAIN.SOLANA],
   start: "2026-08-02",
   methodology,
