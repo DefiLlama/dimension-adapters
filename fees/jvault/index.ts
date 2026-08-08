@@ -18,10 +18,17 @@ type RevenueRow = {
   date: string;
   stream: string;
   token_address: string;
-  recipient: "jvault" | "creator";
+  recipient: "jvault";
   amount: string;
 };
 
+// All five streams land on JVault's own treasury — confirmed on-chain per
+// stream (see PR description). There is currently no supply-side/creator
+// cut to track: staking_rewards_commission looked like one at first glance
+// (a percentage a pool's own creator sets), but the ADD_REWARDS handler
+// sends it straight to the pool factory's admin address at deposit time
+// (staking_pool/main.fc — the transfer's own on-chain comment reads
+// "JVault's rewards commission"), not to the creator.
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
   const res = await httpGet(`https://jvault.xyz/api/v1/revenue`, {
@@ -31,62 +38,40 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   for (const row of res.rows as RevenueRow[]) {
-    const token = row.token_address === TON_NATIVE ? TON_NATIVE : row.token_address;
     const label = STREAM_LABELS[row.stream] ?? row.stream;
-
-    dailyFees.add(token, row.amount, label);
-    if (row.recipient === "jvault") {
-      // Every stream that reaches JVault's own treasury does so in full —
-      // there is no buyback/burn/token-holder distribution mechanism, so
-      // Revenue and ProtocolRevenue are identical here.
-      dailyRevenue.add(token, row.amount, label);
-      dailyProtocolRevenue.add(token, row.amount, label);
-    } else {
-      // recipient === "creator": the individual staking-pool's own
-      // creator, claimed via a creator-gated on-chain op — not JVault's
-      // revenue, but still money the mechanism extracts (counts in Fees).
-      dailySupplySideRevenue.add(token, row.amount, label);
-    }
+    dailyFees.add(row.token_address, row.amount, label);
+    dailyRevenue.add(row.token_address, row.amount, label);
+    dailyProtocolRevenue.add(row.token_address, row.amount, label);
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
 const breakdown: Record<string, string> = {
   "Staking Pool Creation Fees":
-    "Flat JVT fee charged when a staking pool is deployed via JVault's PoolFactory.",
+    "Flat JVT fee charged when a staking pool is deployed via JVault's PoolFactory, sent to JVault's treasury on deploy.",
   "Launchpad Sale Creation Fees":
-    "Flat JVT fee charged when a token sale is deployed via the JVault Launchpad.",
+    "Flat JVT fee charged when a token sale is deployed via the JVault Launchpad, sent to JVault's treasury on deploy.",
   "Launchpad Sale Commission":
-    "0.5%-2% of TON raised (tiered by amount raised), charged once a Launchpad sale completes successfully.",
+    "0.5%-2% of TON raised (tiered by amount raised), charged once a Launchpad sale completes successfully and sent to JVault's treasury.",
   "Locker Lock Creation Fees":
-    "Flat TON fee charged when a vesting/lock contract is deployed via JVault Locker.",
+    "Flat TON fee charged when a vesting/lock contract is deployed via JVault Locker, sent to JVault's treasury on deploy.",
   "Staking Reward Commission":
-    "The percentage an individual staking pool's own creator charges on their own reward deposits to that pool — paid to the pool's creator, never to JVault.",
-};
-
-const jvaultBreakdown = {
-  "Staking Pool Creation Fees": breakdown["Staking Pool Creation Fees"],
-  "Launchpad Sale Creation Fees": breakdown["Launchpad Sale Creation Fees"],
-  "Launchpad Sale Commission": breakdown["Launchpad Sale Commission"],
-  "Locker Lock Creation Fees": breakdown["Locker Lock Creation Fees"],
+    "A percentage skimmed off every reward-jetton deposit a staking pool's creator makes, sent directly to JVault's treasury by the ADD_REWARDS handler itself (staking_pool/main.fc).",
 };
 
 const methodology = {
-  Fees: "Every fee/commission JVault's mechanisms extract: flat creation fees on staking pools, launchpad sales and locker vesting contracts, the launchpad's end-of-sale commission, and the percentage individual staking-pool creators charge on their own reward deposits.",
-  Revenue: "JVault's own share, collected by its treasury: creation fees (staking, launchpad, locker) and the launchpad's end-of-sale commission. Excludes the per-pool reward commission, which is paid to that pool's own creator, not to JVault.",
-  ProtocolRevenue: "Identical to Revenue — every JVault-bound fee lands on a single treasury address; none of it is distributed to token holders.",
-  SupplySideRevenue: "The percentage individual staking-pool creators charge on their own reward deposits, claimed via a creator-gated on-chain op — not JVault's revenue.",
+  Fees: "Every fee/commission JVault's mechanisms extract: flat creation fees on staking pools, launchpad sales and locker vesting contracts, the launchpad's end-of-sale commission, and the percentage skimmed off staking-pool reward deposits.",
+  Revenue: "Identical to Fees — every stream currently tracked lands on JVault's own treasury; there is no supply-side (LP/staker/creator) cut in any of them.",
+  ProtocolRevenue: "Identical to Revenue — all of it lands on a single treasury address; none is distributed to token holders.",
 };
 
 const breakdownMethodology = {
   Fees: breakdown,
-  Revenue: jvaultBreakdown,
-  ProtocolRevenue: jvaultBreakdown,
-  SupplySideRevenue: { "Staking Reward Commission": breakdown["Staking Reward Commission"] },
+  Revenue: breakdown,
+  ProtocolRevenue: breakdown,
 };
 
 const adapter: SimpleAdapter = {
