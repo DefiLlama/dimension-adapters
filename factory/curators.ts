@@ -331,9 +331,24 @@ const configs: Record<string, CuratorConfig> = {
     breakdownFees: true,
     vaults: {
       [CHAIN.ETHEREUM]: {
-        // Morpho V2 vaults — "RockawayX USDC Yield" (0xE018...1965) + "RockawayX wETH" (0x64C1...9cB9)
-        morphoVaultV2Owners: ['0x9ECBf5aB609E33EC90D69888362639d652Eb8bf3'],
+        // Morpho V2 vaults. 0x9ECB...8bf3 created "RockawayX USDC Yield" (0xE018...1965),
+        // "RockawayX wETH" (0x64C1...9cB9) and "roxpUSDC" (0x5f82...8e21). RockawayX moved to a
+        // second deployer safe, 0x22d4...676a, for "roxTORI" (0x3BD9...9478), "humaUSDC"
+        // (0x8aC9...475c) and "mpUSDC" (0xe99A...0b3b) — every one of them is owned today by the
+        // same RockawayX safe 0xbBacDCFB9691DFA1066aB29edfcc4A73f6DEf918 as the first three.
+        morphoVaultV2Owners: [
+          '0x9ECBf5aB609E33EC90D69888362639d652Eb8bf3',
+          '0x22d4dbFFf37c7d7A0C7Afb9427A51de6F90a676a',
+        ],
+        // "figrUSDC" was created straight from a signer EOA of that safe rather than from either
+        // deployer, so it is listed by address instead of widening the owner list to an individual.
+        morphoV2: ['0xd65d6E8dbC3Cd3D12418199E6f4014dB3aaa0097'],
         start: '2026-03-06',
+      },
+      [CHAIN.BASE]: {
+        // "RockawayX Midas USDC Prime" (0xAE41...9Edc), created by the same 0x22d4...676a safe.
+        morphoVaultV2Owners: ['0x22d4dbFFf37c7d7A0C7Afb9427A51de6F90a676a'],
+        start: '2026-06-01',
       },
       [CHAIN.BSC]: {
         // Lista/Moolah vault "RockawayX PT Yield" — fork MetaMorpho, fee() = 10%
