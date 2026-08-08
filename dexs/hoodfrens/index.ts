@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { getProvider } from "@defillama/sdk";
 
 // hoodfrens is a creator-fee fork of the audited TopStrike bonding-curve
 // contract, running on Robinhood Chain (chainId 4663). This adapter mirrors
@@ -10,11 +11,10 @@ import { METRIC } from "../../helpers/metrics";
 const TRADING_CONTRACT = "0xA50AdeC47FcCBDe24B0214A831d3BDde4A1E0106";
 
 // Pack shop — Thirdweb DropERC1155 (Edition Drop) on Robinhood Chain. Its
-// TokensClaimed event and getClaimConditionById return tuple match the ABIs
-// below exactly (checked against the Blockscout-verified implementation ABI,
-// 2026-07-25; sales priced in native ETH — currency is the 0xEee… sentinel the
-// claim block maps to the gas token). getLogs returns nothing on days without a
-// claim, so the pack-sales path is a no-op until packs actually sell.
+// TokensClaimed event matches the ABI below (checked against the
+// Blockscout-verified implementation ABI, 2026-07-25; claims are priced in
+// native ETH). getLogs returns nothing on days without a claim, so the
+// pack-sales path is a no-op until packs actually sell.
 const PACKSHOP_CONTRACT = "0x3647b90F769B473E7bCf3267D030E009705fd99D";
 
 const TRADE_EVENT_ABI =
@@ -40,17 +40,33 @@ const CREATOR_FEE_PAID_ABI =
 const CREATOR_FEE_ACCRUED_ABI =
     "event CreatorFeeAccrued(uint256 indexed playerId, uint256 amountInWei)";
 
-// Thirdweb DropERC1155 pack shop. TokensClaimed carries quantity but not
-// price — we look up pricePerToken via getClaimConditionById for each
-// unique (tokenId, claimConditionIndex) pair seen in the day's logs.
+// Thirdweb DropERC1155 pack shop. TokensClaimed carries quantity but not the
+// price paid — claims are valued from the claim transaction's tx.value rather
+// than a getClaimConditionById lookup. The contract's native-currency claim
+// path requires msg.value == pricePerToken * quantityClaimed, so for a direct
+// claim tx the value IS the sale amount — and, unlike contract state at a
+// historical block, transactions are never pruned. The previous
+// getClaimConditionById approach ran an eth_call pinned to the day's block,
+// and the public Robinhood RPC prunes state to a ~100-minute horizon
+// ("metadata is not found"), which made every historical run (backfill /
+// refill) of a pack-sale day fail permanently. Live runs were unaffected,
+// which is how the fees dimension stayed complete while dexs lost days.
+//
+// PRECONDITION: claim conditions are priced in NATIVE ETH (true for every
+// condition to date). tx.value cannot see an ERC20 payment, so a zero-value
+// claim is ambiguous: genuinely free (allowlisted distributions are real and
+// common), or priced in a token. The zero-value path below disambiguates via
+// the tx RECEIPT (also never pruned): an ERC20-priced claim must move a token
+// in the claim tx, a free claim moves none — and it fails loudly on the
+// former rather than silently scoring it as zero.
 const TOKENS_CLAIMED_ABI =
     "event TokensClaimed(uint256 indexed claimConditionIndex, address indexed claimer, address indexed receiver, uint256 tokenId, uint256 quantityClaimed)";
 
-const GET_CLAIM_CONDITION_ABI =
-    "function getClaimConditionById(uint256 _tokenId, uint256 _conditionId) view returns ((uint256 startTimestamp, uint256 maxClaimableSupply, uint256 supplyClaimed, uint256 quantityLimitPerWallet, bytes32 merkleRoot, uint256 pricePerToken, address currency, string metadata) condition)";
-
-const NATIVE_ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+// keccak256("Transfer(address,address,uint256)") — ERC20 Transfer has 3 topics
+// (ERC721's shares topic0 but has 4; the claim's own ERC1155 TransferSingle
+// has a different topic0 entirely).
+const ERC20_TRANSFER_TOPIC =
+    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 // Trade.feeInWei carries the total user-paid fee on every fee-generating path
 // (IPO buy + all sells): the contract builds it as
@@ -126,51 +142,64 @@ const fetch = async (options: FetchOptions) => {
         const claimLogs = await options.getLogs({
             target: PACKSHOP_CONTRACT,
             eventAbi: TOKENS_CLAIMED_ABI,
+            entireLog: true,
         });
 
         if (claimLogs.length > 0) {
-            // Dedupe (tokenId, conditionIndex) pairs before resolving prices —
-            // many claims share the same active condition during a window.
-            const pairKey = (tokenId: any, conditionId: any) =>
-                `${tokenId.toString()}-${conditionId.toString()}`;
-            const uniquePairs = new Map<string, { tokenId: any; conditionId: any }>();
-            for (const log of claimLogs) {
-                const key = pairKey(log.tokenId, log.claimConditionIndex);
-                if (!uniquePairs.has(key)) {
-                    uniquePairs.set(key, {
-                        tokenId: log.tokenId,
-                        conditionId: log.claimConditionIndex,
-                    });
+            // A tx can batch several claims (multicall), and its value covers
+            // all of them — count each transaction's value exactly once.
+            // Raw provider rather than FetchOptions on purpose: FetchOptions
+            // has no transaction surface, and helpers/getTxReceipts' fixed
+            // concurrency-20 pool trips this RPC's burst limiting on heavy
+            // pack days (336 claim txs on 2026-07-28). Sequential with
+            // backoff, like the sequential getLogs calls above.
+            const txHashes: string[] = [...new Set<string>(claimLogs.map((l: any) => String(l.transactionHash).toLowerCase()))];
+            const provider = getProvider(CHAIN.ROBINHOOD);
+            // Retry budget for per-tx lookups on the public Robinhood RPC.
+            // The RPC rate-limits bursts but recovers within about a second;
+            // there is no published rate-limit policy to cite, so the budget
+            // is empirical: sequential fetches with this backoff completed
+            // 711/711 claim txs (incl. the 336-tx day) without exhausting a
+            // single retry budget, while helpers/getTxReceipts' concurrency-20
+            // pool tripped the limiter. 4 attempts with 500ms linear backoff
+            // (0, 500, 1000, 1500ms) caps a hopeless tx at ~3s before the
+            // fail-loud throw below.
+            const TX_FETCH_ATTEMPTS = 4;
+            const TX_FETCH_BACKOFF_MS = 500;
+            const withRetry = async (fn: () => Promise<any>): Promise<any> => {
+                for (let attempt = 0; attempt < TX_FETCH_ATTEMPTS; attempt++) {
+                    if (attempt) await new Promise((r) => setTimeout(r, TX_FETCH_BACKOFF_MS * attempt));
+                    const res = await fn().catch(() => null);
+                    if (res) return res;
                 }
-            }
-            const pairs = [...uniquePairs.values()];
-            // No permitFailure: a claim log always carries a claimConditionIndex
-            // that existed at claim time, so an unresolved condition means a bad
-            // read, not a real state. Fail loudly rather than under-report packs.
-            const conditions = await options.api.multiCall({
-                target: PACKSHOP_CONTRACT,
-                abi: GET_CLAIM_CONDITION_ABI,
-                calls: pairs.map((p) => ({ params: [p.tokenId, p.conditionId] })),
-            });
-
-            const priceByPair = new Map<string, { price: bigint; currency: string }>();
-            pairs.forEach((p, i) => {
-                const c = conditions[i];
-                if (!c) throw new Error(`hoodfrens: unresolved pack claim condition (token ${p.tokenId}, index ${p.conditionId})`);
-                priceByPair.set(pairKey(p.tokenId, p.conditionId), {
-                    price: BigInt(c.pricePerToken),
-                    currency: String(c.currency).toLowerCase(),
-                });
-            });
-
-            for (const log of claimLogs) {
-                const cond = priceByPair.get(pairKey(log.tokenId, log.claimConditionIndex));
-                if (!cond) throw new Error(`hoodfrens: missing price for pack claim (token ${log.tokenId}, index ${log.claimConditionIndex})`);
-                if (cond.currency === NATIVE_ETH) cond.currency = NULL_ADDRESS;
-                const paid = cond.price * BigInt(log.quantityClaimed);
-                if (paid === 0n) continue;
+                return null;
+            };
+            for (const hash of txHashes) {
+                const tx: any = await withRetry(() => provider.getTransaction(hash));
+                // Fail loudly rather than under-report packs (same stance as
+                // the previous condition-lookup version took).
+                if (!tx) throw new Error(`hoodfrens: could not load pack claim tx ${hash}`);
+                if (String(tx.to).toLowerCase() !== PACKSHOP_CONTRACT.toLowerCase())
+                    throw new Error(`hoodfrens: pack claim routed through ${tx.to} (tx ${hash}) — tx.value is not attributable, extend the claim block`);
+                const paid = BigInt(tx.value ?? 0);
+                if (paid === 0n) {
+                    // Free (allowlisted) claims are real distributions and
+                    // correctly score zero — but an ERC20-priced condition
+                    // would ALSO arrive here, and silently zeroing it is the
+                    // exact failure shape this adapter version exists to fix.
+                    // The receipt (never pruned) distinguishes: token payment
+                    // moves an ERC20 in the claim tx, a free claim does not.
+                    const receipt: any = await withRetry(() => provider.getTransactionReceipt(hash));
+                    if (!receipt) throw new Error(`hoodfrens: could not load receipt for zero-value pack claim tx ${hash}`);
+                    const movedErc20 = (receipt.logs ?? []).some(
+                        (l: any) => l.topics?.[0] === ERC20_TRANSFER_TOPIC && l.topics.length === 3,
+                    );
+                    if (movedErc20)
+                        throw new Error(`hoodfrens: zero-value pack claim tx ${hash} moved an ERC20 — token-priced claim condition? tx.value cannot price it, extend the claim block`);
+                    continue; // genuinely free claim — no volume
+                }
                 // Volume only — mint proceeds are not fees (see header comment).
-                dailyVolume.add(cond.currency, paid, 'Pack Sales');
+                dailyVolume.addGasToken(paid, 'Pack Sales');
             }
         }
     }
