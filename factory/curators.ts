@@ -86,15 +86,29 @@ const configs: Record<string, CuratorConfig> = {
   },
   "clearstar": {
     vaults: {
+      // The V2 owner lists below are the indexed `owner` of CreateVaultV2, taken from each vault's
+      // creation receipt, not the current owner() (every one of these vaults is owned today by
+      // 0xb3CF59A5, a Clearstar address in Morpho's curators registry on chains 1, 143 and 8453).
+      // 0x829A1385 is already registered as a Clearstar V2 owner on katana below.
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        // 0x829A1385 created "Clearstar cbAssets Vault" (0x91C0...3a3c), "Clearstar Core ETH"
+        // (0xBCA4...71da) and "Clearstar CoreUSDC" (0x116e...0E46); 0x3098...3458 created
+        // "Clearstar Reactor EURC" (0x4C7b...C55C) and "Clearstar Boring USDC" (0x0282...0681).
+        // https://base.blockscout.com/tx/0xebe8310f28cb502a87403f501db7fce667c7fafd95d65c56d5e913bd7139e6f2
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa', '0x30988479C2E6a03E7fB65138b94762D41a733458'],
       },
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        // 0x3098...3458 created "3Jane Ecosystem Vault" (0xe05f...9826), "Re Ecosystem Vault"
+        // (0xD1E9...4A7e) and "Clearstar USDC Core" (0x69A2...c284); 0x829A1385 created
+        // "Clearstar Boring USDC" (0xF3Cc...Db49).
+        // https://etherscan.io/tx/0x54939debbe1cf29d026262333b63b209613f4a84ef32739d07658d47a9287335
         morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
       },
       [CHAIN.MONAD]: {
+        // 0x829A1385 created "Clearstar Accountable AUSD" (0xbe3E...E9a1, the start date below is
+        // its creation) and "Clearstar Yield AUSD" (0x8192...ad06).
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa'],
         start: '2026-05-28',
       },
