@@ -10,18 +10,27 @@ import { queryAllium } from "../../helpers/allium";
 
 const USDC_MINT = ADDRESSES.solana.USDC;
 
+// Satrush on-chain program; owner of all protocol PDAs below
+// (verifiable via getAccountInfo: each account's owner is this program).
 const SATRUSH_PROGRAM = "satRushGBRY2vgapeTAkoxz26vL2cYqyPi6CnBj7Tco";
 
+// PDAs owned by the Satrush program:
+// Board account that receives miner USDC deployments and stores Sat Strike prize pool
 const BOARD_PDA = "FbVd1fsYKpEj1Bzupbjo2VGJyfgLU9aw4r8U5uuR8v6s";
+// Vault accumulating the Epoch prize pool
 const EPOCH_VAULT_PDA = "Ei1gqB9fyR7F7JBPz49YjkAD5karR4iqxPoyYczJGk8Q";
+// Vault accumulating the 1 BTC prize pool
 const ONE_BTC_VAULT_PDA = "9xMBPy3aRD92QvkhYZfVwJ6ZvfLTzM84pX6ZbjBnHfGP";
+// Treasury collecting the protocol fees
 const TREASURY_PDA = "FP7MRz61w5HEhFa3s4ifn26A3yQGHVdvPjhqu34jfQPt";
 
 // Share of miner deployments that stays on the board as the Sat Strike prize pool.
 // Sourced from the on-chain config account 5pJUG7jjfQxQ8jmrbdpNNCZrNmqXXkppKPNMs4Twfyfc;
 // any fee rate change will be preceded by a timestamp update in that account.
 const SAT_STRIKE_FEE_BPS = 264;
+const BPS_DENOMINATOR = 10000;
 
+const MINER_DEPLOYMENTS = "Miner deployments";
 const SAT_STRIKE_FEES = "Mining fees to Sat Strike";
 const EPOCH_VAULT_FEES = "Mining fees to Epoch Vault";
 const ONE_BTC_VAULT_FEES = "Mining fees to 1 BTC Vault";
@@ -64,13 +73,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   });
 
   const boardInflow = inflows[BOARD_PDA] ?? 0;
-  const strikeFees = (boardInflow * SAT_STRIKE_FEE_BPS) / 10000;
+  const strikeFees = (boardInflow * SAT_STRIKE_FEE_BPS) / BPS_DENOMINATOR;
   const epochFees = inflows[EPOCH_VAULT_PDA] ?? 0;
   const oneBtcFees = inflows[ONE_BTC_VAULT_PDA] ?? 0;
   const protocolFees = inflows[TREASURY_PDA] ?? 0;
 
   const dailyVolume = options.createBalances();
-  dailyVolume.add(USDC_MINT, boardInflow);
+  dailyVolume.add(USDC_MINT, boardInflow, MINER_DEPLOYMENTS);
 
   const dailyFees = options.createBalances();
   dailyFees.add(USDC_MINT, strikeFees, SAT_STRIKE_FEES);
@@ -96,6 +105,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const breakdownMethodology = {
+  Volume: {
+    [MINER_DEPLOYMENTS]: "USDC deployed by miners into Sat Rush rounds.",
+  },
   Fees: {
     [SAT_STRIKE_FEES]: "Fees accumulated in the Sat Strike prize pool.",
     [EPOCH_VAULT_FEES]: "Fees accumulated in the Epoch prize pool.",
