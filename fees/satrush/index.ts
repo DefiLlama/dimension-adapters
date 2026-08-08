@@ -10,12 +10,16 @@ import { queryAllium } from "../../helpers/allium";
 
 const USDC_MINT = ADDRESSES.solana.USDC;
 
+const SATRUSH_PROGRAM = "satRushGBRY2vgapeTAkoxz26vL2cYqyPi6CnBj7Tco";
+
 const BOARD_PDA = "FbVd1fsYKpEj1Bzupbjo2VGJyfgLU9aw4r8U5uuR8v6s";
 const EPOCH_VAULT_PDA = "Ei1gqB9fyR7F7JBPz49YjkAD5karR4iqxPoyYczJGk8Q";
 const ONE_BTC_VAULT_PDA = "9xMBPy3aRD92QvkhYZfVwJ6ZvfLTzM84pX6ZbjBnHfGP";
 const TREASURY_PDA = "FP7MRz61w5HEhFa3s4ifn26A3yQGHVdvPjhqu34jfQPt";
 
-// Share of miner deployments that stays on the board as the Sat Strike prize pool
+// Share of miner deployments that stays on the board as the Sat Strike prize pool.
+// Sourced from the on-chain config account 5pJUG7jjfQxQ8jmrbdpNNCZrNmqXXkppKPNMs4Twfyfc;
+// any fee rate change will be preceded by a timestamp update in that account.
 const SAT_STRIKE_FEE_BPS = 264;
 
 const SAT_STRIKE_FEES = "Mining fees to Sat Strike";
@@ -24,24 +28,33 @@ const ONE_BTC_VAULT_FEES = "Mining fees to 1 BTC Vault";
 const PROTOCOL_FEES = "Mining fees to Protocol";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const vaultPdas = [EPOCH_VAULT_PDA, ONE_BTC_VAULT_PDA, TREASURY_PDA];
+  const vaultPdas = [
+    BOARD_PDA,
+    EPOCH_VAULT_PDA,
+    ONE_BTC_VAULT_PDA,
+    TREASURY_PDA,
+  ];
   const vaultPdaList = vaultPdas.map((a) => `'${a}'`).join(", ");
 
   // Miners deploy USDC to the board; the board later forwards the epoch,
   // 1 BTC and protocol fee cuts to their vaults, so board inflows are
   // counted only when they come from outside the tracked accounts.
+  // The outer_program_id filter keeps only transfers executed by Satrush
+  // program instructions, ignoring direct/arbitrary transfers into the PDAs.
   const rows: { to_address: string; amount: number }[] = await queryAllium(`
     SELECT
       to_address,
       SUM(raw_amount) AS amount
     FROM solana.assets.transfers
     WHERE mint = '${USDC_MINT}'
-      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND (
-        (to_address = '${BOARD_PDA}' AND from_address NOT IN (${vaultPdaList}))
-        OR to_address IN (${vaultPdaList})
+        block_timestamp BETWEEN
+        TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND
+        TO_TIMESTAMP_NTZ(${options.endTimestamp})
       )
+      AND to_address IN (${vaultPdaList})
+      AND outer_program_id = '${SATRUSH_PROGRAM}'
     GROUP BY to_address
   `);
 
@@ -122,7 +135,6 @@ const adapter: SimpleAdapter = {
   fetch,
   pullHourly: true,
   chains: [CHAIN.SOLANA],
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   start: "2026-08-02",
   methodology,
