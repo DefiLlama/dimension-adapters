@@ -59,22 +59,26 @@ const addPartnerFees = async (options: FetchOptions, balances: DailyBalances, to
     const logs = await options.getLogs({ target: partner_fee_collector, eventAbi: FEE_EVENT });
 
     logs.forEach((log: any) => {
+        // fees on the symbiosis chain are taken in synth tokens priced by coingecko id, everywhere
+        // else the token is a real one llama prices itself
+        let credit: (target: Balances, label: string) => void;
+
         if (tokens) {
             const token = tokens.sisTokens[log.token.toLowerCase()];
             if (!token) return;
 
-            addFee(balances.dailyFees, log.fee, token, LABELS.partner);
-            addFee(balances.dailySupplySideRevenue, log.fee, token, LABELS.partnerToPartners);
-            return;
+            credit = (target, label) => addFee(target, log.fee, token, label);
+        } else {
+            credit = (target, label) => target.add(log.token, log.fee, label);
         }
 
-        balances.dailyFees.add(log.token, log.fee, LABELS.partner);
+        credit(balances.dailyFees, LABELS.partner);
 
         if (log.partner.toLowerCase() === default_fee_addr?.toLowerCase()) {
-            balances.dailyRevenue.add(log.token, log.fee, LABELS.partnerToSymbiosis);
-            balances.dailyProtocolRevenue.add(log.token, log.fee, LABELS.partnerToSymbiosis);
+            credit(balances.dailyRevenue, LABELS.partnerToSymbiosis);
+            credit(balances.dailyProtocolRevenue, LABELS.partnerToSymbiosis);
         } else {
-            balances.dailySupplySideRevenue.add(log.token, log.fee, LABELS.partnerToPartners);
+            credit(balances.dailySupplySideRevenue, LABELS.partnerToPartners);
         }
     });
 }
