@@ -48,6 +48,7 @@ export const WAD = 1e18;
 export const chainConfig: Record<string, { partner_fee_collector?: string; start: string , default_fee_addr?: string, portal?: string, partner_fee_start?: string }> = {
     [CHAIN.SIS]: {
         partner_fee_collector: "0x783EE304C54d4658f59EAefb73b32D37ee466e23",
+        default_fee_addr: "0xaD78eb112Db851777Bec979439E10E1a339A257f",
         start: "2024-01-13",
     },
     [CHAIN.ETHEREUM]: {
