@@ -86,8 +86,18 @@ const configs: Record<string, CuratorConfig> = {
   },
   "clearstar": {
     vaults: {
-      [CHAIN.BASE]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
-      [CHAIN.ETHEREUM]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa', '0x30988479C2E6a03E7fB65138b94762D41a733458'],
+      },
+      [CHAIN.ETHEREUM]: {
+        morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
+      },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        start: '2026-05-28',
+      },
       [CHAIN.POLYGON]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
       [CHAIN.UNICHAIN]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'], start: '2025-10-01' },
       [CHAIN.ARBITRUM]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
