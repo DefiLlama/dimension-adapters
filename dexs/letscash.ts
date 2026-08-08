@@ -189,8 +189,6 @@ async function fetch(options: FetchOptions) {
     const creatorFee = (totalFee * pool.creatorFeeBps) / BPS;
     const platformFee = totalFee - creatorFee;
     const platformBuyback = (platformFee * PLATFORM_BURN_SHARE_BPS) / BPS;
-    const selfBurnFee = pool.selfBurn ? creatorFee : 0n;
-    const creatorRevenue = pool.selfBurn ? 0n : creatorFee;
 
     dailyVolume.add(pool.quote, volume);
     dailyFees.add(pool.quote, totalFee, METRIC.SWAP_FEES);
@@ -198,10 +196,10 @@ async function fetch(options: FetchOptions) {
     dailyProtocolRevenue.add(pool.quote, platformFee - platformBuyback, PLATFORM_FEES);
     dailyHoldersRevenue.add(pool.quote, platformBuyback, METRIC.TOKEN_BUY_BACK);
     if (pool.selfBurn) {
-      dailyRevenue.add(pool.quote, selfBurnFee, METRIC.TOKEN_BUY_BACK);
-      dailyHoldersRevenue.add(pool.quote, selfBurnFee, METRIC.TOKEN_BUY_BACK);
+      dailyRevenue.add(pool.quote, creatorFee, METRIC.TOKEN_BUY_BACK);
+      dailyHoldersRevenue.add(pool.quote, creatorFee, METRIC.TOKEN_BUY_BACK);
     } else {
-      dailySupplySideRevenue.add(pool.quote, creatorRevenue, METRIC.CREATOR_FEES);
+      dailySupplySideRevenue.add(pool.quote, creatorFee, METRIC.CREATOR_FEES);
     }
   }
 
