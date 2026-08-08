@@ -1,8 +1,22 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import {
+  Dependencies,
+  FetchOptions,
+  FetchResult,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryAllium } from "../../helpers/allium";
 
-const BASE_URL = "https://api.satrush.io/api/v1/integration/stats/game";
+const USDC_MINT = ADDRESSES.solana.USDC;
+
+const BOARD_PDA = "FbVd1fsYKpEj1Bzupbjo2VGJyfgLU9aw4r8U5uuR8v6s";
+const EPOCH_VAULT_PDA = "Ei1gqB9fyR7F7JBPz49YjkAD5karR4iqxPoyYczJGk8Q";
+const ONE_BTC_VAULT_PDA = "9xMBPy3aRD92QvkhYZfVwJ6ZvfLTzM84pX6ZbjBnHfGP";
+const TREASURY_PDA = "FP7MRz61w5HEhFa3s4ifn26A3yQGHVdvPjhqu34jfQPt";
+
+// Share of miner deployments that stays on the board as the Sat Strike prize pool
+const SAT_STRIKE_FEE_BPS = 264;
 
 const SAT_STRIKE_FEES = "Mining fees to Sat Strike";
 const EPOCH_VAULT_FEES = "Mining fees to Epoch Vault";
@@ -10,32 +24,57 @@ const ONE_BTC_VAULT_FEES = "Mining fees to 1 BTC Vault";
 const PROTOCOL_FEES = "Mining fees to Protocol";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const vaultPdas = [EPOCH_VAULT_PDA, ONE_BTC_VAULT_PDA, TREASURY_PDA];
+  const vaultPdaList = vaultPdas.map((a) => `'${a}'`).join(", ");
+
+  // Miners deploy USDC to the board; the board later forwards the epoch,
+  // 1 BTC and protocol fee cuts to their vaults, so board inflows are
+  // counted only when they come from outside the tracked accounts.
+  const rows: { to_address: string; amount: number }[] = await queryAllium(`
+    SELECT
+      to_address,
+      SUM(raw_amount) AS amount
+    FROM solana.assets.transfers
+    WHERE mint = '${USDC_MINT}'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND (
+        (to_address = '${BOARD_PDA}' AND from_address NOT IN (${vaultPdaList}))
+        OR to_address IN (${vaultPdaList})
+      )
+    GROUP BY to_address
+  `);
+
+  const inflows: Record<string, number> = {};
+  rows.forEach((row) => {
+    inflows[row.to_address] = Number(row.amount) || 0;
+  });
+
+  const boardInflow = inflows[BOARD_PDA] ?? 0;
+  const strikeFees = (boardInflow * SAT_STRIKE_FEE_BPS) / 10000;
+  const epochFees = inflows[EPOCH_VAULT_PDA] ?? 0;
+  const oneBtcFees = inflows[ONE_BTC_VAULT_PDA] ?? 0;
+  const protocolFees = inflows[TREASURY_PDA] ?? 0;
+
+  const dailyVolume = options.createBalances();
+  dailyVolume.add(USDC_MINT, boardInflow);
+
   const dailyFees = options.createBalances();
-
-  const url = `${BASE_URL}?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`;
-  const {
-    total_strike_fee_usd,
-    total_epoch_fee_usd,
-    total_one_btc_fee_usd,
-    total_protocol_fee_usd,
-    total_deployed_usd,
-  } = (await fetchURL(url)).data;
-
-  dailyFees.addUSDValue(total_strike_fee_usd, SAT_STRIKE_FEES);
-  dailyFees.addUSDValue(total_epoch_fee_usd, EPOCH_VAULT_FEES);
-  dailyFees.addUSDValue(total_one_btc_fee_usd, ONE_BTC_VAULT_FEES);
-  dailyFees.addUSDValue(total_protocol_fee_usd, PROTOCOL_FEES);
+  dailyFees.add(USDC_MINT, strikeFees, SAT_STRIKE_FEES);
+  dailyFees.add(USDC_MINT, epochFees, EPOCH_VAULT_FEES);
+  dailyFees.add(USDC_MINT, oneBtcFees, ONE_BTC_VAULT_FEES);
+  dailyFees.add(USDC_MINT, protocolFees, PROTOCOL_FEES);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(total_strike_fee_usd, SAT_STRIKE_FEES);
-  dailySupplySideRevenue.addUSDValue(total_epoch_fee_usd, EPOCH_VAULT_FEES);
-  dailySupplySideRevenue.addUSDValue(total_one_btc_fee_usd, ONE_BTC_VAULT_FEES);
+  dailySupplySideRevenue.add(USDC_MINT, strikeFees, SAT_STRIKE_FEES);
+  dailySupplySideRevenue.add(USDC_MINT, epochFees, EPOCH_VAULT_FEES);
+  dailySupplySideRevenue.add(USDC_MINT, oneBtcFees, ONE_BTC_VAULT_FEES);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addUSDValue(total_protocol_fee_usd, PROTOCOL_FEES);
+  dailyProtocolRevenue.add(USDC_MINT, protocolFees, PROTOCOL_FEES);
 
   return {
-    dailyVolume: total_deployed_usd || 0,
+    dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue: dailyProtocolRevenue,
@@ -83,6 +122,8 @@ const adapter: SimpleAdapter = {
   fetch,
   pullHourly: true,
   chains: [CHAIN.SOLANA],
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
   start: "2026-08-02",
   methodology,
   breakdownMethodology,
