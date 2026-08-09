@@ -2,43 +2,43 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const config: Record<string, {factories:string[], start: string}> = {
+const config: Record<string, { factories: string[], start: string }> = {
   [CHAIN.MONAD]: {
     factories: [
-    "0x606556A6B544ecDcbf15aF73A63B67516dc16Ad7",
-    "0x8a5Caf00C3EB20aEC11Fc35C153a8601Cd127fEd",
-    "0x2f5CAc28cf80D465d7C8D67a49c8e36710a4B83B",
-    "0x4927Ce3402035b801A1bEdDC498b7fb2fe9eA181",
-    "0x9f1EB2be7b6a7e611c270bbdb0A3358786769518",
-  ],
+      "0x606556A6B544ecDcbf15aF73A63B67516dc16Ad7",
+      "0x8a5Caf00C3EB20aEC11Fc35C153a8601Cd127fEd",
+      "0x2f5CAc28cf80D465d7C8D67a49c8e36710a4B83B",
+      "0x4927Ce3402035b801A1bEdDC498b7fb2fe9eA181",
+      "0x9f1EB2be7b6a7e611c270bbdb0A3358786769518",
+    ],
     start: "2025-11-27",
   },
   [CHAIN.ETHEREUM]: {
     factories: [
-    "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
-    "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
-    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
-    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
-    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
-  ],
+      "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
+      "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
+      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
     start: "2026-01-16",
   },
   [CHAIN.BASE]: {
     factories: [
-    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
-    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
-    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
-  ],
+      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
     start: "2026-01-16",
   },
   [CHAIN.ARBITRUM]: {
     factories: [
-    "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
-    "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
-    "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
-    "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
-    "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
-  ],
+      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+      "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
+      "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
+    ],
     start: "2026-01-16",
   },
 };
@@ -46,8 +46,8 @@ const config: Record<string, {factories:string[], start: string}> = {
 // aHYPER Looping Vault (vault 0x23b148d8f389C5821739381f1FF87bB7e1162566) is
 // EOA-deployed rather than created by a registered factory, so enumeration
 // cannot reach it. The TVL adapter carries the same exception.
-const EXTRA_STRATEGIES: Record<string, string[]> = {
-  [CHAIN.MONAD]: ["0xE19b272b2fe4a54103A41F9B1c65dB3D2F6d886D"],
+const EXTRA_STRATEGIES: Record<string, { address: string, deployedOn: string }[]> = {
+  [CHAIN.MONAD]: [{ address: "0xE19b272b2fe4a54103A41F9B1c65dB3D2F6d886D", deployedOn: "2026-04-28" }],
 };
 
 const abis = {
@@ -86,7 +86,8 @@ const PROTOCOL = "Fees To Protocol";
 
 const big = (v: any) => (v === null || v === undefined ? 0n : BigInt(v));
 
-const listStrategies = async (api: any): Promise<string[]> => {
+const listStrategies = async (options: FetchOptions): Promise<string[]> => {
+  const api = options.toApi;
   const factories = config[api.chain]?.factories || [];
   const counts = await api.multiCall({
     abi: abis.getStrategiesCount,
@@ -109,10 +110,10 @@ const listStrategies = async (api: any): Promise<string[]> => {
 
   const lists = pages.length
     ? await api.multiCall({
-        abi: abis.getStrategiesPaginated,
-        calls: pages,
-        permitFailure: true,
-      })
+      abi: abis.getStrategiesPaginated,
+      calls: pages,
+      permitFailure: true,
+    })
     : [];
 
   // A page is only requested for a factory that reported a non-zero count, so a
@@ -125,14 +126,18 @@ const listStrategies = async (api: any): Promise<string[]> => {
       );
     for (const s of list) seen.add(s.toLowerCase());
   });
-  for (const s of EXTRA_STRATEGIES[api.chain] || []) seen.add(s.toLowerCase());
+  for (const s of EXTRA_STRATEGIES[api.chain] || []) {
+    if (options.dateString >= s.deployedOn) {
+      seen.add(s.address.toLowerCase());
+    }
+  }
   return Array.from(seen);
 };
 
 const fetch = async (options: FetchOptions) => {
   const { fromApi, toApi, createBalances } = options;
 
-  const strategies = await listStrategies(toApi);
+  const strategies = await listStrategies(options);
   if (!strategies.length)
     return {
       dailyFees: createBalances(),
