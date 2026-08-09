@@ -29,7 +29,7 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
       "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
     ],
-    start: "2026-01-16",
+    start: "2026-04-20",
   },
   [CHAIN.ARBITRUM]: {
     factories: [
@@ -39,7 +39,7 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0x333a12e2B519DA16EBE75012d54574C16ef4463f",
       "0xDAc0e7EffB16B249d1Bb672D25D7827481Be2081",
     ],
-    start: "2026-01-16",
+    start: "2026-02-13",
   },
 };
 
