@@ -6,6 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 // https://basescan.org/address/0x780b6b94C0FfCf8E659727CE421e976C1b6784Bc
 const CONTROLLER = "0xfc61ba50AE7B9C4260C9f04631Ff28D5A2Fa4EB2";
 const FEE_DISTRIBUTOR = "0x780b6b94C0FfCf8E659727CE421e976C1b6784Bc";
+// Vault feeUsd values emitted by CollectPositionFees and CollectFees are USD amounts scaled by 1e30.
 const PRICE_PRECISION = 1e30;
 
 const POSITION_FEE_EVENT =
@@ -115,6 +116,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  chains: [CHAIN.BASE],
+  fetch,
+  // First production Controller volume event on Base.
+  start: "2026-01-30",
   methodology: {
     Fees:
       "Gross options trading, liquidity, and swap fees paid by CallPut users. Referral and copy-trading rebates are added back because Vault fee events report the net amount after rebates.",
@@ -151,13 +156,6 @@ const adapter: SimpleAdapter = {
         "Net options trading fees allocated to OLP liquidity providers.",
       [LIQUIDITY_FEES_TO_LPS]:
         "Net liquidity and swap fees allocated to OLP liquidity providers.",
-    },
-  },
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      // First production Controller volume event on Base.
-      start: "2026-01-30",
     },
   },
 };
