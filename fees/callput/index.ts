@@ -6,8 +6,10 @@ import { CHAIN } from "../../helpers/chains";
 // https://basescan.org/address/0x780b6b94C0FfCf8E659727CE421e976C1b6784Bc
 const CONTROLLER = "0xfc61ba50AE7B9C4260C9f04631Ff28D5A2Fa4EB2";
 const FEE_DISTRIBUTOR = "0x780b6b94C0FfCf8E659727CE421e976C1b6784Bc";
-// Vault feeUsd values emitted by CollectPositionFees and CollectFees are USD amounts scaled by 1e30.
+// USD values emitted by Vault and VaultUtils fee events are scaled by 1e30.
 const PRICE_PRECISION = 1e30;
+// IVaultUtils.PriceType enum: MP = 0, RP = 1.
+const RISK_PREMIUM_PRICE_TYPE = 1;
 
 const POSITION_FEE_EVENT =
   "event CollectPositionFees(address indexed account, address indexed token, uint256 feeUsd, uint256 feeAmount, bool indexed isSettle)";
@@ -15,13 +17,17 @@ const LIQUIDITY_FEE_EVENT =
   "event CollectFees(address indexed token, uint256 feeUsd, uint256 feeAmount)";
 const FEE_REBATE_EVENT =
   "event FeeRebate(address indexed from, address indexed to, address token, uint256 feeRebateAmount, uint256 feeAmount, uint256 afterFeePaidAmount, uint256 tokenSpotPrice, address indexed underlyingAsset, uint256 size, uint256 price, bool isSettle, bool isCopyTrade)";
+const PENDING_AMOUNT_EVENT =
+  "event NotifyPendingAmount(uint8 indexed priceType, address indexed token, uint256 pendingUsd, uint256 pendingAmount)";
 
 const OPTIONS_FEES = "Options Trading Fees";
 const LIQUIDITY_FEES = "Liquidity and Swap Fees";
+const RISK_PREMIUM = "Risk Premium";
 const OPTIONS_FEES_TO_PROTOCOL = "Options Trading Fees To Protocol";
 const LIQUIDITY_FEES_TO_PROTOCOL = "Liquidity and Swap Fees To Protocol";
 const OPTIONS_FEES_TO_LPS = "Options Trading Fees To LPs";
 const LIQUIDITY_FEES_TO_LPS = "Liquidity and Swap Fees To LPs";
+const RISK_PREMIUM_TO_LPS = "Risk Premium To OLPs";
 const REFERRAL_REBATES = "Options Fee Rebates To Referrers";
 const COPY_TRADING_REBATES = "Options Fee Rebates To Copy Traders";
 
@@ -34,6 +40,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const vaults: string[] = await options.toApi.call({
     target: CONTROLLER,
     abi: "function getVaults() view returns (address[3])",
+  });
+  const vaultUtils: string[] = await options.toApi.multiCall({
+    calls: vaults,
+    abi: "address:vaultUtils",
   });
 
   const positionFeeLogs = await options.getLogs({
@@ -48,6 +58,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     targets: vaults,
     eventAbi: FEE_REBATE_EVENT,
   });
+  const pendingAmountLogs = await options.getLogs({
+    targets: vaultUtils,
+    eventAbi: PENDING_AMOUNT_EVENT,
+  });
 
   const positionFeesUsd = positionFeeLogs.reduce(
     (sum, log) => sum + Number(log.feeUsd) / PRICE_PRECISION,
@@ -55,6 +69,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   );
   const liquidityFeesUsd = liquidityFeeLogs.reduce(
     (sum, log) => sum + Number(log.feeUsd) / PRICE_PRECISION,
+    0,
+  );
+  const riskPremiumUsd = pendingAmountLogs.reduce(
+    (sum, log) =>
+      sum +
+      (Number(log.priceType) === RISK_PREMIUM_PRICE_TYPE
+        ? Number(log.pendingUsd) / PRICE_PRECISION
+        : 0),
     0,
   );
 
@@ -68,6 +90,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   dailyFees.addUSDValue(positionFeesUsd, OPTIONS_FEES);
   dailyFees.addUSDValue(liquidityFeesUsd, LIQUIDITY_FEES);
+  dailyFees.addUSDValue(riskPremiumUsd, RISK_PREMIUM);
+  dailySupplySideRevenue.addUSDValue(riskPremiumUsd, RISK_PREMIUM_TO_LPS);
 
   // Rates sum to 100 in FeeDistributor. Treasury and governance allocations
   // are retained by the protocol; OLP rewards are paid to liquidity providers.
@@ -122,13 +146,13 @@ const adapter: SimpleAdapter = {
   start: "2026-01-30",
   methodology: {
     Fees:
-      "Gross options trading, liquidity, and swap fees paid by CallPut users. Referral and copy-trading rebates are added back because Vault fee events report the net amount after rebates.",
+      "Gross options trading fees, liquidity and swap fees, and risk premiums paid by CallPut users. Referral and copy-trading rebates are added back because Vault fee events report the net amount after rebates.",
     Revenue:
       "The share of net fees allocated to the CallPut treasury and governance addresses, based on the FeeDistributor's onchain OLP reward rate.",
     ProtocolRevenue:
       "The share of net fees allocated to the CallPut treasury and governance addresses.",
     SupplySideRevenue:
-      "Referral and copy-trading rebates plus any share of net fees allocated by FeeDistributor to OLP liquidity providers.",
+      "Risk premiums earned by OLP liquidity providers, referral and copy-trading rebates, and any share of net fees allocated by FeeDistributor to OLPs.",
   },
   breakdownMethodology: {
     Fees: {
@@ -136,6 +160,8 @@ const adapter: SimpleAdapter = {
         "Gross fees charged when users open, close, or settle options positions, including referral and copy-trading rebates.",
       [LIQUIDITY_FEES]:
         "Fees charged when users mint or redeem vault liquidity tokens or swap supported collateral assets.",
+      [RISK_PREMIUM]:
+        "The execution-price spread relative to mark price charged to options traders and accrued to OLP liquidity providers.",
     },
     Revenue: {
       [OPTIONS_FEES_TO_PROTOCOL]:
@@ -156,6 +182,8 @@ const adapter: SimpleAdapter = {
         "Net options trading fees allocated to OLP liquidity providers.",
       [LIQUIDITY_FEES_TO_LPS]:
         "Net liquidity and swap fees allocated to OLP liquidity providers.",
+      [RISK_PREMIUM_TO_LPS]:
+        "Risk premiums accrued to OLP liquidity providers through VaultUtils pending RP amounts.",
     },
   },
 };
