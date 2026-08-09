@@ -36,8 +36,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees:
     "Realized CRSH fees from ProtocolFeeReleased events emitted by the current and legacy parimutuel market contracts. Canceled or waived markets emit no release event and are excluded.",
-  UserFees:
-    "The USDC amount released as the market protocol fee after settlement.",
   Revenue:
     "All ProtocolFeeReleased USDC is retained by the CRSH protocol.",
   ProtocolRevenue:
@@ -48,10 +46,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]:
       "Protocol fee amounts released by CRSH market contracts after settlement.",
-  },
-  UserFees: {
-    [METRIC.TRADING_FEES]:
-      "USDC fees charged by CRSH's parimutuel market settlement flow.",
   },
   Revenue: {
     [METRIC.TRADING_FEES]:
