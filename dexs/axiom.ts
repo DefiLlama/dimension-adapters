@@ -100,7 +100,7 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   methodology: {
-    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor. Axiom stopped trading on BNB Chain on 2026-06-29; earlier BNB Chain swaps are still included.",
+    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor.",
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },

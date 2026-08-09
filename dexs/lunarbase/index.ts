@@ -1,8 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-const POOLS_BY_CHAIN = {
+type PoolConfig = {
+    address: string;
+    feeModel: "legacy" | "dark_pools_v2";
+    tokenXOverride?: string;
+    tokenYOverride?: string;
+};
+
+const POOLS_BY_CHAIN: Record<string, readonly PoolConfig[]> = {
     [CHAIN.BASE]: [
         {
             address: "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
@@ -21,6 +29,19 @@ const POOLS_BY_CHAIN = {
     [CHAIN.MONAD]: [
         {
             address: "0x0000a8fd148694aE3E17c079Ce4BBF8187758888",
+            feeModel: "dark_pools_v2",
+        },
+    ],
+    [CHAIN.BSC]: [
+        {
+            // BNB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
+            address: "0x00007904d186680C709519e71f4Dc3e2Df8f1b99",
+            feeModel: "dark_pools_v2",
+            tokenXOverride: ADDRESSES.bsc.WBNB,
+        },
+        {
+            // BTCB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
+            address: "0x0B1ce37bc7eE857916B4e2dF9F69775c36831B99",
             feeModel: "dark_pools_v2",
         },
     ],
@@ -99,9 +120,9 @@ const fetch = async (options: FetchOptions) => {
     );
 
     for (let i = 0; i < POOLS.length; i++) {
-        const { address: pool, feeModel } = POOLS[i];
-        const tokenX = tokenXs[i];
-        const tokenY = tokenYs[i];
+        const { address: pool, feeModel, tokenXOverride, tokenYOverride } = POOLS[i];
+        const tokenX = tokenXOverride ?? tokenXs[i];
+        const tokenY = tokenYOverride ?? tokenYs[i];
         const logs = swapLogs[i];
         if (!logs?.length) continue;
         if (typeof tokenX !== "string" || typeof tokenY !== "string") {
@@ -194,6 +215,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: { fetch, start: "2026-03-19" },
         [CHAIN.MONAD]: { fetch, start: "2026-04-30" },
+        [CHAIN.BSC]: { fetch, start: "2026-07-25" },
     },
     methodology,
     breakdownMethodology,
