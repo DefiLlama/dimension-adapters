@@ -31,10 +31,14 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     addOneToken({ chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
   }
 
+  // Every bonding-curve trade has native KUB on one side and a (usually brand-new, unpriced)
+  // launchpad token on the other, so we price off the native leg directly instead of using
+  // addOneToken's isCoreAsset guess — bitkub's coreAssets.json doesn't list the native address,
+  // so that heuristic would silently price off the token side on every buy.
   const swapLogs = await getLogs({ target: BONDING_CURVE, eventAbi: SWAP_ABI });
   for (const log of swapLogs) {
-    const [tokenIn, tokenOut] = log.isBuy ? [ADDRESSES.null, log.tokenAddr] : [log.tokenAddr, ADDRESSES.null];
-    addOneToken({ chain, balances: dailyVolume, token0: tokenIn, amount0: log.amountIn, token1: tokenOut, amount1: log.amountOut });
+    const nativeAmount = log.isBuy ? log.amountIn : log.amountOut;
+    dailyVolume.add(ADDRESSES.null, nativeAmount);
   }
 
   return { dailyVolume };
