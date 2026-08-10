@@ -1,8 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getBlock } from "../../helpers/getBlock";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 
 const FACTORY_ADDRESS = "0xa5136eAd459F0E61C99Cec70fe8F5C24cF3ecA26";
 const INFT_ADDRESS = "0xa155f12D3Be29BF20b615e1e7F066aE9E3C5239a";
@@ -27,9 +26,9 @@ const fetchTotalFees = async (api: ChainApi): Promise<number> => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
-      fetch: async (timestamp, chainBlocks) => {
-        const currentBlock = await getBlock(timestamp, "linea", chainBlocks);
-        const lastDayBlock = await getBlock(timestamp - ONE_DAY_IN_SECONDS, "linea", {});
+      fetch: async (options: FetchOptions) => {
+        const currentBlock = await options.getToBlock();
+        const lastDayBlock = await options.getFromBlock();
         const currentApi = new ChainApi({ chain: 'linea', block: currentBlock });
         const lastDayApi = new ChainApi({ chain: 'linea', block: lastDayBlock });
 
@@ -47,7 +46,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    totalFees:
+    Fees:
       "Total fees are calculated by checking the token balances of the Xfai INFT",
   },
 };

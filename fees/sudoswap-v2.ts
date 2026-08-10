@@ -2,7 +2,10 @@ import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const PROTOCOL_FEE_LABEL = "Protocol fees";
+const ROYALTY_FEE_LABEL = "Creator royalties";
+
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const eth_transfer_logs: any = await queryIndexer(`
@@ -45,19 +48,34 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
           SUM(min_value) AS royalties_fees
         FROM MinValues;
         `, options);
-  dailyFees.addGasToken(eth_transfer_logs[0].eth_value)
-  dailyFees.addGasToken(royalties[0].royalties_fees)
-  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value)
-  return { dailyFees, dailyRevenue, timestamp }
+
+  dailyFees.addGasToken(eth_transfer_logs[0]?.eth_value ?? 0, PROTOCOL_FEE_LABEL)
+  dailyFees.addGasToken(royalties[0].royalties_fees ?? 0, ROYALTY_FEE_LABEL)
+  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value ?? 0, PROTOCOL_FEE_LABEL)
+  return { dailyFees, dailyRevenue,}
+}
+
+const methodology = {
+  Fees: "Protocol fees and creator royalties collected on NFT trades",
+  Revenue: "Protocol fees retained by sudoswap, excluding creator royalties paid to NFT creators"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [PROTOCOL_FEE_LABEL]: "Protocol fees charged on NFT trades through sudoswap v2 AMM pools",
+    [ROYALTY_FEE_LABEL]: "Creator royalties paid to NFT collection creators on secondary sales"
+  },
+  Revenue: {
+    [PROTOCOL_FEE_LABEL]: "Protocol fees retained by sudoswap from NFT trades"
+  }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch as any,
-      start: '2023-05-21'
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-05-21',
+  methodology,
+  breakdownMethodology
 };
 
 export default adapter;

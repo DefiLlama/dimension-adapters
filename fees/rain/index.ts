@@ -5,16 +5,18 @@ import fetchURL from "../../utils/fetchURL";
 
 const rainHistoricalFeesUrl = 'https://api-v3.rain.fi/api/dirty/historical-apys?days=30';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 3600 * 1000;
+  if (options.fromTimestamp * 1000 < thirtyDaysAgo) {
+    throw new Error('Only last 30 days history is available')
+  }
   const dailyRevenue = await getSolanaReceived({ options, target: 'H3RFN3GbDfwGhZc5QPqzW6U4cwhuk9vgPhEfFbcPDrm5' })
   const stats: any = (await fetchURL(rainHistoricalFeesUrl));
-
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
 
   let dailyFees = dailyRevenue.clone()
   for (const market of stats.result) {
     for (const dateData of market.data) {
-      if (dateData.date === dateString) {
+      if (dateData.date === options.dateString) {
         dailyFees.addUSDValue(Number(dateData.interest))
       }
     }
@@ -28,11 +30,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 1, // api updates once a day
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-01-01',
-  // runAtCurrTime: true,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {

@@ -49,7 +49,6 @@ export const fetchVolume = async (options: FetchOptions) => {
   const data = await getData(options.startOfDay);
   return {
     dailyVolume: data.dailyVolume,
-    timestamp: data.timestamp,
   };
 };
 
@@ -79,7 +78,6 @@ export const fetchVolumeMove = async (options: FetchOptions) => {
   dailyVolume.addUSDValue(volumeRaw / VUSD_DECIMALS);
 
   return {
-    timestamp: startOfDay,
     dailyVolume,
   };
 };

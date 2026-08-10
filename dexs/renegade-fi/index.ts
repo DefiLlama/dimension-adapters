@@ -24,8 +24,8 @@ const historicalVolumeEndpoint = (chain: Chain) => {
   return `https://trade.renegade.fi/api/stats/historical-volume-kv?chainId=${chainId}`;
 };
 
-const fetch = async (timestamp: number, _b:any, options: FetchOptions): Promise<FetchResultVolume> => {
-  const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const startOfDay = getTimestampAtStartOfDayUTC(options.toTimestamp);
   const historicalVolume: IApiResponse = await fetchURL(historicalVolumeEndpoint(options.chain));
   let dailyVolume = 0;
   
@@ -41,17 +41,16 @@ const fetch = async (timestamp: number, _b:any, options: FetchOptions): Promise<
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch,
       start: "2024-09-03",
     },
     [CHAIN.BASE]: {
-      fetch,
       start: "2025-05-29",
     },
   },
-  version: 1,
 };
 
 export default adapter; 

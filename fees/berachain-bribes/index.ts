@@ -22,9 +22,9 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-    // source: https://dune.com/queries/5041579/8329113
-    const query = `
+const fetch: any = async (options: FetchOptions) => {
+  // source: https://dune.com/queries/5041579/8329113
+  const query = `
     with incentives_token as (
         select distinct
             t.token,
@@ -167,46 +167,70 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         group by
             it.token
     )
-    select 
+    select
         token,
-        sum(token_amount) as token_amount
-    from(
-        select * from distribution
+        sum(case when source = 'distribution' then token_amount else 0 end) as bribes_to_holders,
+        sum(case when source = 'validators' then token_amount else 0 end) as bribes_to_validators,
+        sum(case when source = 'taxes' then token_amount else 0 end) as bribes_to_protocol
+    from (
+        select token, token_amount, 'distribution' as source from distribution
         union all
-        select * from distribution_validators
+        select token, token_amount, 'validators' as source from distribution_validators
         union all
-        select * from taxes
+        select token, token_amount, 'taxes' as source from taxes
     ) a
     group by token
     `;
-    const fees = await queryDuneSql(options, query);
+  const fees = await queryDuneSql(options, query);
 
-    const dailyBribesRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
-    fees.forEach((row: any) => {
-        if (row.token_amount > 0) {
-            dailyBribesRevenue.addToken(row.token, row.token_amount);
-        }
-    });
+  fees.forEach((row: any) => {
+    if (row.bribes_to_holders > 0) {
+      dailyFees.addToken(row.token, row.bribes_to_holders, "Bribes");
+      dailyHoldersRevenue.addToken(row.token, row.bribes_to_holders, "Bribes to holders");
+    }
+    if (row.bribes_to_validators > 0) {
+      dailyFees.addToken(row.token, row.bribes_to_validators, "Bribes");
+      dailySupplySideRevenue.addToken(row.token, row.bribes_to_validators, "Bribes to validators");
+    }
+    if (row.bribes_to_protocol > 0) {
+      dailyFees.addToken(row.token, row.bribes_to_protocol, "Bribes");
+      dailyProtocolRevenue.addToken(row.token, row.bribes_to_protocol, "Bribes to protocol");
+    }
+  });
 
-    return {
-        dailyFees: "0",
-        dailyBribesRevenue
-    };
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.add(dailyProtocolRevenue);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+  };
 };
 
 const methodology = {
-    BribeRevenue: "Incentives Distributed From Berachain Reward Vaults",
+  Fees: "Bribes are distributed to holders, validators, and the protocol.",
+  Revenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults and incentive tokens distributed to validators via IncentivesProcessed events.",
+  HoldersRevenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults.",
+  SupplySideRevenue: "Incentive tokens distributed to validators via IncentivesProcessed events.",
+  ProtocolRevenue: "Incentive fee taxes collected by the protocol via IncentiveFeeCollected events.",
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    dependencies: [Dependencies.DUNE],
-    fetch,
-    chains: [CHAIN.BERACHAIN],
-    start: "2025-02-05",
-    methodology,
-    isExpensiveAdapter: true,
+  version: 1,
+  dependencies: [Dependencies.DUNE],
+  fetch,
+  chains: [CHAIN.BERACHAIN],
+  start: "2025-02-05",
+  methodology,
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

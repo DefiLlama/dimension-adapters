@@ -43,7 +43,7 @@ const chains = [
     CHAIN.MANTA,
     CHAIN.ABSTRACT,
     CHAIN.BLAST,
-
+    CHAIN.MONAD,
     // CHAIN.TAIKO,
     // CHAIN.CRONOS,
 ]
@@ -52,6 +52,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains,
+    pullHourly: true,
     isExpensiveAdapter: true,
     dependencies: [Dependencies.ALLIUM],
     methodology: {

@@ -20,42 +20,34 @@ const address_base: TAddress = {
 }
 //all revenue is from bribes and is given to governance token holders 100%
 
-const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, }: FetchOptions) => {
-    const dailyFees = createBalances();
-    (await getLogs({
-      target: address_stream[chain],
-      eventAbi: event_paid_stream,
-    })).map((e: any) => {
-      dailyFees.add(e._rewardToken, e._reward)     
-    }),
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  (await getLogs({
+    target: address_stream[chain],
+    eventAbi: event_paid_stream,
+  })).map((e: any) => {
+    dailyFees.add(e._rewardToken, e._reward)
+  }),
     (await getLogs({
       target: address_base[chain],
       eventAbi: event_paid_base,
     })).map((e: any) => {
-      dailyFees.add(e._token, e._reward)     
+      dailyFees.add(e._token, e._reward)
     })
-    return { dailyFees, dailyRevenue: dailyFees,dailyUserFees:dailyFees  };
-  }
+  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
 }
 
 const methodology = {
-    Fees: 'Staking rewards collected from assets staked on Wombat Exchange',
-    Revenue: 'Staking rewards collected from assets staked on Wombat Exchange',
+  Fees: 'Staking rewards collected from assets staked on Wombat Exchange',
+  Revenue: 'Staking rewards collected from assets staked on Wombat Exchange',
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  chains: [CHAIN.BSC, CHAIN.ARBITRUM],
+  pullHourly: true,
   methodology,
-  adapter: {
-
-    [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graph(CHAIN.ARBITRUM),
-    },
-  }
 };
 
 export default adapter;

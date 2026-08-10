@@ -24,7 +24,9 @@ const adapter: SimpleAdapter = {
       fetch: getUniV2LogAdapter({
         factory: '0x224302153096E3ba16c4423d9Ba102D365a94B2B',
         poolCreatedEvent: ABIS.POOL_CREATE,
-        swapEvent: ABIS.SWAP_EVENT
+        swapEvent: ABIS.SWAP_EVENT,
+        revenueRatio: 0.2, // 20% swap fees
+        protocolRevenueRatio: 0.2, // 20% swap fees
       }),
     },
   },

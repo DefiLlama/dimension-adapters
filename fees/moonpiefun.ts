@@ -7,7 +7,7 @@ const TREASURY = "0x86039dc5084358863d3D69C0c24C40b0b6Cf9130".toLowerCase();
 const USDT = '0x26E490d30e73c36800788DC6d6315946C4BbEa24'; // or the USDT address for your chain
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   await addTokensReceived({
@@ -34,6 +34,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ASSETCHAIN],
   start: '2025-05-12',

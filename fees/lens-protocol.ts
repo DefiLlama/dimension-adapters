@@ -27,6 +27,7 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Fees paid by users for creating profiles.',
     Revenue: 'Fees paid by users for creating profiles.',

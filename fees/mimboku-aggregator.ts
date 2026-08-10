@@ -16,6 +16,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Aggregator fees paid by users.",
     Revenue: "Aggregator revenue paid by users.",
@@ -27,6 +28,7 @@ const adapter: SimpleAdapter = {
       start: "2025-10-01",
     },
   },
+  deadFrom: "2026-02-28",
 };
 
 export default adapter;

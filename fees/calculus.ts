@@ -21,6 +21,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.BSC],
   fetch,
   start: '2025-11-01',

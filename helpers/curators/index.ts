@@ -1,16 +1,34 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
-import { METRIC } from "../metrics";
+import { CHAIN } from "../chains";
+
+const METRICS = {
+  // use this label for all yield sources if breakdownFees was not set
+  AssetYields: 'Assets Yields',
+  
+  // set 
+  OtherAssetYields: 'Other Asset Yields',
+  OtherAssetYieldsToSuppliers: 'Other Asset Yields Distributed To Supliers',
+  OtherAssetYieldsToCurator: 'Other Asset Yields To Curator',
+  MorphoYields: 'Morpho Yields',
+  MorphoYieldsToSuppliers: 'Morpho Yields Distributed To Supliers',
+  MorphoPerformanceFee: 'Morpho Performance Fees',
+  MorphoManagementFee: 'Morpho Management Fees',
+  EulerYields: 'Euler Yields',
+  EulerYieldsToSuppliers: 'Euler Yields Distributed To Supliers',
+  EulerPerformanceFee: 'Euler Performance Fees',
+}
 
 export interface CuratorConfig {
   methodology?: any;
-
+  breakdownFees?: boolean;
   vaults: {
     // chain => 
     [key: string]: {
-      start?: IStartTimestamp | number | string;
+      start?: string;
       morpho?: Array<string>;
+      morphoV2?: Array<string>;
       euler?: Array<string>;
 
       // initial owner of morpho vaults
@@ -24,9 +42,9 @@ export interface CuratorConfig {
 }
 
 interface Balances {
-  dailyFees: sdk.Balances,
-  dailyRevenue: sdk.Balances,
-  dailySupplySideRevenue?: sdk.Balances
+  dailyFees: sdk.Balances;
+  dailyRevenue: sdk.Balances;
+  dailySupplySideRevenue: sdk.Balances;
 }
 
 interface VaultERC4626Info {
@@ -36,6 +54,34 @@ interface VaultERC4626Info {
   balance: bigint;
   rateBefore: bigint;
   rateAfter: bigint;
+}
+
+const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> = {
+  [CHAIN.ETHEREUM]: [{
+    token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
+    from: "2025-12-08",
+  }],
+}
+
+// vaults excluded entirely from a given date onwards. used when a vault's share price is corrupted
+// (e.g. an allocated market frozen at 100% utilization accrues phantom interest, or a pending bad-debt
+// write-off would otherwise show up as a fake large negative day). the adapter only reads vault-level
+// share price, so a single bad market cannot be isolated - the whole vault has to be dropped.
+const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> = {
+  [CHAIN.ETHEREUM]: [{
+    // Clearstar Yield USDC (CSYUSDC) - allocated RLP/USDC market frozen at 100% utilization, accruing phantom
+    // interest that inflated reported yield from ~$281/day to ~$197k/day. vault now deprecated with unrealized
+    // bad debt; excluding from the freeze onset also keeps the eventual write-off out of the series.
+    vault: '0x9B5E92fd227876b4C07a8c02367E2CB23c639DfA',
+    from: '2026-03-21',
+  }, {
+    // Clearstar Yield USDC v2 (0xFa17...F853) - the v2 vault of the same name, allocated to the same
+    // frozen market. Share price ran 1.009084 -> 1.019572 over 2026-03-21..04-04 and 1.794800 ->
+    // 1.908595 over the last week alone, ~165% APR against ~5.2% before the freeze, on a USDC vault
+    // that has now marked itself up 91%. Same phantom accrual as the v1 above, same onset date.
+    vault: '0xFa17f7AAdbfAc2C5d3C8125555404c1AE17Df853',
+    from: '2026-03-21',
+  }],
 }
 
 function isOwner(owner: string, owners: Array<string>) {
@@ -66,8 +112,8 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
   return morphoVaults
 }
 
-async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | undefined): Promise<Array<string>> {
-  let morphoVaults: Array<string> = []
+async function getMorphoVaultsV2(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults = vaults ? vaults : []
 
   if (owners && owners.length > 0) {
     for (const factory of MorphoConfigs[options.chain].vaultV2Factories) {
@@ -188,7 +234,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
   return vaultInfo;
 }
 
-async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
   const vaultInfo = await getVaultERC4626Info(options, vaults, true)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.morpho.fee,
@@ -199,25 +245,30 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   for (let i = 0; i < vaultInfo.length; i++) {
     const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
 
-    if (growthRate > 0) {
-      const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
+    const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
-      // morpho vault include fee directly to vault shares
-      // it mean that vault fees were added from vault token shares
+    // morpho vault include fee directly to vault shares
+    // it mean that vault fees were added from vault token shares
 
-      // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
-      
-      // interest earned by vault curator
-      const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
+    // interest earned and distributed to vault deposited including fees
+    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    
+    // interest earned by vault curator
+    const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
+    if (breakdownFees) {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRICS.MorphoPerformanceFee)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees- interestFee, METRICS.MorphoYieldsToSuppliers)
+    } else {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees- interestFee, METRICS.AssetYields)
     }
   }
 }
 
-export async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+export async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
   const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.euler.interestFee,
@@ -228,32 +279,36 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   for (let i = 0; i < vaultInfo.length; i++) {
     const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
 
-    if (growthRate > 0) {
-      const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
+    const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
-      // euler vault subtract fee directly from interest when collecting
-      // it mean that vault fees were remove from vault token shares
+    // euler vault subtract fee directly from interest when collecting
+    // it mean that vault fees were remove from vault token shares
 
-      // interest earned and distributed to vault deposited after fees
-      const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
-      
-      // interest earned and distributed to vault deposited and vault curator before fees
-      let interestEarnedBeforeFee = interestEarned
-      if (vaultFeeRate < BigInt(1e4)) {
-        interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
-      }
+    // interest earned and distributed to vault deposited after fees
+    const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
+    
+    // interest earned and distributed to vault deposited and vault curator before fees
+    let interestEarnedBeforeFee = interestEarned
+    if (vaultFeeRate < BigInt(1e4)) {
+      interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
+    }
 
-      // interest earned by vault curator
-      const interestFee = interestEarnedBeforeFee - interestEarned
+    // interest earned by vault curator
+    const interestFee = interestEarnedBeforeFee - interestEarned
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
-      if (balances.dailySupplySideRevenue) balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedBeforeFee - interestFee, METRIC.ASSETS_YIELDS)
+    if (breakdownFees) {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRICS.EulerYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRICS.EulerPerformanceFee)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedBeforeFee - interestFee, METRICS.EulerYieldsToSuppliers)
+    } else {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedBeforeFee - interestFee, METRICS.AssetYields)
     }
   }
 }
 
-async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
   const vaultInfo = await getVaultERC4626Info(options, vaults, true)
   const vaultPerformanceFeeRates = await options.api.multiCall({
     abi: ABI.morpho.performanceFee,
@@ -269,27 +324,34 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
   for (let i = 0; i < vaultInfo.length; i++) {
     const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
 
+    const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
+    const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
     
-    if (growthRate > 0) {
-      const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
-      const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
-      
-      // morpho vault include fee directly to vault shares
-      // it mean that vault fees were added from vault token shares
+    // morpho vault include fee directly to vault shares
+    // it mean that vault fees were added from vault token shares
 
-      // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
-      
-      // interest earned by vault curator - performance fee
-      const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
-      
-      // interest earned by vault curator - management fee
-      const timeElapsed = options.toTimestamp - options.fromTimestamp
-      const interestManagementFee = interestEarnedIncludingFees * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+    // interest earned and distributed to vault deposited including fees
+    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    
+    // interest earned by vault curator - performance fee
+    const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
+    
+    // management fee earned by vault curator on principal
+    const timeElapsed = options.toTimestamp - options.fromTimestamp
+    const managementFeesEarned = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRIC.ASSETS_YIELDS)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRIC.ASSETS_YIELDS)
+    if (breakdownFees) {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.MorphoYieldsToSuppliers)
+    } else {
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.AssetYields)
     }
   }
 }
@@ -301,6 +363,25 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     ProtocolRevenue: 'Yields are collected by curators.',
     SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
   }
+  const breakdownMethodology = {
+    Fees: {
+      [METRICS.AssetYields]: 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
+      [METRICS.MorphoYields]: 'Interest yields generated from deposited assets in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged on assets deposited in Morpho vaults',
+      [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
+    },
+    Revenue: {
+      [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
+      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Morpho',
+      [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
+    },
+    SupplySideRevenue: {
+      [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
+      [METRICS.MorphoYieldsToSuppliers]: 'Interest yields generated from deposited assets in Morpho distributed to suppliers',
+      [METRICS.EulerYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
+    },
+  }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
@@ -308,27 +389,41 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       fetch: (async (options: FetchOptions) => {
         let dailyFees = options.createBalances()
         let dailyRevenue = options.createBalances()
+        let dailySupplySideRevenue = options.createBalances()
+
+        // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
+        const blacklistedVaultsForChain = new Set(
+          blacklistedVaults[options.chain]?.filter(item => options.dateString >= item.from).map(item => item.vault.toLowerCase())
+        )
+        const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults
-        const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        const morphoVaults = (await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         // morpho v2 vaults
-        const morphoVaultsV2 = await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners);
-        
-        const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+        const morphoVaultsV2 = (await getMorphoVaultsV2(options, vaults.morphoV2, vaults.morphoVaultV2Owners)).filter(vault => !isBlacklistedVault(vault));
+
+        const eulerVaults = (await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         if (morphoVaults.length > 0) {
-          await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, morphoVaults)
+          await getMorphoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaults, curatorConfig.breakdownFees)
         }
         if (morphoVaultsV2.length > 0) {
-          await getMorphoVaultV2Fee(options, { dailyFees, dailyRevenue }, morphoVaultsV2)
+          await getMorphoVaultV2Fee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaultsV2, curatorConfig.breakdownFees)
         }
         if (eulerVaults.length > 0) {
-          await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
+          await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, eulerVaults, curatorConfig.breakdownFees)
         }
 
-        const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
-        dailySupplySideRevenue.subtract(dailyRevenue, METRIC.ASSETS_YIELDS)
+        const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token)
+
+        if (blacklistedTokensForChain && blacklistedTokensForChain.length > 0) {
+          for (const token of blacklistedTokensForChain) {
+            dailyFees.removeTokenBalance(token)
+            dailyRevenue.removeTokenBalance(token)
+            dailySupplySideRevenue.removeTokenBalance(token)
+          }
+        }
 
         return {
           dailyFees,
@@ -344,7 +439,8 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
   return {
     version: 2,
     methodology,
+    breakdownMethodology,
     adapter: exportObject,
+    allowNegativeValue: true, // we allow negative fees for vaults because vaults can make yields or make loss too
   }
 }
-

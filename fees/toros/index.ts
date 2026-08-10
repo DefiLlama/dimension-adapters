@@ -70,6 +70,10 @@ const CONFIG = {
     endpoint: sdk.graph.modifyEndpoint("HSPZATdnDvYRNPBJm7eSrzkTeRZqhqYvy7c3Ngm9GCTL"),
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
+  [CHAIN.HYPERLIQUID]: {
+    endpoint: 'https://api.goldsky.com/api/public/project_cmkxyxmvlm2ta01w16jst63i3/subgraphs/dhedge-v2-hyperevm/v0.0.12/gn',
+    torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
+  },
 };
 
 const fetchHistoricalFees = async (chainId: CHAIN, query: string, dataField: string, startTimestamp: number, endTimestamp: number) => {
@@ -168,9 +172,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: '2023-03-27', },
     [CHAIN.BASE]: { start: '2023-12-20', },
     [CHAIN.ETHEREUM]: { start: '2025-08-10', },
+    [CHAIN.HYPERLIQUID]: { start: '2026-04-20', },
   },
   version: 2,
-  doublecounted: true,
 }
 
 export default adapter;

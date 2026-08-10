@@ -1,8 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async (timestamp: number) => {
-  const res = await fetchURL(`https://api.etaswap.com/v1/statistics/volume/total?timestamp=${timestamp}`);
+const fetch = async (options: FetchOptions) => {
+  const res = await fetchURL(`https://api.etaswap.com/v1/statistics/volume/total?timestamp=${options.toTimestamp}`);
 
   return {
     dailyVolume: Number(res.volume_USD_24h) / 100,

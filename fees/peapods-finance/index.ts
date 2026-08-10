@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
-import BigNumber from "bignumber.js";
 
 const fetch = async (options: FetchOptions) => {
   const holdersB = await addTokensReceived({
@@ -36,7 +35,9 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2025-04-16" },
     [CHAIN.ARBITRUM]: { fetch, start: "2025-04-16" },

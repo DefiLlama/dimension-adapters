@@ -40,7 +40,8 @@ const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const PLATFORM_FEE_WALLET = '56XVRVAsgWv6ADaxzoNnbL38LMoWKM5WiSAhrAWUbd2p';
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
     const dailyFees = options.createBalances()
 
     await getSolanaReceived({ options, balances: dailyFees, target: PLATFORM_FEE_WALLET })
@@ -63,8 +64,8 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     }
 
     const dailyRevenue = dailyFees.clone(graphiteTotalPercentage)
-    const dailyProtocolRevenue = dailyRevenue.clone(graphiteProtocolRevenuePercentage)
-    const dailyHoldersRevenue = dailyRevenue.clone(graphiteHoldersRevenuePercentage)
+    const dailyProtocolRevenue = dailyFees.clone(graphiteProtocolRevenuePercentage)
+    const dailyHoldersRevenue = dailyFees.clone(graphiteHoldersRevenuePercentage)
 
     return {
         dailyFees: dailyRevenue,
@@ -75,7 +76,8 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     dependencies: [Dependencies.ALLIUM],
     fetch,
     start: '2025-04-27',

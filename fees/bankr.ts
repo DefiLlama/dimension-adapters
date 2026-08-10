@@ -1,65 +1,90 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addTokensReceived } from "../helpers/token";
+import fetchURL from "../utils/fetchURL";
 
-const feeWallets = [
-  '0x2fE8D03556FDb94A0ce1e46bbb5945794a50a046',
-];
+interface DailyProtocolFees {
+  date: string;
+  bankrFees: number;
+  creatorFees: number;
+}
 
-// wallet receive fees from clanker
-const clankerFeesRecipient = [
-  '0xF60633D02690e2A15A54AB919925F3d038Df163e',
-];
+interface DailyFees {
+  date: string;
+  clanker: number;
+  doppler: number;
+}
 
-const feeToken = '0x22af33fe49fd1fa80c7149773dde5890d3c76f3b';
-const clankerFeeToken = '0x4200000000000000000000000000000000000006'; // WETH
+interface BankrDashboard {
+  dailyProtocolFees: DailyProtocolFees[];
+  dailyFees: DailyFees[];
+}
 
-// bankr bot revenue come from membership subs in $BNKR token
-// no trading fees for now
+// API structure:
+// dailyProtocolFees.bankrFees -> protocol revenue
+// dailyProtocolFees.creatorFees -> creator/supply side revenue
+// dailyFees.clanker -> clanker integration fees
+// dailyFees.doppler -> doppler integration fees
 const fetch = async (options: FetchOptions) => {
-  const subscriptionsFees = await addTokensReceived({
-    options,
-    targets: feeWallets,
-    token: feeToken,
-  });
-  const creatorFees = await addTokensReceived({
-    options,
-    targets: clankerFeesRecipient,
-    token: clankerFeeToken,
-    fromAdddesses: ['0xf3622742b1e446d92e45e22923ef11c2fcd55d68'], // Clanker Fees Claim
-  });
-  
   const dailyFees = options.createBalances();
-  dailyFees.add(subscriptionsFees, 'Club Membership Subscriptions');
-  dailyFees.add(creatorFees, 'Clanker Creator Fees');
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   
+  const dashboard: BankrDashboard = await fetchURL('https://api.bankr.bot/public/dashboard');
+  
+  // Find the data for the requested date
+  const targetDate = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
+  
+  const protocolData = dashboard.dailyProtocolFees.find(d => d.date === targetDate);
+  const feesData = dashboard.dailyFees.find(d => d.date === targetDate);
+  
+  if (!protocolData || !feesData) {
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  }
+  
+  // Daily fees: Clanker + Doppler
+  dailyFees.addUSDValue(feesData.clanker, 'Clanker Fees');
+  dailyFees.addUSDValue(feesData.doppler, 'Doppler Fees');
+  
+  // Protocol revenue: Bankr fees
+  dailyRevenue.addUSDValue(protocolData.bankrFees, 'Protocol Fees');
+  
+  // Supply side revenue: Creator fees
+  dailySupplySideRevenue.addUSDValue(protocolData.creatorFees, 'Creator Fees');
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue: 0,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
-  start: '2026-01-01',
+  start: '2025-08-11',
   chains: [CHAIN.BASE],
   methodology: {
-    Fees: 'All fees come from membership subscriptions paid in $BNKR tokens + creator fees from Clanker.',
-    Revenue: 'All fees are collected as revenue by Bankr Bot.',
-    ProtocolRevenue: 'All fees are collected as revenue by Bankr Bot.',
-    HoldersRevenue: 'No revenue share to token holders.',
+    Fees: 'Clanker integration LP fees and Doppler integration fees',
+    Revenue: 'Protocol fees from Bankr token launches and integrations',
+    SupplySideRevenue: 'Creator fees from token launches',
   },
   breakdownMethodology: {
     Fees: {
-      'Club Membership Subscriptions': 'All fees come from membership subscriptions paid in $BNKR tokens.',
-      'Clanker Creator Fees': 'All creator fees from Clanker.',
+      'Clanker Fees': 'LP fees from Clanker token integration',
+      'Doppler Fees': 'Fees from Doppler integration',
     },
     Revenue: {
-      'Club Membership Subscriptions': 'All fees come from membership subscriptions paid in $BNKR tokens.',
-      'Clanker Creator Fees': 'All creator fees from Clanker.',
+      'Protocol Fees': 'All protocol revenue from Bankr operations',
+    },
+    SupplySideRevenue: {
+      'Creator Fees': 'Fees distributed to token creators',
     },
   }
 };

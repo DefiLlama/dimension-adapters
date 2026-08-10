@@ -2,7 +2,6 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getPrices } from "../utils/prices";
 
 const SUBGRAPH_URL =
   "https://api.goldsky.com/api/public/project_cm58q8wq01kbk01ts09lc52kp/subgraphs/mz-subgraph/main/gn";
@@ -52,48 +51,22 @@ const fetchFn = async (options: FetchOptions): Promise<FetchResultV2> => {
     OPTIONS_QUERY(startOfDay, endOfDay)
   );
 
-  // Raw aggregators per token
-  const rawFees: Record<string, bigint> = {}; // protocolFees only
-  const rawVolume: Record<string, bigint> = {}; // premium + protocolFees
-  const tokens = new Set<string>();
+  const dailyFees = options.createBalances(); // protocolFees only
+  const dailyVolume = options.createBalances(); // premium + protocolFees
 
   for (const pos of optionsPositions) {
     const pf = BigInt(pos.protocolFees);
     const prem = BigInt(pos.premium);
     const { token } = await fetchMarketInfo(options, pos.market, pos.isCall);
-    const addr = token.toLowerCase();
 
-    tokens.add(addr);
-    rawFees[addr] = (rawFees[addr] || 0n) + pf;
-    rawVolume[addr] = (rawVolume[addr] || 0n) + (pf + prem);
-  }
-
-  // Fetch USD prices
-  const priceIds = Array.from(tokens).map((a) => `${CHAIN.SONIC}:${a}`);
-  const prices = await getPrices(priceIds, options.startOfDay);
-
-  let totalFeesUSD = 0;
-  let totalVolumeUSD = 0;
-
-  for (const addr of tokens) {
-    const key = `${CHAIN.SONIC}:${addr}`;
-    const d = prices[key];
-    if (!d?.price || !d?.decimals) continue;
-
-    const priceScaled = BigInt(Math.round(d.price * 1e6));
-    const factor = 10n ** BigInt(d.decimals);
-
-    const feeScaled = (rawFees[addr] * priceScaled) / factor;
-    const volScaled = (rawVolume[addr] * priceScaled) / factor;
-
-    totalFeesUSD += Number(feeScaled) / 1e6;
-    totalVolumeUSD += Number(volScaled) / 1e6;
+    dailyFees.add(token, pf);
+    dailyVolume.add(token, pf + prem);
   }
 
   return {
-    dailyVolume: totalVolumeUSD.toFixed(2),
-    dailyFees: totalFeesUSD.toFixed(2),
-    dailyRevenue: totalFeesUSD.toFixed(2),
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 

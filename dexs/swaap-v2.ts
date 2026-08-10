@@ -65,7 +65,7 @@ const config: Record<string, ChainConfig> = {
     firstDayVolume: 0,
   },
   [CHAIN.MANTLE]: {
-    api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-linea/prod/gn",
+    api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mantle/prod/gn",
     start: '2024-06-27',
     id: '2',
     firstDayVolume: 0,
@@ -102,7 +102,7 @@ const getVolume = async (options: FetchOptions) => {
   }
   `;
   const url = config[options.chain].api;
-  const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
+  const graphQLClient = new GraphQLClient(url, { timeout: 30000 });
   const result: Data = await graphQLClient.request(query);
   const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0);
   return {
@@ -110,57 +110,47 @@ const getVolume = async (options: FetchOptions) => {
   };
 };
 
-const v2graphs = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { dailyVolume } = await getVolume(options);
   return {
-    timestamp: options.startOfDay,
     dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: v2graphs,
       start: '2023-07-01',
     },
     [CHAIN.POLYGON]: {
-      fetch: v2graphs,
       start: '2023-06-30',
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: v2graphs,
-      start: '2023-10-05',
-    },
+    // [CHAIN.ARBITRUM]: {
+    //   start: '2023-10-05',
+    // }, -> bad data
     [CHAIN.OPTIMISM]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BSC]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BASE]: {
-      fetch: v2graphs,
       start: '2024-05-14',
     },
-    [CHAIN.MODE]: {
-      fetch: v2graphs,
-      start: '2024-05-02',
-    },
-    [CHAIN.SCROLL]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
-    [CHAIN.LINEA]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
-    [CHAIN.MANTLE]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
+    // [CHAIN.MODE]: {
+    //   start: '2024-05-02',
+    // }, -> subgraph not available
+    // [CHAIN.SCROLL]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
+    // [CHAIN.LINEA]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
+    // [CHAIN.MANTLE]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
   },
 };
 

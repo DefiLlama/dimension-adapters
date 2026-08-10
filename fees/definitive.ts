@@ -52,7 +52,7 @@ const chainConfig = {
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
-const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   // Handle Solana separately with the original logic

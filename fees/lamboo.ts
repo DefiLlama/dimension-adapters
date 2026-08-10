@@ -28,7 +28,7 @@ const TRACKED_TOKEN_TYPES = TRACKED_TOKEN_VARIANTS.map((token) => `'${token}'`).
 const APT_TOKEN_TYPES = APT_TOKEN_VARIANTS.map((token) => `'${token}'`).join(", ");
 const USD1_TOKEN_TYPES = USD1_TOKEN_VARIANTS.map((token) => `'${token}'`).join(", ");
 
-const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const feeQuery = `
     SELECT
       date_trunc('day', block_date) AS day,
@@ -98,20 +98,19 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     dailyFees.add(token, amount);
   }
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2026-01-01",
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2026-01-01",
   methodology: {
     Fees: "Fees are calculated by aggregating the fees collected from transactions associated with the integrator address.",
+    Revenue: "All integrator fees are collected by Lamboo as protocol revenue.",
+    ProtocolRevenue: "All integrator fees are collected by Lamboo as protocol revenue.",
   },
 };
 

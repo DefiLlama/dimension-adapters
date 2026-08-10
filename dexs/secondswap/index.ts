@@ -22,7 +22,7 @@ const chainConfig = {
 	// },
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const config = chainConfig[options.chain];
 	
 	const [purchase_events, settingContractResult] = await Promise.all([
@@ -85,8 +85,10 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+	version: 2,
+	pullHourly: true,
 	fetch,
-	adapter: chainConfig,
+	chains: Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }]),
 	methodology,
 	breakdownMethodology
 };

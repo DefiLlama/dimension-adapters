@@ -5,7 +5,9 @@ import { queryEvents } from "../../helpers/sui";
 async function getChainData(options: FetchOptions): Promise<FetchResultV2> {
   const events = await queryEvents({
     eventType:
-      "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::OrderFilledEvent",
+      options.startTimestamp < 1767225600
+        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::OrderFilledEvent"
+        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::position::OrderFilledEvent",
     options,
   });
   const dailyVolume = options.createBalances();
@@ -18,7 +20,10 @@ async function getChainData(options: FetchOptions): Promise<FetchResultV2> {
   }
 
   const events2 = await queryEvents({
-    eventType: "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::LiquidateEvent",
+    eventType:
+      options.startTimestamp < 1767225600
+        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::LiquidateEvent"
+        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::trading::LiquidateEvent",
     options,
   });
 

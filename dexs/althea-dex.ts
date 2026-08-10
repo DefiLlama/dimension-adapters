@@ -58,6 +58,7 @@ const methodology = {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ALTHEA_L1],
   start: '2025-10-07',

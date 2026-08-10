@@ -23,7 +23,7 @@ async function fetchAndParseMetrics(url: string): Promise<Map<string, string>> {
     return parsePrometheusMetrics(response);
 }
 
-async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const URL = "https://tsbvt-pyaaa-aaaar-qafva-cai.raw.icp0.io/metrics";
     const res = await fetchAndParseMetrics(URL);
     const E8S = 100000000;
@@ -32,10 +32,10 @@ async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
 
     dailyFees.addCGToken("internet-computer", Number(res.get("fees")) / E8S);
     dailyRevenue.addCGToken("internet-computer", Number(res.get("revenue")) / E8S)
-    
+
     const dailySupplySideRevenue = dailyFees.clone(1)
     dailySupplySideRevenue.subtract(dailyRevenue)
-    
+
     return {
         dailyFees,
         dailyRevenue,
@@ -45,13 +45,10 @@ async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
 }
 
 export default {
-    adapter: {
-        [CHAIN.ICP]: {
-            fetch: fetchMetrics,
-            start: '2025-01-16',
-            runAtCurrTime: true,
-        },
-    },
+    fetch,
+    chains: [CHAIN.ICP],
+    start: '2025-01-16',
+    runAtCurrTime: true,
     methodology: {
         Fees: "Staking rewards earned by all staked ICP in the protocol.",
         Revenue: "WaterNeuron DAO takes a 10% fee on users staking rewards.",

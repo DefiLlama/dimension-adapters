@@ -52,7 +52,7 @@ const CLAMM_BIN_QUERY = gql`
   }
 `;
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
   const startTimestamp = options.startTimestamp;
   const dateId = Math.floor(startTimestamp / 86400);

@@ -8,10 +8,10 @@ const NetFeeSplitter = '0x4300c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d30004';
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.UNICHAIN]: {
-      fetch: async (_a: any, _b: any, options: FetchOptions) => {
+      fetch: async (options: FetchOptions) => {
         const blockscoutAdapter = blockscoutFeeAdapter2(CHAIN.UNICHAIN)
         const fetchFunction = (blockscoutAdapter.adapter as any)[options.chain].fetch;
-        const { dailyFees } = await fetchFunction(_a, _b, options)
+        const { dailyFees } = await fetchFunction(options)
         
         const dailyRevenue = options.createBalances()
         if (options.startOfDay >= 1766966400) {

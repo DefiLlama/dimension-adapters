@@ -65,6 +65,7 @@ async function getFeeEvents(vaults: string[], options: FetchOptions): Promise<Ba
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.SONIC]: {
             fetch: fetch,

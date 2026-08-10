@@ -109,6 +109,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Includes interest that is paid by the borrowers, protocol and curators fees.",
     Revenue: "Fees collected by Euler protocol.",

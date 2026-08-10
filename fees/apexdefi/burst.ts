@@ -2,6 +2,7 @@ import { Chain } from "../../adapters/types";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 type TAddress = {
   [s: string | Chain]: string;
@@ -60,19 +61,20 @@ export async function burstMetrics(options: FetchOptions): Promise<{
   curveCompleteLogs.map((log: CurveComplete) => {
     const launchFeeAmount = BigInt(log.launchFee);
     const creatorRewardsAmount = BigInt(log.creatorRewards);
-    const totalFee = launchFeeAmount + creatorRewardsAmount;
-    dailyFees.addGasToken(totalFee);
-    dailyRevenue.addGasToken(launchFeeAmount);
-    dailyProtocolRevenue.addGasToken(launchFeeAmount);
+    dailyFees.addGasToken(launchFeeAmount, "Launch fees");
+    dailyFees.addGasToken(creatorRewardsAmount, METRIC.CREATOR_FEES);
+    dailyRevenue.addGasToken(launchFeeAmount, "Launch fees");
+    dailyProtocolRevenue.addGasToken(launchFeeAmount, "Launch fees");
   });
 
   swapLogs.map((log: BurstSwap) => {
     const nativeAmount = BigInt(log.amount1In) + BigInt(log.amount1Out);
     const fee = (nativeAmount * burstSwapFee) / scaleFactor;
     const protocolRevenue = (nativeAmount * burstFactoryFee) / scaleFactor;
-    dailyFees.addGasToken(fee + protocolRevenue);
-    dailyRevenue.addGasToken(protocolRevenue);
-    dailyProtocolRevenue.addGasToken(protocolRevenue);
+    dailyFees.addGasToken(fee, "Burst swap fees");
+    dailyFees.addGasToken(protocolRevenue, "Burst protocol fees");
+    dailyRevenue.addGasToken(protocolRevenue, "Burst protocol fees");
+    dailyProtocolRevenue.addGasToken(protocolRevenue, "Burst protocol fees");
     dailyVolume.addGasToken(nativeAmount);
   });
 

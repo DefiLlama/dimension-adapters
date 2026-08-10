@@ -11,14 +11,15 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9p
 const LST_FEE_TOKEN_ACCOUNT = "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i";
 const LST_MINT = ADDRESSES.solana.JitoSOL;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: ""
   });
 
   const results = await queryDuneSql(options, query);
@@ -38,9 +39,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailySupplySideRevenue
-    // dailyRevenue,
-    // dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
     // dailyHoldersRevenue: 0,
   };
 };

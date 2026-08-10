@@ -6,6 +6,7 @@ WITH all_traces AS (
         ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY trace_address ASC) as rn
     FROM optimism.traces
     WHERE block_time >= DATE '2024-08-29'
+    AND TIME_RANGE
     AND SUBSTRING(input FROM 1 FOR 4) IN (0x8980d703, 0x4e055f89, 0x4f10ca98)
     AND success AND call_type = 'call'
 
@@ -17,6 +18,7 @@ WITH all_traces AS (
         ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY trace_address ASC) as rn
     FROM base.traces
     WHERE block_time >= DATE '2025-11-01'
+    AND TIME_RANGE
     AND SUBSTRING(input FROM 1 FOR 4) IN (0x8980d703, 0x4e055f89, 0x4f10ca98)
     AND success AND call_type = 'call'
 ),

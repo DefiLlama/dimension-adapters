@@ -14,12 +14,12 @@ const info = {
 };
 
 const VaultConfigs: any = {
-  ethereum: ["0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4"],
-  base: [
+  [CHAIN.ETHEREUM]: ["0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4"],
+  [CHAIN.BASE]: [
     "0x6c05A7d2c24B48fC3C615D294fEc2eB068548897",
     "0x2406aacbdF8463176DeB285AdAa81768415B6c7E",
   ],
-  arbitrum: [
+  [CHAIN.ARBITRUM]: [
     "0x27D22Eb71f00495Eccc89Bb02c2B68E6988C6A42",
     "0x183424d5ae5ec9fd486634bc566d0f75ad9c9109",
     "0x5b49d7fae00de64779ddcd6b067c8eb046bd9a0b",
@@ -44,7 +44,7 @@ const VaultConfigs: any = {
     "0x1176c3760Af6a1dbAa5BBd0Cc6cdA8A2Ed6B785E",
     "0x0178b56FeA3d7B5B9F9e0cDAd486522de948730F",
   ],
-  berachain: [
+  [CHAIN.BERACHAIN]: [
     "0xbE75c8A7E58C7901D2e128dc8d3b6DE2481F1F79",
     "0x2b8d0420996a2753ef21c25c94eae9fc0c0aed1e",
     "0x36b933554782b108bb9962ac00c498acbceb706d",
@@ -54,7 +54,7 @@ const VaultConfigs: any = {
     "0xBf075980792f8cc89DFb74b553acf6750a7E941b",
     "0xC4fEE8c68293a63241b64e5A2EF07fcf89005dD3",
   ],
-  hyperliquid: [
+  [CHAIN.HYPERLIQUID]: [
     "0xf44f49E6577B3934f981C6f0629d15154d2606E6",
     "0x7410E69958a8ECE2A51C231C8528513d4d668C7a",
     "0xade27c7dec9211973278876f3819aedc28cd50ca",

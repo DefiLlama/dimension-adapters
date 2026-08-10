@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event RewardPaid (address indexed _user, address indexed _receiver, uint256 _reward, address indexed _token)';
 const event_paid_rdnt = 'event RDNTEntitled (address indexed _receipt, uint256 _amount)';
@@ -28,46 +27,36 @@ const address_rdnt: TAddress = {
 
 }
 
-const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, api }: FetchOptions) => {
-    const dailyFees = createBalances();
-    let poolLength = await api.call({ abi: 'uint256:poolLength', target: address_reward[chain], });
-    let array = Array.from({ length: poolLength }, (_, index) => index);
-    const pools = await api.multiCall({ abi: 'function poolTokenList(uint256) view returns(address)', calls: array, target: address_reward[chain] })    // (await getLogs({
-    const rewardContracts = await api.multiCall({ abi: 'function pools(address) view returns ( address asset,  address rToken,  address vdToken,  address rewarder, address receiptToken ,  uint256 maxCap,  uint256 lastActionHandled,  bool isNative,   bool isActive)', calls: pools, target: address_reward[chain] })    // (await getLogs({
-    for (const i of rewardContracts) {
-      const logs = await getLogs({
-        target: i.rewarder,
-        eventAbi: event_paid_stream,
-      });
-      logs.forEach((e: any) => {
-        dailyFees.add(e._token, e._reward);
-      });
-    }
-
-    (await getLogs({
-      target: address_rdnt_reward[chain],
-      eventAbi: event_paid_rdnt,
-    })).map((e: any) => {
-      dailyFees.add(address_rdnt[chain], e._amount)
-    })
-    return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
+const fetch = async ({ createBalances, getLogs, api, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  let poolLength = await api.call({ abi: 'uint256:poolLength', target: address_reward[chain], });
+  let array = Array.from({ length: poolLength }, (_, index) => index);
+  const pools = await api.multiCall({ abi: 'function poolTokenList(uint256) view returns(address)', calls: array, target: address_reward[chain] })    // (await getLogs({
+  const rewardContracts = await api.multiCall({ abi: 'function pools(address) view returns ( address asset,  address rToken,  address vdToken,  address rewarder, address receiptToken ,  uint256 maxCap,  uint256 lastActionHandled,  bool isNative,   bool isActive)', calls: pools, target: address_reward[chain] })    // (await getLogs({
+  for (const i of rewardContracts) {
+    const logs = await getLogs({
+      target: i.rewarder,
+      eventAbi: event_paid_stream,
+    });
+    logs.forEach((e: any) => {
+      dailyFees.add(e._token, e._reward);
+    });
   }
+
+  (await getLogs({
+    target: address_rdnt_reward[chain],
+    eventAbi: event_paid_rdnt,
+  })).map((e: any) => {
+    dailyFees.add(address_rdnt[chain], e._amount)
+  })
+  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graph(CHAIN.ARBITRUM),
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: graph(CHAIN.ETHEREUM),
-    },
-  },
+  fetch,
+  chains: [CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.ETHEREUM],
+  pullHourly: true,
   methodology: {
     Fees: 'Staking rewards collected from assets staked on Radiant',
     Revenue: 'Staking rewards collected from assets staked on Radiant',

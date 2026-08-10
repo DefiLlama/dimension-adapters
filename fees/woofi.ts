@@ -20,10 +20,12 @@ const CONFIG: Record<string, string> = {
 const fetch = async (options: FetchOptions) => {
   const { api, chain } = options;
   const from = CONFIG[chain];
-  const token = await api.call({ abi: 'address:quoteToken', target: from })
-  const rebateManager = await api.call({ abi: 'address:rebateManager', target: from })
-  const treasury = await api.call({ abi: 'address:treasury', target: from })
-  const vaultManager = await api.call({ abi: 'address:vaultManager', target: from })
+  const [token, rebateManager, treasury, vaultManager] = await Promise.all([
+    api.call({ abi: 'address:quoteToken', target: from }),
+    api.call({ abi: 'address:rebateManager', target: from }),
+    api.call({ abi: 'address:treasury', target: from }),
+    api.call({ abi: 'address:vaultManager', target: from }),
+  ])
   const valutManagerFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [vaultManager] })
   const rebateManagerFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [rebateManager] })
   const treasuryFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [treasury] })
@@ -44,6 +46,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: {
       fetch,

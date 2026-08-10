@@ -3,7 +3,18 @@ import { Chain } from "../../adapters/types";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { parseUnits } from "ethers";
+
+const REVENUE_LABEL = {
+  BORROW_INTEREST_TO_PROTOCOL: "Borrow Interest To Protocol",
+  BORROW_INTEREST_TO_DEPLOYER: "Borrow Interest To Deployer",
+  LIQUIDATION_TO_PROTOCOL: "Liquidation Fees To Protocol",
+  LIQUIDATION_TO_DEPLOYER: "Liquidation Fees To Deployer",
+  FLASHLOAN_TO_PROTOCOL: "Flashloan Fees To Protocol",
+  FLASHLOAN_TO_DEPLOYER: "Flashloan Fees To Deployer",
+  BORROW_INTEREST_TO_LENDERS: "Borrow Interest To Lenders",
+};
 
 type BadDebtSilo = {
   silo: string;
@@ -49,7 +60,12 @@ const subgraphMapping: SubgraphMapping = {
 // Some silos started to represent bad debt because of a token price drop,
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
-  [CHAIN.ETHEREUM]: [],
+  [CHAIN.ETHEREUM]: [
+    {
+      silo: '0x1dE3bA67Da79A81Bc0c3922689c98550e4bd9bc2',
+      timestamp: 1762128000, // 2025-11-03
+    }
+  ],
   [CHAIN.ARBITRUM]: [
     {
       silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
@@ -129,6 +145,18 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0x6030ad53d90ec2fb67f3805794dbb3fa5fd6eb64", //pt-wstkusd
       timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x2f5dc399b1e31f9808d1ef1256917abd2447c74f", //bscUsd
+      timestamp: 1766275200 // 2025-12-21
+    },
+    {
+      silo: "0x7184bea7743ccfbe390f9cd830095a13ef867941", //smsusd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x04f124bf435545a3c79a8ee3ffb6c51213cf5175", //bwOS-54 migrated to market id 140
+      timestamp: 1755043200 //2025-08-13
     }
   ],
 };
@@ -196,27 +224,34 @@ async function fetch(
       )
   );
 
+  const uniqueContracts = [...new Set(dataWithoutBadDebtSilos.map((item) => item.market.id))];
+
+  const liquidityData = await options.api.multiCall({
+    abi: 'function getLiquidity() view returns (uint256)',
+    calls: uniqueContracts,
+    permitFailure: true,
+  });
+
+  const liquidityDataMap = new Map<string, bigint>();
+  uniqueContracts.forEach((contract, index) => {
+    liquidityDataMap.set(contract, BigInt(liquidityData[index]));
+  });
+
+  const dataWithLiquidity = dataWithoutBadDebtSilos.filter((item) => liquidityDataMap.get(item.market.id) ?? 0n > 0n);
+
   const uniqueAssets = [
-    ...new Set(dataWithoutBadDebtSilos.map((item) => item.tokenAddress)),
+    ...new Set(dataWithLiquidity.map((item) => item.tokenAddress)),
   ];
 
   uniqueAssets.forEach((asset) => {
-    const dailyFee = getFeeSumWithFilter(dataWithoutBadDebtSilos, asset);
-
-    const dailyRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
-      asset,
-      ["protocol", "deployer", "flashloan", "liquidation"]
-    );
-
     const deployerRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["deployer"]
     );
 
     const protocolRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["protocol"]
     );
@@ -230,13 +265,13 @@ async function fetch(
         : 0.5;
 
     const liquidationRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["liquidation"]
     );
 
     const flashloanRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["flashloan"]
     );
@@ -245,17 +280,19 @@ async function fetch(
       liquidationRevenueAsset * protocolRevenueRatio;
     const dailyProtocolRevenueFromFlashloanAsset =
       flashloanRevenueAsset * protocolRevenueRatio;
-
-    const dailyProtocolRevenueAsset =
-      getFeeSumWithFilter(dataWithoutBadDebtSilos, asset, ["protocol"]) +
-      dailyProtocolRevenueFromLiquidationAsset +
-      dailyProtocolRevenueFromFlashloanAsset;
+    const dailyDeployerRevenueFromLiquidationAsset =
+      liquidationRevenueAsset - dailyProtocolRevenueFromLiquidationAsset;
+    const dailyDeployerRevenueFromFlashloanAsset =
+      flashloanRevenueAsset - dailyProtocolRevenueFromFlashloanAsset;
 
     const dailySupplySideRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["collateral"]
     );
+
+    const borrowInterestAsset =
+      protocolRevenueAsset + deployerRevenueAsset + dailySupplySideRevenueAsset;
 
     const tokenDecimals = Number(
       tokens.find((token) => token.id === asset)?.decimals
@@ -265,27 +302,68 @@ async function fetch(
       throw new Error(`Token ${asset} not found in tokens`);
     }
 
+    const toUnits = (amount: number) =>
+      parseUnits(amount.toFixed(tokenDecimals), tokenDecimals);
+
+    dailyFees.add(asset, toUnits(borrowInterestAsset), METRIC.BORROW_INTEREST);
     dailyFees.add(
       asset,
-      parseUnits(dailyFee.toFixed(tokenDecimals), tokenDecimals)
+      toUnits(liquidationRevenueAsset),
+      METRIC.LIQUIDATION_FEES
+    );
+    dailyFees.add(asset, toUnits(flashloanRevenueAsset), METRIC.FLASHLOAN_FEES);
+
+    dailyRevenue.add(
+      asset,
+      toUnits(protocolRevenueAsset),
+      REVENUE_LABEL.BORROW_INTEREST_TO_PROTOCOL
     );
     dailyRevenue.add(
       asset,
-      parseUnits(dailyRevenueAsset.toFixed(tokenDecimals), tokenDecimals)
+      toUnits(dailyProtocolRevenueFromLiquidationAsset),
+      REVENUE_LABEL.LIQUIDATION_TO_PROTOCOL
+    );
+    dailyRevenue.add(
+      asset,
+      toUnits(dailyProtocolRevenueFromFlashloanAsset),
+      REVENUE_LABEL.FLASHLOAN_TO_PROTOCOL
+    );
+
+    dailyProtocolRevenue.add(
+      asset,
+      toUnits(protocolRevenueAsset),
+      REVENUE_LABEL.BORROW_INTEREST_TO_PROTOCOL
     );
     dailyProtocolRevenue.add(
       asset,
-      parseUnits(
-        dailyProtocolRevenueAsset.toFixed(tokenDecimals),
-        tokenDecimals
-      )
+      toUnits(dailyProtocolRevenueFromLiquidationAsset),
+      REVENUE_LABEL.LIQUIDATION_TO_PROTOCOL
+    );
+    dailyProtocolRevenue.add(
+      asset,
+      toUnits(dailyProtocolRevenueFromFlashloanAsset),
+      REVENUE_LABEL.FLASHLOAN_TO_PROTOCOL
+    );
+
+    dailySupplySideRevenue.add(
+      asset,
+      toUnits(dailySupplySideRevenueAsset),
+      REVENUE_LABEL.BORROW_INTEREST_TO_LENDERS
     );
     dailySupplySideRevenue.add(
       asset,
-      parseUnits(
-        dailySupplySideRevenueAsset.toFixed(tokenDecimals),
-        tokenDecimals
-      )
+      toUnits(deployerRevenueAsset),
+      REVENUE_LABEL.BORROW_INTEREST_TO_DEPLOYER
+    );
+    dailySupplySideRevenue.add(
+      asset,
+      toUnits(dailyDeployerRevenueFromLiquidationAsset),
+      REVENUE_LABEL.LIQUIDATION_TO_DEPLOYER
+    );
+    dailySupplySideRevenue.add(
+      asset,
+      toUnits(dailyDeployerRevenueFromFlashloanAsset),
+      REVENUE_LABEL.FLASHLOAN_TO_DEPLOYER
     );
   });
 
@@ -296,6 +374,51 @@ async function fetch(
     dailySupplySideRevenue,
   };
 }
+
+const methodology = {
+  Fees: "Total fees paid by Silo V2 users, including borrow interest, liquidation fees, and flashloan fees.",
+  Revenue: "The portion of Silo V2 fees kept by the protocol treasury.",
+  ProtocolRevenue: "The portion of Silo V2 fees kept by the protocol treasury.",
+  SupplySideRevenue:
+    "Borrow interest paid to lenders and fees kept by market deployers.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]:
+      "Interest paid by borrowers in active Silo V2 markets.",
+    [METRIC.LIQUIDATION_FEES]:
+      "Fees from liquidations in active Silo V2 markets.",
+    [METRIC.FLASHLOAN_FEES]:
+      "Fees paid by flashloan users in active Silo V2 markets.",
+  },
+  Revenue: {
+    [REVENUE_LABEL.BORROW_INTEREST_TO_PROTOCOL]:
+      "Protocol share of borrow interest from active Silo V2 markets.",
+    [REVENUE_LABEL.LIQUIDATION_TO_PROTOCOL]:
+      "Protocol share of liquidation fees, split using the protocol-to-deployer borrow-interest ratio.",
+    [REVENUE_LABEL.FLASHLOAN_TO_PROTOCOL]:
+      "Protocol share of flashloan fees, split using the protocol-to-deployer borrow-interest ratio.",
+  },
+  ProtocolRevenue: {
+    [REVENUE_LABEL.BORROW_INTEREST_TO_PROTOCOL]:
+      "Borrow interest kept by the Silo V2 protocol treasury.",
+    [REVENUE_LABEL.LIQUIDATION_TO_PROTOCOL]:
+      "Protocol share of liquidation fees kept by the Silo V2 protocol treasury.",
+    [REVENUE_LABEL.FLASHLOAN_TO_PROTOCOL]:
+      "Protocol share of flashloan fees kept by the Silo V2 protocol treasury.",
+  },
+  SupplySideRevenue: {
+    [REVENUE_LABEL.BORROW_INTEREST_TO_LENDERS]:
+      "Borrow interest paid to lenders.",
+    [REVENUE_LABEL.BORROW_INTEREST_TO_DEPLOYER]:
+      "Market deployer share of borrow interest from active Silo V2 markets.",
+    [REVENUE_LABEL.LIQUIDATION_TO_DEPLOYER]:
+      "Deployer share of liquidation fees, split using the protocol-to-deployer borrow-interest ratio.",
+    [REVENUE_LABEL.FLASHLOAN_TO_DEPLOYER]:
+      "Deployer share of flashloan fees, split using the protocol-to-deployer borrow-interest ratio.",
+  },
+};
 
 const adapter: Adapter = {
   adapter: {
@@ -337,6 +460,8 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

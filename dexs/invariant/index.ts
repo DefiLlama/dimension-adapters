@@ -1,39 +1,73 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
-import { FetchResult } from "../../adapters/types";
 const solanaStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/mainnet";
+  "https://stats.invariant.app/solana/intervals/solana-mainnet?interval=daily";
 const eclipseStatsApiEndpoint =
-  "https://stats.invariant.app/svm/full_snap/eclipse-mainnet";
+  "https://stats.invariant.app/eclipse/intervals/eclipse-mainnet?interval=daily";
+
+// create pool hardcodes protocol_fee onchain
+const PROTOCOL_FEE_RATIO = 0.01;
 
 type StatsApiResponse = {
   data: {
+    timestamp: number;
     volume24: { value: number; };
     fees24: { value: number; };
   };
 };
 
+const SECONDS_PER_DAY = 24 * 60 * 60;
+// the interval snapshot stamps the day it covers and used to advance daily,
+// so anything older than two days is a stale snapshot rather than a fresh one
+const MAX_SNAPSHOT_AGE = 2 * SECONDS_PER_DAY;
+
+const readNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
 const fetch = async (
-  timestamp: number,
-  fullSnapEndpoint: string
+  fullSnapEndpoint: string,
+  options: FetchOptions
 ): Promise<FetchResult> => {
   const fullSnapResponse = await axios.get<any, StatsApiResponse>(
     fullSnapEndpoint
   );
+
+  const dailyVolume = readNumber(fullSnapResponse.data.volume24?.value);
+  const dailyFees = readNumber(fullSnapResponse.data.fees24?.value);
+  const snapshotTimestamp = readNumber(fullSnapResponse.data.timestamp);
+  if (
+    dailyVolume === null ||
+    dailyFees === null ||
+    snapshotTimestamp === null ||
+    dailyVolume < 0 ||
+    dailyFees < 0
+  )
+    throw new Error(
+      `invariant: unreadable stats snapshot from ${fullSnapEndpoint} (volume24 ${JSON.stringify(fullSnapResponse.data.volume24?.value)}, fees24 ${JSON.stringify(fullSnapResponse.data.fees24?.value)}, timestamp ${JSON.stringify(fullSnapResponse.data.timestamp)})`
+    );
+
+  const snapshotAge = options.endTimestamp - snapshotTimestamp / 1000;
+  if (snapshotAge > MAX_SNAPSHOT_AGE)
+    throw new Error(
+      `invariant: ${fullSnapEndpoint} last advanced ${Math.floor(snapshotAge / SECONDS_PER_DAY)} days ago (timestamp ${new Date(snapshotTimestamp).toISOString()}), its 24h figures are not current`
+    );
+
   return {
-    dailyVolume: fullSnapResponse.data.volume24.value,
-    dailyFees: fullSnapResponse.data.fees24.value,
-    timestamp,
+    dailyVolume,
+    dailyFees,
+    dailySupplySideRevenue: dailyFees * (1 - PROTOCOL_FEE_RATIO),
+    dailyRevenue: dailyFees * PROTOCOL_FEE_RATIO,
+    dailyProtocolRevenue: dailyFees * PROTOCOL_FEE_RATIO,
   };
 };
 
-const fetchSolana = async (timestamp: number) => {
-  return fetch(timestamp, solanaStatsApiEndpoint);
+const fetchSolana = async (options: FetchOptions) => {
+  return fetch(solanaStatsApiEndpoint, options);
 };
 
-const fetchEclipse = async (timestamp: number) => {
-  return fetch(timestamp, eclipseStatsApiEndpoint);
+const fetchEclipse = async (options: FetchOptions) => {
+  return fetch(eclipseStatsApiEndpoint, options);
 };
 
 const adapter: SimpleAdapter = {

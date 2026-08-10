@@ -6,12 +6,21 @@ const APE_STORE_FEE_VAULT = '0xd52b1994e745c0ee5bc7ad41414da7d9e0815b66';
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    await getETHReceived({ options, balances: dailyFees, targets: [APE_STORE_FEE_VAULT] })
+    const tempBalance = options.createBalances();
+    await getETHReceived({ options, balances: tempBalance, targets: [APE_STORE_FEE_VAULT] })
+    dailyFees.addBalances(tempBalance, 'Token launchpad fees');
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
+const breakdownMethodology = {
+    Fees: {
+        'Token launchpad fees': 'Fees paid by users for creating and trading tokens on the ApeStore platform',
+    },
+};
+
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     isExpensiveAdapter: true,
     fetch,
     chains: [CHAIN.BASE],
@@ -20,7 +29,8 @@ const adapter: Adapter = {
         Fees: 'Total fees paid by users for creating and trading tokens.',
         Revenue: 'Total fees paid by users for creating and trading tokens.',
         ProtocolRevenue: 'Total fees paid by users for creating and trading tokens.',
-    }
+    },
+    breakdownMethodology,
 }
 
 export default adapter;

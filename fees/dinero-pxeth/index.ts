@@ -12,15 +12,21 @@ const pxEthContract = "0x04C154b66CB340F3Ae24111CC767e0184Ed00Cc6";
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = await getERC4626VaultsYield({ options, vaults: [autoPxEthContract] });
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  
+  const yieldDistributed = await getERC4626VaultsYield({ options, vaults: [autoPxEthContract] });
+
+  dailyFees.addBalances(yieldDistributed, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addBalances(yieldDistributed, METRIC.ASSETS_YIELDS);
 
   const feeLogs = await options.getLogs({
     target: pirexFeesContract,
     eventAbi: distributeFeesAbi
   })
   for (const log of feeLogs) {
-    dailyFees.add(log.token, log.amount);
-    dailyRevenue.add(log.token, log.amount);
+    dailyFees.add(log.token, log.amount, 'Redemption Fees');
+    dailyRevenue.add(log.token, log.amount, 'Redemption Fees');
   }
 
   const [platformFee, harvestLogs] = await Promise.all([
@@ -34,15 +40,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     })
   ]);
 
-  const FEE_DENOM = BigInt(1e6);
+  const FEE_DENOM = 1000000n;
   for (const log of harvestLogs) {
     const feeAmount = (BigInt(log.value) * BigInt(platformFee)) / (FEE_DENOM - BigInt(platformFee));
 
-    dailyFees.add(pxEthContract, feeAmount);
-    dailyRevenue.add(pxEthContract, feeAmount);
+    dailyFees.add(pxEthContract, feeAmount, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(pxEthContract, feeAmount, METRIC.PERFORMANCE_FEES);
   }
-  const dailyProtocolRevenue = dailyRevenue.clone(0.575);
-  const dailyHoldersRevenue = dailyRevenue.clone(0.425);
+
+  dailyProtocolRevenue.addBalances(dailyRevenue.clone(0.15), 'DAO Reserves');
+  dailyProtocolRevenue.addBalances(dailyRevenue.clone(0.425), 'Protocol Treasury');
+  const dailyHoldersRevenue = dailyRevenue.clone(0.425, METRIC.STAKING_REWARDS);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 }
@@ -50,6 +58,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 // breakdown source: https://dinero.xyz/docs/dinero-tokenomics
 const adapter: SimpleAdapter = {
   version: 2,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2023-12-11",
@@ -62,10 +71,15 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.03% redemption fee and 0.5% instant redemption fee charged on pxETH redemptions.",
+      [METRIC.ASSETS_YIELDS]: "Assets yields accumulated in the AutoPxETH (apxETH) vault.",
+      'Redemption Fees': "0.03% redemption fee and 0.5% instant redemption fee charged on pxETH redemptions.",
       [METRIC.PERFORMANCE_FEES]: "10% performance fee charged on pxETH yield.",
     },
     Revenue: {
+      'Redemption Fees': "Gross redemption-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
+      [METRIC.PERFORMANCE_FEES]: "Gross performance-fee amount included in dailyRevenue before allocation to DAO reserves, treasury, and holders.",
+    },
+    ProtocolRevenue: {
       "DAO Reserves": "15% of collected fees are allocated to the DAO reserves.",
       "Protocol Treasury": "42.5% of collected fees are allocated to the protocol treasury.",
     },

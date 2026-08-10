@@ -1,8 +1,9 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
+import PromisePool from "@supercharge/promise-pool";
 
-const suilendPoolsURL = () => `https://api.suilend.fi/steamm/pools/all`;
+const suilendPoolsURL = () => `https://global.suilend.fi/steamm/pools/all`;
 
 interface PoolInfo {
   id: string;
@@ -20,29 +21,31 @@ const suilendPoolHistoricalURL = (
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
+  `https://global.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
 
 
 async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Promise<Array<PoolInfo>> {
   const poolInfos: Array<PoolInfo> = [];
 
   const poolConfigs = await fetchURL(suilendPoolsURL());
-  for (const poolConfig of poolConfigs) {
-    const historicalItems: Array<Volume> = await fetchURL(
-      suilendPoolHistoricalURL(
-        poolConfig.pool.id,
-        startTimestamp,
-        endTimestamp - 1,
-      )
+  const { results: allHistorical , errors } = await PromisePool.withConcurrency(5)
+    .for(poolConfigs)
+    .process((poolConfig: any) =>
+      fetchURL(suilendPoolHistoricalURL(poolConfig.pool.id, startTimestamp, endTimestamp - 1))
     );
-    const dayItem = historicalItems.find(item => Number(item.start) === startTimestamp)
+
+  if (errors?.length)
+    throw errors[0];
+  
+  poolConfigs.forEach((poolConfig: any, idx: number) => {
+    const dayItem = allHistorical[idx]?.find((item: Volume) => Number(item.start) === startTimestamp);
     if (dayItem) {
       poolInfos.push({
         id: poolConfig.pool.id,
         volumeUsd: Number(dayItem.usdValue),
       });
     }
-  }
+  });
 
   return poolInfos;
 }

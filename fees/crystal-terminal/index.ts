@@ -5,7 +5,7 @@ import { getETHReceived } from "../../helpers/token"
 const TREASURY_ADDRESS = "0x565e9c68fc827958551ede5757461959206ab0bd"
 const ROUTER_ADDRESS = "0xc2d3689cf6ce2859a3ffbc8fe09ab4c8623766b8"
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const dailyFees = await getETHReceived({
     options,
@@ -16,7 +16,9 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
+  pullHourly: true,
   fetch,
+  version: 2,
   chains: [CHAIN.MONAD],
   start: "2025-11-24",
   isExpensiveAdapter: true,

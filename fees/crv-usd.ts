@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 type ChainConfig = {
   factory: string;
@@ -24,6 +23,14 @@ const config: Record<string, ChainConfig> = {
   },
 };
 
+const LABELS = {
+  BorrowInterest: 'crvUSD Borrow Interest',
+  ManagementFees: 'crvUSD Management Fees',
+  StakingRewards: 'crvUSD Rewards To scrvUSD Stakers',
+  TreasuryFees: 'crvUSD Fees To Treasury',
+  veCRVHoldersRevenue: 'crvUSD Fees To veCRV Holders',
+}
+
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, fromApi, toApi, chain, getFromBlock, getToBlock } = options;
 
@@ -31,6 +38,7 @@ const fetch = async (options: FetchOptions) => {
   if (!chainConfig) throw new Error(`Chain ${chain} not supported`);
 
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
 
@@ -75,16 +83,18 @@ const fetch = async (options: FetchOptions) => {
 
     for (const log of transferLogs) {
       if (log.from.toLowerCase() === chainConfig.feeSplitter.toLowerCase()) {
-        dailyFees.add(chainConfig.crvusd, log.value, METRIC.BORROW_INTEREST);
+        dailyFees.add(chainConfig.crvusd, log.value, LABELS.BorrowInterest);
 
         // Only DAO collector portion is token holder revenue
         if (log.to.toLowerCase() === chainConfig.daoFeeCollector.toLowerCase()) {
+          dailyRevenue.add(chainConfig.crvusd, log.value, LABELS.BorrowInterest);
+
           // After June 2025: 10% goes to treasury, 90% to veCRV holders
           if (toBlock >= chainConfig.feeAllocatorStartBlock) {
-            dailyProtocolRevenue.add(chainConfig.crvusd, BigInt(log.value) * 1n / 10n, METRIC.PROTOCOL_FEES);
-            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n, METRIC.STAKING_REWARDS);
+            dailyProtocolRevenue.add(chainConfig.crvusd, BigInt(log.value) * 1n / 10n, LABELS.TreasuryFees);
+            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n, LABELS.veCRVHoldersRevenue);
           } else {
-            dailyHoldersRevenue.add(chainConfig.crvusd, log.value, METRIC.STAKING_REWARDS);
+            dailyHoldersRevenue.add(chainConfig.crvusd, log.value, LABELS.veCRVHoldersRevenue);
           }
 
         }
@@ -99,24 +109,28 @@ const fetch = async (options: FetchOptions) => {
         fromBlock,
         toBlock,
       });
-      logs.forEach((log: any) => dailyFees.add(chainConfig.crvusd, log.amount, METRIC.BORROW_INTEREST));
+      logs.forEach((log: any) => {
+        dailyFees.add(chainConfig.crvusd, log.amount, LABELS.BorrowInterest);
+        dailyRevenue.add(chainConfig.crvusd, log.amount, LABELS.BorrowInterest);
+      });
 
       const feesStart = await fromApi.call({ target: controller, abi: "uint256:admin_fees" });
       const feesEnd = await toApi.call({ target: controller, abi: "uint256:admin_fees" });
-      if (feesEnd > feesStart) {
-        dailyFees.add(chainConfig.crvusd, feesEnd - feesStart, METRIC.MANAGEMENT_FEES);
+      if (BigInt(feesEnd) > BigInt(feesStart)) {
+        dailyFees.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
+        dailyRevenue.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.ManagementFees);
+        
+        // Before FeeSplitter, all fees went to token holders
+        dailyHoldersRevenue.add(chainConfig.crvusd, feesEnd - feesStart, LABELS.veCRVHoldersRevenue);
       }
     }));
-
-    // Before FeeSplitter, all fees went to token holders
-    dailyHoldersRevenue.addBalances(dailyFees, METRIC.STAKING_REWARDS);
   }
   
-  const dailyRevenue = dailyProtocolRevenue.clone(1)
-  dailyRevenue.addBalances(dailyHoldersRevenue, METRIC.STAKING_REWARDS);
-  
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
+  const tempBalance = dailyFees.clone();
+  tempBalance.subtract(dailyRevenue);
+
+  const dailySupplySideRevenue = createBalances();
+  dailySupplySideRevenue.addBalances(tempBalance, LABELS.StakingRewards);
 
   return {
     dailyFees,
@@ -129,6 +143,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-05-14',
@@ -141,10 +156,18 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',
-      [METRIC.MANAGEMENT_FEES]: 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
-      [METRIC.PROTOCOL_FEES]: '10% of DAO-collected fees allocated to the protocol treasury via the Fee Allocator (post June 2025).',
-      [METRIC.STAKING_REWARDS]: '90% of DAO-collected fees distributed to veCRV holders via the Fee Allocator (post June 2025) and before the FeeSplitter deployment.',
+      [LABELS.BorrowInterest]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',
+      [LABELS.ManagementFees]: 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
+    },
+    Revenue: {
+      [LABELS.BorrowInterest]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',
+      [LABELS.ManagementFees]: 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
+    },
+    SupplySideRevenue: {
+      [LABELS.StakingRewards]: 'Revenue share to scrvUSD stakers.',
+    },
+    HoldersRevenue: {
+      [LABELS.veCRVHoldersRevenue]: 'Revenue share to veCRV holders.',
     },
   }
 };

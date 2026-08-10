@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
+const fetch = async ({ dateString }: FetchOptions) => {
   const perpData = await  httpGet('https://supply.elys.network/stats/daily-perp-volume')
 
   let dailyVolume = 0
@@ -14,12 +14,10 @@ const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ELYS]: {
-      fetch,
-      start: "2024-12-22",
-    },
-  },
+  fetch,
+  chains: [CHAIN.ELYS],
+  start: "2024-12-22",
+  deadFrom: "2025-12-16",
 };
 
 export default adapter;

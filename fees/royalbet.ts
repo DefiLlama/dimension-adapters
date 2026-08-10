@@ -5,7 +5,7 @@ import { METRIC } from "../helpers/metrics";
 
 const TREASURY_ADDRESS = "MoEcUAUh3zC8gGMh2wiRJx3ShbAoHqpxLKeGfJ1KFcm";
 
-const fetch = async (_timestamp: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances } = options;
   const dailyFees = createBalances();
   
@@ -36,11 +36,11 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-02-20",
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "Platform fees (3%) collected from betting match pots on the RoyalBet Telegram bot.",

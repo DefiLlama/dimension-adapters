@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBribes } from "./shadow-legacy";
 import { ethers } from "ethers";
-import PromisePool from "@supercharge/promise-pool";
 import { addOneToken } from '../helpers/prices';
 import { filterPools } from '../helpers/uniswap';
 import * as sdk from '@defillama/sdk';
@@ -24,30 +23,24 @@ const CONFIG = {
 
 const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = options
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
   const dailyVolume = createBalances();
-  const dailyHoldersRevenue = createBalances()
-  const dailyProtocolRevenue = createBalances()
-  const dailyTokenTaxes = createBalances()
-  const dailySupplySideRevenue = createBalances()
+  const holdersRevenue = createBalances()
+  const protocolRevenue = createBalances()
+  const tokenTaxes = createBalances()
+  const supplySideRevenue = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
-  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools"}).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
+  const poolsWithGauges = (await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools" }))
+    .map((contract: string) => contract.toLowerCase())
   const poolsWithGaugesSet = new Set(poolsWithGauges)
   const InstantExitLogs = await getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
     eventAbi: "event InstantExit(address indexed user, uint256 amount)",
     topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
   });
-  let shadowPenaltyAmount = 0;
-
+  // exit() emits the exited amount, which equals the 50% penalty streamed to xSHADOW holders
   for (const log of InstantExitLogs) {
-    shadowPenaltyAmount += Number(log.amount) / 1e18;
+    tokenTaxes.add(SHADOW_TOKEN_CONTRACT, log.amount)
   }
-
-  // Calculate xSHADOW rebase revenue in USD
-  dailyTokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
-  dailyFees.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
   const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
 
@@ -59,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
     pairObject[log.pool] = [log.token0, log.token1]
   })
 
-  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances, maxPairSize: 500 })
   const poolAddresses = Object.keys(filteredPools)
   const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
   const aeroPoolSet = new Set()
@@ -72,65 +65,58 @@ const fetch = async (options: FetchOptions) => {
     aeroPoolSet.add(pool)
   })
 
-  const blockStep = 1000;
-  let startBlock = fromBlock;
-  let ranges: any = []
-
-
-  while (startBlock < toBlock) {
-    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    ranges.push([startBlock, endBlock])
-    startBlock += blockStep
-  }
-
-  let errorFound = false
-
-
-  await PromisePool
-    .withConcurrency(5)
-    .for(ranges)
-    .process(async ([startBlock, endBlock]: any) => {
-      if (errorFound) return;
-      try {
-        const logs = await getLogs({
-          noTarget: true,
-          fromBlock: startBlock,
-          toBlock: endBlock,
-          eventAbi: eventAbis.event_swap,
-          entireLog: true,
-          skipCache: true,
-        })
-        logs.forEach((log: any) => {
-          const pool = (log.address || log.source).toLowerCase()
-          if (!aeroPoolSet.has(pool)) return;
-          const { tokens, fee, hasGauge } = poolInfoMap[pool]
-          const [token0, token1] = tokens
-          const parsedLog = iface.parseLog(log)
-          const amount0 = Number(parsedLog!.args.amount0)
-          const amount1 = Number(parsedLog!.args.amount1)
-          const fee0 = amount0 * fee
-          const fee1 = amount1 * fee
-          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          if (hasGauge) {
-            addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
-          }
-          else {
-            addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
-            addOneToken({ chain, balances: dailyProtocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
-          }
-        })
-      } catch (e) {
-        errorFound = true
-        throw e
-      }
-    })
-
-  if (errorFound) throw errorFound
+  const swapLogs = await getLogs({
+    noTarget: true,
+    fromBlock,
+    toBlock,
+    eventAbi: eventAbis.event_swap,
+    entireLog: true,
+  })
+  swapLogs.forEach((log: any) => {
+    const pool = (log.address || log.source).toLowerCase()
+    if (!aeroPoolSet.has(pool)) return;
+    const { tokens, fee, hasGauge } = poolInfoMap[pool]
+    const [token0, token1] = tokens
+    const parsedLog = iface.parseLog(log)
+    const amount0 = Number(parsedLog!.args.amount0)
+    const amount1 = Number(parsedLog!.args.amount1)
+    const fee0 = amount0 * fee
+    const fee1 = amount1 * fee
+    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+    if (hasGauge) {
+      addOneToken({ chain, balances: holdersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
+    }
+    else {
+      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
+      addOneToken({ chain, balances: protocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
+    }
+  })
   const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
-  dailyRevenue.addBalances(dailyProtocolRevenue)
-  dailyRevenue.addBalances(dailyHoldersRevenue)
-  dailyFees.addBalances(dailyRevenue)
-  dailyFees.addBalances(dailySupplySideRevenue)
+
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  const dailyHoldersRevenue = createBalances()
+  
+  dailyFees.addBalances(tokenTaxes, 'Penalty Fees')
+  dailyFees.addBalances(protocolRevenue, 'Token Swap Fees')
+  dailyFees.addBalances(supplySideRevenue, 'Token Swap Fees')
+  dailyFees.addBalances(holdersRevenue, 'Token Swap Fees')
+  dailyFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
+
+  dailyRevenue.addBalances(protocolRevenue, 'Token Swap Fees To Protocol')
+  dailyRevenue.addBalances(holdersRevenue, 'Token Swap Fees To Holders')
+  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+  dailyRevenue.addBalances(tokenTaxes, 'Penalty Fees')
+
+  dailyHoldersRevenue.addBalances(holdersRevenue, 'Token Swap Fees To Holders')
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
+  dailyHoldersRevenue.addBalances(tokenTaxes, 'Penalty Fees')
+
+  dailyProtocolRevenue.addBalances(protocolRevenue, 'Token Swap Fees To Protocol')
+
+  dailySupplySideRevenue.addBalances(supplySideRevenue, 'Token Swap Fees To LPs')
 
   return { 
     dailyVolume, 
@@ -140,26 +126,56 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue, 
     dailySupplySideRevenue,
     dailyProtocolRevenue, 
-    dailyBribesRevenue 
   }
 };
 
 const methodology = {
-  Fees: "User pays fees on each swap.",
-  UserFees: "User pays fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol.",
-  HoldersRevenue: "User fees are distributed among holders.",
-  BribesRevenue: "Bribes are distributed among holders.",
-  SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xSHADOW stakers instant exit penalty",
+  Fees: "Swap fees paid by users, xSHADOW instant exit penalties, and external bribes deposited for Shadow concentrated liquidity pools.",
+  UserFees: "Swap fees paid by users, xSHADOW instant exit penalties, and external bribes deposited for Shadow concentrated liquidity pools.",
+  Revenue: "Protocol share of swap fees, holder share of swap fees, xSHADOW instant exit penalties, and external bribes distributed to xSHADOW holders.",
+  ProtocolRevenue: "Protocol share of swap fees from ungauged Shadow concentrated liquidity pools.",
+  HoldersRevenue: "Swap fees from gauged Shadow concentrated liquidity pools, xSHADOW instant exit penalties, and external bribes distributed to xSHADOW holders.",
+  SupplySideRevenue: "LP share of swap fees from ungauged Shadow concentrated liquidity pools.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Penalty Fees': 'xSHADOW instant exit penalties paid by users.',
+    'Token Swap Fees': 'Swap fees paid by users on Shadow concentrated liquidity pools.',
+    'Bribes Rewards': 'External bribes deposited for Shadow concentrated liquidity pools.',
+  },
+  UserFees: {
+    'Penalty Fees': 'xSHADOW instant exit penalties paid by users.',
+    'Token Swap Fees': 'Swap fees paid by users on Shadow concentrated liquidity pools.',
+    'Bribes Rewards': 'External bribes deposited for Shadow concentrated liquidity pools.',
+  },
+  Revenue: {
+    'Penalty Fees': 'xSHADOW instant exit penalties distributed to xSHADOW holders.',
+    'Token Swap Fees To Protocol': 'Protocol share of swap fees from ungauged Shadow concentrated liquidity pools.',
+    'Token Swap Fees To Holders': 'Swap fees from gauged Shadow concentrated liquidity pools distributed to xSHADOW holders.',
+    'Bribes Revenue': 'External bribes distributed to xSHADOW holders.',
+  },
+  ProtocolRevenue: {
+    'Token Swap Fees To Protocol': 'Protocol share of swap fees from ungauged Shadow concentrated liquidity pools.',
+  },
+  HoldersRevenue: {
+    'Penalty Fees': 'xSHADOW instant exit penalties distributed to xSHADOW holders.',
+    'Token Swap Fees To Holders': 'Swap fees from gauged Shadow concentrated liquidity pools distributed to xSHADOW holders.',
+    'Bribes Revenue': 'External bribes distributed to xSHADOW holders.',
+  },
+  SupplySideRevenue: {
+    'Token Swap Fees To LPs': 'LP share of swap fees from ungauged Shadow concentrated liquidity pools.',
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
+  breakdownMethodology,
   fetch,
   chains: [CHAIN.SONIC],
-  start: "2024-12-27"
+  start: "2024-12-26"
 };
 
 export default adapter;

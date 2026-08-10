@@ -9,7 +9,7 @@ interface IVolumeall {
   time: number;
 }
 
-const fetchHistorical = async (_timestamp: number, _: any, { dateString }: FetchOptions) => {
+const fetchHistorical = async ({ dateString }: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).data;
   // console.log(`Fetched historical volume data for ${historicalVolume.length} days, ${dateString}`);
   const tsToString = (ts: number) => new Date(ts).toISOString().split("T")[0];

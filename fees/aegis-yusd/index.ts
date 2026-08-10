@@ -1,79 +1,124 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { getERC4626VaultsYield } from "../../helpers/erc4626"
 import { METRIC } from "../../helpers/metrics"
 
-interface chainConfigInterface {
-  rewards: string,
-  yusd: string,
-  mintRedeem: string,
-  start: string,
-} 
-
-const chainContracts: Record<string, chainConfigInterface> = {
+const chainConfig: Record<string, {
+  start: string
+  yusd: string
+  mintRedeem: { target: string, income?: boolean }[]
+  vaults: { target: string, start?: string, instant?: boolean }[]
+}> = {
   [CHAIN.ETHEREUM]: {
-    rewards: "0x8aDCFAf1B64Cc514524B80565bCc732273dDEafD",
-    yusd: "0x4274cD7277C7bb0806Bd5FE84b9aDAE466a8DA0a",
-    mintRedeem: "0xa30644ca67e0a93805c443df4a6e1856d8bd815b",
     start: "2025-01-23",
+    yusd: "0x4274cD7277C7bb0806Bd5FE84b9aDAE466a8DA0a",
+    mintRedeem: [
+      { target: "0xA30644CA67E0A93805c443Df4A6E1856d8Bd815B", income: true },
+      { target: "0xC4dF68e592245ca5202FE8b7C438D2b799820fc2", income: true },
+    ],
+    vaults: [
+      { target: "0xfE0ccc9942E98C963Fe6b4e5194EB6e3Baa4cb64", start: "2025-07-30", instant: true },
+    ],
   },
   [CHAIN.BSC]: {
-    rewards:"0x93eFAA2d2f6c3600d794233ed7E751d086E5B75E",
+    start: "2025-03-31",
     yusd: "0xAB3dBcD9B096C3fF76275038bf58eAC10D22C61f",
-    mintRedeem: "0x39df2d423df0bddba28f23c15c65a86554a2e141",
-    start: "2025-03-31"
-  }
+    mintRedeem: [
+      { target: "0x39dF2D423df0BDDBA28f23C15c65a86554A2e141", income: true },
+    ],
+    vaults: [
+      { target: "0x24DB057b19241eeFB9B522e8627C293Ed8f93Af2", start: "2025-07-30" },
+    ],
+  },
 }
-const depositRewardsEvent = "event DepositRewards(bytes32 id, uint256 amount, uint256 timestamp)"
-const mintEvent = "event Mint(address indexed userWallet, address collateralAsset, uint256 collateralAmount, uint256 yusdAmount, uint256 fee)"
-const redeemEvent = "event ApproveRedeemRequest(string requestId,address indexed manager,address indexed userWallet,address collateralAsset,uint256 collateralAmount,uint256 yusdAmount,uint256 fee)"
 
+const abi = {
+  depositIncome: "event DepositIncome(string snapshotId, address indexed manager, address collateralAsset, uint256 collateralAmount, uint256 yusdAmount, uint256 fee, uint256 timestamp)",
+  mint: "event Mint(address indexed userWallet, address collateralAsset, uint256 collateralAmount, uint256 yusdAmount, uint256 fee)",
+  redeem: "event ApproveRedeemRequest(string requestId, address indexed manager, address indexed userWallet, address collateralAsset, uint256 collateralAmount, uint256 yusdAmount, uint256 fee)",
+  instantUnstaking: "event InstantUnstaking(address indexed user, address indexed receiver, uint256 assets, uint256 fee)",
+}
+
+const METRICS = {
+  yusdHoldersYield: "YUSD Holder Yield",
+  yusdInsuranceYield: "YUSD Insurance Yield",
+  yusdMintRedeem: "YUSD Mint/Redeem Fees",
+  syusdStakersYield: "sYUSD Staker Yield",
+  syusdInstantUnstaking: "sYUSD Unstaking Fees",
+}
 
 const fetch = async (options: FetchOptions) => {
+  const config = chainConfig[options.chain]
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyUserFees = options.createBalances()
-  const { rewards, yusd, mintRedeem } = chainContracts[options.chain]
-  const [rewardLogs, mintLogs, redeemLogs] = await Promise.all([
-    options.getLogs({ target: rewards, eventAbi: depositRewardsEvent}),
-    options.getLogs({ target: mintRedeem, eventAbi: mintEvent}),
-    options.getLogs({ target: mintRedeem, eventAbi: redeemEvent})
+  const mintRedeemTargets = config.mintRedeem.map(({ target }) => target)
+  const incomeTargets = config.mintRedeem.filter(({ income }) => income).map(({ target }) => target)
+  const activeVaults = config.vaults.filter(({ start }) => !start || options.dateString >= start)
+  const vaultTargets = activeVaults.map(({ target }) => target)
+
+  const [incomeLogs, mintLogs, redeemLogs] = await Promise.all([
+    options.getLogs({ targets: incomeTargets, eventAbi: abi.depositIncome }),
+    options.getLogs({ targets: mintRedeemTargets, eventAbi: abi.mint }),
+    options.getLogs({ targets: mintRedeemTargets, eventAbi: abi.redeem }),
   ])
-  rewardLogs.forEach(log => {
-    dailyFees.add(yusd, log.amount, METRIC.ASSETS_YIELDS)
-    dailySupplySideRevenue.add(yusd, log.amount, METRIC.ASSETS_YIELDS)
+
+  incomeLogs.forEach((log: any) => {
+    dailyFees.add(config.yusd, log.yusdAmount + log.fee, METRIC.ASSETS_YIELDS)
+    dailySupplySideRevenue.add(config.yusd, log.yusdAmount, METRICS.yusdHoldersYield)
+    dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.yusdInsuranceYield)
   })
-  mintLogs.concat(redeemLogs).forEach(log => {
-    dailyFees.add(yusd, log.fee, METRIC.MINT_REDEEM_FEES)
-    dailyUserFees.add(yusd, log.fee, METRIC.MINT_REDEEM_FEES)
-    dailySupplySideRevenue.add(yusd, log.fee, "Mint/Redeem Fees to Insurance Fund")
+
+  mintLogs.concat(redeemLogs).forEach((log: any) => {
+    dailyFees.add(config.yusd, log.fee, METRIC.MINT_REDEEM_FEES)
+    dailyUserFees.add(config.yusd, log.fee, METRIC.MINT_REDEEM_FEES)
+    dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.yusdMintRedeem)
   })
-  return {
-    dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue,
-    dailyUserFees
+
+  const instantTargets = activeVaults.filter(({ instant }) => instant).map(({ target }) => target)
+
+  const vaultYield = await getERC4626VaultsYield({ options, vaults: vaultTargets });
+  dailyFees.addBalances(vaultYield, METRIC.ASSETS_YIELDS)
+  dailySupplySideRevenue.addBalances(vaultYield, METRICS.syusdStakersYield)
+
+  if(instantTargets.length > 0){
+    const instantLogs = await options.getLogs({ targets: instantTargets, eventAbi: abi.instantUnstaking });
+    instantLogs.forEach((log: any) => {
+      dailyFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
+      dailyUserFees.add(config.yusd, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
+      dailySupplySideRevenue.add(config.yusd, log.fee, METRICS.syusdInstantUnstaking)
+    })
   }
+
+  return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue, dailyUserFees }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch: fetch,
-  adapter: chainContracts,
+  pullHourly: true,
+  allowNegativeValue: true,
+  adapter: chainConfig,
+  fetch,
   methodology: {
-    Fees: "The yield generated from funds deposited into YUSD + Mint and Redeem fees",
-    Revenue: "No revenue",
-    SupplySideRevenue: "The yield generated from funds deposited into YUSD is distributed to holders",
-    UserFees: "Fees paid on mint and redemption"
+    Fees: "YUSD holder yield, sYUSD vault yield, YUSD mint and redeem fees, and sYUSD instant unstaking fees.",
+    Revenue: "No protocol revenue is counted.",
+    SupplySideRevenue: "YUSD holder rewards, YUSD fees kept in the insurance fund, and yield earned by sYUSD stakers.",
+    UserFees: "YUSD mint, redeem, and sYUSD instant unstaking fees paid by users.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "The yield generated from funds deposited into YUSD",
-      [METRIC.MINT_REDEEM_FEES]: "Fees charged on mint and redemption"
+      [METRIC.ASSETS_YIELDS]: "Yield earned by YUSD holders and sYUSD stakers.",
+      [METRIC.MINT_REDEEM_FEES]: "Fees charged when users mint or redeem YUSD.",
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees charged when users instant-unstake sYUSD.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "The yield generated from funds deposited into YUSD",
-      "Mint/Redeem Fees to Insurance Fund": "The mint and redeem fees are sent to the insurance fund",
-    }
-  }
+      [METRICS.yusdHoldersYield]: "YUSD rewards distributed to YUSD holders.",
+      [METRICS.yusdInsuranceYield]: "YUSD yield kept in the insurance fund.",
+      [METRICS.yusdMintRedeem]: "YUSD mint and redeem fees kept in the insurance fund.",
+      [METRICS.syusdStakersYield]: "Yield earned by sYUSD stakers.",
+      [METRICS.syusdInstantUnstaking]: "sYUSD instant unstaking fees kept in the insurance fund.",
+    },
+  },
 }
+
 export default adapter

@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import BigNumber from "bignumber.js";
 import { ethers } from "ethers";
 
@@ -94,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
     const amount = parsed.args.gasFeeAmount || parsed.args.nativeGasAmount;
     if (!amount) continue;
     const gasToken = parsed.args.gasToken || "0x0000000000000000000000000000000000000000";
-    dailyFees.add(gasToken, amount.toString());
+    dailyFees.add(gasToken, amount.toString(), METRIC.TRANSACTION_GAS_FEES);
   }
 
   let totalRefunded = new BigNumber(0);
@@ -105,7 +106,7 @@ const fetch = async (options: FetchOptions) => {
     totalRefunded = totalRefunded.plus(refundedAmount);
 
     const token = parsed?.args.token || "0x0000000000000000000000000000000000000000";
-    dailyFees.add(token, `-${refundedAmount.toString()}`);
+    dailyFees.add(token, `-${refundedAmount.toString()}`, "Gas Refunds");
   }
 
   totalWei = totalWei.minus(totalRefunded);
@@ -118,8 +119,16 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees paid by users for cross-chain contract calls, express calls, and with-token calls through Axelar bridge',
+    "Gas Refunds": 'Refunds issued to users when transactions fail or gas is overpaid (shown as negative to reduce total fees)',
+  }
+};
+
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2022-02-01" },
@@ -138,9 +147,10 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]: { start: "2023-10-10" },
   },
   methodology: {
-    Fees: 'Total gas fees paid by users(excluding gas refunds)',
-    Revenue: 'Axelar doesnt collect any fee'
-  }
+    Fees: 'Total gas fees paid by users (excluding gas refunds)',
+    Revenue: "Axelar doesn't collect any fee"
+  },
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -11,7 +11,7 @@ interface IFees {
   revenue_in_usd: number;
 }
 
-const fetchFees = async (_a: any, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const res: IFees[] = (await httpGet(url)).query_result.data.rows;
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const dailyItem = res.find(item => item.block_date === dateStr)
@@ -51,12 +51,9 @@ const fetchFees = async (_a: any, _t: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: '2021-09-18',
-    }
-  },
+  chains: [CHAIN.SOLANA],
+  fetch,
+  start: '2021-09-18',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {

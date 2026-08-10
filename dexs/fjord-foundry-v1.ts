@@ -11,7 +11,9 @@ const v1ChainIDs: any = {
     [CHAIN.ARBITRUM]: 42161,
 };
 
-const getV1Data = async (endTimestamp: number, chainId: number) => {
+const fetch = async (options: FetchOptions) => {
+    const endTimestamp = options.toTimestamp;
+    const chainId = v1ChainIDs[options.chain];
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalVolume = (await fetchURL(feeEndpointV1))
 
@@ -31,7 +33,7 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
+                fetch,
                 start: '2021-09-17',
             },
         }

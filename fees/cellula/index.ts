@@ -10,7 +10,7 @@ const LIFE_ABI = "event FeedEvent(uint256 tokenId, uint256 startTime, uint256 wo
 const methodology = {
   Fees: "The cost of renting a Cell.",
   Revenue: "The sum of life charging fees and life mint fees.",
-  Protocolrevenue: "Share of 25% of life charging fees and life mint fees.",
+  ProtocolRevenue: "Share of 25% of life charging fees and life mint fees.",
   HoldersRevenue: "Share of 5% of life charging fees and life mint fees.",
   SupplySideRevenue: "Share of 70% of life charging fees and life mint fees.",
 };
@@ -62,6 +62,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology
 }
 

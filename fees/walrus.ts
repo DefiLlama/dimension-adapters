@@ -35,11 +35,11 @@ const ALLIUM_QUERY = (fromTime: string, toTime: string) => `
 
 `
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
-  const fromTime = new Date(timestamp * 1000).toISOString().split('T')[0]
-  const toTime = new Date((timestamp + 24 * 3600) * 1000).toISOString().split('T')[0]
+  const fromTime = new Date(options.toTimestamp * 1000).toISOString().split('T')[0]
+  const toTime = new Date((options.toTimestamp + 24 * 3600) * 1000).toISOString().split('T')[0]
   
   const query = ALLIUM_QUERY(fromTime, toTime)
   const checkpoints = await queryAllium(query)
@@ -62,8 +62,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: 'Users payd fees for data storage.',
-    UserFees: 'Users payd fees for data storage.',
+    Fees: 'Fees paid by users for data storage.',
+    UserFees: 'Fees paid by users for data storage.',
     Revenue: 'Fees paid for data storage are locked and distributed over time to storage providers',
   },
 }

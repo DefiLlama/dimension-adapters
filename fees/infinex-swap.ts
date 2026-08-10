@@ -6,23 +6,29 @@ import {
   getSolanaReceived,
 } from "../helpers/token";
 
-const EVM_FEE_COLLECTOR = "0x1dd9eef96646ad40d58da28d1878e7f223d5e8ba";
-const SOLANA_FEE_COLLECTOR = "7BLh5LjJToh81ZZZyYC4aCv7cHzXgdfhHYyqLtdbuYdt";
+const EVM_FEE_COLLECTORS = [
+  "0x1dd9eef96646ad40d58da28d1878e7f223d5e8ba",
+  "0xd32c062c12C2D10BeC0187DD334cC15E0367f9AC",
+];
+const SOLANA_FEE_COLLECTORS = [
+  "7BLh5LjJToh81ZZZyYC4aCv7cHzXgdfhHYyqLtdbuYdt",
+  "7vp7ShRHw6heQJfuVE5GDQrUbooLkWKsgAezRj2Zad1L",
+];
 
-const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  // Collect every ERC-20 token transfer routed to the fee collector
+  // Collect every ERC-20 token transfer routed to the fee collectors
   await addTokensReceived({
     options,
-    target: EVM_FEE_COLLECTOR,
+    targets: EVM_FEE_COLLECTORS,
     balances: dailyFees,
   });
 
   // Add any native gas-token transfers (covers direct ETH top ups)
   await getETHReceived({
     options,
-    target: EVM_FEE_COLLECTOR,
+    targets: EVM_FEE_COLLECTORS,
     balances: dailyFees,
   });
 
@@ -33,10 +39,10 @@ const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     options,
-    target: SOLANA_FEE_COLLECTOR,
+    targets: SOLANA_FEE_COLLECTORS,
   });
 
   return {
@@ -53,7 +59,8 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   methodology,
   isExpensiveAdapter: true,

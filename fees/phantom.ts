@@ -16,7 +16,8 @@ const solana_fee_wallet_addresses = [
 
 const solana_blacklist_mints = [
   'DWxU1Ew5yjFebSui8xzRYPE3FwgGzp8F1iKcQFyUezJX',
-  '2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F'
+  '2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F',
+  'Dsx5h4jk8vyQjd8B9JF9cydNTz87KgPqUG2QCGH9PjCh',
 ];
 
 // ETH fee wallet addresses
@@ -27,7 +28,7 @@ const eth_fee_wallet_addresses = [
 ];
 
 // Solana fetch function
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getSolanaReceived({
     options,
@@ -39,7 +40,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // ETH fetch function for each chain
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getETHReceived({
     options,
@@ -62,7 +63,8 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   methodology,
   adapter: {
@@ -70,6 +72,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { fetch },
     [CHAIN.BASE]: { fetch },
     [CHAIN.POLYGON]: { fetch },
+    [CHAIN.MONAD]: { fetch },
   },
   isExpensiveAdapter: true
 };

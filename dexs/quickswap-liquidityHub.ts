@@ -1,9 +1,8 @@
-
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetchLiquidityHub = async (_a: any, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyResult = await fetchURL(
     "https://hub.orbs.network/analytics-daily/v1",
   );
@@ -17,12 +16,11 @@ const fetchLiquidityHub = async (_a: any, _: any, options: FetchOptions) => {
   };
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: fetchLiquidityHub,
-      start: '2023-09-18',
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2023-09-18',
 }
+
+export default adapter;

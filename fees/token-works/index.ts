@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, FetchResultV2 } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics';
 import { getETHReceived } from '../../helpers/token';
-import fetchURL from '../../utils/fetchURL';
+import { getConfig } from '../../helpers/cache';
 
 const PKSTR_TOKEN = '0xc50673EDb3A7b94E8CAD8a7d4E0cD68864E33eDF'
 
@@ -11,7 +11,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const pkstrTokenTreasuryRevenue = options.createBalances();
 
   const strategies: { name: string, id: string, hook: string, poolId: string, tokenAddress: string, collection: string }[] = [];
-  const strategiesres = await fetchURL('https://www.nftstrategy.fun/api/strategies');
+  const strategiesres = await getConfig('token-works/strategies', 'https://www.nftstrategy.fun/api/strategies');
 
   for (const strategy of strategiesres) {
     strategies.push({
@@ -19,7 +19,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       name: strategy.collectionName,
       hook: strategy.hook,
       poolId: strategy.poolId,
-      tokenAddress: strategy.tokenAddress,
+      tokenAddress: strategy.tokenContract,
       collection: strategy.collection
     });
   }
@@ -74,6 +74,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   dependencies: [Dependencies.ALLIUM],

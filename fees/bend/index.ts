@@ -95,7 +95,9 @@ const _getWhitelistedVaults = async () => {
                   }
               }
           }
-      `);
+      `, undefined, {
+    "x-graphql-client-name": "Defillama.dimension-adapters",
+  });
   return data.polGetRewardVaults.vaults.map((v: RewardVault) => v.stakingTokenAddress);
 }
 
@@ -106,7 +108,7 @@ const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<Morpho
     target: CONFIG.blue,
     eventAbi: abi.morphoBlueEvents.CreateMarket,
     fromBlock: CONFIG.fromBlock,
-		cacheInCloud: true,
+    cacheInCloud: true,
   });
 
   const marketIds = events.map(event => event.id)
@@ -264,6 +266,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: methodology,
   breakdownMethodology: {
     Fees: {

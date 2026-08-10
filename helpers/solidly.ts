@@ -3,6 +3,7 @@ import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter, } from "../adapters/ty
 import { createFactoryExports } from "../factory/registry";
 import { CHAIN } from "./chains";
 import { filterPools2 } from './uniswap';
+import { METRIC } from './metrics';
 
 const TOPIC_Notify = 'event NotifyReward(address indexed from, address indexed reward, uint indexed epoch, uint amount)';
 
@@ -27,7 +28,6 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
 
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
-    const dailyBribesRevenue = createBalances()
 
     let lpTokens = await api.fetchList({ lengthAbi: ABIs.allPairsLength, itemAbi: ABIs.allPairs, target: FACTORY_ADDRESS });
 
@@ -59,11 +59,14 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
     bribeAndFeeLogs.forEach((e: any, idx: number) => {
       const voterGauge = voterGauges[idx].toLowerCase()
       e.forEach((l: any) => {
-        if (l.from.toLowerCase() !== voterGauge)
-          dailyBribesRevenue.add(l.reward, l.amount)
-        else
-          dailyRevenue.add(l.reward, l.amount)
-
+        if (l.from.toLowerCase() !== voterGauge) {
+          dailyFees.add(l.reward, l.amount, "Bribes from other protocols")
+          dailyRevenue.add(l.reward, l.amount, "Bribes from other protocols")
+        }
+        else {
+          dailyFees.add(l.reward, l.amount, "Gauge emissions")
+          dailyRevenue.add(l.reward, l.amount, "Gauge emissions")
+        }
       })
     })
 
@@ -72,12 +75,12 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
       const token1 = token1s[index]
       tradefeeLogs[index]
         .map((p: any) => {
-          dailyFees.add(token0, p.amount0)
-          dailyFees.add(token1, p.amount1)
+          dailyFees.add(token0, p.amount0, METRIC.SWAP_FEES)
+          dailyFees.add(token1, p.amount1, METRIC.SWAP_FEES)
         })
     });
 
-    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, };
   }
 }
 

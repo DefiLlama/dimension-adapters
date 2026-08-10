@@ -55,21 +55,49 @@ export const fees_bribes = async ({
 const fetch = async (options: FetchOptions) => {
   const adapter = getUniV3LogAdapter({ factory: '0x03057ae6294292b299a1863420edD65e0197AFEf', ...config })
   const otherMetrics = await adapter(options)
+  const bribes = await fees_bribes(options)
 
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  dailyFees.add(otherMetrics.dailyFees, 'Token Swap Fees')
+  dailyFees.add(bribes, 'Bribes Rewards')
+  
+  dailySupplySideRevenue.add(otherMetrics.dailyFees, 'Token Swap Fees To LPs')
+  dailySupplySideRevenue.add(bribes, 'Bribes Rewards To Voters')
+  
   return {
     ...otherMetrics,
-    dailyBribesRevenue: await fees_bribes(options),
+    dailyFees,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
-    Fees: 'Users pay dynamic fees per swap.',
-    UserFees: 'Users pay dynamic fees per swap.',
-    Revenue: 'No revenue',
+    Fees: 'Users pay dynamic fees per swap plus bribes rewards deposited for Ocelex gauges.',
+    UserFees: 'Users pay dynamic fees per swap plus bribes rewards deposited for Ocelex gauges.',
+    Revenue: 'No protocol revenue.',
     ProtocolRevenue: 'No protocol revenue.',
-    SupplySideRevenue: 'Swap fees distributed to LPs.',
+    SupplySideRevenue: 'Swap fees distributed to LPs plus bribes rewards distributed to voters.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Dynamic swap fees paid by users on Ocelex pools.',
+      'Bribes Rewards': 'Bribes rewards deposited into Ocelex external bribe contracts.',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Dynamic swap fees paid by users on Ocelex pools.',
+      'Bribes Rewards': 'Bribes rewards deposited into Ocelex external bribe contracts.',
+    },
+    SupplySideRevenue: {
+      'Token Swap Fees To LPs': 'Swap fees distributed to Ocelex LPs.',
+      'Bribes Rewards To Voters': 'Bribes rewards distributed to Ocelex voters.',
+    },
   },
   adapter: {
     [CHAIN.ZIRCUIT]: { fetch, start: '2024-09-27' },

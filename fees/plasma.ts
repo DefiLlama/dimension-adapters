@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `

@@ -1,9 +1,10 @@
 import ADDRESSES from './coreAssets.json'
 import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
-import { queryIndexer, toByteaArray } from "../helpers/indexer";
+import { queryClickhouse, queryIndexer, toByteaArray } from "../helpers/indexer";
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
+import { Row } from "@clickhouse/client";
 
 const feeWallet = '0x4200000000000000000000000000000000000011';
 const l1FeeVault = '0x420000000000000000000000000000000000001a';
@@ -60,36 +61,133 @@ export function L2FeesFetcher({
 }
 
 
-export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: string) => {
-    const chainName = chain_name || options.chain;
-	const ROLLUP_ECONOMICS_NAME_MAP: any = {
-		// EVM
-		[CHAIN.ARBITRUM]: 'arbitrum',
-		[CHAIN.ABSTRACT]: 'abstract',
-		[CHAIN.BASE]: 'base',
-		[CHAIN.BLAST]: 'blast',
-		[CHAIN.LINEA]: 'linea',
-		[CHAIN.MANTLE]: 'mantle',
-		[CHAIN.OPTIMISM]: 'op mainnet',
-		[CHAIN.SCROLL]: 'scroll',
-		// [CHAIN.MODE]: 'mode',
-		// [CHAIN.IMX]: 'imx',
-		[CHAIN.METIS]: 'metis',
-		[CHAIN.MANTA]: 'manta pacific',
-		[CHAIN.ERA]: 'zksync era',
-		[CHAIN.FRAXTAL]: 'fraxtal',
-		[CHAIN.BOBA]: 'boba',
-		[CHAIN.POLYGON_ZKEVM]: 'polygon zkevm',
-		[CHAIN.ZORA]: 'zora',
-		[CHAIN.LYRA]: 'lyra',
-		[CHAIN.OP_BNB]: 'opbnb',
+// Common rollup -> name mapping used by both the hybrid ClickHouse path and
+// the Dune fallback path. Maps to the rollup label in Dune's
+// `rollup_economics_ethereum.l1_fees` Spellbook table.
+const ROLLUP_ECONOMICS_NAME_MAP: Record<string, string> = {
+	// EVM
+	[CHAIN.ARBITRUM]: 'arbitrum',
+	[CHAIN.ABSTRACT]: 'abstract',
+	[CHAIN.BASE]: 'base',
+	[CHAIN.BLAST]: 'blast',
+	[CHAIN.LINEA]: 'linea',
+	[CHAIN.MANTLE]: 'mantle',
+	[CHAIN.OPTIMISM]: 'op mainnet',
+	[CHAIN.SCROLL]: 'scroll',
+	// [CHAIN.MODE]: 'mode',
+	// [CHAIN.IMX]: 'imx',
+	[CHAIN.METIS]: 'metis',
+	[CHAIN.MANTA]: 'manta pacific',
+	[CHAIN.ERA]: 'zksync era',
+	[CHAIN.FRAXTAL]: 'fraxtal',
+	[CHAIN.BOBA]: 'boba',
+	[CHAIN.POLYGON_ZKEVM]: 'polygon zkevm',
+	[CHAIN.ZORA]: 'zora',
+	[CHAIN.LYRA]: 'lyra',
+	[CHAIN.OP_BNB]: 'opbnb',
+	// Non-EVM
+	[CHAIN.STARKNET]: 'starknet',
+};
 
-		// Non-EVM
-		[CHAIN.STARKNET]: 'starknet',
+// Rollups whose chain data is present in evm_indexer.transactions. For these
+// the heavy L2 `gas.fees` scan moves to ClickHouse; only the tiny pre-
+// aggregated `rollup_economics_ethereum.l1_fees` Spellbook lookup stays on
+// Dune. Chains outside this set fall back to the original Dune-only query.
+// Coverage verified against the live indexer (chain ids 10/204/324/1101/
+// 8453/42161/59144/81457/534352 all present).
+const INDEXER_SUPPORTED_CHAINS = new Set<string>([
+	CHAIN.ARBITRUM,
+	CHAIN.BASE,
+	CHAIN.BLAST,
+	CHAIN.OPTIMISM,
+	CHAIN.OP_BNB,
+	CHAIN.POLYGON_ZKEVM,
+	CHAIN.SCROLL,
+	CHAIN.ERA, // zksync era
+	CHAIN.LINEA,
+	CHAIN.METIS,
+	CHAIN.FRAXTAL,
+]);
+
+// L2 transaction fee sum from indexer v2: gas_used * effective_gas_price per
+// tx. Direct replacement for Dune's `SUM(tx_fee) FROM gas.fees` — Dune's
+// `gas.fees` Spellbook is essentially this same multiplication, just
+// pre-computed for every EVM chain it tracks.
+const SQL_L2_FEES = `
+  SELECT
+    CAST(sum(toDecimal256(gas_used, 0) * toDecimal256(effective_gas_price, 0)) AS String) AS l2_fees_wei
+  FROM evm_indexer.transactions
+  WHERE chain = {chain:UInt64}
+    AND block_number >= {fromBlock:UInt32}
+    AND block_number <  {toBlock:UInt32}
+`;
+
+type L2FeesRow = Row & { l2_fees_wei: string };
+
+// Small Dune query for L1 costs only - scans the tiny pre-aggregated
+// `rollup_economics_ethereum.l1_fees` Spellbook table (~1 row per rollup per
+// day). Negligible scan cost compared to the original `gas.fees` query.
+const buildL1FeesDuneQuery = (rollupName: string, fromTs: number, toTs: number) => `
+  SELECT
+    COALESCE(SUM(data_fee_native), 0) AS l1_calldata_native,
+    COALESCE(SUM(blob_fee_native), 0) AS l1_blob_native,
+    COALESCE(SUM(verification_fee_native), 0) AS l1_verify_native
+  FROM rollup_economics_ethereum.l1_fees
+  WHERE day >= from_unixtime(${fromTs})
+    AND day <= from_unixtime(${toTs - 1})
+    AND name = '${rollupName}'
+`;
+
+export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: string) => {
+	const chainName = chain_name || options.chain;
+	const rollupName = ROLLUP_ECONOMICS_NAME_MAP[options.chain];
+
+	// --- Path A (hybrid) for chains in evm_indexer ---
+	// L2 fees from ClickHouse; L1 calldata/blob/verification still from Dune
+	// but via a tiny Spellbook-only query (no `gas.fees` scan).
+	if (INDEXER_SUPPORTED_CHAINS.has(options.chain) && rollupName) {
+		const fromBlock = Number(options.fromApi.block);
+		const safeBlock = Number(options.toApi.block) - 50;
+
+		const dailyFees = options.createBalances();
+		const dailyRevenue = options.createBalances();
+
+		if (safeBlock <= fromBlock) {
+			return { dailyFees, dailyRevenue };
+		}
+
+		const [l2FeesRows, l1FeesRows] = await Promise.all([
+			queryClickhouse<L2FeesRow>(SQL_L2_FEES, {
+				chain: Number(options.api.chainId),
+				fromBlock,
+				toBlock: safeBlock,
+			}),
+			queryDuneSql(options, buildL1FeesDuneQuery(rollupName, options.startTimestamp, options.endTimestamp)) as Promise<any[]>,
+		]);
+
+		const l2FeesWei = BigInt(l2FeesRows?.[0]?.l2_fees_wei ?? '0');
+		const l1Calldata = Number(l1FeesRows?.[0]?.l1_calldata_native) || 0;
+		const l1Blob     = Number(l1FeesRows?.[0]?.l1_blob_native)     || 0;
+		const l1Verify   = Number(l1FeesRows?.[0]?.l1_verify_native)   || 0;
+		const l1TotalEth = l1Calldata + l1Blob + l1Verify;
+
+		dailyFees.addGasToken(l2FeesWei, METRIC.TRANSACTION_GAS_FEES);
+		dailyRevenue.addGasToken(l2FeesWei, METRIC.TRANSACTION_GAS_FEES);
+		// Subtract L1 cost from revenue. The same Number * 1e18 precision
+		// trick as the original (daily L1 totals are small enough in ETH
+		// terms that the rounding is invisible at human-readable scale).
+		if (l1TotalEth > 0) {
+			dailyRevenue.addGasToken(-l1TotalEth * 1e18);
+		}
+
+		return { dailyFees, dailyRevenue };
 	}
 
-	const rollup_chain_name = ROLLUP_ECONOMICS_NAME_MAP[options.chain];
-    const query = `WITH
+	// --- Fallback: chains not in evm_indexer (abstract, boba, mantle,
+	// zora-chain, manta, lyra, starknet, ...). Keeps the original Dune-only
+	// behavior verbatim. Heavier than the hybrid path but covers chains the
+	// indexer doesn't index. ---
+	const query = `WITH
 		l2_fees_cte AS (
 		SELECT
 			SUM(tx_fee) AS l2_fees,
@@ -110,7 +208,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		FROM rollup_economics_ethereum.l1_fees
 		WHERE day >= from_unixtime(${options.startTimestamp})
 			AND day <= from_unixtime(${options.endTimestamp - 1})
-			AND name = '${rollup_chain_name}'
+			AND name = '${rollupName}'
 		)
 		SELECT
 			COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) AS total_fee,
@@ -139,7 +237,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 };
 
 function l2FeesDuneAdapter(chain: string, start: string, chainName?: string, methodology?: Record<string, string>): Adapter {
-	const fetch = async (_a: any, _b: any, options: FetchOptions) => fetchL2FeesWithDune(options, chainName);
+	const fetch = async (options: FetchOptions) => fetchL2FeesWithDune(options, chainName);
 	return {
 		version: 1, fetch, chains: [chain], start,
 		protocolType: ProtocolType.CHAIN, dependencies: [Dependencies.DUNE],

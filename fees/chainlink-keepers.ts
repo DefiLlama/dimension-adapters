@@ -168,6 +168,7 @@ const fetch = async ({ createBalances, api, fromApi, toApi, getLogs }: FetchOpti
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: addresses,
   allowNegativeValue: true, // payments are lower than gas fees paid

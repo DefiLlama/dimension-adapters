@@ -80,7 +80,7 @@ async function fetchAllTrades(
   return allTrades;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const subgraphUrl = SUBGRAPH_URLS[options.chain];
   if (!subgraphUrl) {
     throw new Error(`No subgraph URL found for chain: ${options.chain}`);

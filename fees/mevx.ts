@@ -18,13 +18,13 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-07-27',
     },
   },
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "All trading fees paid by users while using Mevx bot.",

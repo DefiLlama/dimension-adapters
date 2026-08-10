@@ -1,7 +1,9 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
+import { METRIC } from '../../helpers/metrics';
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
@@ -31,13 +33,13 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
   buyLogs.forEach((log) => {
     const amount = log.amountBase;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(HONEY, fee);
+    totalFees.add(HONEY, fee, METRIC.TRADING_FEES);
   });
 
   sellLogs.forEach((log) => {
     const amount = log.amountToken;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(BERO, fee);
+    totalFees.add(BERO, fee, METRIC.TRADING_FEES);
   });
 }
 
@@ -50,7 +52,7 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
   borrowLogs.forEach((log) => {
     const amount = log.amount;
     const fee = (amount * BORROW_FEE) / DIVISOR;
-    totalFees.add(HONEY, fee);
+    totalFees.add(HONEY, fee, METRIC.BORROW_INTEREST);
   });
 }
 
@@ -62,7 +64,7 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
 
   const bribes = await options.api.multiCall({
     abi: "function getBribe() returns (address)",
-    calls: plugins.map((plugin) => ({
+    calls: plugins.map((plugin: any) => ({
       target: plugin,
     })),
   });
@@ -75,7 +77,7 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
     });
 
     logs.forEach((log) => {
-      totalFees.add(log.rewardToken, log.reward);
+      totalFees.add(log.rewardToken, log.reward, "Bribes from external protocols");
     });
   }
 }
@@ -93,49 +95,92 @@ async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
       "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
     topics: [
       DISTRIBUTED_TOPIC_0,
-      null,
-      null,
+      null as any,
+      null as any,
       ethers.zeroPadValue(BERADROME_REWARD_VAULT, 32),
     ],
   });
 
   for (const log of logs) {
-    balances.add(BGT_ADDRESS, log.amount);
+    balances.add(BGT_ADDRESS, log.amount, "BGT staking rewards");
   }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances();
-  const dailyBribesRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
+  const bondingCurveFees = options.createBalances()
+  const borrowFees = options.createBalances()
+  const bribes = options.createBalances()
+  const holdersRevenue = options.createBalances()
+  
   // Fees
-  await addBondigCurveFees(options, dailyFees);
-  await addBorrowFees(options, dailyFees);
+  await addBondigCurveFees(options, bondingCurveFees);
+  await addBorrowFees(options, borrowFees);
 
   // Bribes
-  await addBribes(options, dailyBribesRevenue);
+  await addBribes(options, bribes);
 
   // Holders Revenue
-  await addHoldersRevenue(options, dailyHoldersRevenue);
+  await addHoldersRevenue(options, holdersRevenue);
+  
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  
+  dailyFees.add(bondingCurveFees, 'Bonding Curve Fees')
+  dailyFees.add(borrowFees, 'Borrow Fees')
+  dailyFees.add(bribes, 'Bribes Rewards')
+  dailyFees.add(holdersRevenue, 'BGT Staking Rewards')
 
-  return { dailyFees, dailyBribesRevenue, dailyHoldersRevenue };
+  dailySupplySideRevenue.add(bondingCurveFees, 'Bonding Curve Fees')
+  dailySupplySideRevenue.add(borrowFees, 'Borrow Fees')
+  
+  dailyHoldersRevenue.add(bribes, 'Bribes Revenue')
+  dailyHoldersRevenue.add(holdersRevenue, 'BGT Staking Rewards')
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
+  };
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Bonding Curve Fees': "Fees paid when buying or selling BERO through the bonding curve, charged at 0.3% of traded amount.",
+    'Borrow Fees': "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount.",
+    'Bribes Rewards': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
+  },
+  Revenue: {
+    'Bribes Revenue': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
+  },
+  HoldersRevenue: {
+    'Bribes Revenue': "Incentives paid by external protocols to Beradrome voters through plugin bribe contracts.",
+    'BGT Staking Rewards': "BGT rewards distributed through the Beradrome Reward Vault.",
+  },
+  SupplySideRevenue: {
+    'Bonding Curve Fees': "Fees paid when buying or selling BERO through the bonding curve, charged at 0.3% of traded amount.",
+    'Borrow Fees': "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount.",
+  },
+};
+
 const adapter: Adapter = {
-  adapter: {
-    berachain: {
-      fetch,
-      start: "2025-02-06",
-    },
-  },
   version: 2,
+  fetch,
+  chains: [CHAIN.BERACHAIN],
+  start: "2025-02-06",
+  pullHourly: true,
   methodology: {
-    Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
-    BribesRevenue: "Bribes from plugins distributed to holders.",
-    HoldersRevenue:
-      "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
+    Fees: "BERO bonding curve fees, HONEY borrow fees, bribes rewards from plugin bribe contracts, and BGT staking rewards distributed through the Beradrome Reward Vault.",
+    Revenue: "Bribes revenue from plugin bribe contracts plus BGT staking rewards distributed through the Beradrome Reward Vault.",
+    HoldersRevenue: "Bribes revenue from plugin bribe contracts plus BGT staking rewards distributed through the Beradrome Reward Vault.",
+    SupplySideRevenue: "BERO bonding curve fees and HONEY borrow fees.",
+    ProtocolRevenue: "No protocol revenue.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;

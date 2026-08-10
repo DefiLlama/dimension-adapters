@@ -96,8 +96,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (vaultInfoOld && vaultInfoNew) {
       const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
       if (vaultRateIncrease > 0) {
-        dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18),METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18), METRIC.ASSETS_YIELDS);
+        dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalSupply * vaultRateIncrease / BigInt(1e18),METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(vaultInfoOld.asset, vaultInfoOld.totalSupply * vaultRateIncrease / BigInt(1e18), METRIC.ASSETS_YIELDS);
       }
     }
   }
@@ -139,6 +139,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,

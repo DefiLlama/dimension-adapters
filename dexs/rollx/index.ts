@@ -13,7 +13,7 @@ const chainConfig = {
   },
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const res = (
     await httpGet(v2VolumeAPI, { params: { chain: options.chain, timestamp: options.startOfDay } })
   ) as { data: { dailyVolume: number }, success: boolean }

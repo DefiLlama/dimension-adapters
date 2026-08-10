@@ -12,7 +12,7 @@ interface IAPIResponse {
   last_updated: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
   const { volume_usd: dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${dateString}`));
   return {

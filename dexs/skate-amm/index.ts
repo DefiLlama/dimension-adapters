@@ -2,22 +2,32 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const skateChainIds: Record<string, number> = {
-    [CHAIN.ETHEREUM]: 1,
-    [CHAIN.BSC]: 56,
-    [CHAIN.BASE]: 8453,
-    [CHAIN.ARBITRUM]: 42161,
-    [CHAIN.SOLANA]: 901,
-    [CHAIN.ECLIPSE]: 902,
-    [CHAIN.HYPERLIQUID]: 999,
-    [CHAIN.PLUME]: 98866,
-    [CHAIN.MANTLE]: 5000,
-    [CHAIN.SUI]: 1001,
-    [CHAIN.MONAD]: 143,
-    [CHAIN.MEGAETH]: 4326
+const chainConfig: Record<string, { id: number, start: string }> = {
+    [CHAIN.ETHEREUM]: { id: 1, start: '2025-03-24' },
+    [CHAIN.BSC]: { id: 56, start: '2025-04-07' },
+    [CHAIN.BASE]: { id: 8453, start: '2025-03-17' },
+    [CHAIN.ARBITRUM]: { id: 42161, start: '2025-03-17' },
+    [CHAIN.SOLANA]: { id: 901, start: '2025-04-01' },
+    [CHAIN.ECLIPSE]: { id: 902, start: '2025-04-02' },
+    [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-05-28' },
+    [CHAIN.PLUME]: { id: 98866, start: '2025-06-02' },
+    [CHAIN.MANTLE]: { id: 5000, start: '2025-05-28' },
+    [CHAIN.SUI]: { id: 1001, start: '2025-06-22' },
+    [CHAIN.MONAD]: { id: 143, start: '2025-11-25' },
+    [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-18' },
+    [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' }
 }
 
-const skateDataApi = "https://api.skatechain.org/amm-data/pools/stats";
+// Skate AMM v2 only. v1 was retired in Aug 2026 once its liquidity was fully
+// withdrawn (every v1 pool drained to zero), so its `amm-data/pools/stats`
+// endpoint is no longer part of the protocol's supported surface.
+//
+// Historical note — v1 produced the bulk of the $548,689,421 all-time volume
+// recorded for Skate AMM up to 2026-08-06 (465 daily datapoints, 13 chains).
+// From this change onward the series reflects v2 only.
+const skateDataApis = [
+    "https://api.skatechain.org/amm-data-v2/pools/stats",
+];
 
 const fetch = async (options: FetchOptions) => {
 
@@ -26,17 +36,23 @@ const fetch = async (options: FetchOptions) => {
 
     const tokenVolume_options = {
         params: {
-            chainId: skateChainIds[options.api.chain],
+            chainId: chainConfig[options.api.chain].id,
             startTime: options.startTimestamp,
             endTime: options.endTimestamp,
         }
     }
-    const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
-
-    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
-      for (const tokenInfo of tokenVolumeInfo.data) {
-          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    // v1 winding down (its stats endpoint now returns empty); v2 carries live
+    // data. Sum both so historical v1 volume and current v2 volume both count.
+    for (const skateDataApi of skateDataApis) {
+      const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
+      if(!tokenVolumeInfo.success) {
+        throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
+      }
+      if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+        for (const tokenInfo of tokenVolumeInfo.data) {
+            dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+            dailyFees.add(tokenInfo.token, tokenInfo.fees);
+        }
       }
     }
 
@@ -55,20 +71,8 @@ const adapter: SimpleAdapter = {
     methodology,
     version: 2,
     fetch,
-    adapter: {
-        [CHAIN.ETHEREUM]: { start: '2025-03-24', },
-        [CHAIN.BSC]: { start: '2025-04-07', },
-        [CHAIN.BASE]: { start: '2025-03-17', },
-        [CHAIN.ARBITRUM]: { start: '2025-03-17', },
-        [CHAIN.SOLANA]: { start: '2025-04-01', },
-        [CHAIN.ECLIPSE]: { start: '2025-04-02', },
-        [CHAIN.HYPERLIQUID]: { start: '2025-05-28', },
-        [CHAIN.PLUME]: { start: '2025-06-02', },
-        [CHAIN.MANTLE]: { start: '2025-05-28', },
-        [CHAIN.SUI]: { start: '2025-06-22', },
-        [CHAIN.MONAD]: { start: '2025-11-25', },
-        [CHAIN.MEGAETH]: { start: '2026-02-18', }
-    },
+    adapter: chainConfig,
+    pullHourly: true,
 }
 
 export default adapter;

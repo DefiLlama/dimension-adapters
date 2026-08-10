@@ -11,7 +11,7 @@ const methodology = {
   ProtocolRevenue: 'Share of 1/6 of swap fees are revenue to protocol.',
 }
 
-const fetch = async (_a: number , _b: any, { startOfDay }: FetchOptions) => {
+const fetch = async ({ startOfDay }: FetchOptions) => {
   let dailyVolume = 0
   let dailyFees = 0
   let dailyRevenue = 0
@@ -58,12 +58,9 @@ const fetch = async (_a: number , _b: any, { startOfDay }: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch,
-      start: '2023-11-04',
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: '2023-11-04',
   methodology,
 };
 

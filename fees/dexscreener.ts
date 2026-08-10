@@ -8,8 +8,11 @@ import CoreAssets from "../helpers/coreAssets.json";
 const sol = async (options: FetchOptions) => {
     const dailyFees = await getSolanaReceived({
         options,
+        // Listings/boosts are paid in both USDC and native SOL into the same wallets;
+        // SOL payments are the larger share, so track both mints.
         mints: [
-            CoreAssets.solana.USDC, // track USDC only
+            CoreAssets.solana.USDC,
+            CoreAssets.solana.SOL,
         ],
         targets: [
             '23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft',
@@ -27,6 +30,7 @@ const adapter: Adapter = {
         ProtocolRevenue: 'All fees collected by Dexscreener.',
     },
     version: 2,
+    pullHourly: true,
     dependencies: [Dependencies.ALLIUM],
     adapter: {
         [CHAIN.SOLANA]: {

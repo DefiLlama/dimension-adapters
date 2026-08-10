@@ -131,19 +131,24 @@ async function getPoolInfo(
 }
 
 /**
- * Get fees and bribes
- * - dailyFees: ALL token transfers into depots
- * - dailyBribesRevenue: transfers NOT from the actual Uniswap V3 pool
+ * Get all reward depot transfers.
+ * Pool fee transfers and bribes both accrue to HERMES holders, so each transfer
+ * is added once to fees, revenue, and holders revenue.
  */
-async function getFeesAndBribes(
+async function getDepotRewards(
   gauges: string[],
   gaugeToPool: Map<string, string>,
   poolInfo: Map<string, PoolInfo>,
   fetchOptions: FetchOptions
-): Promise<{ dailyFees: sdk.Balances; dailyBribesRevenue: sdk.Balances }> {
+): Promise<{
+  dailyFees: sdk.Balances;
+  dailyRevenue: sdk.Balances;
+  dailyHoldersRevenue: sdk.Balances;
+}> {
   const { createBalances, getLogs, api } = fetchOptions;
   const dailyFees = createBalances();
-  const dailyBribesRevenue = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   // Get MultiRewardsDepot for each gauge
   const depots = await api.multiCall({
@@ -152,7 +157,7 @@ async function getFeesAndBribes(
     permitFailure: true,
   });
   
-  // Build depot -> actual pool mapping and collect valid depots
+  // Build depot -> actual pool mapping and collect valid reward depots
   const depotToPool = new Map<string, string>();
   const validDepots: string[] = [];
 
@@ -172,7 +177,7 @@ async function getFeesAndBribes(
   });
   
   if (!validDepots.length) {
-    return { dailyFees, dailyBribesRevenue };
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue };
   }
 
   // Get all tokens registered with each depot via AssetAdded events
@@ -198,7 +203,7 @@ async function getFeesAndBribes(
     }
   });
   
-  // Fetch Transfer logs for each depot's tokens and process into both balances
+  // Fetch Transfer logs for each depot's tokens and process into balances
   for (const [depot, tokens] of depotTokens.entries()) {
     const pool = depotToPool.get(depot);
     const tokenArray = Array.from(tokens);
@@ -225,18 +230,20 @@ async function getFeesAndBribes(
 
         if (!value) return;
 
-        // Add to dailyFees
-        dailyFees.add(token, value);
-
-        // Add to dailyBribesRevenue only if not from the actual pool
         if (from !== pool) {
-          dailyBribesRevenue.add(token, value);
+          dailyFees.add(token, value, "Bribes Rewards");
+          dailyRevenue.add(token, value, "Bribes Revenue");
+          dailyHoldersRevenue.add(token, value, "Bribes Revenue");
+        } else {
+          dailyFees.add(token, value, "Pool Rewards");
+          dailyRevenue.add(token, value, "Pool Revenue");
+          dailyHoldersRevenue.add(token, value, "Pool Revenue");
         }
       });
     });
   }
 
-  return { dailyFees, dailyBribesRevenue };
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue };
 }
 
 /**
@@ -253,23 +260,20 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   const pools = Array.from(new Set(gaugeToPool.values()));
   const poolInfo = await getPoolInfo(pools, api);
   
-  // Step 3: Get fees and bribes
-  const { dailyFees, dailyBribesRevenue } = await getFeesAndBribes(
+  // Step 3: Get fees and bribes paid to reward depots
+  const { dailyFees, dailyRevenue, dailyHoldersRevenue } = await getDepotRewards(
     gauges,
     gaugeToPool,
     poolInfo,
     fetchOptions
   );
 
-  const dailyHoldersRevenue = dailyFees.clone();
-
   return {
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailyBribesRevenue,
   };
 };
 
@@ -277,13 +281,13 @@ const methodology = {
   Fees: "All token transfers into MultiRewardsDepot contracts originating from pools and bribes",
   Revenue: "100% of fees distributed to governance token holders are revenue.",
   ProtocolRevenue: "0 - Protocol earns via HERMES emissions DAO share",
-  HoldersRevenue: "100% of fees distributed to governance token holders",
+  HoldersRevenue: "100% of fees and bribes distributed to governance token holders",
   SupplySideRevenue: "0 - LPs earn via HERMES emissions",
-  BribesRevenue: "Token transfers into MultiRewardsDepot contracts as voting incentives (excluding fee distributions from pools)",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
@@ -291,6 +295,20 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "Pool Rewards": "Pool fee distributions transferred from Uniswap V3 pools into MultiRewardsDepot contracts.",
+      "Bribes Rewards": "Token transfers into MultiRewardsDepot contracts as voting incentives, excluding fee distributions from pools.",
+    },
+    Revenue: {
+      "Pool Revenue": "Pool fee distributions accrued to HERMES governance token holders.",
+      "Bribes Revenue": "Bribes distributed to HERMES governance token holders.",
+    },
+    HoldersRevenue: {
+      "Pool Revenue": "Pool fee distributions accrued to HERMES governance token holders.",
+      "Bribes Revenue": "Bribes distributed to HERMES governance token holders.",
+    },
+  },
 };
 
 export default adapter;

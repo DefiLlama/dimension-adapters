@@ -4,32 +4,48 @@ import { httpGet } from "../../utils/fetchURL";
 
 const API_BASE = "https://data-api.sodex.com/api/defillama";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const volumeRes = await httpGet(`${API_BASE}/spot/volume?timestamp=${options.startOfDay}`)
   const feesRes = await httpGet(`${API_BASE}/spot/fees?timestamp=${options.startOfDay}`)
   
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(feesRes.dailyFees, 'SoDEX Spot Fees');
+  dailyRevenue.addUSDValue(feesRes.dailyRevenue, 'SoDEX Spot Fees To Protocol');
+  dailySupplySideRevenue.addUSDValue(Number(feesRes.dailyFees) - Number(feesRes.dailyRevenue), 'SoDEX Spot Fees To LPs');
+  
   return {
     dailyVolume: volumeRes.dailyVolume,
-    dailyFees: feesRes.dailyFees,
-    dailyRevenue: feesRes.dailyRevenue,
-    dailySupplySideRevenue: Number(feesRes.dailyFees) - Number(feesRes.dailyRevenue),
-    dailyProtocolRevenue: feesRes.dailyRevenue,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.VALUECHAIN]: {
-      fetch,
-      start: "2025-10-20",
-    },
-  },
+  fetch,
+  chains: [CHAIN.VALUECHAIN],
+  start: "2025-10-20",
   methodology: {
     Fees: "Trading fees collected from spot markets.",
     Revenue: "Protocol revenue after referral payouts.",
     ProtocolRevenue: "Revenue directed to the protocol treasury.",
     SupplySideRevenue: "Fees are distributed to LPs and referrals.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'SoDEX Spot Fees': 'Trading fees collected from perpetual markets',
+    },
+    Revenue: {
+      'SoDEX Spot Fees To Protocol': 'Trading fees collected by protocol.',
+    },
+    SupplySideRevenue: {
+      'SoDEX Spot Fees To LPs': 'Trading fees distributed to LPs.',
+    },
   },
 };
 

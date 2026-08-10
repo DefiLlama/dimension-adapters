@@ -1,11 +1,26 @@
 require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
+import * as sdk from '@defillama/sdk';
 import { AdapterType, SimpleAdapter, } from '../adapters/types';
 import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import { checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
+import { deadChainsSet } from '../helpers/deadChains';
+import { camelCaseToSpaces, checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
 import { importAdapter } from '../adapters/utils/importAdapter';
+
+const DEBUG_MODE = Boolean(process.env.DEBUG_MODE)
+
+function formatHourLabel(timestamp: number) {
+  const d = new Date(timestamp * 1e3)
+  let hour = d.getUTCHours()
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  hour = hour % 12
+  if (hour === 0) hour = 12
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${hour} ${ampm} - ${day}/${month}`
+}
 
 function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -40,9 +55,15 @@ function toTimestamp(timeArg: string) {
   }
 }
 
-// Get path of module import
-const adapterType: AdapterType | string = process.argv[2] as AdapterType
-const moduleArg = process.argv[3]
+// Get path of module import — support "dexs/kodiak-v3" as a single arg
+let adapterType: AdapterType | string = process.argv[2] as AdapterType
+let moduleArg = process.argv[3]
+
+if (!moduleArg && adapterType?.includes('/')) {
+  const parts = adapterType.split('/')
+  adapterType = parts[0] as AdapterType
+  moduleArg = parts.slice(1).join('/')
+}
 
 let adapterModule: SimpleAdapter;
 let usedHelper: string | null | undefined = null;
@@ -50,6 +71,14 @@ let usedHelper: string | null | undefined = null;
 (async () => {
   const file = `${adapterType}/${moduleArg}`
   const passedFile = path.resolve(process.cwd(), `./${file}`);
+
+  // Skip documentation files (e.g., GUIDELINES.md, guidelines)
+  const docFiles = ['guidelines', 'readme', 'changelog'];
+  const baseName = path.basename(moduleArg).toLowerCase().replace('.md', '');
+  if (moduleArg.endsWith('.md') || docFiles.includes(baseName)) {
+    console.info(`Skipping documentation file: ${moduleArg}`);
+    process.exit(0);
+  }
 
   // throw error if module doesnt start with lowercase letters
   if (!/^[a-z0-9]/.test(moduleArg)) {
@@ -84,6 +113,32 @@ let usedHelper: string | null | undefined = null;
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)
 
+  // optional 5th arg: comma separated list of chains to run, if not set, all chains are run
+  const rawChainsArg = process.argv[5]
+  let onlyChains: Set<string> | undefined
+  if (rawChainsArg) {
+    const requestedChains = rawChainsArg.split(',').map((c: string) => c.trim()).filter(Boolean)
+    const adapterChains = Object.keys(module.adapter ?? {})
+    const unknownChains = requestedChains.filter((c: string) => !adapterChains.includes(c))
+    if (unknownChains.length)
+      throw new Error(`Adapter ${moduleArg} has no chain(s): ${unknownChains.join(', ')}. Available: ${adapterChains.join(', ')}`)
+    onlyChains = new Set(requestedChains)
+    console.info(`🦙 Running only these chains: ${requestedChains.join(', ')}\n`)
+  }
+
+  const chainDeadFroms = Object.values(module.adapter ?? {}).map((c: any) => c.deadFrom)
+  const adapterDeadFrom = module.deadFrom
+    ?? (chainDeadFroms.length && chainDeadFroms.every(Boolean) ? chainDeadFroms.sort().pop() : undefined)
+  if (adapterDeadFrom) {
+    const deadFromTimestamp = Math.round(new Date(adapterDeadFrom).getTime() / 1e3)
+    if (deadFromTimestamp < cleanDayTimestamp) {
+      console.info(`🦙 ${moduleArg.toUpperCase()} is dead (deadFrom ${adapterDeadFrom}); skipping run.\n`)
+      process.exit(0)
+    }
+  }
+
+  const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
+
   function mergeAggregated(target: any, source: any) {
     if (!source) return
     for (const [metric, data] of Object.entries(source)) {
@@ -96,6 +151,18 @@ let usedHelper: string | null | undefined = null;
           if (val === undefined || val === null) continue
           dst.chains[chain] = (dst.chains[chain] || 0) + (val as number)
         }
+      }
+    }
+  }
+
+  function mergeBreakdownByLabel(target: any, source: any) {
+    if (!source) return
+    for (const [recordType, labels] of Object.entries(source)) {
+      if (!target[recordType]) target[recordType] = {}
+      const agg = target[recordType]
+      for (const [label, value] of Object.entries(labels as any)) {
+        if (typeof value !== 'number') continue
+        agg[label] = (agg[label] || 0) + value
       }
     }
   }
@@ -143,12 +210,13 @@ let usedHelper: string | null | undefined = null;
   console.info(`---------------------------------------------------\n`)
 
   // Get adapter
-  const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
   const volumes: any = await runAdapter({
     module: adapterModule,
     endTimestamp,
     withMetadata: debugBreakdownFees,
     isTest: true,
+    deadChains: deadChainsSet,
+    onlyChains,
     name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
   })
 
@@ -164,8 +232,17 @@ let usedHelper: string | null | undefined = null;
 
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
 
+    const windowEnd = dayStart + (lastHour + 1) * 3600
+    Object.entries(module.adapter ?? {}).forEach(([chain, chainConfig]: [string, any]) => {
+      if (!chainConfig?.deadFrom) return
+      const deadFromTimestamp = Math.round(new Date(chainConfig.deadFrom).getTime() / 1e3)
+      if (deadFromTimestamp < windowEnd - 24 * 60 * 60)
+        console.info(`Skipping ${chain} because the adapter ended at ${new Date(deadFromTimestamp * 1e3).toUTCString()}`)
+    })
+
     const dailyByChain: Record<string, Record<string, number>> = {}
     const aggregatedDaily: any = {}
+    const aggregatedBreakdownByLabel: any = {}
     const jobs: { hour: number, startTimestamp: number, endTimestamp: number }[] = []
 
     for (let hour = 0; hour <= lastHour; hour++) {
@@ -180,7 +257,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60 }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60, deadChains: deadChainsSet, onlyChains }))
       )
 
       results.forEach((res: any, idx) => {
@@ -191,14 +268,27 @@ let usedHelper: string | null | undefined = null;
         const adaptorRecordV2JSON = res.adaptorRecordV2JSON
         const aggHour = adaptorRecordV2JSON?.aggregated
 
-        console.info(`Slice ${hour}:`)
-        console.info(`Start Date:\t${new Date(startTimestamp * 1e3).toUTCString()}`)
-        console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
-        console.info(`---------------------------------------------------\n`)
-
         const lastPerChain = volumes.map((volume: any) => timestampLast(volume))
 
-        printVolumes2(lastPerChain)
+        if (DEBUG_MODE) {
+          console.info(`Slice ${hour}:`)
+          console.info(`Start Date:\t${new Date(startTimestamp * 1e3).toUTCString()}`)
+          console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
+          console.info(`---------------------------------------------------\n`)
+          printVolumes2(lastPerChain)
+        } else {
+          const parts: string[] = []
+          if (aggHour) {
+            for (const [metric, data] of Object.entries(aggHour)) {
+              const value = (data as any)?.value
+              if (typeof value !== 'number') continue
+              const label = camelCaseToSpaces(metric).replace(/^Daily /, '').toLowerCase()
+              parts.push(`${label} - ${sdk.humanizeNumber(value)}`)
+            }
+          }
+          const slotLabel = `(${hour + 1}/${lastHour + 1})`.padStart(7, ' ')
+          console.info(`${slotLabel} start: ${formatHourLabel(startTimestamp)}    |  ${parts.join(' | ')}`)
+        }
 
         for (const row of lastPerChain) {
           const chain = (row as any).chain
@@ -215,6 +305,7 @@ let usedHelper: string | null | undefined = null;
         }
 
         mergeAggregated(aggregatedDaily, aggHour)
+        mergeBreakdownByLabel(aggregatedBreakdownByLabel, adaptorRecordV2JSON?.breakdownByLabel)
       })
     }
 
@@ -226,6 +317,13 @@ let usedHelper: string | null | undefined = null;
 
     console.info(`\n====== TOTAL DAILY AGGREGATED (sum of slots per chain) ======\n`)
     printVolumes2(dailyRows)
+
+    if (debugBreakdownFees) {
+      const breakdownByLabel = Object.keys(aggregatedBreakdownByLabel).length > 0
+        ? aggregatedBreakdownByLabel
+        : undefined
+      printBreakdownFeesByLabel(breakdownByLabel)
+    }
   }
   
 })().catch((e) => {

@@ -32,6 +32,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
@@ -39,7 +40,6 @@ const adapter: SimpleAdapter = {
       start: '2024-01-01',
     },
   },
-  isExpensiveAdapter: true,
   methodology: {
     Fees: 'All DCA trading fees.',
     Revenue: 'All fees collected by protocol and JUP token holders.',

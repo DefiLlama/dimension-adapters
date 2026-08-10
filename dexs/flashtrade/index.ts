@@ -2,47 +2,33 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-// const marketsCombinedVolumeDaily = "https://api.prod.flash.trade/market-stats";
+const fetch = async (options: FetchOptions) => {
+    const targetDate = options.dateString;
 
-const pools = [
-    "Crypto.1",
-    "Virtual.1",
-    "Governance.1",
-    "Community.1",
-    "Community.2",
-    "Trump.1",
-    "Ore.1",
-    "Remora.1",
-    
-    // keep historical pools
-    "Community.3",
-]
+    // `source=all` returns the protocol's complete trading activity; omitting `poolName`
+    // returns the per-pool breakdown for every pool, so new pools are picked up automatically.
+    const url = `https://api.prod.flash.trade/pnl-info/cumulative-pool-pnl-per-day?startDate=${targetDate}%2000:00:00&endDate=${targetDate}%2023:59:59&source=all`;
+    const res = await fetchURL(url);
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const targetDate = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
+    const poolsForDay: { [poolName: string]: { totalVolume: string } } = res[targetDate];
+
+    if (!poolsForDay) {
+        throw new Error(`No data found for date ${targetDate}`);
+    }
 
     let dailyVolume = 0;
-    for (const pool of pools) {
-        const url = `https://api.prod.flash.trade/pnl-info/cumulative-pnl-per-day?poolName=${pool}&startDate=2023-01-01%2000:00:00&endDate=${targetDate}%2023:59:59`;
-        try {
-            const res = await fetchURL(url);
-            dailyVolume += (res[targetDate]?.totalVolume / 1e6) || 0;
-        } catch {
-            // Treat failures as zero volume and continue with the remaining pools
-            continue;
-        }
+    for (const stats of Object.values(poolsForDay)) {
+        dailyVolume += (Number(stats.totalVolume) / 1e6) || 0;
     }
+
     return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-12-29'
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2023-12-29',
 }
 
 export default adapter;

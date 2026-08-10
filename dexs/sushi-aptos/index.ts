@@ -2,8 +2,16 @@ import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapt
 import { CHAIN } from "../../helpers/chains";
 import { APTOS_RPC, getResources } from '../../helpers/aptos';
 import { httpGet } from "../../utils/fetchURL";
+import asyncRetry from "async-retry";
 const plimit = require('p-limit');
-const limits = plimit(1);
+
+// httpGet with backoff so a transient failure doesn't silently truncate a
+// pool's event walk (getSwapEvent breaks on any thrown error).
+const httpGetRetry = (url: string) => asyncRetry(() => httpGet(url), { retries: 3, minTimeout: 500, maxTimeout: 4000, factor: 2 })
+// APTOS_RPC is a configured (non-public) endpoint, so we can walk pools in
+// parallel instead of one-at-a-time.
+const CONCURRENCY = 5;
+const limits = plimit(CONCURRENCY);
 
 interface ISwapEventData {
   type: string;
@@ -17,6 +25,8 @@ const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
 const account = '0x31a6675cbe84365bf2b0cbce617ece6c47023ef70826533bde5203d32171dc3c';
 
 const fetchVolume: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+  throw new Error("Sushi Aptos adapter is temporarily disabled due to excessive runtime");
+
   const fromTimestamp = options.fromTimestamp
   const toTimestamp = options.toTimestamp;
   const resources = await getResources(account);
@@ -31,10 +41,12 @@ const fetchVolume: FetchV2 = async (options: FetchOptions): Promise<FetchResultV
         counter: e.data.swap.counter,
         creation_num: e.data.swap.guid.id.creation_num,
       },
-      timestamp: e.data.timestamp,
       counter: Number(e.data.swap.counter),
     }
-  }).sort((a, b) => b.counter - a.counter)
+  })
+  // skip pools that have never had a swap event (nothing to page through)
+  .filter(pool => pool.counter > 0)
+  .sort((a, b) => b.counter - a.counter)
   const logs_swap: ISwapEventData[] = (await Promise.all(pools.map(async pool => limits(() => getSwapEvent(pool, fromTimestamp, toTimestamp))))).flat()
   const dailyVolume = options.createBalances();
   logs_swap.map((e: ISwapEventData) => {
@@ -53,13 +65,13 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
     if (start < 0) break;
     const getEventByCreation = `${APTOS_RPC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
-      const event: any[] = await httpGet(getEventByCreation);
+      const event: any[] = await httpGetRetry(getEventByCreation);
       const listSequence: number[] = event.map(e => Number(e.sequence_number));
       const lastMin = Math.min(...listSequence);
       if (!isFinite(lastMin)) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
       const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
-      const block = await httpGet(urlBlock);
+      const block = await httpGetRetry(urlBlock);
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp;
       if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp) {
@@ -84,6 +96,7 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
 const adapter: SimpleAdapter = {
+  pullHourly: true,
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchVolume,

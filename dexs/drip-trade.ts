@@ -14,6 +14,7 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   methodology: {
     Volume: 'NFT sales',

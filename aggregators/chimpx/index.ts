@@ -33,6 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,

@@ -1,34 +1,28 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { DanogoDimensions, } from "./types";
 
 const DANOGO_GATEWAY_ENDPOINT = 'https://danogo-gateway.tekoapis.com/api/v1/defillama-dimensions';
-const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
+// const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
 
-const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => { 
-    const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
-
+const fetchDanogoGatewayData = async (options: FetchOptions): Promise<DanogoDimensions> => {
+    const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${options.toTimestamp}`);
     return response.data;
 }
 
-const fetchData = async (timestamp: number, _:ChainBlocks, { createBalances, }: FetchOptions) => {
-    const { dailyVolumeAdaValue, }= await fetchDanogoGatewayData(timestamp);
-    const dailyVolume = createBalances();
+const fetch = async (options: FetchOptions) => {
+    const { dailyVolumeAdaValue, } = await fetchDanogoGatewayData(options);
+    const dailyVolume = options.createBalances();
     dailyVolume.addGasToken(dailyVolumeAdaValue)
 
-    return {
-        timestamp,
-        dailyVolume,
-    };
+    return { dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        cardano: {
-            fetch: fetchData,
-            start: DANOGO_START_TIMESTAMP,
-        }
-    }
+    chains: [CHAIN.CARDANO],
+    fetch,
+    start: '2023-05-30',
 };
 
 export default adapter;

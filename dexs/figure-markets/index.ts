@@ -1,48 +1,86 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
-const BASE_URL = "https://www.figuremarkets.com/service-hft-exchange/api/v1/markets";
+const FIGURE_MARKET_ID = "1";
+const FEE_RECIPIENT = "pb1aafuyj93xfhs0m3mqzfss29w8darm2xntr6au2spgxjjnx44ghlsfvdkqj";
 
-interface Market {
-  marketType: string;
-  volume24h: string;
-  makerFee?: { rate?: number };
-  takerFee?: { rate?: number };
-}
-
-async function fetch(_a: any, _b: any, options: FetchOptions) {
-  const locations = ["US", "CAYMAN"];
-  const dailyFees = options.createBalances();
+async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  for (const location of locations) {
-    let page = 1;
+  const alliumQuery = `
+    WITH trade_events AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            event_index,
+            MAX(CASE WHEN key = 'price' THEN TRIM(value, '"') END) AS price_raw,
+            MAX(CASE WHEN key = 'source' THEN TRIM(value, '"') END) AS source
+        FROM provenance.raw.event_attributes
+        WHERE event_type = 'provenance.marker.v1.EventSetNetAssetValue'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        GROUP BY 1, 2, 3
+    ),
 
-    while (true) {
-      const response = await fetchURL(`${BASE_URL}?location=${location}&page=${page}`);
-      const markets: Market[] = response.data;
+    trades AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            REGEXP_SUBSTR(price_raw, '[a-zA-Z].*') AS quote_denom,
+            TRY_TO_NUMBER(REGEXP_SUBSTR(price_raw, '^[0-9]+')) AS quote_amount_raw
+        FROM trade_events
+        WHERE source = 'x/exchange market ${FIGURE_MARKET_ID}'
+    ),
 
-      if (!markets || markets.length === 0) break;
+    volume AS (
+        SELECT
+            SUM(
+                CASE
+                    WHEN quote_denom IN ('uusdc.figure.se', 'uusd.trading', 'uylds.fcc')
+                    THEN quote_amount_raw / 1e6
+                END
+            ) AS volume_usd
+        FROM trades
+    ),
 
-      for (const market of markets) {
-        const volume = Number(market.volume24h || 0);
-        if (volume === 0) continue;
+    fee_transfers AS (
+        SELECT
+            block_timestamp,
+            transaction_hash,
+            event_index,
+            MAX(CASE WHEN key = 'recipient' THEN TRIM(value, '"') END) AS recipient,
+            MAX(CASE WHEN key = 'amount' THEN TRIM(value, '"') END) AS amount_raw
+        FROM provenance.raw.event_attributes
+        WHERE event_type = 'transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        GROUP BY 1, 2, 3
+    ),
 
-        // Fee rates are already in decimal format (e.g., 0.001 = 0.1%)
-        const makerFeeRate = market.makerFee?.rate ?? 0;
-        const takerFeeRate = market.takerFee?.rate ?? 0;
+    fees AS (
+        SELECT
+            SUM(TRY_TO_NUMBER(REGEXP_SUBSTR(f.amount_raw, '^[0-9]+'))) / 1e6 AS fees_usd
+        FROM fee_transfers f
+        JOIN (SELECT DISTINCT transaction_hash FROM trades) s
+            USING (transaction_hash)
+        WHERE f.recipient = '${FEE_RECIPIENT}'
+          AND REGEXP_SUBSTR(f.amount_raw, '[a-zA-Z].*')
+              IN ('uusdc.figure.se', 'uusd.trading', 'uylds.fcc')
+    )
 
-        // Both maker and taker fees are charged per trade
-        const totalFeeRate = makerFeeRate + takerFeeRate;
+    SELECT
+        COALESCE(v.volume_usd, 0) as volume_usd,
+        COALESCE(f.fees_usd, 0) AS fees_usd
+    FROM volume v, fees f
+  `;
 
-        dailyFees.addUSDValue(volume * totalFeeRate);
-        dailyVolume.addUSDValue(volume);
-      }
+  const alliumResult = await queryAllium(alliumQuery);
 
-      page++;
-    }
-  }
+  dailyVolume.addUSDValue(alliumResult[0].volume_usd);
+  dailyFees.addUSDValue(alliumResult[0].fees_usd, METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
@@ -52,11 +90,33 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   };
 }
 
+const methodology = {
+  Volume: "Volume is the total amount of USD traded on the Figure Markets exchange (Market Id 1 on Provenance).",
+  Fees: "Total trading fees collected by Figure Markets' fee recipient.",
+  Revenue: "All the trading fees collected by Figure Markets' fee recipient.",
+  ProtocolRevenue: "All the trading fees collected by Figure Markets' fee recipient.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Total trading fees collected by Figure Markets' fee recipient.",
+  },
+}
+
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.PROVENANCE],
-  runAtCurrTime: true,
+  methodology,
+  breakdownMethodology,
+  start: "2026-01-01",
 };
 
 export default adapter;

@@ -1,8 +1,7 @@
-import { SimpleAdapter } from '../adapters/types'
-import { CHAIN } from '../helpers/chains'
+import { SimpleAdapter, FetchOptions } from '../adapters/types';import { CHAIN } from '../helpers/chains'
 import fetchURL from '../utils/fetchURL'
 
-const fetch = async (_: any) => {
+const fetch = async (_options: FetchOptions) => {
   const data = await fetchURL('https://api.orderly.org/v1/public/futures')
 
   const openInterestAtEnd = data.data.rows.reduce(

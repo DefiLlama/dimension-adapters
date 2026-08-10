@@ -114,7 +114,7 @@ async function prefetch(options: FetchOptions): Promise<any> {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const durationWrtYear = (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
 
     const calculateReturnsOrExpenseForPeriod = (aum: number = 0, annualYieldOrExpense: number = 0) => aum * annualYieldOrExpense * durationWrtYear / 100;

@@ -11,7 +11,7 @@ const endpoints: any = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('FfnRstqDWGGevsbf9rRg1vNctrb38Hd791zzaaKc7AGz'),
 };
 
-const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
+const fetch = async ({ chain, toTimestamp }: FetchOptions) => {
   const endpoint = endpoints[chain]
 
   const graphQuery = `{
@@ -27,7 +27,7 @@ const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
 }`;
 
   const { protocolDaySnapshots } = await request(endpoint, graphQuery);
-  const snapshot = protocolDaySnapshots.find((snapshot: any) => +snapshot.periodStart <= timestamp && +snapshot.periodEnd >= timestamp);
+  const snapshot = protocolDaySnapshots.find((snapshot: any) => +snapshot.periodStart <= toTimestamp && +snapshot.periodEnd >= toTimestamp);
 
   if (!snapshot) return {
     dailyVolume: 0,

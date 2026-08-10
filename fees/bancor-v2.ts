@@ -21,6 +21,7 @@ async function fetch(fetchOptions: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  skipBreakdownValidation: true, // because cost are not clear
   chains: [CHAIN.ETHEREUM],
   fetch,
   start: '2020-06-20',

@@ -4,7 +4,6 @@ import { httpGet, httpPost } from "../../utils/fetchURL";
 
 interface IProducts {
   spot_products: number[];
-  margined_products: number[];
 }
 
 // Nado (Private Alpha)
@@ -44,11 +43,7 @@ const fetchProducts = async (
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
       .filter((id: number) => validSymbols.includes(id) && id > 0),
-    margined_products: allProducts.spot_products
-      .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => validSymbols.includes(id) && id > 0),
-
-    };
+  };
 };
 
 const computeVolume = async (
@@ -102,15 +97,10 @@ const computeVolume = async (
 };
 
 
-const fetch = async (timestamp: number, _: any, fetchOptions: FetchOptions) => {
+const fetch = async (fetchOptions: FetchOptions) => {
   const products = await fetchProducts(fetchOptions);
 
-  const [spotVolumes, marginedVolumes] = await Promise.all([
-    computeVolume(timestamp, products.spot_products, fetchOptions),
-    computeVolume(timestamp, products.margined_products, fetchOptions),
-  ]);
-  const dailyVolume = (spotVolumes.dailyVolume ?? 0) + (marginedVolumes.dailyVolume ?? 0);
-  return { dailyVolume };
+  return computeVolume(fetchOptions.toTimestamp, products.spot_products, fetchOptions);
 };
 
 

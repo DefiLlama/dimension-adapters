@@ -4,7 +4,7 @@ import { getSolanaReceived } from '../helpers/token'
 
 const VIBES_FEE_ADDRESS = '8w1TF5feq55khx19Hxnem6hyLsK8tK7AjbyNTu3cuR7Q'
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) : Promise<FetchResult> => {
+const fetch = async (options: FetchOptions) : Promise<FetchResult> => {
   const dailyFees = await getSolanaReceived({
     target: VIBES_FEE_ADDRESS,
     options,
@@ -18,10 +18,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) : Promise<FetchRes
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   protocolType: ProtocolType.PROTOCOL,
   methodology: {

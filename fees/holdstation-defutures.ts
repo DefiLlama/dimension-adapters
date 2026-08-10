@@ -1,5 +1,5 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -45,7 +45,7 @@ const endpointMap: {
 	},
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const { historical, daily } = endpointMap[options.chain];
 
 	const dayTimestamp = getUniqStartOfTodayTimestamp(
@@ -84,6 +84,24 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	};
 };
 
+const methodology = {
+	Fees: "All trading fees collected from perpetual futures trades on the platform",
+	Revenue: "Governance fees retained by the protocol from trading activity",
+	SupplySideRevenue: "Vault fees distributed to liquidity providers who supply capital to trading vaults"
+};
+
+const breakdownMethodology = {
+	Fees: {
+		"Trading Fees": "All fees charged on perpetual futures trading including opening, closing, and modifying positions"
+	},
+	Revenue: {
+		"Governance Fees": "Portion of trading fees allocated to protocol governance and treasury"
+	},
+	SupplySideRevenue: {
+		"Vault Fees": "Portion of trading fees distributed to vault liquidity providers who supply capital for trading"
+	}
+};
+
 const adapter: SimpleAdapter = {
 	version: 1,
 	adapter: {
@@ -100,6 +118,8 @@ const adapter: SimpleAdapter = {
 			start: "2025-09-03",
 		},
 	},
+	methodology,
+	breakdownMethodology,
 };
 
 export default adapter;

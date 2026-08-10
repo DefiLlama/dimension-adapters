@@ -18,7 +18,7 @@ interface EtherlinkVolumeResponse {
 }
 
 const dappSlug = '3route'
-const tezosURL = 'https://dapps-indexer.dipdup.net/v1/graphql';
+const tezosURL = 'https://3route-tezos.dipdup.net/v1/graphql';
 const etherlinkURL = 'https://3route-etherlink.dipdup.net/v1/volume/day'
 
 const query = gql`
@@ -38,7 +38,7 @@ const query = gql`
 `;
 
 
-const fetchTezos = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<FetchResult> => {
+const fetchTezos = async ({ startOfDay }: FetchOptions): Promise<FetchResult> => {
   const startDate = new Date(startOfDay * 1000).toISOString()
   const endDate = new Date((startOfDay + 86400) * 1000).toISOString()
 
@@ -52,7 +52,7 @@ const fetchTezos = async (_: any, _1: any, { startOfDay }: FetchOptions): Promis
   }
 }
 
-const fetchEtherlink = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<FetchResult> => {
+const fetchEtherlink = async ({ startOfDay }: FetchOptions): Promise<FetchResult> => {
   const startDate = new Date(startOfDay * 1000).toISOString().split('T')[0]
   const endDate = new Date((startOfDay + 86400) * 1000).toISOString().split('T')[0]
 

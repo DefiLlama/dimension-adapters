@@ -1,5 +1,6 @@
 
 import { Adapter, FetchOptions, } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { queryIndexer } from "../../helpers/indexer";
 
 
@@ -30,14 +31,14 @@ const fetch: any = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    ethereum: {
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-12-22',
     },
   },
-          methodology: {
-              Fees: "Fees paid by users while using services.",
-          }
+  methodology: {
+    Fees: "Fees paid by users while using services.",
+  }
 }
 
 export default adapter;

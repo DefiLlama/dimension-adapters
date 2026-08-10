@@ -1,112 +1,218 @@
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    
-    const query = `
-        WITH gacha_in AS (
-            SELECT 
-                SUM(amount / POWER(10, 6)) AS inflow
-            FROM tokens_solana.transfers
-            WHERE to_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3','96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s')
-                AND from_owner NOT IN ('BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
-                            '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
-                            'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
-                            'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
-                        'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
-                        'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
-                    'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
-                    'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
-                    'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN',
-                    'Low6UekJP3QrFVMfNRTL8CPK2SiGFhvp57sgF2pkmVu',
-'miDtj3vgdxVykHzRyFwyG8MXpvK8eQqamSLVdBr7WPt',
-'HiGHqwYddP5N2waqUmXPdaASpMpUEvfqPr2fSawctEb',
-'epiC3zkqa1RfcPMMM1Kc8m3GZGDwF2RmjbfA3g1BBjn',
-'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
-'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8'
-)
-                AND amount / power(10, 6) IN (25, 50, 100, 250, 1000)
-                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-                AND TIME_RANGE
-        ),
-        fees AS (
-            SELECT 
-                SUM(amount / POWER(10, 6)) AS inflow
-            FROM tokens_solana.transfers
-            WHERE to_owner = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd'
-                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-                AND TIME_RANGE
-        ),
-        buyback AS (
-            SELECT 
-                SUM(amount / POWER(10, 6)) AS buyback
-            FROM tokens_solana.transfers
-            WHERE from_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3')
-                AND to_owner NOT IN ('BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
-                            '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
-                            'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
-                            'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
-                        'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
-                        'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
-                    'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
-                    'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
-                    'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN',
-                    'Low6UekJP3QrFVMfNRTL8CPK2SiGFhvp57sgF2pkmVu',
-'miDtj3vgdxVykHzRyFwyG8MXpvK8eQqamSLVdBr7WPt',
-'HiGHqwYddP5N2waqUmXPdaASpMpUEvfqPr2fSawctEb',
-'epiC3zkqa1RfcPMMM1Kc8m3GZGDwF2RmjbfA3g1BBjn',
-'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
-'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8',
-'Cc4pHGnoaRWL1WnHsV517T3YvQn5gLDBMiuVXkF9rZhK',
-    '8373hLiAEXxaJ3oV7SRzx4KHwurEg9rEG98tUPj1sdtX'
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
-)
-                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
-                AND TIME_RANGE
-            )
-        SELECT 
-            COALESCE(g.inflow, 0) AS gacha_spend,
-            COALESCE(f.inflow, 0) AS fees_royalty,
-            COALESCE(b.buyback, 0) AS buyback,
-            COALESCE(g.inflow, 0) + COALESCE(f.inflow, 0) - COALESCE(b.buyback, 0) AS net_revenue
-        FROM gacha_in g
-            CROSS JOIN fees f
-            CROSS JOIN buyback b;
-    `;
-    
-    const data = await queryDuneSql(options, query);
-    
-    if (data && data.length > 0) {
-        const result = data[0];
-        const netRevenue = result.net_revenue || 0;        
-        dailyFees.addUSDValue(netRevenue);
+// On-chain crypto gacha sinks. All non-team USDC inflows are pack purchases, so there is no
+// price-tier filter: CC keeps launching new tiers (150/151/420/5000 in Jul-2026) and a hardcoded
+// tier list silently drops their revenue until someone notices. Same rule as the fiat rail below.
+const GACHA_ONCHAIN_ADDRESSES = [
+  'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z', // decommissioned pre-Dec-2025, kept for history
+  'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3', // primary on-chain sink
+];
+
+// CC fiat/credit-card rail. Card-pack purchases settle off-chain (card/Coinbase) and then
+// top this wallet up in BUNDLED amounts (e.g. $200 = 2 packs, $750 = 3 packs).
+// Matches blocmates' reference model (dune query 7444053).
+const GACHA_FIAT_ADDRESS = '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s';
+
+const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
+
+// Open-market CARDS buyback hubs: DCA bots funded with USDC from here market-buy CARDS
+// across the pools and send the bought CARDS back here. CARDS received here from non-team
+// wallets would be the open-market buyback (value accrual to CARDS holders).
+//
+// DISABLED: the hub below was identified heuristically and is NOT an officially confirmed
+// CC wallet, so we do not attribute its CARDS inflows to holders revenue. With this list
+// empty, dailyHoldersRevenue is 0 and dailyProtocolRevenue equals dailyRevenue. Re-add the
+// confirmed address(es) here to re-enable the holders-vs-protocol split.
+const BUYBACK_ADDRESSES: string[] = [
+  // 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial buyback hub (seen since 2026-06-11)
+];
+
+const TEAM_ADDRESSES = [
+  'BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
+  '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
+  'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
+  'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
+  'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
+  'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
+  'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
+  'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
+  'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN',
+  'Low6UekJP3QrFVMfNRTL8CPK2SiGFhvp57sgF2pkmVu',
+  'miDtj3vgdxVykHzRyFwyG8MXpvK8eQqamSLVdBr7WPt',
+  'HiGHqwYddP5N2waqUmXPdaASpMpUEvfqPr2fSawctEb',
+  'epiC3zkqa1RfcPMMM1Kc8m3GZGDwF2RmjbfA3g1BBjn',
+  'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
+  'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8',
+  'Cc4pHGnoaRWL1WnHsV517T3YvQn5gLDBMiuVXkF9rZhK',
+  '8373hLiAEXxaJ3oV7SRzx4KHwurEg9rEG98tUPj1sdtX',
+  'onePMfirJs2Rx3eixoPnjY6NHiaC74pkQ2k313K2Lxs',
+  'SportGmqffp9zC3VZV7Wwz6s2nCkEB5Q3nVwKGU4esD',
+  'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd',
+  'cc3novbXuNSe292qKH2gGhxToaWjuBvJbA7zQf8NVxi',
+  'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3',
+  'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z',
+  '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s',
+  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' // unofficial CC bot wallet; kept as an exclusion (it sends USDC into the gacha sink) even though its buyback role is no longer tracked
+]
+
+const timeRange = (options: FetchOptions) =>
+  `block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
+
+const teamAddresses = TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+const gachaOnchainAddresses = GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  // No confirmed buyback hub -> return a constant 0 so the CARDS-buyback CTE stays valid
+  // SQL (an empty IN-list would not) and holders revenue resolves to 0.
+  const cardsBuybackCte = BUYBACK_ADDRESSES.length > 0
+    ? `SELECT COALESCE(SUM(raw_amount), 0) AS cards_bought
+      FROM solana.assets.transfers
+      WHERE to_address IN (${BUYBACK_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
+        AND from_address NOT IN (${teamAddresses})
+        AND mint = '${CARDS_MINT}'
+        AND ${timeRange(options)}`
+    : `SELECT 0 AS cards_bought`;
+
+  const query = `
+    WITH gacha_in AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS onchain_spend
+      FROM solana.assets.transfers
+      WHERE to_address IN (${gachaOnchainAddresses})
+        AND from_address NOT IN (${teamAddresses})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
+    ),
+    gacha_fiat AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS fiat_spend
+      FROM solana.assets.transfers
+      WHERE to_address = '${GACHA_FIAT_ADDRESS}'
+        AND from_address NOT IN (${teamAddresses})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
+    ),
+    fees AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS inflow
+      FROM solana.assets.transfers
+      WHERE to_address = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd'
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
+    ),
+    buyback AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS buyback
+      FROM solana.assets.transfers
+      WHERE from_address IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3')
+        AND to_address NOT IN (${teamAddresses})
+        AND mint = '${USDC_MINT}'
+        AND ${timeRange(options)}
+    ),
+    cards_buyback AS (
+      ${cardsBuybackCte}
+    )
+    SELECT
+      COALESCE(g.onchain_spend, 0) AS gacha_spend_onchain,
+      COALESCE(gf.fiat_spend, 0) AS gacha_spend_fiat,
+      COALESCE(f.inflow, 0) AS fees_royalty,
+      COALESCE(b.buyback, 0) AS buyback,
+      COALESCE(cb.cards_bought, 0) AS cards_buyback
+    FROM gacha_in g
+      CROSS JOIN gacha_fiat gf
+      CROSS JOIN fees f
+      CROSS JOIN buyback b
+      CROSS JOIN cards_buyback cb
+  `;
+
+  const data = await queryAllium(query);
+
+  let cardsBought = 0;
+  if (data && data.length > 0) {
+    const result = data[0];
+    const onchainSpend = Number(result.gacha_spend_onchain || 0);
+    if (onchainSpend) {
+      dailyVolume.addUSDValue(onchainSpend);
+      dailyFees.addUSDValue(onchainSpend, 'Gacha Pack Sales');
     }
-
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyUserFees: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+    const fiatSpend = Number(result.gacha_spend_fiat || 0);
+    if (fiatSpend) {
+      dailyVolume.addUSDValue(fiatSpend);
+      dailyFees.addUSDValue(fiatSpend, 'Gacha Fiat Pack Sales');
     }
+    dailyFees.addUSDValue(result.fees_royalty, 'Royalty Fees');
+    dailyFees.addUSDValue(-result.buyback, 'Pack Buyback Spends');
+    cardsBought = Number(result.cards_buyback || 0);
+  }
+
+  // Open-market CARDS bought back by the team and accumulated -> holders revenue.
+  // Counted as value redirected to holders, so it is subtracted from protocol revenue
+  // (total fees/revenue are unchanged). Priced by the framework via the CARDS mint.
+  if (cardsBought > 0) {
+    dailyHoldersRevenue.add(CARDS_MINT, cardsBought, 'Token Buyback');
+  }
+  const dailyProtocolRevenue = dailyFees.clone();
+  if (cardsBought > 0) {
+    dailyProtocolRevenue.add(CARDS_MINT, -cardsBought, 'Token Buyback');
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
+  }
 }
 
 const methodology = {
-    Fees: "Total fees from gacha (card pack sales) and marketplace transactions.",
-    Revenue: "Revenue from gacha sales + marketplace fees/royalties.",
-    UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-    ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
+  Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain or through the CC fiat/credit-card rail.",
+  Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
+  Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
+  UserFees: "Total fees paid by users for gacha and marketplace transactions.",
+  HoldersRevenue: "USD value of CARDS bought back on the open market by the team and accumulated, returned to CARDS holders. Currently 0: tracking is disabled until the buyback hub wallet is officially confirmed.",
+  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks. Equals Revenue while open-market CARDS buyback tracking is disabled."
+}
+
+const gachaBreakdown = {
+  "Gacha Pack Sales": "Gacha pack sales settled onchain: all non-team USDC inflows to the gacha sink wallets, across every price tier.",
+  "Gacha Fiat Pack Sales": "Gacha pack sales settled via the CC fiat/credit-card rail: all non-team inflows to the fiat-rail wallet, which arrive bundled across packs.",
+  "Royalty Fees": "Royalty fees from marketplace transactions.",
+  "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
+}
+
+const breakdownMethodology = {
+  Fees: gachaBreakdown,
+  Revenue: gachaBreakdown,
+  ProtocolRevenue: {
+    ...gachaBreakdown,
+    "Token Buyback": "CARDS bought back on the open market, subtracted from protocol revenue and credited to holders.",
+  },
+  HoldersRevenue: {
+    "Token Buyback": "USD value of CARDS bought back on the open market by the team and accumulated.",
+  },
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    chains: [CHAIN.SOLANA],
-    start: '2025-06-04',
-    dependencies: [Dependencies.DUNE],
-    methodology,
-    allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-06-04',
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  methodology,
+  breakdownMethodology,
+  allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
 }
 
 export default adapter;

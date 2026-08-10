@@ -18,6 +18,7 @@ const fetchFees = async ({ createBalances, getLogs }: FetchOptions): Promise<Fet
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,

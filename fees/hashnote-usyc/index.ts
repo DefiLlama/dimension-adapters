@@ -26,31 +26,26 @@ const formatDatasToISO = (datas: IResponse[]): IResponse[] => {
 };
 
 const fetch = async (
-  timestamp: number,
-  _: any,
-  { createBalances }: FetchOptions
+  { createBalances, toTimestamp }: FetchOptions
 ): Promise<FetchResultFees> => {
   const dailyFees = createBalances();
   const response = await axios.get(url);
 
   const datas = formatDatasToISO(response.data.data);
-  const isoTimestamp = formatTimestampToISO(timestamp);
+  const isoTimestamp = formatTimestampToISO(toTimestamp);
 
   const fees = datas.find(({ timestamp }) => timestamp === isoTimestamp);
   if (fees) dailyFees.add(ADDRESSES.ethereum.USDC, Math.round(fees.fee) * 1e6);
 
-  return { timestamp, dailyFees };
+  return { dailyFees };
 };
 
 const adapter: Adapter = {
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-06-14',
   methodology: {
     Fees: "All yields are generated from USYC backing assets.",
-  },
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-06-14',
-    },
   },
 };
 

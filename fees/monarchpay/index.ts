@@ -18,6 +18,7 @@ const fetch = async ({ getLogs }: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,

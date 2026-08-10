@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const toBlock = await options.getToBlock()
   const fromBlock = await options.getFromBlock()
 
