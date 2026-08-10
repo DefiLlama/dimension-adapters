@@ -54,6 +54,10 @@ const fetch = async (options: FetchOptions) => {
     params: { from: startTimestamp, to: endTimestamp },
   });
 
+  if (res.rows.length === 0) {
+    throw new Error("No data found");
+  }
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
