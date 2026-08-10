@@ -43,11 +43,16 @@ interface ApyHistoryResponse {
   }>;
 }
 
-const getVaultInfo = async (): Promise<VaultInfo[]> => {
-  const data: VaultResponse = await getConfig('lista-lending-vaults', 'https://api.lista.org/api/moolah/vault/list?page=1&pageSize=100&sort=depositsUsd&order=desc');
+// The Lista API serves vaults per chain via the `chain` query param (e.g. `bsc`, `ethereum`),
+// which matches the CHAIN enum values, so `options.chain` can be passed through directly.
+const getVaultInfo = async (chain: string): Promise<VaultInfo[]> => {
+  const data: VaultResponse = await getConfig(
+    `lista-lending-vaults-${chain}`,
+    `https://api.lista.org/api/moolah/vault/list?page=1&pageSize=100&sort=depositsUsd&order=desc&chain=${chain}`
+  );
   return data.data.list.map((vault) => ({
     address: vault.address.toLowerCase(),
-    fee: vault.fee,
+    fee: Number(vault.fee),
     ownedByDao: vault.curator.toLowerCase().replace(/\s/g, "") === "listadao",
   }));
 };
@@ -62,7 +67,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const vaultInfoList = await getVaultInfo();
+  const vaultInfoList = await getVaultInfo(options.chain);
 
   // // Get VaultFeeClaimed events
   // const vaultFeeLogs = await options.getLogs({
@@ -130,9 +135,6 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  fetch,
-  chains: [CHAIN.BSC],
-  start: '2025-04-16',
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology: {
@@ -146,7 +148,12 @@ const adapter: SimpleAdapter = {
       'Curators Fees': 'Performance fees paid to vaults curators.',
       'Borrow Interest To Lenders': 'Interest earned by lenders in the vaults',
     },
-  }
+  },
+  adapter: {
+    [CHAIN.BSC]: { fetch, start: '2025-04-16' },
+    // Lista Lending launched on Ethereum later; earliest vault APY history is 2025-10-02.
+    [CHAIN.ETHEREUM]: { fetch, start: '2025-10-02' },
+  },
 };
 
 export default adapter;
