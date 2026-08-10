@@ -57,9 +57,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     FROM solana.assets.transfers
     WHERE mint = '${USDC_MINT}'
       AND (
-        block_timestamp BETWEEN
+        block_timestamp >=
         TO_TIMESTAMP_NTZ(${options.startTimestamp})
-        AND
+        AND block_timestamp <
         TO_TIMESTAMP_NTZ(${options.endTimestamp})
       )
       AND to_address IN (${vaultPdaList})
@@ -79,7 +79,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const protocolFees = inflows[TREASURY_PDA] ?? 0;
 
   const dailyVolume = options.createBalances();
-  dailyVolume.add(USDC_MINT, boardInflow, MINER_DEPLOYMENTS);
+  dailyVolume.add(USDC_MINT, boardInflow);
 
   const dailyFees = options.createBalances();
   dailyFees.add(USDC_MINT, strikeFees, SAT_STRIKE_FEES);
@@ -148,6 +148,7 @@ const adapter: SimpleAdapter = {
   start: "2026-08-02",
   methodology,
   breakdownMethodology,
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
