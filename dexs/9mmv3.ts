@@ -53,6 +53,27 @@ const methodology = {
   SupplySideRevenue: 'The rest of the swap fee, kept by the liquidity providers.',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Token Swap Fees': "Pool fee tier applied to the amount swapped in.",
+  },
+  UserFees: {
+    'Trading fees': 'Swap fees paid by traders, all of the swap fee.',
+  },
+  Revenue: {
+    'Protocol fees': 'Share of the swap fee the pool keeps, set from its fee tier.',
+  },
+  ProtocolRevenue: {
+    'Protocol fees': 'Half of the kept share, retained by the protocol.',
+  },
+  HoldersRevenue: {
+    'Tokenholder fees': 'The other half of the kept share, passed on to token holders.',
+  },
+  SupplySideRevenue: {
+    'LP fees': 'Swap fee left after the protocol share, kept by the liquidity providers.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -60,6 +81,7 @@ const adapter: SimpleAdapter = {
     Object.entries(config).map(([chain, { factory, start }]) => [chain, { fetch: buildEvmFetcher(factory), start }])
   ),
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter;
