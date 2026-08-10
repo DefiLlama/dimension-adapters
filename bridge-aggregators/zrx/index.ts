@@ -1,7 +1,15 @@
+import asyncRetry from "async-retry";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
+const plimit = require("p-limit");
+
+// Every chain is fetched at once but the stats API allows 5 requests per second per
+// key, so requests are serialised and spaced to stay under the cap even if the API
+// responds instantly.
+const limits = plimit(1);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // originChainId query param: numeric chain id for EVM chains, lowercase name for non-EVM
 const CHAINS: Record<string, number | string> = {
@@ -31,18 +39,30 @@ const CHAINS: Record<string, number | string> = {
   // [CHAIN.TRON]: "tron",
 };
 
-const fetch = async (options: FetchOptions) => {
-  const response = await httpGet(
-    `https://api.0x.org/stats/cross-chain/volume/daily?timestamp=${options.startOfDay}&originChainId=${CHAINS[options.chain]}`,
-    {
-      headers: {
-        "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY"),
-      },
+async function getBridgeVolume(options: FetchOptions) {
+  return asyncRetry(
+    async () => {
+      const response = await httpGet(
+        `https://api.0x.org/stats/cross-chain/volume/daily?timestamp=${options.startOfDay}&originChainId=${CHAINS[options.chain]}`,
+        {
+          headers: {
+            "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY"),
+          },
+        },
+      );
+
+      await sleep(250);
+      return response.data.volume;
     },
+    { retries: 3, minTimeout: 1000, maxTimeout: 5000, factor: 2 },
   );
+}
+
+const fetch = async (options: FetchOptions) => {
+  const dailyBridgeVolume = await limits(() => getBridgeVolume(options));
 
   return {
-    dailyBridgeVolume: response.data.volume,
+    dailyBridgeVolume,
   };
 };
 
