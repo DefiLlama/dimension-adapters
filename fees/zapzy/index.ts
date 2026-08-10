@@ -90,25 +90,22 @@ const fetch = async (options: FetchOptions) => {
   `;
 
   const data = await queryDuneSql(options, query);
-
-  if (!data || data.length === 0) {
-    throw new Error('No data found for the current date');
-  }
-
-  const result = data[0];
-  const totalFeesLamports = result.fee * 1e9;
-  const totalRevenueLamports = result.revenue * 1e9;
+  const result = data?.[0];
+  const totalFeesLamports = Number(result?.fee ?? 0) * 1e9;
+  const totalRevenueLamports = Number(result?.revenue ?? 0) * 1e9;
 
   dailyFees.add(ADDRESSES.solana.SOL, totalFeesLamports);
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.add(ADDRESSES.solana.SOL, totalRevenueLamports);
+  const dailySupplySideRevenue = dailyFees.clone();
+  dailySupplySideRevenue.subtract(dailyRevenue);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue: 0
   };
 };

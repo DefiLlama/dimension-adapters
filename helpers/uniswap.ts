@@ -33,6 +33,7 @@ export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 // test A is for.
 export const WASH_DUST_USD = 25_000;
 
+// UTC day containing the inclusive end snapshot.
 export function washDayStart(options: FetchOptions): number {
   return Math.floor((options.endTimestamp - 1) / 86400) * 86400;
 }
