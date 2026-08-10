@@ -57,6 +57,9 @@ const breakdownMethodology = {
   Fees: {
     'Token Swap Fees': "Pool fee tier applied to the amount swapped in.",
   },
+  UserFees: {
+    'Trading fees': 'Swap fees paid by traders, all of the swap fee.',
+  },
   Revenue: {
     'Protocol fees': 'Share of the swap fee the pool keeps, set from its fee tier.',
   },
