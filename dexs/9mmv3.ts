@@ -75,7 +75,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig, // start dates are read from chainConfig per chain
+  adapter: chainConfig, 
   methodology,
   breakdownMethodology,
 }
