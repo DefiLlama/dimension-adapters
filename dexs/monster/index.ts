@@ -22,10 +22,13 @@ const GachaPlayedEvent =
   "event GachaPlayed(address indexed player, uint256 indexed requestId, uint256 costPaid)";
 const TransferEvent =
   "event Transfer(address indexed from, address indexed to, uint256 value)";
+// keccak256("Transfer(address,address,uint256)")
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+// indexed address args are left-padded to 32 bytes
 const addressTopic = (address: string) =>
   "0x000000000000000000000000" + address.slice(2).toLowerCase();
+const USDC_DECIMALS = 6; // Base USDC (0x8335…2913)
 
 
 const fetch = async (options: FetchOptions) => {
@@ -66,7 +69,6 @@ const fetch = async (options: FetchOptions) => {
 const fetchOffchain = async (options: FetchOptions) => {
   const baseApi = new ChainApi({ chain: CHAIN.BASE });
   const dailyFees = options.createBalances();
-  const dailyVolume = options.createBalances();
 
   const transferLogs = await baseApi.getLogs({
     fromTimestamp: options.fromTimestamp,
@@ -84,11 +86,10 @@ const fetchOffchain = async (options: FetchOptions) => {
   // no volume here: card money is credited to the player as USDm and is already
   // counted on megaeth when they open a pack with it
   for (const log of transferLogs) {
-    dailyFees.addUSDValue(Number(log.value) / 1e6, 'Gacha Play Spends - Credit Card');
+    dailyFees.addUSDValue(Number(log.value) / 10 ** USDC_DECIMALS, 'Gacha Play Spends - Credit Card');
   }
 
   return {
-    dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
