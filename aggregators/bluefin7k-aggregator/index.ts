@@ -9,9 +9,10 @@ const fetch: FetchV2 = async ({ fromTimestamp, toTimestamp }) => {
 	const dailyVolume = await fetchURL(
 		`${URL}/volume-with-ts?from_timestamp=${fromTimestamp}&to_timestamp=${toTimestamp}`,
 	);
-	if (!(Number(dailyVolume) > 0))
+	const volume = Number(dailyVolume);
+	if (!Number.isFinite(volume) || volume <= 0)
 		throw new Error(
-			`bluefin7k: statistic.7k.ag returned no volume (${dailyVolume}) for ${fromTimestamp}-${toTimestamp}`,
+			`bluefin7k: statistic.7k.ag returned no usable volume (${dailyVolume}) for ${fromTimestamp}-${toTimestamp}`,
 		);
 	return { dailyVolume };
 };
