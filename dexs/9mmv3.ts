@@ -18,14 +18,16 @@ const getProtocolRevenueRatio = (fee: number): number => {
   return 0.32; 
 }
 
-const config: Record<string, { factory: string, start: string }> = {
+const chainConfig: Record<string, { factory: string, start: string }> = {
   [CHAIN.PULSECHAIN]: { factory: '0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68', start: '2024-12-19' },
   [CHAIN.BASE]: { factory: '0x7b72C4002EA7c276dd717B96b20f4956c5C904E7', start: '2024-12-19' },
   [CHAIN.SONIC]: { factory: '0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5', start: '2025-03-14' }
 }
 
-const buildEvmFetcher = (factory: string) => {
-  const evmAdapter = getUniV3LogAdapter({
+const fetch = async (options: FetchOptions) => {
+  const { factory } = chainConfig[options.chain]
+
+  return getUniV3LogAdapter({
     factory,
     swapEvent: poolSwapEvent,
     userFeesRatio: 1,
@@ -39,14 +41,12 @@ const buildEvmFetcher = (factory: string) => {
         _holdersRevenueRatio,
       };
     },
-  })
-  return async (options: FetchOptions) => evmAdapter(options)
+  })(options)
 }
 
 const methodology = {
   Volume: 'Swap volume from all 9mm V3 pools deployed by the V3 factory.',
   Fees: "Traders pay each pool's configured fee tier on every swap.",
-  UserFees: 'Equals total swap fees paid by traders.',
   Revenue: 'Share of the swap fee the pool keeps for the protocol, set from its fee tier: 33% on the 0.01% tier, 34% on 0.05%, 32% on 0.25% and 1%.',
   ProtocolRevenue: 'Half of the revenue, the share that stays with the protocol.',
   HoldersRevenue: 'The other half of the revenue, passed on to token holders.',
@@ -56,9 +56,6 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     'Token Swap Fees': "Pool fee tier applied to the amount swapped in.",
-  },
-  UserFees: {
-    'Trading fees': 'Swap fees paid by traders, all of the swap fee.',
   },
   Revenue: {
     'Protocol fees': 'Share of the swap fee the pool keeps, set from its fee tier.',
@@ -77,9 +74,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(
-    Object.entries(config).map(([chain, { factory, start }]) => [chain, { fetch: buildEvmFetcher(factory), start }])
-  ),
+  fetch,
+  adapter: chainConfig, // start dates are read from chainConfig per chain
   methodology,
   breakdownMethodology,
 }
