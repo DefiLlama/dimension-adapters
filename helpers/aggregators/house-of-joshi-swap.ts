@@ -6,8 +6,12 @@ type ChainConfig = {
   start: string;
 };
 
-// HojswapRouterV2 deployment addresses and conservative indexing start dates.
+// Router deployments are sourced from the project's public app configuration:
+// https://github.com/queenjoshi/Swap-Simulation/blob/da9ac37eb59442988e40d578c8fababeb0e90b86/hojswap-next/src/lib/hojswap-router.ts
+// Start dates conservatively precede the first indexed swaps so no events are omitted.
 const SHARED_ROUTER = "0x2C5F372746330465C3f4084CE6C6aBce22a48B4d";
+// HojswapRouterV2 uses address(0) as the native gas-token sentinel.
+const NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
 
 export const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { contract: SHARED_ROUTER, start: "2026-07-16" },
@@ -27,15 +31,21 @@ const SWAP_EXECUTED =
 
 export const SWAP_FEE_LABEL = "Swap Fees";
 export const PROTOCOL_REVENUE_LABEL = "Swap Fees To Protocol";
+export const VOLUME_LABEL = "Router Swap Volume";
 
 function addAsset(balance: ReturnType<FetchOptions["createBalances"]>, token: string, amount: bigint, label?: string) {
-  if (token === "0x0000000000000000000000000000000000000000") {
+  if (token === NATIVE_TOKEN) {
     balance.addGasToken(amount, label);
   } else {
     balance.add(token, amount, label);
   }
 }
 
+/**
+ * Fetches completed HojswapRouterV2 swaps for the requested chain and time window.
+ * @param options DefiLlama fetch context used for log queries and balance creation.
+ * @returns Daily volume, fees, user fees, and protocol revenue balance collections.
+ */
 export async function fetchHouseOfJoshiMetrics(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -52,7 +62,7 @@ export async function fetchHouseOfJoshiMetrics(options: FetchOptions) {
     const feeAmount = BigInt(log.feeAmount);
 
     // sellAmount is the user's gross input and already includes feeAmount.
-    addAsset(dailyVolume, log.sellToken, sellAmount);
+    addAsset(dailyVolume, log.sellToken, sellAmount, VOLUME_LABEL);
     addAsset(dailyFees, log.sellToken, feeAmount, SWAP_FEE_LABEL);
     addAsset(dailyRevenue, log.sellToken, feeAmount, PROTOCOL_REVENUE_LABEL);
     addAsset(dailyUserFees, log.sellToken, feeAmount, SWAP_FEE_LABEL);

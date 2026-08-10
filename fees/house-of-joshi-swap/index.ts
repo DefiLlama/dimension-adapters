@@ -23,16 +23,12 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: "The 1% House fee paid by users on swaps executed through HojswapRouterV2, using the exact feeAmount emitted for each trade.",
-    UserFees: "Same as Fees: the 1% House fee is paid directly by the user as part of the gross sell amount.",
     Revenue: "All House swap fees are retained by the protocol; there is no supply-side fee allocation.",
     ProtocolRevenue: "Same as Revenue: the full House swap fee sent to the configured House wallet.",
   },
   breakdownMethodology: {
     Fees: {
       [SWAP_FEE_LABEL]: "The feeAmount emitted by HojswapRouterV2 for each completed swap.",
-    },
-    UserFees: {
-      [SWAP_FEE_LABEL]: "The 1% House fee paid directly by the swapping user.",
     },
     Revenue: {
       [PROTOCOL_REVENUE_LABEL]: "The full House fee sent to the protocol's configured House wallet.",
