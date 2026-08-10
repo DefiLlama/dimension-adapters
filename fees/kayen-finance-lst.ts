@@ -68,7 +68,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Total CHZ staking rewards earned by the CHZ staked through Kayen Finance LST.',
-  Revenue: 'Protocol fee taken from those rewards, currently 10%, read from ProtocolConfig.',
+  Revenue: 'Protocol fee taken from those rewards, at the rate ProtocolConfig holds at the time of the call.',
   ProtocolRevenue: 'All revenue goes to the protocol fee vault.',
   HoldersRevenue: 'No share of the rewards goes to token holders.',
   SupplySideRevenue: 'The rest of the rewards accrue to stCHZ holders through the rising CHZ per stCHZ rate.',
@@ -81,6 +81,9 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.PROTOCOL_FEES]: 'Share of the validator rewards kept by the protocol and sent to the fee vault.',
   },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: 'The whole fee cut reaches the protocol fee vault, none of it is shared out.',
+  },
   SupplySideRevenue: {
     [METRIC.STAKING_REWARDS]: 'Share of the validator rewards left in the pool, raising the CHZ redeemable per stCHZ.',
   },
@@ -89,14 +92,11 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
+  chains: [CHAIN.CHILIZ],
+  start: '2026-06-18',
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.CHILIZ]: {
-      fetch,
-      start: '2026-06-18',
-    },
-  },
 }
 
 export default adapter;
