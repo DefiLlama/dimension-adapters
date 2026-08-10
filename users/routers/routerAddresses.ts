@@ -999,6 +999,7 @@ export default (
     {
       id: "2763",
       name: "Dove Swap",
+      deadFrom: "2026-07-07",
       addresses: {
         polygon_zkevm: ["0xc4212b4f901C8Afac75A27C8E8be7b9fa82D74d8"],
       },
@@ -1006,6 +1007,7 @@ export default (
     {
       id: "2762",
       name: "Dove Swap",
+      deadFrom: "2026-07-07",
       addresses: {
         polygon_zkevm: ["0xc4212b4f901C8Afac75A27C8E8be7b9fa82D74d8"],
       },

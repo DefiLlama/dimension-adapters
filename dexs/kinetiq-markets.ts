@@ -2,29 +2,44 @@ import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue, fetchHIP3DeployerData } from "../helpers/hyperliquid";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
+const KINETIQ_MARKETS_LEGACY_END_DATE = "2026-06-20";
+
 const fetch = async (options: FetchOptions) => {
+  const deployerId = options.dateString > KINETIQ_MARKETS_LEGACY_END_DATE ? 'mkts' : 'km';
   const { dailyVolume: builderVolume, dailyFees: builderFees } = await fetchBuilderCodeRevenue({
     options,
     builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
   });
-  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees } = await fetchHIP3DeployerData({
+  const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, dailyDeployerFee: hip3DeployerFee } = await fetchHIP3DeployerData({
     options,
-    hip3DeployerId: 'km',
+    hip3DeployerId: deployerId,
   });
-  
+
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
   dailyVolume.add(builderVolume);
   dailyVolume.add(hip3Volume);
+
+  // Builder-code fees are retained entirely by Kinetiq.
   dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
+  dailyRevenue.add(builderFees, 'Builder Code Fees To Kinetiq');
+
+  // On HIP-3 markets Kinetiq only keeps its deployer-fee cut; the rest is paid through to Hyperliquid.
   dailyFees.add(hip3Fees, 'Hyperliquid HIP-3 Markets Fees');
-  
+  dailyRevenue.add(hip3DeployerFee, 'HIP-3 Deployer Fees To Kinetiq');
+  const hip3ToHyperliquid = hip3Fees.clone();
+  hip3ToHyperliquid.subtract(hip3DeployerFee);
+  dailySupplySideRevenue.add(hip3ToHyperliquid, 'HIP-3 Fees To Hyperliquid');
+
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -34,9 +49,10 @@ const adapter: SimpleAdapter = {
   start: '2025-12-16',
   doublecounted: true,
   methodology: {
-    Fees: "Trading fees paid by users for perps in using Hyperliquid HIP-3 markets and builder code.",
-    Revenue: "Fees collected by Kinetiq Revenue from Hyperliquid and HIP-3 markets.",
-    ProtocolRevenue: "Fees collected by Kinetiq as Builder Revenue from Hyperliquid and HIP-3 markets.",
+    Fees: "Trading fees paid by users on Hyperliquid via Kinetiq's builder code and its HIP-3 markets.",
+    Revenue: "Builder-code fees (retained by Kinetiq) plus Kinetiq's deployer-fee cut of its HIP-3 market fees.",
+    ProtocolRevenue: "Same as Revenue — retained by Kinetiq.",
+    SupplySideRevenue: "The remainder of HIP-3 market fees, paid through to Hyperliquid.",
   },
   breakdownMethodology: {
     Fees: {
@@ -44,12 +60,15 @@ const adapter: SimpleAdapter = {
       'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
     },
     Revenue: {
-      'Hyperliquid Builder Code Fees': 'All perps trading fees using Hyperliquid builder code.',
-      'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
+      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
+      'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     ProtocolRevenue: {
-      'Hyperliquid Builder Code Fees': 'All perps trading fees using Hyperliquid builder code.',
-      'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
+      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
+      'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
+    },
+    SupplySideRevenue: {
+      'HIP-3 Fees To Hyperliquid': 'HIP-3 market fees paid through to Hyperliquid (not retained by Kinetiq).',
     },
   }
 };

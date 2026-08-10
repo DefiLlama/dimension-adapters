@@ -1,11 +1,25 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const SOCIAL_PAYMENT_ACTION = "0xaEaB214c5E2F44B2dc22Fb426238292B128163C2";
+// Hey deployment addresses — https://hey.xyz (Lens Chain, chainId 232)
+// Sources: heyxyz/hey src/data/contracts.ts, src/data/constants.ts
+const HEY_TREASURY = "0x2032360d868912867d7d0c3cee9c08f0a3d2ead9";
+const SOCIAL_PAYMENT_ACTION = "0xaEaB214c5E2F44B2dc22Fb426238292B128163C2"; // Action Hub module
+const SOCIAL_PAYMENT_POST_RULE = "0x9060719480D5A431Dd3CE865a1Da97822288906e";
 const PREMIUM_CONTRACT = "0xca5bF1Bc5179936cAe9c60913496B54b77d1B17b";
+
+// zkSync-style L2 base token — native GHO transfers emit ERC-20 Transfer logs here
+const L2_BASE_TOKEN = "0x000000000000000000000000000000000000800a";
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const TRANSFER_EVENT =
+  "event Transfer(address indexed from, address indexed to, uint256 value)";
 
 const PAYMENT_PROCESSED_EVENT =
   "event PaymentProcessed(uint8 indexed actionType, address indexed payer, address indexed author, uint256 authorShare, uint256 treasuryShare, address feed, uint256 postId)";
+
+const INTERACTION_PREPAID_EVENT =
+  "event InteractionPrepaid(address indexed feed, bytes32 indexed configSalt, uint256 indexed rootPostId, address payer, uint8 actionType, address payoutAuthor, uint256 authorShare, uint256 treasuryShare, uint256 prepaidUntil)";
 
 const SUBSCRIBED_EVENT =
   "event Subscribed(address indexed subscriber, uint8 indexed tier, uint256 expiresAt, uint256 pricePaid)";
@@ -39,7 +53,6 @@ const LABELS = {
   quotePostFeeToAuthors: "Quote Post Fee To Authors",
   newPostFeeToHeyTreasury: "New Post Fee To Hey Treasury",
   commentFeeToHeyTreasury: "Comment Fee To Hey Treasury",
-  repostFeeToHeyTreasury: "Repost Fee To Hey Treasury",
   quotePostFeeToHeyTreasury: "Quote Post Fee To Hey Treasury",
   heyProBasicSubscription: "Hey Pro Basic Subscription",
   heyProProSubscription: "Hey Pro Pro Subscription",
@@ -48,6 +61,32 @@ const LABELS = {
   heyProGiftSubscription: "Hey Pro Gift Subscription",
   heyProUnknownTierSubscription: "Hey Pro Unknown Tier Subscription",
 } as const;
+
+// Social Payment fee schedule (native GHO) — https://hey.xyz
+// New post: 0.03 treasury / 0 author | Comment: 0.01 / 0.01 | Repost: 0 / 0.01 | Quote: 0.02 / 0.01
+// Intentionally classify social treasury by exact wallet inflows (not event treasuryShare)
+// to match hey.xyz accounting and avoid double-counting Hub + Post Rule paths.
+const GHO_0_01 = 10n ** 16n; // 0.01 GHO — comment treasury share
+const GHO_0_02 = 2n * 10n ** 16n; // 0.02 GHO — quote treasury share
+const GHO_0_03 = 3n * 10n ** 16n; // 0.03 GHO — new post treasury share
+
+const TREASURY_ACTION_BY_WEI: Record<
+  string,
+  { feeLabel: string; treasuryLabel: string }
+> = {
+  [GHO_0_01.toString()]: {
+    feeLabel: LABELS.commentFee,
+    treasuryLabel: LABELS.commentFeeToHeyTreasury,
+  },
+  [GHO_0_02.toString()]: {
+    feeLabel: LABELS.quotePostFee,
+    treasuryLabel: LABELS.quotePostFeeToHeyTreasury,
+  },
+  [GHO_0_03.toString()]: {
+    feeLabel: LABELS.newPostFee,
+    treasuryLabel: LABELS.newPostFeeToHeyTreasury,
+  },
+};
 
 const SOCIAL_PAYMENT_FEE_LABELS: Record<number, string> = {
   [SocialPaymentActionType.POST]: LABELS.newPostFee,
@@ -62,18 +101,14 @@ const SOCIAL_PAYMENT_AUTHOR_LABELS: Record<number, string> = {
   [SocialPaymentActionType.QT]: LABELS.quotePostFeeToAuthors,
 };
 
-const SOCIAL_PAYMENT_TREASURY_LABELS: Record<number, string> = {
-  [SocialPaymentActionType.POST]: LABELS.newPostFeeToHeyTreasury,
-  [SocialPaymentActionType.COMMENT]: LABELS.commentFeeToHeyTreasury,
-  [SocialPaymentActionType.REPOST]: LABELS.repostFeeToHeyTreasury,
-  [SocialPaymentActionType.QT]: LABELS.quotePostFeeToHeyTreasury,
-};
-
 const PREMIUM_SUBSCRIPTION_LABELS: Record<number, string> = {
   [PremiumTier.BASIC]: LABELS.heyProBasicSubscription,
   [PremiumTier.PRO]: LABELS.heyProProSubscription,
   [PremiumTier.ENTERPRISE]: LABELS.heyProEnterpriseSubscription,
 };
+
+const padAddress = (address: string) =>
+  "0x" + address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 
 const getPremiumSubscriptionLabel = (tier: number): string =>
   PREMIUM_SUBSCRIPTION_LABELS[tier] ?? LABELS.heyProUnknownTierSubscription;
@@ -93,49 +128,77 @@ const addPremiumRevenue = (
   balances.dailyProtocolRevenue.addGasToken(amount, label);
 };
 
+const addAuthorShare = (
+  balances: {
+    dailyFees: ReturnType<FetchOptions["createBalances"]>;
+    dailySupplySideRevenue: ReturnType<FetchOptions["createBalances"]>;
+  },
+  actionType: number,
+  authorShare: bigint
+) => {
+  if (authorShare <= 0n) return;
+  const feeLabel = SOCIAL_PAYMENT_FEE_LABELS[actionType];
+  const authorLabel = SOCIAL_PAYMENT_AUTHOR_LABELS[actionType];
+  if (!feeLabel || !authorLabel) return;
+  balances.dailyFees.addGasToken(authorShare, feeLabel);
+  balances.dailySupplySideRevenue.addGasToken(authorShare, authorLabel);
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const paymentLogs = await options.getLogs({
-    target: SOCIAL_PAYMENT_ACTION,
-    eventAbi: PAYMENT_PROCESSED_EVENT,
-  });
+  const authorBalances = { dailyFees, dailySupplySideRevenue };
 
+  const [paymentLogs, postRuleLogs, treasuryLogs] = await Promise.all([
+    options.getLogs({
+      targets: [SOCIAL_PAYMENT_ACTION],
+      eventAbi: PAYMENT_PROCESSED_EVENT,
+    }),
+    options.getLogs({
+      targets: [SOCIAL_PAYMENT_POST_RULE],
+      eventAbi: INTERACTION_PREPAID_EVENT,
+    }),
+    options.getLogs({
+      targets: [L2_BASE_TOKEN],
+      eventAbi: TRANSFER_EVENT,
+      topics: [TRANSFER_TOPIC, null as any, padAddress(HEY_TREASURY)],
+    }),
+  ]);
+
+  // Author shares: Action Hub + Post Rule (hey.xyz compatible; mutually exclusive settlement paths)
   for (const log of paymentLogs) {
-    const authorShare = BigInt(log.authorShare);
-    const treasuryShare = BigInt(log.treasuryShare);
-    const gross = authorShare + treasuryShare;
-    if (gross === 0n) continue;
+    addAuthorShare(
+      authorBalances,
+      Number(log.actionType),
+      BigInt(log.authorShare)
+    );
+  }
 
-    const actionType = Number(log.actionType);
-    const feeLabel = SOCIAL_PAYMENT_FEE_LABELS[actionType];
-    if (!feeLabel) continue;
+  for (const log of postRuleLogs) {
+    addAuthorShare(
+      authorBalances,
+      Number(log.actionType),
+      BigInt(log.authorShare)
+    );
+  }
 
-    dailyFees.addGasToken(gross, feeLabel);
-
-    if (authorShare > 0n) {
-      const authorLabel = SOCIAL_PAYMENT_AUTHOR_LABELS[actionType];
-      if (authorLabel) {
-        dailySupplySideRevenue.addGasToken(authorShare, authorLabel);
-      }
-    }
-
-    if (treasuryShare > 0n) {
-      const treasuryLabel = SOCIAL_PAYMENT_TREASURY_LABELS[actionType];
-      if (treasuryLabel) {
-        dailyRevenue.addGasToken(treasuryShare, treasuryLabel);
-        dailyProtocolRevenue.addGasToken(treasuryShare, treasuryLabel);
-      }
-    }
+  // Social treasury: exact 0.01/0.02/0.03 native GHO inflows only (premium via events below)
+  for (const log of treasuryLogs) {
+    const value = BigInt(log.value);
+    const mapped = TREASURY_ACTION_BY_WEI[value.toString()];
+    if (!mapped) continue;
+    dailyFees.addGasToken(value, mapped.feeLabel);
+    dailyRevenue.addGasToken(value, mapped.treasuryLabel);
+    dailyProtocolRevenue.addGasToken(value, mapped.treasuryLabel);
   }
 
   const premiumBalances = { dailyFees, dailyProtocolRevenue, dailyRevenue };
 
   const subscribedLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: SUBSCRIBED_EVENT,
   });
   for (const log of subscribedLogs) {
@@ -147,7 +210,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const upgradedLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: TIER_UPGRADED_EVENT,
   });
   for (const log of upgradedLogs) {
@@ -159,7 +222,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const giftLogs = await options.getLogs({
-    target: PREMIUM_CONTRACT,
+    targets: [PREMIUM_CONTRACT],
     eventAbi: GIFT_SENT_EVENT,
   });
   for (const log of giftLogs) {
@@ -181,27 +244,27 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "All native GHO Social Payment fees on Lens Chain (new posts, comments, reposts, quotes) plus Hey Pro yearly subscription payments.",
+    "Social Payment gross fees on Lens Chain (Hey treasury wallet inflows of 0.01/0.02/0.03 GHO plus author shares from Action Hub and Post Rule) plus Hey Pro yearly subscription payments.",
   UserFees:
     "GHO paid by users for Social Payment interactions and Hey Pro subscriptions on Hey.",
   SupplySideRevenue:
-    "Author shares from Social Payment fees paid to content creators on comments, reposts, and quote posts.",
+    "Author shares from Social Payment fees (Action Hub PaymentProcessed + Post Rule InteractionPrepaid) paid to content creators on comments, reposts, and quote posts.",
   Revenue:
-    "Hey treasury shares from Social Payment fees plus full Hey Pro subscription revenue.",
+    "Native GHO Social Payment inflows to the Hey treasury wallet (0.01/0.02/0.03 GHO action shares) plus full Hey Pro subscription revenue from subscription events.",
   ProtocolRevenue:
-    "All revenue retained by Hey treasury from Social Payment and Hey Pro subscriptions.",
+    "All revenue retained by Hey treasury from Social Payment wallet inflows and Hey Pro subscriptions.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [LABELS.newPostFee]:
-      "GHO fee paid when publishing a new post through Hey Social Payment (0.03 GHO).",
+      "GHO fee paid when publishing a new post through Hey Social Payment (0.03 GHO), measured as treasury wallet inflow.",
     [LABELS.commentFee]:
-      "GHO fee paid when commenting on a post through Hey Social Payment (0.02 GHO).",
+      "GHO fee paid when commenting (0.02 GHO): 0.01 treasury wallet inflow + 0.01 author share from Action Hub or Post Rule.",
     [LABELS.repostFee]:
-      "GHO fee paid when reposting through Hey Social Payment (0.01 GHO).",
+      "GHO fee paid when reposting (0.01 GHO), measured as author share from Action Hub or Post Rule (treasury share is 0).",
     [LABELS.quotePostFee]:
-      "GHO fee paid when quoting a post through Hey Social Payment (0.03 GHO).",
+      "GHO fee paid when quoting a post (0.03 GHO): 0.02 treasury wallet inflow + 0.01 author share from Action Hub or Post Rule.",
     [LABELS.heyProBasicSubscription]:
       "Yearly Hey Pro Basic subscription paid in native GHO (default 1.99 GHO).",
     [LABELS.heyProProSubscription]:
@@ -217,21 +280,19 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [LABELS.commentFeeToAuthors]:
-      "Author share from comment fees paid to the source post author (0.01 GHO).",
+      "Author share from comment fees paid to the source post author (0.01 GHO) via Action Hub or Post Rule.",
     [LABELS.repostFeeToAuthors]:
-      "Author share from repost fees paid to the original post author (0.01 GHO).",
+      "Author share from repost fees paid to the original post author (0.01 GHO) via Action Hub or Post Rule.",
     [LABELS.quotePostFeeToAuthors]:
-      "Author share from quote fees paid to the quoted post author (0.01 GHO).",
+      "Author share from quote fees paid to the quoted post author (0.01 GHO) via Action Hub or Post Rule.",
   },
   Revenue: {
     [LABELS.newPostFeeToHeyTreasury]:
-      "Hey treasury share from new post fees (0.03 GHO).",
+      "Native GHO (0.03) received by Hey treasury wallet from new post fees.",
     [LABELS.commentFeeToHeyTreasury]:
-      "Hey treasury share from comment fees (0.01 GHO).",
+      "Native GHO (0.01) received by Hey treasury wallet from comment fees.",
     [LABELS.quotePostFeeToHeyTreasury]:
-      "Hey treasury share from quote post fees (0.02 GHO).",
-    [LABELS.repostFeeToHeyTreasury]:
-      "Hey treasury share from repost fees (0 GHO under current fee schedule).",
+      "Native GHO (0.02) received by Hey treasury wallet from quote post fees.",
     [LABELS.heyProBasicSubscription]:
       "Full Hey Pro Basic subscription revenue retained by Hey.",
     [LABELS.heyProProSubscription]:
@@ -247,13 +308,11 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [LABELS.newPostFeeToHeyTreasury]:
-      "New post fee revenue allocated to Hey treasury.",
+      "New post fee revenue received by Hey treasury wallet.",
     [LABELS.commentFeeToHeyTreasury]:
-      "Comment fee revenue allocated to Hey treasury.",
+      "Comment fee revenue received by Hey treasury wallet.",
     [LABELS.quotePostFeeToHeyTreasury]:
-      "Quote post fee revenue allocated to Hey treasury.",
-    [LABELS.repostFeeToHeyTreasury]:
-      "Repost fee revenue allocated to Hey treasury (0 GHO under current fee schedule).",
+      "Quote post fee revenue received by Hey treasury wallet.",
     [LABELS.heyProBasicSubscription]:
       "Hey Pro Basic subscription revenue allocated to Hey treasury.",
     [LABELS.heyProProSubscription]:
@@ -274,6 +333,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.LENS],
+  // Social Payment module first activity on Lens — https://hey.xyz
   start: "2026-05-15",
   methodology,
   breakdownMethodology,

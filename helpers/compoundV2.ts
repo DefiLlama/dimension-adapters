@@ -2,6 +2,7 @@ import ADDRESSES from './coreAssets.json'
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { METRIC } from './metrics';
+import { cache } from "@defillama/sdk";
 
 const LiquidateBorrowEvent = 'event LiquidateBorrow(address liquidator, address borrower, uint256 repayAmount, address cTokenCollateral, uint256 seizeTokens)'
 
@@ -132,6 +133,15 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     exportObject[chain] = {
       start: starts[chain],
       fetch: (async (options: FetchOptions) => {
+        const compoundInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/compound.json`;
+        const insolventMarketsDetails = await cache.readCache(compoundInsolventMarketsCacheKey, { readFromR2Cache: true });
+        const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+
+        if (stuckMarkets.includes(market.toLowerCase()) || insolventMarkets.includes(market.toLowerCase())) {
+          return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances(), dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: options.createBalances(), dailySupplySideRevenue: options.createBalances() }
+        }
+
         const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
           ? await getFeesUseExchangeRates(market, options, {
             blacklists: exportOptions.blacklists,

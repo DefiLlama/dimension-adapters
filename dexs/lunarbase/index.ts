@@ -1,14 +1,23 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
-const POOLS_BY_CHAIN = {
+type PoolConfig = {
+    address: string;
+    feeModel: "legacy" | "dark_pools_v2";
+    tokenXOverride?: string;
+    tokenYOverride?: string;
+};
+
+const POOLS_BY_CHAIN: Record<string, readonly PoolConfig[]> = {
     [CHAIN.BASE]: [
         {
             address: "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
             feeModel: "legacy",
         },
         {
+            // Multi-token pool: emits no SwapExecuted, so nothing is counted here yet.
             address: "0x00003bf45Ce34Bf1BeA78669f9A40ee630e11b99",
             feeModel: "dark_pools_v2",
         },
@@ -20,6 +29,19 @@ const POOLS_BY_CHAIN = {
     [CHAIN.MONAD]: [
         {
             address: "0x0000a8fd148694aE3E17c079Ce4BBF8187758888",
+            feeModel: "dark_pools_v2",
+        },
+    ],
+    [CHAIN.BSC]: [
+        {
+            // BNB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
+            address: "0x00007904d186680C709519e71f4Dc3e2Df8f1b99",
+            feeModel: "dark_pools_v2",
+            tokenXOverride: ADDRESSES.bsc.WBNB,
+        },
+        {
+            // BTCB/USDT pool from TVL PR: https://github.com/DefiLlama/DefiLlama-Adapters/pull/20239
+            address: "0x0B1ce37bc7eE857916B4e2dF9F69775c36831B99",
             feeModel: "dark_pools_v2",
         },
     ],
@@ -98,9 +120,9 @@ const fetch = async (options: FetchOptions) => {
     );
 
     for (let i = 0; i < POOLS.length; i++) {
-        const { address: pool, feeModel } = POOLS[i];
-        const tokenX = tokenXs[i];
-        const tokenY = tokenYs[i];
+        const { address: pool, feeModel, tokenXOverride, tokenYOverride } = POOLS[i];
+        const tokenX = tokenXOverride ?? tokenXs[i];
+        const tokenY = tokenYOverride ?? tokenYs[i];
         const logs = swapLogs[i];
         if (!logs?.length) continue;
         if (typeof tokenX !== "string" || typeof tokenY !== "string") {
@@ -110,9 +132,11 @@ const fetch = async (options: FetchOptions) => {
         const legacyPoolParams = legacyPoolParamsByAddress.get(pool);
         const treasuryShareBps = legacyPoolParams?.treasuryShareBps;
         const totalBps = legacyPoolParams?.totalBps;
-        if (feeModel === "legacy" && (isInvalidCallResult(treasuryShareBps) || isInvalidCallResult(totalBps))) {
-            console.warn(`Skipping LunarBase pool ${pool} at block ${toBlock}: failed to resolve fee split params`);
-            continue;
+        // Only the fee split needs these params; volume/fees are always counted.
+        const legacyParamsValid =
+            !isInvalidCallResult(treasuryShareBps) && !isInvalidCallResult(totalBps);
+        if (feeModel === "legacy" && !legacyParamsValid) {
+            console.warn(`LunarBase pool ${pool} at block ${toBlock}: fee split params unresolved; counting volume/fees, skipping protocol/supply split`);
         }
 
         for (const log of logs) {
@@ -129,6 +153,13 @@ const fetch = async (options: FetchOptions) => {
             dailyFees.add(feeToken, feeBig, METRIC.SWAP_FEES);
 
             if (feeModel === "legacy") {
+                if (!legacyParamsValid) {
+                    // Split params unreadable: default the fee to supply-side so
+                    // dailyFees stays == supply + protocol. Matches on-chain reality
+                    // (treasuryShareBps is 0, so the whole fee is supply-side anyway).
+                    dailySupplySideRevenue.add(feeToken, feeBig, METRIC.SWAP_FEES);
+                    continue;
+                }
                 const treasuryShareBpsBig = toBigIntOrZero(treasuryShareBps);
                 const totalBpsBig = toBigIntOrZero(totalBps);
 
@@ -140,9 +171,10 @@ const fetch = async (options: FetchOptions) => {
                 continue;
             }
 
-            // V2 dark_pools route swap fees into treasury/partner accounting, not LP swap-fee buckets.
-            // We count the swap fee and treat it as protocol-side until router-level partner rebates are surfaced.
-            dailyProtocolRevenue.add(feeToken, feeBig, METRIC.SWAP_FEES);
+            // dark_pools_v2: the fee is an embedded spread that accrues to the
+            // market-maker/settler filling the order, not the protocol treasury.
+            // Book it as supply-side (liquidity-provider) revenue.
+            dailySupplySideRevenue.add(feeToken, feeBig, METRIC.SWAP_FEES);
         }
 
     }
@@ -151,29 +183,29 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Volume: "The amount of tokens that are swapped through the protocol.",
-    Fees: "Fees that are collected for each swap transaction.",
-    UserFees: "Fees that are paid by the users",
-    SupplySideRevenue: "The portion of fees that goes to the liquidity providers.",
-    Revenue: "The portion of fees that going to the protocol.",
-    ProtocolRevenue: "All the revenue goes to the protocol.",
+    Volume: "Total value of tokens swapped through LunarBase's pools.",
+    Fees: "The spread charged on each swap.",
+    UserFees: "The spread paid by traders on each swap.",
+    SupplySideRevenue: "Swap spreads earned by the market makers that fill orders in the dark pools, plus the liquidity-provider share of the legacy pool's fee.",
+    Revenue: "The protocol's cut: the treasury share of the legacy pool's fee (currently 0). Dark-pool spreads go to the market makers that provide inventory, not the protocol.",
+    ProtocolRevenue: "The protocol's cut: the treasury share of the legacy pool's fee (currently 0). Dark-pool spreads go to the market makers that provide inventory, not the protocol.",
 };
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.SWAP_FEES]: "Fees that are collected for each swap transaction.",
+        [METRIC.SWAP_FEES]: "Spread charged on each swap.",
     },
     UserFees: {
-        [METRIC.SWAP_FEES]: "Swap fees that are paid by the users.",
+        [METRIC.SWAP_FEES]: "Spread paid by traders on each swap.",
     },
     SupplySideRevenue: {
-        [METRIC.SWAP_FEES]: "Swap fees that goes to the liquidity providers.",
+        [METRIC.SWAP_FEES]: "Swap spreads paid to the market makers / liquidity providers that supply the pools.",
     },
     ProtocolRevenue: {
-        [METRIC.SWAP_FEES]: "Swap fees that goes to the protocol.",
+        [METRIC.SWAP_FEES]: "Treasury share of the legacy pool's swap fee (currently 0).",
     },
     Revenue: {
-        [METRIC.SWAP_FEES]: "Swap fees that going to the protocol.",
+        [METRIC.SWAP_FEES]: "Treasury share of the legacy pool's swap fee (currently 0).",
     },
 };
 
@@ -183,6 +215,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: { fetch, start: "2026-03-19" },
         [CHAIN.MONAD]: { fetch, start: "2026-04-30" },
+        [CHAIN.BSC]: { fetch, start: "2026-07-25" },
     },
     methodology,
     breakdownMethodology,

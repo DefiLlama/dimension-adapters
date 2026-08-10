@@ -5,6 +5,7 @@ import {decodeReserveConfig} from "./helper";
 import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
+import { cache } from "@defillama/sdk";
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -247,7 +248,13 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         let dailyProtocolRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        const aaveInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/aave.json`;
+        const insolventMarketsDetails = await cache.readCache(aaveInsolventMarketsCacheKey, { readFromR2Cache: true });
+        const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+
         for (const pool of config.pools) {
+          if (stuckMarkets.includes(pool.lendingPoolProxy.toLowerCase()) || insolventMarkets.includes(pool.lendingPoolProxy.toLowerCase())) continue;
           await getPoolFees(pool, options, {
             dailyFees,
             dailySupplySideRevenue,

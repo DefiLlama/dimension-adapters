@@ -22,7 +22,15 @@ const fetchAptos = async (options: FetchOptions) => {
   };
 };
 
+const PROTOCOL_DRAIN_DATE = "2026-07-11";
+
 const fetchSui = async (options: FetchOptions) => {
+  // Protocol is suspended and adapter provides incorrect inflated volume
+  if(options.dateString > PROTOCOL_DRAIN_DATE) {
+    return {
+      dailyVolume: 0,
+    };
+  }
   const events = await queryEvents({
     eventModule: { package: SUI_PACKAGE, module: "swap" },
     options,

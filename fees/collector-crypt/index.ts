@@ -2,21 +2,19 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
-const GACHA_TIERS = [25, 50, 75, 80, 100, 250, 1000, 2500];
-
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
-// On-chain crypto gacha sinks. Pack purchases arrive as exact-tier USDC transfers, so
-// these are tier-filtered (99.9% of inflows match a tier; non-tier is rounding noise).
+// On-chain crypto gacha sinks. All non-team USDC inflows are pack purchases, so there is no
+// price-tier filter: CC keeps launching new tiers (150/151/420/5000 in Jul-2026) and a hardcoded
+// tier list silently drops their revenue until someone notices. Same rule as the fiat rail below.
 const GACHA_ONCHAIN_ADDRESSES = [
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z', // decommissioned pre-Dec-2025, kept for history
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3', // primary on-chain sink
 ];
 
 // CC fiat/credit-card rail. Card-pack purchases settle off-chain (card/Coinbase) and then
-// top this wallet up in BUNDLED, non-tier amounts (e.g. $200 = 2 packs, $750 = 3 packs).
-// Count ALL non-team inflows here, not just tier amounts - the tier filter drops ~41% of
-// fiat-rail revenue (bundled buys). Matches blocmates' reference model (dune query 7444053).
+// top this wallet up in BUNDLED amounts (e.g. $200 = 2 packs, $750 = 3 packs).
+// Matches blocmates' reference model (dune query 7444053).
 const GACHA_FIAT_ADDRESS = '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s';
 
 const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
@@ -66,7 +64,6 @@ const timeRange = (options: FetchOptions) =>
 
 const teamAddresses = TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ');
 const gachaOnchainAddresses = GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ');
-const gachaTiers = GACHA_TIERS.join(', ');
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -87,18 +84,10 @@ const fetch = async (options: FetchOptions) => {
   const query = `
     WITH gacha_in AS (
       SELECT
-        SUM(CASE WHEN amount = 25 THEN amount ELSE 0 END) AS gacha_spend_25,
-        SUM(CASE WHEN amount = 50 THEN amount ELSE 0 END) AS gacha_spend_50,
-        SUM(CASE WHEN amount = 75 THEN amount ELSE 0 END) AS gacha_spend_75,
-        SUM(CASE WHEN amount = 80 THEN amount ELSE 0 END) AS gacha_spend_80,
-        SUM(CASE WHEN amount = 100 THEN amount ELSE 0 END) AS gacha_spend_100,
-        SUM(CASE WHEN amount = 250 THEN amount ELSE 0 END) AS gacha_spend_250,
-        SUM(CASE WHEN amount = 1000 THEN amount ELSE 0 END) AS gacha_spend_1000,
-        SUM(CASE WHEN amount = 2500 THEN amount ELSE 0 END) AS gacha_spend_2500
+        COALESCE(SUM(amount), 0) AS onchain_spend
       FROM solana.assets.transfers
       WHERE to_address IN (${gachaOnchainAddresses})
         AND from_address NOT IN (${teamAddresses})
-        AND amount IN (${gachaTiers})
         AND mint = '${USDC_MINT}'
         AND ${timeRange(options)}
     ),
@@ -132,14 +121,7 @@ const fetch = async (options: FetchOptions) => {
       ${cardsBuybackCte}
     )
     SELECT
-      COALESCE(g.gacha_spend_25, 0) AS gacha_spend_25,
-      COALESCE(g.gacha_spend_50, 0) AS gacha_spend_50,
-      COALESCE(g.gacha_spend_75, 0) AS gacha_spend_75,
-      COALESCE(g.gacha_spend_80, 0) AS gacha_spend_80,
-      COALESCE(g.gacha_spend_100, 0) AS gacha_spend_100,
-      COALESCE(g.gacha_spend_250, 0) AS gacha_spend_250,
-      COALESCE(g.gacha_spend_1000, 0) AS gacha_spend_1000,
-      COALESCE(g.gacha_spend_2500, 0) AS gacha_spend_2500,
+      COALESCE(g.onchain_spend, 0) AS gacha_spend_onchain,
       COALESCE(gf.fiat_spend, 0) AS gacha_spend_fiat,
       COALESCE(f.inflow, 0) AS fees_royalty,
       COALESCE(b.buyback, 0) AS buyback,
@@ -156,12 +138,10 @@ const fetch = async (options: FetchOptions) => {
   let cardsBought = 0;
   if (data && data.length > 0) {
     const result = data[0];
-    for (const tier of GACHA_TIERS) {
-      const spend = result[`gacha_spend_${tier}`] || 0;
-      if (spend) {
-        dailyVolume.addUSDValue(spend);
-        dailyFees.addUSDValue(spend, `Gacha $${tier} Pack Sales`);
-      }
+    const onchainSpend = Number(result.gacha_spend_onchain || 0);
+    if (onchainSpend) {
+      dailyVolume.addUSDValue(onchainSpend);
+      dailyFees.addUSDValue(onchainSpend, 'Gacha Pack Sales');
     }
     const fiatSpend = Number(result.gacha_spend_fiat || 0);
     if (fiatSpend) {
@@ -195,7 +175,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: "Volume from gacha card pack sales, including packs bought on-chain (USDC) and via the CC fiat/credit-card rail.",
+  Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain or through the CC fiat/credit-card rail.",
   Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
   Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
@@ -204,15 +184,8 @@ const methodology = {
 }
 
 const gachaBreakdown = {
-  "Gacha $25 Pack Sales": "Gacha pack sales at $25.",
-  "Gacha $50 Pack Sales": "Gacha pack sales at $50.",
-  "Gacha $75 Pack Sales": "Gacha pack sales at $75.",
-  "Gacha $80 Pack Sales": "Gacha pack sales at $80.",
-  "Gacha $100 Pack Sales": "Gacha pack sales at $100.",
-  "Gacha $250 Pack Sales": "Gacha pack sales at $250.",
-  "Gacha $1000 Pack Sales": "Gacha pack sales at $1000.",
-  "Gacha $2500 Pack Sales": "Gacha pack sales at $2500.",
-  "Gacha Fiat Pack Sales": "Gacha pack sales settled via the CC fiat/credit-card rail. Bundled into non-tier amounts, so all non-team inflows to the fiat-rail wallet are counted.",
+  "Gacha Pack Sales": "Gacha pack sales settled onchain: all non-team USDC inflows to the gacha sink wallets, across every price tier.",
+  "Gacha Fiat Pack Sales": "Gacha pack sales settled via the CC fiat/credit-card rail: all non-team inflows to the fiat-rail wallet, which arrive bundled across packs.",
   "Royalty Fees": "Royalty fees from marketplace transactions.",
   "Pack Buyback Spends": "Expenditures on gacha pack buybacks.",
 }
