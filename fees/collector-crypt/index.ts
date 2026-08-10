@@ -60,7 +60,7 @@ const TEAM_ADDRESSES = [
 ]
 
 const timeRange = (options: FetchOptions) =>
-  `block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
+  `block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
 const teamAddresses = TEAM_ADDRESSES.map(addr => `'${addr}'`).join(', ');
 const gachaOnchainAddresses = GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ');

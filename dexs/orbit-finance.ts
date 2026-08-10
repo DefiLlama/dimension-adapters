@@ -44,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
                 ON t.tx_id = s.tx_id
                 AND t.outer_instruction_index = s.outer_instruction_index
             WHERE t.block_time >= from_unixtime(${options.startTimestamp})
-                AND t.block_time <= from_unixtime(${options.endTimestamp})
+                AND t.block_time < from_unixtime(${options.endTimestamp})
                 AND t.amount_usd IS NOT NULL
                 AND t.amount_usd > 0
         ),

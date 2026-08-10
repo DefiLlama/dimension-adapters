@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
 							totalTradeVolumeUSD
 							totalFeesEarnedUSD
 						}
-						dailies(first: 1, where:{date_lte: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
+						dailies(first: 1, where:{date_lt: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
 							date
 							tradeVolumeUSD
 							swapUSD

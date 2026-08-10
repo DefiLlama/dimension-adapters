@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
       FROM raydium_solana.raydium_launchpad_evt_tradeevent t
       JOIN initialize_v2_mints i ON t.pool_state = i.account_pool_state
       WHERE t.evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND t.evt_block_time <= from_unixtime(${options.endTimestamp})
+        AND t.evt_block_time < from_unixtime(${options.endTimestamp})
       GROUP BY 1
     ),
 
@@ -45,7 +45,7 @@ const fetch = async (options: FetchOptions) => {
       INNER JOIN pool_states ps ON ps.pool_state = s.account_poolState
       WHERE s.account_inputTokenMint = 'So11111111111111111111111111111111111111112'
         AND s.call_block_time >= from_unixtime(${options.startTimestamp})
-        AND s.call_block_time <= from_unixtime(${options.endTimestamp})
+        AND s.call_block_time < from_unixtime(${options.endTimestamp})
     ),
 
     base_output AS (
@@ -57,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
       INNER JOIN pool_states ps ON ps.pool_state = s.account_poolState
       WHERE s.account_outputTokenMint = 'So11111111111111111111111111111111111111112'
         AND s.call_block_time >= from_unixtime(${options.startTimestamp})
-        AND s.call_block_time <= from_unixtime(${options.endTimestamp})
+        AND s.call_block_time < from_unixtime(${options.endTimestamp})
     ),
 
     all_trades AS (

@@ -7,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT SUM(receipt_gas_used * receipt_effective_gas_price) AS fees_in_wei
     FROM sei.raw.transactions
-    WHERE block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `
   const res = await queryAllium(query);
   const dailyFees = options.createBalances();

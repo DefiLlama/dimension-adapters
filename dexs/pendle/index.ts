@@ -100,7 +100,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // a market can only trade between its deployment and its expiry
   const markets = (await getAllMarkets(chains[options.chain].id)).filter(
     (market) =>
-      new Date(market.timestamp).getTime() / 1000 <= options.endTimestamp &&
+      new Date(market.timestamp).getTime() / 1000 < options.endTimestamp &&
       new Date(market.expiry).getTime() / 1000 > options.startTimestamp
   );
   if (!markets.length) return { dailyVolume };

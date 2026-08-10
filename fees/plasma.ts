@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
       SUM(gas_price * gas_used) AS gas_fees
     FROM plasma.transactions
     WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
   `;
 
   const feesResult: any[] = await queryDuneSql(options, query);

@@ -33,10 +33,6 @@ export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 // test A is for.
 export const WASH_DUST_USD = 25_000;
 
-// UTC start of the day being recorded. runAdapter hands fetch a window of
-// [dayStart - 1s, dayEnd), so flooring startTimestamp lands on the PREVIOUS
-// day and the filter would apply yesterday's flag list - fatal for fake-ticker
-// pools that live a single day. Key off endTimestamp instead.
 export function washDayStart(options: FetchOptions): number {
   return Math.floor((options.endTimestamp - 1) / 86400) * 86400;
 }

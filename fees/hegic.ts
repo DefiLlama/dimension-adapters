@@ -25,7 +25,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   const dayData = data.positions.filter((position: HegicPosition) => {
     if (!position.closeDate) return false
     const closeDate = dateStringToTimestamp(position.closeDate)
-    return !position.isActive && closeDate >= options.startTimestamp && closeDate <= options.endTimestamp
+    return !position.isActive && closeDate >= options.startTimestamp && closeDate < options.endTimestamp
   })
   dailyFees.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.premiumPaid), 0), "Options premiums")
   dailySupplySideRevenue.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.payOff), 0), "Options payoffs")

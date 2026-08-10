@@ -19,7 +19,7 @@ async function fetchMarkets() {
 async function fetchCandles(options: FetchOptions, marketId: string) {
   try {
     const { startTimestamp, endTimestamp, startOfDay } = options;
-    const klineUrl = `${API_URL}/tradingview/history?symbol=${marketId}&resolution=1D&from=${startTimestamp + 1}&to=${endTimestamp}&countback=330&price_kind=mark&request_source=paradex-ui`;
+    const klineUrl = `${API_URL}/tradingview/history?symbol=${marketId}&resolution=1D&from=${startTimestamp}&to=${endTimestamp}&countback=330&price_kind=mark&request_source=paradex-ui`;
     const klineRes: { t?: number[], v?: number[] } = await fetchURL(klineUrl);
 
     if (!klineRes?.t || !klineRes?.v || !Array.isArray(klineRes.t) || !Array.isArray(klineRes.v)) {

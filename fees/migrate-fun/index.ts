@@ -19,7 +19,7 @@ const fetchSolana = async (options: FetchOptions) => {
       AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}', 'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB')
       AND outer_program_id IN ('migK824DsBMp2eZXdhSBAWFS6PbvA6UN8DV15HfmstR')
       AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `;
   const res = await queryAllium(query);
   const dailyFees = options.createBalances();

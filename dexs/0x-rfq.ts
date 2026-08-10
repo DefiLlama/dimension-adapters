@@ -172,7 +172,7 @@ const prefetch = async (options: FetchOptions) => {
            AND p.contract_address = m.token
            AND p.timestamp = m.fill_day
            AND p.timestamp >= DATE_TRUNC('day', from_unixtime(${options.startTimestamp}))
-           AND p.timestamp <= DATE_TRUNC('day', from_unixtime(${options.endTimestamp}))
+           AND p.timestamp <= DATE_TRUNC('day', from_unixtime(${options.toTimestamp}))
         )`,
         select: `
         SELECT '${chain}' AS chain, COALESCE(SUM(volume_usd), 0) AS daily_volume

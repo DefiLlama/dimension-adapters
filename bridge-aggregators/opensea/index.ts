@@ -29,13 +29,13 @@ const prefetch = async (options: FetchOptions) => {
             FROM evms.transactions tx
             WHERE varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
                 AND tx.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-                AND tx.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+                AND tx.block_time < FROM_UNIXTIME(${options.endTimestamp})
         ),
         dex_txs AS (
             SELECT tx_hash, blockchain
             FROM dex_aggregator.trades
             WHERE block_time >= FROM_UNIXTIME(${options.startTimestamp})
-                AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+                AND block_time < FROM_UNIXTIME(${options.endTimestamp})
 
             UNION ALL
 
@@ -43,7 +43,7 @@ const prefetch = async (options: FetchOptions) => {
             FROM dex.trades
             WHERE blockchain = 'robinhood'
                 AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-                AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+                AND block_time < FROM_UNIXTIME(${options.endTimestamp})
         ),
         filtered_bridge_txs AS (
             SELECT os.hash, os.blockchain
@@ -62,7 +62,7 @@ const prefetch = async (options: FetchOptions) => {
         INNER JOIN filtered_bridge_txs fb
             ON t.tx_hash = fb.hash AND t.blockchain = fb.blockchain
         WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-            AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+            AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
         GROUP BY 1
 	`);
 };
