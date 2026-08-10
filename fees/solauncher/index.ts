@@ -1,5 +1,5 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../../helpers/token";
 
@@ -36,17 +36,15 @@ const fetchRobinhood = async (options: FetchOptions) => {
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 
-const methodology = {
-  Fees: "Fees paid by users for token creation, liquidity management, multi-send, and LP locking.",
-  Revenue: "All fees accrue to the Solauncher treasury — no supply-side distribution.",
-  ProtocolRevenue: "100% of fees go to the Solauncher protocol treasury.",
-};
-
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  methodology,
-  skipBreakdownValidation: true, // helpers (getSolanaReceived/getETHReceived) do not emit labeled breakdown data
+  dependencies: [Dependencies.ALLIUM],
+  methodology: {
+    Fees: "All fees paid by users to use Solauncher tools.",
+    Revenue: "All fees are collected by Solauncher protocol.",
+    ProtocolRevenue: "All fees go to the Solauncher protocol treasury.",
+  },
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
