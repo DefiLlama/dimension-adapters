@@ -20,6 +20,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyVolume,
         dailyFees,
         dailyRevenue: dailyFees,
+        dailySupplySideRevenue: 0,
         openInterestAtEnd,
     }
 
@@ -32,7 +33,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 const methodology = {
     Volume: "Total amount staked on bets matched each day. Every bet is funded by two people whose stakes are pooled into a single payout, so both stakes are counted — they are separate money, not the same money counted twice.",
     Fees: "SX Bet takes no commission on single bets. On parlays it takes 5% of the winner's profit, charged to whichever side wins — market makers pay it too when they win, and losing bets pay nothing. The exchange charged no commission at all between 29 February 2024 and 1 October 2025, and used an earlier fee schedule before that; both are reflected here as reported by the exchange.",
-    Revenue: "Equal to fees. None of the commission is shared with market makers — they earn from the bets they win, not from a cut of the fee.",
+    Revenue: "Equal to fees, because none of the commission is shared with anyone else.",
+    SupplySideRevenue: "Zero. Market makers get no share of the commission — they profit from the bets they win. The USDC maker rewards programme is a separate incentive budget, not a cut of fees.",
     HoldersRevenue: "Through 2025 the collected commission was spent buying SX tokens on the open market.",
     ProtocolRevenue: "From January 2026 the collected commission is sent to the team's treasury instead of funding token buybacks.",
     OpenInterest: "Total amount staked on bets that have been matched but not yet settled. The exchange only publishes this as a current figure, so it reflects the latest snapshot rather than the state on a past date.",
@@ -42,7 +44,8 @@ const adapter: SimpleAdapter = {
     version: 1,
     fetch,
     chains: [CHAIN.SXR],
-    start: '2019-03-04',
+    // volume data begins 2020-09-23 but the revenue series has gaps until 2020-12-06
+    start: '2020-12-07',
     methodology,
 };
 
