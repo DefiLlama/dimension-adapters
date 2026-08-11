@@ -145,9 +145,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       eventAbi: ROBINHOOD_SWAP_FEE_ABI,
       flatten: true,
     });
+
+    const protocolShare = 0.5;
+
     for (const log of ethFeeLogs) {
       dailyFees.addGasToken(log.feeWei, METRIC.TRADING_FEES);
-      dailyRevenue.addGasToken(log.feeWei, 'Robinhood ETH swap fee');
+      dailyRevenue.addGasToken(Number(log.feeWei) * protocolShare, 'Robinhood ETH swap fee to protocol');
+      dailySupplySideRevenue.addGasToken(Number(log.feeWei) * (1 - protocolShare), 'Robinhood ETH swap fee to StockBooster rewards engine');
     }
   }
 
@@ -155,6 +159,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -162,8 +167,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const methodology = {
   Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factory.",
   Fees: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards. On Robinhood Chain every swap additionally pays a flat oracle-priced ~$2 ETH fee (RobinhoodSwapFeePaid).",
-  Revenue: "Robinhood Chain only: the flat ETH swap fee, split 50% protocol treasury / 50% StonkBrokers StockBooster rewards engine. No protocol revenue on other chains.",
-  SupplySideRevenue: "Includes NFTs burned from protocol revenue and staker fees distributed to the NFT stakers",
+  Revenue: "Robinhood Chain only: the flat ETH swap fee, split 50% to the protocol treasury.",
+  ProtocolRevenue: "Robinhood Chain only: the flat ETH swap fee, split 50% to the protocol treasury.",
+  SupplySideRevenue: "Includes NFTs burned from protocol revenue and staker fees distributed to the NFT stakers plus 50% of the flat oracle-priced ~$2 ETH fee per Robinhood Chain that goes to the StonkBrokers StockBooster rewards engine.",
 }
 
 const breakdownMethodology = {
@@ -171,11 +177,15 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events (protocol fee burned, staker fee to the NFT staking vault), plus the flat ~$2 ETH fee per swap on Robinhood Chain.",
   },
   Revenue: {
-    'Robinhood ETH swap fee': "Flat oracle-priced ~$2 ETH fee per Robinhood Chain swap, split 50% protocol treasury / 50% StonkBrokers StockBooster rewards engine.",
+    'Robinhood ETH swap fee to protocol': "50% of the flat oracle-priced ~$2 ETH fee per Robinhood Chain goes to the protocol treasury.",
+  },
+  ProtocolRevenue: {
+    'Robinhood ETH swap fee to protocol': "50% of the flat oracle-priced ~$2 ETH fee per Robinhood Chain goes to the protocol treasury.",
   },
   SupplySideRevenue: {
     'Fees to NFT burn': "Sum of protocolFee fields from NFTBought + NFTSold events. Protocol fee is burned directly rewarding NFT holders (supply side)",
     'Fees to NFT stakers': "Sum of stakerFee fields from NFTBought + NFTSold events. Staker fee streams to the NFT staking vault as rewards.",
+    'Robinhood ETH swap fee to StockBooster rewards engine': "50% of the flat oracle-priced ~$2 ETH fee per Robinhood Chain goes to the StonkBrokers StockBooster rewards engine.",
   },
 }
 
