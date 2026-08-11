@@ -70,7 +70,7 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions): Promise<Fe
   const dailySupplySideRevenue = createBalances();
 
   const pools = await enumeratePools(api);
-  if (!pools.length) return { dailyFees, dailyRevenue };
+  if (!pools.length) return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
   const targets = pools.map((p) => p.pool);
   const tokenByIndex = pools.map((p) => p.token);
 
@@ -81,14 +81,14 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions): Promise<Fe
 
   (platformLogs as any[]).forEach((logs: any[], i: number) => {
     for (const log of logs || []) {
-      dailyFees.add(tokenByIndex[i], log.amount);
-      dailyRevenue.add(tokenByIndex[i], log.amount);
+      dailyFees.add(tokenByIndex[i], log.amount, "Betting Fees");
+      dailyRevenue.add(tokenByIndex[i], log.amount, "Betting Fees to Protocol");
     }
   });
   (creatorLogs as any[]).forEach((logs: any[], i: number) => {
     for (const log of logs || []) {
-      dailyFees.add(tokenByIndex[i], log.amount);
-      dailySupplySideRevenue.add(tokenByIndex[i], log.amount);
+      dailyFees.add(tokenByIndex[i], log.amount, "Betting Fees");
+      dailySupplySideRevenue.add(tokenByIndex[i], log.amount, "Betting Fees to Creators");
     }
   });
 
@@ -103,17 +103,34 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions): Promise<Fe
 const methodology = {
   Fees: "All betting fees paid across AvaLove game pools = platform fee + creator fee (PlatformFeeCollected + CreatorFeeCollected events, per pool token).",
   Revenue: "Platform's share of fees (PlatformFeeCollected) — accrues to the AvaLove treasury.",
-  ProtocolRevenue: "Same as Revenue — all platform fees go to the protocol treasury.",
+  ProtocolRevenue: "Platform fees (PlatformFeeCollected) paid to the protocol treasury.",
   SupplySideRevenue: "Creator fees (CreatorFeeCollected) paid out to each pool's creator.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Betting Fees": "Fees paid by players across all game pools.",
+  },
+  Revenue: {
+    "Betting Fees to Protocol": "Platform fees (PlatformFeeCollected) paid to the protocol treasury.",
+  },
+  ProtocolRevenue: {
+    "Betting Fees to Protocol": "Platform fees (PlatformFeeCollected) paid to the protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Betting Fees to Creators": "Creator fees (CreatorFeeCollected) paid out to each pool's creator.",
+  },
+}
+
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   adapter: {
-    [CHAIN.AVAX]: { fetch, start: "2025-01-01" },
-    [CHAIN.ROBINHOOD]: { fetch, start: "2025-04-01" },
+    [CHAIN.AVAX]: { fetch, start: "2026-05-19" },
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-07-25" },
   },
+  breakdownMethodology,
 };
 
 export default adapter;
