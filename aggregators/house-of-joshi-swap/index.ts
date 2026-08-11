@@ -13,7 +13,7 @@ const SHARED_ROUTER = "0x2C5F372746330465C3f4084CE6C6aBce22a48B4d";
 // HojswapRouterV2 uses address(0) as the native gas-token sentinel.
 const NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
 
-export const chainConfig: Record<string, ChainConfig> = {
+const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { contract: SHARED_ROUTER, start: "2026-07-16" },
   [CHAIN.BASE]: { contract: "0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875", start: "2026-07-14" },
   [CHAIN.POLYGON]: { contract: SHARED_ROUTER, start: "2026-07-14" },
@@ -29,9 +29,8 @@ export const chainConfig: Record<string, ChainConfig> = {
 const SWAP_EXECUTED =
   "event SwapExecuted(address indexed sender, address indexed recipient, address indexed sellToken, address buyToken, uint256 sellAmount, uint256 feeAmount, uint256 buyAmount, address swapTarget)";
 
-export const SWAP_FEE_LABEL = "Swap Fees";
-export const PROTOCOL_REVENUE_LABEL = "Swap Fees To Protocol";
-export const VOLUME_LABEL = "Router Swap Volume";
+const SWAP_FEE_LABEL = "Swap Fees";
+const PROTOCOL_REVENUE_LABEL = "Swap Fees To Protocol";
 
 function addAsset(balance: ReturnType<FetchOptions["createBalances"]>, token: string, amount: bigint, label?: string) {
   if (token === NATIVE_TOKEN) {
