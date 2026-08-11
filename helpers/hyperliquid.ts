@@ -724,6 +724,20 @@ export const exportBuilderAdapter = (
         },
   };
 
+  if (props.breakdownFees) {
+    adapter.breakdownMethodology = {
+      Fees: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees paid by users on Hyperliquid trades.',
+      },
+      Revenue: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees collected by the builder.',
+      },
+      ProtocolRevenue: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees collected by the builder.',
+      },
+    };
+  }
+
   if (props.deadFrom) adapter.deadFrom = props.deadFrom;
 
   return adapter;
