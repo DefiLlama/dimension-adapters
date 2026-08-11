@@ -41,18 +41,26 @@ const CHAINS: Record<string, number | string> = {
 
 async function getBridgeVolume(options: FetchOptions) {
   return asyncRetry(
-    async () => {
-      const response = await httpGet(
-        `https://api.0x.org/stats/cross-chain/volume/daily?timestamp=${options.startOfDay}&originChainId=${CHAINS[options.chain]}`,
-        {
-          headers: {
-            "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY"),
+    async (bail) => {
+      try {
+        const response = await httpGet(
+          `https://api.0x.org/stats/cross-chain/volume/daily?timestamp=${options.startOfDay}&originChainId=${CHAINS[options.chain]}`,
+          {
+            headers: {
+              "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY"),
+            },
           },
-        },
-      );
+        );
 
-      await sleep(250);
-      return response.data.volume;
+        await sleep(250);
+        return response.data.volume;
+      } catch (e: any) {
+        const status = String(e?.message).match(/status code (\d{3})/)?.[1];
+        // retrying only helps rate limits (429) and transient server errors;
+        // client errors like 401/400 fail every attempt, so surface them immediately
+        if (status?.startsWith("4") && status !== "429") bail(e);
+        else throw e;
+      }
     },
     { retries: 3, minTimeout: 1000, maxTimeout: 5000, factor: 2 },
   );
