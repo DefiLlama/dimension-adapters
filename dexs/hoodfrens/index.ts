@@ -80,7 +80,7 @@ const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 // full mint value as fees would overstate the protocol's take.
 
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = options.createBalances();
+    const dailyVolume = options.createBalances()
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
