@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json'
 
 // All three live markets are staked in native BNB and emit identical events.
+// Addresses from https://docs.pancakeswap.finance/play/prediction/prediction-faq
 const PREDICTION_MARKETS = [
   "0x18B2A687610328590Bc8F2e5fEdDe3b582A49cdA", // BNBUSD
   "0x48781a7d35f6137a9135Bbb984AF65fd6AB25618", // BTCUSD, live since 2025-09-08
@@ -48,7 +49,7 @@ async function fetch(options: FetchOptions) {
     eventAbi: EVENT_ABI.REWARDS_CALCULATED,
   });
 
-  // treasuryAmount is the settled fee, so a tie (whole pot to treasury) is covered too
+  // treasuryAmount is the settled fee, so rounds with no winners (whole pot to treasury) are covered too
   rewardLogs.forEach(reward => {
     dailyFees.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
   });
@@ -67,7 +68,7 @@ async function fetch(options: FetchOptions) {
 const methodology = {
   Volume: "Everything staked on the up and down sides of every five-minute round, across the BNB, BTC and ETH price markets.",
   NotionalVolume: "The size of each round's pot, which is what gets paid out when the round settles. Both sides stake into the same pot, so this matches the amount staked.",
-  Fees: "3% of each round's total pot, counting both the winning and the losing stakes, taken when the round settles. If the price finishes exactly where it started, the whole pot goes to the treasury instead.",
+  Fees: "3% of each round's total pot, counting both the winning and the losing stakes, taken when the round settles. When a round ends with nobody to pay out - the price finishes exactly where it started, or every bet was on the losing side — the whole pot goes to the treasury instead.",
   Revenue: "All of the fee is kept. Winners are paid out of the losing stakes, so there are no liquidity providers or market makers taking a share.",
   ProtocolRevenue: "Zero. Everything the treasury collects is spent on buying back and burning CAKE, so none of it is retained.",
   HoldersRevenue: "All the revenue goes to CAKE buyback and burn",
@@ -75,7 +76,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.PredictionFees]: "3% of each round's total pot, taken when the round settles",
+    [METRIC.PredictionFees]: "3% of each round's total pot, taken when the round settles, or the whole pot when a round ends with no winners",
   },
   Revenue: {
     [METRIC.PredictionRevenueToHolders]: "All the fee is kept as revenue, it will be used to buy back and burn CAKE",
