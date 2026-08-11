@@ -81,7 +81,7 @@ const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances()
-    const dailyFees = options.createBalances();
+    const dailyFees = options.createBalances()
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
