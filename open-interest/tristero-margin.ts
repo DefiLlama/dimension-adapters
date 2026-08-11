@@ -47,7 +47,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
+    // Open interest is a point-in-time snapshot, not a flow. Under pullHourly the runner sums
+    // 24 hourly slots, which reported 24x the real figure (126.76k against an actual ~5.3k).
+    pullHourly: false,
     adapter: Object.fromEntries(
         getTristeroMarginChains().map((chain) => [
             chain,

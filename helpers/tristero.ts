@@ -4,7 +4,7 @@ import { AbiCoder, Interface } from "ethers";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import ADDRESSES from "./coreAssets.json";
-import getTxReceipts, { getTransactions } from "./getTxReceipts";
+import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "./getTxReceipts";
 import { getBlock } from "./getBlock";
 import { METRIC } from "./metrics";
 import { httpPost } from "../utils/fetchURL";
@@ -167,9 +167,6 @@ export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
   [CHAIN.OPTIMISM]: { start: TRISTERO_START },
 };
 
-// V3 source-side volume is indexed from router.send() calls. The schedule mirrors
-// Tristero backend addresses.yml generations and production contract updates;
-// day overlaps reflect public explorer cutovers and are safe because each tx has one router.
 const TRISTERO_ROUTER = '0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1';
 
 // The one router the adapters read. Earlier router generations are not referenced, so volume
@@ -182,7 +179,7 @@ const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = Obj
 export const TRISTERO_AGGREGATOR_CHAINS = TRISTERO_DEX_CHAINS;
 
 const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
-  base: ["https://mainnet.base.org"],
+  [CHAIN.BASE]: ["https://mainnet.base.org"],
 };
 
 // Ethereum, Base and Arbitrum all use WETH as the wrapped native asset, which
@@ -835,7 +832,7 @@ export async function getV3CloseSettlements(
   const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
   if (!txHashes.length) return settlementByPosition;
 
-  const receipts = await getTristeroTxReceipts(options.chain, txHashes);
+  const receipts = await getTxReceiptsWithRetry(options.chain, txHashes);
   const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
 
   closedPositions.forEach((position) => {
@@ -1015,41 +1012,35 @@ async function addV3MarginCloseVolume(options: FetchOptions, buckets: TristeroVo
   );
 
   const [closeTransactions, closeReceipts] = await Promise.all([
-    getTristeroTransactions(options.chain, closeTxHashes),
-    getTristeroTxReceipts(options.chain, closeTxHashes),
+    getTransactionsWithRetry(options.chain, closeTxHashes),
+    getTxReceiptsWithRetry(options.chain, closeTxHashes),
   ]);
 
   const txByHash = new Map(closeTransactions.filter((tx) => tx?.hash).map((tx) => [normalizeAddress(tx!.hash!), tx]));
 
-  // One unreadable close must not zero out the whole chain-day: llama's guidance is to skip
-  // the failing unit and keep the rest, so each close is attributed independently.
   closeTxHashes.forEach((txHash, index) => {
-    try {
-      const receipt = closeReceipts[index];
-      if (!receipt) throw new Error(`Missing close receipt`);
+    const receipt = closeReceipts[index];
+    if (!receipt) throw new Error(`Missing Tristero close receipt for tx ${normalizeAddress(txHash)}`);
 
-      const receiptTxHash = normalizeAddress(getReceiptTxHash(receipt as any) ?? txHash);
-      const closePositions = closePositionsByTxHash.get(receiptTxHash);
-      if (!closePositions?.length) throw new Error(`Missing close position state`);
-      if (closePositions.length !== 1) {
-        throw new Error(`Ambiguous close volume: ${closePositions.length} positions share one receipt`);
-      }
-
-      const closePosition = closePositions[0];
-      const escrow = normalizeAddress(closePosition.escrow);
-      const tx = txByHash.get(receiptTxHash) as any;
-      if (!tx || normalizeAddress(tx.to) !== escrow || !decodeV3CloseOrder(tx.data ?? tx.input)) {
-        throw new Error(`Missing close transaction data for escrow ${escrow}`);
-      }
-
-      const closeFiller = normalizeAddress(closePosition.closeFiller);
-      if (!closeFiller) throw new Error(`Missing close filler for escrow ${escrow}`);
-
-      const amount = sumEscrowToFillerTransfers((receipt.logs ?? []) as any, closePosition.loanAsset, escrow, closeFiller);
-      if (amount > 0n) dailyVolume.add(normalizeAddress(closePosition.loanAsset), amount);
-    } catch (error) {
-      sdk.log(`Skipping Tristero v3 margin close on ${options.chain} tx ${normalizeAddress(txHash)}: ${formatTristeroErrorMessage(error)}`);
+    const receiptTxHash = normalizeAddress(getReceiptTxHash(receipt as any) ?? txHash);
+    const closePositions = closePositionsByTxHash.get(receiptTxHash);
+    if (!closePositions?.length) throw new Error(`Missing Tristero close position state for tx ${receiptTxHash}`);
+    if (closePositions.length !== 1) {
+      throw new Error(`Ambiguous Tristero close volume for tx ${receiptTxHash}: ${closePositions.length} positions share one receipt`);
     }
+
+    const closePosition = closePositions[0];
+    const escrow = normalizeAddress(closePosition.escrow);
+    const tx = txByHash.get(receiptTxHash) as any;
+    if (!tx || normalizeAddress(tx.to) !== escrow || !decodeV3CloseOrder(tx.data ?? tx.input)) {
+      throw new Error(`Missing Tristero close transaction data for ${escrow} tx ${receiptTxHash}`);
+    }
+
+    const closeFiller = normalizeAddress(closePosition.closeFiller);
+    if (!closeFiller) throw new Error(`Missing Tristero close filler for ${escrow} tx ${receiptTxHash}`);
+
+    const amount = sumEscrowToFillerTransfers((receipt.logs ?? []) as any, closePosition.loanAsset, escrow, closeFiller);
+    if (amount > 0n) dailyVolume.add(normalizeAddress(closePosition.loanAsset), amount);
   });
 }
 
@@ -1057,64 +1048,36 @@ function toTransferTopic(address: string): string {
   return `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
 }
 
-// getTxReceipts and getTransactions fan out across a provider rotation, and a node that is a
-// block or two behind answers with null rather than an error. Every caller here reads a missing
-// receipt as "nothing happened in that transaction", so a transient null silently drops real
-// volume or fees - measured at 0 to 2 nulls per run over the same five transactions, which was
-// enough to swing a daily fee total between $0.00 and $0.04. Retrying the stragglers makes the
-// result reproducible.
-const TRISTERO_FETCH_ATTEMPTS = 3;
+type TristeroFillTransaction = { hash: string; input: string; from: string };
 
-async function retryByHash<T>(
-  hashes: string[],
-  fetchBatch: (batch: string[]) => Promise<(T | null)[]>,
-  context: string,
-): Promise<(T | null)[]> {
-  const byHash = new Map<string, T>();
-  let pending = hashes;
-
-  for (let attempt = 0; attempt < TRISTERO_FETCH_ATTEMPTS && pending.length; attempt++) {
-    if (attempt) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
-
-    const fetched = await fetchBatch(pending);
-    pending.forEach((hash, index) => {
-      const value = fetched[index];
-      if (value) byHash.set(hash, value);
-    });
-    pending = pending.filter((hash) => !byHash.has(hash));
-  }
-
-  if (pending.length) {
-    sdk.log(`Tristero ${context}: ${pending.length} of ${hashes.length} unresolved after ${TRISTERO_FETCH_ATTEMPTS} attempts`);
-  }
-  return hashes.map((hash) => byHash.get(hash) ?? null);
-}
-
-function getTristeroTxReceipts(chain: string, hashes: string[]): Promise<any[]> {
-  return retryByHash<any>(hashes, (batch) => getTxReceipts(chain, batch) as any, `receipts on ${chain}`);
-}
-
-function getTristeroTransactions(chain: string, hashes: string[]): Promise<any[]> {
-  return retryByHash<any>(hashes, (batch) => getTransactions(chain, batch) as any, `transactions on ${chain}`);
-}
-
-// A fill transaction is either a direct router.send() or a delegated batch wrapping several.
-function decodeTristeroFillOrders(input: string): DecodedV3SendOrder[] {
-  const single = decodeV3SendOrder(input);
-  return single ? [single] : [];
-}
+// dexs, aggregators and fees each ask for the same fills over the same window, so the log scan
+// and the transaction fetch behind it are memoised per chain and block range.
+const fillTransactionCache = new Map<string, Promise<TristeroFillTransaction[]>>();
 
 // Every Tristero fill pulls the taker's source leg into the router, which is an ERC20 Transfer
-// with `to` = the router. That makes the fills discoverable with a plain topic-filtered
-// getLogs - no transaction scan, so no indexer - even though the router itself emits nothing.
-// The transactions behind those logs are then fetched once and decoded, which preserves the
-// order type, the darkpool flag and the margin loan leg exactly as before.
-async function getTristeroFillTransactions(
+// with `to` = the router. That makes fills discoverable with a plain topic-filtered getLogs - no
+// transaction scan, so no indexer - even though the router itself emits nothing. The
+// transactions behind those logs are then fetched once and decoded, which preserves the order
+// type, the darkpool flag and the margin loan leg.
+function getTristeroFillTransactions(
   options: FetchOptions,
   addresses: string[],
-): Promise<Array<{ hash: string; input: string; from: string }>> {
-  if (!addresses.length) return [];
+): Promise<TristeroFillTransaction[]> {
+  if (!addresses.length) return Promise.resolve([]);
 
+  const cacheKey = `${options.chain}-${options.fromTimestamp}-${options.toTimestamp}-${[...addresses].sort().join(",")}`;
+  const cached = fillTransactionCache.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = fetchTristeroFillTransactions(options, addresses);
+  fillTransactionCache.set(cacheKey, pending);
+  return pending;
+}
+
+async function fetchTristeroFillTransactions(
+  options: FetchOptions,
+  addresses: string[],
+): Promise<TristeroFillTransaction[]> {
   const logsPerAddress = await Promise.all(addresses.map((address) => options.getLogs({
     noTarget: true,
     // Match on the recipient only. The sdk accepts a positional null to skip topic1; the
@@ -1131,7 +1094,7 @@ async function getTristeroFillTransactions(
   )];
   if (!txHashes.length) return [];
 
-  const transactions = await getTristeroTransactions(options.chain, txHashes);
+  const transactions = await getTransactionsWithRetry(options.chain, txHashes);
   return transactions
     .map((tx: any, index: number) => ({
       hash: tx?.hash ? normalizeAddress(tx.hash) : txHashes[index],
@@ -1186,7 +1149,7 @@ export async function fetchTristeroGasAbstractionFees(options: FetchOptions): Pr
 
   const txs = await getTristeroFillTransactions(options, addresses);
   const feeBearing = txs
-    .map((tx) => ({ ...tx, orders: decodeTristeroFillOrders(tx.input) }))
+    .map((tx) => ({ ...tx, orders: [decodeV3SendOrder(tx.input)].filter((order): order is DecodedV3SendOrder => !!order) }))
     // A self-filled order pays no gas abstraction by definition: the submitter is the taker.
     // If the submitter is also the order's payout target, the proceeds land on them too and
     // cannot be told apart from a fee - skip rather than overstate.
@@ -1194,7 +1157,7 @@ export async function fetchTristeroGasAbstractionFees(options: FetchOptions): Pr
       order.filler !== order.sender && order.filler === from && order.target !== from));
   if (!feeBearing.length) return dailyFees;
 
-  const receipts = await getTristeroTxReceipts(options.chain, feeBearing.map(({ hash }) => hash));
+  const receipts = await getTxReceiptsWithRetry(options.chain, feeBearing.map(({ hash }) => hash));
 
   feeBearing.forEach(({ hash, from, orders }, index) => {
     const receipt = receipts[index];
@@ -1237,13 +1200,14 @@ export async function getTristeroVaultTotal(options: FetchOptions): Promise<{ to
   const token = TRISTERO_VAULT_ASSETS[options.chain];
   if (!token) return null;
 
+  // No permitFailure: a reverted or unreachable vault call is missing input, not a zero
+  // balance, and swallowing it would publish a complete-looking day with the entire protocol
+  // revenue component missing.
   const total = await options.api.call({
     target: TRISTERO_VAULT,
     abi: 'function getTVOL(address _token) view returns (uint256)',
     params: [token],
-    permitFailure: true,
   });
 
-  const amount = toBigIntOrNull(total);
-  return amount === null ? null : { token, amount };
+  return { token, amount: toBigIntSafe(total) };
 }
