@@ -170,36 +170,54 @@ async function fetch(options: FetchOptions) {
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
     );
 
-    const dailyLpFees = validFeePools.reduce(
+    const lpFees = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateLPFees(pool), 0
     );
 
-    const dailyFees = validFeePools.reduce(
+    const swapFees = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = validFeePools.reduce(
+    const protocolFees = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
-    let dailyHoldersRevenue = 0;
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(swapFees, 'Swap Fees');
+    dailySupplySideRevenue.addUSDValue(lpFees, 'Swap Fees To LPs');
 
     if (options.chain == CHAIN.SOLANA) {
-        dailyHoldersRevenue = validFeePools.reduce(
+        const buybackFees = validFeePools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
         );
+        const climateFundFees = validFeePools.reduce(
+            (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h * CLIMATE_FUND_RATE, 0
+        );
+        const treasuryFees = protocolFees - buybackFees - climateFundFees;
+        dailyRevenue.addUSDValue(treasuryFees, 'Treasury');
+        dailyRevenue.addUSDValue(buybackFees, 'xORCA Buyback');
+        dailyRevenue.addUSDValue(climateFundFees, 'Climate Fund Donation');
+        dailyProtocolRevenue.addUSDValue(treasuryFees, 'Treasury');
+        dailyProtocolRevenue.addUSDValue(climateFundFees, 'Climate Fund Donation');
+        dailyHoldersRevenue.addUSDValue(buybackFees, 'xORCA Buyback');
+    } else {
+        dailyRevenue.addUSDValue(protocolFees, 'Treasury');
+        dailyProtocolRevenue.addUSDValue(protocolFees, 'Treasury');
     }
-
-    const dailyProtocolRevenue = dailyRevenue - dailyHoldersRevenue; // Protocol treasury gets 80% of protocol fees
 
     return {
         dailyVolume,
         dailyFees,
-        dailyUserFees: dailyFees, // All fees paid by users
-        dailyRevenue, // Total protocol revenue before distribution
-        dailyProtocolRevenue: dailyProtocolRevenue, // Revenue going to protocol treasury (80% of protocol fees)
-        dailyHoldersRevenue: dailyHoldersRevenue, // Revenue going to xORCA holders (20% of protocol fees)
-        dailySupplySideRevenue: dailyLpFees, // Revenue earned by LPs
+        dailyUserFees: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+        dailySupplySideRevenue,
     }
 }
 
@@ -213,8 +231,33 @@ const methodology = {
     HoldersRevenue: "40% of the 12% treasury share, used to buy ORCA and deposit it into the xORCA vault. Raised from 20% on 13 January 2026."
 }
 
+const breakdownMethodology = {
+    Fees: {
+        'Swap Fees': "All swap fees paid by traders, including the volatility surcharge on adaptive-fee pools.",
+    },
+    UserFees: {
+        'Swap Fees': "All swap fees paid by traders.",
+    },
+    Revenue: {
+        'Treasury': "The part of the 12% treasury share kept after the xORCA buyback (60%, i.e. 7.2% of swap fees).",
+        'xORCA Buyback': "40% of the 12% treasury share (4.8% of swap fees), used to buy ORCA for the xORCA vault.",
+        'Climate Fund Donation': "1% of swap fees donated to the Orca Climate Fund.",
+    },
+    ProtocolRevenue: {
+        'Treasury': "The part of the 12% treasury share kept after the xORCA buyback (60%, i.e. 7.2% of swap fees).",
+        'Climate Fund Donation': "1% of swap fees donated to the Orca Climate Fund.",
+    },
+    HoldersRevenue: {
+        'xORCA Buyback': "40% of the 12% treasury share, used to buy ORCA and deposit it into the xORCA vault. Raised from 20% on 13 January 2026.",
+    },
+    SupplySideRevenue: {
+        'Swap Fees To LPs': "The 87% of swap fees that accrues to liquidity providers.",
+    },
+}
+
 export default {
     methodology,
+    breakdownMethodology,
     version: 1,
     runAtCurrTime: true,
     adapter: {
