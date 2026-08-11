@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
+// Canonical N1 public mainnet API endpoint.
 const N1_API = "https://api-mainnet.n1.xyz";
 const N1_API_CONCURRENCY = 5;
 const N1_API_REQUEST_DELAY_MS = 200;
@@ -18,10 +19,10 @@ interface N1InfoResponse {
 }
 
 interface N1MarketStats {
-  volumeQuote24h: number;
+  volumeQuote24h: number | null;
   indexPrice: number | null;
   perpStats: {
-    open_interest: number;
+    open_interest: number | null;
   } | null;
 }
 
@@ -51,8 +52,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
         `${N1_API}/market/${market.marketId}/stats`,
       );
 
-      if (stats.indexPrice === null) {
-        throw new Error(`N1 market ${market.marketId} returned a null index price`);
+      if (
+        stats.volumeQuote24h === null ||
+        stats.indexPrice === null ||
+        stats.perpStats?.open_interest === null
+      ) {
+        throw new Error(`N1 market ${market.marketId} returned null stats`);
       }
 
       const volume = Number(stats.volumeQuote24h);
