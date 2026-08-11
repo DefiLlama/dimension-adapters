@@ -9,6 +9,7 @@ type CDOConfig = {
   jrt: string;
   srt: string;
   start: string;
+  maxAnnualBps: number; // 2× expected annual yield in bps, used to cap daily yield
 };
 
 const CDOS: CDOConfig[] = [
@@ -20,6 +21,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0xC58D044404d8B14e953C115E67823784dEA53d8F",
     srt: "0x3d7d6fdf07EE548B939A80edbc9B2256d0cdc003",
     start: "2025-10-10",
+    maxAnnualBps: 800,
   },
   {
     name: "sNUSD",
@@ -29,6 +31,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0xFC807058A352b61aEef6A38e2D0fC3990225E772",
     srt: "0x65a44528e8868166401eA08b549E19552af589dB",
     start: "2026-02-10",
+    maxAnnualBps: 800,
   },
   {
     name: "mHYPER",
@@ -38,6 +41,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0xEb205d26E9E605Ec82d1C0d652E00037C278714b",
     srt: "0x627EA69929212916Ec57B1b26d2E1a19F6129B53",
     start: "2026-04-12",
+    maxAnnualBps: 1700,
   },
   {
     name: "mm1USD",
@@ -47,6 +51,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0xf7eB8dfec75C42D2d2247FE76Ccaedc59f821688",
     srt: "0xCcEd21d609CaC4A272d0c01a8FF4de9cEBc40d60",
     start: "2026-04-12",
+    maxAnnualBps: 2000,
   },
   {
     name: "sUSDat",
@@ -56,6 +61,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
     srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
     start: "2026-05-01",
+    maxAnnualBps: 3000,
   },
   {
     name: "PRIME",
@@ -65,6 +71,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0xF4C91F24E20EE8ed5eda905E501A1136334C2F27",
     srt: "0x35bFF778d3fc53a561486BF28e761428499232Eb",
     start: "2026-05-23",
+    maxAnnualBps: 1300,
   },
 ];
 
@@ -151,6 +158,13 @@ async function processCDO(
   // and so the protocol yield doesn't get negative even if the strategy performs badly
   let yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
   if (yieldAmount < 0n) yieldAmount = 0n;
+
+  // Cap yield at 3× the expected daily yield to filter discrete oracle/rebase
+  // spikes from RWA-backed strategies (Midas mTokens, Saturn sUSDat/STRC).
+  // The underlying yield is real but arrives in lumps rather than smoothly.
+  const maxDailyYield =
+    (navStart * BigInt(cfg.maxAnnualBps) * 3n) / (10000n * 365n);
+  if (yieldAmount > maxDailyYield) yieldAmount = maxDailyYield;
 
   const ONE = 10n ** 18n;
   const protocolFromYield = (yieldAmount * reserveBps) / ONE;
