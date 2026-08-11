@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adap
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT
       SUM(

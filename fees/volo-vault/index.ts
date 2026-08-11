@@ -34,7 +34,7 @@ const methodology = {
 
 let data: any
 
-const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptions) => {
+const fetch = async ({ dateString, createBalances }: FetchOptions) => {
   const dailyFees = createBalances()
 
   if (!data)
@@ -86,12 +86,9 @@ const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptio
 
 const adapter: SimpleAdapter = {
   version: 1, // because we get daily data not hourly
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      start: "2025-08-10",
-    },
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  start: "2025-08-10",
   methodology,
   breakdownMethodology: {
     Fees: {

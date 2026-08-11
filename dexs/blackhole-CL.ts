@@ -7,9 +7,14 @@ import { addOneToken } from "../helpers/prices";
 const poolEvent = 'event CustomPool(address indexed token0, address indexed token1, address pool)'
 const customPoolEvent = 'event CustomPool(address indexed deployer, address indexed token0, address indexed token1, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+const globalStateAbi = 'function globalState() view returns (uint160 price, int24 tick, uint16 lastFee, uint8 pluginConfig, uint16 communityFee, bool unlocked)'
 
 const factory = '0x512eb749541B7cf294be882D636218c84a5e9E5F'
 const fromBlock = 65218551
+
+// Algebra fee split (/1000): communityFee = pool's share to the vault (rest to LPs);
+// the vault's algebraFee = protocol cut, remainder to the gauge -> voters.
+const DENOM = 1000
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options
@@ -32,43 +37,63 @@ const fetch = async (options: FetchOptions) => {
   logs = logs.map((log: any) => iface.parseLog(log)?.args)
 
   const pairObject: IJSON<string[]> = {}
-  const fees: any = {}
 
   logs.forEach((log: any) => {
     pairObject[log.pool] = [log.token0, log.token1]
   })
-  let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool) })
-  _fees.forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
 
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
+  const dailyHoldersRevenue = createBalances()
 
-  if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue }
+  if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
 
-  const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
+  const poolIds = Object.keys(filteredPairs)
+  // Per active pool: fee rate, communityFee (share to the vault) and the vault's algebraFee (algebra licensing fees).
+  const feeList = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: poolIds })
+  const globalStates = await api.multiCall({ abi: globalStateAbi, calls: poolIds })
+  const vaults = await api.multiCall({ abi: 'address:communityVault', calls: poolIds })
+  const algebraFees = await api.multiCall({ abi: 'function algebraFee() view returns (uint16)', calls: vaults })
+
+  const fees: IJSON<number> = {}
+  const shares: IJSON<{ supply: number, algebra: number, holders: number }> = {}
+  poolIds.forEach((pool, i) => {
+    fees[pool] = feeList[i] / 1e6
+    const vaultShare = Number(globalStates[i].communityFee) / DENOM   // share to vault
+    const algebraShare = vaultShare * (Number(algebraFees[i]) / DENOM)    // algebra licensing fees
+    shares[pool] = { supply: 1 - vaultShare, algebra: algebraShare, holders: vaultShare - algebraShare }
+  })
+
+  const allLogs = await getLogs({ targets: poolIds, eventAbi: poolSwapEvent, flatten: false })
   allLogs.map((logs: any, index) => {
     if (!logs.length) return;
-    const pair = Object.keys(filteredPairs)[index]
+    const pair = poolIds[index]
     const [token0, token1] = pairObject[pair]
     const fee = fees[pair]
+    const { supply, algebra, holders } = shares[pair]
     logs.forEach((log: any) => {
+      const fee0 = log.amount0.toString() * fee
+      const fee1 = log.amount1.toString() * fee
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * supply, amount1: fee1 * supply })
+      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * algebra, amount1: fee1 * algebra })
+      addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0 * holders, amount1: fee1 * holders })
     })
   })
 
-  return { 
+  dailyRevenue.addBalances(dailyHoldersRevenue)
+
+  return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
@@ -77,12 +102,11 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
 
   methodology: {
-    Fees: "All swap fees paid by users.",
-    UserFees: "All swap fees paid by users.",
-    SupplySideRevenue: "No fees distributed to LPs.",
-    Revenue: "All swap fees are revenue.",
-    ProtocolRevenue: "Protocol makes no revenue.",
-    HoldersRevenue: "All revenue is distributed to veBlack holders.",
+    Fees: "All swap fees paid by traders.",
+    UserFees: "All swap fees paid by traders.",
+    SupplySideRevenue: "Includes algebra licensing fees and Swap fees kept by liquidity providers, Currently zero: every active pool routes 100% of its swap fees to the gauge, and LPs instead earn BLACK emissions; this is non-zero only for pools whose community fee is set below 100%.",
+    Revenue: "Swap fees routed to the community vault — the veBLACK voters' share.",
+    HoldersRevenue: "The remaining vault-routed swap fees, distributed to veBLACK voters.",
   },
   chains: [CHAIN.AVAX],
   fetch,

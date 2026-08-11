@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = `https://api.reactor.exchange/api/v1/volume/daily?from=${options.startTimestamp}&to=${options.endTimestamp}`
   const resp = await fetchURL(url)
 

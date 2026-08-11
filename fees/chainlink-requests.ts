@@ -27,51 +27,27 @@ const getTotalPaymentFromLogs = async (fromBlock: number, toBlock: number, getLo
   return totalParsedAmount;
 };
 
-const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, getLogs }: FetchOptions) => {
+const fetch = async ({ getFromBlock, getToBlock, createBalances, getLogs }: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const dailyFees = createBalances()
   const amount = await getTotalPaymentFromLogs(fromBlock, toBlock, getLogs)
 
   dailyFees.addCGToken('chainlink', amount / 10n ** 18n)
-  return { dailyFees }
+  return { dailyFees, dailySupplySideRevenue: dailyFees }
 }
 
 const methodology = {
-    Fees: "Sum of all fees from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
-    Revenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
-    ProtocolRevenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
+  Fees: "Sum of all fees from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP.",
+  SupplySideRevenue: "All LINK payments go directly to the oracle node operators who fulfill the requests.",
 }
 
 const adapter: SimpleAdapter = {
   methodology,
-  version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2023-02-03',
-      // runAtCurrTime: true,
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.AVAX],
+  start: '2023-02-03',
   isExpensiveAdapter: true,
 }
 export default adapter;

@@ -44,7 +44,7 @@ const ABIs = {
 
 const limit = pLimit(5);
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const { chainId } = CHAIN_CONFIG[options.chain];
     const allVaultDetails = await configPost("aera-v2","https://app.aera.finance/api/metric/v1", {
         "metric_identifier": "aera-vaults-current-tvl-by-vault-usd", "aggregation": "last"
@@ -66,7 +66,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         cacheInCloud: true,
     });
 
-    const vaults = [];
+    const vaults: any[] = [];
 
     for (const { vault } of vaultCreationLogs)
         vaults.push(vault);

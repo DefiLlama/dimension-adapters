@@ -16,4 +16,7 @@ export const METRICS = {
   GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL : 'GPU-financing liquidation fee to protocol',
   GPU_FINANCING_LENDER_LIQUIDATION_REPAID : 'GPU-financing lender liquidation repaid',
   GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI : 'GPU-financing lender liquidation repaid to staked USDai',
+  ESCROW_TIMELOCK_YIELDS : 'Escrow timelock yields',
+  ESCROW_TIMELOCK_YIELDS_TO_PROTOCOL : 'Escrow timelock yields to protocol',
+  ESCROW_TIMELOCK_YIELDS_TO_SUSDAI : 'Escrow timelock yields to staked USDai',
 }

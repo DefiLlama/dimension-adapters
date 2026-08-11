@@ -2,14 +2,16 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const duneQuery = `
         SELECT
             total_open_interest
         FROM
             dune.txflow_mainnet.platform_hourly_oi
         WHERE
-            hour_ts = ${options.startOfDay}
+            hour_ts <= ${options.endTimestamp}
+        ORDER BY hour_ts DESC
+        LIMIT 1
     `;
 
     const result = await queryDuneSql(options, duneQuery);

@@ -86,12 +86,9 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2023-04-05",
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2023-04-05",
   methodology: {
     Fees: "Borrow interest accrued on Move Dollar (MOD) CDP vaults, computed from on-chain liabilities and annual interest rates.",
     Revenue: "100% of borrow interest is retained by the Thala protocol (no external lenders).",

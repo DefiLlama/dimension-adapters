@@ -35,8 +35,6 @@ const query = gql`
 `;
 
 const fetch = async (
-  _a: any,
-  _b: any,
   options: FetchOptions,
 ): Promise<FetchResult> => {
   const dailyVolume =

@@ -1,49 +1,110 @@
-import fetchURL from "../../utils/fetchURL";
+/**
+ * Lunar Finance — Bridge aggregator volume
+ * Official Lunar Finance team · https://lunarfinance.io
+ *
+ * DATA SOURCE: Lunar public analytics API (confirmed bridge transactions).
+ */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import {
+  fetchLunarAnalytics,
+  LUNAR_ADAPTER_CHAINS,
+  LUNAR_DEFAULT_START,
+  parseLunarUsdWei,
+  resolveLunarSupplySideRevenue,
+} from "../../helpers/lunarFinance";
 
-const LUNA_API_BASE = "https://api.lunarfinance.io";
-const BRIDGE_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/bridge`;
-
-interface LunaAnalyticsResponse {
-  success: boolean;
-  data: {
-    dailyBridgeVolume?: {
-      usd: string;
-    };
-    dailyFees?: {
-      usd: string;
-    };
-    dailyRevenue?: {
-      usd: string;
-    };
-  };
+const LABELS = {
+  BRIDGE_FEES: "Bridge Fees",
+  PROTOCOL_FEES: "Bridge Fees to Protocol",
+  PROVIDER_FEES: "Bridge Fees to Providers",
 }
 
 const fetch = async (options: FetchOptions) => {
-  const url = `${BRIDGE_ANALYTICS_ENDPOINT}?startTime=${options.startTimestamp + 1}&endTime=${options.endTimestamp}`;
-  const data: LunaAnalyticsResponse = await fetchURL(url);
+  const dailyBridgeVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const { dailyBridgeVolume, dailyFees, dailyRevenue } = data.data;
+  const res = await fetchLunarAnalytics("bridge", options);
+  const payload = res.data ?? {};
+
+  const bridgeVolume = parseLunarUsdWei(
+    payload.dailyBridgeVolume ?? payload.dailyVolume,
+  );
+  const fees = parseLunarUsdWei(payload.dailyFees);
+  const revenue = parseLunarUsdWei(
+    payload.dailyProtocolRevenue ?? payload.dailyRevenue,
+  );
+  const supplySideRevenue = resolveLunarSupplySideRevenue(
+    payload.dailySupplySideRevenue,
+    fees,
+    revenue,
+    `Lunar Finance bridge (${options.chain})`,
+  );
+
+  if (bridgeVolume > 0) {
+    dailyBridgeVolume.addUSDValue(bridgeVolume);
+  }
+  if (fees > 0) {
+    dailyFees.addUSDValue(fees, LABELS.BRIDGE_FEES);
+    dailyUserFees.addUSDValue(fees, LABELS.BRIDGE_FEES);
+  }
+  if (revenue > 0) {
+    dailyRevenue.addUSDValue(revenue, LABELS.PROTOCOL_FEES);
+    dailyProtocolRevenue.addUSDValue(revenue, LABELS.PROTOCOL_FEES);
+  }
+  if (supplySideRevenue > 0) {
+    dailySupplySideRevenue.addUSDValue(supplySideRevenue, LABELS.PROVIDER_FEES);
+  }
 
   return {
-    dailyBridgeVolume: Number(dailyBridgeVolume?.usd) / 1e18 || 0,
-    dailyFees: Number(dailyFees?.usd) / 1e18 || 0,
-    dailyRevenue: Number(dailyRevenue?.usd) / 1e18 || 0,
-    dailyProtocolRevenue: Number(dailyRevenue?.usd) / 1e18 || 0,
+    dailyBridgeVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyUserFees,
+    dailySupplySideRevenue,
   };
+};
+
+const methodology = {
+  BridgeVolume:
+    "USD value of assets bridged cross-chain through Lunar Finance, attributed to the source chain. Routes use LiFi, Relay, Hyperlane, Stargate, Mayan, and other bridge providers. Data from the Lunar analytics API (confirmed transactions via lunarfinance.io), filtered per source chain and time window.",
+  Fees: "User-paid bridge fees including underlying provider fees.",
+  Revenue: "Protocol fees retained by Lunar Finance.",
+  ProtocolRevenue: "Fees collected by the Lunar Finance treasury.",
+  SupplySideRevenue:
+    "Fees paid to underlying bridge and relayer providers (total fees minus Lunar protocol revenue).",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [LABELS.BRIDGE_FEES]: "User-paid bridge fees including underlying provider fees.",
+  },
+  UserFees: {
+    [LABELS.BRIDGE_FEES]: "User-paid bridge fees including underlying provider fees.",
+  },
+  Revenue: {
+    [LABELS.PROTOCOL_FEES]: "Protocol fees retained by Lunar Finance.",
+  },
+  ProtocolRevenue: {
+    [LABELS.PROTOCOL_FEES]: "Protocol fees retained by Lunar Finance.",
+  },
+  SupplySideRevenue: {
+    [LABELS.PROVIDER_FEES]: "Fees paid to underlying bridge and relayer providers.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.SOLANA],
+  pullHourly: true,
   fetch,
-  start: '2025-05-01',
-  methodology: {
-    Fees: "Bridge fees include protocol fees charged by Luna Finance plus underlying bridge protocol fees paid by users.",
-    Revenue: "Revenue represents fees collected by Luna Finance protocol from bridge transactions, typically 0.1-0.5% of transaction value.",
-    ProtocolRevenue: "Protocol revenue is the portion of fees that goes to Luna Finance treasury.",
-  }
+  start: LUNAR_DEFAULT_START,
+  chains: LUNAR_ADAPTER_CHAINS,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

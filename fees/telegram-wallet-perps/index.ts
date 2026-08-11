@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const LIGHTER_BASE_URL = 'https://mainnet.zklighter.elliot.ai/api/v1/partnerStats';
 const TELEGRAM_WALLET_ACCOUNT_INDEX = '281474976617487';
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyVolume = options.createBalances();
 

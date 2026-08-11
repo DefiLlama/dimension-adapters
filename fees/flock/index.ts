@@ -123,6 +123,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     chains: [CHAIN.BASE],
     start: "2024-12-31",
     fetch,

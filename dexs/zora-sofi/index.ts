@@ -1,6 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import * as sdk from '@defillama/sdk';
 
 // const fetch: any = async (_a, _b, options: FetchOptions) => {

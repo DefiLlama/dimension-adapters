@@ -20,7 +20,7 @@ const getData = async () => {
   return cachedData;
 }
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const data = await getData();
   const stats = data.chains.find((item: any) => item.chain === options.chain);
@@ -40,6 +40,7 @@ const adapter: Adapter = {
   fetch,
   runAtCurrTime: true,
   chains: [CHAIN.FANTOM, CHAIN.ARBITRUM, CHAIN.BSC],
+  deadFrom: "2025-02-21",
 };
 
 

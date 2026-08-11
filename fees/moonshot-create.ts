@@ -11,7 +11,7 @@ interface IData {
     total_referral_fees: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = getSqlFromFile('helpers/queries/dbc.sql', {
         tx_signer: '7rtiKSUDLBm59b1SBmD9oajcP8xE64vAGSMbAN5CXy1q',
         start: options.startTimestamp,

@@ -24,7 +24,7 @@ type DailyFeesRow = {
 
 const FEES_ENDPOINT = "https://stats-api.derive.xyz/fees";
 
-const fetch = (instrument: string) => async (_: any, _1: any, options: FetchOptions) => {
+const fetch = (instrument: string) => async (options: FetchOptions) => {
   const durationSeconds = Math.max(0, options.endTimestamp - options.startTimestamp);
   const endTimeIso = new Date(options.endTimestamp * 1000).toISOString();
 

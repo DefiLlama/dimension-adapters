@@ -27,7 +27,7 @@ interface IGraphResponse {
   }>;
 }
 
-const fetch = async (_tt: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyData: IGraphResponse = await request(
     endpoints[options.chain],
     historicalDataSwap,

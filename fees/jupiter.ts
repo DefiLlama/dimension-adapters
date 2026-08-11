@@ -60,7 +60,7 @@ export const JUPITER_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
       SELECT addr

@@ -1,14 +1,13 @@
 import fetchURL from "../../utils/fetchURL";
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const VOLUME_URL = `https://api.tanx.fi/external-aggregator/defillama/volume24/`;
 
-const fetch = async (timestamp: number) => {
-  const dailyVolume = (await fetchURL(`${VOLUME_URL}?timestamp=${timestamp}`)).payload.volume;
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = (await fetchURL(`${VOLUME_URL}?timestamp=${options.toTimestamp}`)).payload.volume;
   return {
     dailyVolume,
-    timestamp,
   };
 };
 

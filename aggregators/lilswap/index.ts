@@ -22,7 +22,7 @@ const LABELS = {
     SUPPLY_SIDE: "Explicit Swap Fees To External Partners",
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

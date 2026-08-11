@@ -6,7 +6,7 @@ import { getSolanaReceived } from "../../helpers/token";
 // Collects both SOL and USDC from MEV auctions
 const EXPRESS_RELAY_DAO_ADDRESS = "69ib85nGQS2Hzr4tQ8twbkGh76gKFUfWJFeJfQ37R3hW";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // Track all tokens (SOL and USDC) received by the DAO address
   const dailyFees = await getSolanaReceived({
     options,

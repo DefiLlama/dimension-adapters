@@ -72,7 +72,7 @@ async function getActiveSpotMarkets(api: any): Promise<OrderBookDetail[]> {
   return activeSpotMarkets
 }
 
-async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // Get all active spot markets
   const markets = await getActiveSpotMarkets(options.api)
   

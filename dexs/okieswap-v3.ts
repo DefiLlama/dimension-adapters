@@ -6,6 +6,10 @@ const v3Endpoints: { [key: string]: string } = {
   [CHAIN.XLAYER]: "https://subgraph.okiedokie.fun/subgraphs/name/okieswap-v3",
 };
 
+const invalidSpikes: Record<string, Set<string>> = {
+ '2026-06-18': new Set(['0x7f566d2dff0eb5450126624f6c6f75daecb2196b']), // 15K liquidity had 18M in volume
+}
+
 const fetch = async (options: FetchOptions) => {
   const endpoint = v3Endpoints[options.chain];
   const toBlock = await options.getToBlock();
@@ -32,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
   const sumFields = (pools: any[]) => {
     return pools.reduce(
       (acc, pool) => {
-        if (blacklistedPools.has(pool.id)) return acc
+        if (blacklistedPools.has(pool.id) || invalidSpikes[options.dateString]?.has(pool.id)) return acc
         acc.volumeUSD += Number(pool.volumeUSD) || 0
         acc.feesUSD += Number(pool.feesUSD) || 0
         acc.protocolFeesUSD += Number(pool.protocolFeesUSD) || 0

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 
@@ -14,7 +14,7 @@ const METRICS = {
   MorphoYields: 'Morpho Yields',
   MorphoYieldsToSuppliers: 'Morpho Yields Distributed To Supliers',
   MorphoPerformanceFee: 'Morpho Performance Fees',
-  MorphoManagementFee: 'Morpho Performance Fees',
+  MorphoManagementFee: 'Morpho Management Fees',
   EulerYields: 'Euler Yields',
   EulerYieldsToSuppliers: 'Euler Yields Distributed To Supliers',
   EulerPerformanceFee: 'Euler Performance Fees',
@@ -26,8 +26,9 @@ export interface CuratorConfig {
   vaults: {
     // chain => 
     [key: string]: {
-      start?: IStartTimestamp | number | string;
+      start?: string;
       morpho?: Array<string>;
+      morphoV2?: Array<string>;
       euler?: Array<string>;
 
       // initial owner of morpho vaults
@@ -62,6 +63,27 @@ const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> 
   }],
 }
 
+// vaults excluded entirely from a given date onwards. used when a vault's share price is corrupted
+// (e.g. an allocated market frozen at 100% utilization accrues phantom interest, or a pending bad-debt
+// write-off would otherwise show up as a fake large negative day). the adapter only reads vault-level
+// share price, so a single bad market cannot be isolated - the whole vault has to be dropped.
+const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> = {
+  [CHAIN.ETHEREUM]: [{
+    // Clearstar Yield USDC (CSYUSDC) - allocated RLP/USDC market frozen at 100% utilization, accruing phantom
+    // interest that inflated reported yield from ~$281/day to ~$197k/day. vault now deprecated with unrealized
+    // bad debt; excluding from the freeze onset also keeps the eventual write-off out of the series.
+    vault: '0x9B5E92fd227876b4C07a8c02367E2CB23c639DfA',
+    from: '2026-03-21',
+  }, {
+    // Clearstar Yield USDC v2 (0xFa17...F853) - the v2 vault of the same name, allocated to the same
+    // frozen market. Share price ran 1.009084 -> 1.019572 over 2026-03-21..04-04 and 1.794800 ->
+    // 1.908595 over the last week alone, ~165% APR against ~5.2% before the freeze, on a USDC vault
+    // that has now marked itself up 91%. Same phantom accrual as the v1 above, same onset date.
+    vault: '0xFa17f7AAdbfAc2C5d3C8125555404c1AE17Df853',
+    from: '2026-03-21',
+  }],
+}
+
 function isOwner(owner: string, owners: Array<string>) {
   for (const item of owners) {
     if (String(item).toLowerCase() === String(owner).toLowerCase()) {
@@ -90,8 +112,8 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
   return morphoVaults
 }
 
-async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | undefined): Promise<Array<string>> {
-  let morphoVaults: Array<string> = []
+async function getMorphoVaultsV2(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults = vaults ? vaults : []
 
   if (owners && owners.length > 0) {
     for (const factory of MorphoConfigs[options.chain].vaultV2Factories) {
@@ -314,20 +336,22 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // interest earned by vault curator - performance fee
     const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
     
-    // interest earned by vault curator - management fee
+    // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
-    const interestManagementFee = interestEarnedIncludingFees * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+    const managementFeesEarned = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoManagementFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.MorphoManagementFee)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.MorphoYieldsToSuppliers)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.MorphoPerformanceFee)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.MorphoManagementFee)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.MorphoYieldsToSuppliers)
     } else {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.AssetYields)
+      balances.dailyFees.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRICS.AssetYields)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRICS.AssetYields)
-      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee - interestManagementFee, METRICS.AssetYields)
+      balances.dailyRevenue.add(vaultInfo[i].asset, managementFeesEarned, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedIncludingFees - interestPerformanceFee, METRICS.AssetYields)
     }
   }
 }
@@ -343,13 +367,14 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     Fees: {
       [METRICS.AssetYields]: 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
       [METRICS.MorphoYields]: 'Interest yields generated from deposited assets in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged on assets deposited in Morpho vaults',
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
-      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Moroho',
-      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Moroho',
-      [METRICS.EulerPerformanceFee]: 'Management fees charged from vaults in Euler',
+      [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Morpho',
+      [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Morpho',
+      [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
@@ -366,13 +391,19 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailyRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
+        const blacklistedVaultsForChain = new Set(
+          blacklistedVaults[options.chain]?.filter(item => options.dateString >= item.from).map(item => item.vault.toLowerCase())
+        )
+        const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
+
         // morpho meta vaults
-        const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        const morphoVaults = (await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         // morpho v2 vaults
-        const morphoVaultsV2 = await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners);
+        const morphoVaultsV2 = (await getMorphoVaultsV2(options, vaults.morphoV2, vaults.morphoVaultV2Owners)).filter(vault => !isBlacklistedVault(vault));
 
-        const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+        const eulerVaults = (await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
         if (morphoVaults.length > 0) {
           await getMorphoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaults, curatorConfig.breakdownFees)
@@ -413,4 +444,3 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     allowNegativeValue: true, // we allow negative fees for vaults because vaults can make yields or make loss too
   }
 }
-

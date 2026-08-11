@@ -12,6 +12,7 @@ const HOLDERS_REVENUE_RATE = 0.20; // 20% of protocol fees goes to xORCA holders
 // Based on governance proposal: https://forums.orca.so/t/tokenholder-proposal-for-xorca-initial-development-team-grant-buybacks-and-burn/882
 const MAX_FEE_TIER = 2/100; //2%
 const FEE_TIER_EPSILON = 1e-4; // tolerance for rounding (e.g. 2.00002% vs 2%)
+const PAGE_SIZE = 1000; // stats api caps page size at 1000 (default is 50)
 
 const CONFIG: any = {
     [CHAIN.SOLANA]: {
@@ -113,11 +114,7 @@ function calculateHoldersRevenue(pool: WhirlpoolWithNumberMetrics): number {
     return protocolFees * HOLDERS_REVENUE_RATE; // 20% of protocol fees for xORCA buybacks and burns
 }
 
-function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function fetch(timestamp: number, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const url = CONFIG[options.chain].url;
     let allWhirlpools: Whirlpool[] = [];
     let nextCursor: string | null = null;
@@ -125,7 +122,9 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
 
     do {
         page++;
-        const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
+        const currentUrl = nextCursor
+            ? `${url}?limit=${PAGE_SIZE}&after=${nextCursor}`
+            : `${url}?limit=${PAGE_SIZE}`;
         const response: StatsApiResponse = await asyncRetry(
             async () => {
                 return await httpGet(currentUrl);
@@ -139,11 +138,6 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         );
         allWhirlpools = allWhirlpools.concat(response.data);
         nextCursor = response.meta?.cursor?.next || null;
-
-        // Add delay between requests to prevent rate limiting
-        if (nextCursor) {
-            await delay(1000);
-        }
         options.api.log(`page: ${page} and nextCursor: ${nextCursor}`);
     } while (nextCursor);
     const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);

@@ -2,7 +2,6 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
-import { getPrices } from "../utils/prices";
 
 // Kelp earns rewards from ETH and reward tokens (e.g. EIGEN) via EigenLayer restaking.
 // Methodology below describes how fees and revenues are categorized.
@@ -259,7 +258,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
               const tvlRsETHWei = (Number(hgSupply) * Number(rateAfter)) / 1e18;
 
               // price rsETH in USD
-              const prices = await getPrices(
+              const prices = await sdk.coins.getPrices(
                 [`ethereum:${rsETHMaps[CHAIN.ETHEREUM]}`],
                 options.toTimestamp
               );

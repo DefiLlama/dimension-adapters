@@ -8,9 +8,10 @@ WITH
     ),
     config_fees AS (
         SELECT
-            config,
-            CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_trading_fee_percentage') AS INTEGER) AS creator_fee_pct
-        FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
+            c.config,
+            CAST(JSON_EXTRACT_SCALAR(c.config_parameters, '$.creator_trading_fee_percentage') AS INTEGER) AS creator_fee_pct
+        FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2 c
+        JOIN dbc_pools p ON c.config = p.account_config
     ),
     swap_events AS (
         SELECT

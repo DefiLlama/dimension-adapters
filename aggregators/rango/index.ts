@@ -53,12 +53,12 @@ const RangoChains: Record<string, ChainInfo> = {
   [CHAIN.PLASMA]: { code: 'PLASMA', start: '2025-12-01' }
 };
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const prefetchData = options.preFetchedResults as Record<string, any[]>;
   const chainInfo = RangoChains[options.chain];
   const statsForChain = prefetchData[chainInfo.code] || [];
 
-  const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const date = new Date(options.toTimestamp * 1000).toISOString().split('T')[0];
   
   const statEntry = statsForChain.find(item => {
     const itemDate = item.date.split('T')[0];

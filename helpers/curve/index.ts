@@ -36,6 +36,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
           tokens_sold: Number(log.args.tokens_sold),
           bought_id: Number(log.args.bought_id),
           tokens_bought: Number(log.args.tokens_bought),
+          fee: log.args.fee === undefined ? undefined : Number(log.args.fee),
         })
       }
 
@@ -72,10 +73,17 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     const amount1 = Number(event.tokens_bought)
 
     if (!token0 || !token1) continue
-  
+
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-    addOneToken({ chain: options.chain, balances: swapFees, token0, token1, amount0: amount0 * feeRate, amount1: amount1 * feeRate })
-    addOneToken({ chain: options.chain, balances: adminFees, token0, token1, amount0: amount0 * feeRate * adminFeeRate, amount1: amount1 * feeRate * adminFeeRate })
+
+    if (event.fee !== undefined) {
+      // dynamic fee: the event carries the exact amount, spot fee() is off by up to 40%
+      swapFees.add(token1, event.fee)
+      adminFees.add(token1, event.fee * adminFeeRate)
+    } else {
+      addOneToken({ chain: options.chain, balances: swapFees, token0, token1, amount0: amount0 * feeRate, amount1: amount1 * feeRate })
+      addOneToken({ chain: options.chain, balances: adminFees, token0, token1, amount0: amount0 * feeRate * adminFeeRate, amount1: amount1 * feeRate * adminFeeRate })
+    }
   }
 
   for (const event of tokenExchangeUnderlyingEvents) {

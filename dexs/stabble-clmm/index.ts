@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Adapter, FetchOptions, Fetch } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 const volumeURL = "https://mclmm-api.stabble.org/protocol-metrics";
@@ -10,7 +10,7 @@ interface DailyStats {
     revenue: number;
 }
 
-const fetch: Fetch = async (_timestamp, _chainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const startDate = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
     const url = `${volumeURL}?startTimestamp=${startDate}&endTimestamp=${startDate}`;
 
@@ -23,14 +23,11 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, options: FetchOptions) => 
     };
 };
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch: fetch,
-            start: '2025-12-12',
-        },
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2025-12-12',
 };
 
 export default adapter;

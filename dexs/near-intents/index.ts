@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const duneQuery = `
     SELECT
       sum(CAST(volume_amount_usd AS DOUBLE)) AS daily_volume

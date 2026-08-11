@@ -11,8 +11,8 @@ const chainConfig: Record<string, { url: string, start: string }> = {
   },
 };
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const floorDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const floorDayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
   const dailyFeeQuery = gql`
       {
@@ -67,6 +67,7 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   adapter: chainConfig,
+  deadFrom: "2026-03-05",
 };
 
 export default adapter;

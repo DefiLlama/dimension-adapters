@@ -1,7 +1,7 @@
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "./env";
 
-async function blockfrost(path: string) {
+export async function blockfrost(path: string) {
     return httpGet(`https://cardano-mainnet.blockfrost.io/api/v0${path}`, {
         headers: {
             project_id: getEnv("BLOCKFROST_PROJECT_ID"),

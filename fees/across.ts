@@ -5,9 +5,11 @@
  * uses `bridgeFeeUsd` as the relayer fee source of truth.
  */
 
+import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
+import { sleep } from "../utils/utils";
 
 interface IResponse {
   dst_chain: string;
@@ -51,6 +53,7 @@ const chainIdConfig: Record<string, number> = {
   [CHAIN.PLASMA]: 9745,
   [CHAIN.MONAD]: 143,
   [CHAIN.BSC]: 56,
+  [CHAIN.ROBINHOOD]: 4663,
 };
 
 const parseBridgeFeeUsd = (value?: string | null): number | undefined => {
@@ -81,7 +84,7 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
       limit: String(PAGE_LIMIT),
       skip: String(skip),
     });
-    const deposits: IAcrossDeposit[] = await fetchURL(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
+    const deposits: IAcrossDeposit[] = await fetchURLAutoHandleRateLimit(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
     if (!Array.isArray(deposits) || !deposits.length) break;
 
     let reachedOlderData = false;
@@ -101,6 +104,7 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 
     skip += PAGE_LIMIT;
     pagesFetched += 1;
+    await sleep(200);
   }
 
   return totalBridgeFeesUsd;
@@ -108,21 +112,19 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions): Promise<any> => {
-  const results: IResponse[] = [];
-
-  for (const [dst_chain, destinationChainId] of Object.entries(chainIdConfig)) {
-    let relay_fees = 0;
-    try {
-      relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
-    } catch (error) {
-      console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
-    }
-    results.push({
-      dst_chain,
-      relay_fees,
-      lp_fees: 0,
+  const entries = Object.entries(chainIdConfig);
+  const { results } = await PromisePool.withConcurrency(3)
+    .for(entries)
+    .process(async ([dst_chain, destinationChainId]) => {
+      let relay_fees = 0;
+      try {
+        relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
+      } catch (error) {
+        console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
+      }
+      await sleep(1000);
+      return { dst_chain, relay_fees, lp_fees: 0 };
     });
-  }
 
   return results as any;
 };
@@ -195,6 +197,7 @@ const adapter: Adapter = {
     [CHAIN.PLASMA]: { start: "2025-09-23" },
     [CHAIN.MONAD]: { start: "2025-11-20" },
     [CHAIN.BSC]: { start: "2025-05-05" },
+    [CHAIN.ROBINHOOD]: { start: "2026-07-02" },
   },
   fetch,
   prefetch: prefetch as any,

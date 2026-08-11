@@ -20,7 +20,7 @@ const apis: Record<string, string[]> = {
   [CHAIN.TON]: [API_TON],
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chainId = chainIds[options.chain];
   const apiList = apis[options.chain];
 

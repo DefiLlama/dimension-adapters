@@ -18,7 +18,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ORDERLY]: {
       start: '2023-10-26',
-      fetch: async (__t: number, _: any, { dateString }: FetchOptions) => {
+      fetch: async ({ dateString }: FetchOptions) => {
         if (!data) data = httpGet(apiEVM)
         const res: DailyStats[] = await data
 

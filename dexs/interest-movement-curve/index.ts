@@ -1,5 +1,5 @@
 import fetchURL from '../../utils/fetchURL';
-import { FetchResultV2, SimpleAdapter } from '../../adapters/types';
+import { FetchResultV2, SimpleAdapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 
 const url: any = {
@@ -38,13 +38,9 @@ interface Metrics {
   data: PoolData[];
 }
 
-async function fetch(
-  _: any,
-  _1: any,
-  { endTimestamp, chain }
-): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const metrics: Metrics = await fetchURL(
-    `${url[chain]}?timestamp=${endTimestamp}&limit=200`
+    `${url[options.chain]}?timestamp=${options.toTimestamp}&limit=200`
   );
 
   return {
@@ -55,13 +51,10 @@ async function fetch(
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MOVE]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2025-03-03',
-    },
-  },
+  fetch,
+  chains: [CHAIN.MOVE],
+  start: '2025-03-03',
+  runAtCurrTime: true,
 };
 
 export default adapter;

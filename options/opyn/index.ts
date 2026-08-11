@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Fetch, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
@@ -57,7 +57,8 @@ const endpoints = {
     [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('6CYUucsekksXD3BRvwz9MPgLcytmrJEKFi9bhRT3trnt'),
 };
 
-const fetch: Fetch = async (timestamp) => {
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.toTimestamp
     const notionalBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp })
     const premiumBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp })
     const timestampFrom = timestamp - 60 * 60 * 24

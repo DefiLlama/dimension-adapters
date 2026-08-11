@@ -24,44 +24,39 @@ const contract: TChain = {
   [CHAIN.CORE]: '0x29792F84224c77e2c672213c4d942fE280D596ef',
 }
 
-const fetch = (chain: Chain) => {
-  return async ({ getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({ getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolume> => {
 
-    const dailyVolume = createBalances()
+  const dailyVolume = createBalances()
 
-    const swap_logs: ILog[] = (await getLogs({
-      target: contract[chain],
-      topics: [topic0_ins, topic1_ins]
-    })) as ILog[];
+  const swap_logs: ILog[] = (await getLogs({
+    target: contract[chain],
+    topics: [topic0_ins, topic1_ins]
+  })) as ILog[];
 
-    const raw_in = swap_logs.map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const volume = Number('0x' + data.slice(53 * 64, (53 * 64) + 64));
-      const address = data.slice(27 * 64, (27 * 64) + 64);
-      const contract_address = '0x' + address.slice(24, address.length);
-      return {
-        amount: volume,
-        token: contract_address,
-      } as IToken
-    })
+  const raw_in = swap_logs.map((e: ILog) => {
+    const data = e.data.replace('0x', '');
+    const volume = Number('0x' + data.slice(53 * 64, (53 * 64) + 64));
+    const address = data.slice(27 * 64, (27 * 64) + 64);
+    const contract_address = '0x' + address.slice(24, address.length);
+    return {
+      amount: volume,
+      token: contract_address,
+    } as IToken
+  })
 
-    raw_in.map((e: IToken) => {
-      dailyVolume.add(e.token, e.amount)
-    })
+  raw_in.map((e: IToken) => {
+    dailyVolume.add(e.token, e.amount)
+  })
 
-    return { dailyVolume } as any
-  }
+  return { dailyVolume } as any
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.CORE]: {
-      fetch: fetch(CHAIN.CORE),
-      start: '2024-04-24',
-    },
-  },
+  fetch,
+  chains: [CHAIN.CORE],
+  start: '2024-04-24',
 };
 
 export default adapter;

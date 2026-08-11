@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet, httpPost } from "../utils/fetchURL";
 
-const INDEXER_URL = "https://indexer-fuel-seq.simplystaking.xyz";
+const INDEXER_URL = "https://index-api.sequencer.mainnet.fuel.network";
 const EXPLORER_URL = "https://explorer-indexer-mainnet.fuel.network/graphql";
 
 interface BlobFeesResponse {
@@ -14,10 +14,10 @@ interface BlobFeesResponse {
   endTimestamp: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  
+
   const url = `${INDEXER_URL}/seq/blob-fees?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
   const res: BlobFeesResponse = await httpGet(url);
 
@@ -41,15 +41,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       'x-api-key': 'Bearer nZ9GZ' + 'ayrd8',
     }
   });
-  
+
   let totalGasSpent = 0;
   for (const item of dataResponse.data.statistics.nodes.totalFee) {
     totalGasSpent += Number(item.value);
   }
-  
+
   // total gas spent in ETH, numbers are in 9 decimals
   dailyFees.addCGToken('ethereum', totalGasSpent / 1e9);
-  
+
   // totalFees is in smallest unit (10^9 = 1 FUEL)
   const fuelBlobFees = Number(res.totalFees) / Math.pow(10, res.decimals);
   dailyRevenue.addCGToken("fuel-network", fuelBlobFees);
@@ -60,16 +60,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Transaction gas fees (in ETH) paid by users on the Fuel Ignition network.",
+  Revenue: "Blob/data-availability fees (in FUEL) for posting Fuel batch data to the DA layer.",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   runAtCurrTime: true,
-  adapter: {
-    [CHAIN.FUEL]: {
-      fetch,
-      start: '2024-11-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.FUEL],
+  start: '2024-11-01',
   protocolType: ProtocolType.CHAIN,
+  methodology,
 };
 
 export default adapter;

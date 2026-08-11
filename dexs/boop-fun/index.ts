@@ -7,7 +7,7 @@ interface IData {
     total_volume: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
         WITH buy_volume AS (
             SELECT

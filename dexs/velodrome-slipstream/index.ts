@@ -51,7 +51,7 @@ interface ILog {
 const forSwaps = 'function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])'
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getFromBlock, startOfDay, chain, getLogs } = fetchOptions
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), await api.getBlock() - 100])
   const dailyVolume = createBalances()
@@ -116,11 +116,33 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
     sdk.log(`Velodrome ${chain} chunk ${chunkIndex + 1}/${pairChunks.length} processed`);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return {
+    dailyVolume,
+    dailyFees: dailyFees.clone(1, 'Token Swap Fees'),
+    dailyRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+    dailyHoldersRevenue: dailyFees.clone(1, 'Staked-LP Fees And Unstaked-LP Rake'),
+  }
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: 'Total swap fees paid by users',
+    Revenue: 'Swap feesare distributed to holders',
+    HoldersRevenue: 'Swap fees are distributed to holders',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Total swap fees paid by users',
+    },
+    Revenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+    HoldersRevenue: {
+      'Staked-LP Fees And Unstaked-LP Rake': 'Total swap fees distributed to holders',
+    },
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch,
@@ -158,7 +180,7 @@ const adapters: SimpleAdapter = {
       fetch,
       start: '2025-04-02',
     },
-  }
+  },
 }
 
 export default adapters;

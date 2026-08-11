@@ -10,7 +10,7 @@ const ABI = {
 
 const REWARDS_DISTRIBUTOR = "0xA7c68a960bA0F6726C4b7446004FE64969E2b4d4";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -72,7 +72,8 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.BASE],
     start: '2025-07-24',

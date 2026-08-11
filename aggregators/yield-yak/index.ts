@@ -18,6 +18,7 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: { fetch, start: '2023-05-31', },
     [CHAIN.ARBITRUM]: { fetch, start: '2023-05-31', },

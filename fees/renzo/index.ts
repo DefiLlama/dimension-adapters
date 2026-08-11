@@ -86,14 +86,10 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
-    }
-  },
+  version: 1,
+  fetch, // September 4th, 2024 -- M4 EigenPod Upgrade
+  chains: [CHAIN.ETHEREUM],
+  start: '2024-09-04',
   methodology: {
     Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",

@@ -5,7 +5,7 @@ import { getConfig } from '../helpers/cache';
 
 const PROTOCOL_FEE_LABEL = "Protocol fees";
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances()
   const data: string[] = (await getConfig('scatter/fees', 'https://scatter-api.fly.dev/api/contracts')).body;
@@ -20,7 +20,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   exs
     .filter((e: any) => e.data.startsWith('0x4a21a2df') || e.data.startsWith('0x1fff79b0'))
     .map((e: any) => dailyFees.addGasToken(e.eth_value * 0.05, PROTOCOL_FEE_LABEL))
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, timestamp }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees,}
 }
 
 const methodology = {
@@ -42,12 +42,9 @@ const breakdownMethodology = {
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-07-01', //
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2022-07-01', //
   methodology,
   breakdownMethodology
 }

@@ -14,7 +14,7 @@ interface IData {
     quoteMint: string;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
         WITH pools AS (
             SELECT
@@ -22,6 +22,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 quote_mint AS quoteMint
             FROM
                 pumpdotfun_solana.pump_amm_evt_createpoolevent
+            WHERE
+                quote_mint IN (
+                    '${ADDRESSES.solana.SOL}',
+                    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+                    '${ADDRESSES.solana.USDC}',
+                    '${ADDRESSES.solana.USDT}',
+                    '${ADDRESSES.solana.PUMP}',
+                    'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
+                )
         ),
         sells AS (
             SELECT
@@ -58,14 +67,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 (SELECT * FROM buys UNION ALL SELECT * FROM sells) s
                 JOIN pools p ON s.pool = p.pool
             WHERE
-                p.quoteMint IN (
-                    '${ADDRESSES.solana.SOL}',
-                    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    '${ADDRESSES.solana.USDC}',
-                    '${ADDRESSES.solana.USDT}',
-                    '${ADDRESSES.solana.PUMP}',
-                    'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
-                )
+                s.amount IS NOT NULL
         )
         SELECT
             quoteMint,
@@ -75,8 +77,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             SUM(coinCreatorFee) AS coinCreatorFee
         FROM
             pumpswap_trades
-        WHERE
-            amount IS NOT NULL
         GROUP BY
             quoteMint
     `)

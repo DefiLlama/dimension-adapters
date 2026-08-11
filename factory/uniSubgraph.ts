@@ -52,22 +52,6 @@ const configs: Record<string, SubgraphConfig> = {
     },
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
   },
-  "upheaval-v2": {
-    graphUrls: {
-      [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v2",
-    },
-    totalVolume: { factory: "pancakeFactories" },
-    feesPercent: {
-      type: "volume",
-      Fees: 0.3,
-      UserFees: 0.3,
-      ProtocolRevenue: 0.16 * 0.3,
-      HoldersRevenue: 0,
-      SupplySideRevenue: 0.84 * 0.3,
-      Revenue: 0.16 * 0.3,
-    },
-    start: "2025-07-26",
-  },
   // "sailfish": {
   //   graphUrls: {
   //     occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
@@ -113,36 +97,22 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-03-19",
   },
-  "retro": {
-    graphUrls: {
-      [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('DZyDuvUHNThtJJQAEbYGr32xYc93BZAdfqatpYUNMZbe'),
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 10,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 90,
-      Revenue: 10,
-    },
-    start: "2023-07-02",
-  },
-  "winnieswap": {
-    graphUrls: {
-      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap/0.0.1/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
-    },
-    start: "2025-07-07",
-  },
+  // "retro": {
+  //   graphUrls: {
+  //     [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('DZyDuvUHNThtJJQAEbYGr32xYc93BZAdfqatpYUNMZbe'),
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 10,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 90,
+  //     Revenue: 10,
+  //   },
+  //   start: "2023-07-02",
+  // },
+  // winnieswap migrated off its deleted Goldsky subgraph to on-chain logs -> dexs/winnieswap.ts
   "physica-finance": {
     graphUrls: {
       [CHAIN.PLANQ]: "https://subgraph.planq.finance/subgraphs/name/ianlapham/uniswap-v3",
@@ -158,21 +128,7 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-05-22",
   },
-  "fpex": {
-    graphUrls: {
-      [CHAIN.FLARE]: "https://api.goldsky.com/api/public/project_cmbnjfb9bfd3001tj08r4hq5c/subgraphs/flareswap/1.0.0/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
-    },
-    start: "2025-07-01",
-  },
+  // fpex migrated off its deleted Goldsky subgraph to on-chain logs -> dexs/fpex.ts
   "hydradex-v3": {
     graphUrls: {
       [CHAIN.HYDRAGON]: "https://subgraph.hydrachain.org/subgraphs/name/v3-subgraph",
@@ -193,15 +149,25 @@ const configs: Record<string, SubgraphConfig> = {
       [CHAIN.FLARE]: "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v3-2/latest/gn",
     },
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    // Static post-BBB split (factory cannot date-gate). Accurate pre/post history is in fees/sparkdex-v3-1.
     feesPercent: {
       type: "fees",
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
+      Fees: 100,
       UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
+      SupplySideRevenue: 75, // 75% to LPs (from 2026-05-18)
+      ProtocolRevenue: 0,
+      HoldersRevenue: 25, // 25% treasury → SPRK buyback-and-burn
+      Revenue: 25,
     },
     start: "2024-07-02",
+    methodology: {
+      Fees: "Swap fees paid by users on each trade.",
+      UserFees: "100% of collected fees.",
+      SupplySideRevenue: "75% of collected fees (87.5% before 2026-05-18; see fees/sparkdex-v3-1).",
+      ProtocolRevenue: "0% (2.5% before 2026-05-18; see fees/sparkdex-v3-1).",
+      HoldersRevenue: "25% of collected fees (5% buyback-and-burn + 5% staking rewards before 2026-05-18).",
+      Revenue: "25% of collected fees (12.5% before 2026-05-18; see fees/sparkdex-v3-1).",
+    },
   },
   // "kodiak-v3": {
   //   graphUrls: {
@@ -251,16 +217,25 @@ const configs: Record<string, SubgraphConfig> = {
     graphUrls: {
       [CHAIN.FLARE]: "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v4/latest/gn",
     },
-    start: '2024-10-29',
+    start: "2026-01-26",
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    // Static post-BBB split (factory cannot date-gate). Accurate pre/post history is in fees/sparkdex-v4.
     feesPercent: {
       type: "fees",
-      UserFees: 100, // 100% of fees are paid by users
+      UserFees: 100,
       Fees: 100,
       SupplySideRevenue: 75, // 75% to LPs
-      ProtocolRevenue: 5, // 5% to protocol
-      HoldersRevenue: 20, // 20% to holders (10% buyback + 10% staking rewards)
-      Revenue: 25, // 25% to protocol (5% ProtocolRevenue + 20% HoldersRevenue)
+      ProtocolRevenue: 0,
+      HoldersRevenue: 25, // 25% treasury → SPRK buyback-and-burn
+      Revenue: 25,
+    },
+    methodology: {
+      Fees: "Swap fees paid by users on each trade.",
+      UserFees: "100% of collected fees.",
+      SupplySideRevenue: "75% of collected fees.",
+      ProtocolRevenue: "0% (5% before 2026-05-18; see fees/sparkdex-v4).",
+      HoldersRevenue: "25% of collected fees (10% buyback-and-burn + 10% staking rewards before 2026-05-18).",
+      Revenue: "25% of collected fees.",
     },
   },
   mojitoswap: {
@@ -310,6 +285,28 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: 0.08,
       SupplySideRevenue: 0.2,
     }
+  },
+  // VVS concentrated liquidity (v3), fee varies per pool so fees come from the
+  // subgraph, the protocol keeps 1/4 of swap fees (feeProtocol 0x44 on pools)
+  'vvs-flawless': {
+    graphUrls: {
+      [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange-v3"
+    },
+    totalVolume: {
+      factory: "factories"
+    },
+    totalFees: {
+      factory: "factories",
+      field: "totalFeesUSD"
+    },
+    feesPercent: {
+      type: "fees",
+      UserFees: 100,
+      Revenue: 25,
+      ProtocolRevenue: 25,
+      SupplySideRevenue: 75,
+    },
+    start: '2023-09-20',
   },
   taraswap: {
     graphUrls: {

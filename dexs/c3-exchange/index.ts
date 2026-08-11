@@ -45,7 +45,6 @@ async function fetchVolume({
 
   return {
     dailyVolume: Math.round(volume24h),
-    timestamp: startOfDay,
   };
 }
 

@@ -1,7 +1,5 @@
-import { Chain } from "../../adapters/types";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 interface IDailyData {
@@ -25,11 +23,8 @@ const endpoints = {
   openInterest: `https://analytics.fwx.finance/api/trade/daily-open-interest`,
 };
 
-const fetch = async (timestamp: number, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1e3)
-  );
-  const date = new Date(dayTimestamp * 1e3);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const date = new Date(options.startOfDay * 1e3);
   const formattedDate = date.toISOString().replace(/\.(\d{3})Z$/, ".$1Z");
 
   // * call api for daily volume
@@ -80,24 +75,15 @@ const fetch = async (timestamp: number, _b: any, options: FetchOptions): Promise
     openInterestAtEnd: convertStringNumber(
       openInterestValue < 0 ? -openInterestValue : openInterestValue
     ),
-    timestamp: timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
   adapter: {
-    [CHAIN.AVAX]: {
-      fetch,
-      start: "2023-12-07",
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2024-09-04",
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: "2024-01-22",
-    },
+    [CHAIN.AVAX]: { start: "2023-12-07"  },
+    [CHAIN.BASE]: { start: "2024-09-04" },
+    [CHAIN.BSC]: { start: "2024-01-22" },
   },
 };
 

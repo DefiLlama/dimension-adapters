@@ -9,7 +9,8 @@ const fetch = async (options: FetchOptions) => {
     target: '0x340B5d664834113735730Ad4aFb3760219Ad9112'
   });
 
-  let totalOpenInterestUSD = 0;
+  let totalLongUSD = 0;
+  let totalShortUSD = 0;
 
   marketSummaries.forEach((summary: any) => {
     const marketSize = BigInt(summary.marketSize);
@@ -17,16 +18,15 @@ const fetch = async (options: FetchOptions) => {
     const indexPrice = BigInt(summary.price);
 
     if (marketSize > 0n) {
-      const longOI = marketSize > 0n ? (marketSize + marketSkew) / 2n : 0n;
-      const shortOI = marketSize > 0n ? (marketSize - marketSkew) / 2n : 0n;
+      const longOI = (marketSize + marketSkew) / 2n;
+      const shortOI = (marketSize - marketSkew) / 2n;
 
-      const longUSD = Number(longOI * indexPrice) / 1e36;
-      const shortUSD = Number(shortOI * indexPrice) / 1e36;
-      totalOpenInterestUSD += longUSD + shortUSD;
+      totalLongUSD += Number(longOI * indexPrice) / 1e36;
+      totalShortUSD += Number(shortOI * indexPrice) / 1e36;
     }
   });
 
-  return { openInterestAtEnd: totalOpenInterestUSD, longOpenInterestAtEnd: totalOpenInterestUSD, shortOpenInterestAtEnd: totalOpenInterestUSD };
+  return { openInterestAtEnd: totalLongUSD + totalShortUSD, longOpenInterestAtEnd: totalLongUSD, shortOpenInterestAtEnd: totalShortUSD };
 }
 
 const adapter: SimpleAdapter = {

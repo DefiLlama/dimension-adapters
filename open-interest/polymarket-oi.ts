@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // idea from https://dune.com/queries/3343122/5601864
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = options.createBalances();
 
   // USDC balance in these wallets

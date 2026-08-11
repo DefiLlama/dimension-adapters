@@ -65,10 +65,10 @@ const CHAINS: Record<string, { id: string }> = {
 const fetch = async (options: FetchOptions) => {
   const { chain, endTimestamp } = options;
   const info = CHAINS[chain];
-  if (!info) return { dailyBridgeVolume: 0, timestamp: endTimestamp };
+  if (!info) return { dailyBridgeVolume: 0 };
   const url = `${BACKEND_BASE}/defillama/bridge-volume?chain=${info.id}&timestamp=${endTimestamp}`;
   const res = await httpGet(url) as { dailyBridgeVolume: number };
-  return { dailyBridgeVolume: res?.dailyBridgeVolume || 0, timestamp: endTimestamp };
+  return { dailyBridgeVolume: res?.dailyBridgeVolume || 0 };
 };
 
 const adapter: Adapter = {

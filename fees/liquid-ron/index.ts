@@ -3,11 +3,11 @@ import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 const sdk = require('@defillama/sdk')
 
-const fetch = async (timestamp: number, _1: any, { api, createBalances, }: FetchOptions) => {
+const fetch = async ({ api, createBalances, toTimestamp }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const LRON = ADDRESSES.ronin.LRON
-  const period = Math.floor(timestamp / 86400)
+  const period = Math.floor(toTimestamp / 86400)
 
 
   // need to sdk as we dont have archive node for ronin
@@ -18,16 +18,13 @@ const fetch = async (timestamp: number, _1: any, { api, createBalances, }: Fetch
   dailyFees.addGasToken(rewardsClaimed)
   dailyRevenue.addGasToken(rewardsClaimed * 0.065)
 
-  return { timestamp, dailyFees, dailyRevenue }
+  return { dailyFees, dailyRevenue }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.RONIN]: {
-      fetch,
-      start: '2025-04-09',
-    },
-  },
+  fetch,
+  chains: [CHAIN.RONIN],
+  start: '2025-04-09',
   methodology: {
     Fees: "Deposit fee and staking rewards.",
     Revenue: "Liquid RON takes 6.5% performance fee whenever staking rewards are claimed.",

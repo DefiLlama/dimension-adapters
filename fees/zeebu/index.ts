@@ -29,7 +29,7 @@ interface GraphResponse {
   }[];
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayID = (Math.floor(options.startOfDay / 86400)).toString();
   const graphQuery = gql`
     query ($dayID: String!) {
@@ -56,9 +56,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = dailyFees * 0.6 / 100;
   const dailyProtocolRevenue = dailyFees - dailyHoldersRevenue;
 
-  return { 
-    dailyFees, 
-    dailyUserFees: dailyFees, 
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -74,9 +74,10 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   methodology,
+  fetch,
   adapter: {
-    [CHAIN.BASE]: { fetch, start: 1728518400 },
-    [CHAIN.BSC]: { fetch, start: 1688083200 },
+    [CHAIN.BASE]: { start: 1728518400 },
+    [CHAIN.BSC]: { start: 1688083200 },
   },
 }
 

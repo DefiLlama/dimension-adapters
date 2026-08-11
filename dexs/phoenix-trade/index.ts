@@ -1,5 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { PromisePool } from "@supercharge/promise-pool";
@@ -7,10 +8,10 @@ import { sleep } from "../../utils/utils";
 
 const PERP_API_URL = 'https://perp-api.phoenix.trade/v1';
 
-async function fetch(_: any, __: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
-    const marketsData = await fetchURL(`${PERP_API_URL}/view/markets`);
+    const marketsData = await getConfig('phoenix-trade/markets', `${PERP_API_URL}/view/markets`);
     const markets = marketsData.markets.map((market: any) => market.symbol);
 
     const startTime = options.startOfDay * 1000;

@@ -12,7 +12,7 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.TRON]: {
-      fetch: (async (_t: any, _a: any ,options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const start = options.startOfDay * 1000;
         const end = start + 86400;
         const startStr = new Date(start).toISOString().split("T")[0];

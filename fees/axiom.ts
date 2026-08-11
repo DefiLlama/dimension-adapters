@@ -14,6 +14,8 @@ const LABELS = {
 const chainConfig = {
   [CHAIN.SOLANA]: {
     start: '2025-01-21',
+    // Axiom's own router: 97.9% of fee-paying txs invoke it, 99.4% of its txs pay a fee wallet.
+    routerProgram: 'FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9',
     referralVaultProgram: 'VAULTkV5rgY9WqZtvaMHvctrKMwQw8bCfSJF4nga2D4',
     cashbackWallets: [
       'AxiomRXZAq1Jgjj9pHmNqVP7Lhu67wLXZJZbaK87TTSk',
@@ -44,7 +46,10 @@ const chainConfig = {
   },
   [CHAIN.BSC]: {
     start: '2026-01-25',
-    tradeContract: '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e',
+    tradeContracts: [
+      '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+      '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+    ],
     feeReceiver: '0xdec29d79e8cdf009d2fa33e0558cb5648481cac3',
     supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
   },
@@ -78,7 +83,7 @@ async function fetchSolana(options: FetchOptions) {
     allFeePayments AS (
         SELECT
           tx_id,
-          balance_change AS fee_token_amount
+          SUM(balance_change) AS fee_token_amount
         FROM
           solana.account_activity
         WHERE
@@ -88,20 +93,21 @@ async function fetchSolana(options: FetchOptions) {
             ${formattedFeeWallets}
           )
           AND balance_change > 0
+        GROUP BY tx_id
+    ),
+    routerTxs AS (
+      SELECT id
+      FROM solana.transactions
+      WHERE TIME_RANGE
+        AND success = true
+        AND CONTAINS(account_keys, '${solanaConfig.routerProgram}')
     ),
     botTrades AS (
       SELECT
-        trades.tx_id,
-        MAX(fee_token_amount) AS fee
+        feePayments.fee_token_amount AS fee
       FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-      WHERE
-        TIME_RANGE
-        AND trades.trader_id NOT IN (
-            ${formattedFeeWallets}
-          )
-      GROUP BY trades.tx_id
+        allFeePayments AS feePayments
+        JOIN routerTxs ON routerTxs.id = feePayments.tx_id
     ),
     referral_payout_txs AS (
       SELECT
@@ -110,8 +116,7 @@ async function fetchSolana(options: FetchOptions) {
         pre_balances,
         post_balances
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
     ),
@@ -122,8 +127,7 @@ async function fetchSolana(options: FetchOptions) {
         pre_balances,
         post_balances
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND (${cashbackWalletFilter})
         AND NOT CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
@@ -152,22 +156,16 @@ async function fetchSolana(options: FetchOptions) {
   const result = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
   dailyFees.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.TRADING_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.TRADING_FEES);
 
   dailyRevenue.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES_TO_PROTOCOL);
 
-  const dailyReferralPayouts = options.createBalances();
-  dailyReferralPayouts.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
-
-  const dailyCashbackPayouts = options.createBalances();
-  dailyCashbackPayouts.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
-
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(dailyReferralPayouts);
-  dailySupplySideRevenue.addBalances(dailyCashbackPayouts);
-
-  dailyFees.addBalances(dailyReferralPayouts);
-  dailyFees.addBalances(dailyCashbackPayouts);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
+  dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
@@ -182,7 +180,7 @@ async function fetchBsc(options: FetchOptions) {
   const [{ fees_amount, supply_side_amount }] = await queryDuneSql(options, `
     SELECT
       COALESCE(SUM(CASE
-        WHEN "from" = ${bscConfig.tradeContract}
+        WHEN "from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')})
          AND "to" = ${bscConfig.feeReceiver}
         THEN value
         ELSE 0
@@ -199,15 +197,16 @@ async function fetchBsc(options: FetchOptions) {
       AND success = true
       AND value > 0
       AND (
-        ("from" = ${bscConfig.tradeContract} AND "to" = ${bscConfig.feeReceiver})
+        ("from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')}) AND "to" = ${bscConfig.feeReceiver})
         OR
         ("from" = ${bscConfig.feeReceiver} AND "to" <> ${bscConfig.supplySideExcludedReceiver})
       )
   `);
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
+  dailyFees.addGasToken(supply_side_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken((BigInt(fees_amount) - BigInt(supply_side_amount)).toString(), LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
@@ -217,7 +216,7 @@ async function fetchBsc(options: FetchOptions) {
   };
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   return fetchBsc(options);
 }
@@ -229,16 +228,14 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, //claims may happen at later date
   fetch,
   methodology: {
-    Fees: 'Gross Axiom trading fees paid by users plus claimed referral and cashback payouts',
+    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral and cashback payouts users later claim back.",
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
     SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.TRADING_FEES]: 'Trading fees paid by Axiom users. On Solana these are matched from fee-wallet trade payments, and on BNB Chain these are native BNB transfers from the trade contract to the fee receiver.',
-      [LABELS.REFERRAL_PAYOUTS]: 'Claimed SOL referral payouts from Axiom referral vaults.',
-      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+      [LABELS.TRADING_FEES]: 'Trading fees paid by Axiom users.',
     },
     Revenue: {
       [LABELS.TRADING_FEES_TO_PROTOCOL]: 'Trading fees going to the protocol after deducting referral and cashback payouts.',

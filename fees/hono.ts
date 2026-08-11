@@ -13,7 +13,7 @@ const endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7Trkrt6hPzhLXUH2x4Xt9cSnSmAFKDmKNWuUHEwzgCYJ')
 };
 
-const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions) => {
+const fetch = async ({ createBalances, fromTimestamp, toTimestamp, }: FetchOptions) => {
   const dailyFees = createBalances()
 
   const graphQuery = gql`query fees($timestampFrom: Int!, $timestampTo: Int!)

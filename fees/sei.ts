@@ -3,7 +3,7 @@ import { SimpleAdapter, ProtocolType, FetchOptions, Dependencies } from "../adap
 import { queryAllium } from "../helpers/allium";
 import ADDRESSES from "../helpers/coreAssets.json";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     SELECT SUM(receipt_gas_used * receipt_effective_gas_price) AS fees_in_wei
     FROM sei.raw.transactions

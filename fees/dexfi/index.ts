@@ -42,6 +42,11 @@ const CONFIG: Record<
     nativeToken: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
     start: "2026-02-17",
   },
+  robinhood: {
+    treasury: "0xb56bdaa3c2d554a178e7dbd2acf324ce787fbd3f",
+    nativeToken: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    start: "2026-07-07",
+  },
 };
 
 const TREASURY_SHARE_DIVIDER = 1000000000000000000;

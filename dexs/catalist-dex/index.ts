@@ -13,7 +13,7 @@ interface IPoolDayData {
   date: number;
 }
 
-const fetch = async (_t: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayId = Math.floor(options.startOfDay / 86400);
   const getPoolDayDataQuery = gql`
     {

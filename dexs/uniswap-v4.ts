@@ -18,7 +18,7 @@
 
 // const dataCache = {} as any
 
-// async function fetch(_: any, _1: any, { api, startOfDay, }: FetchOptions) {
+// async function fetch(options: FetchOptions) {
 //   switch (api.chain) {
 //     case 'unichain': api.chainId = 130; break;
 //   }
@@ -56,7 +56,13 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
+import { queryDune } from "../helpers/dune";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { isCoreAsset } from "../helpers/prices";
+import {
+  getEstablishedTokens, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
+  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+} from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
 
 interface IUniswapConfig {
@@ -173,7 +179,31 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
     start: '2026-01-07'
-  }
+  },
+  [CHAIN.CELO]: {
+    poolManager: '0x288dc841a52fca2707c6947b3a777c5e56cd87bc',
+    source: 'LOGS',
+    positionManager: '0xf7965f3981e4d5bc383bfbcb61501763e9068ca9',
+    start: '2025-08-22',
+  },
+  [CHAIN.MEGAETH]: {
+    poolManager: '0xacb7e78fa05d562e0a5d3089ec896d57d057d38e',
+    source: 'LOGS',
+    positionManager: '0x9ae0921e981aaa7308f176f8d4f9129b9247c89d',
+    start: '2026-01-30',
+  },
+  [CHAIN.TEMPO]: {
+    poolManager: '0x33620f62c5b9b2086dd6b62f4a297a9f30347029',
+    source: 'LOGS',
+    positionManager: '0x3fc79444f8eacc1894775493ff3fa41f1e35ce11',
+    start: '2026-02-24',
+  },
+  [CHAIN.ROBINHOOD]: {
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
+    positionManager: '0x58daec3116aae6d93017baaea7749052e8a04fa7',
+    source: 'LOGS',
+    start: '2026-01-01',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -224,6 +254,92 @@ function getPoolKey(poolId: string): string {
   return poolId.slice(0, 52);
 }
 
+// Wash-trading filter. The scam here is a fake-ticker token (several unrelated
+// contracts all called "OpenAI"/"Claude") paired against real USDC, churned by a
+// handful of bots for a day or two, then rugged. The core-asset pricing from
+// #8376 actively validates them because the USDC leg is genuine, so each lands
+// ~$150M of fake volume. Flags 19.1% of v4 volume over 30d, 78.9% on Base.
+// Thresholds live in helpers/uniswap.ts.
+//
+// Turnover, the Swap log's `sender`, and repeated trade sizes were all measured
+// and none separate wash from a hot memecoin launch - only EOA concentration
+// does, which needs tx.from, hence Dune. Concentration alone also can't tell
+// wash from MM/relayer churn on a real token, so flagged pools whose sides are
+// all established (core asset or CoinGecko-listed) are spared, and priced-but-
+// dust pools (creator-coin bot churn) are never flagged - see helpers/uniswap.ts.
+//
+// Live, a pool only trips once it clears the daily floor, so its first hours can
+// still land; refilling the day drops them.
+
+// uniswap_v4_multichain's own chain slugs. Chains absent from Dune (zora,
+// blast, soneium, megaeth) simply get no filter.
+const DUNE_CHAIN: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.BSC]: 'bnb',
+  [CHAIN.AVAX]: 'avalanche_c',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.WC]: 'worldchain',
+  [CHAIN.INK]: 'ink',
+  [CHAIN.CELO]: 'celo',
+  [CHAIN.XLAYER]: 'xlayer',
+  [CHAIN.MONAD]: 'monad',
+  [CHAIN.TEMPO]: 'tempo',
+  [CHAIN.ROBINHOOD]: 'robinhood',
+};
+
+// Counts come from raw Swap events because dex.trades misses ~7% of pool-days
+// (anything it can't price); USD comes from dex.trades, where `maker` is the v4
+// pool id. Lets a Dune failure throw - reporting unfiltered would republish the
+// wash volume as real.
+const prefetch: any = async (options: FetchOptions) => {
+  const dayStart = washDayStart(options);
+  const chains = Object.values(DUNE_CHAIN).map(c => `'${c}'`).join(',');
+  const fullQuery = `
+    WITH ev AS (
+      SELECT chain, id, COUNT(*) AS trades, COUNT(DISTINCT evt_tx_from) AS eoas
+      FROM uniswap_v4_multichain.poolmanager_evt_swap
+      WHERE chain IN (${chains})
+        AND evt_block_time >= from_unixtime(${dayStart})
+        AND evt_block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY chain, id
+    ),
+    usd AS (
+      SELECT blockchain, maker, SUM(amount_usd) AS usd
+      FROM dex.trades
+      WHERE blockchain IN (${chains})
+        AND project = 'uniswap'
+        AND version = '4'
+        AND block_time >= from_unixtime(${dayStart})
+        AND block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY blockchain, maker
+    )
+    SELECT ev.chain, CAST(ev.id AS VARCHAR) AS id
+    FROM ev
+    LEFT JOIN usd u ON u.blockchain = ev.chain AND u.maker = ev.id
+    WHERE ((
+      ev.trades >= ${WASH_MIN_TRADES}
+      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+    ) OR (
+      COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
+      AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
+      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+    ))
+    -- priced-but-dust pools are noise either way; NULL usd (unpriced by Dune) stays flagged
+    AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
+
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options);
+  const washPools: Record<string, Set<string>> = {};
+  for (const row of rows) {
+    if (!row.chain || !row.id) continue;
+    (washPools[row.chain] ??= new Set()).add(String(row.id).toLowerCase());
+  }
+  return { washPools };
+}
+
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyVolume = options.createBalances()
@@ -245,9 +361,11 @@ async function fetch(options: FetchOptions) {
     });
 
     if (events.length > 0) {
-      const pools: {[key: string]: IPool | null} = {}
+      const skipPools = new Set((config.blacklistPoolIds ?? []).map(i => i.toLowerCase()))
+
+      const pools: { [key: string]: IPool | null } = {}
       for (const event of events) {
-        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id.toLowerCase())) {
+        if (skipPools.has(String(event.id).toLowerCase())) {
           // ignore blacklist pools
           continue;
         }
@@ -283,20 +401,41 @@ async function fetch(options: FetchOptions) {
           }
         }
       }
-      
+
+      const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+      const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
+      // flagged pools whose sides are all established (core or CG-listed) are
+      // spared - one batched price lookup, see getEstablishedTokens
+      let establishedTokens = new Set<string>()
+      if (washPools?.size) {
+        const flaggedTokens = Object.values(pools)
+          .filter((p): p is IPool => !!p && washPools.has(p.poolId.toLowerCase()))
+          .flatMap(p => [p.currency0, p.currency1])
+        if (flaggedTokens.length) establishedTokens = await getEstablishedTokens(options.chain, flaggedTokens)
+      }
       for (const event of events) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
-          const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
-          if (blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency0)) || blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency1))) {
+          const { currency0, currency1 } = pools[poolId] as IPool
+          if (blacklistTokens.has(formatAddress(currency0)) || blacklistTokens.has(formatAddress(currency1))) {
             continue;
           }
 
-          const token = (pools[poolId] as IPool).currency0
-          dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
-          dailyVolume.add(token, Math.abs(Number(event.amount0)))
+          if (washPools?.has(poolId.toLowerCase())
+            && !(establishedTokens.has(currency0.toLowerCase()) && establishedTokens.has(currency1.toLowerCase()))) {
+            continue;
+          }
+
+          // price via the native coin (currency0 is the zero address in native pools)
+          // or a core asset where possible, so long-tail tokens with thin liquidity
+          // don't set the USD value - same preference addOneToken applies for v2/v3
+          const useToken0 = currency0 === ADDRESSES.null || isCoreAsset(options.chain, currency0) || !isCoreAsset(options.chain, currency1)
+          const token = useToken0 ? currency0 : currency1
+          const amount = Math.abs(Number(useToken0 ? event.amount0 : event.amount1))
+          dailyFees.add(token, amount * (Number(event.fee) / 1e6))
+          dailyVolume.add(token, amount)
         }
-      }      
+      }
     }
   }
 
@@ -305,9 +444,9 @@ async function fetch(options: FetchOptions) {
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
+    dailyRevenue: 0, // tracked in uniswap-v3 adapter
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
   }
 }
 
@@ -315,14 +454,15 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: {},
-  // prefetch: prefetchWithDune,
+  prefetch,
   methodology: {
+    Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
-    Revenue: 'Protocol makes no revenue.',
+    Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
-    SupplySideRevenue: 'All fees are distributed to LPs.',
-    HoldersRevenue: 'No revenue for UNI holders.',
+    SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
+    HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
   },
   fetch,
 };

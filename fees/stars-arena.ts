@@ -1,6 +1,5 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 const abi = {
   "Trade": "event Trade (address trader, address subject, bool isBuy, uint256 shareAmount, uint256 amount, uint256 protocolAmount, uint256 subjectAmount, uint256 referralAmount, uint256 supply, uint256 buyPrice, uint256 myShares)",
@@ -32,11 +31,12 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
 
   function addLogData(log: any) {
     dailyVolume.addGasToken(log.amount);
-    dailyFees.addGasToken(log.protocolAmount, METRIC.TRADING_FEES);
-    dailyFees.addGasToken(log.subjectAmount, METRIC.CREATOR_FEES);
-    dailyFees.addGasToken(log.referralAmount, 'Referral Fees');
-    dailyRevenue.addGasToken(log.protocolAmount, METRIC.TRADING_FEES);
-    dailySupplySideRevenue.addGasToken(log.subjectAmount, METRIC.CREATOR_FEES);
+    
+    dailyFees.addGasToken(BigInt(log.protocolAmount) + BigInt(log.subjectAmount) + BigInt(log.referralAmount), 'Trading Fees');
+
+    dailyRevenue.addGasToken(log.protocolAmount, 'Protocol Fees');
+
+    dailySupplySideRevenue.addGasToken(log.subjectAmount, 'Creator Fees');
     dailySupplySideRevenue.addGasToken(log.referralAmount, 'Referral Fees');
   }
 
@@ -47,6 +47,7 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 }
@@ -67,15 +68,13 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]: 'Fees collected by the protocol from each trade',
-      [METRIC.CREATOR_FEES]: 'Fees paid to the subject/creator whose shares are being traded',
-      'Referral Fees': 'Fees paid to referrers',
+      'Trading Fees': 'Fees collected by the protocol from each trade',
     },
     Revenue: {
-      [METRIC.TRADING_FEES]: 'Protocol\'s share of trading fees retained as revenue',
+      'Protocol Fees': 'Protocol\'s share of trading fees retained as revenue',
     },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: 'Portion of trading fees distributed to subjects/creators',
+      'Creator Fees': 'Portion of trading fees distributed to subjects/creators',
       'Referral Fees': 'Portion of trading fees distributed to referrers',
     },
   },

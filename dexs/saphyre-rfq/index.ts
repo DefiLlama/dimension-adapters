@@ -4,7 +4,7 @@ import { httpGet } from "../../utils/fetchURL";
 
 const API_BASE = "https://rfq.saphyre.xyz";
 
-const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const res = await httpGet(`${API_BASE}/api/v1/analytics/volume?period=all&chain_id=1329`);
 
     const todaysPoint = res.data_points.find((p: any) => p.timestamp === options.startOfDay);

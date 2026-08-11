@@ -38,7 +38,7 @@ const getFeeBreakdownFromVolume = (dailyVolume: ReturnType<FetchOptions["createB
   }
 }
 
-const fetchEvm = async (_a: any, _b: any, { getLogs, createBalances, api }: FetchOptions) => {
+const fetchEvm = async ({ getLogs, createBalances, api }: FetchOptions) => {
   const dailyVolume = createBalances();
 
   const tradeLogs = await getLogs({
@@ -85,7 +85,7 @@ const fetchEvm = async (_a: any, _b: any, { getLogs, createBalances, api }: Fetc
 };
 
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const [row = { printr_fee_total_usd: 0 }] = await queryDuneSql(options, `
     WITH printr_tokens AS (
       SELECT DISTINCT base_mint AS token
@@ -139,9 +139,9 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(_a, _b, options)
-  return fetchEvm(_a, _b, options)
+const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
+  return fetchEvm(options)
 }
 
 const methodology = {

@@ -5,7 +5,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { evmReceivedGasAndTokens } from "../helpers/token";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -45,7 +45,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchEVM: any = async (_: any, _1: any, options: FetchOptions) => {
+const fetchEVM: any = async (options: FetchOptions) => {
   const { dailyFees } = await evmReceivedGasAndTokens("0xCb077A7f06D54c582eD82f5C5ef9FeFB9B8Be449", [])(options);
 
   const USD1 = "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d";

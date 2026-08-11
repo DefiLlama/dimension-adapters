@@ -264,8 +264,11 @@ export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { ext
   }, options, { extraUIDKey })
 }
 
-export const queryDuneResult = async (_: any, queryId: string) => {
-  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results`)
+export const queryDuneResult = async (_: any, queryId: string, filters?: string) => {
+  const params: Record<string, string> = { limit: '100000' }
+  if (filters) params.filters = filters
+  const urlParams = new URLSearchParams(params).toString()
+  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results?${urlParams}`)
   return latest_result.result.rows
 }
 

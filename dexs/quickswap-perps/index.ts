@@ -1,63 +1,30 @@
-import request, { gql } from "graphql-request";
-import { Adapter, Fetch } from "../../adapters/types";
+import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderSymmioPerpsByName } from "../../helpers/symmio";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { getBuilderExports } from "../../helpers/orderly";
 
-const methodology = {
-  symmio: {
-    Volume: 'builder code volume from Symmio Perps Trades.',
-    Fees: 'builder code fees from Symmio Perps Trades.',
-    Revenue: 'builder code revenue from Symmio Perps Trades.',
-    ProtocolRevenue: 'builder code revenue from Symmio Perps Trades.',
-    OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
-  },
-  quickswap: {
-    Volume: "Total cumulativeVolumeUsd for specified chain for the given day",
-  },
-};
-
-const endpoints = {
-  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/46725/quickperp-subgraph/version/latest",
-};
-
-interface IVolumeStat {
-  cumulativeVolumeUsd: string;
-  volumeUsd: string;
-  id: string;
-}
-
-const graphs = (graphUrls: Record<string, string>) => {
-  const fetch: Fetch = async (timestamp: number, _cb, { chain }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const graphQuery = gql`
-      query ($ts: Int!) {
-        volumeStats(where: { timestamp: $ts, period: "daily" }) {
-          volumeUsd
-        }
-      }
-    `;
-    const graphRes = await request(graphUrls[chain], graphQuery, { ts: todaysTimestamp });
-    const volumeStats: IVolumeStat[] = graphRes.volumeStats ?? [];
-    let dailyVolumeUSD = 0n;
-    for (const v of volumeStats) dailyVolumeUSD += BigInt(v.volumeUsd || "0");
-    const finalDailyVolume = Number(dailyVolumeUSD) / 1e30;
-    return { dailyVolume: String(finalDailyVolume), timestamp: todaysTimestamp };
-  };
-  return fetch;
-};
+// https://docs.quickswap.exchange/overview/perps
+// Falkor runs on Orderly Network under broker_id "quick_perps".
+const orderly = getBuilderExports({ broker_id: "quick_perps" });
 
 const adapter: Adapter = {
   version: 1,
   doublecounted: true,
-  methodology: methodology.symmio,
+  methodology: {
+    Volume: 'Perps trading volume routed through QuickSwap on Base (SYMMIO) and Falkor (Orderly Network).',
+    Fees: 'Affiliate fees on Base (SYMMIO) and builder fees on Falkor (Orderly) earned by QuickSwap.',
+    Revenue: 'Affiliate fees on Base (SYMMIO) and builder fees on Falkor (Orderly) earned by QuickSwap.',
+    ProtocolRevenue: 'Affiliate/builder fees retained by QuickSwap.',
+    OpenInterest: 'Open interest from QuickPerps on Base (SYMMIO); Falkor/Orderly does not report OI.',
+  },
   adapter: {
-    [CHAIN.POLYGON_ZKEVM]: {
-      start: '2024-01-01',
-      fetch: graphs(endpoints)
-      },
     [CHAIN.BASE]: {
       fetch: fetchBuilderSymmioPerpsByName("Quickswap"),
+    },
+    [CHAIN.ORDERLY]: {
+      // Orderly omits no-trade days (orderly.fetch throws); return empty so an
+      // Orderly gap doesn't fail the whole protocol and drop the Base data.
+      fetch: (options) => orderly.fetch!(options).catch(() => ({})),
     },
   },
 };

@@ -14,7 +14,7 @@ interface IFee {
   liquidation_fee_usd: number;
 }
 
-const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const chainName = options.chain === CHAIN.AVAX ? "avalanche" : options.chain
   const fees: IFee[] = await queryDuneSql(options, `
       WITH 

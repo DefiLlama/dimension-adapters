@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
   let openInterestAtEnd = 0;
   
   const response = await httpGet('https://prod-openapi.antarctic.exchange/futures/common/v1/perpetual/open-interest')

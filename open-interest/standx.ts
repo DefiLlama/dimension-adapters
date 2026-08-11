@@ -1,5 +1,5 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import pLimit from "p-limit";
 
@@ -17,7 +17,7 @@ interface MarketInfo {
     open_interest_notional: string;
 }
 
-const fetch = async (_timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (_options: FetchOptions) => {
     const symbolsResponse: SymbolInfo[] = await fetchURL(
         `${apiEndpoint}/query_symbol_info`
     );
@@ -39,9 +39,10 @@ const fetch = async (_timestamp: number): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
     fetch,
     chains: [CHAIN.STANDX],
-    runAtCurrTime: true
+    runAtCurrTime: true,
 };
 
 export default adapter;

@@ -20,7 +20,7 @@ interface VaultaResponse {
     actions: VaultaAction[];
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
     const startTime = options.startTimestamp;
     const endTime = options.endTimestamp;
@@ -56,12 +56,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.EOS]: {
-            fetch,
-            start: "2018-06-14",
-        },
-    },
+    fetch,
+    chains: [CHAIN.EOS],
+    start: "2018-06-14",
     methodology: {
         Fees: "0.5% fee charged on all RAM trading (buys and sells) collected in eosio.ramfee",
         Revenue: "Ram fees are sent to eosio.bpay to pay block producers",

@@ -2,7 +2,7 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances()
 
     const feeData = await fetchURL(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=zec&metrics=FeeTotNtv&start_time=${options.dateString}&end_time=${options.dateString}&frequency=1d`)

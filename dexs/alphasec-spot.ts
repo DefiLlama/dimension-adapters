@@ -9,7 +9,7 @@ const metrics = {
   TradingRebatesAndCommissions: "Trading Rebates and Commissions",
 };
 
-const fetch = async (_ts: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = `${API_URL}?startOfDay=${options.startOfDay}`;
   const data = await httpGet(url);
   const stats = data.result;

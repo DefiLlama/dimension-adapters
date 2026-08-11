@@ -3,9 +3,10 @@ import { getPoolFees, AaveLendingPoolConfig } from '../helpers/aave'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
+import { getAlliumChain, queryAllium } from '../helpers/allium'
 import { METRIC } from '../helpers/metrics'
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     // core market
     {
@@ -178,10 +179,24 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x487c5c669D9eee6057C44973207101276cf73b68',
     },
   ],
+  [CHAIN.XLAYER]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xE3F3Caefdd7180F884c01E57f65Df979Af84f116',
+      dataProvider: '0x6C505C31714f14e8af2A03633EB2Cdfb4959138F',
+    },
+  ],
+  [CHAIN.MONAD]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef',
+      dataProvider: '0xB65A68B98274ef7D9a60E0C0747dD1BEc3D32fad',
+    },
+  ]
 }
 
 const methodology = {
-  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers and swap fees from Paraswap.',
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from Paraswap, and Chainlink SVR (MEV recapture from Ethereum liquidations).',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
@@ -195,6 +210,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'Chainlink SVR': 'MEV recapture from Aave V3 Ethereum liquidations via Chainlink Smart Value Recapture infrastructure (Flashbots MEV-Share). 100% of recaptured value is forwarded to the Aave Collector. Available from April 2025.',
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding GHO).',
@@ -202,6 +218,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
@@ -215,19 +232,35 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "Aave starts buy back AAVE tokens using Aave Treasury after 9th April 2025. They bought daily basic, but there are days they didn't."
   },
 }
 
+const AaveNonBuybackTransferAddresses = [
+  '0x0000000000000000000000000000000000000000',
+  '0x4da27a545c0c5b758a6ba100e3a049001de870f5', // stkAAVE
+  '0xdef1fa4cefe67365ba046a7c630d6b885298e210', // deployer
+  '0x25f2226b597e8f9514b3f68f00f494cf4f286491', // ecosystem reserve
+  '0x1BDecEAE83c6Ca0f4D78Ee46D40881FAb26b10b1', // vesting
+  '0xA700b4eB416Be35b2911fd5Dee80678ff64fF6C9', // aave_eth
+]
+
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
-const chainConfig: Record<string, any> = {
+// Chainlink SVR (Smart Value Recapture) distribution Safe. Captures MEV from
+// Aave V3 Ethereum liquidations via Flashbots MEV-Share and forwards 100%
+// of recaptured value to the Aave Collector. Weekly distributions started
+// 2025-04-08. Methodology: see Chainlink ARFC linked from #6464.
+const ChainlinkSVRDistributor = '0x149b41b1e4c00b5f9aa34b14fd9f84cfd2f014e5';
+export const chainConfig: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
     treasuryCollector: '0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c',
     veloraAugustus: VeloraAugustusV6,
+    chainlinkSvrDistributor: ChainlinkSVRDistributor,
     start: '2023-01-01',
   },
   [CHAIN.OPTIMISM]: {
@@ -318,6 +351,14 @@ const chainConfig: Record<string, any> = {
     pools: AaveMarkets[CHAIN.MANTLE],
     start: '2026-01-16',
   },
+  [CHAIN.XLAYER]: {
+    pools: AaveMarkets[CHAIN.XLAYER],
+    start: '2026-03-30',
+  },
+  [CHAIN.MONAD]: {
+    pools: AaveMarkets[CHAIN.MONAD],
+    start: '2026-06-17',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -346,8 +387,33 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    const aaveReceived = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: AaveBuyBackTreasury })
-    dailyHoldersRevenue.addBalances(aaveReceived, METRIC.TOKEN_BUY_BACK)
+    const nonBuybackTransferAddresses = new Set(AaveNonBuybackTransferAddresses.map((a) => a.toLowerCase()))
+    const buybackReceived = await addTokensReceived({
+      options,
+      tokens: [ADDRESSES.ethereum.AAVE],
+      target: AaveBuyBackTreasury,
+      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase()),
+    })
+    dailyHoldersRevenue.addBalances(buybackReceived, METRIC.TOKEN_BUY_BACK)
+
+    // Chainlink SVR — MEV recapture from Aave V3 Ethereum liquidations.
+    // The Chainlink SVR distributor Safe forwards 100% of recaptured value
+    // (native ETH) to the Aave Collector via Safe.execTransaction, which the
+    // standard sdk indexer doesn't surface (internal trace, not top-level tx).
+    // Allium's native_token_transfers covers those internal value transfers.
+    if (chainConfig[options.chain].chainlinkSvrDistributor) {
+      const [{ amount }] = await queryAllium(`
+        SELECT COALESCE(SUM(raw_amount), 0) AS amount
+        FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+        WHERE to_address = '${chainConfig[options.chain].treasuryCollector.toLowerCase()}'
+          AND from_address = '${chainConfig[options.chain].chainlinkSvrDistributor.toLowerCase()}'
+          AND transfer_type = 'value_transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `)
+      dailyFees.addGasToken(amount, 'Chainlink SVR')
+      dailyProtocolRevenue.addGasToken(amount, 'Chainlink SVR')
+    }
   }
   
   // swap fees share from Paraswap
