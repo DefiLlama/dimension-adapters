@@ -3,7 +3,7 @@ import { getPoolFees, AaveLendingPoolConfig } from '../helpers/aave'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
-import { queryIndexer } from '../helpers/indexer'
+import { getAlliumChain, queryAllium } from '../helpers/allium'
 import { METRIC } from '../helpers/metrics'
 
 export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
@@ -400,24 +400,19 @@ const fetch = async (options: FetchOptions) => {
     // The Chainlink SVR distributor Safe forwards 100% of recaptured value
     // (native ETH) to the Aave Collector via Safe.execTransaction, which the
     // standard sdk indexer doesn't surface (internal trace, not top-level tx).
-    // Same query shape as fees/safe.ts.
+    // Allium's native_token_transfers covers those internal value transfers.
     if (chainConfig[options.chain].chainlinkSvrDistributor) {
-      const svrTransfers: any = await queryIndexer(`
-        SELECT
-          sum("value") AS eth_value
-        FROM
-          ethereum.traces
-        WHERE
-          to_address = '\\x${chainConfig[options.chain].treasuryCollector.replace(/^0x/i, '')}'
-          AND from_address = '\\x${chainConfig[options.chain].chainlinkSvrDistributor.replace(/^0x/i, '')}'
-          AND block_time BETWEEN llama_replace_date_range;
-      `, options)
-      svrTransfers.forEach((e: any) => {
-        if (e.eth_value) {
-          dailyFees.addGasToken(e.eth_value, 'Chainlink SVR')
-          dailyProtocolRevenue.addGasToken(e.eth_value, 'Chainlink SVR')
-        }
-      })
+      const [{ amount }] = await queryAllium(`
+        SELECT COALESCE(SUM(raw_amount), 0) AS amount
+        FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+        WHERE to_address = '${chainConfig[options.chain].treasuryCollector.toLowerCase()}'
+          AND from_address = '${chainConfig[options.chain].chainlinkSvrDistributor.toLowerCase()}'
+          AND transfer_type = 'value_transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `)
+      dailyFees.addGasToken(amount, 'Chainlink SVR')
+      dailyProtocolRevenue.addGasToken(amount, 'Chainlink SVR')
     }
   }
   
