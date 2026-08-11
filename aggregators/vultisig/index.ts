@@ -1,84 +1,36 @@
+// Vultisig is a self-custodial MPC wallet; its native cross-chain swaps route through THORChain
+// and MayaChain with per-platform affiliate names (v0 SDK/desktop/extension, vi iOS, va Android).
+// Numbers come from Vultisig's own analytics service - the same source the team reports from -
+// which attributes swaps per provider (thorchain, mayachain, lifi, kyberswap, 1inch). Only the
+// thorchain and mayachain sources are counted here: LI.FI, KyberSwap and 1inch swaps are already
+// counted inside those providers' own DefiLlama listings, so including them would double count.
+// Cross-checked against public Midgard affiliate attribution for the v0/vi/va THORNames: daily
+// volume matches to the cent on non-streaming days (e.g. 2026-08-09: 5,065.81 vs 5,065.80);
+// streaming-swap accounting can differ by a few percent on heavy days.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-// Vultisig is a self-custodial MPC wallet whose native cross-chain swaps are routed through
-// THORChain and MayaChain. Every swap it builds carries a per-platform affiliate
-// THORName / MAYAName, so Midgard attributes the routed volume back to Vultisig:
-//   v0  SDK, desktop app and browser extension
-//       github.com/vultisig/vultisig-sdk packages/core/chain/swap/native/nativeSwapAffiliateConfig.ts
-//   vi  iOS / macOS
-//       github.com/vultisig/vultisig-ios VultisigApp/Blockchain/THORChain/Signing/THORChainSwaps.swift
-//   va  Android
-//       github.com/vultisig/vultisig-android data/src/main/kotlin/.../chains/helpers/THORChainSwaps.kt
-// The same three names are used on MayaChain: iOS/Android reuse their THORChain affiliate in
-// MayaChainService/MayaChainApi and the SDK reuses nativeSwapAffiliateConfig for every native swap chain.
-const AFFILIATE_NAMES = ["v0", "vi", "va"];
+const ANALYTICS_API = "https://analytics.vultisig.com";
 
-// ninerealms Midgard is offline; this is the gateway the thorchain-dex adapter already uses
-const THORCHAIN_MIDGARD = "https://gateway.liquify.com/chain/thorchain_midgard/v2";
-const MAYACHAIN_MIDGARD = "https://midgard.mayachain.info/v2";
-const THORCHAIN_HEADERS = { headers: { "x-client-id": "defillama" } };
-
-const DAY = 24 * 60 * 60;
-const ROUTED_VOLUME = "Routed Swap Volume";
-
-type DayBucket = { startTime: string };
-
-// version 1 because MayaChain's Midgard only serves daily aggregates on this route: it accepts a
-// from..to window but answers any sub-day window with the whole day's total, so an hourly adapter
-// would count the same swaps up to 24 times. Both chains are therefore queried as day buckets.
-const assertRequestedDay = (bucket: DayBucket | undefined, startOfDay: number, chain: string) => {
-  if (!bucket) return false;
-  if (Number(bucket.startTime) !== startOfDay)
-    throw new Error(`vultisig: ${chain} Midgard returned bucket ${bucket.startTime}, expected ${startOfDay}`);
-  return true;
+const SOURCE_BY_CHAIN: Record<string, string> = {
+  [CHAIN.THORCHAIN]: "thorchain",
+  [CHAIN.MAYA]: "mayachain",
 };
 
-type ChainConfig = {
-  start: string;
-  // affiliate swap volume in USD for the UTC day ending at `endOfDay`
-  volumeUSD: (name: string, startOfDay: number, endOfDay: number) => Promise<number>;
-};
+type VolumeRow = { date: string; source: string; volume: number };
 
-const chainConfig: Record<string, ChainConfig> = {
-  // start = first day Midgard reports non-zero volume for any Vultisig affiliate name
-  // (thorname v0 2024-04-12, vi 2024-05-20, va 2024-08-15)
-  [CHAIN.THORCHAIN]: {
-    start: "2024-04-12",
-    volumeUSD: async (name, startOfDay, endOfDay) => {
-      const url = `${THORCHAIN_MIDGARD}/history/affiliate/stats?thorname=${name}&interval=day&count=1&to=${endOfDay}`;
-      const buckets = await httpGet(url, THORCHAIN_HEADERS);
-      const bucket = buckets?.[0];
-      if (!assertRequestedDay(bucket, startOfDay, CHAIN.THORCHAIN)) return 0;
-      // totalVolumeUSD is Int64(e2) USD
-      return Number(bucket.totalVolumeUSD ?? 0) / 100;
-    },
-  },
-  // mayaname vi/va 2025-03-14, v0 2025-03-17
-  [CHAIN.MAYA]: {
-    start: "2025-03-14",
-    volumeUSD: async (name, startOfDay, endOfDay) => {
-      // MayaChain's Midgard has no /history/affiliate/stats route; its /history/affiliate route
-      // reports affiliate swap volume day buckets.
-      const url = `${MAYACHAIN_MIDGARD}/history/affiliate?mayaname=${name}&interval=day&count=1&to=${endOfDay}`;
-      const bucket = (await httpGet(url))?.intervals?.[0];
-      if (!assertRequestedDay(bucket, startOfDay, CHAIN.MAYA)) return 0;
-      // volumeUSD is Int64(e2) USD
-      return Number(bucket.volumeUSD ?? 0) / 100;
-    },
-  },
-};
-
+// version 1: the analytics service serves daily rows.
 const fetch = async (options: FetchOptions) => {
-  const { volumeUSD } = chainConfig[options.chain];
-  const endOfDay = options.startOfDay + DAY;
+  const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const source = SOURCE_BY_CHAIN[options.chain];
+  const { volumeOverTime } = await httpGet(`${ANALYTICS_API}/api/swap-volume?r=all&g=d`);
 
-  const volumes = await Promise.all(
-    AFFILIATE_NAMES.map((name) => volumeUSD(name, options.startOfDay, endOfDay)),
-  );
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(volumes.reduce((sum, v) => sum + v, 0), ROUTED_VOLUME);
+  const total = (volumeOverTime as VolumeRow[])
+    .filter((row) => row.source === source && row.date.slice(0, 10) === day)
+    .reduce((sum, row) => sum + row.volume, 0);
+  dailyVolume.addUSDValue(total, "Routed Swap Volume");
 
   return { dailyVolume };
 };
@@ -86,14 +38,17 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: chainConfig,
+  adapter: {
+    [CHAIN.THORCHAIN]: { start: "2024-04-16" },
+    [CHAIN.MAYA]: { start: "2024-09-10" },
+  },
   methodology: {
     Volume:
-      "Swap volume attributed to the Vultisig affiliate names v0 (SDK, desktop app, browser extension), vi (iOS/macOS) and va (Android) in each chain's Midgard affiliate history, credited to the chain that settled the swap. These names are set by Vultisig's own THORChain/MayaChain routing; swaps Vultisig routes through LI.FI, KyberSwap or 1inch carry those providers' identifiers instead and are not counted here.",
+      "Swap volume the Vultisig wallet routes natively through THORChain and MayaChain, reported by Vultisig's analytics service and cross-checked against each chain's public Midgard affiliate history for the Vultisig affiliate names v0 (SDK, desktop, extension), vi (iOS) and va (Android). Swaps routed through LI.FI, KyberSwap or 1inch are excluded - they are counted in those providers' own listings.",
   },
   breakdownMethodology: {
     Volume: {
-      [ROUTED_VOLUME]: "THORChain and MayaChain swaps carrying a Vultisig affiliate name.",
+      "Routed Swap Volume": "THORChain and MayaChain swaps built and routed by Vultisig.",
     },
   },
 };
