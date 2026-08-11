@@ -1,5 +1,6 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const FACTORY = "0x78120F2C0EBF0cc8B7E7749e62D36e6523dD711D";
 
@@ -23,6 +24,7 @@ const fetch = async (options: FetchOptions) => {
     target: FACTORY, abi: abi.getPoolAt,
     calls: [...Array(Number(length)).keys()],
   });
+
   const tokens = await api.multiCall({ abi: abi.getTokens, calls: pools });
 
   const logs = await getLogs({ targets: pools, eventAbi: SWAP_EVENT, flatten: false });
@@ -32,8 +34,8 @@ const fetch = async (options: FetchOptions) => {
     logs[i].forEach((log: any) => {
       const [tokenIn, tokenOut] = log.swapXtoY ? [tokenX, tokenY] : [tokenY, tokenX];
       dailyVolume.add(tokenOut, log.amountOut);
-      dailyFees.add(tokenIn,  log.feeIn);
-      dailyFees.add(tokenOut, log.feeOut);
+      dailyFees.add(tokenIn,  log.feeIn, METRIC.SWAP_FEES);
+      dailyFees.add(tokenOut, log.feeOut, METRIC.SWAP_FEES);
     });
   });
 
@@ -56,12 +58,26 @@ const methodology = {
     SupplySideRevenue: "All swap fees are forwarded to each pool's fee rewarder and distributed to liquidity providers.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by traders on each swap.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by traders on each swap.",
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: "All the swap fees are forwarded to each pool's fee rewarder and distributed to liquidity providers.",
+  }
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
-  adapter: {
-    [CHAIN.MONAD]: { fetch, start: '2026-05-07' },
-  },
+  pullHourly: true,
+  fetch,
+  start: '2026-05-07',
+  chains: [CHAIN.MONAD],
+  breakdownMethodology,
 };
 
 export default adapter;
