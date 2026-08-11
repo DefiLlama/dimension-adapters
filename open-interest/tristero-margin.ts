@@ -2,10 +2,10 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import {
     getActiveTristeroV3MarginEscrows,
     getOpenTristeroV3MarginPositions,
-    getTristeroMarginChainStart,
     getTristeroMarginChains,
     permitFailureMultiCallWithFallback,
     toBigIntOrNull,
+    TRISTERO_START,
     TRISTERO_V3_MARGIN_ABI,
 } from "../helpers/tristero";
 
@@ -50,12 +50,8 @@ const adapter: SimpleAdapter = {
     // Open interest is a point-in-time snapshot, not a flow. Under pullHourly the runner sums
     // 24 hourly slots, which reported 24x the real figure (126.76k against an actual ~5.3k).
     pullHourly: false,
-    adapter: Object.fromEntries(
-        getTristeroMarginChains().map((chain) => [
-            chain,
-            { start: getTristeroMarginChainStart(chain) },
-        ])
-    ),
+    chains: getTristeroMarginChains(),
+    start: TRISTERO_START,
     fetch,
 };
 

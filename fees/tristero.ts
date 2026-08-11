@@ -1,7 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import {
-  TRISTERO_DEX_CHAINS,
+  TRISTERO_CHAINS,
+  TRISTERO_START,
   fetchTristeroGasAbstractionFees,
   getTristeroVaultTotal,
 } from "../helpers/tristero";
@@ -52,10 +53,10 @@ const adapter: SimpleAdapter = {
   // pullHourly the runner sums 24 slots and would report 24x the real figure.
   pullHourly: false,
   fetch,
-  adapter: TRISTERO_DEX_CHAINS,
+  chains: TRISTERO_CHAINS,
+  start: TRISTERO_START,
   methodology: {
-    Fees: "A 1bp (0.01%) per-day loan spread on the total capital in the Tristero vault - idle and lent out, from the vault's own getTVOL accounting - plus gas abstraction paid to fillers for submitting orders on takers' behalf.",
-    UserFees: "Both components are charged to users: the loan spread to borrowers, gas abstraction to takers.",
+    Fees: "A 1bp (0.01%) per-day loan spread on the total capital in the Tristero vault - idle and lent out, from the vault's own getTVOL accounting - plus gas abstraction paid to fillers for submitting orders on takers' behalf. Both components are charged to users: the loan spread to borrowers, gas abstraction to takers.",
     SupplySideRevenue: "Gas abstraction paid to fillers, who keep it in full.",
     Revenue: "The loan spread, kept by the protocol. Tristero takes no share of gas abstraction.",
     ProtocolRevenue: "The loan spread, kept by the protocol.",

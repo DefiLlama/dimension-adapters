@@ -35,14 +35,6 @@ type DecodedV3SendOrder = {
   sender: string;
   filler: string;
   target: string;
-  dstToken: string;
-  // What the filler posts on the other side of an internally matched fill: router._fill pulls
-  // exactly minOut of dstAsset from them in exchange for the taker's src leg.
-  makerQuantity: bigint;
-  // A TAKER order with no arb calls is matched inside the darkpool against a filler, so it has
-  // a real maker on the other side. MARGIN is bucketed as darkpool too, but its counterparty is
-  // an external venue reached through the multicall, so it has no maker leg to count.
-  isInternalMatch: boolean;
   // Darkpool when the order never touched an external venue: a TAKER fill submitted with no
   // arb calls (router._fill settles it against the filler directly), or a MARGIN open.
   // Everything else - TAKER with arb calls, RELAY, CROSS, EXTERNAL - is aggregation flow.
@@ -137,7 +129,7 @@ export async function permitFailureMultiCallWithFallback(
 // generations are deliberately not referenced, so positions opened against them are not counted.
 const TRISTERO_ESCROW = '0x66b53dBA061715CC52059b466eB64e3bF49F12EB';
 const TRISTERO_VAULT = '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00';
-const TRISTERO_START = '2026-06-18';
+export const TRISTERO_START = '2026-06-18';
 
 const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
@@ -156,27 +148,17 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
 
 export const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// Chains: the six where the router is deployed and taking orders. Volume starts at the router's
+// The six chains where the router is deployed and taking orders. Volume starts at the router's
 // 2026-06-18 rollout because no earlier contract generation is referenced any more.
-export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
-  [CHAIN.ETHEREUM]: { start: TRISTERO_START },
-  [CHAIN.ARBITRUM]: { start: TRISTERO_START },
-  [CHAIN.BASE]: { start: TRISTERO_START },
-  [CHAIN.POLYGON]: { start: TRISTERO_START },
-  [CHAIN.AVAX]: { start: TRISTERO_START },
-  [CHAIN.OPTIMISM]: { start: TRISTERO_START },
-};
+export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM];
 
 const TRISTERO_ROUTER = '0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1';
 
 // The one router the adapters read. Earlier router generations are not referenced, so volume
 // routed through them is not counted.
 const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = Object.fromEntries(
-  [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM]
-    .map((chain) => [chain, [{ start: TRISTERO_START, router: TRISTERO_ROUTER }]]),
+  TRISTERO_CHAINS.map((chain) => [chain, [{ start: TRISTERO_START, router: TRISTERO_ROUTER }]]),
 );
-
-export const TRISTERO_AGGREGATOR_CHAINS = TRISTERO_DEX_CHAINS;
 
 const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
   [CHAIN.BASE]: ["https://mainnet.base.org"],
@@ -196,10 +178,6 @@ const ORDER_ROUTER_SEND_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction("send")?.s
 
 export function getTristeroMarginChains(): string[] {
   return Object.keys(TRISTERO_V3_MARGIN_CONFIGS);
-}
-
-export function getTristeroMarginChainStart(chain: string): string | undefined {
-  return TRISTERO_V3_MARGIN_CONFIGS[chain]?.start;
 }
 
 export function getActiveTristeroV3MarginEscrows(chain: string, date: string): TristeroV3MarginEscrowConfig[] {
@@ -905,9 +883,6 @@ function decodeV3SendOrder(data?: string): DecodedV3SendOrder | null {
       sender: normalizeAddress(order.sender),
       filler: normalizeAddress(order.filler),
       target: normalizeAddress(order.target),
-      dstToken: order.parameters.dstAsset,
-      makerQuantity: BigInt(parsed.args.minOut),
-      isInternalMatch,
       isDarkpool: orderType === "MARGIN" || isInternalMatch,
     };
   } catch (error) {
@@ -959,16 +934,10 @@ function addDecodedV3SendOrderVolume(
 
   const dailyVolume = decodedOrder.isDarkpool ? buckets.darkpool : buckets.aggregation;
 
+  // Source-side amount only. The maker's dst leg is the same trade settling on the other side,
+  // not a second trade - counting it too would double the fill (a $100 fill books $100, not $200).
   const srcTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
   if (srcTokenAddress) dailyVolume.add(srcTokenAddress, decodedOrder.srcQuantity);
-
-  // A darkpool fill is two-sided: the taker sells src and a maker posts dst against it, so both
-  // legs are counted. Routed fills are not - there the counterparty is an external venue, and
-  // counting the output as well would book the same trade twice.
-  if (decodedOrder.isInternalMatch && decodedOrder.makerQuantity > 0n) {
-    const dstTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.dstToken);
-    if (dstTokenAddress) dailyVolume.add(dstTokenAddress, decodedOrder.makerQuantity);
-  }
 
   const marginLoan = decodeMarginLoan(decodedOrder);
   if (marginLoan?.quantity) {
