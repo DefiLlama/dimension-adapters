@@ -2,7 +2,6 @@ import { CHAIN } from '../../helpers/chains';
 import { FetchOptions, IJSON, SimpleAdapter } from '../../adapters/types';
 import { addOneToken } from '../../helpers/prices';
 import { METRIC } from '../../helpers/metrics';
-import { ethers } from 'ethers';
 
 const FACTORY = '0x16494A80E08Bcb9285D87b67149d7b01774D82F8';
 const FROM_BLOCK = 27941500;
@@ -20,12 +19,12 @@ const COMMUNITY_FEE_DENOMINATOR = 1e3;
 
 type Point = { block: number; index: number; value: number };
 
-const toPoints = (iface: ethers.Interface, logs: any[]): Point[] =>
+const toPoints = (logs: any[]): Point[] =>
   logs
     .map((log: any) => ({
       block: Number(log.blockNumber),
-      index: Number(log.logIndex ?? log.index ?? 0),
-      value: Number(iface.parseLog(log)?.args[0]),
+      index: Number(log.logIndex),
+      value: Number(log.args[0]),
     }))
     .sort((a, b) => a.block - b.block || a.index - b.index);
 
@@ -69,19 +68,12 @@ const breakdownMethodology = {
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain } = options;
 
-  const poolIface = new ethers.Interface([poolCreatedEvent]);
-  const feeIface = new ethers.Interface([feeEvent]);
-  const communityIface = new ethers.Interface([communityFeeEvent]);
-  const defaultFeeIface = new ethers.Interface([defaultFeeEvent]);
-  const defaultCommunityIface = new ethers.Interface([defaultCommunityFeeEvent]);
+  const cached = { fromBlock: FROM_BLOCK, entireLog: true, cacheInCloud: true, parseLog: true } as const;
 
-  const cached = { fromBlock: FROM_BLOCK, entireLog: true, cacheInCloud: true } as const;
-
-  const poolLogs = await getLogs({ target: FACTORY, eventAbi: poolCreatedEvent, ...cached });
+  const poolLogs = await getLogs({ target: FACTORY, eventAbi: poolCreatedEvent, fromBlock: FROM_BLOCK, cacheInCloud: true });
   const pairObject: IJSON<string[]> = {};
   poolLogs.forEach((log: any) => {
-    const args = poolIface.parseLog(log)?.args;
-    if (args) pairObject[args.pool] = [args.token0, args.token1];
+    pairObject[log.pool] = [log.token0, log.token1];
   });
   const pools = Object.keys(pairObject);
 
@@ -106,23 +98,21 @@ const fetch = async (options: FetchOptions) => {
   const communityLogs = await getLogs({ targets: pools, eventAbi: communityFeeEvent, flatten: false, ...cached });
   const swapLogs = await getLogs({ targets: pools, eventAbi: swapEvent, flatten: false, entireLog: true });
 
-  const defaultFees = toPoints(defaultFeeIface, defaultFeeLogs);
-  const defaultCommunityFees = toPoints(defaultCommunityIface, defaultCommunityLogs);
-
-  const swapIface = new ethers.Interface([swapEvent]);
+  const defaultFees = toPoints(defaultFeeLogs);
+  const defaultCommunityFees = toPoints(defaultCommunityLogs);
 
   pools.forEach((pool, i) => {
     const logs = swapLogs[i];
     if (!logs?.length) return;
 
     const [token0, token1] = pairObject[pool];
-    const poolFees = toPoints(feeIface, feeLogs[i] ?? []);
-    const poolCommunityFees = toPoints(communityIface, communityLogs[i] ?? []);
+    const poolFees = toPoints(feeLogs[i] ?? []);
+    const poolCommunityFees = toPoints(communityLogs[i] ?? []);
 
     logs.forEach((log: any) => {
       const block = Number(log.blockNumber);
-      const index = Number(log.logIndex ?? log.index ?? 0);
-      const args = swapIface.parseLog(log)?.args;
+      const index = Number(log.logIndex);
+      const args = log.args;
       if (!args) return;
 
       const fee =
