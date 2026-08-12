@@ -25,9 +25,9 @@ type VolumeRow = { date: string; source: string; volume: number };
 // adapter dates, so the full daily history is fetched once and memoized for the run.
 let volumeRows: Promise<VolumeRow[]> | undefined;
 const getVolumeRows = () =>
-  (volumeRows ??= httpGet(`${ANALYTICS_API}/api/swap-volume?r=all&g=d`).then(
-    (res) => res.volumeOverTime as VolumeRow[],
-  ));
+(volumeRows ??= httpGet(`${ANALYTICS_API}/api/swap-volume?r=all&g=d`).then(
+  (res) => res.volumeOverTime as VolumeRow[],
+));
 
 // version 1: the analytics service serves daily rows.
 const fetch = async (options: FetchOptions) => {
@@ -35,10 +35,12 @@ const fetch = async (options: FetchOptions) => {
   const rows = await getVolumeRows();
 
   const dailyVolume = options.createBalances();
-  const total = rows
-    .filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString)
-    .reduce((sum, row) => sum + row.volume, 0);
-  dailyVolume.addUSDValue(total, "Routed Swap Volume");
+  const todaysRows = rows.filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString);
+  if (!todaysRows.length) {
+    throw new Error(`No rows found for ${source} on ${options.dateString}`);
+  }
+  const total = todaysRows.reduce((sum, row) => sum + row.volume, 0);
+  dailyVolume.addUSDValue(total);
 
   return { dailyVolume };
 };
@@ -50,11 +52,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume:
       "Swap volume the Vultisig wallet routes natively through THORChain and MayaChain, reported by Vultisig's analytics service and cross-checked against each chain's public Midgard affiliate history for the Vultisig affiliate names v0 (SDK, desktop, extension), vi (iOS) and va (Android). Swaps routed through LI.FI, KyberSwap or 1inch are excluded - they are counted in those providers' own listings.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      "Routed Swap Volume": "THORChain and MayaChain swaps built and routed by Vultisig.",
-    },
   },
 };
 
