@@ -65,7 +65,7 @@ export function azverseBrokerVolumeExports({ brokerId, brokerName, start }: Azve
   const fetch = async (options: FetchOptions) => {
     const { volume } = await getAzverseDailyStats(options.dateString, "perp", brokerId);
 
-    return { dailyVolume: volume };
+    return { dailyVolume: volume / 2 }; // api counts both sides of the trade for broker
   };
 
   return {
