@@ -26,12 +26,6 @@ import fetchURL from "../../utils/fetchURL";
 
 const PERP_TICKER_URL = "https://api.rocky.exchange/fapi/v1/ticker/24hr";
 
-// Rocky internal-ledger fee schedule (source: rocky-backend
-// services/internal-ledger/src/fees.rs).
-const MAKER_FEE_BPS = 1;
-const TAKER_FEE_BPS = 5;
-const BPS = 10_000;
-
 // USD-pegged quote assets on Rocky perp — every perp symbol is Binance-style
 // concatenated (e.g. BTCUSDT), so we look for a trailing USD-quote suffix.
 const USD_QUOTE_ASSETS = new Set(["USDT", "USDC", "USDCX", "CUSD"]);
@@ -78,60 +72,30 @@ const sumUsdQuoteVolume = (rows: unknown): number => {
   return total;
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
   const rows = await fetchURL(PERP_TICKER_URL);
   const dailyVolume = sumUsdQuoteVolume(rows);
 
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue((dailyVolume * MAKER_FEE_BPS) / BPS, "Maker Fees");
-  dailyFees.addUSDValue((dailyVolume * TAKER_FEE_BPS) / BPS, "Taker Fees");
-
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: 0,
   };
 };
 
 const methodology = {
   Volume:
     "Sum of `quoteVolume` for every USD-quoted perp symbol returned by Rocky's Binance-compatible 24h ticker endpoint at /fapi/v1/ticker/24hr. Rocky's perp markets margin in USD-pegged assets (BTCUSDT, ETHUSDT, CCUSDT), so `quoteVolume` is directly USD notional and the sum requires no external price conversion.",
-  Fees:
-    "Trading fees charged by Rocky's internal ledger: 1 bps maker + 5 bps taker (= 6 bps aggregate) applied to the same 24h volume figure. Rate source: rocky-backend services/internal-ledger/src/fees.rs.",
-  Revenue: "100% of trading fees accrue to the protocol.",
-  ProtocolRevenue: "100% of trading fees accrue to the protocol.",
-  SupplySideRevenue:
-    "Zero. Rocky has no LP vault or affiliate fee-share program today, so no portion of the fee stream is paid to a supply side.",
 };
 
-const breakdownMethodology = {
-  Fees: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
-  Revenue: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
-  ProtocolRevenue: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
-};
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  start: "2026-07-01",
   runAtCurrTime: true,
   // Rocky's ticker/24hr endpoint exposes a live rolling 24h window only.
   // There is no per-hour bucketing, so pullHourly must be false.
   pullHourly: false,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
