@@ -147,7 +147,7 @@ async function fetch(options: FetchOptions) {
 
         // Add delay between requests to prevent rate limiting
         if (nextCursor) {
-            await delay(1000);
+            await delay(100);
         }
         options.api.log(`page: ${page} and nextCursor: ${nextCursor}`);
     } while (nextCursor);
