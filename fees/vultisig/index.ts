@@ -1,42 +1,53 @@
-// Vultisig is a self-custodial MPC wallet; its native cross-chain swaps route through THORChain
-// and MayaChain with per-platform affiliate names (v0 SDK/desktop/extension, vi iOS, va Android).
-// Numbers come from Vultisig's own analytics service - the same source the team reports from -
-// which attributes swaps per provider (thorchain, mayachain, lifi, kyberswap, 1inch). Only the
-// thorchain and mayachain sources are counted here: LI.FI, KyberSwap and 1inch swaps are already
-// counted inside those providers' own DefiLlama listings, so including them would double count.
-// Cross-checked against public Midgard affiliate attribution for the v0/vi/va THORNames: daily
-// volume matches to the cent on non-streaming days (e.g. 2026-08-09: 5,065.81 vs 5,065.80);
-// streaming-swap accounting can differ by a few percent on heavy days.
+// Vultisig charges a basis-point affiliate fee on the native swaps it routes through THORChain
+// and MayaChain, tagged with per-platform affiliate names (v0 SDK/desktop/extension, vi iOS,
+// va Android). Fee numbers come from Vultisig's own analytics service - the same source the team
+// reports from. Cross-check: daily fees track the configured affiliate rate against routed volume
+// (e.g. 2026-08-10: $250.73 on $50,304.91 routed = 49.8 bps against the 50 bps SDK rate).
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const ANALYTICS_API = "https://analytics.vultisig.com";
 
-const SOURCE_BY_CHAIN: Record<string, string> = {
-  [CHAIN.THORCHAIN]: "thorchain",
-  [CHAIN.MAYA]: "mayachain",
+// start = first day the analytics service reports the source
+const chainConfig: Record<string, { start: string; source: string; feeLabel: string; revenueLabel: string }> = {
+  [CHAIN.THORCHAIN]: {
+    start: "2024-04-16",
+    source: "thorchain",
+    feeLabel: "THORChain Swap Affiliate Fees",
+    revenueLabel: "THORChain Affiliate Fees to Vultisig Fee Wallet",
+  },
+  [CHAIN.MAYA]: {
+    start: "2024-09-10",
+    source: "mayachain",
+    feeLabel: "MayaChain Swap Affiliate Fees",
+    revenueLabel: "MayaChain Affiliate Fees to Vultisig Fee Wallet",
+  },
 };
-
-const AFFILIATE_FEES = "Swap Affiliate Fees";
-const FEES_TO_VULTISIG = "Affiliate Fees to Vultisig Fee Wallet";
 
 type RevenueRow = { date: string; source: string; revenue: number };
 
+// One request serves every (day, chain) fetch: relative ranges (r=7d, ...) would omit older
+// adapter dates, so the full daily history is fetched once and memoized for the run.
+let revenueRows: Promise<RevenueRow[]> | undefined;
+const getRevenueRows = () =>
+  (revenueRows ??= httpGet(`${ANALYTICS_API}/api/revenue?r=all&g=d`).then(
+    (res) => res.revenueOverTime as RevenueRow[],
+  ));
+
 // version 1: the analytics service serves daily rows.
 const fetch = async (options: FetchOptions) => {
-  const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const source = SOURCE_BY_CHAIN[options.chain];
-  const { revenueOverTime } = await httpGet(`${ANALYTICS_API}/api/revenue?r=all&g=d`);
+  const { source, feeLabel, revenueLabel } = chainConfig[options.chain];
+  const rows = await getRevenueRows();
 
-  const total = (revenueOverTime as RevenueRow[])
-    .filter((row) => row.source === source && row.date.slice(0, 10) === day)
+  const total = rows
+    .filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString)
     .reduce((sum, row) => sum + row.revenue, 0);
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(total, AFFILIATE_FEES);
+  dailyFees.addUSDValue(total, feeLabel);
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addUSDValue(total, FEES_TO_VULTISIG);
+  dailyRevenue.addUSDValue(total, revenueLabel);
 
   return {
     dailyFees,
@@ -45,6 +56,9 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue: dailyRevenue,
   };
 };
+
+const thorchain = chainConfig[CHAIN.THORCHAIN];
+const maya = chainConfig[CHAIN.MAYA];
 
 const methodology = {
   Fees: "Affiliate fees charged on the swaps Vultisig routes natively through THORChain and MayaChain (basis-point affiliate fee per swap), reported by Vultisig's analytics service.",
@@ -55,26 +69,27 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [AFFILIATE_FEES]: "Affiliate fee charged on swaps routed by Vultisig.",
+    [thorchain.feeLabel]: "Affiliate fee charged on THORChain swaps routed by Vultisig.",
+    [maya.feeLabel]: "Affiliate fee charged on MayaChain swaps routed by Vultisig.",
   },
   UserFees: {
-    [AFFILIATE_FEES]: "Affiliate fee charged on swaps routed by Vultisig, paid by the swapping user.",
+    [thorchain.feeLabel]: "Affiliate fee charged on THORChain swaps routed by Vultisig, paid by the swapping user.",
+    [maya.feeLabel]: "Affiliate fee charged on MayaChain swaps routed by Vultisig, paid by the swapping user.",
   },
   Revenue: {
-    [FEES_TO_VULTISIG]: "Affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
+    [thorchain.revenueLabel]: "THORChain affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
+    [maya.revenueLabel]: "MayaChain affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
   },
   ProtocolRevenue: {
-    [FEES_TO_VULTISIG]: "Affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
+    [thorchain.revenueLabel]: "THORChain affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
+    [maya.revenueLabel]: "MayaChain affiliate fees collected under the Vultisig affiliate names, settled to the Vultisig fee wallet.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: {
-    [CHAIN.THORCHAIN]: { start: "2024-04-16" },
-    [CHAIN.MAYA]: { start: "2024-09-10" },
-  },
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
 };

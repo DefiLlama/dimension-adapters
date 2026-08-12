@@ -5,7 +5,7 @@
 // thorchain and mayachain sources are counted here: LI.FI, KyberSwap and 1inch swaps are already
 // counted inside those providers' own DefiLlama listings, so including them would double count.
 // Cross-checked against public Midgard affiliate attribution for the v0/vi/va THORNames: daily
-// volume matches to the cent on non-streaming days (e.g. 2026-08-09: 5,065.81 vs 5,065.80);
+// volume matches within one cent on non-streaming days (e.g. 2026-08-09: 5,065.81 vs 5,065.80);
 // streaming-swap accounting can differ by a few percent on heavy days.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -13,22 +13,30 @@ import { httpGet } from "../../utils/fetchURL";
 
 const ANALYTICS_API = "https://analytics.vultisig.com";
 
-const SOURCE_BY_CHAIN: Record<string, string> = {
-  [CHAIN.THORCHAIN]: "thorchain",
-  [CHAIN.MAYA]: "mayachain",
+// start = first day the analytics service reports the source
+const chainConfig: Record<string, { start: string; source: string }> = {
+  [CHAIN.THORCHAIN]: { start: "2024-04-16", source: "thorchain" },
+  [CHAIN.MAYA]: { start: "2024-09-10", source: "mayachain" },
 };
 
 type VolumeRow = { date: string; source: string; volume: number };
 
+// One request serves every (day, chain) fetch: relative ranges (r=7d, ...) would omit older
+// adapter dates, so the full daily history is fetched once and memoized for the run.
+let volumeRows: Promise<VolumeRow[]> | undefined;
+const getVolumeRows = () =>
+  (volumeRows ??= httpGet(`${ANALYTICS_API}/api/swap-volume?r=all&g=d`).then(
+    (res) => res.volumeOverTime as VolumeRow[],
+  ));
+
 // version 1: the analytics service serves daily rows.
 const fetch = async (options: FetchOptions) => {
-  const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const source = SOURCE_BY_CHAIN[options.chain];
-  const { volumeOverTime } = await httpGet(`${ANALYTICS_API}/api/swap-volume?r=all&g=d`);
+  const { source } = chainConfig[options.chain];
+  const rows = await getVolumeRows();
 
   const dailyVolume = options.createBalances();
-  const total = (volumeOverTime as VolumeRow[])
-    .filter((row) => row.source === source && row.date.slice(0, 10) === day)
+  const total = rows
+    .filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString)
     .reduce((sum, row) => sum + row.volume, 0);
   dailyVolume.addUSDValue(total, "Routed Swap Volume");
 
@@ -38,10 +46,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: {
-    [CHAIN.THORCHAIN]: { start: "2024-04-16" },
-    [CHAIN.MAYA]: { start: "2024-09-10" },
-  },
+  adapter: chainConfig,
   methodology: {
     Volume:
       "Swap volume the Vultisig wallet routes natively through THORChain and MayaChain, reported by Vultisig's analytics service and cross-checked against each chain's public Midgard affiliate history for the Vultisig affiliate names v0 (SDK, desktop, extension), vi (iOS) and va (Android). Swaps routed through LI.FI, KyberSwap or 1inch are excluded - they are counted in those providers' own listings.",
