@@ -83,8 +83,14 @@ const fetchFeesSolana = async (options: FetchOptions) => {
 
   const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
   const revenueHolders = dailyRevenue.clone(buybackRatio);
-  const revenueProtocol = dailyRevenue.clone(1 - buybackRatio);
-  dailyProtocolRevenue.add(revenueProtocol);
+  dailyProtocolRevenue.add(
+    legacyFees.clone(1 - buybackRatio),
+    JUPITER_METRICS.JupDCAFees,
+  );
+  dailyProtocolRevenue.add(
+    triggerV2Fees.clone(1 - buybackRatio),
+    JUPITER_METRICS.JupTriggerV2Fees,
+  );
   dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
 
   return {
