@@ -16,7 +16,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(builderRevenue, "Builder Revenue Share");
   dailyRevenue.addUSDValue(protocolRevenue, "Protocol Revenue");
 
-  return { dailyVolume,dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue };
+  return { dailyVolume,dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
@@ -25,6 +25,7 @@ const methodology = {
   UserFees: "All perpetual trading fees are paid directly by users.",
   SupplySideRevenue: "The builder fee share distributed to AZverse builders.",
   Revenue: "Perpetual trading fees retained by AZverse after builder revenue shares.",
+  ProtocolRevenue: "Perpetual trading fees retained by AZverse after builder revenue shares.",
 };
 
 const breakdownMethodology = {
@@ -32,6 +33,7 @@ const breakdownMethodology = {
   UserFees: { "Perpetual Trading Fees": methodology.UserFees },
   SupplySideRevenue: { "Builder Revenue Share": methodology.SupplySideRevenue },
   Revenue: { "Protocol Revenue": methodology.Revenue },
+  ProtocolRevenue: { "Protocol Revenue": methodology.ProtocolRevenue },
 };
 
 const adapter: SimpleAdapter = {
