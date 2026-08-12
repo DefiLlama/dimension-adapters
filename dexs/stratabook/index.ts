@@ -30,7 +30,7 @@
  * Volume = Σ fill_size (base side, USD-priced by DefiLlama).
  * The market PDA for a fill is recovered from the tx's account list
  * (settle txs pass exactly one Market account; layout verified
- * 2026-08-12 against live mainnet accounts).
+ * against live mainnet accounts).
  *
  * ── Fees / Revenue methodology ─────────────────────────────────────
  *
@@ -169,13 +169,12 @@ async function fetchTxs(signatures: string[]): Promise<any[]> {
     // sequential fallback
     const out: any[] = [];
     for (const signature of signatures) {
-      try {
-        out.push(await withRetry((url) => rpc(url, "getTransaction", [
-          signature, { maxSupportedTransactionVersion: 0, encoding: "json" },
-        ])));
-      } catch {
-        out.push(null); // not found / expired — skip
-      }
+      // RPC returning null = tx expired from node storage (legit skip).
+      // Persistent RPC errors must propagate — silently dropping txs
+      // would understate volume.
+      out.push(await withRetry((url) => rpc(url, "getTransaction", [
+        signature, { maxSupportedTransactionVersion: 0, encoding: "json" },
+      ])));
       await sleep(120);
     }
     return out;
@@ -190,7 +189,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = createBalances();
 
   const markets = await getMarkets();
-  if (markets.size === 0) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+  if (markets.size === 0) throw new Error("Stratabook: no market accounts found — cannot compute volume (data source unavailable)");
 
   const start = options.startTimestamp;
   const end = options.endTimestamp;
@@ -198,13 +197,14 @@ const fetch = async (options: FetchOptions) => {
   let before: string | undefined;
   let processed = 0;
   let done = false;
+  let historyExhausted = false;
 
   while (!done && processed < MAX_SIGS_PER_RUN) {
     const sigs = (await withRetry((url) => rpc(url, "getSignaturesForAddress", [
       CLOB_PROGRAM,
       { limit: 100, ...(before ? { before } : {}) },
     ]))) ?? [];
-    if (sigs.length === 0) break;
+    if (sigs.length === 0) { historyExhausted = true; break; }
 
     // collect the chunk of sigs that are still within the window
     const inWindow: { signature: string }[] = [];
@@ -218,7 +218,7 @@ const fetch = async (options: FetchOptions) => {
     const signatures = inWindow.map((s) => s.signature);
     const txs = await fetchTxs(signatures);
     for (const tx of txs) {
-        if (!tx?.meta || tx.blockTime == null) continue;
+        if (!tx?.meta || tx.meta.err || tx.blockTime == null) continue;
         if (tx.blockTime < start) { done = true; continue; }
         if (tx.blockTime >= end) continue;
 
@@ -238,7 +238,14 @@ const fetch = async (options: FetchOptions) => {
         if (txMarkets.length === 0) continue;
         const market = txMarkets[0]; // settle txs carry exactly one Market account
 
+        // Only decode "Program data:" payloads emitted while the CLOB
+        // program itself is the active invocation — a non-Stratabook
+        // program's event in the same tx must not be counted.
+        let inClobInvoke = false;
         for (const log of tx.meta.logMessages ?? []) {
+          if (log.startsWith(`Program ${CLOB_PROGRAM} invoke`)) { inClobInvoke = true; continue; }
+          if (log.startsWith(`Program ${CLOB_PROGRAM} success`) || log.startsWith(`Program ${CLOB_PROGRAM} failed`)) { inClobInvoke = false; continue; }
+          if (!inClobInvoke) continue;
           if (!log.startsWith("Program data: ")) continue;
           const buf = Buffer.from(log.slice("Program data: ".length), "base64");
           if (buf.length < 100 || buf[0] !== EVENT_ORDER_FILLED) continue;
@@ -258,21 +265,26 @@ const fetch = async (options: FetchOptions) => {
       processed += signatures.length;
       await sleep(150); // be gentle with public RPCs
 
-      if (sigs.length < 100) break;
+      if (sigs.length < 100) { historyExhausted = true; break; }
       before = sigs[sigs.length - 1].signature;
     }
+
+  // Never publish balances from a partial scan: if we hit the signature
+  // cap before exhausting the historical window, the result would
+  // understate volume. No data is better than wrong data.
+  if (!done && !historyExhausted && processed >= MAX_SIGS_PER_RUN) {
+    throw new Error(`Stratabook: signature cap (${MAX_SIGS_PER_RUN}) hit before reaching window start — refusing partial data`);
+  }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-08-09", // first on-chain activity on the CLOB program
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.SOLANA],
+  start: "2026-08-09", // first on-chain activity on the CLOB program
+  fetch,
   methodology: {
     Volume:
       "Trading volume from on-chain OrderFilled events on the Stratabook CLOB program, " +
