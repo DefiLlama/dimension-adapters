@@ -186,6 +186,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
   const markets = await getMarkets();
@@ -238,14 +239,23 @@ const fetch = async (options: FetchOptions) => {
         if (txMarkets.length === 0) continue;
         const market = txMarkets[0]; // settle txs carry exactly one Market account
 
-        // Only decode "Program data:" payloads emitted while the CLOB
-        // program itself is the active invocation — a non-Stratabook
-        // program's event in the same tx must not be counted.
-        let inClobInvoke = false;
+        // Only decode "Program data:" payloads while the CLOB program is
+        // the top of the invocation stack. CLOB CPI-invokes nested programs
+        // (liquidity/pricing, token programs) mid-invocation; their events
+        // must not be counted, and CLOB's own OrderFilled event fires after
+        // those nested invocations complete.
+        const invocationStack: string[] = [];
         for (const log of tx.meta.logMessages ?? []) {
-          if (log.startsWith(`Program ${CLOB_PROGRAM} invoke`)) { inClobInvoke = true; continue; }
-          if (log.startsWith(`Program ${CLOB_PROGRAM} success`) || log.startsWith(`Program ${CLOB_PROGRAM} failed`)) { inClobInvoke = false; continue; }
-          if (!inClobInvoke) continue;
+          const invoke = /^Program (\S+) invoke \[\d+\]$/.exec(log);
+          if (invoke) {
+            invocationStack.push(invoke[1]);
+            continue;
+          }
+          if (/^Program \S+ (success|failed:)/.test(log)) {
+            invocationStack.pop();
+            continue;
+          }
+          if (invocationStack.at(-1) !== CLOB_PROGRAM) continue;
           if (!log.startsWith("Program data: ")) continue;
           const buf = Buffer.from(log.slice("Program data: ".length), "base64");
           if (buf.length < 100 || buf[0] !== EVENT_ORDER_FILLED) continue;
@@ -256,10 +266,13 @@ const fetch = async (options: FetchOptions) => {
 
           dailyVolume.add(market.baseMint, fillSize.toString());
 
-          // fees: taker fee on every fill (maker rebate ships 0)
+          // fees: taker fee on every fill (maker rebate ships 0).
+          // The protocol retains the full taker fee (supply-side = 0),
+          // so it counts as both revenue and protocol revenue.
           const takerFee = (fillSize * BigInt(market.takerFeeBps)) / 10000n;
           dailyFees.add(market.baseMint, takerFee.toString());
           dailyRevenue.add(market.baseMint, takerFee.toString());
+          dailyProtocolRevenue.add(market.baseMint, takerFee.toString());
         }
       }
       processed += signatures.length;
@@ -276,7 +289,7 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`Stratabook: signature cap (${MAX_SIGS_PER_RUN}) hit before reaching window start — refusing partial data`);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -293,6 +306,8 @@ const adapter: SimpleAdapter = {
       "Taker fee (Market.taker_fee_bps) on all fills. Maker rebate ships 0 and is not paid.",
     Revenue:
       "Taker fee kept in full (maker rebate ships 0 and is not paid).",
+    ProtocolRevenue:
+      "Taker fee retained by the protocol in full (supply-side revenue is 0, so all fees are protocol revenue).",
     SupplySideRevenue: "0 — no LP incentives paid.",
   },
   breakdownMethodology: {
@@ -300,6 +315,9 @@ const adapter: SimpleAdapter = {
       "swap fees": "taker_fee_bps on all fills",
     },
     Revenue: {
+      "swap fees": "taker_fee_bps on all fills",
+    },
+    ProtocolRevenue: {
       "swap fees": "taker_fee_bps on all fills",
     },
   },
