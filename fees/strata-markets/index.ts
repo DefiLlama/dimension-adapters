@@ -66,6 +66,15 @@ const CDOS: CDOConfig[] = [
     srt: "0x35bFF778d3fc53a561486BF28e761428499232Eb",
     start: "2026-05-23",
   },
+  {
+    name: "nOPAL",
+    cdo: "0xaE212D8515BA65C719f23dBad6bF73B74d4e4edE",
+    accounting: "0xB6F3d2deF3058d4Faf07E7104DE2f69c638f2BF7",
+    strategy: "0x5aeCBb5719a9468CdCfa6673d1DDC1Cf72a5a4aA",
+    jrt: "0x1b2b8cFEF0b7B1Fad216b55fefeEb0c3349Da141",
+    srt: "0x8a646Edc4633ADBA5Ec87DedaF3Af958e268FE96",
+    start: "2026-07-09",
+  },
 ];
 
 // events 
