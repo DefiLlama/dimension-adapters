@@ -3,7 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 // Pump.fun app (interface listing). Trades placed through the official pump.fun
-// mobile/web app invoke the app program below in the same transaction.
+// mobile app invoke the app program below in the same transaction (the web app builds
+// direct program instructions and never touches it).
 const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 
 const fetch = async (options: FetchOptions) => {
@@ -40,7 +41,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology:
-    'Counts unique traders and transactions on pump.fun bonding curves and PumpSwap from trades placed through the official pump.fun app (transactions invoking the app program).',
+    'Counts unique traders and transactions on pump.fun bonding curves and PumpSwap from trades placed through the official pump.fun mobile app (transactions invoking the app program).',
 }
 
 export default adapter

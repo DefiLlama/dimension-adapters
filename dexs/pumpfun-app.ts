@@ -3,7 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 // Pump.fun app (interface listing). Trades placed through the official pump.fun
-// mobile/web app invoke the app program below in the same transaction; that is how a
+// mobile app invoke the app program below in the same transaction (the web app builds
+// direct program instructions and never touches it); that is how a
 // slice of pump.fun bonding-curve + PumpSwap activity is attributed to the app.
 // Volume here is doublecounted with the parent pumpdotfun / pump-swap listings.
 const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
@@ -36,7 +37,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: 'Trading volume on pump.fun bonding curves and PumpSwap from trades placed through the official pump.fun app (transactions invoking the app program). Already counted in the parent pump.fun and PumpSwap listings.',
+    Volume: 'Trading volume on pump.fun bonding curves and PumpSwap from trades placed through the official pump.fun mobile app (transactions invoking the app program). Already counted in the parent pump.fun and PumpSwap listings.',
   },
 }
 
