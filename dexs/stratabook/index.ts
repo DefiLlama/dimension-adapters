@@ -96,14 +96,14 @@ const fetch = async (options: FetchOptions) => {
   // Base mint per fill = the token transfer whose amount equals that fill's
   // fill_size, correlated by instruction identity (the transfer happens
   // inside the CLOB settle instruction: transfer.outer_instruction_index ==
-  // instruction.instruction_index) — not a tx-level cross-product.
+  // instruction.outer_instruction_index) — not a tx-level cross-product.
   // Market = the account-argument that is in our known market list, used
   // to look up taker_fee_bps (resolved per fill in a CTE before grouping).
   const sql = `
     WITH fills AS (
       SELECT
         s.tx_id,
-        s.instruction_index,
+        s.outer_instruction_index,
         s.account_arguments,
         CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size
       FROM solana.instruction_calls s
@@ -118,7 +118,7 @@ const fetch = async (options: FetchOptions) => {
     with_fee AS (
       SELECT
         f.tx_id,
-        f.instruction_index,
+        f.outer_instruction_index,
         f.fill_size,
         COALESCE(mk.fee_bps, 10) AS fee_bps
       FROM fills f
@@ -136,16 +136,17 @@ const fetch = async (options: FetchOptions) => {
     settle_mints AS (
       SELECT
         wf.tx_id,
-        wf.instruction_index,
+        wf.outer_instruction_index,
         COUNT(DISTINCT tr.token_mint_address) AS mint_count,
         MIN(tr.token_mint_address) AS base_mint
       FROM with_fee wf
       JOIN tokens_solana.transfers tr
         ON tr.tx_id = wf.tx_id
-       AND tr.outer_instruction_index = wf.instruction_index
+       AND tr.outer_instruction_index = wf.outer_instruction_index
        AND CAST(tr.amount AS DECIMAL(38,0)) = wf.fill_size
-      WHERE TIME_RANGE
-      GROUP BY wf.tx_id, wf.instruction_index
+      WHERE tr.block_time >= from_unixtime(${options.startTimestamp})
+        AND tr.block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY wf.tx_id, wf.outer_instruction_index
     )
     SELECT
       sm.base_mint AS mint,
@@ -156,7 +157,7 @@ const fetch = async (options: FetchOptions) => {
     FROM with_fee wf
     JOIN settle_mints sm
       ON wf.tx_id = sm.tx_id
-     AND wf.instruction_index = sm.instruction_index
+     AND wf.outer_instruction_index = sm.outer_instruction_index
     WHERE sm.mint_count = 1
     GROUP BY sm.base_mint
   `;
