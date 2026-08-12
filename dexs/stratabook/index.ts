@@ -107,21 +107,27 @@ const fetch = async (options: FetchOptions) => {
   // onward and only decode lines with exactly one remaining (the last) —
   // nested programs' payloads have ≥1 later Program-data line and are
   // rejected instead of being miscounted as fills.
+  //
+  // Defensive decode: some 'Program data:' lines in Dune's log_messages are
+  // NOT valid base64 (a program can log arbitrary text with that prefix, and
+  // Dune can store control chars). Trino's from_base64 is strict and would
+  // fail the whole query, so we wrap it in try() (NULL on invalid input) and
+  // keep only rows whose payload actually decodes.
   const sql = `
     WITH fills AS (
       SELECT
         tx_id,
         outer_instruction_index,
         account_arguments,
-        fill_size
+        CAST(varbinary_to_uint256(reverse(SUBSTR(payload, 82, 8))) AS DECIMAL(38,0)) AS fill_size
       FROM (
         SELECT
           s.tx_id,
           s.outer_instruction_index,
           s.account_arguments,
           t.msg AS msg,
-          CAST(varbinary_to_uint256(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size,
-          SUM(CASE WHEN t.msg LIKE 'Program data: %' THEN 1 ELSE 0 END) OVER (
+          try(from_base64(SUBSTR(t.msg, 15))) AS payload,
+          SUM(CASE WHEN try(from_base64(SUBSTR(t.msg, 15))) IS NOT NULL THEN 1 ELSE 0 END) OVER (
             PARTITION BY s.tx_id, s.outer_instruction_index, s.inner_instruction_index
             ORDER BY t.ord
             ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
@@ -132,9 +138,9 @@ const fetch = async (options: FetchOptions) => {
           AND s.tx_success = true
           AND TIME_RANGE
       )
-      WHERE msg LIKE 'Program data: %'
-        AND to_hex(SUBSTR(from_base64(SUBSTR(msg, 15)), 1, 1)) = '03'
-        AND LENGTH(from_base64(SUBSTR(msg, 15))) >= 100
+      WHERE payload IS NOT NULL
+        AND to_hex(SUBSTR(payload, 1, 1)) = '03'
+        AND LENGTH(payload) >= 100
         AND data_lines_from_here = 1
     ),
     with_fee AS (
