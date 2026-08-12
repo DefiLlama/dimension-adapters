@@ -1,6 +1,9 @@
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { postURL } from "../utils/fetchURL";
+
+const CLAIM_FEES_TO_TREASURY = "Claim Fees To Treasury";
 
 // Sablier charges one fee: a flat USD-denominated minimum, paid in native gas
 // token on claim. No percentage fee on streamed value. The broker fee in Lockup
@@ -85,20 +88,34 @@ let cached: { key: string; rows: Promise<Row[]> } | undefined;
 
 const getWindow = (from: number, to: number) => {
   const key = `${from}-${to}`;
-  if (cached?.key !== key) cached = { key, rows: fetchWindow(from, to) };
+  if (cached?.key !== key)
+    cached = {
+      key,
+      rows: fetchWindow(from, to).catch((e) => {
+        // drop it so the next call refetches instead of replaying the failure
+        if (cached?.key === key) cached = undefined;
+        throw e;
+      }),
+    };
   return cached.rows;
 };
 
 const fetch = async (options: FetchOptions) => {
+  // labels differ by dimension: source on fees, destination on revenue
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const { chainId } = CONFIG[options.chain];
   const rows = await getWindow(options.fromTimestamp, options.toTimestamp);
-  for (const r of rows) if (Number(r.chainId) === chainId) dailyFees.addGasToken(r.amount);
+  for (const r of rows) {
+    if (Number(r.chainId) !== chainId) continue;
+    dailyFees.addGasToken(r.amount, METRIC.DEPOSIT_WITHDRAW_FEES);
+    dailyRevenue.addGasToken(r.amount, CLAIM_FEES_TO_TREASURY);
+  }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -109,6 +126,17 @@ const adapter: SimpleAdapter = {
     Fees: "The flat fee users pay when they claim tokens from a Sablier stream or airdrop. It is charged in the chain's native coin and targets a fixed dollar amount (around $1, waived to $0 on most chains since 22 April 2026, though the Sablier app still attaches it by default). Nothing is charged as a percentage of the tokens being streamed. Counted from 3 February 2025, the day Sablier began charging.",
     Revenue: "All of it. The fee is Sablier's only income and none of it is shared with liquidity providers, stream creators, or integrators.",
     ProtocolRevenue: "All of it goes to the Sablier treasury. There is no token buyback, burn, or staking distribution, so holders receive nothing.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Flat native-token fee charged when a recipient claims from a Lockup stream, a Flow stream, or an airdrop campaign",
+    },
+    Revenue: {
+      [CLAIM_FEES_TO_TREASURY]: "The whole claim fee; none of it is shared with LPs, stream creators, or integrators",
+    },
+    ProtocolRevenue: {
+      [CLAIM_FEES_TO_TREASURY]: "Swept to the Sablier treasury via the comptroller",
+    },
   },
   adapter: CONFIG,
   fetch,
