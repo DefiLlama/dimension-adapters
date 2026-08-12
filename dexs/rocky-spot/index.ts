@@ -22,12 +22,6 @@ import fetchURL from "../../utils/fetchURL";
 
 const SPOT_TICKER_URL = "https://api.rocky.exchange/api/v3/ticker/24hr";
 
-// Rocky internal-ledger fee schedule (source: rocky-backend
-// services/internal-ledger/src/fees.rs).
-const MAKER_FEE_BPS = 1;
-const TAKER_FEE_BPS = 5;
-const BPS = 10_000;
-
 // USD-pegged quote assets on Rocky. `quoteVolume` in a ticker row is
 // denominated in the quote asset, so summing across markets only produces a
 // USD figure for USD-quoted pairs. Non-USD-quoted pairs (e.g. CETH-CBTC where
