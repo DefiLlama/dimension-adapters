@@ -40,9 +40,12 @@ const fetch = async (options: FetchOptions) => {
   const { source, feeLabel, revenueLabel } = chainConfig[options.chain];
   const rows = await getRevenueRows();
 
-  const total = rows
-    .filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString)
-    .reduce((sum, row) => sum + row.revenue, 0);
+  const todaysRows = rows.filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString);
+  if(!todaysRows.length) {
+    throw new Error(`No rows found for ${source} on ${options.dateString}`);
+  }
+
+  const total = todaysRows.reduce((sum, row) => sum + row.revenue, 0);
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(total, feeLabel);
@@ -64,7 +67,7 @@ const methodology = {
   Fees: "Affiliate fees charged on the swaps Vultisig routes natively through THORChain and MayaChain (basis-point affiliate fee per swap), reported by Vultisig's analytics service.",
   UserFees: "Same as Fees - the affiliate fee is taken out of the swap and paid by the user.",
   Revenue: "All affiliate fees accrue to Vultisig. Referrer cuts are paid by THORChain under the referrer's own THORName and never land on the Vultisig affiliate names.",
-  ProtocolRevenue: "All revenue is protocol revenue; it is settled to the Vultisig fee wallet.",
+  ProtocolRevenue: "All affiliate fees accrue to Vultisig. Referrer cuts are paid by THORChain under the referrer's own THORName and never land on the Vultisig affiliate names.",
 };
 
 const breakdownMethodology = {
