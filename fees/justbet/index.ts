@@ -54,7 +54,7 @@ export default {
   },
   allowNegativeValue: true, // casino lose money on some days
   version: 2,
-  deadFrom: '2025-11-01', // WINR Chain was shut down
+  deadFrom: '2026-01-02', // WINR Chain was shut down
   methodology: {
     Fees: "All fees collected from user bets.",
     Revenue: "Fees collected from user bets.",
