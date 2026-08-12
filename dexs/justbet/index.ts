@@ -94,5 +94,5 @@ export default {
   },
   version: 2,
   pullHourly: true,
-  deadFrom: '2025-11-01', // WINR Chain was shut down
+  deadFrom: '2026-01-02', // WINR Chain was shut down
 } as Adapter;
