@@ -120,7 +120,7 @@ const fetch = async (options: FetchOptions) => {
           s.outer_instruction_index,
           s.account_arguments,
           t.msg AS msg,
-          CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size,
+          CAST(varbinary_to_uint256(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size,
           SUM(CASE WHEN t.msg LIKE 'Program data: %' THEN 1 ELSE 0 END) OVER (
             PARTITION BY s.tx_id, s.outer_instruction_index, s.inner_instruction_index
             ORDER BY t.ord
