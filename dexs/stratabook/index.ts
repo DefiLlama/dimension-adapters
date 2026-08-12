@@ -6,7 +6,7 @@
  *
  * Data source: Dune Analytics (no Solana RPC). All on-chain events are
  * indexed by Dune's `solana.instruction_calls` table, which carries the
- * raw per-tx log messages for every program invocation.
+ * raw per-instruction log messages for every program invocation.
  *
  * ── Protocol ───────────────────────────────────────────────────────
  *
@@ -21,7 +21,7 @@
  * Every match emits an `OrderFilled` event via `sol_log_data`:
  *
  *   Program data: <base64>   (100 bytes)
- *     [0]        tag          = 3 (EventTag::OrderFilled)  -> base64 prefix "Aw=="
+ *     [0]        tag          = 3 (EventTag::OrderFilled)
  *     [1..33]    maker_pda
  *     [33..65]   taker_pda
  *     [65..73]   maker_order_id   (u64 LE)
@@ -87,64 +87,91 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Fills: CLOB invocations whose log messages carry an OrderFilled event
-  // (tag 3 -> base64 payload starts "Aw=="). fill_size = u64 LE at byte 81
-  // (1-indexed SQL byte 82). Each log line = one fill event; volume is
-  // summed from events, so batch settles (2 fills/tx) count each once.
-  // Base mint per tx = the token transfer whose amount equals a fill_size
-  // (verified: the base-side transfer is 1:1 with the event's fill_size).
+  // Fills: CLOB invocations whose log messages carry an OrderFilled event.
+  // Tag 3 is checked as an exact decoded byte (to_hex of the first payload
+  // byte = '03') — a base64 prefix like "Aw==" is invalid for a 100-byte
+  // payload (padding only at the very end), so we decode and inspect bytes.
+  // fill_size = u64 LE at byte 81 (1-indexed SQL byte 82). Volume is summed
+  // from events, so batch settles (2 fills/tx) count each once.
+  // Base mint per fill = the token transfer whose amount equals that fill's
+  // fill_size, correlated by instruction identity (the transfer happens
+  // inside the CLOB settle instruction: transfer.outer_instruction_index ==
+  // instruction.instruction_index) — not a tx-level cross-product.
   // Market = the account-argument that is in our known market list, used
-  // to look up taker_fee_bps.
+  // to look up taker_fee_bps (resolved per fill in a CTE before grouping).
   const sql = `
     WITH fills AS (
       SELECT
         s.tx_id,
+        s.instruction_index,
         s.account_arguments,
-        CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DOUBLE) AS fill_size
+        CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size
       FROM solana.instruction_calls s
       CROSS JOIN UNNEST(s.log_messages) AS t(msg)
       WHERE s.executing_account = '${CLOB_PROGRAM}'
         AND s.tx_success = true
         AND TIME_RANGE
-        AND t.msg LIKE 'Program data: Aw==%'
+        AND t.msg LIKE 'Program data: %'
+        AND to_hex(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 1, 1)) = '03'
         AND LENGTH(from_base64(SUBSTR(t.msg, 15))) >= 100
     ),
-    mints AS (
-      SELECT DISTINCT f.tx_id, tr.mint AS base_mint
+    with_fee AS (
+      SELECT
+        f.tx_id,
+        f.instruction_index,
+        f.fill_size,
+        COALESCE(mk.fee_bps, 10) AS fee_bps
       FROM fills f
+      LEFT JOIN (VALUES
+        ${MARKET_FEE_VALUES}
+      ) AS mk(market, fee_bps)
+        ON contains(f.account_arguments, mk.market)
+    ),
+    -- One base mint per settle instruction: the transfer whose amount
+    -- equals a fill_size and whose outer_instruction_index is the CLOB
+    -- settle instruction. If a settle resolves to more than one mint the
+    -- fill-to-transfer match is ambiguous — exclude those fills entirely
+    -- rather than producing a tx-level cross-product (no 1:1 markets in
+    -- Stratabook today, but guard anyway).
+    settle_mints AS (
+      SELECT
+        wf.tx_id,
+        wf.instruction_index,
+        COUNT(DISTINCT tr.token_mint_address) AS mint_count,
+        MIN(tr.token_mint_address) AS base_mint
+      FROM with_fee wf
       JOIN tokens_solana.transfers tr
-        ON tr.tx_id = f.tx_id
-       AND CAST(tr.amount AS DOUBLE) = f.fill_size
+        ON tr.tx_id = wf.tx_id
+       AND tr.outer_instruction_index = wf.instruction_index
+       AND CAST(tr.amount AS DECIMAL(38,0)) = wf.fill_size
       WHERE TIME_RANGE
+      GROUP BY wf.tx_id, wf.instruction_index
     )
     SELECT
-      m.base_mint AS mint,
-      SUM(f.fill_size) AS volume,
-      SUM(f.fill_size) * COALESCE(
-        (
-          SELECT mk.fee_bps
-          FROM (VALUES
-            ${MARKET_FEE_VALUES}
-          ) AS mk(market, fee_bps)
-          WHERE ARRAY_CONTAINS(f.account_arguments, mk.market)
-          LIMIT 1
-        ), 10
-      ) / 10000.0 AS fees
-    FROM fills f
-    JOIN mints m ON f.tx_id = m.tx_id
-    GROUP BY m.base_mint
+      sm.base_mint AS mint,
+      CAST(SUM(wf.fill_size) AS DECIMAL(38,0)) AS volume,
+      -- DECIMAL arithmetic: floor-division fee per fill, identical to the
+      -- on-chain parser's (fill_size * fee_bps) / 10000n semantics.
+      CAST(SUM(wf.fill_size * wf.fee_bps / 10000) AS DECIMAL(38,0)) AS fees
+    FROM with_fee wf
+    JOIN settle_mints sm
+      ON wf.tx_id = sm.tx_id
+     AND wf.instruction_index = sm.instruction_index
+    WHERE sm.mint_count = 1
+    GROUP BY sm.base_mint
   `;
 
   const rows: any[] = await queryDuneSql(options, sql);
 
   for (const row of rows ?? []) {
     if (!row.mint || !row.volume) continue;
-    dailyVolume.add(row.mint, String(Math.round(row.volume)));
-    if (row.fees > 0) {
-      const fees = String(Math.round(row.fees));
-      dailyFees.add(row.mint, fees, "Swap Fees");
-      dailyRevenue.add(row.mint, fees, "Swap Fees To Protocol");
-      dailyProtocolRevenue.add(row.mint, fees, "Swap Fees To Protocol");
+    // Dune returns DECIMAL columns as strings; pass them straight through —
+    // no Number/Math.round, which would lose u64 precision above 2^53.
+    dailyVolume.add(row.mint, row.volume);
+    if (row.fees && parseFloat(row.fees) > 0) {
+      dailyFees.add(row.mint, row.fees, "Swap Fees");
+      dailyRevenue.add(row.mint, row.fees, "Swap Fees To Protocol");
+      dailyProtocolRevenue.add(row.mint, row.fees, "Swap Fees To Protocol");
     }
   }
 
