@@ -99,21 +99,43 @@ const fetch = async (options: FetchOptions) => {
   // instruction.outer_instruction_index) — not a tx-level cross-product.
   // Market = the account-argument that is in our known market list, used
   // to look up taker_fee_bps (resolved per fill in a CTE before grouping).
+  // Emitter binding: a CLOB instruction can CPI-invoke nested programs, and
+  // their log lines land in the same instruction's log_messages. The CLOB's
+  // own OrderFilled fires AFTER all nested invocations complete (verified on
+  // live mainnet fills), so it is always the LAST 'Program data:' line in
+  // the instruction's log slice. We count Program-data lines from each line
+  // onward and only decode lines with exactly one remaining (the last) —
+  // nested programs' payloads have ≥1 later Program-data line and are
+  // rejected instead of being miscounted as fills.
   const sql = `
     WITH fills AS (
       SELECT
-        s.tx_id,
-        s.outer_instruction_index,
-        s.account_arguments,
-        CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size
-      FROM solana.instruction_calls s
-      CROSS JOIN UNNEST(s.log_messages) AS t(msg)
-      WHERE s.executing_account = '${CLOB_PROGRAM}'
-        AND s.tx_success = true
-        AND TIME_RANGE
-        AND t.msg LIKE 'Program data: %'
-        AND to_hex(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 1, 1)) = '03'
-        AND LENGTH(from_base64(SUBSTR(t.msg, 15))) >= 100
+        tx_id,
+        outer_instruction_index,
+        account_arguments,
+        fill_size
+      FROM (
+        SELECT
+          s.tx_id,
+          s.outer_instruction_index,
+          s.account_arguments,
+          t.msg AS msg,
+          CAST(from_big_endian_64(reverse(SUBSTR(from_base64(SUBSTR(t.msg, 15)), 82, 8))) AS DECIMAL(38,0)) AS fill_size,
+          SUM(CASE WHEN t.msg LIKE 'Program data: %' THEN 1 ELSE 0 END) OVER (
+            PARTITION BY s.tx_id, s.outer_instruction_index, s.inner_instruction_index
+            ORDER BY t.ord
+            ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
+          ) AS data_lines_from_here
+        FROM solana.instruction_calls s
+        CROSS JOIN UNNEST(s.log_messages) WITH ORDINALITY AS t(msg, ord)
+        WHERE s.executing_account = '${CLOB_PROGRAM}'
+          AND s.tx_success = true
+          AND TIME_RANGE
+      )
+      WHERE msg LIKE 'Program data: %'
+        AND to_hex(SUBSTR(from_base64(SUBSTR(msg, 15)), 1, 1)) = '03'
+        AND LENGTH(from_base64(SUBSTR(msg, 15))) >= 100
+        AND data_lines_from_here = 1
     ),
     with_fee AS (
       SELECT
