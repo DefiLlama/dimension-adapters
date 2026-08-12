@@ -270,9 +270,9 @@ const fetch = async (options: FetchOptions) => {
           // The protocol retains the full taker fee (supply-side = 0),
           // so it counts as both revenue and protocol revenue.
           const takerFee = (fillSize * BigInt(market.takerFeeBps)) / 10000n;
-          dailyFees.add(market.baseMint, takerFee.toString());
-          dailyRevenue.add(market.baseMint, takerFee.toString());
-          dailyProtocolRevenue.add(market.baseMint, takerFee.toString());
+          dailyFees.add(market.baseMint, takerFee.toString(), "Swap Fees");
+          dailyRevenue.add(market.baseMint, takerFee.toString(), "Swap Fees To Protocol");
+          dailyProtocolRevenue.add(market.baseMint, takerFee.toString(), "Swap Fees To Protocol");
         }
       }
       processed += signatures.length;
@@ -312,13 +312,13 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "swap fees": "taker_fee_bps on all fills",
+      "Swap Fees": "taker_fee_bps on all fills",
     },
     Revenue: {
-      "swap fees": "taker_fee_bps on all fills",
+      "Swap Fees To Protocol": "taker_fee_bps on all fills",
     },
     ProtocolRevenue: {
-      "swap fees": "taker_fee_bps on all fills",
+      "Swap Fees To Protocol": "taker_fee_bps on all fills",
     },
   },
 };
