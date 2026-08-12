@@ -104,7 +104,6 @@ const fetchFeesSolana = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  pullHourly: true,
   isExpensiveAdapter: true,
   // Legacy DCA fees come from Allium (unchanged), Trigger V2 fees from Dune.
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
