@@ -78,60 +78,29 @@ const sumUsdQuoteVolume = (rows: unknown): number => {
   return total;
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
   const rows = await fetchURL(SPOT_TICKER_URL);
   const dailyVolume = sumUsdQuoteVolume(rows);
 
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue((dailyVolume * MAKER_FEE_BPS) / BPS, "Maker Fees");
-  dailyFees.addUSDValue((dailyVolume * TAKER_FEE_BPS) / BPS, "Taker Fees");
-
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: 0,
   };
 };
 
 const methodology = {
   Volume:
     "Sum of `quoteVolume` for every USD-quoted spot symbol returned by Rocky's Binance-compatible 24h ticker endpoint at /api/v3/ticker/24hr. USD-quoted means the quote asset is CUSD, USDCx, USDC, or USDT — all USD-pegged on Rocky, so `quoteVolume` is directly USD notional and the sum requires no external price conversion. Non-USD-quoted spot markets (e.g. CETH-CBTC) are excluded because their volume would need a live price feed to convert; today they are <0.01% of total spot volume.",
-  Fees:
-    "Trading fees charged by Rocky's internal ledger: 1 bps maker + 5 bps taker (= 6 bps aggregate) applied to the same 24h volume figure. Rate source: rocky-backend services/internal-ledger/src/fees.rs.",
-  Revenue: "100% of trading fees accrue to the protocol.",
-  ProtocolRevenue: "100% of trading fees accrue to the protocol.",
-  SupplySideRevenue:
-    "Zero. Rocky has no LP vault or affiliate fee-share program today, so no portion of the fee stream is paid to a supply side.",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
-  Revenue: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
-  ProtocolRevenue: {
-    "Maker Fees": "1 bps maker fee applied to 24h volume.",
-    "Taker Fees": "5 bps taker fee applied to 24h volume.",
-  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  start: "2026-07-01",
   runAtCurrTime: true,
   // Rocky's ticker/24hr endpoint exposes a live rolling 24h window only.
   // There is no per-hour bucketing, so pullHourly must be false.
   pullHourly: false,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
