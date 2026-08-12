@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
           AND tx_success
           AND TIME_RANGE
     )
-    SELECT SUM(tr.amount_usd) AS volume
+    SELECT COALESCE(SUM(tr.amount_usd), CAST(0 AS double)) AS volume
     FROM dex_solana.trades tr
     JOIN app_tx a ON tr.tx_id = a.tx_id
     WHERE tr.project IN ('pumpdotfun', 'pumpswap')
