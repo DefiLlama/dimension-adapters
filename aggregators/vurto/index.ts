@@ -17,8 +17,8 @@ import { httpGet } from "../../utils/fetchURL";
 const API = "https://swap.vurto.cc/api/stats/daily-volume";
 
 // The day per-swap USD volume started being recorded. Earlier days are not
-// zero-volume days, they are days without a record, so the adapter refuses them
-// instead of claiming a zero that would be indistinguishable from no trading.
+// zero-volume days, they are days without a record, so the adapter does not
+// claim them.
 const START = "2026-08-11";
 
 const CHAIN_IDS: Record<string, number> = {
@@ -33,19 +33,35 @@ const CHAIN_IDS: Record<string, number> = {
   [CHAIN.AVAX]: 43114,
 };
 
+const VOLUME_LABEL = "Swap volume";
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const chainId = CHAIN_IDS[options.chain];
   const res = await httpGet(`${API}?chainId=${chainId}&timestamp=${options.startOfDay}`);
+  const dailyVolume = options.createBalances();
   // The endpoint answers 0 on a day without a confirmed swap and never errors,
   // so a quiet day does not break the series.
-  return { dailyVolume: res?.dailyVolume ?? 0 };
+  dailyVolume.addUSDValue(res?.dailyVolume ?? 0, VOLUME_LABEL);
+  return { dailyVolume };
+};
+
+const methodology = {
+  Volume: "Sum of the USD value delivered by every confirmed swap routed through Vurto, priced at the moment each swap settled.",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    [VOLUME_LABEL]: "USD value of the output of every confirmed swap, across the single, Double In, Double Out and basket modes.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: Object.fromEntries(
-    Object.keys(CHAIN_IDS).map((chain) => [chain, { fetch, start: START }]),
-  ),
+  chains: Object.keys(CHAIN_IDS),
+  start: START,
+  fetch,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
