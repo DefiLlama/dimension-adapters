@@ -50,7 +50,7 @@ export const gateSwapChainConfig: Record<string, { start: string; chainId: strin
 const USD_FIELDS = ["volumeUsd", "feesUsd", "userFeesUsd", "revenueUsd", "protocolRevenueUsd", "supplySideRevenueUsd"] as const;
 
 /** Fetches and validates Gate Swap dimension rows for one hourly adapter window. */
-export async function prefetchGateSwapDimensions(options: FetchOptions): Promise<GateSwapDimensions[]> {
+export async function prefetchGateSwapDimensions(options: FetchOptions): Promise<any> {
   const query = new URLSearchParams({
     startTimestamp: options.startTimestamp.toString(),
     endTimestamp: options.endTimestamp.toString(),
@@ -63,7 +63,7 @@ export async function prefetchGateSwapDimensions(options: FetchOptions): Promise
     },
   }) as GateSwapResponse;
 
-  if (!Array.isArray(response?.data)) throw new Error("Gate Swap API returned an invalid data payload");
+  if (!Array.isArray(response?.data) || response.data.length === 0) throw new Error("Gate Swap API returned an invalid data payload");
   return response.data.map((row) => {
     const normalized = { ...row } as GateSwapDimensions;
     for (const field of USD_FIELDS) {
