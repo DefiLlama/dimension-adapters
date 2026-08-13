@@ -23,16 +23,36 @@ import { CHAIN } from "../helpers/chains";
 //   createSubscription only requires `token != address(0)` (see
 //   github.com/Kais769/axiumpass-contracts, SubscriptionVault.sol).
 //
-//   Consequence: anyone could deploy or pick any priced ERC-20, subscribe to
-//   themselves, call processSubscription, and inflate AxiumPass's public volume
-//   at no cost. No funds are ever at risk — the vault is non-custodial and the
-//   attacker only pays themself — but the published number would stop meaning
-//   what it says. A metric that can be farmed is not a metric.
+//   Consequence: any priced ERC-20 that reached the vault was reported as
+//   AxiumPass subscription volume, denominated in whatever that token was
+//   worth. The allowlist removes exactly that: the reported number is now
+//   denominated in the stablecoins the methodology names, and nothing else.
 //
 //   The filter is applied here, in the adapter, rather than on-chain, because
 //   the deployed v1 vaults are immutable and merchants' live subscriptions must
 //   keep working. The allowlist is the set of tokens AxiumPass actually offers
 //   at checkout on each chain; anything else is simply not counted.
+//
+// WHAT THIS DOES **NOT** FIX, STATED PLAINLY
+//
+//   The allowlist does not make this number unfarmable, and an earlier draft of
+//   this comment implied that it did. It does not.
+//
+//   Because the v1 vault is permissionless, anyone can create a subscription
+//   from an address they control to an address they control, in real USDC, and
+//   call processSubscription: the vault pulls the amount and forwards 100% of it
+//   back to them in the same transaction. They are left whole minus gas, and the
+//   reported volume rises by the full amount. No funds are ever at risk — the
+//   vault is non-custodial and the attacker only pays themself — but the number
+//   is inflatable for the price of gas.
+//
+//   Eliminating that requires filtering on a source that the protocol controls,
+//   i.e. counting only recipients enrolled through AxiumPass checkout. That
+//   enrolment does not exist on-chain in the v1 vault, so it cannot be derived
+//   from the logs alone; it lives in AxiumPass's own records. If the maintainers
+//   want that filter, AxiumPass can publish the enrolled recipient set as a
+//   public endpoint for this adapter to read — say the word and it will be in
+//   the next revision.
 //
 // All vault sources are verified on each chain's explorer; the public mirror
 // is https://github.com/Kais769/axiumpass-contracts.
@@ -156,7 +176,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Volume:
-      "Recurring subscription payments settled to merchants, summed on-chain from SubscriptionProcessed events of the AxiumPass SubscriptionVault contracts (v1 and v2) on each chain. Only the stablecoins AxiumPass offers at checkout are counted (USDC, USDT, EURC — per-chain allowlist in the adapter): the v1 vault is permissionless on the token argument, so any other ERC-20 that reached it is excluded rather than reported as subscription volume. Each counted amount is pulled from the subscriber and forwarded 100% to the merchant in the same transaction. The vaults are non-custodial and charge no on-chain fee, so no fees/revenue is reported.",
+      "Recurring subscription payments settled to recipients, summed on-chain from SubscriptionProcessed events of the AxiumPass SubscriptionVault contracts (v1 and v2) on each chain. Only the stablecoins AxiumPass offers at checkout are counted (USDC, USDT, EURC — per-chain allowlist in the adapter): the v1 vault is permissionless on the token argument, so any other ERC-20 that reached it is excluded rather than reported as subscription volume, which keeps the reported figure denominated in the tokens named here. Each counted amount is pulled from the subscriber and forwarded 100% to the recipient in the same transaction. The vaults are non-custodial and charge no on-chain fee, so no fees/revenue is reported. Limitation: the v1 vault is also permissionless on enrolment, so a subscription created from an address to itself is indistinguishable on-chain from a merchant payment and is counted; excluding it would require filtering on AxiumPass's enrolled-recipient set, which is not present in the logs.",
   },
   adapter: chainConfig,
   fetch,
