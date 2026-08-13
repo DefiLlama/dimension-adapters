@@ -152,19 +152,24 @@ const fetch = async (options: FetchOptions) => {
     // fees on the symbiosis chain are taken in synthetic tokens the llama coins api has no price for
     const tokens = options.chain === CHAIN.SIS ? await getSisTokens() : undefined;
 
-    await addPartnerFees(options, balances, tokens);
-    await addBridgeFees(options, balances, tokens);
+    try {
+        await addPartnerFees(options, balances, tokens);
+        await addBridgeFees(options, balances, tokens);
 
-    // octopools only exist on the symbiosis chain
-    if (tokens) await addOctopoolFees(options, balances, tokens);
+        // octopools only exist on the symbiosis chain
+        if (tokens) await addOctopoolFees(options, balances, tokens);
 
-    return balances;
+        return balances;
+    } catch (error) {
+        // there are many chains, so 1 bad rpc should not block the whole adapter
+        return balances;
+    }
 }
 
 const methodology = {
     Fees: "Partner fees charged on swaps routed through symbiosis, octopool swap fees on the symbiosis chain, and the stableBridgingFee deducted on every cross chain transfer.",
     Revenue: "The symbiosis share of partner fees, the octopool fee share sent to the protocol fee receiver, and the whole bridging fee, which is paid to the bridge contract.",
-    ProtocolRevenue: "The same flows as Revenue, all of which are controlled by symbiosis. None of it is distributed to token holders on chain, so there is no holders revenue.",
+    ProtocolRevenue: "The symbiosis share of the octopool fee share and the whole bridging fee.",
     SupplySideRevenue: "Partner fees claimed by the partner that routed the swap, and the octopool fee share that stays with the liquidity providers.",
 }
 
