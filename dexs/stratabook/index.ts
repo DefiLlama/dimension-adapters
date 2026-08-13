@@ -208,8 +208,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   chains: [CHAIN.SOLANA],
   start: "2026-08-09", // first on-chain activity on the CLOB program
   fetch,
