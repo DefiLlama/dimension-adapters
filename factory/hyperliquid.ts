@@ -575,15 +575,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Portion of fees collected by XTrade",
     },
   },
-  "taco-trade": {
-    addresses: ["0xf5b79dea3d8cf3efa95e8176ebd885634d869f51"],
-    start: "2025-11-19",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
   "silhouette-naked": {
     addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"],
     start: "2026-01-16",
