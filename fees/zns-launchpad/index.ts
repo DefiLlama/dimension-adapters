@@ -219,7 +219,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   doublecounted: true, // Uniswap v4 and Meteora may also report the same underlying swap fees.
