@@ -33,15 +33,13 @@ const CHAIN_IDS: Record<string, number> = {
   [CHAIN.AVAX]: 43114,
 };
 
-const VOLUME_LABEL = "Swap volume";
-
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const chainId = CHAIN_IDS[options.chain];
   const res = await httpGet(`${API}?chainId=${chainId}&timestamp=${options.startOfDay}`);
   const dailyVolume = options.createBalances();
   // The endpoint answers 0 on a day without a confirmed swap and never errors,
   // so a quiet day does not break the series.
-  dailyVolume.addUSDValue(res?.dailyVolume ?? 0, VOLUME_LABEL);
+  dailyVolume.addUSDValue(res?.dailyVolume ?? 0);
   return { dailyVolume };
 };
 
@@ -49,11 +47,6 @@ const methodology = {
   Volume: "Sum of the USD value delivered by every confirmed swap routed through Vurto, priced at the moment each swap settled.",
 };
 
-const breakdownMethodology = {
-  Volume: {
-    [VOLUME_LABEL]: "USD value of the output of every confirmed swap, across the single, Double In, Double Out and basket modes.",
-  },
-};
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -61,7 +54,6 @@ const adapter: SimpleAdapter = {
   start: START,
   fetch,
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
