@@ -1,4 +1,4 @@
-import fetchURL from "../../utils/fetchURL";
+import { proxiedFetch } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
@@ -61,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
   const defaultRes = {
     dailyVolume: 0,
   }
-  const res = await fetchURL(url);
+  const res = await proxiedFetch(url);
   const targetDay = startTimestamp;
   const dailyData = res.find((item: any) => item.timestamp === targetDay);
   if (!dailyData) {
