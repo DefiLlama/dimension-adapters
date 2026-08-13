@@ -13,11 +13,11 @@ async function fetch(options: FetchOptions) {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(Number(row.feesUsd), SWAP_FEES);
-  dailyUserFees.addUSDValue(Number(row.userFeesUsd), SWAP_FEES);
-  dailyRevenue.addUSDValue(Number(row.revenueUsd), SWAP_FEES_TO_PROTOCOL);
-  dailyProtocolRevenue.addUSDValue(Number(row.protocolRevenueUsd), SWAP_FEES_TO_PROTOCOL);
-  dailySupplySideRevenue.addUSDValue(Number(row.supplySideRevenueUsd), SWAP_FEES_TO_INTEGRATORS);
+  dailyFees.addUSDValue(row.feesUsd, SWAP_FEES);
+  dailyUserFees.addUSDValue(row.userFeesUsd, SWAP_FEES);
+  dailyRevenue.addUSDValue(row.revenueUsd, SWAP_FEES_TO_PROTOCOL);
+  dailyProtocolRevenue.addUSDValue(row.protocolRevenueUsd, SWAP_FEES_TO_PROTOCOL);
+  dailySupplySideRevenue.addUSDValue(row.supplySideRevenueUsd, SWAP_FEES_TO_INTEGRATORS);
 
   return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 }

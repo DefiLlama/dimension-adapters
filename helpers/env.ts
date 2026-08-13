@@ -39,8 +39,6 @@ const DEFAULTS: any = {
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   HYDRADX_BLOCK_LOW: '7036666',
   DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
-  // Fallback used only by pull-request CI when no deployment environment variable is available.
-  GATESWAP_DEFILLAMA_API_KEY: 'bb849d6f408a07461a1e92af8',
   DEBUG_BREAKDOWN_FEES: true,
 }
 
