@@ -229,6 +229,15 @@ pool_vaults AS (
   UNION
   SELECT DISTINCT pool, reserve_y AS vault, token_y_mint AS mint FROM swaps
 ),
+snapshot_day AS (
+  -- daily_balances lags chain head by a few days. Pinning the join to the window's
+  -- own date finds no rows on a recent run, every reserve reads 0, and the low-TVL
+  -- filter below then drops every pool with volume. Use the newest snapshot that is
+  -- not in the future instead: reserves move slowly enough for a wash-trade check.
+  SELECT max(day) AS day
+  FROM solana_utils.daily_balances
+  WHERE day <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
+),
 pool_reserves AS (
   SELECT
     v.pool,
@@ -236,8 +245,7 @@ pool_reserves AS (
     sum(coalesce(b.token_balance, 0)) AS reserve_balance
   FROM pool_vaults v
   LEFT JOIN solana_utils.daily_balances b
-    -- Daily adapter windows start one second before midnight.
-    ON b.day = CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
+    ON b.day = (SELECT day FROM snapshot_day)
    AND b.address = v.vault
    AND b.token_mint_address = v.mint
   GROUP BY v.pool, v.mint
@@ -355,7 +363,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
   fetch,
   chains: [CHAIN.SOLANA],
