@@ -31,6 +31,7 @@ export const chainMap: ChainMapping = {
   [CHAIN.METIS]: 'metis',
   [CHAIN.UNICHAIN]: 'unichain',
   [CHAIN.MODE]: 'mode',
+  [CHAIN.XLAYER]: 'x_layer',
 };
 
 

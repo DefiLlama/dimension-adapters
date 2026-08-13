@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const beHYPE = "0xd8FC8F0b03eBA61F64D08B0bef69d80916E5DdA9"
 const beHYPE_STAKING_CORE = "0xCeaD893b162D38e714D82d06a7fe0b0dc3c38E0b"
+const STAKING_REWARDS = "Staking Rewards";
 
 const exchangeRatioStakingCoreAbi = "function exchangeRatio() external view returns (uint256)";
 
@@ -24,16 +25,19 @@ const getExchangeRateBeforeAfterVaults = async (options: FetchOptions, target: s
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     // // beHYPE LST vault (StakingCore)
     const totalSupply_behype = await getTotalSupply(options, beHYPE);
     const [exchangeRatioBeforeBEHYPE, exchangeRatioAfterBEHYPE] = await getExchangeRateBeforeAfterVaults(options, beHYPE_STAKING_CORE, exchangeRatioStakingCoreAbi);
-    dailyFees.addCGToken('hyperliquid', (totalSupply_behype / 1e18) * (exchangeRatioAfterBEHYPE / 1e18 - exchangeRatioBeforeBEHYPE / 1e18));
+    const stakingRewards = (totalSupply_behype / 1e18) * (exchangeRatioAfterBEHYPE / 1e18 - exchangeRatioBeforeBEHYPE / 1e18);
+    dailyFees.addCGToken('hyperliquid', stakingRewards, STAKING_REWARDS);
+    dailySupplySideRevenue.addCGToken('hyperliquid', stakingRewards, STAKING_REWARDS);
 
     return {
       dailyFees,
       dailyRevenue: 0, // no comission from Hyperbeat
-      dailySupplySideRevenue: dailyFees,
+      dailySupplySideRevenue,
     };
 };
 
@@ -43,6 +47,14 @@ const adapter: Adapter = {
       Fees: "HYPE liquid staking rewards.",
       Revenue: "No staking rewards commission for Hyperbeat.",
       SupplySideRevenue: "HYPE liquid staking rewards share for suppliers.",
+    },
+    breakdownMethodology: {
+      Fees: {
+        [STAKING_REWARDS]: "Total HYPE staking rewards earned by beHYPE before protocol commission.",
+      },
+      SupplySideRevenue: {
+        [STAKING_REWARDS]: "HYPE staking rewards distributed to beHYPE suppliers.",
+      },
     },
     fetch,
     chains: [CHAIN.HYPERLIQUID],

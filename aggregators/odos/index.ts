@@ -120,6 +120,7 @@ const adapter: SimpleAdapter = {
   },
   fetch,
   start,
+  deadFrom: '2026-07-30',
   chains: Object.keys(ODOS_V2_ROUTERS),
 };
 

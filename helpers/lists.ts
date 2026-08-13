@@ -118,6 +118,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x570b1533F6dAa82814B25B62B5c7c4c55eB83947",
+    "0x1d1dd64c58518c6727a308a5216a5701afae5b07", // fake "OpenAI", $52M wash-traded in one day on aerodrome slipstream (Jul 2026), same factory as the uniswap-v4 fake-ticker pools
   ],
 };
 

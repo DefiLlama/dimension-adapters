@@ -74,6 +74,13 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // bad debt; excluding from the freeze onset also keeps the eventual write-off out of the series.
     vault: '0x9B5E92fd227876b4C07a8c02367E2CB23c639DfA',
     from: '2026-03-21',
+  }, {
+    // Clearstar Yield USDC v2 (0xFa17...F853) - the v2 vault of the same name, allocated to the same
+    // frozen market. Share price ran 1.009084 -> 1.019572 over 2026-03-21..04-04 and 1.794800 ->
+    // 1.908595 over the last week alone, ~165% APR against ~5.2% before the freeze, on a USDC vault
+    // that has now marked itself up 91%. Same phantom accrual as the v1 above, same onset date.
+    vault: '0xFa17f7AAdbfAc2C5d3C8125555404c1AE17Df853',
+    from: '2026-03-21',
   }],
 }
 
