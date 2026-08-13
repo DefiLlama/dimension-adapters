@@ -183,7 +183,7 @@ const methodology = {
     "EVM token launch fees plus Uniswap v4 LP swap fees harvested from ZNS-launched pools; on Solana, wSOL-denominated Meteora DBC trading, protocol, and routing-referral fees paid by traders in the three wSOL production configs. DBC fees collected in a newly launched base token are excluded because that token cannot be reliably priced.",
   Revenue:
     "Fees retained by ZNS: EVM launch fees and the exact treasury shares booked by the EVM fee locker; on Solana, the fixed 40% treasury share of ZNS partner trading fees. Solana no-referrer fallback is conservatively excluded until splitter distribution events are indexed by Dune.",
-  ProtocolRevenue: "Same as Revenue: fees allocated to the ZNS treasury.",
+  ProtocolRevenue: "Fees retained by ZNS: EVM launch fees and the exact treasury shares booked by the EVM fee locker; on Solana, the fixed 40% treasury share of ZNS partner trading fees. Solana no-referrer fallback is conservatively excluded until splitter distribution events are indexed by Dune.",
   SupplySideRevenue:
     "Fees allocated to token creators, launch referrers, Meteora, and swap-routing referrers.",
 };
