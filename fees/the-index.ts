@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ChainApi, getProvider } from "@defillama/sdk";
-import { Interface } from "ethers";
 
 // Factory history: https://github.com/blobsarp/indices/blob/master/indexer/ponder.config.ts
 const FACTORY_ADDRESSES = [
@@ -55,7 +54,6 @@ const abi = {
 const labels = {
   fees: "Creator Coin Taxes",
   protocol: "Creator Coin Taxes To Protocol",
-  holdersEarmarked: "Creator Coin Taxes Earmarked For Coin Holders",
   creators: "Creator Coin Taxes To Coin Creators",
   legacyFees: "Original INDEX Swap Taxes",
   legacyHolderPayouts: "Original INDEX Stock Distributions",
@@ -76,33 +74,6 @@ const addAsset = (
   else balances.addToken(asset, amount, label);
 };
 
-// Robinhood is not in DefiLlama's log indexer; address arrays avoid one RPC call per treasury.
-const getTargetedLogs = async (
-  chain: string,
-  targets: string[],
-  eventAbi: string,
-  eventName: string,
-  fromBlock: number,
-  toBlock: number,
-) => {
-  if (!targets.length) return [];
-  const provider: any = getProvider(chain);
-  const iface = new Interface([eventAbi]);
-  const fragment = iface.getEvent(eventName);
-  if (!fragment) throw new Error(`Missing ${eventName} event fragment`);
-  const logs = await provider.getLogs({
-    address: targets,
-    topics: [fragment.topicHash],
-    fromBlock,
-    toBlock,
-  });
-  return logs.map((log: any) => {
-    const parsed = iface.parseLog(log);
-    if (!parsed) throw new Error(`Failed to decode ${eventName} log`);
-    return { ...log, args: parsed.args };
-  });
-};
-
 export const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -110,19 +81,14 @@ export const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
 
-  const legacyDistributionLogs = await getTargetedLogs(
-    options.chain,
-    LEGACY_DISTRIBUTORS,
-    abi.Distributed,
-    "Distributed",
-    fromBlock,
-    toBlock,
-  );
+  const legacyDistributionLogs = await options.getLogs({
+    targets: LEGACY_DISTRIBUTORS,
+    eventAbi: abi.Distributed,
+  });
+
   for (const log of legacyDistributionLogs) {
-    const { stock, amount } = log.args;
+    const { stock, amount } = log;
     const asset = String(stock).toLowerCase();
     addAsset(dailyFees, asset, amount, labels.legacyFees);
     addAsset(dailyUserFees, asset, amount, labels.legacyFees);
@@ -133,15 +99,13 @@ export const fetch = async (options: FetchOptions) => {
   const rewardLaunchesV1 = await options.getLogs({
     eventAbi: abi.RewardLaunchedV1,
     target: REWARD_FACTORY_V1,
-    onlyArgs: false,
-    entireLog: true,
-    parseLog: true,
     fromBlock: REWARD_V1_START_BLOCK,
     cacheInCloud: true,
   });
+
   const rewardStockOfPool = new Map<string, string>();
   for (const log of rewardLaunchesV1) {
-    const { id, stock } = log.parsedLog.args;
+    const { id, stock } = log;
     rewardStockOfPool.set(
       String(id).toLowerCase(),
       String(stock).toLowerCase(),
@@ -150,16 +114,10 @@ export const fetch = async (options: FetchOptions) => {
   const rewardCranksV1 = await options.getLogs({
     eventAbi: abi.RewardCrankedV1,
     target: REWARD_VAULT_V1,
-    onlyArgs: false,
-    entireLog: true,
-    parseLog: true,
   });
   const rewardCranksV2 = await options.getLogs({
     eventAbi: abi.RewardCrankedV2,
     target: REWARD_VAULT_V2,
-    onlyArgs: false,
-    entireLog: true,
-    parseLog: true,
   });
   const addRewardLaunchDistribution = (asset: string, amount: unknown) => {
     addAsset(dailyFees, asset, amount, labels.rewardLaunchFees);
@@ -168,14 +126,14 @@ export const fetch = async (options: FetchOptions) => {
     addAsset(dailyHoldersRevenue, asset, amount, labels.rewardLaunchPayouts);
   };
   for (const log of rewardCranksV1) {
-    const { id, stockDelivered } = log.parsedLog.args;
+    const { id, stockDelivered } = log;
     const stock = rewardStockOfPool.get(String(id).toLowerCase());
     if (!stock)
       throw new Error(`Missing reward-launch stock for pool ${String(id)}`);
     addRewardLaunchDistribution(stock, stockDelivered);
   }
   for (const log of rewardCranksV2) {
-    const { stock, stockDelivered } = log.parsedLog.args;
+    const { stock, stockDelivered } = log;
     addRewardLaunchDistribution(String(stock).toLowerCase(), stockDelivered);
   }
 
@@ -191,7 +149,7 @@ export const fetch = async (options: FetchOptions) => {
 
   const numeraireOf = new Map<string, string>();
   for (const log of deployLogs) {
-    const { treasury, numeraire } = log.parsedLog.args;
+    const { treasury, numeraire } = log.args;
     numeraireOf.set(
       String(treasury).toLowerCase(),
       String(numeraire).toLowerCase(),
@@ -210,42 +168,36 @@ export const fetch = async (options: FetchOptions) => {
     };
   }
 
-  const harvestLogs = await getTargetedLogs(
-    options.chain,
-    treasuries,
-    abi.Harvested,
-    "Harvested",
-    fromBlock,
-    toBlock,
-  );
-  const finalizedLogs = await getTargetedLogs(
-    options.chain,
-    treasuries,
-    abi.RoundFinalized,
-    "RoundFinalized",
-    fromBlock,
-    toBlock,
-  );
+  const harvestLogs = await options.getLogs({
+    targets: treasuries,
+    eventAbi: abi.Harvested,
+    entireLog: true,
+    parseLog: true,
+  });
+
+  const finalizedLogs = await options.getLogs({
+    targets: treasuries,
+    eventAbi: abi.RoundFinalized,
+    entireLog: true,
+    parseLog: true,
+  });
 
   for (const log of harvestLogs) {
     const numeraire = numeraireOf.get(logAddress(log));
     if (!numeraire)
       throw new Error(`Missing numeraire for treasury ${logAddress(log)}`);
-    const { netCredit, toDistributable, toCreator, protocolFee } = log.args;
+    const { netCredit, toCreator, protocolFee } = log.args;
     const grossFees = BigInt(netCredit) + BigInt(protocolFee);
 
     addAsset(dailyFees, numeraire, grossFees, labels.fees);
     addAsset(dailyUserFees, numeraire, grossFees, labels.fees);
     addAsset(dailyRevenue, numeraire, protocolFee, labels.protocol);
-    addAsset(dailyRevenue, numeraire, toDistributable, labels.holdersEarmarked);
     addAsset(dailyProtocolRevenue, numeraire, protocolFee, labels.protocol);
     addAsset(dailySupplySideRevenue, numeraire, toCreator, labels.creators);
   }
 
-  // Round assets never change; latest-state reads avoid Robinhood's lack of historical eth_call support.
-  const latestApi = new ChainApi({ chain: options.chain });
   const finalizedRounds = finalizedLogs.length
-    ? await latestApi.multiCall({
+    ? await options.api.multiCall({
         abi: abi.Round,
         calls: finalizedLogs.map((log: any) => ({
           target: logAddress(log),
@@ -260,7 +212,7 @@ export const fetch = async (options: FetchOptions) => {
       throw new Error(`Missing asset for finalized round ${String(roundId)}`);
     }
     const asset = String(finalizedRounds[i].asset).toLowerCase();
-    addAsset(dailyHoldersRevenue, asset, paidSum, labels.holderPayouts);
+    addAsset(dailySupplySideRevenue, asset, paidSum, labels.holderPayouts);
   }
 
   return {
@@ -278,13 +230,13 @@ const methodology = {
   UserFees:
     "Same as Fees: both generations originate from taxes paid by protocol users.",
   Revenue:
-    "Original INDEX and earn-a-stock distributions settled for holders, plus the Index Treasury protocol fee and post-fee amount earmarked to buy stock for launched-coin holders.",
+    "Original INDEX and earn-a-stock distributions settled for $INDEX holders, plus the Index Treasury protocol fee.",
   ProtocolRevenue:
     "The protocolFee portion of each harvest, allocated to The Index protocol.",
   SupplySideRevenue:
-    "The toCreator portion of each harvest, claimable by the launched coin's creator.",
+    "The toCreator portion of each harvest, claimable by the launched coin's creator, plus finalized Index Treasury paidSum stock paid to launched-coin holders; skipped and unpaid leaves are excluded.",
   HoldersRevenue:
-    "Original INDEX Distributed stock pots, earn-a-stock Cranked deliveries, and finalized Index Treasury paidSum amounts; skipped and unpaid leaves are excluded.",
+    "Original INDEX Distributed stock pots and earn-a-stock Cranked deliveries to $INDEX holders.",
 };
 
 const breakdownMethodology = {
@@ -306,17 +258,19 @@ const breakdownMethodology = {
     [labels.rewardLaunchPayouts]:
       "Earn-a-stock launch rewards settled for token holders.",
     [labels.protocol]: "Protocol fee retained by The Index.",
-    [labels.holdersEarmarked]:
-      "Post-fee harvest amount earmarked to buy stock for launched-coin holders.",
   },
   ProtocolRevenue: { [labels.protocol]: methodology.ProtocolRevenue },
-  SupplySideRevenue: { [labels.creators]: methodology.SupplySideRevenue },
+  SupplySideRevenue: {
+    [labels.creators]:
+      "The toCreator portion of each harvest, claimable by the launched coin's creator.",
+    [labels.holderPayouts]:
+      "RoundFinalized.paidSum stock paid to launched-coin holders; skipped and unpaid leaves are excluded.",
+  },
   HoldersRevenue: {
     [labels.legacyHolderPayouts]:
       "Stock pots settled by all four historical $INDEX distributors.",
     [labels.rewardLaunchPayouts]:
       "Stock delivered by both historical earn-a-stock reward vaults.",
-    [labels.holderPayouts]: "RoundFinalized.paidSum from Index Treasuries.",
   },
 };
 
