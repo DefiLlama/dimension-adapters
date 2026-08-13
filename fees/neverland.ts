@@ -16,7 +16,6 @@ import { ethers } from "ethers";
 import { type FetchOptions, type SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPoolFees, type AaveLendingPoolConfig } from "../helpers/aave";
-import { getTransactions } from "../helpers/getTxReceipts";
 import { nullAddress } from "../helpers/token";
 import { METRIC } from "../helpers/metrics";
 
@@ -25,28 +24,6 @@ import { METRIC } from "../helpers/metrics";
 // ---------------------------------------------------------------------------
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
-
-type SignedTransaction = NonNullable<Awaited<ReturnType<typeof getTransactions>>[number]> & {
-  hash: string;
-};
-
-type DecodableTransaction = {
-  to?: string | null;
-  data?: string;
-  input?: string;
-  value?: bigint;
-};
-
-type FundingTransfer = {
-  amount: bigint;
-  blockNumber: number;
-  transactionHash: string;
-};
-
-type RevenueRewardNotification = {
-  token: string;
-  amount: bigint;
-};
 
 // ---------------------------------------------------------------------------
 // Addresses & constants
@@ -73,30 +50,20 @@ const LC = Object.fromEntries(
   Object.entries(ADDR).map(([k, v]) => [k, v.toLowerCase()])
 ) as { [K in keyof typeof ADDR]: string };
 
-const WEEK_SECONDS = 7 * 24 * 60 * 60;
-
 const VEDUST_REWARDS_LABEL = "veDUST Revenue";
 const DUST_BUYBACKS_LABEL = "DUST Buybacks & Burns";
 const ROYALTIES_LABEL = "veDUST Royalties";
-const REVENUE_REWARD_CACHE_KEY = "neverland-revenue-reward";
 const OPENSEA_ORDER_FULFILLED_TOPIC = ethers.id("OrderFulfilled(bytes32,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])");
 
 // ---------------------------------------------------------------------------
 // ABI interfaces & event topics
 // ---------------------------------------------------------------------------
 
-const ERC20_TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 const ZERO_ADDRESS_LC = ethers.ZeroAddress.toLowerCase();
 
 const IFACE = {
-  safe: new ethers.Interface([
-    "function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,bytes signatures)",
-  ]),
-  multiSend: new ethers.Interface([
-    "function multiSend(bytes transactions)",
-  ]),
   revenueReward: new ethers.Interface([
-    "function notifyRewardAmount(address token,uint256 amount)",
+    "event NotifyReward(address indexed from,address indexed token,uint256 epoch,uint256 amount)",
   ]),
   opensea: new ethers.Interface([
     "event OrderFulfilled(bytes32 orderHash,address indexed offerer,address indexed zone,address recipient,(uint8 itemType,address token,uint256 identifier,uint256 amount)[] offer,(uint8 itemType,address token,uint256 identifier,uint256 amount,address recipient)[] consideration)",
@@ -106,211 +73,11 @@ const IFACE = {
   ]),
 };
 
-const MULTISEND_SELECTOR = IFACE.multiSend.getFunction("multiSend")!.selector;
-const NOTIFY_REWARD_SELECTOR = IFACE.revenueReward.getFunction("notifyRewardAmount")!.selector;
-
 // ---------------------------------------------------------------------------
 // Generic helpers
 // ---------------------------------------------------------------------------
 
 const lc = (address?: string | null) => (address || "").toLowerCase();
-
-function getWindowOverlap(startTimestamp: number, endTimestamp: number, distributionStart: number, distributionEnd: number) {
-  return Math.max(0, Math.min(endTimestamp, distributionEnd) - Math.max(startTimestamp, distributionStart));
-}
-
-// Decode the packed encoding used by Safe's MultiSend contract.
-function parseMultiSendTransactions(data: string) {
-  const transactionsHex = data.startsWith("0x") ? data.slice(2) : data;
-  const transactions: { to: string; data: string }[] = [];
-  let offset = 0;
-
-  while (offset < transactionsHex.length) {
-    offset += 2;
-    const to = `0x${transactionsHex.slice(offset, offset + 40)}`;
-    offset += 40;
-    offset += 64;
-
-    const dataLength = Number(BigInt(`0x${transactionsHex.slice(offset, offset + 64)}`));
-    offset += 64;
-
-    const callData = `0x${transactionsHex.slice(offset, offset + dataLength * 2)}`;
-    offset += dataLength * 2;
-    transactions.push({ to, data: callData });
-  }
-
-  return transactions;
-}
-
-function decodeRevenueRewardCall(data?: string) {
-  if (!data?.startsWith(NOTIFY_REWARD_SELECTOR)) return;
-  const [token, amount] = IFACE.revenueReward.decodeFunctionData("notifyRewardAmount", data);
-  return {
-    token,
-    amount,
-  } satisfies RevenueRewardNotification;
-}
-
-// Unwrap Safe execTransaction > MultiSend layers to extract calldatas targeting a specific address.
-function getTargetCallDatasFromTransaction(tx: DecodableTransaction, targetLc: string) {
-  const txTo = lc(tx.to);
-  const input = tx.data || tx.input;
-  if (!input) return [] as string[];
-  if (txTo === targetLc) return [input];
-
-  try {
-    const parsedSafeTx = IFACE.safe.parseTransaction({ data: input, value: tx.value || 0n });
-    if (!parsedSafeTx) return [] as string[];
-
-    const innerTo = lc(parsedSafeTx.args.to);
-    const innerData = parsedSafeTx.args.data;
-    if (innerTo === targetLc) return [innerData];
-    if (!innerData.startsWith(MULTISEND_SELECTOR)) return [] as string[];
-
-    const [multiSendPayload] = IFACE.multiSend.decodeFunctionData("multiSend", innerData);
-    return parseMultiSendTransactions(multiSendPayload)
-      .filter((innerTx) => lc(innerTx.to) === targetLc)
-      .map((innerTx) => innerTx.data);
-  } catch {
-    return [] as string[];
-  }
-}
-
-function decodeAllTargetCallsFromTransaction<T>(
-  tx: DecodableTransaction,
-  targetLc: string,
-  decodeCall: (data?: string) => T | undefined,
-): T[] {
-  return getTargetCallDatasFromTransaction(tx, targetLc)
-    .map(decodeCall)
-    .filter((decoded): decoded is T => decoded !== undefined);
-}
-
-// Recognize the portion of a distribution that overlaps with the query window.
-function addProratedAmount(
-  balances: Balances,
-  token: string | undefined,
-  amount: string | number | bigint | undefined,
-  distributionStart: number,
-  distributionEnd: number,
-  options: FetchOptions,
-  label: string,
-) {
-  if (!token || amount === undefined || amount === null) return;
-  if (!Number.isFinite(distributionStart) || !Number.isFinite(distributionEnd)) return;
-
-  const duration = distributionEnd - distributionStart;
-  const overlap = getWindowOverlap(options.startTimestamp, options.endTimestamp, distributionStart, distributionEnd);
-  if (duration <= 0 || overlap <= 0) return;
-
-  const proratedAmount = BigInt(amount.toString()) * BigInt(overlap) / BigInt(duration);
-  if (!proratedAmount) return;
-  balances.add(token, proratedAmount.toString(), label);
-}
-
-// Fetch ERC-20 Transfer logs between a source and sink within a lookback window.
-async function getFundingTransfers(options: FetchOptions, config: {
-  fundingToken: string;
-  source: string;
-  sink: string;
-  lookbackSeconds: number;
-}) {
-  const fromBlock = await options.getBlock(Math.max(0, options.startTimestamp - config.lookbackSeconds), options.chain, {});
-  const toBlock = await options.getEndBlock();
-  const logs = await options.getLogs({
-    target: config.fundingToken,
-    topics: [
-      ERC20_TRANSFER_TOPIC,
-      ethers.zeroPadValue(config.source, 32),
-      ethers.zeroPadValue(config.sink, 32),
-    ],
-    fromBlock,
-    toBlock,
-    entireLog: true,
-  });
-
-  return logs.map((log: { data: string; blockNumber: number | string; transactionHash: string }) => ({
-    amount: BigInt(log.data),
-    blockNumber: Number(log.blockNumber),
-    transactionHash: log.transactionHash.toLowerCase(),
-  })) satisfies FundingTransfer[];
-}
-
-async function getTransactionsByHash(options: FetchOptions, txHashes: string[], cacheKey: string) {
-  const uniqueTxHashes = [...new Set(txHashes)];
-  if (!uniqueTxHashes.length) return new Map<string, SignedTransaction>();
-
-  const txs = await getTransactions(options.chain, uniqueTxHashes, { cacheKey });
-  return new Map(
-    txs
-      .filter((tx): tx is SignedTransaction => !!tx?.hash)
-      .map((tx) => [tx.hash.toLowerCase(), tx])
-  );
-}
-
-async function getBlockTimestamps(options: FetchOptions, blockNumbers: number[]) {
-  const uniqueBlockNumbers = [...new Set(blockNumbers)];
-  const blocks = await Promise.all(uniqueBlockNumbers.map((blockNumber) => options.api.provider.getBlock(blockNumber)));
-  return new Map<number, number>(
-    blocks
-      .filter((block): block is NonNullable<typeof block> => !!block?.timestamp)
-      .map((block) => [Number(block.number), Number(block.timestamp)])
-  );
-}
-
-// End-to-end pipeline: find funding transfers, fetch their txs, and decode the target call in each.
-async function getDecodedFundingTransfers<TDecoded>(
-  options: FetchOptions,
-  config: {
-    fundingToken: string;
-    source: string;
-    sink: string;
-    lookbackSeconds: number;
-    cacheKey: string;
-    targetLc: string;
-  },
-  decodeCall: (data?: string) => TDecoded | undefined,
-  filterDecodedForTx: (decodedCalls: TDecoded[], txHash: string) => TDecoded[] = (decodedCalls) => decodedCalls,
-  matchesDecoded: (decoded: TDecoded, transfer: FundingTransfer) => boolean = () => true,
-) {
-  const fundingTransfers = await getFundingTransfers(options, config);
-  if (!fundingTransfers.length) return [] as { transfer: FundingTransfer; decoded: TDecoded }[];
-
-  const txMap = await getTransactionsByHash(
-    options,
-    fundingTransfers.map((transfer) => transfer.transactionHash),
-    config.cacheKey,
-  );
-
-  /**
-   * Decode all target calls per tx so batched operations (e.g. multiple
-   * createCampaign calls in one Safe multiSend) each match their own transfer.
-   */
-  const decodedByTx = new Map<string, TDecoded[]>();
-  for (const transfer of fundingTransfers) {
-    if (decodedByTx.has(transfer.transactionHash)) continue;
-    const tx = txMap.get(transfer.transactionHash);
-    const decodedCalls = tx ? decodeAllTargetCallsFromTransaction(tx, config.targetLc, decodeCall) : [];
-    decodedByTx.set(
-      transfer.transactionHash,
-      filterDecodedForTx(decodedCalls, transfer.transactionHash),
-    );
-  }
-
-  /**
-   * Match each funding transfer to a decoded call, consuming it via splice
-   * so that batched txs (e.g. multiple createCampaign in one multiSend)
-   * pair each transfer with a unique decoded call.
-   */
-  return fundingTransfers.flatMap((transfer) => {
-    const remaining = decodedByTx.get(transfer.transactionHash);
-    if (!remaining?.length) return [];
-    const idx = remaining.findIndex((d) => matchesDecoded(d, transfer));
-    if (idx === -1) return [];
-    const [decoded] = remaining.splice(idx, 1);
-    return [{ transfer, decoded }];
-  });
-}
 
 // Attribute an OpenSea OrderFulfilled consideration item to royalties if sent to our receiver.
 function addOpenSeaRoyaltyConsideration(
@@ -333,45 +100,16 @@ function addOpenSeaRoyaltyConsideration(
 // Revenue surfaces
 // ---------------------------------------------------------------------------
 
-// USDC top-ups to the veDUST RevenueReward contract, prorated over each 7-day epoch.
+// USDC revenue distributions to veDUST holders, recognized when notified on-chain.
 async function addVeDustRevenue(options: FetchOptions, dailyHoldersRevenue: Balances) {
-  const rewardTopUps = await getDecodedFundingTransfers(
-    options,
-    {
-      fundingToken: ADDR.usdc,
-      source: ADDR.revenueWallet,
-      sink: ADDR.revenueReward,
-      lookbackSeconds: WEEK_SECONDS,
-      cacheKey: REVENUE_REWARD_CACHE_KEY,
-      targetLc: LC.revenueReward,
-    },
-    decodeRevenueRewardCall,
-    undefined,
-    (notification, transfer) =>
-      lc(notification.token) === LC.usdc
-      && notification.amount === transfer.amount,
-  );
-  if (!rewardTopUps.length) return;
-
-  const timestampByBlock = await getBlockTimestamps(
-    options,
-    rewardTopUps.map(({ transfer }) => transfer.blockNumber),
-  );
-
-  rewardTopUps.forEach(({ transfer }) => {
-    const timestamp = timestampByBlock.get(transfer.blockNumber);
-    if (!timestamp) return;
-
-    addProratedAmount(
-      dailyHoldersRevenue,
-      ADDR.usdc,
-      transfer.amount,
-      timestamp,
-      timestamp + WEEK_SECONDS,
-      options,
-      VEDUST_REWARDS_LABEL,
-    );
+  const rewardNotifications = await options.getLogs({
+    target: ADDR.revenueReward,
+    eventAbi: IFACE.revenueReward.getEvent("NotifyReward")!.format("full"),
   });
+
+  rewardNotifications
+    .filter((log: any) => lc(log.from) === LC.revenueWallet && lc(log.token) === LC.usdc)
+    .forEach((log: any) => dailyHoldersRevenue.add(ADDR.usdc, log.amount, VEDUST_REWARDS_LABEL));
 }
 
 /**
@@ -464,7 +202,7 @@ const methodology = {
   Revenue: protocolRevenueMethodology,
   SupplySideRevenue: "Borrower interest and liquidation proceeds distributed to liquidity providers. The lender share of flashloan premiums is included here as it accrues through the lending pool's liquidity index.",
   ProtocolRevenue: protocolRevenueMethodology,
-  HoldersRevenue: "Governance-directed revenue sharing. veDUST revenue contract funding is spread evenly across each 7-day epoch and DUST buybacks on the day they reach Neverland's Revenue wallet.",
+  HoldersRevenue: "Governance-directed revenue sharing. veDUST revenue distributions are recognized when notified on-chain and DUST buybacks on the day they reach Neverland's Revenue wallet.",
 };
 
 const breakdownMethodology = {
@@ -481,7 +219,7 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: protocolRevenueBreakdown,
   HoldersRevenue: {
-    [VEDUST_REWARDS_LABEL]: "Revenue sharing to veDUST holders in USDC, spread evenly across the 7-day epoch.",
+    [VEDUST_REWARDS_LABEL]: "USDC revenue sharing to veDUST holders, recognized when the RevenueReward contract emits NotifyReward.",
     [DUST_BUYBACKS_LABEL]: "DUST accrued by the Revenue wallet for burn, recognized on the day of receipt.",
   },
 };
