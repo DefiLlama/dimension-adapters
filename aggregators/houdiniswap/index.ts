@@ -1,6 +1,26 @@
-import { proxiedFetch } from "../../utils/fetchURL";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
+
+const execFileAsync = promisify(execFile);
+const headers = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+};
+
+async function fetchJson(url: string) {
+  try {
+    const { stdout } = await execFileAsync(
+      "curl",
+      ["-sS", "--fail", "-A", headers["User-Agent"], "-H", "Accept: application/json", url],
+      { timeout: 30000, maxBuffer: 5 * 1024 * 1024, windowsHide: true },
+    );
+    return JSON.parse(stdout);
+  } catch {
+    return httpGet(url, { headers });
+  }
+}
 
 const chainConfig: Record<string, string> = {
   [CHAIN.ETHEREUM]: 'ethereum',
@@ -61,7 +81,7 @@ const fetch = async (options: FetchOptions) => {
   const defaultRes = {
     dailyVolume: 0,
   }
-  const res = await proxiedFetch(url);
+  const res = await fetchJson(url);
   const targetDay = startTimestamp;
   const dailyData = res.find((item: any) => item.timestamp === targetDay);
   if (!dailyData) {
