@@ -144,16 +144,21 @@ async function processCDO(
   const exitFeeToTranche = sumLogField(feeAccrued, "amountToTranche");
   const exitFeesTotal = exitFeeToReserve + exitFeeToTranche;
 
-  // we calculate this yield from the delta of strategy assets
-  // if delta is negative, the losses are absorbed by the tranches
-  // and so it's safe to set yield to 0. this doesn't mean the losses 
-  // of the strtegy are ignored. they are compensated by tranches & reserves
-  // and so the protocol yield doesn't get negative even if the strategy performs badly
-  let yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
-  if (yieldAmount < 0n) yieldAmount = 0n;
+  // we calculate this yield from the delta of strategy assets.
+  // this can be negative when the strategy marks down, which happens on the
+  // RWA-backed CDOs whose NAV follows a discrete oracle (sUSDat/STRC) rather
+  // than a monotonic exchange rate. those losses are absorbed by the tranches,
+  // so they belong in supply side revenue as a negative, not clamped away.
+  // clamping each window at zero only ever books the up moves and ratchets
+  // cumulative fees upwards, which is worse under pullHourly because a day is
+  // cut into 24 chances to discard downside instead of 1.
+  const yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
 
+  // the reserve takes a performance fee out of yield, but does not refund it on
+  // a loss, so on a negative window the whole markdown lands on the tranches.
   const ONE = 10n ** 18n;
-  const protocolFromYield = (yieldAmount * reserveBps) / ONE;
+  const protocolFromYield =
+    yieldAmount > 0n ? (yieldAmount * reserveBps) / ONE : 0n;
   const supplyFromYield = yieldAmount - protocolFromYield;
 
   dailyFees.add(baseAsset, yieldAmount.toString());
@@ -205,7 +210,7 @@ const methodology = {
   Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata.",
   Revenue: "Protocol revenue consists of performance fees (5-10%) charged by Strata on the yield generated and redemption fees paid by the users.",
   ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
-  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche.",
+  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche. Goes negative on days a strategy marks down, since those losses are absorbed by the tranches.",
 };
 
 const earliestStart = CDOS.reduce(
@@ -220,6 +225,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: earliestStart,
   methodology,
+  allowNegativeValue: true, // strategy NAV can mark down, the loss is absorbed by the tranches
 };
 
 export default adapter;
