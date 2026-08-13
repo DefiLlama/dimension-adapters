@@ -6,11 +6,11 @@
  *
  * This adapter adds Neverland-specific revenue streams on top:
  *   1. veDUST NFT sale royalties (MON / WMON received by ROYALTY_RECEIVER)
- *   2. Holders revenue — veDUST RevenueReward top-ups, Merkl DUST-LP revenue,
- *      and DUST buybacks routed through the Revenue wallet
+ *   2. Holder allocations — veDUST RevenueReward top-ups and DUST buybacks
+ *      routed through the Revenue wallet
  *
- * Revenue and ProtocolRevenue are intentionally identical: all protocol-collected
- * fees flow to the same Neverland treasury with no separate DAO split.
+ * Revenue and ProtocolRevenue are intentionally identical: both report fees
+ * collected into the Neverland treasury before governance allocations.
  */
 import { ethers } from "ethers";
 import { type FetchOptions, type SimpleAdapter } from "../adapters/types";
@@ -25,12 +25,6 @@ import { METRIC } from "../helpers/metrics";
 // ---------------------------------------------------------------------------
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
-
-type DecodedMerklCampaign = {
-  rewardToken: string;
-  startTimestamp: number;
-  duration: number;
-};
 
 type SignedTransaction = NonNullable<Awaited<ReturnType<typeof getTransactions>>[number]> & {
   hash: string;
@@ -67,14 +61,11 @@ const LENDING_POOL: AaveLendingPoolConfig = {
 const ADDR = {
   dust: "0xAD96C3dffCD6374294e2573A7fBBA96097CC8d7c",
   usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
-  nUsdc: "0x38648958836eA88b368b4ac23b86Ad44B0fe7508",
   wmon: "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
   revenueReward: "0xff20ac10eb808B1e31F5CfCa58D80eDE2Ba71c43",
   revenueWallet: "0x909b176220b7e782C0f3cEccaB4b19D2c433c6BB",
   royaltyReceiver: "0x000012a6ec4bb0F2fcfF0440B7d80aD605700069",
   opensea: "0x0000000000000068F116a894984e2DB1123eB395",
-  merklCreator: "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd",
-  merklCore: "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae",
 } as const;
 
 // Pre-lowercased mirror of ADDR for topic/log comparisons.
@@ -83,19 +74,11 @@ const LC = Object.fromEntries(
 ) as { [K in keyof typeof ADDR]: string };
 
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
-// +1 day buffer covers the Wednesday weight-decision window; campaigns are always 7 days.
-const MERKL_LOOKBACK_SECONDS = WEEK_SECONDS + 24 * 60 * 60;
 
 const VEDUST_REWARDS_LABEL = "veDUST Revenue";
-const DUST_LP_INCENTIVES_LABEL = "DUST LP Revenue";
 const DUST_BUYBACKS_LABEL = "DUST Buybacks & Burns";
 const ROYALTIES_LABEL = "veDUST Royalties";
 const REVENUE_REWARD_CACHE_KEY = "neverland-revenue-reward";
-const MERKL_CACHE_KEY = "neverland-merkl-funding";
-// Map Neverland Interest Bearing USDC (nUSDC) to its underlying for price resolution.
-const REWARD_TOKEN_PRICE_ALIAS: Record<string, string> = {
-  [LC.nUsdc]: ADDR.usdc,
-};
 const OPENSEA_ORDER_FULFILLED_TOPIC = ethers.id("OrderFulfilled(bytes32,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])");
 
 // ---------------------------------------------------------------------------
@@ -118,9 +101,6 @@ const IFACE = {
   opensea: new ethers.Interface([
     "event OrderFulfilled(bytes32 orderHash,address indexed offerer,address indexed zone,address recipient,(uint8 itemType,address token,uint256 identifier,uint256 amount)[] offer,(uint8 itemType,address token,uint256 identifier,uint256 amount,address recipient)[] consideration)",
   ]),
-  merklCreator: new ethers.Interface([
-    "function createCampaign((bytes32 campaignId,address creator,address rewardToken,uint256 amount,uint32 campaignType,uint32 startTimestamp,uint32 duration,bytes campaignData))",
-  ]),
   erc20: new ethers.Interface([
     "event Transfer(address indexed from, address indexed to, uint256 value)",
   ]),
@@ -128,7 +108,6 @@ const IFACE = {
 
 const MULTISEND_SELECTOR = IFACE.multiSend.getFunction("multiSend")!.selector;
 const NOTIFY_REWARD_SELECTOR = IFACE.revenueReward.getFunction("notifyRewardAmount")!.selector;
-const CREATE_CAMPAIGN_SELECTOR = IFACE.merklCreator.getFunction("createCampaign")!.selector;
 
 // ---------------------------------------------------------------------------
 // Generic helpers
@@ -161,16 +140,6 @@ function parseMultiSendTransactions(data: string) {
   }
 
   return transactions;
-}
-
-function decodeMerklCampaignCall(data?: string) {
-  if (!data?.startsWith(CREATE_CAMPAIGN_SELECTOR)) return;
-  const decoded = IFACE.merklCreator.decodeFunctionData("createCampaign", data)[0];
-  return {
-    rewardToken: decoded.rewardToken,
-    startTimestamp: Number(decoded.startTimestamp),
-    duration: Number(decoded.duration),
-  } satisfies DecodedMerklCampaign;
 }
 
 function decodeRevenueRewardCall(data?: string) {
@@ -405,41 +374,6 @@ async function addVeDustRevenue(options: FetchOptions, dailyHoldersRevenue: Bala
   });
 }
 
-// Merkl DUST-LP incentive campaigns funded by the Revenue wallet, prorated over campaign duration.
-async function addDustLpRevenue(options: FetchOptions, dailyHoldersRevenue: Balances) {
-  const fundingCampaigns = await getDecodedFundingTransfers(
-    options,
-    {
-      fundingToken: ADDR.nUsdc,
-      source: ADDR.revenueWallet,
-      sink: ADDR.merklCore,
-      lookbackSeconds: MERKL_LOOKBACK_SECONDS,
-      cacheKey: MERKL_CACHE_KEY,
-      targetLc: LC.merklCreator,
-    },
-    decodeMerklCampaignCall,
-    (decodedCalls, txHash) => {
-      const nUsdcCampaigns = decodedCalls.filter((campaign) => lc(campaign.rewardToken) === LC.nUsdc);
-      if (nUsdcCampaigns.length > 1)
-        console.warn(`neverland: skipping Merkl tx ${txHash} with ${nUsdcCampaigns.length} nUSDC campaigns`);
-      return nUsdcCampaigns.length === 1 ? nUsdcCampaigns : [];
-    },
-  );
-
-  fundingCampaigns.forEach(({ transfer, decoded: campaign }) => {
-    const rewardToken = REWARD_TOKEN_PRICE_ALIAS[lc(campaign.rewardToken)] || campaign.rewardToken;
-    addProratedAmount(
-      dailyHoldersRevenue,
-      rewardToken,
-      transfer.amount,
-      campaign.startTimestamp,
-      campaign.startTimestamp + campaign.duration,
-      options,
-      DUST_LP_INCENTIVES_LABEL,
-    );
-  });
-}
-
 /**
  * DUST accrued by the Revenue wallet for burn, recognized on the day of receipt.
  * Includes royalty-funded buybacks once the DUST reaches the Revenue wallet.
@@ -497,7 +431,6 @@ async function fetch(options: FetchOptions) {
   await Promise.all([
     addRoyaltyReceipts(options, dailyFees, dailyProtocolRevenue),
     addVeDustRevenue(options, dailyHoldersRevenue),
-    addDustLpRevenue(options, dailyHoldersRevenue),
     addDustBuybackRevenue(options, dailyHoldersRevenue),
   ]);
 
@@ -531,7 +464,7 @@ const methodology = {
   Revenue: protocolRevenueMethodology,
   SupplySideRevenue: "Borrower interest and liquidation proceeds distributed to liquidity providers. The lender share of flashloan premiums is included here as it accrues through the lending pool's liquidity index.",
   ProtocolRevenue: protocolRevenueMethodology,
-  HoldersRevenue: "Governance-directed revenue sharing. veDUST revenue contract funding is spread evenly across each 7-day epoch, Merkl DUST liquidity revenue is spread across their active period, and DUST buybacks on the day they reach Neverland's Revenue wallet.",
+  HoldersRevenue: "Governance-directed revenue sharing. veDUST revenue contract funding is spread evenly across each 7-day epoch and DUST buybacks on the day they reach Neverland's Revenue wallet.",
 };
 
 const breakdownMethodology = {
@@ -549,14 +482,13 @@ const breakdownMethodology = {
   ProtocolRevenue: protocolRevenueBreakdown,
   HoldersRevenue: {
     [VEDUST_REWARDS_LABEL]: "Revenue sharing to veDUST holders in USDC, spread evenly across the 7-day epoch.",
-    [DUST_LP_INCENTIVES_LABEL]: "Revenue sharing via Merkl campaigns supporting DUST liquidity, spread evenly across each campaign's active period.",
     [DUST_BUYBACKS_LABEL]: "DUST accrued by the Revenue wallet for burn, recognized on the day of receipt.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: true,
   chains: [CHAIN.MONAD],
   fetch,
   start: "2025-11-23",
