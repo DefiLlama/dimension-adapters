@@ -91,6 +91,9 @@ const adapter: SimpleAdapter = {
     Revenue: {
       'BNB Staking Rewards Commission': 'Commission charged on staking rewards (synFee, read on-chain; currently 15%).',
     },
+    ProtocolRevenue: {
+      'BNB Staking Rewards Commission': '70% of the commission is retained by the treasury.',
+    },
     SupplySideRevenue: {
       'BNB Staking Rewards To Stakers': 'Stakers earn the staking rewards net of the commission.',
     },
