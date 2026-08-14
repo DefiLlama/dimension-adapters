@@ -844,6 +844,20 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder fees collected by Trending for trades executed through its non-custodial interface.",
     },
     breakdownFees: true,
+  },
+  "midas-perps": {
+    // Midas (midasmarkets.xyz) builder code, lowercased to match HL's builder_fills files.
+    addresses: ["0x990a91cb54c6db7037d3f8105e848c635d4d909f"],
+    // First day with builder fills for this code, verified against
+    // stats-data.hyperliquid.xyz/Mainnet/builder_fills (nothing before this date).
+    start: "2026-01-15",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 equity markets) routed through Midas' AI trading app.",
+      Fees: "Builder code fees paid by users on Hyperliquid trades executed through Midas (0.05% on perps, 0.25% on spot).",
+      Revenue: "Builder code fees collected by Midas from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
+    },
+    breakdownFees: true,
   }
 };
 
