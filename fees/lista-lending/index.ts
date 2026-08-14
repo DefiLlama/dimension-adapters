@@ -1,152 +1,81 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getConfig } from "../../helpers/cache";
-import { httpGet } from "../../utils/fetchURL";
+import { addTokensReceived } from "../../helpers/token";
 
 /**
- * Fetches data from Lista DAO
+ * Lista Lending (Moolah) protocol revenue.
+ *
+ * All lending fees are collected via LendingFeeRecipient, which forwards them to two downstream
+ * receivers:
+ *   - vault management fee (10% of vault yield) -> `vaultFeeRecipient`  (LendingRevenueDistributor)
+ *   - market protocol fee  (% of borrow interest) -> `marketFeeRecipient` (shared treasury / ListaRevenueDistributor)
+ *
+ * Revenue = tokens received by those receivers. The market receiver is a shared treasury that also
+ * collects CDP stability fees and other income, so the market fee is isolated by only counting
+ * transfers that come straight from the Moolah lending contract.
+ *
+ * This is claim/settlement-timed: fees are booked when the bot claims & forwards them (unclaimed
+ * fees are simply counted later, when claimed), so cumulative totals are exact even though any
+ * single day can be lumpy. Contract team confirmed counting via these receivers is correct.
+ *
  * @doc https://listaorg.notion.site/Profit-cfd754931df449eaa9a207e38d3e0a54
  * @test npx ts-node --transpile-only cli/testAdapter.ts fees lista-lending
- * Specify time by put it at the end of the command (in seconds)
  */
 
-// const eventContract = "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3";
-
-interface VaultResponse {
-  code: string;
-  msg: string;
-  data: {
-    total: number;
-    list: Array<{
-      address: string;
-      curator: string;
-      fee: number;
-    }>;
-  };
-}
-
-interface VaultInfo {
-  address: string;
-  fee: number;
-  ownedByDao: boolean;
-}
-
-interface ApyHistoryResponse {
-  code: string;
-  msg: string;
-  data: Array<{
-    chartTime: number;
-    apy: string;
-    emissionApy: string;
-    totalAssets: string;
-    totalAssetsUsd: string;
-  }>;
-}
-
-const getVaultInfo = async (): Promise<VaultInfo[]> => {
-  const data: VaultResponse = await getConfig('lista-lending-vaults', 'https://api.lista.org/api/moolah/vault/list?page=1&pageSize=100&sort=depositsUsd&order=desc');
-  return data.data.list.map((vault) => ({
-    address: vault.address.toLowerCase(),
-    fee: vault.fee,
-    ownedByDao: vault.curator.toLowerCase().replace(/\s/g, "") === "listadao",
-  }));
+// Moolah lending contract (source of the market protocol-fee transfers).
+const MOOLAH: Record<string, string> = {
+  [CHAIN.BSC]: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C",
+  [CHAIN.ETHEREUM]: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70",
+};
+// Downstream fee receivers, read on-chain from LendingFeeRecipient.{market,vault}FeeRecipient().
+// Hardcoded here (they are set-once config) so the adapter only makes indexed getLogs calls — a
+// live eth_call for these at the window's end block fails on pruned public RPCs ("missing trie node").
+const MARKET_FEE_RECIPIENT: Record<string, string> = {
+  [CHAIN.BSC]: "0x34B504A5CF0fF41F8A480580533b6Dda687fa3Da",
+  [CHAIN.ETHEREUM]: "0x0fe5741e8dFe53618c4056F745fad531118640D9",
+};
+const VAULT_FEE_RECIPIENT: Record<string, string> = {
+  [CHAIN.BSC]: "0xea55952a51ddd771d6eBc45Bd0B512276dd0b866",
+  [CHAIN.ETHEREUM]: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30",
 };
 
-// // Event ABIs
-// const vaultFeeClaimedEvent =
-//   "event VaultFeeClaimed(address vault, address token, uint256 assets, uint256 shares)";
-// const marketFeeClaimedEvent =
-//   "event MarketFeeClaimed(bytes32 id, address token, uint256 assets, uint256 shares)";
-
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const { chain } = options;
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const vaultInfoList = await getVaultInfo();
 
-  // // Get VaultFeeClaimed events
-  // const vaultFeeLogs = await options.getLogs({
-  //   target: eventContract,
-  //   eventAbi: vaultFeeClaimedEvent,
-  // });
+  // Vault management fee: the vault fee recipient is a lending-only distributor, so count all inflows.
+  await addTokensReceived({ options, target: VAULT_FEE_RECIPIENT[chain], balances: dailyRevenue });
 
-  // // Get MarketFeeClaimed events
-  // const marketFeeLogs = await options.getLogs({
-  //   target: eventContract,
-  //   eventAbi: marketFeeClaimedEvent,
-  // });
-
-  // // Process vault fees (performance fees) - only for ListaDAO curator vaults
-  // vaultFeeLogs.forEach((log) => {
-  //   const vaultInfo = vaultInfoList.find(v => v.address === log.vault.toLowerCase());
-  //   if (!vaultInfo?.ownedByDao) return;
-  //   dailyRevenue.add(log.token, log.assets);
-  // });
-
-  // // Process market fees
-  // marketFeeLogs.forEach((log) => dailyRevenue.add(log.token, log.assets));
-
-  // Calculate supply side revenue and protocol revenue from APY history
-  for (const vaultInfo of vaultInfoList) {
-    const url = `https://api.lista.org/api/moolah/vault/apy/history?address=${vaultInfo.address}&startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`;
-    const data: ApyHistoryResponse = await httpGet(url);
-
-    if (data.data && data.data.length > 0) {
-      const dayData = data.data[0];
-      const apy = parseFloat(dayData.apy);
-      const totalAssetsUsd = parseFloat(dayData.totalAssetsUsd);
-
-      const dailyInterest = (apy * totalAssetsUsd) / 365;
-
-      dailyFees.addCGToken('usd-coin', dailyInterest, 'Borrow Interest');
-      
-      if (vaultInfo.ownedByDao) {
-        const performanceFee = dailyInterest * (vaultInfo.fee);
-        const performanceFeeToCurators = performanceFee * 0.5;
-        dailyRevenue.addCGToken("usd-coin", performanceFeeToCurators, 'Performance Fees');
-        dailySupplySideRevenue.addCGToken("usd-coin", performanceFeeToCurators, 'Curators Fees');
-        dailySupplySideRevenue.addCGToken("usd-coin", dailyInterest - performanceFee, 'Borrow Interest To Lenders');
-      } else {
-        dailySupplySideRevenue.addCGToken("usd-coin", dailyInterest, 'Borrow Interest To Lenders');
-      }
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
+  // Market protocol fee: the market fee recipient is a shared treasury (BSC also routes CDP stability
+  // fees here), so only count transfers coming straight from the Moolah lending contract.
+  await addTokensReceived({
+    options,
+    target: MARKET_FEE_RECIPIENT[chain],
+    fromAddressFilter: MOOLAH[chain],
+    balances: dailyRevenue,
+  });
 
   return {
-    dailyFees,
+    dailyFees: dailyRevenue,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Interest earned by lenders from borrowers",
-  Revenue: "ListaDAO Curator vaults performance fees (in basis points) charged on vault interest",
-  ProtocolRevenue: "ListaDAO Curator vaults performance fees (in basis points) charged on vault interest",
-  SupplySideRevenue: "Interest earned by lenders in the vaults and fees to curators",
+  Fees: "Lending fees collected by Lista DAO: the market protocol fee (a % of borrow interest) plus the 10% management fee on self-operated MoolahVaults.",
+  Revenue: "Same as Fees — all lending fees accrue to Lista DAO via LendingFeeRecipient's downstream receivers.",
+  ProtocolRevenue: "Same as Revenue — all lending fees are collected by Lista DAO.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: [CHAIN.BSC],
-  start: '2025-04-16',
-  isExpensiveAdapter: true,
+  version: 2,
   methodology,
-  breakdownMethodology: {
-    Fees: {
-      'Borrow Interest': 'Interest earned by lenders from borrowers',
-    },
-    Revenue: {
-      'Performance Fees': 'ListaDAO Curator vaults performance fees (in basis points) charged on vault interest',
-    },
-    SupplySideRevenue: {
-      'Curators Fees': 'Performance fees paid to vaults curators.',
-      'Borrow Interest To Lenders': 'Interest earned by lenders in the vaults',
-    },
-  }
+  adapter: {
+    [CHAIN.BSC]: { fetch, start: "2025-04-16" },
+    // Lista Lending launched on Ethereum later.
+    [CHAIN.ETHEREUM]: { fetch, start: "2025-10-02" },
+  },
 };
 
 export default adapter;
