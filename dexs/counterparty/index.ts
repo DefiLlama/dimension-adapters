@@ -27,7 +27,8 @@ const parseVolume = (value: unknown, quote: string): number => {
   if (
     !amount.isFinite() || amount.isNegative() ||
     amount.isGreaterThan(Number.MAX_SAFE_INTEGER) ||
-    !Number.isFinite(numericAmount)
+    !Number.isFinite(numericAmount) ||
+    !new BigNumber(numericAmount.toString()).eq(amount)
   ) {
     throw new Error(`counterparty: API returned out-of-range ${quote} volume (${value})`);
   }
