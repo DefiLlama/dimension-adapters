@@ -28,7 +28,7 @@ const buildQuery = (from: number, to: number, cursor: string) => `{
   MakerProfitSnapshot(
     where: {
       status: {_eq: COMPUTED}
-      createdAt: {_gte: "${from}", _lte: "${to}"}
+      createdAt: {_gte: "${from}", _lt: "${to}"}
       realizedProfitUsdCents: {_gt: "0"}
       id: {_gt: "${cursor}"}
     }
