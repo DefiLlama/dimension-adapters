@@ -58,7 +58,7 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const blockchain = chainMapping[options.chain];
   const result = (options.preFetchedResults || []) as VolumeRow[];
   const chainVolume = result.find((row) => row.blockchain === blockchain)?.total_volume || 0;
