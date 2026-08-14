@@ -853,7 +853,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
     start: "2026-01-15",
     methodology: {
       Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 equity markets) routed through Midas' AI trading app.",
-      Fees: "Builder code fees paid by users on Hyperliquid trades executed through Midas (0.05% on perps, 0.25% on spot).",
+      // Rate is descriptive only: fees are summed from the per-fill `builder_fee`
+      // column, not computed from this number. 0.05% is the rate observed across
+      // every fill in the builder_fills data, and sits under Hyperliquid's builder
+      // cap of 0.1% perps / 1% spot
+      // (https://hyperliquid.gitbook.io/hyperliquid-docs/trading/builder-codes).
+      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid trades executed through Midas.",
       Revenue: "Builder code fees collected by Midas from Hyperliquid trades.",
       ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
     },
