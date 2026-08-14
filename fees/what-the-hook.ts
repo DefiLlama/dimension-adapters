@@ -46,6 +46,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  // left empty on purpose and returned anyway: swappers are paid by this hook,
+  // never charged, so a reported zero is the fact — omitting it would leave
+  // consumers unable to tell that apart from a dimension nobody measured
+  const dailyUserFees = createBalances();
 
   const add = (bal: any, currency: string, amount: any, label: string) => {
     if (!currency || currency === NATIVE) bal.addGasToken(amount, label);
@@ -65,7 +69,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     add(dailySupplySideRevenue, currency, log.lpAmount, LABEL.toLPs);
   }
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyUserFees };
 };
 
 const methodology = {
