@@ -1,6 +1,5 @@
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { postURL } from "../utils/fetchURL";
 
 // Peer charges no protocol fee. Makers choose a fiat quote and keep any
@@ -59,9 +58,9 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(makerSpreadUsd, METRIC.TRADING_FEES);
-  const dailyUserFees = dailyFees.clone(1, METRIC.TRADING_FEES);
-  const dailySupplySideRevenue = dailyFees.clone(1, METRIC.LP_FEES);
+  dailyFees.addUSDValue(makerSpreadUsd, "Maker Spread");
+  const dailyUserFees = dailyFees.clone(1, "Maker Spread");
+  const dailySupplySideRevenue = dailyFees.clone(1, "Maker Spread");
 
   return { dailyFees, dailyUserFees, dailySupplySideRevenue };
 };
@@ -82,15 +81,15 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]:
+      "Maker Spread":
         "Positive realized quote spread on fulfilled intents, sourced from the public Peer indexer.",
     },
     UserFees: {
-      [METRIC.TRADING_FEES]:
+      "Maker Spread":
         "Positive realized quote spread paid by users; maker-funded discounts are excluded.",
     },
     SupplySideRevenue: {
-      [METRIC.LP_FEES]:
+      "Maker Spread":
         "Positive realized quote spread paid entirely to Peer makers.",
     },
   },
