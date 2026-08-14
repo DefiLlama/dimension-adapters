@@ -9,7 +9,12 @@ import { postURL } from "../utils/fetchURL";
 // intent at settlement time. Negative values are discounts funded by makers,
 // not fees paid by users, so they are excluded from the fee dimension.
 const INDEXER = "https://indexer.zkp2p.xyz/v1/graphql";
+// Keep public-indexer responses bounded at 1,000 rows; the id cursor below
+// exhausts larger time windows without relying on offset pagination.
 const PAGE_SIZE = 1000;
+// The first positive computed maker-spread snapshot is 2025-01-22 UTC. The
+// adapter starts one day earlier so DefiLlama's first daily window includes it.
+const START_DATE = "2025-01-21";
 
 interface MakerProfitRow {
   id: string;
@@ -66,7 +71,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.BASE],
   fetch,
-  start: "2025-01-21",
+  start: START_DATE,
   methodology: {
     Fees:
       "Positive realized maker spread on fulfilled Peer intents, measured against the oracle rate at settlement. Maker-funded discounts (negative spread) are excluded. Peer charges no separate platform or protocol fee.",
