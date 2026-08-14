@@ -6,8 +6,6 @@ import BigNumber from "bignumber.js";
 // Public historical volume endpoint and schema:
 // https://api.xcpdex.com/openapi.json
 const API_URL = "https://api.xcpdex.com/defillama/volume";
-const BTC_QUOTED_VOLUME = "BTC-Quoted Spot Volume";
-const XCP_QUOTED_VOLUME = "XCP-Quoted Spot Volume";
 
 interface VolumeResponse {
   start_timestamp: number;
@@ -56,8 +54,8 @@ const fetch = async (options: FetchOptions) => {
   const xcpVolume = parseVolume(data.volume_by_quote?.XCP, "XCP");
 
   const dailyVolume = options.createBalances();
-  dailyVolume.addCGToken("bitcoin", btcVolume, BTC_QUOTED_VOLUME);
-  dailyVolume.addCGToken("counterparty", xcpVolume, XCP_QUOTED_VOLUME);
+  dailyVolume.addCGToken("bitcoin", btcVolume);
+  dailyVolume.addCGToken("counterparty", xcpVolume);
   return { dailyVolume };
 };
 
@@ -69,12 +67,6 @@ const adapter: SimpleAdapter = {
   start: "2014-01-14",
   methodology: {
     Volume: "Executed spot notional across every non-hidden Counterparty market quoted in BTC or XCP. Order-book settlements, AMM pool fills, and dispenser executions are each counted once on the quote side. Direct order-book self-matches (maker = taker) are excluded as wash trading. Dispensers use protocol-priced notional rather than the gross Bitcoin payment, which can be shared across assets or include overpayment. Pending order matches, PSBT/UTXO swaps, and markets without a defensible BTC/XCP quote valuation are excluded.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      [BTC_QUOTED_VOLUME]: "Quote-side notional for finalized BTC-quoted order-book settlements and AMM fills, plus protocol-priced dispenser executions.",
-      [XCP_QUOTED_VOLUME]: "Quote-side notional for finalized XCP-quoted order-book settlements and AMM fills.",
-    },
   },
 };
 
