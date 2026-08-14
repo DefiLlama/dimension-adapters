@@ -19,7 +19,7 @@ interface VolumeResponse {
 }
 
 const parseVolume = (value: unknown, quote: string): number => {
-  if (typeof value !== "string" || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
+  if (typeof value !== "string" || !/^(?:0|[1-9]\d*)\.\d{8}$/.test(value)) {
     throw new Error(`counterparty: API returned malformed ${quote} volume (${String(value)})`);
   }
   const amount = new BigNumber(value);
