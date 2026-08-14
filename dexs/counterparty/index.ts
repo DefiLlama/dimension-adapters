@@ -12,11 +12,27 @@ const XCP_QUOTED_VOLUME = "XCP-Quoted Spot Volume";
 interface VolumeResponse {
   start_timestamp: number;
   end_timestamp: number;
-  volume_by_quote: {
-    BTC: string;
-    XCP: string;
+  volume_by_quote?: {
+    BTC?: unknown;
+    XCP?: unknown;
   };
 }
+
+const parseVolume = (value: unknown, quote: string): number => {
+  if (typeof value !== "string" || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
+    throw new Error(`counterparty: API returned malformed ${quote} volume (${String(value)})`);
+  }
+  const amount = new BigNumber(value);
+  const numericAmount = amount.toNumber();
+  if (
+    !amount.isFinite() || amount.isNegative() ||
+    amount.isGreaterThan(Number.MAX_SAFE_INTEGER) ||
+    !Number.isFinite(numericAmount)
+  ) {
+    throw new Error(`counterparty: API returned out-of-range ${quote} volume (${value})`);
+  }
+  return numericAmount;
+};
 
 const fetch = async (options: FetchOptions) => {
   const data = await httpGet(API_URL, {
@@ -35,22 +51,12 @@ const fetch = async (options: FetchOptions) => {
     );
   }
 
-  const btcVolume = new BigNumber(data.volume_by_quote?.BTC);
-  const xcpVolume = new BigNumber(data.volume_by_quote?.XCP);
-  if (
-    !btcVolume.isFinite() || btcVolume.isNegative() ||
-    !xcpVolume.isFinite() || xcpVolume.isNegative()
-  ) {
-    throw new Error(
-      `counterparty: API returned invalid quote volume (BTC=${data.volume_by_quote?.BTC}, XCP=${data.volume_by_quote?.XCP})`,
-    );
-  }
+  const btcVolume = parseVolume(data.volume_by_quote?.BTC, "BTC");
+  const xcpVolume = parseVolume(data.volume_by_quote?.XCP, "XCP");
 
   const dailyVolume = options.createBalances();
-  // addCGToken represents human-readable CoinGecko amounts as JS numbers;
-  // BigNumber above keeps validation exact until this SDK boundary.
-  dailyVolume.addCGToken("bitcoin", btcVolume.toNumber(), BTC_QUOTED_VOLUME);
-  dailyVolume.addCGToken("counterparty", xcpVolume.toNumber(), XCP_QUOTED_VOLUME);
+  dailyVolume.addCGToken("bitcoin", btcVolume, BTC_QUOTED_VOLUME);
+  dailyVolume.addCGToken("counterparty", xcpVolume, XCP_QUOTED_VOLUME);
   return { dailyVolume };
 };
 
