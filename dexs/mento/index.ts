@@ -5,6 +5,7 @@ const event_swap = 'event Swap(address exchangeProvider, bytes32 indexed exchang
 
 // PoolExchange struct; only config.spread is used (FixidityLib fraction, 1e24 = 100%).
 const getPoolExchange = 'function getPoolExchange(bytes32 exchangeId) view returns ((address asset0, address asset1, address pricingModule, uint256 bucket0, uint256 bucket1, uint256 lastBucketUpdate, ((uint256) spread, address referenceRateFeedID, uint256 referenceRateResetFrequency, uint256 minimumReports, uint256 stablePoolResetSize) config))';
+const getExchanges = 'function getExchanges() view returns ((bytes32 exchangeId, address[] assets)[])';
 
 const FIXIDITY_1 = 10n ** 24n;
 
@@ -27,26 +28,24 @@ const fetch = async (options: FetchOptions) => {
   logs.forEach((log) => { providerByExchange[log.exchangeId] = log.exchangeProvider; });
   const exchangeIds = Object.keys(providerByExchange);
 
-  const pools = await options.api.multiCall({
-    abi: getPoolExchange,
-    calls: exchangeIds.map((id) => ({ target: providerByExchange[id], params: [id] })),
-    permitFailure: true,
+  // A pair retired mid-window no longer exists at the end block, so ask each provider which of its pairs are still live there and read the retired ones at the start block instead.
+  const liveExchanges = await options.api.multiCall({
+    abi: getExchanges,
+    calls: [...new Set(Object.values(providerByExchange))],
   });
-
-  // A pair retired mid-window no longer exists at the end block, so read it at the start instead. Anything missing at both ends is a real gap and is left to throw.
-  const retiredIds = exchangeIds.filter((_, i) => !pools[i]);
-  const retiredPools = retiredIds.length
-    ? await options.fromApi.multiCall({
-      abi: getPoolExchange,
-      calls: retiredIds.map((id) => ({ target: providerByExchange[id], params: [id] })),
-    })
-    : [];
+  const liveIds = new Set(liveExchanges.flat().map((exchange: any) => exchange.exchangeId));
 
   const spreadById: Record<string, bigint> = {};
-  exchangeIds.forEach((id, i) => {
-    const pool = pools[i] ?? retiredPools[retiredIds.indexOf(id)];
-    spreadById[id] = BigInt(pool.config.spread[0]);
-  });
+  const readSpreads = async (api: FetchOptions['api'], ids: string[]) => {
+    const pools = await api.multiCall({
+      abi: getPoolExchange,
+      calls: ids.map((id) => ({ target: providerByExchange[id], params: [id] })),
+    });
+    ids.forEach((id, i) => { spreadById[id] = BigInt(pools[i].config.spread[0]); });
+  };
+
+  await readSpreads(options.api, exchangeIds.filter((id) => liveIds.has(id)));
+  await readSpreads(options.fromApi, exchangeIds.filter((id) => !liveIds.has(id)));
 
   logs.forEach((log) => {
     dailyVolume.add(log.tokenOut, log.amountOut);
