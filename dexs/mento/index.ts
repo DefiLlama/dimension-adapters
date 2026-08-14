@@ -30,9 +30,23 @@ const fetch = async (options: FetchOptions) => {
   const pools = await options.api.multiCall({
     abi: getPoolExchange,
     calls: exchangeIds.map((id) => ({ target: providerByExchange[id], params: [id] })),
+    permitFailure: true,
   });
+
+  // A pair retired mid-window no longer exists at the end block, so read it at the start instead. Anything missing at both ends is a real gap and is left to throw.
+  const retiredIds = exchangeIds.filter((_, i) => !pools[i]);
+  const retiredPools = retiredIds.length
+    ? await options.fromApi.multiCall({
+      abi: getPoolExchange,
+      calls: retiredIds.map((id) => ({ target: providerByExchange[id], params: [id] })),
+    })
+    : [];
+
   const spreadById: Record<string, bigint> = {};
-  exchangeIds.forEach((id, i) => { spreadById[id] = BigInt(pools[i].config.spread[0]); });
+  exchangeIds.forEach((id, i) => {
+    const pool = pools[i] ?? retiredPools[retiredIds.indexOf(id)];
+    spreadById[id] = BigInt(pool.config.spread[0]);
+  });
 
   logs.forEach((log) => {
     dailyVolume.add(log.tokenOut, log.amountOut);
