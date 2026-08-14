@@ -39,21 +39,28 @@ const VAULT_FEE_RECIPIENT: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30",
 };
 
+const VAULT_MANAGEMENT_FEE = "Vault Management Fee";
+const MARKET_PROTOCOL_FEE = "Market Protocol Fee";
+
 const fetch = async (options: FetchOptions) => {
   const { chain } = options;
   const dailyRevenue = options.createBalances();
 
   // Vault management fee: the vault fee recipient is a lending-only distributor, so count all inflows.
-  await addTokensReceived({ options, target: VAULT_FEE_RECIPIENT[chain], balances: dailyRevenue });
+  const vaultFees = options.createBalances();
+  await addTokensReceived({ options, target: VAULT_FEE_RECIPIENT[chain], balances: vaultFees });
+  dailyRevenue.addBalances(vaultFees, VAULT_MANAGEMENT_FEE);
 
   // Market protocol fee: the market fee recipient is a shared treasury (BSC also routes CDP stability
   // fees here), so only count transfers coming straight from the Moolah lending contract.
+  const marketFees = options.createBalances();
   await addTokensReceived({
     options,
     target: MARKET_FEE_RECIPIENT[chain],
     fromAddressFilter: MOOLAH[chain],
-    balances: dailyRevenue,
+    balances: marketFees,
   });
+  dailyRevenue.addBalances(marketFees, MARKET_PROTOCOL_FEE);
 
   return {
     dailyFees: dailyRevenue,
@@ -68,9 +75,22 @@ const methodology = {
   ProtocolRevenue: "Same as Revenue — all lending fees are collected by Lista DAO.",
 };
 
+const breakdownMethodology = {
+  [VAULT_MANAGEMENT_FEE]: "10% management fee on self-operated MoolahVaults, received by the vault fee recipient (LendingRevenueDistributor).",
+  [MARKET_PROTOCOL_FEE]: "Protocol fee on Moolah market borrow interest, received straight from the Moolah lending contract by the market fee recipient.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  // Explicit per repo guideline. Kept false: fees are settlement-timed claim events (no intra-day
+  // signal), and hourly would multiply the getLogs load on public RPCs when the indexer is absent.
+  pullHourly: false,
   methodology,
+  breakdownMethodology: {
+    Fees: breakdownMethodology,
+    Revenue: breakdownMethodology,
+    ProtocolRevenue: breakdownMethodology,
+  },
   adapter: {
     [CHAIN.BSC]: { fetch, start: "2025-04-16" },
     // Lista Lending launched on Ethereum later.
