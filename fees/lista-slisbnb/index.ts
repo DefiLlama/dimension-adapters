@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
   const supplySideRewards = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
 
   // Commission rate is configurable on-chain (ListaStakeManager.synFee, 1e10 precision).
-  // Read it live instead of hardcoding: it was 5% historically and is 15% as of 2026-08.
+  // Read it live instead of hardcoding, so Fees/Revenue always track the current rate.
   const synFee = await options.toApi.call({
     target: ListaStakeManagerAddress,
     abi: 'uint256:synFee',
@@ -70,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
 };
 const methodology = {
   Fees: 'Total yields from staked BNB.',
-  Revenue: 'Lista DAO charges a commission on the staking yields (rate read on-chain from ListaStakeManager.synFee; currently 15%).',
+  Revenue: 'Lista DAO charges a commission on the staking yields (rate read on-chain from ListaStakeManager.synFee, 1e10 precision).',
   ProtocolRevenue: '70% of the commission is retained by the treasury.',
   HoldersRevenue: '30% of the commission is used to buy back LISTA.',
   SupplySideRevenue: 'Stakers earn the staking rewards net of the commission.',
@@ -89,7 +89,7 @@ const adapter: SimpleAdapter = {
       'BNB Staking Rewards': 'Total BNB staking rewards collected by running BSC validators.',
     },
     Revenue: {
-      'BNB Staking Rewards Commission': 'Commission charged on staking rewards (synFee, read on-chain; currently 15%).',
+      'BNB Staking Rewards Commission': 'Commission charged on staking rewards (synFee, read on-chain).',
     },
     ProtocolRevenue: {
       'BNB Staking Rewards Commission': '70% of the commission is retained by the treasury.',
