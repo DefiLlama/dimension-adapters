@@ -5,21 +5,48 @@ import { CHAIN } from "../../helpers/chains";
 const EXCHANGE = "0x34B6552d57a35a1D042CcAe1951BD1C370112a6F";
 const CNS_DECIMALS = 1e6;
 
+// The exchange renamed four events across two upgrades. Each V2 variant only APPENDS members,
+// so its topic0 differs but every pre-existing field (and its byte offset) is unchanged. We match
+// BOTH the V1 (pre-upgrade history) and V2 (current) forms so daily figures stay continuous across
+// each upgrade block:
+//   rc_v1.1.7.3 (block 78,499,562, 2026-06): PositionOpened->V2, PositionIncreased->V2 (append priceResiduePNSQ16)
+//   rc_v1.1.7.4 (block 95,662,781, 2026-08-13): MakerOrderFilled->V2, TakerOrderFilled->V2 (append builderId, builderFeeCNS)
 const abi = {
-    positionOpenedTopic: "0xc0150ebb43a9c2478aa9c69d27078da071ceafb70e2d822d7d39a533e0418728",
-    positionIncreasedTopic: "0x2a077a58d72570ce2b985a210c9ad672373eb9bcc337d1dc62b8b75dd644cf27",
+    // PositionOpened: insFeeCNS at word 8, protFeeCNS at word 9 (same in V1 and V2).
+    positionOpenedTopicV1: "0xc0150ebb43a9c2478aa9c69d27078da071ceafb70e2d822d7d39a533e0418728",
+    positionOpenedTopicV2: "0x04cc3d2fc73a9dca30eba1d05eca80b1b1216350243580027046f434fed4db18",
+    // PositionIncreased: insFeeCNS at word 12, protFeeCNS at word 13 (same in V1 and V2).
+    positionIncreasedTopicV1: "0x2a077a58d72570ce2b985a210c9ad672373eb9bcc337d1dc62b8b75dd644cf27",
+    positionIncreasedTopicV2: "0x99a74f70c224396b9ba5fcd5a6e5f480db23e7a25a2b16a8c133ec2efb3e646c",
     makerOrderFilled: "event MakerOrderFilled(uint256 perpId, uint256 accountId, uint256 orderId, uint256 pricePNS, uint256 lotLNS, uint256 feeCNS, uint256 lockedBalanceCNS, int256 amountCNS, uint256 balanceCNS)",
-    takerOrderFilled: "event TakerOrderFilled(uint256 entryPricePNS, uint256 perpId, uint256 accountId, uint256 lotLNS, uint256 feeCNS, int256 amountCNS, uint256 balanceCNS)",
+    makerOrderFilledV2: "event MakerOrderFilledV2(uint256 perpId, uint256 accountId, uint256 orderId, uint256 pricePNS, uint256 lotLNS, uint256 feeCNS, uint256 lockedBalanceCNS, int256 amountCNS, uint256 balanceCNS, uint256 builderId, uint256 builderFeeCNS)",
+    takerOrderFilled: "event TakerOrderFilled(uint256 entryPricePNS, uint256 collatPricePNS, uint256 pnlPricePNS, uint256 lotLNS, uint256 feeCNS, int256 amountCNS, uint256 balanceCNS)",
+    takerOrderFilledV2: "event TakerOrderFilledV2(uint256 entryPricePNS, uint256 collatPricePNS, uint256 pnlPricePNS, uint256 lotLNS, uint256 feeCNS, int256 amountCNS, uint256 balanceCNS, uint256 builderId, uint256 builderFeeCNS)",
     getPerpetualInfo: "function getPerpetualInfo(uint256 perpId) view returns ((string name, string symbol, uint256 priceDecimals, uint256 lotDecimals, bytes32 linkFeedId, uint256 priceTolPer100K, uint256 marginTol, uint256 marginTolDecimals, uint256 refPriceMaxAgeSec, uint256 positionBalanceCNS, uint256 insuranceBalanceCNS, uint256 markPNS, uint256 markTimestamp, uint256 lastPNS, uint256 lastTimestamp, uint256 oraclePNS, uint256 oracleTimestampSec, uint256 longOpenInterestLNS, uint256 shortOpenInterestLNS))",
 };
 
 const fetch = async (options: FetchOptions) => {
-    const [makerLogs, takerLogs, positionOpenedLogs, positionIncreasedLogs] = await Promise.all([
+    const [
+        makerLogsV1, makerLogsV2, takerLogsV1, takerLogsV2,
+        positionOpenedLogsV1, positionOpenedLogsV2,
+        positionIncreasedLogsV1, positionIncreasedLogsV2,
+    ] = await Promise.all([
         options.getLogs({ target: EXCHANGE, eventAbi: abi.makerOrderFilled }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.makerOrderFilledV2 }),
         options.getLogs({ target: EXCHANGE, eventAbi: abi.takerOrderFilled }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionOpenedTopic], entireLog: true }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionIncreasedTopic], entireLog: true }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.takerOrderFilledV2 }),
+        options.getLogs({ target: EXCHANGE, topics: [abi.positionOpenedTopicV1], entireLog: true }),
+        options.getLogs({ target: EXCHANGE, topics: [abi.positionOpenedTopicV2], entireLog: true }),
+        options.getLogs({ target: EXCHANGE, topics: [abi.positionIncreasedTopicV1], entireLog: true }),
+        options.getLogs({ target: EXCHANGE, topics: [abi.positionIncreasedTopicV2], entireLog: true }),
     ]);
+
+    // V1 (pre-upgrade) + V2 (current) forms of each event. V2 only appends members, so every field
+    // read below (and every byte offset for the position events) is identical across both variants.
+    const makerLogs = [...makerLogsV1, ...makerLogsV2];
+    const takerLogs = [...takerLogsV1, ...takerLogsV2];
+    const positionOpenedLogs = [...positionOpenedLogsV1, ...positionOpenedLogsV2];
+    const positionIncreasedLogs = [...positionIncreasedLogsV1, ...positionIncreasedLogsV2];
 
     const markets: Record<number, { priceDecimals: number; lotDecimals: number }> = {};
 
