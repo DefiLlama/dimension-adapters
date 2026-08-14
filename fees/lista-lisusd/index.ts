@@ -39,6 +39,29 @@ const wbeth = ADDRESSES.bsc.wBETH;
 const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
+
+// Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
+const liquidatorProfitReceiver =
+  "0x00000000000000000000000086e09296aeda129d3b0b4c134b3202b84cd8945c";
+const liquidationProfitSources = [
+  "0x0000000000000000000000006a87c15598929b2db22cf68a9a0dde5bf297a59a", // Liquidator
+  "0x0000000000000000000000003aa647a1e902833b61e503dbbfbc58992daa4868", // BrokerLiquidator
+  "0x000000000000000000000000ee3aa1af4ee231f2e1277a48fc4a2f29a3d7c028", // LiquidationVault
+];
+
+// Revenue breakdown labels
+const ETH_STAKING_PROFIT = "ETH Staking Profit";
+const BNB_STAKING_PROFIT = "BNB Liquid Staking Profit";
+const BORROW_INTEREST = "Borrow Interest";
+const VELISTA_EARLY_CLAIM_FEE = "veLista Early Claim Fee";
+const LIQUIDATION_PROFIT = "Liquidation Profit";
+const VELISTA_AUTO_COMPOUND_FEE = "veLista Auto Compound Fee";
+const PSM_CONVERT_FEE = "PSM Convert Fee";
+const USDT_STAKING_PROFIT = "USDT Staking Profit";
+const VALIDATOR_REWARDS = "Validator Rewards";
+const LP_STAKING_REWARDS = "LP Staking Rewards";
+const FREEZE_LISTA = "Freeze LISTA";
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const treasury = options.startOfDay>=newTreasuryActivationTime?newTreasury:oldTreasury;
@@ -171,79 +194,81 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  [ ...ethStakingEth].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(eth, amount);
+  // liquidation profit - USDT settled to the liquidator profit receiver. This receiver also
+  // collects StableSwap pool fees, so query once and keep only the liquidation sources.
+  const liquidationSourceSet = new Set(liquidationProfitSources.map((s) => s.toLowerCase()));
+  const liquidationProfitUsdt = (
+    await options.getLogs({
+      target: usdt,
+      topics: [transferHash, null, liquidatorProfitReceiver],
+    })
+  ).filter((log: any) => liquidationSourceSet.has((log.topics?.[1] ?? "").toLowerCase()));
+
+  [...ethStakingEth].forEach((log) => {
+    dailyFees.add(eth, Number(log.data), ETH_STAKING_PROFIT);
   });
   [...ethStakingWbeth].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(wbeth, amount);
+    dailyFees.add(wbeth, Number(log.data), ETH_STAKING_PROFIT);
   });
-
-  [ ...bnbLiquidStakingProfit].forEach(
-    (log) => {
-      const amount = Number(log.data);
-
-      dailyFees.add(slisBNB, amount);
-    }
-  );
+  [...bnbLiquidStakingProfit].forEach((log) => {
+    dailyFees.add(slisBNB, Number(log.data), BNB_STAKING_PROFIT);
+  });
   [...borrowLisUSDInterest].forEach((log) => {
-    const amount = Number(log.data);
-
-    dailyFees.add(lisUSD, amount);
+    dailyFees.add(lisUSD, Number(log.data), BORROW_INTEREST);
   });
-  [...veListaEarlyClaimPenalty].forEach(
-    (log) => {
-      const amount = Number(log.data);
-
-      dailyFees.add(lista, amount);
-    }
-  );
+  [...veListaEarlyClaimPenalty].forEach((log) => {
+    dailyFees.add(lista, Number(log.data), VELISTA_EARLY_CLAIM_FEE);
+  });
   [...liquidationProfit].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(lisUSD, amount);
+    dailyFees.add(lisUSD, Number(log.data), LIQUIDATION_PROFIT);
   });
-
   [...veListaAutoCompoundFee].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(lista, amount);
+    dailyFees.add(lista, Number(log.data), VELISTA_AUTO_COMPOUND_FEE);
   });
-
   [...liquidationBot].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(lisUSD, amount);
+    dailyFees.add(lisUSD, Number(log.data), LIQUIDATION_PROFIT);
   });
   [...psmConvertFee].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(lisUSD, amount);
+    dailyFees.add(lisUSD, Number(log.data), PSM_CONVERT_FEE);
   });
   [...usdtStakingProfit].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(usdt, amount);
+    dailyFees.add(usdt, Number(log.data), USDT_STAKING_PROFIT);
   });
   [...validatorRewards].forEach((log) => {
-    dailyFees.add(bnb, Number(log.value));
+    dailyFees.add(bnb, Number(log.value), VALIDATOR_REWARDS);
   });
   [...lpStakingListaRewards].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(lista, amount);
+    dailyFees.add(lista, Number(log.data), LP_STAKING_REWARDS);
   });
   [...lpStakingCakeRewards].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(cake, amount);
+    dailyFees.add(cake, Number(log.data), LP_STAKING_REWARDS);
   });
   [...freezeLista].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.subtractToken(lista, amount);
+    dailyFees.subtractToken(lista, Number(log.data), FREEZE_LISTA);
+  });
+  [...liquidationProfitUsdt].forEach((log) => {
+    dailyFees.add(usdt, Number(log.data), LIQUIDATION_PROFIT);
   });
 
-  const feeWithLabel = dailyFees.clone(1, 'Borrow Interest');
-  
   return {
-    dailyFees: feeWithLabel,
-    dailyRevenue: feeWithLabel,
-    dailyProtocolRevenue: feeWithLabel,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
+};
+
+const LISUSD_BREAKDOWN = {
+  [ETH_STAKING_PROFIT]: 'Profit from ETH / wBETH liquid staking (HelioETHProvider, CeETHVault)',
+  [BNB_STAKING_PROFIT]: 'Profit from BNB liquid staking (SnBnbYieldConverterStrategy)',
+  [BORROW_INTEREST]: 'Interest paid by lisUSD borrowers',
+  [VELISTA_EARLY_CLAIM_FEE]: 'Penalty paid for claiming veLista rewards early',
+  [LIQUIDATION_PROFIT]: 'Profit from CDP / lending liquidations',
+  [VELISTA_AUTO_COMPOUND_FEE]: 'Fee taken on veLista auto-compounding',
+  [PSM_CONVERT_FEE]: 'PSM (USDT) conversion fee',
+  [USDT_STAKING_PROFIT]: 'Profit from USDT staking via VenusAdapter',
+  [VALIDATOR_REWARDS]: 'BNB validator staking rewards',
+  [LP_STAKING_REWARDS]: 'CAKE / LISTA rewards from PancakeSwap LP staking',
+  [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
 
 const adapter: SimpleAdapter = {
@@ -256,20 +281,14 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: 'Borrow interest paid by borrowers',
-    Revenue: 'All borrow interest paid by borrowers are revenue',
-    ProtocolRevenue: 'All borrow interest paid by borrowers are revenue',
+    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
+    Revenue: 'All collected income goes to the protocol treasury.',
+    ProtocolRevenue: 'All collected income goes to the protocol treasury.',
   },
   breakdownMethodology: {
-    Fees: {
-      'Borrow Interest': 'Borrow interest paid by borrowers',
-    },
-    Revenue: {
-      'Borrow Interest': 'All borrow interest paid by borrowers are revenue',
-    },
-    ProtocolRevenue: {
-      'Borrow Interest': 'All borrow interest paid by borrowers are revenue',
-    },
+    Fees: LISUSD_BREAKDOWN,
+    Revenue: LISUSD_BREAKDOWN,
+    ProtocolRevenue: LISUSD_BREAKDOWN,
   }
 };
 
