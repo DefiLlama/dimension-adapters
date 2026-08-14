@@ -19,7 +19,7 @@ import { METRIC } from "../helpers/metrics";
 // ]
 // const revshareWallet = "0x2b6e6e4def77583229299cf386438a227e683b28" // not entirely sure but i suspect this is a rev share wallet
 
-const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const query = `
     WITH bnb_received AS (
       SELECT

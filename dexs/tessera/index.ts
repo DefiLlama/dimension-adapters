@@ -4,7 +4,7 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const query = `
     select 
       sum(amount_usd) as daily_volume
@@ -22,7 +22,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 const TESSERA_SWAP_ADDRESS = "0x55555522005BcAE1c2424D474BfD5ed477749E3e"
 const SwapEvent = "event TesseraTrade(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, address recipient)"
 
-const fetchEvm = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances()
 
   const logs = await options.getLogs({

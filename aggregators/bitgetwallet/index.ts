@@ -36,7 +36,7 @@ const inflatedApiVolumes: Record<string, { date: string, realVolume: number }[]>
 }
 
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (inflatedApiVolumes[options.chain]) {
     const realVolume = inflatedApiVolumes[options.chain].find(item => item.date === options.dateString)?.realVolume;
     if (realVolume) return { dailyVolume: realVolume }

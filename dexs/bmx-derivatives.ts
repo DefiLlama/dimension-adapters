@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
@@ -45,21 +44,17 @@ interface IGraphResponseOI {
   }>;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    );
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
     const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-      id: String(dayTimestamp) + ":daily",
+      id: String(options.startOfDay) + ":daily",
       period: "daily",
     });
     const tradingStats: IGraphResponseOI = await request(
       endpoints[chain],
       historicalOI,
       {
-        id: String(dayTimestamp) + ":daily",
+        id: String(options.startOfDay) + ":daily",
         period: "daily",
       }
     );
@@ -107,7 +102,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
       },
     };

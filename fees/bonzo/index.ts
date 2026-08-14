@@ -1,7 +1,8 @@
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async (_a: any, _b: any, _c: any) => {
+const fetch = async (_options: FetchOptions) => {
   const res = await fetchURL("https://mainnet-data.bonzo.finance/stats");
 
   // Portion of intrest payments sent to the protocol over the 24hr period.

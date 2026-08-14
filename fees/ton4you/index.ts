@@ -4,7 +4,7 @@ import { httpGet } from '../../utils/fetchURL'
 
 const METRICS_URL = (timestmap: number) => `https://ton4u.io/api/defillama/metrics?date=${new Date(timestmap * 1000).toISOString().split('T')[0]}`;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   
   const responseData: any = await httpGet(METRICS_URL(options.startOfDay))
@@ -23,16 +23,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+	fetch,
+	chains: [CHAIN.TON],
+	start: '2026-01-01',
 	methodology: {
     Fees: 'Ton4You fees are defined as the protocol service fee plus the referral reward that is paid out when a position is settled.',
     UserFees: 'Users pay service fee plus the referral reward when a position is settled.',
 		Revenue: 'All fees are revenue.',
-	},
-	adapter: {
-		[CHAIN.TON]: {
-			start: '2026-01-01',
-			fetch,
-		},
 	},
 }
 

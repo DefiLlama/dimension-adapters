@@ -41,7 +41,7 @@ const graphQuery = gql`
   }
 `;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { protocolDailySnapshots } = await request<GraphResponse>(
     chainConfig[options.chain].endpoint,
     graphQuery,

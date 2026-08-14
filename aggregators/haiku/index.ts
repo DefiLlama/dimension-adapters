@@ -61,7 +61,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   return results;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
   	const results: IResponse[] = options.preFetchedResults || [];
   	const chainData = results.filter(

@@ -14,7 +14,7 @@ interface VolumeResponse {
   };
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = `${ENDPOINT}?from=${options.startTimestamp}&to=${options.endTimestamp}`;
   const res: VolumeResponse = await fetchURL(url);
 

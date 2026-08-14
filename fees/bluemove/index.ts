@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { queryEvents } from "../../helpers/sui";
 import { METRIC } from "../../helpers/metrics";
 
@@ -17,22 +16,20 @@ interface IVolumeall {
   date: string;
 }
 
-const fetchAptos = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetchAptos = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(APTOS_VOLUME_ENDPOINT))?.data.list;
-  
+
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === dayTimestamp)?.num
+    .find(dayItem => (new Date(dayItem.date.split('T')[0]).getTime() / 1000) === options.startOfDay)?.num
   const rateFees = 0.02;
   const dailyFees = Number(dailyVolume) * rateFees;
 
   return {
     dailyFees,
-    timestamp: dayTimestamp,
   };
 };
 
-const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
+const fetchSui = async (options: FetchOptions) => {
   const events = await queryEvents({
     eventModule: { package: SUI_PACKAGE, module: "swap" },
     options,
@@ -68,7 +65,6 @@ const fetchSui = async (_timestamp: number, _: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailySupplySideRevenue,
-    timestamp: options.startOfDay,
   };
 };
 

@@ -16,7 +16,7 @@ const PROGRAM_ID = "BV1RxkAaD5DjXMsnofkVikFUUYdrDg1v8YgsQ3iyDNoL";
 const FEE_RATE = 0.02; // 2% platform fee
 const TREASURY_RATE = 0.005; // 0.5% treasury revenue
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
     WITH trades AS (
       SELECT

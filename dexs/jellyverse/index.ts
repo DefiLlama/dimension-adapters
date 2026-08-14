@@ -7,7 +7,7 @@ const endpoints: ChainEndpoints = {
 };
 
 
-async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
+async function fetch({ toTimestamp, chain }: FetchOptions) {
   const todayInt = Math.floor(toTimestamp / 86400)
   const yesterdayInt = todayInt - 1
   const query = `
@@ -37,12 +37,9 @@ async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SEI]: {
-      fetch,
-      start: '2024-06-01',
-    }
-  }
+  fetch,
+  chains: [CHAIN.SEI],
+  start: '2024-06-01',
 }
 
 export default adapter;

@@ -1,4 +1,4 @@
-import { Fetch, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -8,8 +8,8 @@ interface IAPIResponse {
     dailyVolume: string;
 }
 
-const fetch: Fetch = async (timestamp: number) => {
-    const { dailyVolume }: IAPIResponse = await fetchURL(`${url}?timestamp=${timestamp * 1000}`);
+const fetch: FetchV2 = async (options: FetchOptions) => {
+    const { dailyVolume }: IAPIResponse = await fetchURL(`${url}?timestamp=${options.toTimestamp * 1000}`);
 
     return {
         dailyVolume,

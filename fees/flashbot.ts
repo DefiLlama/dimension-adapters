@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // Workaround for dune indexing issue
   const now = Date.now()
   const tenHoursAgo = now - (10 * 60 * 60 * 1000)

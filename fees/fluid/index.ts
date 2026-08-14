@@ -1,11 +1,11 @@
-import { Dependencies, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter, FetchV2 } from "../../adapters/types";
 import { CONFIG_FLUID, FLUID_METRICS } from "./config";
 import { getDailyFees } from "./fees";
 import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const [dailyFees, dailyRevenue, dailyHoldersRevenue] = await Promise.all([
     getDailyFees(options),
     getDailyRevenue(options),
@@ -28,7 +28,7 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
 }
 
 // Revenu share from Jupiter Lend
-const fetchSolana: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchSolana: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   
   // get JupLend revenue

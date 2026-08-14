@@ -11,7 +11,7 @@ import { addTokensReceived } from '../../helpers/token';
 const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
 const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   // Query data
@@ -87,12 +87,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
-    }
-  },
+  fetch, // September 4th, 2024 -- M4 EigenPod Upgrade
+  chains: [CHAIN.ETHEREUM],
+  start: '2024-09-04',
   methodology: {
     Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",

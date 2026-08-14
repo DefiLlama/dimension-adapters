@@ -23,6 +23,7 @@ const ADDRESSES: any = {
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
           '0x2ab1a0477504d243fd9801c94db5181104bda38a',
           '0x7ca0192f401712a663e824a3a5220f5fb9e26855',
+          '0x50f965cf0e9c6f14370cd99482451b6e5db5be3f',
         ],
     },
     [CHAIN.AVAX]: {

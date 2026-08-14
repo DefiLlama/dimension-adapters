@@ -15,7 +15,7 @@ const FEE_WALLETS = [
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const now = Date.now()
   const tenHoursAgo = now - (10 * 60 * 60 * 1000)
   if ((options.toTimestamp * 1000) > tenHoursAgo) {

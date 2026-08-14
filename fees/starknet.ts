@@ -9,7 +9,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.STARKNET]: {
-      fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      fetch: async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
         const dailyRevenue = options.createBalances();
         const date = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
@@ -35,6 +35,8 @@ const adapter: SimpleAdapter = {
               and tx_to = 0xc662c410c0ecf747543f5ba90660f6abebd9c8c4
               and block_time >= from_unixtime(${options.startTimestamp})
               and block_time <= from_unixtime(${options.endTimestamp - 1})
+              and block_date >= date(from_unixtime(${options.startTimestamp}))
+              and block_date <= date(from_unixtime(${options.endTimestamp}))
           )
           select * from l2_fees
           union all
@@ -48,7 +50,6 @@ const adapter: SimpleAdapter = {
         const l1Cost = res.find(item => item.currency === 'l1_cost');
         if (l1Cost) dailyRevenue.addCGToken('ethereum', -Number(l1Cost.total_daily_fee));
         return {
-          timestamp: options.startOfDay,
           dailyFees,
           dailyRevenue,
         }

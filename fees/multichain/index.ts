@@ -1,4 +1,5 @@
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const stableStatsUrl = "https://bridgeapi.anyswap.exchange/data/stats/stable";
@@ -9,11 +10,11 @@ interface IStats {
   allfee: string;
 };
 
-const fetch = async (timestamp: number) => {
-  const stats: IStats[] = (await Promise.all([fetchURL(stableStatsUrl),fetchURL(statsUrl)]))
-  const fees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.h24fee), 0);
+const fetch = async (_options: FetchOptions) => {
+  const stats: IStats[] = (await Promise.all([fetchURL(stableStatsUrl), fetchURL(statsUrl)]))
+  const fees = stats.reduce((prev: number, curr: IStats) => prev + Number(curr.h24fee), 0);
+
   return {
-    timestamp,
     dailyFees: fees,
     dailyRevenue: "0",
   };
@@ -22,12 +23,9 @@ const fetch = async (timestamp: number) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    ["anyswap"]: {
-        fetch: fetch,
-        runAtCurrTime: true,
-            },
-  },
+  fetch,
+  chains: ['anyswap'],
+  runAtCurrTime: true,
 }
 
 export default adapter;

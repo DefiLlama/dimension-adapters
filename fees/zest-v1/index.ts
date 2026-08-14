@@ -384,7 +384,7 @@ async function readReserveFactor(
 
 // ─── Fetch ──────────────────────────────────────────────────────────────────
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();

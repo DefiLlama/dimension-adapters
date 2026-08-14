@@ -100,7 +100,7 @@ const tokens_type_percent: any = {
     ADDRESSES.polygon.USDT
   ],
   [CHAIN.AVAX]: [
-    ADDRESSES.polygon.USDT
+    ADDRESSES.avax.USDt
   ],
   [CHAIN.BSC]: [
     ADDRESSES.bsc.USDT

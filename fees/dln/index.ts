@@ -72,7 +72,7 @@ const fetchHoldersRevenue = async (options: FetchOptions) => {
   return dailyHoldersRevenue;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyDatas = options.preFetchedResults || [];
 
   let dailyFees = 0;

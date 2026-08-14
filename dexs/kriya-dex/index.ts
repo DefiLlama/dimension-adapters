@@ -15,7 +15,7 @@ interface IVolume {
     dailyVolume: number,
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startTimestamp * 1000));
     const volumeUrl = `${url[options.chain]}?timestamp=${dayTimestamp}`;
     const volume: IVolume = (await fetchURL(volumeUrl))?.data;
@@ -27,12 +27,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch: fetch,
-            start: '2023-05-09',
-        }
-    },
+    fetch,
+    chains: [CHAIN.SUI],
+    start: '2023-05-09',
 };
 
 export default adapter;

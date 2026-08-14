@@ -10,7 +10,7 @@ const volume_subgraphs: Record<string, string> = {
   [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth:prod/api/graphql",
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const query = gql`
     query get_volume($id: String!) {

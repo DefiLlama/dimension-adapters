@@ -20,7 +20,10 @@ const fetch = async (options: FetchOptions) => {
     const dailyRevenue = data.revenue_usd;
     const dailyHoldersRevenue = data.holders_revenue_usd;
     const dailyProtocolRevenue = data.protocol_revenue_usd;
-    const dailySupplySideRevenue = dailyFees
+    // Supply-side is the portion of fees NOT taken as revenue; the API has no
+    // supply-side field, so derive it. (Setting it to dailyFees double-counted,
+    // making revenue + supplySide = 2x fees.)
+    const dailySupplySideRevenue = Math.max(0, Number(data.fees_usd) - Number(data.revenue_usd))
 
     return {
         dailyFees,
@@ -43,6 +46,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.SUI]: {
             fetch,

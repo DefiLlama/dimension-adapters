@@ -2,7 +2,7 @@ import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const formatDate = () => {
     const todayInUtc = new Date(options.startOfDay * 1000).toUTCString();
     const parts = todayInUtc.split(' ');

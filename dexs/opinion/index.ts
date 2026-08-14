@@ -35,7 +35,7 @@ const WASH_TRADING_BLACKLIST = new Set(
     '0x0a7300dbc3fcef290601793bf4395ea0fd38f35c', // $18.7M - 100% offsetting, score 100
     '0x44df52c5c8ffb86da6044b81577f0dd537dec07f', // $5.0M - only 2 CPs, 100% concentration
     '0x015e2b259233ac5c805b14703ef2144dedfc8b01', // $5.0M - only 2 CPs, 82% concentration
-    
+
     // Medium-high volume wash traders ($1M-$5M)
     // '0xfe5d02c0dcb5f7ee642713628be52e6f4de9f08e', // $4.1M - 100% offsetting, score 100
     // '0xe9209e46699190d99215f1697381ce637925cac3', // $4.0M - 100% offsetting, only 1-7 CPs
@@ -70,7 +70,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     eventAbi: ORDER_FILLED_EVENT,
     target: OPINION_EXCHANGE_CONTRACT,
   })
-  
+
   const rebateEarnedLogs = await options.getLogs({
     eventAbi: REBATE_EARNED_EVENT,
     target: OPINION_FEE_MANAGER_CONTRACT,
@@ -95,25 +95,32 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   rebateEarnedLogs.forEach((log: any) => {
     rebateFees.addUSDValue(Number(log.amount) / 1e18)
   })
-  
-  
-  const dailyFees = tradeFees.clone(1)
-  dailyFees.subtract(rebateFees)
+
+
+  // Gross taker fees are the fees users pay; rebates are a distribution out of them, not a discount.
+  const dailyFees = tradeFees
+  const dailySupplySideRevenue = rebateFees
+  const dailyRevenue = tradeFees.clone(1)
+  dailyRevenue.subtract(rebateFees)
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyNotionalVolume,
   }
 }
 
 const methodology = {
-  Volume: 'Opinion prediction market trading volume, excluding identified wash trading wallets',
-  Fees: 'Taker fees collected by opinion minus rebate earned to traders.',
-  Revenue: 'All the fees are revenue',
-  ProtocolRevenue: 'All the revenue goes to protocol',
+  Volume: 'Total value traded on Opinion prediction markets each day, and excluding wallets identified as wash trading.',
+  Fees: 'Fees charged to traders when they fill an order. Only the side taking the trade pays a fee.',
+  UserFees: 'Same as Fees — the fees traders pay.',
+  Revenue: 'The fees Opinion keeps after paying out referral rebates.',
+  ProtocolRevenue: 'Same as Revenue — the net fees go to the protocol.',
+  SupplySideRevenue: 'Rebates paid out to referrers for bringing in trades.',
 }
 
 const adapter: SimpleAdapter = {

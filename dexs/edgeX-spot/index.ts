@@ -8,7 +8,7 @@ const SPOT_META_ENDPOINT = "https://spot.edgex.exchange/api/v1/public/meta/getMe
 const klineEndpoint = (instrumentId: string, startTime: number, endTime: number) =>
   `https://spot.edgex.exchange/api/v1/public/quote/getKline?instrumentId=${instrumentId}&klineType=DAY_1&filterBeginKlineTimeInclusive=${startTime}&filterEndKlineTimeExclusive=${endTime}&priceType=LAST_PRICE`;
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const metadata = await fetchURL(SPOT_META_ENDPOINT);
   const symbols: { symbolId: string }[] = metadata.data.symbolList.filter((symbol: { enableTrade: boolean; enableDisplay: boolean }) => symbol.enableTrade && symbol.enableDisplay);
   const startTime = options.startOfDay * 1000;

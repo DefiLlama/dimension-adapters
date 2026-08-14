@@ -39,7 +39,7 @@ const chains: Record<string, string> = {
   [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const endOfDay = startOfDay + 24 * 60 * 60;
 
@@ -86,7 +86,8 @@ const chainAdapters = {
 
 const adapter = {
   version: 1,
-  adapter: chainAdapters
+  adapter: chainAdapters,
+  deadFrom: "2026-02-05",
 };
 
 export default adapter;

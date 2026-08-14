@@ -15,7 +15,8 @@
 
 import { SimpleAdapter, FetchResult, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import PromisePool from "@supercharge/promise-pool";
 import { METRIC } from "../../helpers/metrics";
 
@@ -23,10 +24,10 @@ const ROCKET_API = "https://beta.rocket-cluster-1.com";
 const MAKER_FEE = 0.0001; // 0.01%
 const TAKER_FEE = 0.0001; // 0.01%
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     let instruments: string[] = [];
     try {
-        const instrumentsData = await fetchURL(`${ROCKET_API}/instruments`);
+        const instrumentsData = await getConfig('rocket/instruments', `${ROCKET_API}/instruments`);
         instruments = Object.keys(instrumentsData.instruments);
     } catch (e) {
         throw new Error(`Rocket adapter: failed to fetch instruments: ${String(e)}`);

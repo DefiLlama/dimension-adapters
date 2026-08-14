@@ -36,7 +36,7 @@ const chainToId: Record<string, number> = {
     [CHAIN.UNIT0]: 88811,
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyVolume = (await fetchURL(`https://api-gateway.wowmax.exchange/statistics/chains/${chainToId[options.chain]}/volume?timestamp=${options.startOfDay}`))?.volume;
 
     return {

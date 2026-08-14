@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from '../utils/fetchURL';
 import { getEnv } from '../helpers/env';
 
-const fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const url = "https://api.spacescope.io/v2/gas/daily_network_fee_breakdown"
     const headers = { "Authorization": `Bearer ${getEnv('SPACESCOPE_API_KEY')}`};
     const data = await httpGet(`${url}?start_date=${options.dateString}&end_date=${options.dateString}`, { headers: headers})

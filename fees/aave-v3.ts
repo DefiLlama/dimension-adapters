@@ -3,10 +3,10 @@ import { getPoolFees, AaveLendingPoolConfig } from '../helpers/aave'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
-import { queryIndexer } from '../helpers/indexer'
+import { getAlliumChain, queryAllium } from '../helpers/allium'
 import { METRIC } from '../helpers/metrics'
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     // core market
     {
@@ -186,6 +186,13 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x6C505C31714f14e8af2A03633EB2Cdfb4959138F',
     },
   ],
+  [CHAIN.MONAD]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef',
+      dataProvider: '0xB65A68B98274ef7D9a60E0C0747dD1BEc3D32fad',
+    },
+  ]
 }
 
 const methodology = {
@@ -248,7 +255,7 @@ const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // of recaptured value to the Aave Collector. Weekly distributions started
 // 2025-04-08. Methodology: see Chainlink ARFC linked from #6464.
 const ChainlinkSVRDistributor = '0x149b41b1e4c00b5f9aa34b14fd9f84cfd2f014e5';
-const chainConfig: Record<string, any> = {
+export const chainConfig: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
     treasuryCollector: '0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c',
@@ -348,6 +355,10 @@ const chainConfig: Record<string, any> = {
     pools: AaveMarkets[CHAIN.XLAYER],
     start: '2026-03-30',
   },
+  [CHAIN.MONAD]: {
+    pools: AaveMarkets[CHAIN.MONAD],
+    start: '2026-06-17',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -389,24 +400,19 @@ const fetch = async (options: FetchOptions) => {
     // The Chainlink SVR distributor Safe forwards 100% of recaptured value
     // (native ETH) to the Aave Collector via Safe.execTransaction, which the
     // standard sdk indexer doesn't surface (internal trace, not top-level tx).
-    // Same query shape as fees/safe.ts.
+    // Allium's native_token_transfers covers those internal value transfers.
     if (chainConfig[options.chain].chainlinkSvrDistributor) {
-      const svrTransfers: any = await queryIndexer(`
-        SELECT
-          sum("value") AS eth_value
-        FROM
-          ethereum.traces
-        WHERE
-          to_address = '\\x${chainConfig[options.chain].treasuryCollector.replace(/^0x/i, '')}'
-          AND from_address = '\\x${chainConfig[options.chain].chainlinkSvrDistributor.replace(/^0x/i, '')}'
-          AND block_time BETWEEN llama_replace_date_range;
-      `, options)
-      svrTransfers.forEach((e: any) => {
-        if (e.eth_value) {
-          dailyFees.addGasToken(e.eth_value, 'Chainlink SVR')
-          dailyProtocolRevenue.addGasToken(e.eth_value, 'Chainlink SVR')
-        }
-      })
+      const [{ amount }] = await queryAllium(`
+        SELECT COALESCE(SUM(raw_amount), 0) AS amount
+        FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+        WHERE to_address = '${chainConfig[options.chain].treasuryCollector.toLowerCase()}'
+          AND from_address = '${chainConfig[options.chain].chainlinkSvrDistributor.toLowerCase()}'
+          AND transfer_type = 'value_transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `)
+      dailyFees.addGasToken(amount, 'Chainlink SVR')
+      dailyProtocolRevenue.addGasToken(amount, 'Chainlink SVR')
     }
   }
   

@@ -5,7 +5,7 @@ import fetchURL from "../utils/fetchURL";
 const API = "https://api.sparkdex.ai/perps/v2/trading-stats/daily";
 const DAY = 86400;
 
-const fetch = async (_: number, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const res = await fetchURL(
     `${API}?from=${options.startOfDay}&to=${options.endTimestamp + DAY}&format=open_interest&chainId=14&dex=SparkDEX`
   );

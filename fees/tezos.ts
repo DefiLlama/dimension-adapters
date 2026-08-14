@@ -62,7 +62,7 @@ async function getDailyBurnedSupply(startOfDay: number) {
   return Math.max(burned, 0);
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targetDay = getDayStartTimestamp(options.startTimestamp);
   const dailyBlockFees = await getDailyBlockFees(targetDay);
   const dailyBurnedSupply = await getDailyBurnedSupply(targetDay);

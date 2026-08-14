@@ -7,7 +7,7 @@ const v3ChainMapping: any = {
   [CHAIN.BSC]: "BSC",
 };
 
-async function fetch(_a: any,_b:any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -84,7 +84,8 @@ const adapter: SimpleAdapter = {
       [METRIC.SWAP_FEES]: '50% of swap fees paid by users from all trades.',
       [METRIC.ASSETS_YIELDS]: '90% of yields captured from all assets in liquity pools.',
     },
-  }
+  },
+  deadFrom: "2026-01-13",
 };
 
 export default adapter;

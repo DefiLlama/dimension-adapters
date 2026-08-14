@@ -1,11 +1,11 @@
-import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultFees, FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { postURL } from "../../utils/fetchURL"
+import fetchURL from "../../utils/fetchURL"
 import * as sdk from "@defillama/sdk"
 import PromisePool from "@supercharge/promise-pool";
 
 
-const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResultVolume & FetchResultFees> => {
   const ammPoolStandard: any[] = [];
   let page = 1;
 
@@ -103,7 +103,6 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 
   return {
     dailyVolume: dailyVolumeAmmPool,
-    timestamp: timestamp,
     dailyFees: `${dailyFees}`,
     dailyUserFees: `${dailyUserFees}`,
     dailyRevenue: `${dailyRevenue}`,          // ProtocolRevenue + HoldersRevenue
@@ -114,13 +113,10 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: graphs,
-      runAtCurrTime: true,
-      start: '2022-08-15',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2022-08-15',
+  runAtCurrTime: true,
   methodology: {
     Fees: "Total trading fees collected from users across all pool types.",
     Revenue: "Protocol's total revenue, derived from Treasury allocations and RAY buybacks.",

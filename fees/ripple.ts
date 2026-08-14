@@ -9,8 +9,8 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.RIPPLE]: {
-      fetch: async (timestamp: number, _a: any, options: FetchOptions) => {
-        const baseData = await feeAdapter[CHAIN.RIPPLE].fetch(timestamp);
+      fetch: async (options: FetchOptions) => {
+        const baseData = await feeAdapter[CHAIN.RIPPLE].fetch(options);
         const dailyFees = options.createBalances();
         dailyFees.addCGToken("ripple", baseData.dailyFees)
         return { dailyFees, dailyRevenue: 0 }

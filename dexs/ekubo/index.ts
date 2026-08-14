@@ -6,14 +6,15 @@ import BigNumber from "bignumber.js";
 
 const chainConfig: Record<string, { start: string, chainId: String }> = {
   [CHAIN.STARKNET]: { start: '2023-09-19', chainId: "23448594291968334" },
-  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" }
+  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" },
+  [CHAIN.ROBINHOOD]: { start: '2026-07-21', chainId: "4663" },
 }
 
 function toAddress(numberString: string): string {
   return numberString === '0' ? ADDRESSES.null : `0x${new BigNumber(numberString).toString(16)}`;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()

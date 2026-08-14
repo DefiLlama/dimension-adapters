@@ -18,7 +18,7 @@ type V1TickerItem = {
 const volumeAPI = "https://prod-openapi.antarctic.exchange/futures/common/v1/perpetual/contracts";
 const feesAPI = "https://prod-openapi.antarctic.exchange/futures/common/v1/perpetual/fee"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const volumeURL = volumeAPI + "?timestamp=" + (options.startOfDay * 1000);
   const feesURL = feesAPI + "?timestamp=" + (options.startOfDay * 1000);
   const volumeData = (await httpGet(volumeURL)) as { data: V1TickerItem[] };

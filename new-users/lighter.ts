@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const LIGHTER_METRICS_API = "https://mainnet.zklighter.elliot.ai/api/v1/exchangeMetrics";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
   const response = await fetchURL(`${LIGHTER_METRICS_API}?period=all&kind=account_count`);
   const row = response.metrics.find(({ timestamp }: any) => timestamp === options.startOfDay);

@@ -149,8 +149,6 @@ const get24hrRevenue = async (
 };
 
 const fetch = async (
-  timestamp: number,
-  _: any,
   fetchOptions: FetchOptions
 ): Promise<FetchResultFees> => {
   const products = await fetchProducts(fetchOptions);
@@ -159,8 +157,8 @@ const fetch = async (
     return { dailyFees: undefined, dailyRevenue: undefined };
   }
 
-  const dailyFees = await get24hrFees(timestamp, products.spot_products, fetchOptions);
-  const dailyRevenue = await get24hrRevenue(timestamp, products.spot_products, fetchOptions);
+  const dailyFees = await get24hrFees(fetchOptions.toTimestamp, products.spot_products, fetchOptions);
+  const dailyRevenue = await get24hrRevenue(fetchOptions.toTimestamp, products.spot_products, fetchOptions);
   const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
   return {

@@ -2,7 +2,6 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const START_TIME = 1659312000;
 const historicalVolumeEndpoint = () => `https://api.carbon.network/carbon/marketstats/v1/stats`;
 
 interface IVolumeall {
@@ -29,7 +28,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.CARBON]: {
       fetch,
       runAtCurrTime: true,
-      start: START_TIME,
     },
   },
 };

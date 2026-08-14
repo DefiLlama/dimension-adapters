@@ -4,7 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
 
   const baseUrl = "https://ic-api.internetcomputer.org/api/v3/daily-stats?";
   const currentDay = await httpGet(`${baseUrl}start=${options.startOfDay}&end=${options.endTimestamp - 1}`);

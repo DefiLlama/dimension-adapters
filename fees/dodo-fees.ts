@@ -14,7 +14,7 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 }
 `
 
-const dfioFetch = async (_t: any, _b: any, options: FetchOptions) => {
+const dfioFetch = async (options: FetchOptions) => {
   const dvmFactory = '0xc93870594C7f83A0aE076c2e30b494Efc526b68E';
 
   const poolCreatedLogs = await options.getLogs({
@@ -52,7 +52,7 @@ const dfioFetch = async (_t: any, _b: any, options: FetchOptions) => {
   };
 }
 
-const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const pairs = await request("https://gateway.dodoex.io/graphql?opname=FetchDashboardPairs", feesReq,
     { "where": { "page": 1, "limit": 10, "order_direction": "desc", "order_by": "fee", "chain": options.chain } }, {
     "Content-Type": "application/json",

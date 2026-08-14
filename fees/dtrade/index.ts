@@ -7,7 +7,7 @@ const DTRADE_FEE_WALLET = "0:93C1B918FA90EAC774C9BBEFF0E49742B4BFAC15D49E289A433
 const TON_COINGECKO_ID = "the-open-network";
 const DTRADE_EFFECTIVE_FEE_RATE = 0.01;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //https://dune.com/queries/5351226
   const query = `
     SELECT

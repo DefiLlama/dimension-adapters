@@ -11,6 +11,9 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5", //vDOT
   ],
   [CHAIN.BSC]: [
+    "0xac68931b666e086e9de380cfdb0fb5704a35dc2d", // old BNBTiger
+    "0x4c769928971548eb71a3392eaf66bedc8bef4b80", // scam BITCOIN token
+    "0xc53ca0d56c420e8f913316e84d2c492ede99c61e", // scam GROK token
     "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
     "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
     "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
@@ -61,6 +64,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x96fb784986284cb6d4a8da6dd50dd7e85ef38f5d",
+    "0x44F161aE29361E332dEA039DFA2F404E0bC5B5Cc",
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",
@@ -114,6 +118,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x570b1533F6dAa82814B25B62B5c7c4c55eB83947",
+    "0x1d1dd64c58518c6727a308a5216a5701afae5b07", // fake "OpenAI", $52M wash-traded in one day on aerodrome slipstream (Jul 2026), same factory as the uniswap-v4 fake-ticker pools
   ],
 };
 
@@ -171,6 +176,13 @@ const ChainConfigs: { [key: string]: ChainTokenConfig } = {
     chainId: 43114,
     tokenListUrls: [
       'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
+    ],
+  },
+  [CHAIN.POLYGON]: {
+    chainId: 137,
+    tokenListUrls: [
+      'https://tokens.coingecko.com/polygon-pos/all.json',
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/polygon.json',
     ],
   },
 };

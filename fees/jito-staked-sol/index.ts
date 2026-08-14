@@ -11,14 +11,15 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9p
 const LST_FEE_TOKEN_ACCOUNT = "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i";
 const LST_MINT = ADDRESSES.solana.JitoSOL;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: ""
   });
 
   const results = await queryDuneSql(options, query);
@@ -47,8 +48,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Staking rewards from staked SOL on jito staked solana',
-  Revenue: 'Includes withdrawal fees and management fees collected by fee collector.',
-  ProtocolRevenue: 'Revenue going to treasury/team',
+  Revenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
+  ProtocolRevenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
   HoldersRevenue: 'No revenue share to JTO token holders.',
   SupplySideRevenue: '96% of the staking rewards go to stakers'
 
@@ -59,7 +60,7 @@ export default {
   methodology,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2024-04-08",
+  start: "2022-11-21",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   breakdownMethodology: {

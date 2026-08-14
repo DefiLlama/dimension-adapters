@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 
@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: async (_a: any, _b: any, options: any) =>
+      fetch: async (options: FetchOptions) =>
         getUniV2LogAdapter({
           factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
         })(options),

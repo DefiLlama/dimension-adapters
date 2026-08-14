@@ -5,7 +5,7 @@ import { getSolanaReceivedDune } from "../../helpers/token";
 const PARTNER_FEE_CLAIMER = 'BKPxAdgwPHXE3ZPZt5XsAovDgUaUufHgZnSAZ3eRWQNW';
 const METEORA_POOL_AUTHORITY = 'FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceivedDune({
     options,
     fromAddress: METEORA_POOL_AUTHORITY,

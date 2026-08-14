@@ -43,9 +43,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   }
 
   const txHashes = Object.keys(logsByTx);
-  const txs = await getTransactions(chain, txHashes, {
-    cacheKey: "obsidian-swaps",
-  });
+  const txs = await getTransactions(chain, txHashes);
 
   const multicallInterface = new ethers.Interface([
     "function multicall(uint256 deadline, bytes[] data)",

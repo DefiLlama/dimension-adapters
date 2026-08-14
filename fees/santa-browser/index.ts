@@ -4,7 +4,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const SANTA_BROWSER_ADDRESS = "0xa9bb3bd182a7b4d632c24299cbd0435450aca66a2180c1617ee823a66ec37266";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const sql = `

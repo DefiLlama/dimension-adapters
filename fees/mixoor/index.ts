@@ -8,7 +8,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const FEE_WALLET = "9qX97Bd8dvHAknHVjCxz4uEJcPSE3NGjjgniMVdDBu6d";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
   SELECT
     'So11111111111111111111111111111111111111112' AS token,

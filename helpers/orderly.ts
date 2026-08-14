@@ -21,7 +21,7 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
 
   const url = `https://api.orderly.org/md/volume/builder/daily_stats?broker_id=${broker_id}`
 
-  async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
+  async function fetch({ dateString }: FetchOptions) {
     if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then(data => {
       const dateDataMap: any = {}
       data.forEach((i: any) => {

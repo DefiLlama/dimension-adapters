@@ -3,7 +3,6 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 interface IGraph {
 	volume: string;
@@ -29,8 +28,7 @@ const CONFIGS: Record<string, any> = {
   },
 }
 
-const fetch = async (timestamp: number, _: any, { chain, createBalances }: FetchOptions): Promise<FetchResult> => { 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const fetch = async ({ chain, createBalances, startOfDay }: FetchOptions): Promise<FetchResult> => { 
   
 	const dailyVolume = createBalances()
 	const dailyFees = createBalances()
@@ -38,7 +36,7 @@ const fetch = async (timestamp: number, _: any, { chain, createBalances }: Fetch
 	for (const asset of CONFIGS[chain].assets) {
 		const query = gql`
      	{
-				dayAssetData(id: "${dayTimestamp * 1000}-${asset.toLowerCase()}") {
+				dayAssetData(id: "${startOfDay * 1000}-${asset.toLowerCase()}") {
 					volume
 					totalFees
 				}
@@ -53,18 +51,16 @@ const fetch = async (timestamp: number, _: any, { chain, createBalances }: Fetch
 	return {
 		dailyVolume,
 		dailyFees,
-		timestamp: dayTimestamp,
 	};
 }
 
 const adapter: SimpleAdapter = {
+	fetch,
 	adapter: {
 		[CHAIN.ARBITRUM]: {
-			fetch: fetch,
 			start: '2024-01-10',
 		},
 		[CHAIN.MONAD]: {
-			fetch: fetch,
 			start: '2025-11-24',
 		},
 	},

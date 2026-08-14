@@ -5,7 +5,7 @@ import { queryDuneSql } from '../../helpers/dune';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const FEE_WALLET = 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX';
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const now = Date.now()
   const tenHoursAgo = now - (10 * 60 * 60 * 1000)
@@ -24,7 +24,10 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     botTrades AS (
       SELECT
         t.tx_id,
-        t.amount_usd
+        t.amount_usd,
+        -- dex_solana.trades has one row per pool hop, and a route through USDC matches the
+        -- filter below on both of its legs, so summing every row counts one swap twice
+        ROW_NUMBER() OVER (PARTITION BY t.tx_id, t.trader_id ORDER BY t.amount_usd DESC) AS rn
       FROM dex_solana.trades t
       JOIN fomo_txs f ON t.tx_id = f.tx_id
       WHERE TIME_RANGE
@@ -38,6 +41,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     )
     SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
+    WHERE rn = 1
   `);
 
   return { dailyVolume: result[0].total_volume };

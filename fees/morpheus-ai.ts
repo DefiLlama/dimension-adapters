@@ -233,6 +233,11 @@ const fetchBuybacks = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Must stay daily: the stETH yield component (getStethDailyYieldUsd) reads Lido's
+  // `financialsDailySnapshot(id: dateId)` daily revenue keyed by the day index. Running hourly
+  // makes all 24 slots read the same full-day supply-side revenue, over-counting ~24x.
+  // Do not set pullHourly: true here.
+  pullHourly: false,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

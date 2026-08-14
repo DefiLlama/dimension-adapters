@@ -133,8 +133,8 @@ const v5DailyFees = async (
   return usersPaymentFees;
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const dayTime = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const dayTime = getTimestampAtStartOfDayUTC(options.toTimestamp);
   const graphUrl = v5endpoints[options.chain];
 
   // Set date string params which are used by queries
@@ -146,7 +146,6 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dailySupplySideRevenue = undefined;
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
@@ -155,12 +154,9 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-07-04',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2023-07-04',
 };
 
 export default adapter;

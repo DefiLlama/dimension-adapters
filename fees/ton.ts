@@ -4,7 +4,7 @@ import { FetchOptions } from "../adapters/types";
 import { ProtocolType } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const query = `
     SELECT 

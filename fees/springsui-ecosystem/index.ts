@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyFees,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };

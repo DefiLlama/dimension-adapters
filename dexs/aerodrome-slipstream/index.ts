@@ -1,13 +1,23 @@
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
+import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
+import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
 
 const CONFIG = {
   factories: [
+    {
+      // Deprecated early Slipstream factory (Apr 2024, 22 pools); superseded within a
+      // week by 0x5e7B. Included so its handful of still-traded pools are covered.
+      address: '0x9592cd9b267748cbFbDe90Ac9f7df3c437A6d51b',
+      fromBlock: 13592962,
+      skipIndexer: true,
+    },
     {
       address: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
       fromBlock: 13843704,
@@ -28,6 +38,8 @@ const CONFIG = {
   gaugeFactories: [
     '0xd30677bd8dd15132f251cb54cbda552d2a05fb08',
     '0xB630227a79707D517320b6c0f885806389dFcbB3',
+    '0x385293cae378c813f16f0c1334d774adddf56abb', // Aero Ignition CL gauge factory
+    '0x3e703fd2b6506e2abcce2c8b5633872a7d9b6fbc',
   ].map(f => f.toLowerCase()),
 }
 
@@ -45,7 +57,7 @@ const eventAbis = {
 const abis = {
   fee: 'uint256:fee',
   // Per-token accumulator of fees waiting for the gauge to collect.  Per Aerodrome team's
-  // confirmation, this is the on-chain ground truth for "fee rewards to voters" — capturing
+  // confirmation, this is the on-chain ground truth for "fee rewards to voters", capturing
   // the staked-LP share plus the unstaked-LP rake routed to the gauge.  Resets when
   // collectFees() is called.
   gaugeFees: 'function gaugeFees() view returns (uint128 token0, uint128 token1)',
@@ -96,9 +108,9 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   // Strategy B (slipstream): per-pool exact split.
-  //   holders_per_token = gaugeFees(toBlock) - gaugeFees(fromBlock) + Σ CollectFees in [fromBlock, toBlock]
-  //   total_per_token   = Σ (input-side amount × feeRate) over swaps in this pool
-  //   supplySide_per_token = total_per_token − holders_per_token
+  //   holders_per_token = gaugeFees(toBlock) - gaugeFees(fromBlock) + sum CollectFees in [fromBlock, toBlock]
+  //   total_per_token   = sum (input-side amount * feeRate) over swaps in this pool
+  //   supplySide_per_token = total_per_token - holders_per_token
   // gaugeFees resets when the gauge calls collectFees(); CollectFees event captures the drain.
   const dailyHoldersRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
@@ -110,6 +122,24 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   for (const factory of CONFIG.factories) {
     const factoryLogs = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, })
     rawPools = rawPools.concat(factoryLogs)
+  }
+
+  // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
+  // downstream (volume, fees, revenue splits) derives from rawPools
+  const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(chain))
+  rawPools = rawPools.filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
+
+  // drop the day's wash-flagged pools (see getWashPools), unless every side is
+  // established (core asset or CoinGecko-listed) - the fake-ticker factory
+  // moved here from uniswap v4 the day the filter shipped there
+  const washPools: Set<string> = fetchOptions.preFetchedResults?.washPools ?? new Set()
+  const flagged = rawPools.filter((p: any) => washPools.has(formatAddress(p.pool)))
+  if (flagged.length) {
+    const established = await getEstablishedTokens(chain, flagged.flatMap((p: any) => [p.token0, p.token1]))
+    const drop = new Set(flagged
+      .filter((p: any) => !(established.has(formatAddress(p.token0)) && established.has(formatAddress(p.token1))))
+      .map((p: any) => formatAddress(p.pool)))
+    rawPools = rawPools.filter((p: any) => !drop.has(formatAddress(p.pool)))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
@@ -128,7 +158,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   })
 
   // Per-pool, per-token input-only fee accumulators (fee taken on the input side
-  // only — matches the on-chain accounting and is what totals must reconcile to
+  // only, matches the on-chain accounting and is what totals must reconcile to
   // when split into holders + supplySide).
   const poolFeeTotals: Record<string, { fee0: number; fee1: number }> = {}
 
@@ -184,7 +214,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
   if (errorFound) throw errorFound
 
-  // Drains of gaugeFees in [fromBlock, toBlock]: needed so gaugeFees(end) − gaugeFees(start)
+  // Drains of gaugeFees in [fromBlock, toBlock]: needed so gaugeFees(end) - gaugeFees(start)
   // doesn't go negative across an epoch boundary where collectFees() was called.
   const collectIface = new ethers.Interface([eventAbis.event_collect_fees])
   const collectLogs = await getLogs({
@@ -232,60 +262,70 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const supply0 = totals.fee0 - holders0
     const supply1 = totals.fee1 - holders1
 
-    // Sum both sides per pool — fee0 is the input-side fees from token0-input swaps,
+    // Sum both sides per pool: fee0 is the input-side fees from token0-input swaps,
     // fee1 is from token1-input swaps; they're independent contributions and must
     // BOTH be priced and added.  addOneToken would drop one side because it's
     // designed for per-swap calls (where exactly one side carries the fee), not for
     // the per-pool rollup we have here after summing input-side fees separately.
-    if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0)
-    if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1)
-    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0)
-    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1)
-    if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0)
-    if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1)
+    if (totals.fee0 > 0) dailyFees.add(token0, totals.fee0, 'Token Swap Fees')
+    if (totals.fee1 > 0) dailyFees.add(token1, totals.fee1, 'Token Swap Fees')
+    if (holders0 > 0) dailyHoldersRevenue.add(token0, holders0, 'Staked-LP Fees And Unstaked-LP Rake')
+    if (holders1 > 0) dailyHoldersRevenue.add(token1, holders1, 'Staked-LP Fees And Unstaked-LP Rake')
+    if (supply0 > 0) dailySupplySideRevenue.add(token0, supply0, 'Unstaked-LP Fees')
+    if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Unstaked-LP Fees')
   })
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
+  const dailyRevenue = fetchOptions.createBalances()
 
+  dailyFees.add(dailyBribesRevenue, 'External Bribes Rewards')
+  dailyRevenue.add(dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake')
+  dailyRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
+  dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
+  
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
   }
 }
 
+const prefetch: any = async (options: FetchOptions) => {
+  return { washPools: await getWashPools(options, { blockchain: 'base', project: 'aerodrome', version: 'slipstream' }) }
+}
+
 const methodology = {
+  Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
   Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
   Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) − gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
-  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees − HoldersRevenue.",
-  BribesRevenue: "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
+  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Swap fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
+    'Token Swap Fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
+    'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   Revenue: {
-    'Staked-LP fees + unstaked-LP rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   HoldersRevenue: {
-    'Staked-LP fees + unstaked-LP rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
+    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
   },
   SupplySideRevenue: {
-    'Unstaked-LP fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
-  },
-  BribesRevenue: {
-    'External bribes': "Token deposits to a pool's BribeVotingReward contract that veAERO voters claim by voting for the pool's gauge.",
+    'Unstaked-LP Fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
   },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
+  prefetch,
   methodology,
   breakdownMethodology,
   adapter: {

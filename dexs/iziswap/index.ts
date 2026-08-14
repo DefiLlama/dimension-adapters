@@ -34,7 +34,7 @@ interface IVolumeall {
 const historicalVolumeEndpoint = (chain_id: number, page: number) => `https://api.izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000&page=${page}`
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startTimestamp = options.startOfDay - 86400;
   const endTimestamp = options.startOfDay;
   let isSuccess = true;

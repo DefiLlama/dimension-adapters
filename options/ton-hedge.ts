@@ -10,14 +10,12 @@ const adapter: SimpleAdapter = {
         },
   adapter: {
     [CHAIN.TON]: {
-      fetch: async (timestamp: number, _t: any, options: FetchOptions) => {
+      fetch: async (options: FetchOptions) => {
         const result = await fetchURL(
           `https://tonhedge.com/api/metrics?timestamp=${options.startOfDay * 1000}`
         )
         return {
-          ...result,
-          timestamp
-        }
+          ...result,}
       },
       start: '2024-07-01',
     },

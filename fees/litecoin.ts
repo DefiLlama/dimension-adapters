@@ -4,7 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 
 // const feeAdapter = chainAdapter(CHAIN.LITECOIN, "ltc", 1317960000);
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const data = await httpGet('https://litecoinspace.org/api/v1/mining/blocks/fees/24h')
   for (const item of data)
@@ -14,12 +14,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.LITECOIN]: {
-      fetch,
-      runAtCurrTime: true,
-    }
-  },
+  chains: [CHAIN.LITECOIN],
+  fetch,
+  runAtCurrTime: true,
   protocolType: ProtocolType.CHAIN
 }
 

@@ -151,6 +151,7 @@ const fetchBase = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
 	version: 2,
+	pullHourly: true,
 	adapter: {
 		// [CHAIN.FLOW]: {
 		// 	start: '2025-01-04',

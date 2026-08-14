@@ -1,5 +1,5 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
@@ -45,7 +45,7 @@ const endpointMap: {
 	},
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const { historical, daily } = endpointMap[options.chain];
 
 	const dayTimestamp = getUniqStartOfTodayTimestamp(

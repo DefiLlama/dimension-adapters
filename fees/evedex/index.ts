@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import PromisePool from "@supercharge/promise-pool";
 
 const CONTRACTS = {
@@ -43,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
   const [market, instruments] = await Promise.all([
     fetchURL(URLS.market),
-    fetchURL(URLS.instruments),
+    getConfig('evedex/instruments', URLS.instruments),
   ]);
   const [cashbackWithdrawLogs, cashbackCrumbsLogs, vaultLogs, billingLogs] = await Promise.all([
     options.getLogs({ target: CONTRACTS.cashback, eventAbi: EVENT_ABIS.cashback.withdraw }),
@@ -124,6 +125,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.EVENTUM],
   start: "2025-06-30",

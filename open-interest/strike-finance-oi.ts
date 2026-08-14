@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const HISTORICAL_OPEN_INTEREST_ENDPOINT = "https://api.strikefinance.org/stat/v1/dashboard/open-interest";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { open_interest }: { open_interest: [number, string, number | string][] } = await fetchURL(HISTORICAL_OPEN_INTEREST_ENDPOINT);
   const startTimestamp = options.startTimestamp * 1000;
   const targetTimestamp = options.endTimestamp * 1000;
@@ -22,11 +22,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return { openInterestAtEnd };
 };
 
+const methodology = {
+  OpenInterest:
+    "Single-sided USD notional of open positions across all Strike Finance V2 perpetual markets, from the latest daily snapshot in the requested window.",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.CARDANO],
   start: "2026-03-19",
+  methodology,
 };
 
 export default adapter;

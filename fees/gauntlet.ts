@@ -65,6 +65,31 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2025-07-14',
     },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.STABLE]: {
+      morphoV2: [
+        '0xb7Df8db22A5DBBFA9ebeb94b3910aec6a4f05c08', // gtusdtb
+      ],
+      start: '2026-06-16',
+    },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.TEMPO]: {
+      morphoV2: [
+        '0xC609656Ed9ef219c98C8e549bF729144F211f06E', // gtpathusdp
+        '0xe5235da8Ad839dd2A9De1f1069c89cA3575b5208', // gtpathusdf
+      ],
+      start: '2026-04-16',
+    },
+    // Moolah (Morpho V1 fork), 10% performance fee
+    [CHAIN.BSC]: {
+      morpho: [
+        '0xfa27f172e0b6ebcef9c51abf817e2cb142fbe627', // vGauntletUSD1
+        '0x57134a64b7cd9f9eb72f8255a671f5bf2fe3e2d0', // vGauntletBNB
+        '0x9a17fd5cb8efc25d11567e713ae795a89775a759', // vGauntletU
+        '0x6d6783c146f2b0b2774c1725297f1845dc502525', // vGauntletUSDT
+      ],
+      start: '2026-04-27',
+    },
   }
 };
 
@@ -89,7 +114,7 @@ const VAULT_ADDRESSES = [
 ];
 
 // Solana fetch function
-const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL
@@ -123,7 +148,7 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   // For Drift vaults, fees should equal revenue (only manager fees)
   // Remove gross returns calculation as it was causing double-counting
   const dailyFees = dailyRevenue.clone(1, 'Solana Vaults Management Fees');
-  
+
   // TODO: track yields to suppliers
   const dailySupplySideRevenue = options.createBalances();
 
@@ -141,7 +166,7 @@ const curatorExport = getCuratorExport(curatorConfig);
 // need to convert adapter v2 to adapter v1
 for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
   (curatorExport.adapter as any)[chain] = {
-    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+    fetch: async (options: FetchOptions) => {
       return await (adapter as any).fetch(options);
     }
   }

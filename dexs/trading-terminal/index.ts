@@ -97,7 +97,7 @@ async function fetchEvm(options: FetchOptions) {
   return { dailyVolume: result[0].total_volume };
 }
 
-const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   return fetchEvm(options);
 };

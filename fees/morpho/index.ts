@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { cache } from "@defillama/sdk";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -14,37 +15,54 @@ const blacklistedMarketIds: Record<string, Array<any>> = {
   [CHAIN.WC]: [{
     from: "2025-11-07",
     id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
-  }]
+  }],
+  [CHAIN.ETHEREUM]: [{
+    from: "2026-07-21",
+    id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
+  }],
+  [CHAIN.BASE]: [{
+    from: "2026-07-22",
+    id: '0xa4ec527128b425ee3fcb7f60eca37677b63b3d003345ec2a72ef6a2e72da53fc' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
+  }, {
+    from: "2026-08-04",
+    id: '0x41c08085ddcfd1dc1c5eb82d7dc031593d1a1a831958380e8b60469c45bf7d88' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
+  }],
 }
 
-const MorphoBlues: Record<string, MorphoBlueConfig> = {
+export const MorphoBlues: Record<string, MorphoBlueConfig> = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
+    fromBlock: 18883124,
     blue: "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
     start: "2024-01-02",
   },
   [CHAIN.BASE]: {
     chainId: 8453,
+    fromBlock: 13977148,
     blue: "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
     start: "2024-05-03",
   },
   [CHAIN.POLYGON]: {
     chainId: 137,
+    fromBlock: 66931042,
     blue: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
     start: "2025-01-20",
   },
   [CHAIN.UNICHAIN]: {
     chainId: 130,
+    fromBlock: 9139027,
     blue: "0x8f5ae9cddb9f68de460c77730b018ae7e04a140a",
     start: "2025-02-18",
   },
   [CHAIN.KATANA]: {
     chainId: 747474,
+    fromBlock: 2741069,
     blue: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc",
     start: "2025-07-01",
   },
   [CHAIN.ARBITRUM]: {
     chainId: 42161,
+    fromBlock: 296446593,
     blue: "0x6c247b1F6182318877311737BaC0844bAa518F5e",
     start: "2025-01-18",
   },
@@ -138,16 +156,42 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0x99D31FEcc885204b4136ea5D2ef2a37F36E3AeB8",
     start: "2026-01-23",
   },
-  // [CHAIN.STABLE]: {
-  //   fromBlock: 4342501,
-  //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
-  //   start: "2025-12-08",
-  // },
-  // [CHAIN.TAC]: {
-  //   fromBlock: 853025,
-  //   blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",
-  //   start: "2025-06-25",
-  // },
+  // Sei deferred: not in Morpho API, and getLogs is disabled for sei (runAdapter problematicChains).
+  // blue 0xc9cDAc20FCeAAF616f7EB0bb6Cd2c69dcfa9094c, block 166036723.
+  [CHAIN.ETHERLINK]: {
+    fromBlock: 21047448,
+    blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
+    start: "2025-07-14",
+  },
+  [CHAIN.TEMPO]: {
+    chainId: 4217,
+    blue: "0x10EE9AAC980A180dd4DcFc96C746d60B0EA88f97",
+    start: "2026-01-30",
+  },
+  [CHAIN.STABLE]: {
+    chainId: 988,
+    blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
+    start: "2025-11-10",
+  },
+  [CHAIN.PHAROS]: {
+    // no chainId: Pharos (1672) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0x18573fA18fd17dDfD790B4a5B5b2977aad3b4Efb",
+    fromBlock: 4202147,
+    start: "2026-06-01",
+  },
+  [CHAIN.ROBINHOOD]: {
+    fromBlock: 286,
+    blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",
+    start: "2026-01-01",
+  },
+  [CHAIN.MORPH]: {
+    // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0xAd10d07901Dc3195c3cb5e78E061F4EA8D9B4905",
+    fromBlock: 23180020,
+    start: "2026-05-22",
+  },
+  // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
+  // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
 
 const info = {
@@ -235,15 +279,15 @@ const _fetchMarkets = async (chainId: number, url: string): Promise<Array<Morpho
   do {
     const res = await request(url, query, { chainId, first, skip });
     marketsBatch = res.markets.items
-    .map((item: any) => {
-      return {
-        marketId: item.marketId,
-        loanAsset: item.loanAsset.address,
-        collateralAsset: item.collateralAsset ? item.collateralAsset.address : undefined,
-        lltv: BigInt(item.lltv),
-        lif: _getLIFFromLLTV(BigInt(item.lltv)),
-      };
-    });
+      .map((item: any) => {
+        return {
+          marketId: item.marketId,
+          loanAsset: item.loanAsset.address,
+          collateralAsset: item.collateralAsset ? item.collateralAsset.address : undefined,
+          lltv: BigInt(item.lltv),
+          lif: _getLIFFromLLTV(BigInt(item.lltv)),
+        };
+      });
     allMarkets = allMarkets.concat(marketsBatch);
     skip += first;
   } while (marketsBatch.length === first);
@@ -286,7 +330,7 @@ async function fetchMarketsFromSubgraph(
 
 const fetchEvents = async (
   options: FetchOptions
-): Promise<{interests: Array<MorphoBlueAccrueInterestEvent>, liquidations: Array<MorphoBlueLiquidateEvent>}> => {
+): Promise<{ interests: Array<MorphoBlueAccrueInterestEvent>, liquidations: Array<MorphoBlueLiquidateEvent> }> => {
   let markets: Array<MorphoMarket> = []
   if (MorphoBlues[options.chain].chainId) {
     markets = await fetchMarketsFromSubgraph(
@@ -297,12 +341,18 @@ const fetchEvents = async (
     markets = await fetchMarketsFromLogs(options);
   }
 
-  const marketMap = {} as {[key: string]: MorphoMarket};
+  const marketMap = {} as { [key: string]: MorphoMarket };
   markets.forEach((item) => {
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id) ?? [];
+  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+
+  const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
+
+  const insolventMarketsDetails = await cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
+  const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+  const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
 
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
@@ -311,7 +361,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if(blacklistedIds.includes(log.id)) interest = 0;
+    if (blacklistedIds.includes(log.id.toLowerCase()) || stuckMarkets.includes(log.id.toLowerCase()) || insolventMarkets.includes(log.id.toLowerCase())) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),
@@ -365,6 +415,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: info.methodology,
   breakdownMethodology: info.breakdownMethodology,
   fetch: fetch,

@@ -7,7 +7,7 @@ interface IFees {
   day: string
   sum_tradingfeecollection: string
 }
-const fetch = async (_: number, _t: ChainBlocks, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = 'https://public-dydx-api.numia.xyz/dydx/transparency/trading-fees'
   const res = await httpGet(url)
   delete res['latestTen']

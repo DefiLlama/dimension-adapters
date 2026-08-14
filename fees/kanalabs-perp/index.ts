@@ -8,7 +8,7 @@ export enum KanaChainID {
   "aptos" = 2
 }
 
-const fetch = async (timestamp: number, t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
 
   const query = gql`
@@ -42,13 +42,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: '2024-09-12',
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: '2024-09-12',
   methodology,
+  deadFrom: "2026-04-10",
 };
 
 export default adapter;

@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const baseUrl = (s: string): string => `https://tools.multiversx.com/growth-api/explorer/analytics/${s}?range=all`;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const feesUrl = baseUrl('fees-captured');

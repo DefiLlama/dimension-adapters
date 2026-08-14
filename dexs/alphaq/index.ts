@@ -5,7 +5,7 @@ import { queryDuneSql } from "../../helpers/dune"
 // https://www.alphaq.xyz/docs
 const FEE_RATE = 0.00001; // 0.001%
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = `
     with swaps as (
       select

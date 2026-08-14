@@ -21,7 +21,7 @@ async function getFeeAddresses(): Promise<string[]> {
   }
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   // Get fee addresses dynamically from API
   const feeAddresses = await getFeeAddresses();
 

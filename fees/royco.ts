@@ -58,8 +58,8 @@ interface RecipeEvent {
 }
 
 async function querySubgraph(options: FetchOptions, endpoint: string, dailySupplySideRevenue: Balances, dailyProtocolRevenue: Balances) {
-  const fromTime = Number(options.fromApi.timestamp)
-  const toTime = options.toApi.timestamp ? options.toApi.timestamp : fromTime + 24 * 3600
+  const fromTime = options.fromTimestamp
+  const toTime = options.toTimestamp ? options.toTimestamp : fromTime + 3600
 
   const receiptEvents: Array<RecipeEvent> = []
 
@@ -187,6 +187,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   fetch,
   adapter: {

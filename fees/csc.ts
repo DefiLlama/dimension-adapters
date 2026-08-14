@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const CSC_STATS_API = "https://www.coinex.net/res/statistics/transaction?start_time=oldest&end_time=latest"
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
 
     const response = await fetchURL(CSC_STATS_API);

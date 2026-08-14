@@ -7,7 +7,7 @@ import { METRIC } from "../helpers/metrics";
 
 const SIMD_0096_ACTIVATION_DATE = 1739318400 // after 2025-02-12 priority fees will go 100% to validators;
 
-const fetch = async (_t: any, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
 
