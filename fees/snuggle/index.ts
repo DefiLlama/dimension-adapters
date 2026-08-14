@@ -1,14 +1,20 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addTokensReceived } from "../../helpers/token";
 
-// Snuggle manages concentrated liquidity positions and keeps a share of what those positions earn.
-// The vault reports the cut it took on each harvest, already split between its treasury and the
-// referrer of the depositor: https://docs.snuggle.fi
-const PERFORMANCE_FEE_EVENT = "event PerformanceFeeCollected(uint256 indexed tokenId, address indexed token, uint256 feeAmount, uint256 treasuryAmount, uint256 referralAmount)";
-
-// share of the earnings the vault keeps, stored per vault in basis points
+// Snuggle keeps 15% of what the positions it manages earn: https://www.snuggle.fi/docs
+const TREASURY_ABI = "address:treasury";
+const STAKING_MANAGER_ABI = "address:stakingManager";
+const REFERRAL_TRACKER_ABI = "address:referralTracker";
+// referrer's share, trading fees
+const REFERRAL_EARNED_EVENT = "event EarningsRecorded(address indexed referrer, address indexed token, uint256 amount, uint256 totalEarnings)";
+// referrer's share, staking rewards, these never reach the tracker
+const REWARD_FEE_EVENT = "event PerformanceFeeCollected(uint256 indexed tokenId, address indexed token, uint256 feeAmount, uint256 treasuryAmount, uint256 referralAmount)";
+// a failed referral payment goes to the treasury but is still reported as a referral
+const REFERRAL_FAILED_EVENT = "event ReferralPaymentFailed(address indexed referrer, address indexed token, uint256 amount)";
+// 1500 today, read per period because the owner can change it
 const PERFORMANCE_FEE_ABI = "uint256:performanceFeeBps";
-const BPS_DENOMINATOR = 10000n;
+const BPS_DENOMINATOR = 10000;
 
 const METRIC = {
   LP_FEES: "Liquidity Position Fees",
@@ -17,6 +23,7 @@ const METRIC = {
   TO_REFERRERS: "Performance Fee To Referrers",
 }
 
+// same vaults the tvl adapter reads, maxfi is a snuggle whitelabel counted with it there too
 const chainConfig: Record<string, { vaults: string[], start: string }> = {
   [CHAIN.BASE]: {
     vaults: [
@@ -38,60 +45,71 @@ const chainConfig: Record<string, { vaults: string[], start: string }> = {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const { vaults } = chainConfig[options.chain];
 
-  const feeBps = await options.api.multiCall({ abi: PERFORMANCE_FEE_ABI, calls: vaults, permitFailure: true });
-  const logsPerVault = await options.getLogs({ targets: vaults, eventAbi: PERFORMANCE_FEE_EVENT, flatten: false });
+  const treasuries = await options.api.multiCall({ abi: TREASURY_ABI, calls: vaults });
+  const feeBps = await options.api.multiCall({ abi: PERFORMANCE_FEE_ABI, calls: vaults });
+  const stakingManagers = await options.api.multiCall({ abi: STAKING_MANAGER_ABI, calls: vaults });
+  const trackers = await options.api.multiCall({ abi: REFERRAL_TRACKER_ABI, calls: stakingManagers });
 
-  logsPerVault.forEach((logs: any[], i: number) => {
-    if (!feeBps[i]) return;
-    const bps = BigInt(feeBps[i]);
+  const referralLogs = await options.getLogs({ targets: trackers, eventAbi: REFERRAL_EARNED_EVENT, flatten: false });
+  const rewardLogs = await options.getLogs({ targets: vaults, eventAbi: REWARD_FEE_EVENT, flatten: false });
+  const failedLogs = await options.getLogs({ targets: vaults, eventAbi: REFERRAL_FAILED_EVENT, flatten: false });
 
-    logs.forEach((log: any) => {
-      const fee = BigInt(log.feeAmount);
-      const earned = (fee * BPS_DENOMINATOR) / bps;
+  for (const [i, vault] of vaults.entries()) {
+    // the cut is split between the treasury and the owner's referrer, both sides make up the fee
+    const toTreasury = await addTokensReceived({ options, target: treasuries[i], fromAddressFilter: vault });
+    const toReferrers = options.createBalances();
+    referralLogs[i].forEach((log: any) => toReferrers.add(log.token, log.amount));
+    rewardLogs[i].forEach((log: any) => toReferrers.add(log.token, log.referralAmount));
+    // already counted as a treasury transfer
+    failedLogs[i].forEach((log: any) => toReferrers.add(log.token, -log.amount));
 
-      dailyFees.add(log.token, earned, METRIC.LP_FEES);
-      dailySupplySideRevenue.add(log.token, earned - fee, METRIC.TO_DEPOSITORS);
-      dailySupplySideRevenue.add(log.token, log.referralAmount, METRIC.TO_REFERRERS);
-      dailyRevenue.add(log.token, log.treasuryAmount, METRIC.TO_TREASURY);
-      dailyProtocolRevenue.add(log.token, log.treasuryAmount, METRIC.TO_TREASURY);
-    });
-  });
+    const cut = options.createBalances();
+    cut.addBalances(toTreasury);
+    cut.addBalances(toReferrers);
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
+    // scale the cut back up to what the position earned, the rest stayed with the depositor
+    const earnedRatio = BPS_DENOMINATOR / Number(feeBps[i]);
+
+    dailyFees.addBalances(cut.clone(earnedRatio, METRIC.LP_FEES));
+    dailyRevenue.addBalances(toTreasury.clone(1, METRIC.TO_TREASURY));
+    dailySupplySideRevenue.addBalances(toReferrers.clone(1, METRIC.TO_REFERRERS));
+    dailySupplySideRevenue.addBalances(cut.clone(earnedRatio - 1, METRIC.TO_DEPOSITORS));
+  }
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
 const methodology = {
-  Fees: "Fees earned by the concentrated liquidity positions the vaults manage, recovered from the performance fee the vault reports on each harvest.",
-  Revenue: "The share of those earnings kept by Snuggle, 15% of the position's earnings, minus what is paid out to referrers.",
+  Fees: "Trading fees and staking rewards earned by the concentrated liquidity positions the vaults manage, scaled up from the performance fee the vault moved to its treasury.",
+  Revenue: "The share of the 15% performance fee that lands in the vault treasury. The part paid out to a position owner's referrer is counted as supply side instead.",
   ProtocolRevenue: "All revenue goes to the vault treasury.",
-  SupplySideRevenue: "What the depositors keep of their positions' earnings, plus the referral share paid out of the performance fee.",
+  SupplySideRevenue: "The rest of the position's earnings, which stay with the depositor, plus the referral share paid out of the performance fee.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.LP_FEES]: "Fees the managed positions earned before the performance fee was taken.",
+    [METRIC.LP_FEES]: "Trading fees and staking rewards the managed positions earned before the performance fee was taken.",
   },
   Revenue: {
-    [METRIC.TO_TREASURY]: "Performance fee sent to the vault treasury.",
+    [METRIC.TO_TREASURY]: "Performance fee received by the vault treasury.",
   },
   ProtocolRevenue: {
-    [METRIC.TO_TREASURY]: "Performance fee sent to the vault treasury.",
+    [METRIC.TO_TREASURY]: "Performance fee received by the vault treasury.",
   },
   SupplySideRevenue: {
     [METRIC.TO_DEPOSITORS]: "Position earnings left with the depositors after the performance fee.",
-    [METRIC.TO_REFERRERS]: "Share of the performance fee paid out to the depositor's referrer.",
+    [METRIC.TO_REFERRERS]: "Share of the performance fee paid out to the position owner's referrer.",
   },
 }
 
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
-  doublecounted: true, // the positions are uniswap v3, aerodrome, pancakeswap, sushiswap and camelot pools
+  doublecounted: true, // the pools are uniswap v3, aerodrome, pancakeswap, sushiswap and camelot
   fetch,
   adapter: chainConfig,
   methodology,
