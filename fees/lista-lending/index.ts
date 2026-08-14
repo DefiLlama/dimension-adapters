@@ -82,9 +82,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // Explicit per repo guideline. Kept false: fees are settlement-timed claim events (no intra-day
-  // signal), and hourly would multiply the getLogs load on public RPCs when the indexer is absent.
-  pullHourly: false,
+  pullHourly: true,
   methodology,
   breakdownMethodology: {
     Fees: breakdownMethodology,
