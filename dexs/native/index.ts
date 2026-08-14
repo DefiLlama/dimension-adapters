@@ -1,13 +1,13 @@
 import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const startBlocks: Record<string, number> = {
-  [CHAIN.BSC]: 46101475,
-  [CHAIN.ETHEREUM]: 21627898,
-  [CHAIN.ARBITRUM]: 297460493,
-  [CHAIN.BASE]: 25970577,
-  [CHAIN.XLAYER]: 59885326,
-  [CHAIN.ROBINHOOD]: 60423,
+const chainConfig: Record<string, { start: number }> = {
+  [CHAIN.BSC]: { start: 46101475 },
+  [CHAIN.ETHEREUM]: { start: 21627898 },
+  [CHAIN.ARBITRUM]: { start: 297460493 },
+  [CHAIN.BASE]: { start: 25970577 },
+  [CHAIN.XLAYER]: { start: 61994385 },
+  [CHAIN.ROBINHOOD]: { start: 60423 },
 };
 
 const RFQ_TRADE_EVENT = 'event RFQTrade(address recipient, address sellerToken, address buyerToken, uint256 sellerTokenAmount, uint256 buyerTokenAmount, bytes16 quoteId, address signer)';
@@ -38,16 +38,9 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
   methodology,
-  adapter: Object.keys(startBlocks).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        start: startBlocks[chain],
-      },
-    };
-  }, {}),
+  adapter: chainConfig,
 };
 
 export default adapter;
