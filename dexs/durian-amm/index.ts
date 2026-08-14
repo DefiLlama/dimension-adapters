@@ -197,10 +197,10 @@ const fetch = async (options: FetchOptions) => {
     .map((l: any) => (l.ammPool ?? l[2]) as string)
     .filter((a) => a && a !== ZERO);
 
-  // 3) Group Durian V3 pools by (which side is KKUB, fee tier) so each sweep
-  //    can read the KKUB-side notional without needing the emitting pool's
-  //    address. Non-KKUB pools cannot arise from graduation and are skipped.
-  const v3Groups = new Map<string, { kkubIsToken0: boolean; fee: bigint; pools: string[] }>();
+  // 3) Durian V3 pools — skip anything that is not KKUB-quoted (graduation
+  //    cannot create those). `flatten: false` later keeps one log array per
+  //    pool so we can apply that pool's KKUB side and fee tier.
+  const v3Pools: { pool: string; kkubIsToken0: boolean; fee: bigint }[] = [];
   for (const l of v3PoolLogs as any[]) {
     const token0 = String(l.token0 ?? l[0]);
     const token1 = String(l.token1 ?? l[1]);
@@ -208,23 +208,19 @@ const fetch = async (options: FetchOptions) => {
     const pool   = String(l.pool ?? l[4]);
     const kkubIsToken0 = token0.toLowerCase() === KKUB.toLowerCase();
     if (!kkubIsToken0 && token1.toLowerCase() !== KKUB.toLowerCase()) continue;
-    const key = `${kkubIsToken0}-${fee}`;
-    if (!v3Groups.has(key)) v3Groups.set(key, { kkubIsToken0, fee, pools: [] });
-    (v3Groups.get(key) as any).pools.push(pool);
+    v3Pools.push({ pool, kkubIsToken0, fee });
   }
 
-  if (pools.length === 0 && v3Groups.size === 0) {
+  if (pools.length === 0 && v3Pools.length === 0) {
     return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
   }
 
   // 4) Sum swap events from every discovered pool in the daily window.
-  const [swaps, v3Sweeps] = await Promise.all([
+  const [swaps, v3LogsByPool] = await Promise.all([
     pools.length ? getLogs({ targets: pools, eventAbi: SWAPPED_ABI }) : noLogs,
-    Promise.all(
-      [...v3Groups.values()].map((g) =>
-        getLogs({ targets: g.pools, eventAbi: V3_SWAP_ABI }).then((logs) => ({ g, logs }))
-      )
-    ),
+    v3Pools.length
+      ? getLogs({ targets: v3Pools.map((p) => p.pool), eventAbi: V3_SWAP_ABI, flatten: false })
+      : noLogs,
   ]);
 
   for (const log of swaps) {
@@ -245,16 +241,17 @@ const fetch = async (options: FetchOptions) => {
 
   // 5) Durian V3 pools — the whole swap fee accrues to liquidity providers
   //    (no protocol fee is enabled on these pools).
-  for (const { g, logs } of v3Sweeps) {
-    for (const log of logs as any[]) {
-      const volumeKub = abs(BigInt(g.kkubIsToken0 ? log.amount0 : log.amount1));
+  v3LogsByPool.forEach((logs: any[], i: number) => {
+    const { kkubIsToken0, fee: feeTier } = v3Pools[i];
+    for (const log of logs) {
+      const volumeKub = abs(BigInt(kkubIsToken0 ? log.amount0 : log.amount1));
       if (volumeKub === 0n) continue;
-      const fee = (volumeKub * g.fee) / 1_000_000n;
+      const fee = (volumeKub * feeTier) / 1_000_000n;
       dailyVolume.add(KKUB, volumeKub);
       dailyFees.add(KKUB, fee, METRIC.SWAP_FEES);
       dailySupplySideRevenue.add(KKUB, fee, METRIC.LP_FEES);
     }
-  }
+  });
 
   return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
