@@ -8,7 +8,7 @@ const PERFORMANCE_FEE_EVENT = "event PerformanceFeeCollected(uint256 indexed tok
 
 // share of the earnings the vault keeps, stored per vault in basis points
 const PERFORMANCE_FEE_ABI = "uint256:performanceFeeBps";
-const BPS_DENOMINATOR = 10000;
+const BPS_DENOMINATOR = 10000n;
 
 const METRIC = {
   LP_FEES: "Liquidity Position Fees",
@@ -47,11 +47,11 @@ const fetch = async (options: FetchOptions) => {
   const logsPerVault = await options.getLogs({ targets: vaults, eventAbi: PERFORMANCE_FEE_EVENT, flatten: false });
 
   logsPerVault.forEach((logs: any[], i: number) => {
-    const bps = Number(feeBps[i]);
-    if (!bps) return;
+    if (!feeBps[i]) return;
+    const bps = BigInt(feeBps[i]);
 
     logs.forEach((log: any) => {
-      const fee = Number(log.feeAmount);
+      const fee = BigInt(log.feeAmount);
       const earned = (fee * BPS_DENOMINATOR) / bps;
 
       dailyFees.add(log.token, earned, METRIC.LP_FEES);
