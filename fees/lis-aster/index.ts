@@ -77,6 +77,7 @@ const adapter: SimpleAdapter = {
       [METRIC.ASSETS_YIELDS]: "ASTER rewards paid to stakers, net of the protocol fee",
     },
   },
+  doublecounted: true, //lis-aster is yield aggregator
 };
 
 export default adapter;
