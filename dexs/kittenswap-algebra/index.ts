@@ -10,12 +10,17 @@ const poolSwapEvent = "event Swap(address indexed sender, address indexed recipi
 // emitted immediately before each Swap, carrying the fee actually charged on it
 const swapFeeEvent = "event SwapFee(address indexed sender, uint24 overrideFee, uint24 pluginFee)";
 
+// AlgebraFactory: purrsec.com/address/0x5f95E92c338e6453111Fc55ee66D4AafccE661A7
 const factory = "0x5f95E92c338e6453111Fc55ee66D4AafccE661A7";
+// the factory's first Pool event, 2025-08-15
 const fromBlock = 11198369;
+// Voter, the communityFeeReceiver of gauged pools, which forwards their fees to veKITTEN voters.
+// Pools pointing anywhere else pay the treasury multisig instead, so their share is protocol revenue.
 const voter = "0xb7f7053f7e6c210e6777d5ba758e4b3eca6c88a0";
 
-const COMMUNITY_FEE_DENOMINATOR = 1000; // globalState().communityFee
-const ALGEBRA_FEE_DENOMINATOR = 1000; // AlgebraCommunityVault.algebraFee
+// Algebra Integral holds both as private constants, so they cannot be read on-chain
+const COMMUNITY_FEE_DENOMINATOR = 1000; // globalState().communityFee, out of 1000
+const ALGEBRA_FEE_DENOMINATOR = 1000; // AlgebraCommunityVault.algebraFee, out of 1000
 
 const abis = {
   fee: "function fee() view returns (uint16)",
@@ -99,10 +104,10 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`kittenswap-algebra: ${swapLogs.length} swaps but no SwapFee logs, the per-swap fee source is broken`);
 
   const swapFeeIface = new ethers.Interface([swapFeeEvent]);
-  const swapFees: IJSON<number> = {};
+  const swapFees: IJSON<{ overrideFee: number, pluginFee: number }> = {};
   swapFeeLogs.forEach((log: any) => {
     const { overrideFee, pluginFee } = swapFeeIface.parseLog(log)!.args;
-    swapFees[`${log.transactionHash}-${logIndexOf(log) + 1}`] = Number(overrideFee) + Number(pluginFee);
+    swapFees[`${log.transactionHash}-${logIndexOf(log) + 1}`] = { overrideFee: Number(overrideFee), pluginFee: Number(pluginFee) };
   });
 
   const swapIface = new ethers.Interface([poolSwapEvent]);
@@ -113,8 +118,10 @@ const fetch = async (options: FetchOptions) => {
     const { token0, token1, communityFee, algebraFee, toVoter } = info;
 
     const { token, amount } = addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
-    // pools run Algebra's adaptive fee, so the rate the swap actually paid comes from its SwapFee log
-    const rate = swapFees[`${log.transactionHash}-${logIndexOf(log)}`] ?? info.fee;
+    // pools run Algebra's adaptive fee, so the rate the swap actually paid comes from its SwapFee log.
+    // a zero overrideFee means the pool's own fee applied, not a free swap
+    const swapFeeLog = swapFees[`${log.transactionHash}-${logIndexOf(log)}`];
+    const rate = swapFeeLog ? (swapFeeLog.overrideFee || info.fee) + swapFeeLog.pluginFee : info.fee;
 
     const swapFee = amount * rate / 1e6;
     const toVault = swapFee * communityFee / COMMUNITY_FEE_DENOMINATOR;
