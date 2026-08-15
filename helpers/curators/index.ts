@@ -81,6 +81,17 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // that has now marked itself up 91%. Same phantom accrual as the v1 above, same onset date.
     vault: '0xFa17f7AAdbfAc2C5d3C8125555404c1AE17Df853',
     from: '2026-03-21',
+  }, {
+    // MEV Capital Elixir USDC - share price 95.38 -> 97.33 in one day (~71,000% APR) on ~$460k
+    // TVL, reporting ~$894k fees/day. Frozen/unrealized bad debt after the Nov 2025 Elixir deUSD
+    // unwind; phantom accrual compounds from early April 2026.
+    vault: '0x1265a81d42d513Df40d0031f8f2e1346954d665a',
+    from: '2026-04-01',
+  }, {
+    // MEV Capital USD0 - share price 7.73 -> 7.82 in one day (~3,300% APR) on ~$217k TVL,
+    // reporting ~$20k fees/day. Same vault-level share-price corruption.
+    vault: '0x749794E985Af5a9A384B9cEe6D88DaB4CE1576A1',
+    from: '2026-04-01',
   }],
 }
 
