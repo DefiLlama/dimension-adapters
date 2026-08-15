@@ -19,15 +19,17 @@ const PRE_IPO_DISTRIBUTOR = "0x9f7526EDAa18278D4bC1fA6b63B749A649Cb1844";
 const COLLECTION_WALLET = "0x09702Ea135d9D707DD51f530864f2B9220aAD87B";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const preIpoFees = options.createBalances();
 
   await addTokensReceived({
     options,
     target: COLLECTION_WALLET,
     fromAddressFilter: PRE_IPO_DISTRIBUTOR,
     tokens: [USDT],
-    balances: dailyFees,
+    balances: preIpoFees,
   });
+
+  const dailyFees = preIpoFees.clone(1, "Pre-IPO fees");
 
   return {
     dailyFees,
@@ -42,6 +44,18 @@ const methodology = {
   ProtocolRevenue: "All pre-IPO income is collected by Lista DAO.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Pre-IPO fees": "USDT distributed as Lista's pre-IPO income to the DAO collection wallet.",
+  },
+  Revenue: {
+    "Pre-IPO income": "All pre-IPO income is collected by Lista DAO.",
+  },
+  ProtocolRevenue: {
+    "Pre-IPO income": "All pre-IPO income is collected by Lista DAO.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
@@ -51,6 +65,8 @@ const adapter: SimpleAdapter = {
       start: "2026-08-01",
     },
   },
+  breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
