@@ -10,8 +10,10 @@ const chainConfig: Record<string, { start: string, chainId: String }> = {
   [CHAIN.ROBINHOOD]: { start: '2026-07-21', chainId: "4663" },
 }
 
-function toAddress(numberString: string): string {
-  return numberString === '0' ? ADDRESSES.null : `0x${new BigNumber(numberString).toString(16)}`;
+function toAddress(numberString: string, chain: string): string {
+  const hex = new BigNumber(numberString).toString(16)
+  if (hex === '0') return ADDRESSES.null
+  return chain === CHAIN.STARKNET ? `0x${hex}` : `0x${hex.padStart(40, '0')}`
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -25,15 +27,15 @@ const fetch = async (options: FetchOptions) => {
   const responseRevenue: any[] = (await httpGet('https://prod-api.ekubo.org/overview/revenue?chainId=' + chainId)).revenueByTokenByDate
 
   responseVolumes.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
-    const token = toAddress(t.token)
+    const token = toAddress(t.token, options.chain)
     dailyVolume.add(token, t.volume)
     dailyFees.add(token, t.fees)
   })
 
   responseRevenue.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
     // add withdrawal fees to fees too
-    dailyFees.add(toAddress(t.token), t.revenue)
-    dailyRevenue.add(toAddress(t.token), t.revenue)
+    dailyFees.add(toAddress(t.token, options.chain), t.revenue)
+    dailyRevenue.add(toAddress(t.token, options.chain), t.revenue)
   })
 
   const dailySupplySideRevenue = dailyFees.clone()
