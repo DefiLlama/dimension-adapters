@@ -370,6 +370,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(toBooster, LABELS.LAUNCH_TAX_DIVIDENDS);
     // The 10% dev leg pays the launching team, not the protocol — counted in
     // fees, excluded from revenue/protocolRevenue.
+    dailySupplySideRevenue.addGasToken(tax - toBooster, LABELS.LAUNCH_TAX_DEV);
   }
 
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
@@ -464,7 +465,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev.",
   },
   breakdownMethodology: {
     Fees: {
@@ -519,6 +520,8 @@ const adapter: SimpleAdapter = {
         "Relay swap-desk 1% app fee forwarded to StockBooster as a Clock In bonus top-up.",
       [LABELS.LAUNCH_TAX_DIVIDENDS]:
         "90% of the anti-snipe launch snipe tax → StockBooster → Clock In stock dividends to activated brokers.",
+      [LABELS.LAUNCH_TAX_DEV]:
+        "10% of the anti-snipe launch snipe tax → launch dev.",
     },
   },
 };
