@@ -23,14 +23,16 @@ const config: Record<string, { factories: string[], start: string }> = {
     ],
     start: "2026-01-16",
   },
-  [CHAIN.BASE]: {
-    factories: [
-      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
-      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
-      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
-    ],
-    start: "2026-04-20",
-  },
+  // Base is commented out: Accountable no longer has any active vault on this
+  // chain, so there is nothing left to enumerate here going forward.
+  // [CHAIN.BASE]: {
+  //   factories: [
+  //     "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+  //     "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+  //     "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+  //   ],
+  //   start: "2026-04-20",
+  // },
   [CHAIN.ARBITRUM]: {
     factories: [
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
