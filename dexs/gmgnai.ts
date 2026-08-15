@@ -72,6 +72,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  doublecounted: true,
 };
 
 export default adapter;
