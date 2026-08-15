@@ -16,12 +16,18 @@ import { addTokensReceived } from "../../helpers/token";
  *     SafetyDepositClockInV3 (90% brokers / 10% protocol wallet)
  *  5. Swap-desk 1% Relay app fee: Base USDC forwarded from the fee wallet
  *     (claimed from Relay, then bridged to StockBooster as ETH)
+ *  6. Anti-snipe fair-launch tooling: time-decay snipe tax on launch-curve
+ *     buys (starts at 99% and falls 1%/minute over a 99-minute window), split
+ *     90% StockBooster / 10% launch dev, pushed live per trade. First
+ *     production launch: Card Wall ($WALL), 2026-08-14 — raise bonded into
+ *     permanently locked LP, so the tax is the only extractable fee leg.
  *
  * Volume (protocol volume chart):
  *  - NFT AMM notional (ethFeePaid ÷ fee bps)
  *  - Broker Box ticket notional (PullOpened.ticketWei)
  *  - Certificate Counter stock purchase (CertificateBought.spendWei)
  *  - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
+ *  - Anti-snipe launch buys (WallBought.ethIn)
  */
 
 const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
@@ -54,6 +60,15 @@ const LOCKER_V4 = "0x5a28ce098750f73bc9eC142D4bCE464E1A0BBdA6";
 const RELAY_FEE_WALLET = "0xb668382cF44038a3E8140E789060F6A809787CDa";
 const BASE_USDC = ADDRESSES.base.USDC;
 
+// Anti-snipe fair-launch instances (WallFairLaunch-style time-decay snipe-tax
+// curves). Each launch is a standalone one-off contract; append new instances
+// here as they go live. boosterFeeBps = 9000 on-chain (90% StockBooster /
+// 10% launch dev), read from the deployed instance.
+const ANTI_SNIPE_LAUNCHES = [
+  "0xEa371F8122630d05352Cf15b608402DB2069bdd6", // Card Wall ($WALL), 2026-08-14
+];
+const LAUNCH_BOOSTER_BPS = 9000n;
+
 const NFT_SOLD =
   "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
 const NFT_BOUGHT =
@@ -79,6 +94,8 @@ const LOCK_FEES_COLLECTED =
 // liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
 const LOCK_LIQUIDITY_DECREASED =
   "event LockLiquidityDecreased(uint256 indexed lockTokenId, uint128 liquidity, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
+const WALL_BOUGHT =
+  "event WallBought(address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
 
 /** USDG on Robinhood Chain — sell-back rail payout token. */
 const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
@@ -104,6 +121,9 @@ const LABELS = {
   LOCKER_STOCK_DIVIDENDS: "Locker fees → SafetyDepositClockIn brokers (90%)",
   LOCKER_PROTOCOL: "Locker fees → protocol wallet (10%)",
   SWAP_DESK_FEES: "Swap-desk Relay app fees (1%)",
+  LAUNCH_TAX: "Anti-snipe launch tax (time-decay snipe tax on curve buys)",
+  LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
+  LAUNCH_TAX_DEV: "Anti-snipe launch tax → launch dev (10%)",
 };
 
 const RANDOM_FEE_BPS = 1000n;
@@ -202,6 +222,11 @@ const fetchRobinhood = async (options: FetchOptions) => {
       eventAbi: CERTIFICATE_BOUGHT,
     }),
   ]);
+
+  const launchBuyLogs = await options.getLogs({
+    targets: ANTI_SNIPE_LAUNCHES,
+    eventAbi: WALL_BOUGHT,
+  });
 
   const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
     options.getLogs({
@@ -330,6 +355,23 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailyRevenue.addGasToken(rest, LABELS.COUNTER_PROTOCOL);
   }
 
+  // ── Anti-snipe fair-launch tax ───────────────────────────────────────────
+  // Time-decay snipe tax on launch-curve buys (99% at the bell, −1%/minute).
+  // Pushed live per trade: 90% StockBooster (Clock In dividends to activated
+  // brokers) / 10% launch dev. The net raise bonds into permanently locked LP
+  // at graduation, so the tax is the only fee leg that leaves the curve.
+  for (const log of launchBuyLogs) {
+    const ethIn = BigInt(log.ethIn);
+    const tax = BigInt(log.taxPaid);
+    if (ethIn > 0n) dailyVolume.addGasToken(ethIn);
+    if (tax <= 0n) continue;
+    const toBooster = (tax * LAUNCH_BOOSTER_BPS) / 10_000n;
+    dailyFees.addGasToken(tax, LABELS.LAUNCH_TAX);
+    dailySupplySideRevenue.addGasToken(toBooster, LABELS.LAUNCH_TAX_DIVIDENDS);
+    // The 10% dev leg pays the launching team, not the protocol — counted in
+    // fees, excluded from revenue/protocolRevenue.
+  }
+
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
   // Attribute 90/10 to match SafetyDepositClockInV3's hardwired split.
   // Upfront-mode cuts that never emit LockFeesCollected are not visible here
@@ -412,9 +454,9 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut).",
+      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut) + anti-snipe launch-curve buys (WallBought.ethIn).",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts; and the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster).",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts; the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); and the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev).",
     Revenue:
       "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, and 10% of locker fees.",
     ProtocolRevenue:
@@ -422,7 +464,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers.",
   },
   breakdownMethodology: {
     Fees: {
@@ -437,6 +479,8 @@ const adapter: SimpleAdapter = {
         "Protocol cut on Safety Deposit Box locks from LockFeesCollected / LockLiquidityDecreased (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
       [LABELS.SWAP_DESK_FEES]:
         "1% Relay app fee on the crypto swap desk, measured as Base USDC Transfer outflows from the fee wallet toward StockBooster.",
+      [LABELS.LAUNCH_TAX]:
+        "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
     },
     Revenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -473,6 +517,8 @@ const adapter: SimpleAdapter = {
         "90% of locker protocol fees → SafetyDepositClockIn broker claim rounds / StockBooster ETH flush.",
       [LABELS.SWAP_DESK_FEES]:
         "Relay swap-desk 1% app fee forwarded to StockBooster as a Clock In bonus top-up.",
+      [LABELS.LAUNCH_TAX_DIVIDENDS]:
+        "90% of the anti-snipe launch snipe tax → StockBooster → Clock In stock dividends to activated brokers.",
     },
   },
 };
