@@ -5,19 +5,17 @@ import { CHAIN } from "../../helpers/chains";
 const EXCHANGE = "0x34B6552d57a35a1D042CcAe1951BD1C370112a6F";
 const CNS_DECIMALS = 1e6;
 
-// The exchange renamed four events across two upgrades. Each V2 variant only APPENDS members,
-// so its topic0 differs but every pre-existing field (and its byte offset) is unchanged. We match
-// BOTH the V1 (pre-upgrade history) and V2 (current) forms so daily figures stay continuous across
-// each upgrade block:
-//   rc_v1.1.7.3 (block 78,499,562, 2026-06): PositionOpened->V2, PositionIncreased->V2 (append priceResiduePNSQ16)
-//   rc_v1.1.7.4 (block 95,662,781, 2026-08-13): MakerOrderFilled->V2, TakerOrderFilled->V2 (append builderId, builderFeeCNS)
+// The exchange renamed four events across two upgrades. Each V2 variant only APPENDS members, so
+// its topic0 differs from the V1 form while every pre-existing field is unchanged. We match BOTH
+// the V1 (pre-upgrade history) and V2 (current) forms so daily figures stay continuous across each
+// upgrade block:
+//   rc_v1.1.7.3 (2026-06): PositionOpened -> PositionOpenedV2, PositionIncreased -> PositionIncreasedV2 (append priceResiduePNSQ16)
+//   rc_v1.1.7.4 (block 95,662,781, 2026-08-13): MakerOrderFilled -> MakerOrderFilledV2, TakerOrderFilled -> TakerOrderFilledV2 (append builderId, builderFeeCNS)
 const abi = {
-    // PositionOpened: insFeeCNS at word 8, protFeeCNS at word 9 (same in V1 and V2).
-    positionOpenedTopicV1: "0xc0150ebb43a9c2478aa9c69d27078da071ceafb70e2d822d7d39a533e0418728",
-    positionOpenedTopicV2: "0x04cc3d2fc73a9dca30eba1d05eca80b1b1216350243580027046f434fed4db18",
-    // PositionIncreased: insFeeCNS at word 12, protFeeCNS at word 13 (same in V1 and V2).
-    positionIncreasedTopicV1: "0x2a077a58d72570ce2b985a210c9ad672373eb9bcc337d1dc62b8b75dd644cf27",
-    positionIncreasedTopicV2: "0x99a74f70c224396b9ba5fcd5a6e5f480db23e7a25a2b16a8c133ec2efb3e646c",
+    positionOpened: "event PositionOpened(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 depositCNS, int256 pnlCollateralizedCNS, uint256 pricePNS, uint256 lotLNS, uint256 insFeeCNS, uint256 protFeeCNS)",
+    positionOpenedV2: "event PositionOpenedV2(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 depositCNS, int256 pnlCollateralizedCNS, uint256 pricePNS, uint256 lotLNS, uint256 insFeeCNS, uint256 protFeeCNS, uint256 priceResiduePNSQ16)",
+    positionIncreased: "event PositionIncreased(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 startDepositCNS, uint256 endDepositCNS, int256 pnlCollateralizedCNS, int256 premiumPnlSettledCNS, uint256 maxNegPnlCollatBPS, uint256 pricePNS, uint256 startLotLNS, uint256 endLotLNS, uint256 insFeeCNS, uint256 protFeeCNS)",
+    positionIncreasedV2: "event PositionIncreasedV2(uint256 perpId, uint256 accountId, uint8 positionType, uint256 leverageHdths, uint256 startDepositCNS, uint256 endDepositCNS, int256 pnlCollateralizedCNS, int256 premiumPnlSettledCNS, uint256 maxNegPnlCollatBPS, uint256 pricePNS, uint256 startLotLNS, uint256 endLotLNS, uint256 insFeeCNS, uint256 protFeeCNS, uint256 priceResiduePNSQ16)",
     makerOrderFilled: "event MakerOrderFilled(uint256 perpId, uint256 accountId, uint256 orderId, uint256 pricePNS, uint256 lotLNS, uint256 feeCNS, uint256 lockedBalanceCNS, int256 amountCNS, uint256 balanceCNS)",
     makerOrderFilledV2: "event MakerOrderFilledV2(uint256 perpId, uint256 accountId, uint256 orderId, uint256 pricePNS, uint256 lotLNS, uint256 feeCNS, uint256 lockedBalanceCNS, int256 amountCNS, uint256 balanceCNS, uint256 builderId, uint256 builderFeeCNS)",
     takerOrderFilled: "event TakerOrderFilled(uint256 entryPricePNS, uint256 collatPricePNS, uint256 pnlPricePNS, uint256 lotLNS, uint256 feeCNS, int256 amountCNS, uint256 balanceCNS)",
@@ -35,18 +33,21 @@ const fetch = async (options: FetchOptions) => {
         options.getLogs({ target: EXCHANGE, eventAbi: abi.makerOrderFilledV2 }),
         options.getLogs({ target: EXCHANGE, eventAbi: abi.takerOrderFilled }),
         options.getLogs({ target: EXCHANGE, eventAbi: abi.takerOrderFilledV2 }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionOpenedTopicV1], entireLog: true }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionOpenedTopicV2], entireLog: true }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionIncreasedTopicV1], entireLog: true }),
-        options.getLogs({ target: EXCHANGE, topics: [abi.positionIncreasedTopicV2], entireLog: true }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.positionOpened }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.positionOpenedV2 }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.positionIncreased }),
+        options.getLogs({ target: EXCHANGE, eventAbi: abi.positionIncreasedV2 }),
     ]);
 
     // V1 (pre-upgrade) + V2 (current) forms of each event. V2 only appends members, so every field
-    // read below (and every byte offset for the position events) is identical across both variants.
+    // read below is present and identically named across both variants (builderFeeCNS is V2-only on
+    // the fills and is treated as zero for V1).
     const makerLogs = [...makerLogsV1, ...makerLogsV2];
     const takerLogs = [...takerLogsV1, ...takerLogsV2];
-    const positionOpenedLogs = [...positionOpenedLogsV1, ...positionOpenedLogsV2];
-    const positionIncreasedLogs = [...positionIncreasedLogsV1, ...positionIncreasedLogsV2];
+    const positionLogs = [
+        ...positionOpenedLogsV1, ...positionOpenedLogsV2,
+        ...positionIncreasedLogsV1, ...positionIncreasedLogsV2,
+    ];
 
     const markets: Record<number, { priceDecimals: number; lotDecimals: number }> = {};
 
@@ -74,6 +75,10 @@ const fetch = async (options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
+    // feeCNS is the gross fee the trader pays. On V2 fills, builderFeeCNS is the portion of feeCNS
+    // that is settled off-chain to the registered builder, so the protocol keeps feeCNS - builderFeeCNS.
+    // V1 fills have no builder fee (treated as zero). Gross feeCNS stays in Fees / UserFees.
+
     // Volume from maker fills only (one per trade, avoids double-counting)
     for (const log of makerLogs) {
         const perpId = Number(log.perpId);
@@ -88,26 +93,34 @@ const fetch = async (options: FetchOptions) => {
 
         // Maker fees in AUSD (6 decimals, 1:1 USD)
         const fee = Number(log.feeCNS) / CNS_DECIMALS;
+        const builderFee = Number(log.builderFeeCNS ?? 0) / CNS_DECIMALS;
         dailyFees.addUSDValue(fee, "Maker Fees");
         dailyUserFees.addUSDValue(fee, "Maker Fees");
-        dailyRevenue.addUSDValue(fee, "Maker Fees");
-        dailyProtocolRevenue.addUSDValue(fee, "Maker Fees");
+        dailyRevenue.addUSDValue(fee - builderFee, "Maker Fees");
+        dailyProtocolRevenue.addUSDValue(fee - builderFee, "Maker Fees");
+        if (builderFee > 0) {
+            dailySupplySideRevenue.addUSDValue(builderFee, "Builder Fees");
+        }
     }
 
     // Taker fees (separate fee charged to taker side)
     for (const log of takerLogs) {
         const fee = Number(log.feeCNS) / CNS_DECIMALS;
+        const builderFee = Number(log.builderFeeCNS ?? 0) / CNS_DECIMALS;
         dailyFees.addUSDValue(fee, "Taker Fees");
         dailyUserFees.addUSDValue(fee, "Taker Fees");
-        dailyRevenue.addUSDValue(fee, "Taker Fees");
-        dailyProtocolRevenue.addUSDValue(fee, "Taker Fees");
+        dailyRevenue.addUSDValue(fee - builderFee, "Taker Fees");
+        dailyProtocolRevenue.addUSDValue(fee - builderFee, "Taker Fees");
+        if (builderFee > 0) {
+            dailySupplySideRevenue.addUSDValue(builderFee, "Builder Fees");
+        }
     }
 
-    // The position fee topics are not publicly ABI-matched; these word indexes mirror the Dune query.
-    positionOpenedLogs.forEach((log: any) => {
-        const data = log.data.slice(2);
-        const insuranceFee = Number(BigInt(`0x${data.slice(8 * 64, 9 * 64)}`)) / CNS_DECIMALS;
-        const protocolFee = Number(BigInt(`0x${data.slice(9 * 64, 10 * 64)}`)) / CNS_DECIMALS;
+    // Position open/increase fees, decoded by field name. PositionOpened/PositionIncreased and their
+    // V2 variants all expose insFeeCNS + protFeeCNS.
+    for (const log of positionLogs) {
+        const insuranceFee = Number(log.insFeeCNS) / CNS_DECIMALS;
+        const protocolFee = Number(log.protFeeCNS) / CNS_DECIMALS;
         dailyFees.addUSDValue(insuranceFee, "Position Insurance Fees");
         dailyUserFees.addUSDValue(insuranceFee, "Position Insurance Fees");
         dailySupplySideRevenue.addUSDValue(insuranceFee, "Position Insurance Fees");
@@ -115,23 +128,10 @@ const fetch = async (options: FetchOptions) => {
         dailyUserFees.addUSDValue(protocolFee, "Position Protocol Fees");
         dailyRevenue.addUSDValue(protocolFee, "Position Protocol Fees");
         dailyProtocolRevenue.addUSDValue(protocolFee, "Position Protocol Fees");
-    });
+    }
 
-    positionIncreasedLogs.forEach((log: any) => {
-        const data = log.data.slice(2);
-        const insuranceFee = Number(BigInt(`0x${data.slice(12 * 64, 13 * 64)}`)) / CNS_DECIMALS;
-        const protocolFee = Number(BigInt(`0x${data.slice(13 * 64, 14 * 64)}`)) / CNS_DECIMALS;
-        dailyFees.addUSDValue(insuranceFee, "Position Insurance Fees");
-        dailyUserFees.addUSDValue(insuranceFee, "Position Insurance Fees");
-        dailySupplySideRevenue.addUSDValue(insuranceFee, "Position Insurance Fees");
-        dailyFees.addUSDValue(protocolFee, "Position Protocol Fees");
-        dailyUserFees.addUSDValue(protocolFee, "Position Protocol Fees");
-        dailyRevenue.addUSDValue(protocolFee, "Position Protocol Fees");
-        dailyProtocolRevenue.addUSDValue(protocolFee, "Position Protocol Fees");
-    });
-
-    // Insurance fees go to supply side; all other tracked fees go to protocol revenue.
-    // No LP rewards, referrals, or token holder distributions
+    // Insurance fees and builder fees go to the supply side; all other tracked fees go to protocol
+    // revenue. No LP rewards, referrals, or token holder distributions.
     return {
         dailyVolume,
         dailyFees,
@@ -145,9 +145,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: "All fees paid by traders on Perpl: maker fees, taker fees, protocol fees, and insurance fund fees.",
     UserFees: "All fees paid by traders on Perpl.",
-    Revenue: "Fees kept by the protocol, excluding the portion sent to the insurance fund.",
-    ProtocolRevenue: "Fees kept by the protocol.",
-    SupplySideRevenue: "Fees sent to the insurance fund.",
+    Revenue: "Fees kept by the protocol, excluding the portions sent to the insurance fund and settled to builders.",
+    ProtocolRevenue: "Fees kept by the protocol, excluding builder fees settled to registered builders.",
+    SupplySideRevenue: "Fees sent to the insurance fund plus builder fees settled to registered builders.",
 };
 
 const breakdownMethodology = {
@@ -164,17 +164,18 @@ const breakdownMethodology = {
         "Position Protocol Fees": "Protocol fees paid when positions are opened or increased.",
     },
     Revenue: {
-        "Maker Fees": "Maker fees kept by the protocol.",
-        "Taker Fees": "Taker fees kept by the protocol.",
+        "Maker Fees": "Maker fees kept by the protocol (net of any builder fee).",
+        "Taker Fees": "Taker fees kept by the protocol (net of any builder fee).",
         "Position Protocol Fees": "Position protocol fees kept by the protocol.",
     },
     ProtocolRevenue: {
-        "Maker Fees": "Maker fees kept by the protocol.",
-        "Taker Fees": "Taker fees kept by the protocol.",
+        "Maker Fees": "Maker fees kept by the protocol (net of any builder fee).",
+        "Taker Fees": "Taker fees kept by the protocol (net of any builder fee).",
         "Position Protocol Fees": "Position protocol fees kept by the protocol.",
     },
     SupplySideRevenue: {
         "Position Insurance Fees": "Insurance fees sent to the insurance fund.",
+        "Builder Fees": "Builder-code fees settled to the registered builder for routed order flow.",
     },
 };
 
