@@ -97,6 +97,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
+  doublecounted: true, // uni-v4
 };
 
 export default adapter;
