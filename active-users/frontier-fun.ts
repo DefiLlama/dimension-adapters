@@ -2,16 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // Frontier (frontier.fun) — bonding-curve token launchpad on Robinhood Chain (4663).
-// Every market trades against one shared BondingCurve, and every launch goes
+// Tracks the v1.2 production deployment (live 2026-08-15). Every market trades
+// against one shared BondingCurve, and every launch (curve or direct-seed) goes
 // through one factory, so two targets cover all user-facing activity. Swaps on a
-// graduated token's Uniswap V4 pool are Uniswap activity, not Frontier's, and are
-// excluded for the same reason the volume adapter excludes them.
-// Both deployed in block 23472343; the factory registered this curve in the same
-// block (BondingCurveUpdated) and has never pointed at another one.
-// https://robinhoodchain.blockscout.com/address/0xCCa442899dFD80bf04340fa8C245C7EB02F71DD4
-const BONDING_CURVE = "0xCCa442899dFD80bf04340fa8C245C7EB02F71DD4";
-// https://robinhoodchain.blockscout.com/address/0x3cbC9395046607C083B383DC3588A3e8308dFf54
-const FACTORY = "0x3cbC9395046607C083B383DC3588A3e8308dFf54";
+// token's Uniswap V4 pool are Uniswap activity, not Frontier's, and are excluded
+// for the same reason the volume adapter excludes them.
+// Both deployed in block 36671438.
+// https://robinhoodchain.blockscout.com/address/0xEAaa2aE7De8B80d7a59eCF08B078EfAC6FcE6659
+const BONDING_CURVE = "0xEAaa2aE7De8B80d7a59eCF08B078EfAC6FcE6659";
+// https://robinhoodchain.blockscout.com/address/0xe3A826C056e578c240D362BF4C2fa53E5c0c17a5
+const FACTORY = "0xe3A826C056e578c240D362BF4C2fa53E5c0c17a5";
 
 const activityEvents = [
   {
@@ -30,7 +30,7 @@ const activityEvents = [
     target: FACTORY,
     userField: "creator",
     eventAbi:
-      "event CoinDeployed(address indexed creator, address indexed token, address factory, address lp, string name, string symbol, string description, string image, uint256 initialSupply, uint256 maxSupply, uint256 initialETHReserves, uint256 initialPrice, uint256 initialMarketCap, uint256 targetETH)",
+      "event CoinDeployed(address indexed creator, address indexed token, address factory, address lp, string name, string symbol, string description, string image, uint256 initialSupply, uint256 maxSupply, uint256 initialETHReserves, uint256 initialPrice, uint256 initialMarketCap, uint256 targetETH, bool indexed directSeed)",
   },
 ] as const;
 
@@ -72,8 +72,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  // First CoinDeployed event, block 23650298.
-  start: "2026-07-30",
+  // v1.2 production deployment, block 36671438.
+  start: "2026-08-15",
   methodology:
     "Counts unique addresses that bought or sold on a Frontier bonding curve (BondingCurve Buy/Sell) or launched a token (BCTokenFactory CoinDeployed), and the transactions those actions occurred in. Swaps on graduated tokens' Uniswap V4 pools are counted as Uniswap activity and excluded here.",
 };
