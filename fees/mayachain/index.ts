@@ -15,9 +15,18 @@ const fetch = async (options: FetchOptions) => {
   const url = `https://midgard.mayachain.info/v2/history/swaps?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const intervals: IFeeInterval[] = (await httpGet(url, { headers: { "x-client-id": "defillama" } })).intervals;
   const day = intervals.find((i: IFeeInterval) => Number(i.startTime) === options.startOfDay);
+  if (!day) {
+    throw new Error(`MAYAChain: no Midgard swap interval for startOfDay ${options.startOfDay}`);
+  }
 
-  const cacaoPriceUSD = Number(day?.cacaoPriceUSD || 0);
-  const swapFees = (Number(day?.totalFees || 0) / 1e10) * cacaoPriceUSD;
+  const cacaoPriceUSD = Number(day.cacaoPriceUSD);
+  const totalFees = Number(day.totalFees);
+  if (!Number.isFinite(cacaoPriceUSD) || !Number.isFinite(totalFees)) {
+    throw new Error(
+      `MAYAChain: invalid Midgard fee interval (totalFees=${day.totalFees}, cacaoPriceUSD=${day.cacaoPriceUSD})`,
+    );
+  }
+  const swapFees = (totalFees / 1e10) * cacaoPriceUSD;
 
   // Liquidity fees are paid by the user and accrue to liquidity providers, so the
   // same figure is the user fee and the supply-side revenue.
