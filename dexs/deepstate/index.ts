@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { ethers } from "ethers";
 import { quoteAtTick } from "./tickMath";
 
 // DeepstateV1 production router and deployment start block on Robinhood Chain.
@@ -8,6 +9,10 @@ import { quoteAtTick } from "./tickMath";
 const ROUTER = "0x6cf19308C22FC82ea620Fa0B3E94948d20f27B96";
 const START_BLOCK = 36_932_568;
 const USDG = ADDRESSES.robinhood.USDG;
+const PROTOCOL_FEE_RECIPIENT = "0xbfb7b3Ff3D498a559b946B836d26F0E168f273D5";
+const FRONTEND_FEE_RECIPIENT = "0xFCD5B1592fF743DB9864A577cdFFF3a2fF31E7cb";
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
 
 type PoolConfig = {
   label: string;
@@ -60,8 +65,31 @@ function matchedNodeAmounts(node: string, restingIsBid: boolean) {
   return { quantity, quoteAmount };
 }
 
+async function addRouterTransfers(
+  options: FetchOptions,
+  recipient: string,
+  balances: ReturnType<FetchOptions["createBalances"]>,
+) {
+  const logs = await options.getLogs({
+    noTarget: true,
+    eventAbi: TRANSFER,
+    topics: [
+      TRANSFER_TOPIC,
+      ethers.zeroPadValue(ROUTER, 32),
+      ethers.zeroPadValue(recipient, 32),
+    ],
+    entireLog: true,
+  });
+
+  logs.forEach((log) => {
+    if (log.data !== "0x") balances.add(log.address, BigInt(log.data));
+  });
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const protocolFees = options.createBalances();
+  const frontendFees = options.createBalances();
   const books = new Map<string, PoolConfig>();
   Object.values(POOLS).forEach((pool) => books.set(pool.initialBook, pool));
 
@@ -106,12 +134,40 @@ const fetch = async (options: FetchOptions) => {
   const bidSubtrees = await options.getLogs({ target: ROUTER, eventAbi: BID_SUBTREE_MATCHED });
   bidSubtrees.forEach((log) => addTrade(log.bookId, log.quantity, log.quoteAmount));
 
-  return { dailyVolume };
+  await Promise.all([
+    addRouterTransfers(options, PROTOCOL_FEE_RECIPIENT, protocolFees),
+    addRouterTransfers(options, FRONTEND_FEE_RECIPIENT, frontendFees),
+  ]);
+
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(protocolFees, "Protocol fees");
+  dailyFees.addBalances(frontendFees, "Interface fees");
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(protocolFees, "Fees to STATE vault");
+  dailyRevenue.addBalances(frontendFees, "Official interface fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: protocolFees,
+    dailyProtocolRevenue: frontendFees,
+    dailySupplySideRevenue: 0,
+  };
 };
 
 const methodology = {
   Volume:
     "USDG notional matched across every registered Deepstate pool. Direct fills, batched matches, subtree matches, third-party fills, and every routed leg touching a pool are included from router events.",
+  Fees:
+    "All taker fees transferred by the router: the governance-configured protocol fee plus call-scoped integrator fees charged by the official interface.",
+  UserFees: "Same as Fees. Both fees are deducted independently from matched taker output.",
+  Revenue: "Protocol fees sent to the STATE vault plus official-interface integrator fees.",
+  HoldersRevenue: "Protocol fees sent to the STATE vault for pro-rata redemption by STATE holders.",
+  ProtocolRevenue: "Integrator fees sent to the official Deepstate interface recipient.",
+  SupplySideRevenue: "Zero. Resting-order makers receive execution proceeds and token incentives, not taker fees.",
 };
 
 const breakdownMethodology = {
