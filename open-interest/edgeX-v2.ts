@@ -7,7 +7,7 @@ const openInterestEndpoint = "https://edgex-prod-v2.edgex.exchange/api/v2/public
 const fetch = async (options: FetchOptions) => {
     const openInterest = await fetchURL(openInterestEndpoint);
     const openInterestAtEnd = openInterest?.data?.tickerSummary?.openInterest;
-    if (!openInterestAtEnd) {
+    if (openInterestAtEnd === undefined || openInterestAtEnd === null || openInterestAtEnd === '') {
         throw new Error(`No open interest data found for ${options.dateString} in edgeX v2 response`);
     }
     return { openInterestAtEnd };
