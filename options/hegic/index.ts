@@ -107,23 +107,14 @@ async function addNotional(options: FetchOptions, balances: any, positions: Posi
   });
 }
 
-// Exercise payoffs to option holders; inverse payoffs (returned collateral) excluded.
+// Every USDC.e payout the treasury makes on settlement (`_withdraw` is only reached via
+// `payOff`, and `_unlock` moves no funds). Not family-aware on purpose: an inverse payout
+// returns the seller's collateral plus their premium, and the collateral cancels against
+// the `positivepnl` the same position paid in, leaving the pool's true P&L.
 export async function getDailyPayoffs(options: FetchOptions) {
   const balances = options.createBalances();
   const paidLogs = await options.getLogs({ target: OPERATIONAL_TREASURY, eventAbi: PAID_EVENT });
-  if (!paidLogs.length) return balances;
-
-  const ids = paidLogs.map((log: any) => log.id.toString());
-  const locked = await options.api.multiCall({
-    abi: lockedLiquidityAbi,
-    calls: ids.map((id) => ({ target: OPERATIONAL_TREASURY, params: [id] })),
-  });
-  const inverseSet = await getInverseStrategies(options, locked.map((l: any) => l[1]));
-
-  paidLogs.forEach((log: any, i: number) => {
-    if (inverseSet.has(locked[i][1].toLowerCase())) return;
-    balances.add(USDCE, log.amount, "Options payoffs");
-  });
+  for (const log of paidLogs) balances.add(USDCE, log.amount);
   return balances;
 }
 

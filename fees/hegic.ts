@@ -2,48 +2,43 @@ import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { loadPositions, getDailyPayoffs, USDCE, HEGIC_HERGE_START } from "../options/hegic";
 
+// The Stake & Cover pool is the counterparty on both sides of the book, so fees are netted
+// at the treasury cash level.
 async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   const positions = await loadPositions(options);
 
   const dailyFees = options.createBalances();
-  for (const p of positions) dailyFees.add(USDCE, p.premium, "Options premiums");
+  for (const p of positions) dailyFees.add(USDCE, p.positivepnl, "Net Options Premiums");
 
-  const dailySupplySideRevenue = await getDailyPayoffs(options);
-
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums");
+  const payoffs = await getDailyPayoffs(options);
+  dailyFees.subtract(payoffs, "Net Options Premiums");
 
   return {
     dailyFees,
-    dailySupplySideRevenue,
-    dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 }
 
 const adapter: Adapter = {
   version: 2,
   methodology: {
-    Fees: "Premiums paid by users to buy options/strategies, recognised when the option is bought. For inverse (option-selling) strategies the premium is the option's fair value, not the net collateral transferred in.",
-    SupplySideRevenue: "Payoffs the Stake & Cover pool pays out when options are exercised in-the-money. Inverse-strategy payoffs return the seller's collateral and are excluded.",
-    Revenue: "Net premiums retained by the Hegic Stake & Cover pool (premiums collected minus payoffs paid out).",
+    Fees: "Net premiums retained by the Hegic Stake & Cover pool: everything users pay into the Operational Treasury to open options/strategies, minus everything the treasury pays out on settlement.",
+    Revenue: "The same as Fees, the Stake & Cover pool keeps all of its net premiums.",
     HoldersRevenue: "100% of net premiums accrue to HEGIC Stake & Cover pool participants.",
   },
   breakdownMethodology: {
     Fees: {
-      "Options premiums": "Option premiums paid by users across calls, puts, and option strategies.",
-    },
-    SupplySideRevenue: {
-      "Options payoffs": "Payoffs paid to holders who exercised standard options in-the-money.",
+      "Net Options Premiums": "Premiums paid in to open options/strategies, minus payoffs paid out on settlement.",
     },
     Revenue: {
-      "Options premiums": "Net premiums retained by the Stake & Cover pool after paying out exercised options.",
+      "Net Options Premiums": "Premiums paid in to open options/strategies, minus payoffs paid out on settlement.",
     },
     HoldersRevenue: {
-      "Options premiums": "Net premiums distributed to HEGIC Stake & Cover pool participants.",
+      "Net Options Premiums": "Net premiums distributed to HEGIC Stake & Cover pool participants.",
     },
   },
-  allowNegativeValue: true, // payoffs can exceed same-day premiums
+  allowNegativeValue: true, // the pool books a loss on periods where payoffs exceed premiums
   chains: [CHAIN.ARBITRUM],
   fetch,
   start: HEGIC_HERGE_START,
