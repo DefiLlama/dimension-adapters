@@ -92,7 +92,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // Configured rates at deployment: creator 5%, protocol 0%, caller refund 0%
     // of the raised ETH — the event keeps the split exact if they change.
     const feesPaid = await options.getLogs({
-      targets: graduations.map((log: any) => String(log.token)),
+      targets: [...new Set(graduations.map((log: any) => String(log.token)))],
       eventAbi: GRADUATION_FEES_PAID_EVENT,
     });
     feesPaid.forEach((log: any) => {
