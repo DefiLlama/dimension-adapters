@@ -47,12 +47,18 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   const factory = LlamaLendV2Factories[options.chain];
   const fromBlock = await options.getFromBlock();
+  // entireLog so the block number survives the decode: getLogs defaults to
+  // onlyArgs, which returns the decoded args on their own, so event.blockNumber
+  // was undefined and Number(undefined) <= fromBlock dropped every vault.
   const vaultCreatedEvents = (await options.getLogs({
     eventAbi: EventNewVault,
     target: factory.address,
     fromBlock: factory.fromBlock,
     cacheInCloud: true,
-  })).filter((event: any) => Number(event.blockNumber) <= fromBlock);
+    entireLog: true,
+  }))
+    .filter((log: any) => Number(log.blockNumber) <= fromBlock)
+    .map((log: any) => log.args);
   if (vaultCreatedEvents.length === 0) {
     return {
       dailyVolume,
@@ -135,9 +141,14 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const adminFeesStartRaw = adminFeesBefore[i];
     const adminFeesEndRaw = adminFeesAfter[i];
 
+    // Grow the pooled assets by the relative rise in price per share. Scaling the
+    // absolute pricePerShare delta by 1e18 instead understates this by a factor of
+    // pricePerShare/1e18: the vaults report pricePerShare around 1.003e15, not 1e18,
+    // so lender interest came out roughly a thousand times too small. Working in the
+    // ratio also keeps this correct when share and asset decimals differ.
     const assetsForInterest = Number(totalAssetsBefore) > 0 ? totalAssetsBefore : totalAssetsAfter;
-    const lenderInterest = Number(assetsForInterest) > 0
-      ? (Number(pricePerShareAfter) - Number(pricePerShareBefore)) * Number(assetsForInterest) / 1e18
+    const lenderInterest = Number(assetsForInterest) > 0 && Number(pricePerShareBefore) > 0
+      ? Number(assetsForInterest) * (Number(pricePerShareAfter) / Number(pricePerShareBefore) - 1)
       : 0;
 
     const adminFeesStart = BigInt(adminFeesStartRaw);
