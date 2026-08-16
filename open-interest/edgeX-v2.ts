@@ -4,9 +4,12 @@ import fetchURL from "../utils/fetchURL";
 
 const openInterestEndpoint = "https://edgex-prod-v2.edgex.exchange/api/v2/public/quote/getTicketSummary?period=LAST_DAY_1"
 
-const fetch = async (_options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const openInterest = await fetchURL(openInterestEndpoint);
-    const openInterestAtEnd = openInterest.data.tickerSummary.openInterest;
+    const openInterestAtEnd = openInterest?.data?.tickerSummary?.openInterest;
+    if (!openInterestAtEnd) {
+        throw new Error(`No open interest data found for ${options.dateString} in edgeX v2 response`);
+    }
     return { openInterestAtEnd };
 }
 
