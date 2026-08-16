@@ -14,14 +14,23 @@ interface IVolumeInterval {
 // https://docs.mayaprotocol.com/mayachain-dev-docs/introduction/technology/native-assets
 const CACAO_BASE_UNIT = 1e10;
 
-const calVolume = (interval: IVolumeInterval): number => {
-  const cacaoPriceUSD = Number(interval.cacaoPriceUSD);
-  const totalVolume = Number(interval.totalVolume);
-  if (!Number.isFinite(cacaoPriceUSD) || !Number.isFinite(totalVolume)) {
-    throw new Error(
-      `MAYAChain: invalid Midgard swap interval (totalVolume=${interval.totalVolume}, cacaoPriceUSD=${interval.cacaoPriceUSD})`,
-    );
+// Parse a required Midgard numeric field. Reject empty/missing values explicitly:
+// Number("") and Number(null) both coerce to a finite 0, which would silently
+// publish a false zero instead of failing closed.
+const requireFinite = (raw: string, field: string): number => {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new Error(`MAYAChain: missing Midgard field ${field}`);
   }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    throw new Error(`MAYAChain: non-numeric Midgard field ${field}=${raw}`);
+  }
+  return value;
+};
+
+const calVolume = (interval: IVolumeInterval): number => {
+  const cacaoPriceUSD = requireFinite(interval.cacaoPriceUSD, "cacaoPriceUSD");
+  const totalVolume = requireFinite(interval.totalVolume, "totalVolume");
   return (totalVolume / CACAO_BASE_UNIT) * cacaoPriceUSD;
 };
 

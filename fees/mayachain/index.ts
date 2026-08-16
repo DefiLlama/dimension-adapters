@@ -15,6 +15,20 @@ interface IFeeInterval {
 // https://docs.mayaprotocol.com/mayachain-dev-docs/introduction/technology/native-assets
 const CACAO_BASE_UNIT = 1e10;
 
+// Parse a required Midgard numeric field. Reject empty/missing values explicitly:
+// Number("") and Number(null) both coerce to a finite 0, which would silently
+// publish a false zero instead of failing closed.
+const requireFinite = (raw: string, field: string): number => {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new Error(`MAYAChain: missing Midgard field ${field}`);
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    throw new Error(`MAYAChain: non-numeric Midgard field ${field}=${raw}`);
+  }
+  return value;
+};
+
 const fetch = async (options: FetchOptions) => {
   const url = `https://midgard.mayachain.info/v2/history/swaps?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const intervals: IFeeInterval[] = (await httpGet(url, { headers: { "x-client-id": "defillama" } })).intervals;
@@ -23,13 +37,8 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`MAYAChain: no Midgard swap interval for startOfDay ${options.startOfDay}`);
   }
 
-  const cacaoPriceUSD = Number(day.cacaoPriceUSD);
-  const totalFees = Number(day.totalFees);
-  if (!Number.isFinite(cacaoPriceUSD) || !Number.isFinite(totalFees)) {
-    throw new Error(
-      `MAYAChain: invalid Midgard fee interval (totalFees=${day.totalFees}, cacaoPriceUSD=${day.cacaoPriceUSD})`,
-    );
-  }
+  const cacaoPriceUSD = requireFinite(day.cacaoPriceUSD, "cacaoPriceUSD");
+  const totalFees = requireFinite(day.totalFees, "totalFees");
   const swapFees = (totalFees / CACAO_BASE_UNIT) * cacaoPriceUSD;
 
   // Liquidity fees are paid by the user and accrue to liquidity providers, so the
