@@ -3,8 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { quoteAtTick } from "./tickMath";
 
-// DeepstateV1 deployment on Robinhood Chain.
-// Source: https://deepstate.sh/api/runtime
+// DeepstateV1 production router and deployment start block on Robinhood Chain.
+// Source for both values: https://deepstate.sh/api/runtime
 const ROUTER = "0x6cf19308C22FC82ea620Fa0B3E94948d20f27B96";
 const START_BLOCK = 36_932_568;
 const USDG = ADDRESSES.robinhood.USDG;
@@ -12,23 +12,26 @@ const USDG = ADDRESSES.robinhood.USDG;
 type PoolConfig = {
   label: string;
   volumeToken: string;
-  volumeSide: "base" | "quote";
+  volumeSide: "token0" | "token1";
   initialBook: string;
 };
 
 // BookInitialized identifies a pool by hash but does not include its token addresses.
 // Register each permissionlessly created pool here; subsequent book epochs are discovered below.
+// Source for every pool id and initial book id: https://deepstate.sh/api/runtime
+// Amount semantics use sorted token0/token1, not the UI's displayed base/quote labels:
+// https://github.com/Deepstate-Protocol/deepstate-contracts/blob/bf18c54b13123de5ecc3e05dcff6822436e0cd27/src/DeepstateV1.sol#L2110-L2112
 const POOLS: Record<string, PoolConfig> = {
   "0x42819cadfbb25aab80543236e280fba4e61aa61e0b5b777541de54ae69da35e4": {
     label: "NVDA/USDG",
     volumeToken: USDG,
-    volumeSide: "base",
+    volumeSide: "token0", // USDG is the lower address.
     initialBook: "0xdf941c235503a5d2e67aee5dea00f2965f99421c0d034bd77f924c05c66bf399",
   },
   "0xbd11e0ec02d8fb9b08dfd465e892cb71e2cb9b2d4697a58baf13bdc1e8753786": {
     label: "DEEP/USDG",
     volumeToken: USDG,
-    volumeSide: "quote",
+    volumeSide: "token1", // USDG is the higher address.
     initialBook: "0xcde1e9c260cbf55986bf267eafbf57c03aa9bff03e45e96b900f35d3d083d1b6",
   },
 };
@@ -74,10 +77,10 @@ const fetch = async (options: FetchOptions) => {
     if (pool) books.set(log.bookId.toLowerCase(), pool);
   });
 
-  const addTrade = (bookId: string, baseAmount: bigint, quoteAmount: bigint) => {
+  const addTrade = (bookId: string, token0Amount: bigint, token1Amount: bigint) => {
     const pool = books.get(bookId.toLowerCase());
     if (!pool) return;
-    const amount = pool.volumeSide === "base" ? baseAmount : quoteAmount;
+    const amount = pool.volumeSide === "token0" ? token0Amount : token1Amount;
     dailyVolume.add(pool.volumeToken, amount, pool.label);
   };
   const addNode = (bookId: string, node: string, restingIsBid: boolean) => {
