@@ -9,7 +9,9 @@ import { quoteAtTick } from "./tickMath";
 const ROUTER = "0x6cf19308C22FC82ea620Fa0B3E94948d20f27B96";
 const START_BLOCK = 36_932_568;
 const USDG = ADDRESSES.robinhood.USDG;
+// Governance-configured protocol recipient (`feeFlowController`): https://deepstate.sh/api/runtime
 const PROTOCOL_FEE_RECIPIENT = "0xbfb7b3Ff3D498a559b946B836d26F0E168f273D5";
+// Official interface recipient (`integratorFee.recipient`): https://deepstate.sh/api/runtime
 const FRONTEND_FEE_RECIPIENT = "0xFCD5B1592fF743DB9864A577cdFFF3a2fF31E7cb";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
