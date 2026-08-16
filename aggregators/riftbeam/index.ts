@@ -1,34 +1,37 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
+// Public volume endpoint — aggregated SOL swap volume via RiftBeam engine
 const VOLUME_ENDPOINT = "https://swaptitan.net/v1/riftbeam/volume";
+const DAY_SECONDS = 86400; // seconds per day, for query window
 
-const fetch = async (timestamp: number) => {
-  const dayEnd = timestamp;
-  const dayStart = timestamp - 86400;
-  try {
-    const url = `${VOLUME_ENDPOINT}?from=${dayStart}&to=${dayEnd}`;
-    const res = await httpGet(url);
-    return {
-      dailyVolume: res.dailyVolume?.toString() ?? "0",
-      timestamp,
-    };
-  } catch (e) {
-    return { dailyVolume: "0", timestamp };
+const fetch = async (options: FetchOptions) => {
+  const from = options.startTimestamp;
+  const to = options.endTimestamp ?? from + DAY_SECONDS;
+  const url = `${VOLUME_ENDPOINT}?from=${from}&to=${to}`;
+  const res = await httpGet(url);
+  if (res.dailyVolume == null) {
+    throw new Error(`[riftbeam] missing dailyVolume in response: ${JSON.stringify(res)}`);
   }
+  return {
+    dailyVolume: String(res.dailyVolume),
+  };
+};
+
+const methodology = {
+  Volume: "Trading volume routed through RiftBeam DEX aggregator on Solana (Orca CLMM, Raydium CLMM, Pump.fun AMM).",
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: async () => 1753574400,
+      start: "2025-07-27",
       meta: {
-        methodology: {
-          Volume: "Trading volume routed through RiftBeam on Solana.",
-        },
+        methodology,
+        breakdownMethodology: methodology,
       },
     },
   },
