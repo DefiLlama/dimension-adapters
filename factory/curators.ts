@@ -57,6 +57,19 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "armitage": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Armitage by Wintermute, verified curator on api.morpho.org.
+        // Morpho VaultV2s, so fee() reverts and performanceFee() is the fee source.
+        morphoV2: [
+          '0x5dc53a23AdC9f2Bed98de6F59F7F309a7c71FF2B', // Wintermute USDC Prime
+          '0xA2EAaD0D586cF9FD73bb2c09cF6A7E3e187D68cd', // Wintermute USDC Select
+          '0x55C1B6e461a6334B567bAF0FEb5D728715446f05', // Pendle Ecosystem USDC
+        ],
+      },
+    },
+  },
   "avantgarde": {
     vaults: {
       [CHAIN.ETHEREUM]: {
@@ -159,6 +172,20 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0xF92971B4D9e6257CF562400ed81d2986F28a8c26'],
+      },
+    },
+  },
+  "galaxy": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Galaxy Curation, verified curator on api.morpho.org, which lists this
+        // address on both chain 1 and chain 8453.
+        morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
+        morphoVaultV2Owners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
+      },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
+        morphoVaultV2Owners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
       },
     },
   },
@@ -400,6 +427,21 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x46057881E0B9d190920FB823F840B837f65745d5'],
+      },
+    },
+  },
+  "sky-money": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Sky Money, verified curator on api.morpho.org.
+        // Morpho VaultV2s, so fee() reverts and performanceFee() is the fee source.
+        morphoV2: [
+          '0x23f5E9c35820f4baB695Ac1F19c203cC3f8e1e11', // sky.money USDT Savings
+          '0xE15fcC81118895b67b6647BBd393182dF44E11E0', // sky.money USDS Flagship
+          '0x56bfa6f53669B836D1E0Dfa5e99706b12c373ecf', // sky.money USDC Risk Capital
+          '0xf42bca228D9bd3e2F8EE65Fec3d21De1063882d4', // sky.money USDS Risk Capital
+          '0x2bD3A43863c07B6A01581FADa0E1614ca5DF0E3d', // sky.money USDT Risk Capital
+        ],
       },
     },
   },
