@@ -125,7 +125,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-08-15",
+  // Hourly adapters are validated against the previous day by the shared runner.
+  // START_BLOCK remains the hard deployment boundary for event reads.
+  start: "2026-08-14",
   fetch,
   methodology,
   breakdownMethodology,
