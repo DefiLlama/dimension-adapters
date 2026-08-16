@@ -10,6 +10,10 @@ interface IVolumeInterval {
   startTime: string;
 }
 
+// CACAO has 10 decimals (1e10 base units), unlike THORChain's RUNE which has 8.
+// https://docs.mayaprotocol.com/mayachain-dev-docs/introduction/technology/native-assets
+const CACAO_BASE_UNIT = 1e10;
+
 const calVolume = (interval: IVolumeInterval): number => {
   const cacaoPriceUSD = Number(interval.cacaoPriceUSD);
   const totalVolume = Number(interval.totalVolume);
@@ -18,7 +22,7 @@ const calVolume = (interval: IVolumeInterval): number => {
       `MAYAChain: invalid Midgard swap interval (totalVolume=${interval.totalVolume}, cacaoPriceUSD=${interval.cacaoPriceUSD})`,
     );
   }
-  return (totalVolume / 1e10) * cacaoPriceUSD;
+  return (totalVolume / CACAO_BASE_UNIT) * cacaoPriceUSD;
 };
 
 const fetch = async (options: FetchOptions) => {

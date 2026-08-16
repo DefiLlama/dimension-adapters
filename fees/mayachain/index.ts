@@ -11,6 +11,10 @@ interface IFeeInterval {
   startTime: string;
 }
 
+// CACAO has 10 decimals (1e10 base units), unlike THORChain's RUNE which has 8.
+// https://docs.mayaprotocol.com/mayachain-dev-docs/introduction/technology/native-assets
+const CACAO_BASE_UNIT = 1e10;
+
 const fetch = async (options: FetchOptions) => {
   const url = `https://midgard.mayachain.info/v2/history/swaps?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const intervals: IFeeInterval[] = (await httpGet(url, { headers: { "x-client-id": "defillama" } })).intervals;
@@ -26,7 +30,7 @@ const fetch = async (options: FetchOptions) => {
       `MAYAChain: invalid Midgard fee interval (totalFees=${day.totalFees}, cacaoPriceUSD=${day.cacaoPriceUSD})`,
     );
   }
-  const swapFees = (totalFees / 1e10) * cacaoPriceUSD;
+  const swapFees = (totalFees / CACAO_BASE_UNIT) * cacaoPriceUSD;
 
   // Liquidity fees are paid by the user and accrue to liquidity providers, so the
   // same figure is the user fee and the supply-side revenue.
