@@ -47,15 +47,13 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   const factory = LlamaLendV2Factories[options.chain];
   const fromBlock = await options.getFromBlock();
-  // entireLog so the block number survives the decode: getLogs defaults to
-  // onlyArgs, which returns the decoded args on their own, so event.blockNumber
-  // was undefined and Number(undefined) <= fromBlock dropped every vault.
   const vaultCreatedEvents = (await options.getLogs({
     eventAbi: EventNewVault,
     target: factory.address,
     fromBlock: factory.fromBlock,
     cacheInCloud: true,
     entireLog: true,
+    parseLog: true,
   }))
     .filter((log: any) => Number(log.blockNumber) <= fromBlock)
     .map((log: any) => log.args);
