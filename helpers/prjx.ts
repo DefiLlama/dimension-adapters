@@ -8,6 +8,7 @@ import { httpGet } from "../utils/fetchURL";
 const POOLS_URL = "https://api.prjx.com/pools";
 const HEADERS = { "User-Agent": "Mozilla/5.0" };
 const PAGE_LIMIT = 100; // API caps a page at 100
+const PAGE_CONCURRENCY = 5; // parallel page requests after the first
 
 export interface PrjxPool {
   volume24h: string;
@@ -27,9 +28,13 @@ const fetchPage = async (offset: number): Promise<PrjxPool[]> => {
   return res.pools;
 };
 
-// Fetch page 1 to learn totalCount, then pull the remaining pages concurrently.
-// Fails closed on a missing/invalid totalCount or a short result rather than
-// silently under-reporting.
+/**
+ * Fetch every Project X pool. Reads page 1 to learn `totalCount`, then pulls the
+ * remaining pages concurrently. Fails closed on a missing/invalid `totalCount`
+ * or a short result rather than silently under-reporting.
+ *
+ * @returns All pools, each with its rolling-24h `volume24h` and `fee24h` (USD).
+ */
 export async function fetchProjectXPools(): Promise<PrjxPool[]> {
   const first: PoolsResponse = await httpGet(`${POOLS_URL}?limit=${PAGE_LIMIT}&offset=0`, { headers: HEADERS });
   if (!Array.isArray(first?.pools)) throw new Error("Project X: pools unavailable");
@@ -41,7 +46,7 @@ export async function fetchProjectXPools(): Promise<PrjxPool[]> {
 
   const offsets: number[] = [];
   for (let offset = PAGE_LIMIT; offset < total; offset += PAGE_LIMIT) offsets.push(offset);
-  const { results, errors } = await PromisePool.withConcurrency(5).for(offsets).process(fetchPage);
+  const { results, errors } = await PromisePool.withConcurrency(PAGE_CONCURRENCY).for(offsets).process(fetchPage);
   if (errors.length) throw new Error(`Project X: ${errors.length} pools page request(s) failed`);
 
   const pools = [...first.pools, ...results.flat()];
