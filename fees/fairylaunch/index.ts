@@ -7,12 +7,8 @@ import { CHAIN } from "../../helpers/chains";
 const FACTORY = '0x28163d7943AA6715a9559D468B29c0343412E236';
 const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
 
-// Fee configuration:
-// Total trading fee: 1% (100 BPS)
-// FeeManager splits fee 50/50: creatorShare = amount/2, treasuryShare = amount - creatorShare
-// Source: FeeManager._recordFee() in FeeManager.sol
-const CREATOR_SHARE_PERCENT = 50n; // 50%
-const TREASURY_SHARE_PERCENT = 50n; // 50%
+// Fee split 50/50 según FeeManager._recordFee()
+const TREASURY_SHARE_PERCENT = 50n;
 
 const methodology = {
   Volume: 'ethAmount from Buy events + ethAmount from Sell events across all BondingCurves',
@@ -23,7 +19,7 @@ const methodology = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { api, createBalances, getLogs } = options;
+  const { createBalances, getLogs } = options;
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -31,31 +27,22 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  // DESCUBRIR TODAS las BondingCurves usando api.call (obtiene TODAS las curvas históricas)
-  const totalLaunches = await api.call({
-    target: FACTORY,
-    abi: 'uint256:totalLaunches',
+  // Descubrir TODAS las BondingCurves desde LaunchCreated logs
+  // getLogs con período amplio captura TODAS las curvas históricas
+  const launchLogs = await getLogs({
+    targets: [FACTORY],
+    eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
   });
 
   const bondingCurves: string[] = [];
 
-  for (let i = 1; i <= Number(totalLaunches); i++) {
-    try {
-      const launch = await api.call({
-        target: FACTORY,
-        abi: 'function getLaunch(uint256) view returns (uint256 launchId, address creator, address treasury, address token, address bondingCurve, bool graduated, uint256 createdAt, uint256 graduatedAt, string name, string symbol, string metadataUri)',
-        params: [i],
-      });
-
-      if (launch.bondingCurve && launch.bondingCurve !== '0x0000000000000000000000000000000000000000') {
-        bondingCurves.push(launch.bondingCurve.toLowerCase());
-      }
-    } catch (e) {
-      // Ignorar errores individuales
+  for (const log of launchLogs) {
+    if (log.bondingCurve && log.bondingCurve !== '0x0000000000000000000000000000000000000000') {
+      bondingCurves.push(log.bondingCurve.toLowerCase());
     }
   }
 
-  // Fallback: si api.call falla (RPC limitado), usar la BondingCurve conocida
+  // Fallback: BondingCurve conocida
   if (bondingCurves.length === 0) {
     bondingCurves.push('0x3014646079673048abaa2d84c9a197eefcde7b9b');
   }
@@ -80,7 +67,6 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: 'event GraduationRewardRecorded(address indexed creator, uint256 creatorReward, uint256 treasuryReward)',
   });
 
-  // Procesar Buy events
   for (const log of buyLogs) {
     const ethAmount = BigInt(log.ethAmount);
     const totalFee = BigInt(log.fee);
@@ -88,7 +74,6 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.addGasToken(ethAmount);
     dailyFees.addGasToken(totalFee);
     
-    // Fee split 50/50 según FeeManager._recordFee
     const treasuryFee = totalFee * TREASURY_SHARE_PERCENT / 100n;
     const creatorFee = totalFee - treasuryFee;
 
@@ -96,7 +81,6 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(creatorFee);
   }
 
-  // Procesar Sell events
   for (const log of sellLogs) {
     const ethAmount = BigInt(log.ethAmount);
     const totalFee = BigInt(log.fee);
@@ -111,7 +95,6 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(creatorFee);
   }
 
-  // Procesar Graduation Rewards
   for (const log of rewardLogs) {
     const creatorReward = BigInt(log.creatorReward);
     const treasuryReward = BigInt(log.treasuryReward);
@@ -122,7 +105,6 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(creatorReward);
   }
 
-  // Revenue = ProtocolRevenue + SupplySideRevenue
   dailyRevenue.addBalances(dailyProtocolRevenue);
   dailyRevenue.addBalances(dailySupplySideRevenue);
 
