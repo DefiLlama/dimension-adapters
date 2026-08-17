@@ -7,6 +7,13 @@ const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
 const TREASURY_FEE_BPS = 50n;
 const BPS_DENOMINATOR = 10000n;
 
+const methodology = {
+  Volume: 'ethAmount from Buy events + ethAmount from Sell events across all BondingCurves',
+  Fees: 'fee from Buy/Sell events (1% trading fee)',
+  Revenue: 'Treasury fees (0.5% of trades) + Treasury portion of graduation rewards',
+  ProtocolRevenue: 'Treasury fees (0.5% of trades) + Treasury portion of graduation rewards',
+};
+
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs } = options;
 
@@ -77,12 +84,12 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: 1786752000,
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.BSC],
+  start: 1786752000,
+  fetch,
+  methodology,
+  breakdownMethodology: methodology,
 };
 
 export default adapter;
