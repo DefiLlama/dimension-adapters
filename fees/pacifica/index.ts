@@ -62,7 +62,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const startMs = (options.startTimestamp + 1) * 1000;
   const endMs = options.endTimestamp * 1000;
 
-  let dailyFees = 0;
+  // A fill's `fee` is signed: positive when the trader paid the fee, negative
+  // when they received a maker rebate. Track the two sides so gross fees and
+  // the rebates paid out to makers (the supply side) can be reported apart.
+  let grossFees = 0;
+  let rebates = 0;
   let cursor: string | null = null;
 
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -80,9 +84,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       if (!Number.isFinite(fee)) {
         throw new Error(`Pacifica: non-numeric fee ${fill.fee}`);
       }
-      dailyFees += fee;
+      if (fee >= 0) grossFees += fee;
+      else rebates += -fee;
     }
-    if (has_more === false) return { dailyFees, dailyUserFees: dailyFees };
+    if (has_more === false) {
+      return {
+        dailyFees: grossFees,
+        dailyUserFees: grossFees,
+        dailySupplySideRevenue: rebates,
+        dailyRevenue: grossFees - rebates,
+      };
+    }
     // has_more is true (or malformed): a real next page needs a cursor, so a
     // missing one means the feed cut us off - fail rather than truncate.
     if (has_more !== true || !next_cursor) {
@@ -95,8 +107,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Actual trading fees paid on Pacifica's perpetual markets, summed from every fill in the protocol-wide trade-history feed. Net of maker rebates (taker fees are positive, maker rebates negative), so it reflects real fees paid rather than a volume-based estimate.",
-  UserFees: "All trading fees are paid by the traders, net of maker rebates.",
+  Fees: "Gross trading fees paid on Pacifica's perpetual markets, summed from the positive per-fill fees in the protocol-wide trade-history feed (actual fees, not a volume-based estimate).",
+  UserFees: "Gross trading fees paid by the traders.",
+  SupplySideRevenue: "Maker rebates paid back to liquidity providers (the negative per-fill fees).",
+  Revenue: "Trading fees kept by the protocol, i.e. gross fees minus the maker rebates. Affiliate fee-share is not exposed by the API, so it is not deducted here.",
 };
 
 const adapter: SimpleAdapter = {
