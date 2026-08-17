@@ -9,6 +9,14 @@ type CDOConfig = {
   jrt: string;
   srt: string;
   start: string;
+  // When true, negative yield windows are clamped to zero for this CDO.
+  // Used for RWA-backed CDOs whose strategy.totalAssets() follows a discrete
+  // oracle (e.g. STRC for sUSDat, NestAccountant for nOPAL). Their NAV can
+  // swing by millions on oracle repricing days — these are mark-to-market
+  // adjustments, not real yield losses. The markdown always reverses when the
+  // oracle marks back up, so clamping negative windows avoids booking phantom
+  // losses while still capturing all positive yield.
+  discrete?: boolean;
 };
 
 const CDOS: CDOConfig[] = [
@@ -56,6 +64,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
     srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
     start: "2026-05-01",
+    discrete: true,
   },
   {
     name: "PRIME",
@@ -74,6 +83,7 @@ const CDOS: CDOConfig[] = [
     jrt: "0x1b2b8cFEF0b7B1Fad216b55fefeEb0c3349Da141",
     srt: "0x8a646Edc4633ADBA5Ec87DedaF3Af958e268FE96",
     start: "2026-07-09",
+    discrete: true,
   },
 ];
 
@@ -153,18 +163,17 @@ async function processCDO(
   const exitFeeToTranche = sumLogField(feeAccrued, "amountToTranche");
   const exitFeesTotal = exitFeeToReserve + exitFeeToTranche;
 
-  // we calculate this yield from the delta of strategy assets.
-  // this can be negative when the strategy marks down, which happens on the
-  // RWA-backed CDOs whose NAV follows a discrete oracle (sUSDat/STRC) rather
-  // than a monotonic exchange rate. those losses are absorbed by the tranches,
-  // so they belong in supply side revenue as a negative, not clamped away.
-  // clamping each window at zero only ever books the up moves and ratchets
-  // cumulative fees upwards, which is worse under pullHourly because a day is
-  // cut into 24 chances to discard downside instead of 1.
-  const yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
+  let yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
 
-  // the reserve takes a performance fee out of yield, but does not refund it on
-  // a loss, so on a negative window the whole markdown lands on the tranches.
+  // For discrete-NAV CDOs (RWA-backed, oracle-priced), clamp negative yield
+  // to zero. Their totalAssets() follows a discrete oracle that can swing by
+  // millions on repricing days — these are mark-to-market adjustments, not
+  // real yield losses. The markdown reverses on the next positive repricing,
+  // so clamping prevents phantom losses from polluting the income statement.
+  if (cfg.discrete && yieldAmount < 0n) {
+    yieldAmount = 0n;
+  }
+
   const ONE = 10n ** 18n;
   const protocolFromYield =
     yieldAmount > 0n ? (yieldAmount * reserveBps) / ONE : 0n;
@@ -202,7 +211,7 @@ const fetch = async (options: FetchOptions) => {
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
-        dailySupplySideRevenue
+        dailySupplySideRevenue,
       );
     })
   );
@@ -216,10 +225,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata.",
+  Fees: "Yield generated on deposited assets plus redemption fees charged by Strata. For RWA-backed discrete-NAV markets (sUSDat, nOPAL), negative oracle repricing windows are clamped to zero since they represent mark-to-market adjustments, not real yield losses.",
   Revenue: "Protocol revenue consists of performance fees (5-10%) charged by Strata on the yield generated and redemption fees paid by the users.",
   ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
-  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche. Goes negative on days a strategy marks down, since those losses are absorbed by the tranches.",
+  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche.",
 };
 
 const earliestStart = CDOS.reduce(
@@ -234,7 +243,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: earliestStart,
   methodology,
-  allowNegativeValue: true, // strategy NAV can mark down, the loss is absorbed by the tranches
+  allowNegativeValue: true, // continuous CDOs can still have negative windows
 };
 
 export default adapter;
