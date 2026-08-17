@@ -191,6 +191,7 @@ export enum CHAIN {
   SKALE_EUROPA = "europa",
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
+  ZIGCHAIN = "zigchain",
   DEXALOT = "dexalot",
   IMMUTABLEX = "imx",
   CHAINFLIP = "chainflip",
