@@ -8,26 +8,35 @@ import { addTokensReceived } from "../../helpers/token";
  * plus the Relay swap-desk fee rail on Base.
  *
  * Fee sources:
- *  1. NFT AMM trades + NFT-backed loans (70% StockBooster / 30% ProtocolFeeSink)
- *  2. Broker activation fees in $STONKBROKER (50% burn / 50% protocol)
- *  3. Broker Box gachapon edge (10% of ticket: 5% StockBooster+creator / 5% protocol)
- *     plus Certificate Counter flat $2 fee ($1 StockBooster / $1 treasury)
- *  4. Safety Deposit Box liquidity-locker protocol cuts (V3 + V4) →
- *     SafetyDepositClockInV3 (90% brokers / 10% protocol wallet)
- *  5. Swap-desk 1% Relay app fee: Base USDC forwarded from the fee wallet
- *     (claimed from Relay, then bridged to StockBooster as ETH)
- *  6. Anti-snipe fair-launch tooling: time-decay snipe tax on launch-curve
- *     buys (starts at 99% and falls 1%/minute over a 99-minute window), split
- *     90% StockBooster / 10% launch dev, pushed live per trade. First
- *     production launch: Card Wall ($WALL), 2026-08-14 — raise bonded into
- *     permanently locked LP, so the tax is the only extractable fee leg.
+ * 1. NFT AMM trades + NFT-backed loans (70% StockBooster / 30% ProtocolFeeSink)
+ * 2. Broker activation fees in $STONKBROKER (50% burn / 50% protocol)
+ * 3. Broker Box gachapon edge (10% of ticket: 5% StockBooster+creator / 5% protocol)
+ *    plus Certificate Counter flat $2 fee ($1 StockBooster / $1 treasury)
+ * 4. Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3 + V4 and
+ *    up. DEX v2 + CL lockers) → SafetyDepositClockInV3 (90% brokers / 10%
+ *    protocol wallet)
+ * 5. Swap-desk 1% Relay app fee: Base USDC forwarded from the fee wallet
+ *    (claimed from Relay, then bridged to StockBooster as ETH)
+ * 6. Anti-snipe fair-launch tooling: time-decay snipe tax on launch-curve
+ *    buys (starts at 99% and falls 1%/minute over a 99-minute window), split
+ *    90% StockBooster / 10% launch dev, pushed live per trade. First
+ *    production launch: Card Wall ($WALL), 2026-08-14 — raise bonded into
+ *    permanently locked LP, so the tax is the only extractable fee leg.
+ * 7. Safe Launch pad (StonkSafeLaunchpad, public go-live 2026-08-17): the
+ *    permissionless generalization of the same anti-snipe curve as ONE
+ *    singleton. Every window buy/sell pays the decaying snipe tax, split
+ *    16.5% launch creator / 16.5% protocol accrual / 50% locked-LP reserve
+ *    (escrowed per launch, deepens the token's own permanently locked pools
+ *    at bond) / 17% StockBooster via the Clock In Card referral contract
+ *    (~0.5% of tax pays the referrer, the rest funds Clock In dividends).
  *
  * Volume (protocol volume chart):
- *  - NFT AMM notional (ethFeePaid ÷ fee bps)
- *  - Broker Box ticket notional (PullOpened.ticketWei)
- *  - Certificate Counter stock purchase (CertificateBought.spendWei)
- *  - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
- *  - Anti-snipe launch buys (WallBought.ethIn)
+ * - NFT AMM notional (ethFeePaid ÷ fee bps)
+ * - Broker Box ticket notional (PullOpened.ticketWei)
+ * - Certificate Counter stock purchase (CertificateBought.spendWei)
+ * - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
+ * - Anti-snipe launch buys (WallBought.ethIn)
+ * - Safe Launch window trades (SafeBuy.ethIn + SafeSell gross ethOut+tax)
  */
 
 const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
@@ -49,9 +58,13 @@ const GACHA_MACHINES = [
 ];
 const CERTIFICATE_COUNTER = "0x2599882AaF5C14834562eE59ca7a3D1FFCC229D7";
 
-// Safety Deposit Box lockers → fee router (live 2026-07-25).
+// Safety Deposit Box lockers → fee router. Uniswap V3/V4 pair live 2026-07-25;
+// up. DEX (up33) v2 + Slipstream-CL lockers live 2026-08-11 (same protocol-fee
+// semantics, protocol cuts route to the same SafetyDepositClockInV3 box).
 const LOCKER_V3 = "0xFc96CF67eCC55bE4AdABc3AecBe6Ad6349f11223";
 const LOCKER_V4 = "0x5a28ce098750f73bc9eC142D4bCE464E1A0BBdA6";
+const LOCKER_UP_V2 = "0x21797736C25851A6102D196afbA78F978f589017";
+const LOCKER_UP_CL = "0xc1AfA59e2aBC1C868C51a1F799a7578EaCfEa076";
 // Fee sink (not read on-chain here): SafetyDepositClockInV3
 // 0x55642A3F10F1Af5145D3d59021B1D6b03BB8692c — splits locker cuts 90/10.
 
@@ -68,6 +81,22 @@ const ANTI_SNIPE_LAUNCHES = [
   "0xEa371F8122630d05352Cf15b608402DB2069bdd6", // Card Wall ($WALL), 2026-08-14
 ];
 const LAUNCH_BOOSTER_BPS = 9000n;
+
+// Safe Launch pad — the permissionless singleton successor of the one-off
+// anti-snipe launches above (launches keyed by id, no per-launch deploys).
+// Public go-live 2026-08-17; append the pad address once deployed. The
+// ClockInCard referral contract (0xcC9232eFD27B392fF9F96a6DCD45F12C9b6A1542)
+// receives its slice THROUGH the pad's tax split, so only pad events are read
+// (reading card events too would double count).
+const SAFE_LAUNCH_PADS: string[] = [
+];
+// Production tax split, applied by the go-live `setFeeSplit(1650, 1650, 5000)`
+// and snapshotted into every launch: creator / protocol / locked-LP reserve,
+// remainder (1700) punches through the Clock In Card → ~0.5% of tax to the
+// referrer, the rest to StockBooster Clock In dividends.
+const SAFE_CREATOR_BPS = 1650n;
+const SAFE_PROTOCOL_BPS = 1650n;
+const SAFE_LP_BPS = 5000n;
 
 const NFT_SOLD =
   "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
@@ -94,8 +123,17 @@ const LOCK_FEES_COLLECTED =
 // liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
 const LOCK_LIQUIDITY_DECREASED =
   "event LockLiquidityDecreased(uint256 indexed lockTokenId, uint128 liquidity, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
+// up. lockers: gauge-staking payouts move per-token amounts (token0, token1
+// and/or the gauge reward token) — the token rides in the event, so no
+// lockPositions lookup is needed for these.
+const LOCK_TOKENS_PAID =
+  "event LockTokensPaid(uint256 indexed lockTokenId, address indexed token, uint256 userAmount, uint256 protocolAmount)";
 const WALL_BOUGHT =
   "event WallBought(address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
+const SAFE_BUY =
+  "event SafeBuy(uint256 indexed id, address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
+const SAFE_SELL =
+  "event SafeSell(uint256 indexed id, address indexed seller, uint256 tokensIn, uint256 taxPaid, uint256 taxBps, uint256 ethOut, uint256 mcapUsd8)";
 
 /** USDG on Robinhood Chain — sell-back rail payout token. */
 const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
@@ -124,6 +162,11 @@ const LABELS = {
   LAUNCH_TAX: "Anti-snipe launch tax (time-decay snipe tax on curve buys)",
   LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
   LAUNCH_TAX_DEV: "Anti-snipe launch tax → launch dev (10%)",
+  SAFE_TAX: "Safe Launch snipe tax (time-decay tax on window trades)",
+  SAFE_TAX_PROTOCOL: "Safe Launch tax → protocol accrual (16.5%)",
+  SAFE_TAX_CREATOR: "Safe Launch tax → launch creator (16.5%)",
+  SAFE_TAX_BOOSTER: "Safe Launch tax → StockBooster + Clock In Card referrers (17%)",
+  SAFE_TAX_LP: "Safe Launch tax → permanently locked LP reserve (50%)",
 };
 
 const RANDOM_FEE_BPS = 1000n;
@@ -135,50 +178,44 @@ const LOCKER_BROKER_BPS = 9000n;
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
+type LockerKind = "v3" | "v4" | "upv2" | "upcl";
+
+const LOCK_POSITIONS_ABI: Record<LockerKind, string> = {
+  // LockPosition: positionTokenId, lockTokenId, token0, token1, ...
+  v3: "function lockPositions(uint256) view returns (uint256 positionTokenId, uint256 lockTokenId, address token0, address token1, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed)",
+  // V4Lock: currency0, currency1, fee, tickSpacing, hooks, tickLower, tickUpper, ...
+  v4: "function lockPositions(uint256) view returns (address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks, int24 tickLower, int24 tickUpper, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed)",
+  // V2Lock: pool, vault, token0, token1, ...
+  upv2: "function lockPositions(uint256) view returns (address pool, address vault, address token0, address token1, uint256 lockTokenId, uint256 initialAmount, uint256 withdrawnAmount, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed, address gauge)",
+  // CLLock: positionTokenId, lockTokenId, token0, token1, tickSpacing, ...
+  upcl: "function lockPositions(uint256) view returns (uint256 positionTokenId, uint256 lockTokenId, address token0, address token1, int24 tickSpacing, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed, address gauge)",
+};
+
 /** Resolve token0/token1 (or currency0/currency1) for a lock, caching per id. */
 async function resolveLockTokens(
   options: FetchOptions,
   locker: string,
   lockIds: string[],
-  isV4: boolean,
+  kind: LockerKind,
   cache: Map<string, [string, string]>,
 ) {
   const missing = lockIds.filter((id) => !cache.has(`${locker}:${id}`));
   if (missing.length === 0) return;
 
-  if (isV4) {
-    // V4Lock: currency0, currency1, fee, tickSpacing, hooks, tickLower, tickUpper, ...
-    const abi =
-      "function lockPositions(uint256) view returns (address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks, int24 tickLower, int24 tickUpper, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed)";
-    const rows = await options.api.multiCall({
-      abi,
-      calls: missing.map((id) => ({ target: locker, params: [id] })),
-      permitFailure: true,
-    });
-    rows.forEach((row: any, i: number) => {
-      if (!row) return;
-      cache.set(`${locker}:${missing[i]}`, [
-        (row.currency0 || row[0] || ZERO).toLowerCase(),
-        (row.currency1 || row[1] || ZERO).toLowerCase(),
-      ]);
-    });
-  } else {
-    // LockPosition: positionTokenId, lockTokenId, token0, token1, ...
-    const abi =
-      "function lockPositions(uint256) view returns (uint256 positionTokenId, uint256 lockTokenId, address token0, address token1, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed)";
-    const rows = await options.api.multiCall({
-      abi,
-      calls: missing.map((id) => ({ target: locker, params: [id] })),
-      permitFailure: true,
-    });
-    rows.forEach((row: any, i: number) => {
-      if (!row) return;
-      cache.set(`${locker}:${missing[i]}`, [
-        (row.token0 || row[2] || ZERO).toLowerCase(),
-        (row.token1 || row[3] || ZERO).toLowerCase(),
-      ]);
-    });
-  }
+  const rows = await options.api.multiCall({
+    abi: LOCK_POSITIONS_ABI[kind],
+    calls: missing.map((id) => ({ target: locker, params: [id] })),
+    permitFailure: true,
+  });
+  rows.forEach((row: any, i: number) => {
+    if (!row) return;
+    const t0 = kind === "v4" ? (row.currency0 || row[0]) : (row.token0 || row[2]);
+    const t1 = kind === "v4" ? (row.currency1 || row[1]) : (row.token1 || row[3]);
+    cache.set(`${locker}:${missing[i]}`, [
+      (t0 || ZERO).toLowerCase(),
+      (t1 || ZERO).toLowerCase(),
+    ]);
+  });
 }
 
 function addProtocolCut(
@@ -192,9 +229,11 @@ function addProtocolCut(
   else balances.addToken(token, amount, label);
 }
 
-const LOCKER_META: { addr: string; isV4: boolean }[] = [
-  { addr: LOCKER_V3, isV4: false },
-  { addr: LOCKER_V4, isV4: true },
+const LOCKER_META: { addr: string; kind: LockerKind }[] = [
+  { addr: LOCKER_V3, kind: "v3" },
+  { addr: LOCKER_V4, kind: "v4" },
+  { addr: LOCKER_UP_V2, kind: "upv2" },
+  { addr: LOCKER_UP_CL, kind: "upcl" },
 ];
 
 const fetchRobinhood = async (options: FetchOptions) => {
@@ -228,6 +267,13 @@ const fetchRobinhood = async (options: FetchOptions) => {
     eventAbi: WALL_BOUGHT,
   });
 
+  const [safeBuyLogs, safeSellLogs] = SAFE_LAUNCH_PADS.length
+    ? await Promise.all([
+        options.getLogs({ targets: SAFE_LAUNCH_PADS, eventAbi: SAFE_BUY }),
+        options.getLogs({ targets: SAFE_LAUNCH_PADS, eventAbi: SAFE_SELL }),
+      ])
+    : [[], []];
+
   const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
     options.getLogs({
       targets: GACHA_MACHINES,
@@ -252,12 +298,28 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // locker at a time: getLogs defaults to onlyArgs, so multi-target results
   // carry no log.address to attribute the emitting locker with.
   const lockerLogBatches = await Promise.all(
-    LOCKER_META.flatMap(({ addr, isV4 }) => [
-      options.getLogs({ target: addr, eventAbi: LOCK_FEES_COLLECTED })
-        .then((logs) => ({ addr, isV4, logs })),
-      options.getLogs({ target: addr, eventAbi: LOCK_LIQUIDITY_DECREASED })
-        .then((logs) => ({ addr, isV4, logs })),
-    ]),
+    LOCKER_META.flatMap(({ addr, kind }) => {
+      const batches = [
+        options.getLogs({ target: addr, eventAbi: LOCK_FEES_COLLECTED })
+          .then((logs) => ({ addr, kind, logs })),
+      ];
+      // LockLiquidityDecreased exists on the position-NFT lockers (V3, V4,
+      // up. CL); the up. v2 locker withdraws LP tokens instead (not evented
+      // per pair token, so its withdraw cut is not visible here).
+      if (kind !== "upv2") {
+        batches.push(
+          options.getLogs({ target: addr, eventAbi: LOCK_LIQUIDITY_DECREASED })
+            .then((logs) => ({ addr, kind, logs })),
+        );
+      }
+      return batches;
+    }),
+  );
+  // Gauge-staking payout cuts on the up. lockers carry the token in the event.
+  const lockerTokensPaidLogs = await Promise.all(
+    [LOCKER_UP_V2, LOCKER_UP_CL].map((addr) =>
+      options.getLogs({ target: addr, eventAbi: LOCK_TOKENS_PAID }),
+    ),
   );
 
   // ── NFT AMM + loans ──────────────────────────────────────────────────────
@@ -355,7 +417,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailyRevenue.addGasToken(rest, LABELS.COUNTER_PROTOCOL);
   }
 
-  // ── Anti-snipe fair-launch tax ───────────────────────────────────────────
+  // ── Anti-snipe fair-launch tax (one-off launches, e.g. $WALL) ────────────
   // Time-decay snipe tax on launch-curve buys (99% at the bell, −1%/minute).
   // Pushed live per trade: 90% StockBooster (Clock In dividends to activated
   // brokers) / 10% launch dev. The net raise bonds into permanently locked LP
@@ -373,6 +435,33 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(tax - toBooster, LABELS.LAUNCH_TAX_DEV);
   }
 
+  // ── Safe Launch pad (singleton anti-snipe curve, go-live 2026-08-17) ─────
+  // Window buys AND sells pay the same decaying tax. Volume is gross ETH
+  // notional (SafeBuy.ethIn includes the tax; SafeSell.ethOut is net of it).
+  // Split per launch snapshot: 16.5% creator / 16.5% protocol / 50% locked-LP
+  // reserve (escrowed, deepens the token's own permanently locked pools at
+  // bond) / 17% via the Clock In Card (≈0.5% of tax to the referrer, rest to
+  // StockBooster Clock In dividends). Only the protocol leg is revenue; the
+  // LP reserve is deliberately supply-side — it becomes permanently locked
+  // liquidity nobody can withdraw, not protocol income. LpFeeBonded at bond
+  // re-settles already-counted tax (never re-added here).
+  for (const log of [...safeBuyLogs, ...safeSellLogs]) {
+    const tax = BigInt(log.taxPaid);
+    const gross = log.ethIn !== undefined ? BigInt(log.ethIn) : BigInt(log.ethOut) + tax;
+    if (gross > 0n) dailyVolume.addGasToken(gross);
+    if (tax <= 0n) continue;
+    const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
+    const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
+    const toLp = (tax * SAFE_LP_BPS) / 10_000n;
+    const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
+    dailyFees.addGasToken(tax, LABELS.SAFE_TAX);
+    dailyRevenue.addGasToken(toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+    dailyProtocolRevenue.addGasToken(toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+    dailySupplySideRevenue.addGasToken(toCreator, LABELS.SAFE_TAX_CREATOR);
+    dailySupplySideRevenue.addGasToken(toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
+    dailySupplySideRevenue.addGasToken(toLp, LABELS.SAFE_TAX_LP);
+  }
+
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
   // Attribute 90/10 to match SafetyDepositClockInV3's hardwired split.
   // Upfront-mode cuts that never emit LockFeesCollected are not visible here
@@ -380,19 +469,19 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // withdraw cuts dominate live volume and are fully covered.
   const lockCache = new Map<string, [string, string]>();
   // Group by locker so lockPositions multicalls stay batched.
-  const byLocker = new Map<string, { isV4: boolean; logs: any[] }>();
-  for (const { addr, isV4, logs } of lockerLogBatches) {
+  const byLocker = new Map<string, { kind: LockerKind; logs: any[] }>();
+  for (const { addr, kind, logs } of lockerLogBatches) {
     const key = addr.toLowerCase();
     let bucket = byLocker.get(key);
     if (!bucket) {
-      bucket = { isV4, logs: [] };
+      bucket = { kind, logs: [] };
       byLocker.set(key, bucket);
     }
     bucket.logs.push(...logs);
   }
   for (const [locker, batch] of byLocker) {
     const ids = [...new Set(batch.logs.map((l) => String(l.lockTokenId)))];
-    await resolveLockTokens(options, locker, ids, batch.isV4, lockCache);
+    await resolveLockTokens(options, locker, ids, batch.kind, lockCache);
     for (const log of batch.logs) {
       const pair = lockCache.get(`${locker}:${String(log.lockTokenId)}`);
       if (!pair) continue;
@@ -409,6 +498,20 @@ const fetchRobinhood = async (options: FetchOptions) => {
         addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
         addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
       }
+    }
+  }
+  // Gauge-staking payout cuts (token address rides in the event).
+  for (const logs of lockerTokensPaidLogs) {
+    for (const log of logs) {
+      const token = String(log.token || ZERO).toLowerCase();
+      const amount = BigInt(log.protocolAmount);
+      if (amount <= 0n) continue;
+      const brokerAmt = (amount * LOCKER_BROKER_BPS) / 10_000n;
+      const protocolAmt = (amount * LOCKER_PROTOCOL_BPS) / 10_000n;
+      addProtocolCut(dailyFees, token, amount, LABELS.LOCKER_FEES);
+      addProtocolCut(dailySupplySideRevenue, token, brokerAmt, LABELS.LOCKER_STOCK_DIVIDENDS);
+      addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
+      addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
     }
   }
 
@@ -455,17 +558,17 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut) + anti-snipe launch-curve buys (WallBought.ethIn).",
+      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut) + anti-snipe launch-curve buys (WallBought.ethIn) + Safe Launch window trades (SafeBuy.ethIn and SafeSell gross ethOut + tax).",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts; the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); and the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev).",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); and the Safe Launch pad snipe tax on window buys and sells (16.5% creator / 16.5% protocol / 50% locked-LP reserve / 17% StockBooster + Clock In Card referrers).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, and 10% of locker fees.",
+      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, and the 16.5% protocol leg of the Safe Launch snipe tax.",
     ProtocolRevenue:
-      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet.",
+      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch snipe tax → protocol accrual.",
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve (50%).",
   },
   breakdownMethodology: {
     Fees: {
@@ -477,11 +580,13 @@ const adapter: SimpleAdapter = {
         "5% sell-back spread retained in the machine bankroll (implied from SoldBack / SoldBackUsdg payouts at 95% of mark).",
       [LABELS.COUNTER_FEES]: "Flat $2 Certificate Counter fee per OTC deed mint.",
       [LABELS.LOCKER_FEES]:
-        "Protocol cut on Safety Deposit Box locks from LockFeesCollected / LockLiquidityDecreased (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
+        "Protocol cut on Safety Deposit Box locks (Uniswap V3/V4 + up. DEX v2/CL lockers) from LockFeesCollected / LockLiquidityDecreased / LockTokensPaid (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
       [LABELS.SWAP_DESK_FEES]:
         "1% Relay app fee on the crypto swap desk, measured as Base USDC Transfer outflows from the fee wallet toward StockBooster.",
       [LABELS.LAUNCH_TAX]:
         "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
+      [LABELS.SAFE_TAX]:
+        "Time-decay snipe tax on Safe Launch pad window buys AND sells (SafeBuy/SafeSell taxPaid). Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve / 17% StockBooster + Clock In Card referrers, snapshotted per launch.",
     },
     Revenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -492,6 +597,7 @@ const adapter: SimpleAdapter = {
         "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
+      [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch snipe tax.",
     },
     ProtocolRevenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -502,6 +608,7 @@ const adapter: SimpleAdapter = {
         "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
+      [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch snipe tax.",
     },
     HoldersRevenue: {
       [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
@@ -522,6 +629,11 @@ const adapter: SimpleAdapter = {
         "90% of the anti-snipe launch snipe tax → StockBooster → Clock In stock dividends to activated brokers.",
       [LABELS.LAUNCH_TAX_DEV]:
         "10% of the anti-snipe launch snipe tax → launch dev.",
+      [LABELS.SAFE_TAX_CREATOR]: "16.5% of the Safe Launch snipe tax → launch creator.",
+      [LABELS.SAFE_TAX_BOOSTER]:
+        "17% of the Safe Launch snipe tax punched through the Clock In Card: ~0.5% of tax to the referrer, the rest to StockBooster Clock In dividends.",
+      [LABELS.SAFE_TAX_LP]:
+        "50% of the Safe Launch snipe tax escrowed as the launch's LP reserve — joins the raise at bond and becomes permanently locked liquidity (excess uncoverable by the token reserve goes to StockBooster).",
     },
   },
 };
