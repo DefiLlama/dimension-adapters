@@ -22,7 +22,11 @@ const BONKER_HOOKS = [
   "0x963E91A45148b39737b9DF10c5b897B55cA9e8cC", // dynamic-fee hook
   "0xC9156C1868E122eF5b3e6ed946e1E88ff7da68Cc", // static-fee hook
 ];
+// Bonker LP locker; emits swap-fee deposits to the fee locker.
+// Source: https://basescan.org/address/0xBf05b1d5E356f3219D0086A4e09c969ADbe2e7d0#code
 const LP_LOCKER = "0xBf05b1d5E356f3219D0086A4e09c969ADbe2e7d0";
+// Bonker fee locker; credits LP fees to launch-configured reward recipients.
+// Source: https://basescan.org/address/0x473e52D89bE6ea78f94d1b5c62Bd1f01b1E32e21#code
 const FEE_LOCKER = "0x473e52D89bE6ea78f94d1b5c62Bd1f01b1E32e21";
 
 const CLAIM_PROTOCOL_FEES =
