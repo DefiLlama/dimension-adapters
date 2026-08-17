@@ -32,14 +32,10 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ZIGCHAIN]: {
-      fetch,
-      // The endpoint only exposes a rolling 24h snapshot, so run at current time.
-      runAtCurrTime: true,
-      start: '2025-09-27', // earliest OroSwap pool
-    },
-  },
+  fetch,
+  runAtCurrTime: true,
+  chains: [CHAIN.ZIGCHAIN],
+  version: 2,
   methodology,
 };
 
