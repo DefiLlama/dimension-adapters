@@ -120,7 +120,19 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         const response: GardenApiResponse = await fetchURL(
             `https://api.garden.finance/v2/orders?status=completed&per_page=500&page=${currentPage}`
         );
-        if (response.status !== "Ok" || !response.result.data.length) break;
+        // An empty page after the first is just the end of pagination. An empty
+        // FIRST page means the source returned nothing for the whole window, and
+        // falling through to `return { fees }` publishes a real 0 for every chain.
+        // That is what put twelve false zero-fee days in the chart between
+        // 2026-07-27 and 2026-08-07 while the endpoint was failing. Fail instead.
+        if (response.status !== "Ok" || !response.result.data.length) {
+            if (currentPage === 1) {
+                throw new Error(
+                    `garden fees: orders endpoint returned no usable data on page 1 (status ${response.status}, ${response.result?.data?.length ?? "no"} rows)`
+                );
+            }
+            break;
+        }
 
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
