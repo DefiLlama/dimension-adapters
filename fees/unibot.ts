@@ -37,8 +37,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyFees.addGasToken(Number(row.v1_flow || 0) * 0.01);
   dailyFees.addGasToken(row.v2_fees || 0);
   dailyTokenTaxes.addGasToken(row.token_tax || 0);
-  dailyTokenTaxes.addGasToken(row.v2_fees || 0);
-
+  
   // ref https://dune.com/queries/2621049/4349967
   const totalFees = options.createBalances()
   totalFees.add(dailyFees, 'Trading Fees')
