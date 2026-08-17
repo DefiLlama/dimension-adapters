@@ -1,91 +1,63 @@
-import { getProvider } from "@defillama/sdk";
-import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import fetchURL from "../utils/fetchURL";
 
-const CONCURRENCY = 25;
+const PLS_BURNED_URL = "https://www.pulsechainstats.com/api/gas-stats/pls-burned";
 
-const TOTAL_FEES_URL = (dateStr: string) =>
-    `https://api.scan.pulsechain.com/api?module=stats&action=totalfees&date=${dateStr}`;
-
-// The blockscout indexer behind this endpoint can stall while still answering
-// 200 with message "OK". It returned "0" on 2026-08-08 and null every day from
-// 2026-08-09, on a chain that was producing 15-40 transactions a block the
-// whole time. Unchecked, the first shape published a real zero-fee day and the
-// second reached addGasToken(null) and died without saying why.
-const readTotalFees = (raw: unknown, dateStr: string): bigint => {
-    if (raw === null || raw === undefined || raw === "") {
-        throw new Error(`pulsechain: explorer returned no totalfees for ${dateStr} (${TOTAL_FEES_URL(dateStr)})`);
-    }
-    let value: bigint;
-    try {
-        value = BigInt(String(raw));
-    } catch {
-        throw new Error(`pulsechain: explorer returned a non-numeric totalfees ${JSON.stringify(raw)} for ${dateStr}`);
-    }
-    if (value < 0n) {
-        throw new Error(`pulsechain: explorer returned a negative totalfees ${value} for ${dateStr}`);
-    }
-    return value;
+type BurnDay = {
+  date: string;
+  estimatedDayBurn: number;
 };
 
-const sumBaseFees = async (options: FetchOptions): Promise<bigint> => {
-    const fromBlock = await options.getFromBlock();
-    const toBlock = await options.getToBlock();
-    const provider = getProvider(CHAIN.PULSECHAIN);
-    let totalBaseFees = BigInt(0);
+let cachedBurnDays: BurnDay[] | undefined;
 
-    const blocks: number[] = [];
-    for (let i = fromBlock; i <= toBlock; i++) blocks.push(i);
+async function getBurnDays(): Promise<BurnDay[]> {
+  if (cachedBurnDays) return cachedBurnDays;
 
-    const { errors } = await PromisePool
-        .withConcurrency(CONCURRENCY)
-        .for(blocks)
-        .process(async (blockNum) => {
-            const block = await provider.getBlock(blockNum);
-            if (!block || block.baseFeePerGas == null) return;
-            totalBaseFees += BigInt(block.baseFeePerGas.toString()) * BigInt(block.gasUsed.toString());
-        });
-    if (errors.length > 0) throw errors[0];
+  const res = await fetchURL(PLS_BURNED_URL);
+  const days = res?.data?.burn?.data;
+  if (!res?.success || !Array.isArray(days)) {
+    throw new Error("PulseChain: unexpected response from pulsechainstats PLS burned API");
+  }
 
-    return totalBaseFees;
-};
+  cachedBurnDays = days;
+  return days;
+}
 
 const fetch = async (options: FetchOptions) => {
-    const dateStr = options.dateString;
+  const days = await getBurnDays();
+  const day = days.find((item) => item.date === options.dateString);
+  if (!day) throw new Error(`PulseChain: no PLS burn data for ${options.dateString}`);
 
-    const [feesData, totalBaseFees] = await Promise.all([
-        fetchURL(TOTAL_FEES_URL(dateStr)),
-        sumBaseFees(options),
-    ]);
+  const dailyFees = options.createBalances();
+  dailyFees.addGasToken(day.estimatedDayBurn * 1e18, METRIC.TRANSACTION_BASE_FEES);
 
-    const totalFees = readTotalFees(feesData?.result, dateStr);
-
-    // Base fees are burnt out of the fees users paid, so they are a subset of
-    // the total. A zero total against a positive burn is arithmetically
-    // impossible and means the explorer is behind, not that the chain was idle.
-    // Both being zero is a genuinely idle window and is left alone.
-    if (totalFees === 0n && totalBaseFees > 0n) {
-        throw new Error(`pulsechain: explorer reports 0 totalfees for ${dateStr} while the blocks in that window burnt ${totalBaseFees} base fees`);
-    }
-
-    const dailyFees = options.createBalances();
-    dailyFees.addGasToken(totalFees);
-
-    const dailyRevenue = options.createBalances();
-    dailyRevenue.addGasToken(totalBaseFees);
-
-    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
-
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    chains: [CHAIN.PULSECHAIN],
-    start: '2023-05-13',
-    protocolType: ProtocolType.CHAIN,
+  version: 1,
+  fetch,
+  chains: [CHAIN.PULSECHAIN],
+  start: '2023-05-13',
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Estimated PLS burned from EIP-1559 base fees.',
+    Revenue: 'PLS burned via EIP-1559 base fee.',
+    HoldersRevenue: 'PLS burned via EIP-1559 base fee.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned (pulsechainstats sampled daily burn).',
+    },
+    Revenue: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned.',
+    },
+    HoldersRevenue: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned.',
+    },
+  },
 }
 
 export default adapter;
