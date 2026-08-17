@@ -1,7 +1,8 @@
 import ADDRESSES from './coreAssets.json'
 import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
-import { queryClickhouse, queryIndexer, toByteaArray } from "../helpers/indexer";
+import { queryClickhouse } from "../helpers/indexer";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
 import { Row } from "@clickhouse/client";
@@ -42,35 +43,23 @@ export function L2FeesFetcher({
   ethereumWallets: string[];
 }): any {
   	return async (options: FetchOptions) => {
-		// Fees come entirely from the L2's own fee vaults (balance delta plus
-		// Withdrawal events). Only the L1 cost subtracted off revenue needs the
-		// indexa Postgres, which is a separate system that these chains have no
-		// other dependency on. It stopped answering on 2026-08-07 and took the
-		// whole fetch down with it, so ink, soneium, morph and manta published no
-		// fees either for the ten days after. Keep the on-chain half and drop only
-		// the metric that actually needs indexa.
-		const sequencerGas = queryIndexer(`
+		// ethereumWallets holds batch-inbox addresses (matched as to_address) or
+		// batcher/proposer EOAs (matched as from_address), depending on the
+		// chain config — match both sides so either style works.
+		const sequencerWallets = ethereumWallets.map(w => `'${w.toLowerCase()}'`).join(', ');
+		const sequencerGas = queryAllium(`
 				SELECT
-					sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) AS sum
-				FROM
-					ethereum.transactions
-					INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-				WHERE (to_address IN ${toByteaArray(ethereumWallets)}) AND (block_time BETWEEN llama_replace_date_range);
-					`, options).catch((e: any) => {
-			console.error(`L2FeesFetcher: sequencer L1 gas lookup failed on ${options.chain}, publishing fees without revenue:`, e?.message)
-			return null
-		});
+					SUM(receipt_gas_used * receipt_effective_gas_price) AS sequencer_gas
+				FROM ethereum.raw.transactions
+				WHERE (from_address IN (${sequencerWallets}) OR to_address IN (${sequencerWallets}))
+					AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+					AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+			`);
 		const [dailyFees, totalSpentBySequencer] = await Promise.all([getFees(options, { feeVaults, gasToken }), sequencerGas]);
 
-		// SUM() over no matching rows is NULL, not 0, so an empty window reaches
-		// here as null and would turn revenue into NaN. Treat it the same as a
-		// failed lookup rather than publishing a broken number.
-		const spentBySequencer = (totalSpentBySequencer as any)?.[0]?.sum
-		if (spentBySequencer === undefined || spentBySequencer === null) {
-			if (totalSpentBySequencer !== null)
-				console.error(`L2FeesFetcher: sequencer L1 gas lookup returned no usable sum on ${options.chain}, publishing fees without revenue`)
-			return { dailyFees }
-		}
+		// SUM() over no matching rows is NULL — treat no matches as zero L1 cost
+		// (revenue = fees)
+		const spentBySequencer = (totalSpentBySequencer as any)?.[0]?.sequencer_gas ?? 0
 
 		const dailyRevenue = dailyFees.clone()
 		if (gasToken)

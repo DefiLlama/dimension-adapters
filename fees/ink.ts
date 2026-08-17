@@ -6,7 +6,10 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.INK]: {
-      fetch: L2FeesFetcher({ ethereumWallets: ['0x500d7Ea63CF2E501dadaA5feeC1FC19FE2Aa72Ac'] }),
+      // batch inbox from the superchain registry (rotation-proof, unlike the
+      // genesis batcher EOA 0x500d7Ea6... this previously pointed at, which
+      // stopped submitting and zeroed the revenue metric)
+      fetch: L2FeesFetcher({ ethereumWallets: ['0x005969bf0EcbF6eDB6C47E5e94693b1C3651Be97'] }),
       start: '2024-12-20',
     },
   },
