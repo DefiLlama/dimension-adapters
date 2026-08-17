@@ -14,9 +14,15 @@ const HEADERS = {
 
 const fetch = async () => {
   const data = await httpGet(POOLS_URL, { headers: HEADERS });
-  const dailyVolume = Number(data?.totalVolume24H);
+  const raw = data?.totalVolume24H;
+  // Reject missing/blank before Number(): Number(null) and Number("") are a
+  // finite 0, which would silently report zero volume.
+  if (raw === null || raw === undefined || raw === "") {
+    throw new Error("OroSwap: missing totalVolume24H");
+  }
+  const dailyVolume = Number(raw);
   if (!Number.isFinite(dailyVolume)) {
-    throw new Error(`OroSwap: invalid totalVolume24H (${data?.totalVolume24H})`);
+    throw new Error(`OroSwap: non-numeric totalVolume24H (${raw})`);
   }
   return { dailyVolume };
 };

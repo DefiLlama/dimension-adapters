@@ -18,8 +18,16 @@ const fetch = async (): Promise<FetchResultV2> => {
   if (!pools.length) throw new Error("OroSwap: no pools returned");
 
   const dailyFees = pools.reduce((acc: number, pool: any) => {
-    const fees = Number(pool?.details?.fees24H);
-    return acc + (Number.isFinite(fees) ? fees : 0);
+    const raw = pool?.details?.fees24H;
+    // Fail closed on a malformed pool rather than treating it as zero fees.
+    if (raw === null || raw === undefined || raw === "") {
+      throw new Error(`OroSwap: missing fees24H for pool ${pool?.details?.poolName ?? "?"}`);
+    }
+    const fees = Number(raw);
+    if (!Number.isFinite(fees)) {
+      throw new Error(`OroSwap: non-numeric fees24H (${raw}) for pool ${pool?.details?.poolName ?? "?"}`);
+    }
+    return acc + fees;
   }, 0);
 
   // Swap fees are paid by the trader; report fees only (raw numbers so no
