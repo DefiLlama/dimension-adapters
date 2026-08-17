@@ -30,6 +30,7 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "yeno": { builder: "yeno-markets", start: "2026-06-26", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f" },
   "smartx": { builder: "SmartX", start: "2026-02-27", builderCode: "0x58d3820045831c879b218ec64514dc191eebadf31a4641670293fddf542643c3" },
   "virae": { builder: "Virae.ai", start: "2026-05-02", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc" },
+  "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string }> = {
