@@ -14,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     chains: [CHAIN.EDGEX],
     fetch,
     start: "2026-05-12",
