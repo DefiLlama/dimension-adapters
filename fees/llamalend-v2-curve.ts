@@ -52,7 +52,11 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     target: factory.address,
     fromBlock: factory.fromBlock,
     cacheInCloud: true,
-  })).filter((event: any) => Number(event.blockNumber) <= fromBlock);
+    entireLog: true,
+    parseLog: true,
+  }))
+    .filter((log: any) => Number(log.blockNumber) <= fromBlock)
+    .map((log: any) => log.args);
   if (vaultCreatedEvents.length === 0) {
     return {
       dailyVolume,
@@ -112,10 +116,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     abi: 'uint256:totalAssets',
     calls: markets.map(market => market.vault),
   });
-  const vaultTotalAssetsAfter = await options.toApi.multiCall({
-    abi: 'uint256:totalAssets',
-    calls: markets.map(market => market.vault),
-  });
   const adminFeesBefore = await options.fromApi.multiCall({
     abi: 'uint256:admin_fees',
     calls: markets.map(market => market.controller),
@@ -131,13 +131,23 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const pricePerShareBefore = vaultPricePerShareBefore[i];
     const pricePerShareAfter = vaultPricePerShareAfter[i];
     const totalAssetsBefore = vaultTotalAssetsBefore[i];
-    const totalAssetsAfter = vaultTotalAssetsAfter[i];
     const adminFeesStartRaw = adminFeesBefore[i];
     const adminFeesEndRaw = adminFeesAfter[i];
 
-    const assetsForInterest = Number(totalAssetsBefore) > 0 ? totalAssetsBefore : totalAssetsAfter;
-    const lenderInterest = Number(assetsForInterest) > 0
-      ? (Number(pricePerShareAfter) - Number(pricePerShareBefore)) * Number(assetsForInterest) / 1e18
+    // Grow the pooled assets by the relative rise in price per share. Scaling the
+    // absolute pricePerShare delta by 1e18 instead understates this by a factor of
+    // pricePerShare/1e18: the vaults report pricePerShare around 1.003e15, not 1e18,
+    // so lender interest came out roughly a thousand times too small. Working in the
+    // ratio also keeps this correct when share and asset decimals differ.
+    // Base the accrual on the assets present at the START of the window. Falling back
+    // to the closing assets when the vault opened empty would apply the whole window's
+    // price move to deposits that arrived part way through it, which overstates the
+    // interest. A vault that is empty at the open earned nothing on assets it did not
+    // hold, so 0 is the right answer there.
+    const startingAssets = Number(totalAssetsBefore);
+    const startingPrice = Number(pricePerShareBefore);
+    const lenderInterest = startingAssets > 0 && startingPrice > 0
+      ? startingAssets * (Number(pricePerShareAfter) / startingPrice - 1)
       : 0;
 
     const adminFeesStart = BigInt(adminFeesStartRaw);
