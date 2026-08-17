@@ -4,10 +4,8 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 // Pacifica is a Solana perpetuals DEX. It has no endpoint that reports collected
-// fees, so we estimate fees from perp volume x the fee rate. Volume is derived
-// exactly like dexs/pacifica.
+// fees, so we estimate fees from perp volume x the fee rate.
 const INFO_URL = "https://api.pacifica.fi/api/v1/info";
-const PRICES_URL = "https://api.pacifica.fi/api/v1/info/prices";
 
 // Pacifica's documented base-tier (level 0) fee schedule, from GET
 // /api/v1/info/fees. Both sides of every trade pay a positive rate (no maker
@@ -20,18 +18,9 @@ const TAKER_FEE_RATE = 0.0004;
 const FEE_RATE = MAKER_FEE_RATE + TAKER_FEE_RATE;
 
 const getDailyVolume = async (options: FetchOptions): Promise<number> => {
-  const todayStartOfDay = Math.floor(Date.now() / 86_400_000) * 86_400;
-  // The runner calls us with the just-completed day's startOfDay; rolling 24h
-  // from /info/prices is a close match for that window.
-  const isRecentDay = options.startOfDay >= todayStartOfDay - 86_400;
-
-  if (isRecentDay) {
-    const prices = await fetchURL(PRICES_URL);
-    if (!prices.data) throw new Error("Pacifica: prices are unavailable, please try again later");
-    // volume_24h counts taker + maker, so /2 gives one-sided notional.
-    return prices.data.reduce((acc: number, row: any) => acc + Number(row.volume_24h) / 2, 0);
-  }
-
+  // Always use the daily kline bounded to options.startOfDay so the volume
+  // covers exactly the requested UTC day and re-running a day is deterministic
+  // (a rolling 24h snapshot would mix two dates and drift between runs).
   const info = await fetchURL(INFO_URL);
   if (!info.data) throw new Error("Pacifica: tickers are unavailable, please try again later");
   const perps = info.data
