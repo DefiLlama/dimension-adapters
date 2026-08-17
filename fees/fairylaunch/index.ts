@@ -9,25 +9,21 @@ const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
 
 // Fee configuration:
 // Total trading fee: 1% (100 BPS)
-// - Creator fee: 0.5% (50 BPS) - goes to token creator
-// - Treasury fee: 0.5% (50 BPS) - goes to protocol treasury
-// The treasury share is 50% of the total collected trading fee.
-// Source: BondingCurve contract Constants.TOTAL_FEE_BPS = 100, TREASURY_FEE_BPS = 50, CREATOR_FEE_BPS = 50
-const BPS_DENOMINATOR = 10000n;
-const TOTAL_FEE_BPS = 100n;
-const TREASURY_FEE_BPS = 50n;
-const CREATOR_FEE_BPS = 50n;
+// FeeManager splits fee 50/50: creatorShare = amount/2, treasuryShare = amount - creatorShare
+// Source: FeeManager._recordFee() in FeeManager.sol
+const CREATOR_SHARE_PERCENT = 50n; // 50%
+const TREASURY_SHARE_PERCENT = 50n; // 50%
 
 const methodology = {
   Volume: 'ethAmount from Buy events + ethAmount from Sell events across all BondingCurves',
-  Fees: 'Total trading fees (1% of trade volume) from Buy/Sell events + Graduation rewards',
-  Revenue: 'Treasury fees (50% of trading fees) + Treasury portion of graduation rewards',
+  Fees: 'Total trading fees from Buy/Sell events + Graduation rewards',
+  Revenue: 'Treasury fees + Treasury portion of graduation rewards',
   ProtocolRevenue: 'Treasury fees (50% of trading fees) + Treasury portion of graduation rewards',
   SupplySideRevenue: 'Creator fees (50% of trading fees) + Creator portion of graduation rewards',
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, getLogs } = options;
+  const { api, createBalances, getLogs } = options;
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -35,22 +31,31 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  // Descubrir TODAS las BondingCurves creadas por el LaunchFactory
-  // Usamos los logs de LaunchCreated para encontrar todas las curvas históricas
-  const launchLogs = await getLogs({
-    targets: [FACTORY],
-    eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
+  // DESCUBRIR TODAS las BondingCurves usando api.call (obtiene TODAS las curvas históricas)
+  const totalLaunches = await api.call({
+    target: FACTORY,
+    abi: 'uint256:totalLaunches',
   });
 
   const bondingCurves: string[] = [];
 
-  for (const log of launchLogs) {
-    if (log.bondingCurve && log.bondingCurve !== '0x0000000000000000000000000000000000000000') {
-      bondingCurves.push(log.bondingCurve.toLowerCase());
+  for (let i = 1; i <= Number(totalLaunches); i++) {
+    try {
+      const launch = await api.call({
+        target: FACTORY,
+        abi: 'function getLaunch(uint256) view returns (uint256 launchId, address creator, address treasury, address token, address bondingCurve, bool graduated, uint256 createdAt, uint256 graduatedAt, string name, string symbol, string metadataUri)',
+        params: [i],
+      });
+
+      if (launch.bondingCurve && launch.bondingCurve !== '0x0000000000000000000000000000000000000000') {
+        bondingCurves.push(launch.bondingCurve.toLowerCase());
+      }
+    } catch (e) {
+      // Ignorar errores individuales
     }
   }
 
-  // Fallback: si no se encuentran logs (RPC limitado), usar la BondingCurve conocida
+  // Fallback: si api.call falla (RPC limitado), usar la BondingCurve conocida
   if (bondingCurves.length === 0) {
     bondingCurves.push('0x3014646079673048abaa2d84c9a197eefcde7b9b');
   }
@@ -78,14 +83,14 @@ const fetch = async (options: FetchOptions) => {
   // Procesar Buy events
   for (const log of buyLogs) {
     const ethAmount = BigInt(log.ethAmount);
-    const totalFee = BigInt(log.fee); // fee total del trade (1%)
+    const totalFee = BigInt(log.fee);
 
     dailyVolume.addGasToken(ethAmount);
     dailyFees.addGasToken(totalFee);
     
-    // fee split: 50% treasury, 50% creator
-    const treasuryFee = totalFee * TREASURY_FEE_BPS / 100n; // 50% del fee total
-    const creatorFee = totalFee - treasuryFee; // 50% restante
+    // Fee split 50/50 según FeeManager._recordFee
+    const treasuryFee = totalFee * TREASURY_SHARE_PERCENT / 100n;
+    const creatorFee = totalFee - treasuryFee;
 
     dailyProtocolRevenue.addGasToken(treasuryFee);
     dailySupplySideRevenue.addGasToken(creatorFee);
@@ -99,14 +104,14 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.addGasToken(ethAmount);
     dailyFees.addGasToken(totalFee);
     
-    const treasuryFee = totalFee * TREASURY_FEE_BPS / 100n;
+    const treasuryFee = totalFee * TREASURY_SHARE_PERCENT / 100n;
     const creatorFee = totalFee - treasuryFee;
 
     dailyProtocolRevenue.addGasToken(treasuryFee);
     dailySupplySideRevenue.addGasToken(creatorFee);
   }
 
-  // Procesar Graduation Rewards (1 BNB por launch graduado)
+  // Procesar Graduation Rewards
   for (const log of rewardLogs) {
     const creatorReward = BigInt(log.creatorReward);
     const treasuryReward = BigInt(log.treasuryReward);
