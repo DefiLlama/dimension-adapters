@@ -13,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
   const body = await httpPost(
     VOLUME_URL,
     { chain: options.chain },
-    { headers: { "Content-Type": "application/json" } }
+    { headers: { "Content-Type": "application/json" }, timeout: 10000 }
   );
 
   // Fail closed on a malformed response rather than reporting a false zero.
