@@ -140,10 +140,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const megapoolExistsKeys = minipoolAddresses.map((address) =>
     ethers.solidityPackedKeccak256(['string', 'address'], ['megapool.exists', address])
   );
+  // getBool returns false for an unset key and never reverts, so unlike the
+  // minipool getters above it needs no permitFailure - letting a genuine RPC
+  // failure throw is preferable to silently dropping a megapool's rewards.
   const isMegapool = await options.api.multiCall({
     abi: 'function getBool(bytes32) view returns (bool)',
     calls: megapoolExistsKeys.map((key) => ({ target: rocketStorage, params: [key] })),
-    permitFailure: true,
   })
   // Scope RewardsDistributed to confirmed megapool emitters. Its topic0 is a
   // plain five-uint256 signature that unrelated contracts also emit, so an
@@ -156,6 +158,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       eventAbi: 'event RewardsDistributed(uint256 nodeAmount, uint256 voterAmount, uint256 rethAmount, uint256 protocolDaoAmount, uint256 time)',
     })
     for (const log of rewardsDistributedLogs) {
+      // The full beacon reward is counted as fees and flows to supply side, the
+      // same as the minipool path above. Saturn 1 added a voter share (~9%) and
+      // a protocol-DAO share (currently 0%) that are arguably protocol revenue
+      // rather than supply-side; reclassifying them is left to a follow-up so
+      // this change stays scoped to the dropped-fees fix (see #8812).
       const beaconReward = Number(log.nodeAmount) + Number(log.voterAmount) + Number(log.rethAmount) + Number(log.protocolDaoAmount)
       dailyFees.addGasToken(beaconReward, METRIC.STAKING_REWARDS)
     }
