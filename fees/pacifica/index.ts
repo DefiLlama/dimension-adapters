@@ -1,31 +1,23 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { METRIC } from "../../helpers/metrics";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 // Pacifica is a Solana perpetuals DEX. It has no endpoint that reports collected
-// fees, but it does publish its fee schedule, so we estimate fees from perp
-// volume x the base-tier rate. Volume is derived exactly like dexs/pacifica.
+// fees, so we estimate fees from perp volume x the fee rate. Volume is derived
+// exactly like dexs/pacifica.
 const INFO_URL = "https://api.pacifica.fi/api/v1/info";
 const PRICES_URL = "https://api.pacifica.fi/api/v1/info/prices";
-const FEES_URL = "https://api.pacifica.fi/api/v1/info/fees";
 
-// Pacifica charges both sides of every trade - the maker and taker rates are
-// both positive, there is no rebate - so the fee a given notional generates is
-// (maker + taker). We read the base tier (level 0) live; higher-volume traders
-// pay lower tiered rates, so this is the standard-rate estimate.
-const getBaseFeeRate = async (): Promise<number> => {
-  const fees = await fetchURL(FEES_URL);
-  const base = fees.data?.find((tier: any) => tier.level === 0);
-  if (!base) throw new Error("Pacifica: base fee tier unavailable");
-  const makerRate = Number(base.maker_fee_rate);
-  const takerRate = Number(base.taker_fee_rate);
-  if (!Number.isFinite(makerRate) || !Number.isFinite(takerRate)) {
-    throw new Error(`Pacifica: invalid fee schedule (maker=${base.maker_fee_rate}, taker=${base.taker_fee_rate})`);
-  }
-  return makerRate + takerRate;
-};
+// Pacifica's documented base-tier (level 0) fee schedule, from GET
+// /api/v1/info/fees. Both sides of every trade pay a positive rate (no maker
+// rebate), so a given one-sided notional generates (maker + taker) in fees.
+// Hardcoded rather than fetched live so a rate change on Pacifica's side does
+// not silently recalculate historical days; higher-volume traders pay lower
+// tiered rates, so this base rate is a standard-rate estimate.
+const MAKER_FEE_RATE = 0.00015;
+const TAKER_FEE_RATE = 0.0004;
+const FEE_RATE = MAKER_FEE_RATE + TAKER_FEE_RATE;
 
 const getDailyVolume = async (options: FetchOptions): Promise<number> => {
   const todayStartOfDay = Math.floor(Date.now() / 86_400_000) * 86_400;
@@ -47,7 +39,7 @@ const getDailyVolume = async (options: FetchOptions): Promise<number> => {
     .map((instrument: any) => instrument.symbol);
 
   let dailyVolume = 0;
-  await PromisePool.withConcurrency(1)
+  const { errors } = await PromisePool.withConcurrency(1)
     .for(perps)
     .process(async (symbol) => {
       const kline = await fetchURLAutoHandleRateLimit(
@@ -57,32 +49,24 @@ const getDailyVolume = async (options: FetchOptions): Promise<number> => {
       if (day[0]) dailyVolume += (day[0].v * +day[0].c) / 2; // taker + maker in ohlcv candles
       await new Promise((r) => setTimeout(r, 4000));
     });
+  // Fail closed: a dropped market would silently under-report the day.
+  if (errors.length) throw new Error(`Pacifica: ${errors.length} kline request(s) failed`);
   return dailyVolume;
 };
 
-const fetch = async (options: FetchOptions) => {
-  const [feeRate, dailyVolumeUsd] = await Promise.all([getBaseFeeRate(), getDailyVolume(options)]);
-  const dailyFeesUsd = dailyVolumeUsd * feeRate;
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolumeUsd = await getDailyVolume(options);
+  const dailyFees = dailyVolumeUsd * FEE_RATE;
 
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(dailyFeesUsd, METRIC.TRADING_FEES);
-
-  const dailyUserFees = options.createBalances();
-  dailyUserFees.addUSDValue(dailyFeesUsd, METRIC.TRADING_FEES);
-
-  // Both sides of every trade pay a positive rate (no maker rebate), so all fees
-  // are retained as revenue. Pacifica does not publish the protocol-vs-vault
-  // split, so we report the total without breaking it down.
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addUSDValue(dailyFeesUsd, METRIC.TRADING_FEES);
-
-  return { dailyFees, dailyUserFees, dailyRevenue };
+  // Only fees are reported. Pacifica pays affiliates a fee-share (a supplier
+  // cost) that no public endpoint exposes, so net revenue cannot be measured;
+  // reporting gross fees as revenue would overstate it.
+  return { dailyFees, dailyUserFees: dailyFees };
 };
 
 const methodology = {
-  Fees: "Trading fees paid by users on Pacifica's perpetual markets, estimated as daily perp volume multiplied by Pacifica's base-tier fee rate (maker + taker, read live from the public fee schedule). Higher-volume traders pay lower tiered rates, so this uses the standard base rate.",
+  Fees: "Trading fees paid by users on Pacifica's perpetual markets, estimated as daily perp volume multiplied by Pacifica's base-tier fee rate (maker 0.015% + taker 0.04%). Higher-volume traders pay lower tiered rates, so this uses the standard base rate.",
   UserFees: "All trading fees are paid by the traders.",
-  Revenue: "Both the maker and taker rate are positive (no rebate), so all trading fees are retained as revenue.",
 };
 
 const adapter: SimpleAdapter = {
