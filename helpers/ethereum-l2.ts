@@ -42,6 +42,13 @@ export function L2FeesFetcher({
   ethereumWallets: string[];
 }): any {
   	return async (options: FetchOptions) => {
+		// Fees come entirely from the L2's own fee vaults (balance delta plus
+		// Withdrawal events). Only the L1 cost subtracted off revenue needs the
+		// indexa Postgres, which is a separate system that these chains have no
+		// other dependency on. It stopped answering on 2026-08-07 and took the
+		// whole fetch down with it, so ink, soneium, morph and manta published no
+		// fees either for the ten days after. Keep the on-chain half and drop only
+		// the metric that actually needs indexa.
 		const sequencerGas = queryIndexer(`
 				SELECT
 					sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) AS sum
@@ -49,13 +56,27 @@ export function L2FeesFetcher({
 					ethereum.transactions
 					INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
 				WHERE (to_address IN ${toByteaArray(ethereumWallets)}) AND (block_time BETWEEN llama_replace_date_range);
-					`, options);
+					`, options).catch((e: any) => {
+			console.error(`L2FeesFetcher: sequencer L1 gas lookup failed on ${options.chain}, publishing fees without revenue:`, e?.message)
+			return null
+		});
 		const [dailyFees, totalSpentBySequencer] = await Promise.all([getFees(options, { feeVaults, gasToken }), sequencerGas]);
+
+		// SUM() over no matching rows is NULL, not 0, so an empty window reaches
+		// here as null and would turn revenue into NaN. Treat it the same as a
+		// failed lookup rather than publishing a broken number.
+		const spentBySequencer = (totalSpentBySequencer as any)?.[0]?.sum
+		if (spentBySequencer === undefined || spentBySequencer === null) {
+			if (totalSpentBySequencer !== null)
+				console.error(`L2FeesFetcher: sequencer L1 gas lookup returned no usable sum on ${options.chain}, publishing fees without revenue`)
+			return { dailyFees }
+		}
+
 		const dailyRevenue = dailyFees.clone()
 		if (gasToken)
-		dailyRevenue.addTokenVannila(gasToken, (totalSpentBySequencer as any)[0].sum * -1)
+		dailyRevenue.addTokenVannila(gasToken, spentBySequencer * -1)
 		else
-		dailyRevenue.addGasToken((totalSpentBySequencer as any)[0].sum * -1)
+		dailyRevenue.addGasToken(spentBySequencer * -1)
 		return { dailyFees, dailyRevenue, }
   }
 }
