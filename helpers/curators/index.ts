@@ -342,15 +342,12 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
   const endDate = new Date((options.toTimestamp + 86400) * 1000).toISOString().split('T')[0]
   const elapsed = options.toTimestamp - options.fromTimestamp
 
-  const perVault = await Promise.all(vaults.map(async vault => {
+  for (const vault of vaults) {
     const [config, history] = await Promise.all([
       fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`),
       fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`),
     ])
-    return { config, history }
-  }))
 
-  for (const { config, history } of perVault) {
     const state = config?.state
     if (!state?.tokenMint) continue
 
@@ -359,7 +356,8 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
     const perfFeeRate = Number(state.performanceFeeBps ?? 0) / 1e4
     const mgmtFeeRate = Number(state.managementFeeBps ?? 0) / 1e4
 
-    // `interest` is cumulative since inception, so the window yield is last - first.
+    // History is requested with a ±1 day pad (API is date-grained); keep only
+    // snapshots that fall inside this fetch window.
     const points: any[] = (Array.isArray(history) ? history : history?.history ?? [])
       .map((p: any) => ({ ...p, _ts: Date.parse(p.timestamp ?? p.date ?? '') / 1000 }))
       .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.toTimestamp)
@@ -367,15 +365,16 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
 
     let grossInterest = 0
     if (points.length >= 2) {
+      // `interest` is cumulative since inception, so the window yield is last - first.
       const delta = Number(points[points.length - 1].interest ?? 0) - Number(points[0].interest ?? 0)
       if (delta > 0) grossInterest = delta * 10 ** decimals
     }
 
     const perfFee = grossInterest * perfFeeRate
-    // `interest` is human-denominated (matches interestUsd) so grossInterest is
-    // scaled above; `prevAum` is already in raw base units, so the management
-    // fee needs no extra scale. Matches fees/sentora.ts.
-    const mgmtFee = Number(state.prevAum ?? 0) * mgmtFeeRate * elapsed / YEAR_SECS
+    // History `tvl` and `interest` are human-denominated; scale both to raw units.
+    // Use the first in-window snapshot so mgmt fee tracks that day's AUM, not live prevAum.
+    const tvl = Number(points[0]?.tvl ?? 0)
+    const mgmtFee = tvl * 10 ** decimals * mgmtFeeRate * elapsed / YEAR_SECS
 
     if (grossInterest > 0) {
       if (breakdownFees) {
