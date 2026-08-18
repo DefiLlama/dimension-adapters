@@ -2,15 +2,8 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // BSC Mainnet Contracts
-// Factory: https://bscscan.com/address/0x28163d7943AA6715a9559D468B29c0343412E236
 const FACTORY = '0x28163d7943AA6715a9559D468B29c0343412E236';
-
-// FeeManager: https://bscscan.com/address/0xb6A7D47596D2202676822531F56EFeCeac309775
 const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
-
-// Factory Deployment Block on BSC Mainnet
-const FACTORY_DEPLOY_BLOCK = 
-116127983;
 
 // Repartición de comisiones: 50% Protocolo (Treasury), 50% Creador del token
 const TREASURY_SHARE_PERCENT = 50n;
@@ -33,24 +26,46 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // 1. Descubrimiento de curvas: consulta histórica en cold start, o incremental en slots posteriores
-  const launchLogs = await options.getLogs({
-    target: FACTORY,
-    fromBlock: cachedCurves.size === 0 ? FACTORY_DEPLOY_BLOCK : undefined,
-    toBlock: options.getToBlock(),
-    eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
-    maxBlockRange: 20000,
-  });
+  // 1. Descubrimiento directo de curvas vía RPC multicall (evita bloqueos/timeouts)
+  if (cachedCurves.size === 0) {
+    try {
+      const totalLaunches = await options.api.call({
+        target: FACTORY,
+        abi: 'function totalLaunches() view returns (uint256)',
+      });
 
-  for (const log of launchLogs) {
-    if (log.bondingCurve && log.bondingCurve !== '0x0000000000000000000000000000000000000000') {
-      cachedCurves.add(log.bondingCurve.toLowerCase());
+      const count = Number(totalLaunches);
+      if (count > 0) {
+        const launchIds = Array.from({ length: count }, (_, i) => i + 1);
+        const launches = await options.api.multiCall({
+          target: FACTORY,
+          abi: 'function getLaunch(uint256 launchId) view returns ((uint256 launchId, address creator, address treasury, address token, address bondingCurve, bool graduated, uint256 createdAt, uint256 graduatedAt, string name, string symbol, string metadataUri))',
+          calls: launchIds.map((id) => ({ params: [id] })),
+        });
+
+        for (const launch of launches) {
+          if (launch?.bondingCurve && launch.bondingCurve !== '0x0000000000000000000000000000000000000000') {
+            cachedCurves.add(launch.bondingCurve.toLowerCase());
+          }
+        }
+      }
+    } catch {
+      // Fallback a getLogs si la consulta directa falla
+      const launchLogs = await options.getLogs({
+        target: FACTORY,
+        eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
+      });
+      for (const log of launchLogs) {
+        if (log.bondingCurve && log.bondingCurve !== '0x0000000000000000000000000000000000000000') {
+          cachedCurves.add(log.bondingCurve.toLowerCase());
+        }
+      }
     }
   }
 
   const uniqueCurves = Array.from(cachedCurves);
 
-  // 2. Procesamiento de trades solo si existen curvas registradas
+  // 2. Procesamiento de compras y ventas en las curvas registradas
   if (uniqueCurves.length > 0) {
     const buyLogs = await options.getLogs({
       targets: uniqueCurves,
@@ -123,7 +138,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BSC],
-  start: 1786752000, // 2026-08-17 00:00:00 UTC
+  start: 1786665600, // 16 de Agosto de 2026 00:00:00 UTC
   fetch,
   methodology,
   breakdownMethodology: methodology,
