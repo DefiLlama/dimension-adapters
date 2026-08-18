@@ -1,5 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { getSolanaReceived } from "../helpers/token";
 
 // Jupiter referral token accounts that collect PRIZM's platform fee on routed
@@ -28,13 +29,21 @@ const FEE_WALLET_TOKEN_ACCOUNTS = [
 const TARGETS = [...REFERRAL_FEE_ACCOUNTS, FEE_WALLET, ...FEE_WALLET_TOKEN_ACCOUNTS];
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({
+  const dailyFees = options.createBalances();
+  // Referral-account claims and sweeps between PRIZM's own accounts would
+  // otherwise show up as a second receive of the same fee.
+  const blacklists = TARGETS;
+
+  const swapFees = await getSolanaReceived({ options, targets: REFERRAL_FEE_ACCOUNTS, blacklists });
+  const actionFees = await getSolanaReceived({
     options,
-    targets: TARGETS,
-    // Referral-account claims and sweeps between PRIZM's own accounts would
-    // otherwise show up as a second receive of the same fee.
-    blacklists: TARGETS,
+    targets: [FEE_WALLET, ...FEE_WALLET_TOKEN_ACCOUNTS],
+    blacklists,
   });
+
+  dailyFees.addBalances(swapFees, METRIC.SWAP_FEES);
+  dailyFees.addBalances(actionFees, METRIC.SERVICE_FEES);
+
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
@@ -42,12 +51,28 @@ const adapter: SimpleAdapter = {
   version: 2,
   start: '2026-08-08',
   fetch,
+  pullHourly: true,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology: {
     Fees: 'Platform fees paid by PRIZM users: 0.85% on swaps routed through Jupiter, collected in the output mint via Jupiter referral fee accounts, and 0.33% on staking, lending and liquidity actions, transferred to the PRIZM fee wallet atomically with the action.',
-    Revenue: 'All platform fees accrue to the protocol; there are no referral or cashback payouts.',
-    ProtocolRevenue: 'All platform fees accrue to the protocol.',
+    Revenue: 'All platform fees (0.85% on swaps + 0.33% on staking, lending and liquidity actions) accrue to the protocol; there are no referral or cashback payouts.',
+    ProtocolRevenue: 'All platform fees (0.85% on swaps + 0.33% on staking, lending and liquidity actions) accrue to the protocol.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: '0.85% platform fee on swaps routed through Jupiter, collected in the swap output mint via Jupiter referral fee accounts.',
+      [METRIC.SERVICE_FEES]: '0.33% platform fee on staking, lending and liquidity actions, transferred to the PRIZM fee wallet atomically with the action.',
+    },
+    Revenue: {
+      [METRIC.SWAP_FEES]: 'All swap platform fees accrue to the protocol.',
+      [METRIC.SERVICE_FEES]: 'All staking, lending and liquidity platform fees accrue to the protocol.',
+    },
+    ProtocolRevenue: {
+      [METRIC.SWAP_FEES]: 'All swap platform fees accrue to the protocol.',
+      [METRIC.SERVICE_FEES]: 'All staking, lending and liquidity platform fees accrue to the protocol.',
+    },
   },
 };
 
