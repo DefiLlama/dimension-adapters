@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import type { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, type FetchOptions, type SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
@@ -264,6 +264,8 @@ const adapter: SimpleAdapter = {
       fetch: fetchSolana,
     },
   },
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;

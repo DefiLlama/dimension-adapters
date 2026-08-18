@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 
@@ -322,6 +322,8 @@ const adapter: Adapter = {
     // not the first play: earlier plays produced no fee to report.
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-07-06" },
   },
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
