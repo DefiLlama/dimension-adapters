@@ -1,5 +1,6 @@
 const http = require('axios')
 const { getEnv } = require('./env')
+const { queryAllium } = require('./allium')
 
 // Sui JSON-RPC is deprecated, migrated to GraphQL RPC
 // https://docs.sui.io/concepts/data-access/graphql-rpc
@@ -115,11 +116,6 @@ function toParsedJson(value: any, layout: any): any {
   return value
 }
 
-/**
- * Fetch a Sui object by id in the legacy JSON-RPC `showContent` shape
- * (`{ type, fields, dataType }`), with nested structs rebuilt so consumers reading
- * `.fields.x.fields.y` keep working. Returns null if the object doesn't exist.
- */
 export async function getObject(objectId: string) {
   const { data } = await graphqlCall(`query ($address: SuiAddress!) {
     object(address: $address) {
@@ -172,4 +168,26 @@ export async function queryEvents<T = any>({ eventType, eventModule, options, tr
   } while (before)
 
   return items.map(transform)
+}
+
+// graphql queryEvents doesn't retrieve historical events so we use allium for this
+export async function queryEventsAllium(
+  eventTypes: string[],
+  options: { fromTimestamp: number; toTimestamp: number }
+): Promise<Record<string, any[]>> {
+  const start = new Date(options.fromTimestamp * 1000).toISOString()
+  const end = new Date(options.toTimestamp * 1000).toISOString()
+  const typeFilter = eventTypes.map((t) => `type LIKE '${t}%'`).join(' OR ')
+  const rows: any[] = await queryAllium(`
+    SELECT type, parsed_json
+    FROM sui.raw.events
+    WHERE checkpoint_timestamp >= '${start}' AND checkpoint_timestamp < '${end}'
+      AND (${typeFilter})
+  `)
+  const byType: Record<string, any[]> = Object.fromEntries(eventTypes.map((t) => [t, []]))
+  for (const row of rows) {
+    const t = eventTypes.find((t) => row.type.startsWith(t))
+    if (t) byType[t].push(row.parsed_json)
+  }
+  return byType
 }
