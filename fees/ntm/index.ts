@@ -23,12 +23,15 @@ const fetchFeesAndRevenues = async (options: FetchOptions) => {
   const res = await httpGet(url);
 
   // Reject anything that is not a real number before it reaches addCGToken.
-  // Number(undefined) is NaN and Number(null)/Number("") are a finite 0, so a
-  // non-JSON body or a changed field name would otherwise land as a silent zero
-  // or an unreadable NaN instead of an error naming the endpoint.
+  // Number(undefined) is NaN and Number(null)/Number("")/Number(" ")/Number([])
+  // are all a finite 0, so a non-JSON body or a changed field name would
+  // otherwise land as a silent zero or an unreadable NaN instead of an error
+  // naming the endpoint. Only a number or a non-blank string is accepted.
   const readAmount = (raw: unknown, field: string): number => {
-    if (raw === null || raw === undefined || raw === "") {
-      throw new Error(`ntm: missing ${field} from ${url}`);
+    const usable =
+      typeof raw === "number" || (typeof raw === "string" && raw.trim() !== "");
+    if (!usable) {
+      throw new Error(`ntm: missing or non-numeric ${field} (${JSON.stringify(raw)}) from ${url}`);
     }
     const value = Number(raw);
     if (!Number.isFinite(value) || value < 0) {
