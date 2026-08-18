@@ -15,10 +15,9 @@ const MAX_PAGES = 100;
 // Daily bin queries request a small window so the adapter can select the exact UTC bin from GraphQL edges.
 const DAILY_BIN_LIMIT = 3;
 
-// Staking pool addresses returned by the public staking.pools query:
+// Staking pool address returned by the public staking.pools query:
 // https://analytics.rujira.network/api/graphiql
 const BRUNE_STAKING_POOL = "thor179fex2rxd45caedmz4hxsnu42sw20lu0djyh4yukyh965sq8muuqptru2g";
-const RUJI_STAKING_POOL = "thor13g83nn5ef4qzqeafp0508dnvkvm0zqr3sj7eefcn5umu65gqluusrml5cr";
 
 type Point = {
   value: string;
@@ -44,11 +43,6 @@ type FinOverviewBin = DailyBin & {
 
 type BruneStakingBin = DailyBin & {
   totalRevenue: Point;
-};
-
-type RujiStakingBin = DailyBin & {
-  totalRevenue: Point;
-  protocolRevenue: Point;
 };
 
 type SwapBin = DailyBin & {
@@ -81,7 +75,6 @@ type DailyFeesResponse = {
   };
   staking: {
     brune: Connection<BruneStakingBin>;
-    ruji: Connection<RujiStakingBin>;
   };
   swap: {
     bins: Connection<SwapBin>;
@@ -95,8 +88,6 @@ export type RujiraDailyFees = {
   finGrossFeesUsd: number;
   finRujiraRevenueUsd: number;
   finThorchainRevenueUsd: number;
-  rujiHoldersRevenueUsd: number;
-  rujiProtocolRevenueUsd: number;
   swapAffiliateFeesUsd: number;
 };
 
@@ -189,22 +180,6 @@ const dailyFeesQuery = gql`
           }
         }
       }
-      ruji: bins(
-        contract: "${RUJI_STAKING_POOL}"
-        from: $from
-        to: $to
-        resolution: $resolution
-        period: $period
-        first: $first
-      ) {
-        edges {
-          node {
-            bin
-            totalRevenue { value }
-            protocolRevenue { value }
-          }
-        }
-      }
     }
   }
 `;
@@ -263,7 +238,7 @@ export async function fetchRujiraDailyVolumeUsd(startTimestamp: number): Promise
   throw new Error(`Rujira FIN pagination exceeded ${PAGE_SIZE * MAX_PAGES} pairs`);
 }
 
-/** Returns daily Rujira fee inputs from FIN, Swap, bRUNE, and RUJI staking analytics. */
+/** Returns daily Rujira fee inputs from FIN, Swap, and bRUNE analytics. */
 export async function fetchRujiraDailyFees(startTimestamp: number): Promise<RujiraDailyFees> {
   const range = dailyRange(startTimestamp);
   const response: DailyFeesResponse = await request(GRAPHQL_ENDPOINT, dailyFeesQuery, {
@@ -276,7 +251,6 @@ export async function fetchRujiraDailyFees(startTimestamp: number): Promise<Ruji
   const fin = getDailyBin(response.finV3.overviewBins, startTimestamp);
   const swap = getDailyBin(response.swap.bins, startTimestamp);
   const brune = getDailyBin(response.staking.brune, startTimestamp);
-  const ruji = getDailyBin(response.staking.ruji, startTimestamp);
 
   const bruneStakerRewards = amountToUsd(brune?.totalRevenue.value);
   // totalRevenue is the net 90% user share; protocolRevenue is transfer-timed, so accrue the 10% fee from net rewards.
@@ -289,8 +263,6 @@ export async function fetchRujiraDailyFees(startTimestamp: number): Promise<Ruji
     finGrossFeesUsd: asNumber(amountToUsd(fin?.revenue.value), "FIN gross fees"),
     finRujiraRevenueUsd: asNumber(amountToUsd(fin?.revenueAppLayer.value), "FIN Rujira revenue"),
     finThorchainRevenueUsd: asNumber(amountToUsd(fin?.revenueBaseLayer.value), "FIN THORChain revenue"),
-    rujiHoldersRevenueUsd: asNumber(amountToUsd(ruji?.totalRevenue.value), "RUJI holders revenue"),
-    rujiProtocolRevenueUsd: asNumber(amountToUsd(ruji?.protocolRevenue.value), "Rujira protocol revenue"),
     swapAffiliateFeesUsd: asNumber(amountToUsd(swap?.revenue.value), "Swap affiliate fees"),
   };
 }
