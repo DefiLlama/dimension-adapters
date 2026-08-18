@@ -17,10 +17,9 @@ const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.THORCHAIN],
   start: RUJIRA_START_DATE,
-  doublecounted: true,
   fetch,
   methodology: {
-    Volume: "USD value of all Rujira FIN fills, including user orders, virtualized swaps, XYK, and CCL-originated fills. Virtualized fills may overlap with THORChain DEX volume.",
+    Volume: "USD value of all Rujira FIN fills, including user orders, virtualized swaps, XYK, and CCL-originated fills.",
   },
   breakdownMethodology: {
     Volume: {
