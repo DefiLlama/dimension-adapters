@@ -6,9 +6,10 @@ import { ChainApi } from "@defillama/sdk";
 // acquisition fee to be allocated one at random, then keep it, relist it, or take a discounted
 // settlement of its backing.
 const CORE = "0x32E8D5b0b8643dC002864a2F5e4481E59eb714CB";
+// Rewards module: credits part of each acquisition fee back to the purchaser as RIP buying power
+const REWARDS = "0x91D032555CB90A8B2792eEaB5F192c41A6a647eF";
 // Uniswap v4 hook on the ETH/RIP pool: 1% fee on every swap, paid to the protocol treasury
 const HOOK = "0xf295127365a2C3055FdfBa01b0596dA56DCFa444";
-const BPS = 10_000n;
 const Q192 = 1n << 192n;
 
 const METRICS = {
@@ -29,11 +30,13 @@ const ABIS = {
   DepositorBidAcceptedAsTokens: "event DepositorBidAcceptedAsTokens(uint256 indexed listingId, address indexed purchaser, address indexed depositor, uint256 ethPayout, uint256 retained, uint256 tokenOut)",
   OwnerFeesAccrued: "event OwnerFeesAccrued(uint256 amount)",
   ProtocolFeesToToken: "event ProtocolFeesToToken(uint256 amount)",
+  AcquisitionTokenAccrued: "event AcquisitionTokenAccrued(address indexed purchaser, uint256 indexed requestId, uint256 slice)",
   HookFee: "event HookFee(bytes32 indexed id, address indexed sender, uint128 feeAmount0, uint128 feeAmount1)",
   Trade: "event Trade(uint160 sqrtPriceX96, int128 ethAmount, int128 tokenAmount)",
   acquisitions: "function acquisitions(uint256) view returns (address purchaser, uint256 requestBlock, uint256 priceEscrowed, uint256 listingId, uint8 status)",
-  acquisitionTokenSlice: "function acquisitionTokenSlice(uint256) view returns (uint256)",
 };
+
+const sumBy = (logs: any[], field: string | number) => logs.reduce((acc: bigint, log: any) => acc + BigInt(log.args[field]), 0n);
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
@@ -43,91 +46,77 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const [allocated, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, ownerFees, feesToToken, hookFees, trades] = await Promise.all([
-    options.getLogs({ target: CORE, eventAbi: ABIS.NFTAllocated }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.TopListingFunded }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.NFTKept }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.NFTRelisted }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.DepositorBidAccepted }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.DepositorBidAcceptedAsTokens }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.OwnerFeesAccrued }),
-    options.getLogs({ target: CORE, eventAbi: ABIS.ProtocolFeesToToken }),
-    options.getLogs({ target: HOOK, eventAbi: ABIS.HookFee, onlyArgs: false }),
-    options.getLogs({ target: HOOK, eventAbi: ABIS.Trade, onlyArgs: false }),
-  ]);
-
-  // Robinhood Chain's public RPC is not an archive node, so state is read at the latest block.
-  // Acquisition records are immutable once written and the fee config has not changed since launch.
-  const api = new ChainApi({ chain: options.chain });
-  const [ownerSettlementFeeBps, retainedToProtocol] = await Promise.all([
-    api.call({ target: CORE, abi: 'uint256:ownerSettlementFeeBps' }),
-    api.call({ target: CORE, abi: 'bool:retainedToProtocol' }),
+  const getLogs = (target: string, eventAbi: string) => options.getLogs({ target, eventAbi, onlyArgs: false });
+  const [allocated, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, ownerFees, feesToToken, slices, hookFees, trades] = await Promise.all([
+    getLogs(CORE, ABIS.NFTAllocated),
+    getLogs(CORE, ABIS.TopListingFunded),
+    getLogs(CORE, ABIS.NFTKept),
+    getLogs(CORE, ABIS.NFTRelisted),
+    getLogs(CORE, ABIS.DepositorBidAccepted),
+    getLogs(CORE, ABIS.DepositorBidAcceptedAsTokens),
+    getLogs(CORE, ABIS.OwnerFeesAccrued),
+    getLogs(CORE, ABIS.ProtocolFeesToToken),
+    getLogs(REWARDS, ABIS.AcquisitionTokenAccrued),
+    getLogs(HOOK, ABIS.HookFee),
+    getLogs(HOOK, ABIS.Trade),
   ]);
 
   // Acquisition fees are booked when the request is allocated. NFTAllocated does not carry the
-  // fee, so the escrowed price and the purchaser's RIP slice are read back per request id.
-  // Refunded, expired and slippage-cancelled requests never allocate, so they are excluded.
-  const requestIds = allocated.map((log: any) => log.requestId.toString());
-  const [acquisitions, slices] = await Promise.all([
-    api.multiCall({ abi: ABIS.acquisitions, target: CORE, calls: requestIds }),
-    api.multiCall({ abi: ABIS.acquisitionTokenSlice, target: CORE, calls: requestIds }),
-  ]);
-  let acquisitionVolume = 0n;
-  let acquisitionFees = 0n;
-  acquisitions.forEach((acq: any, i: number) => {
-    const price = BigInt(acq.priceEscrowed);
-    acquisitionVolume += price;
-    // The slice credited back to the purchaser as RIP buying power is netted out.
-    acquisitionFees += price - BigInt(slices[i]);
-  });
+  // fee, so the escrowed price is read from the acquisition record, which is never modified after
+  // the request. Robinhood Chain's public RPC is not an archive node, so it is read at the latest
+  // block. Refunded, expired and slippage-cancelled requests never allocate and are excluded.
+  const api = new ChainApi({ chain: options.chain });
+  const acquisitions = await api.multiCall({ abi: ABIS.acquisitions, target: CORE, calls: allocated.map((log: any) => log.args.requestId.toString()) });
+  const acquisitionVolume = acquisitions.reduce((acc: bigint, acq: any) => acc + BigInt(acq.priceEscrowed), 0n);
+  // The slice credited back to the purchaser as RIP buying power is netted out. It is emitted by
+  // the rewards module in the allocation transaction.
+  const acquisitionFees = acquisitionVolume - sumBy(slices, 2); // args.slice is shadowed by Array.prototype.slice
   dailyVolume.addGasToken(acquisitionVolume);
   dailyFees.addGasToken(acquisitionFees, METRICS.AcquisitionFees);
 
-  // Settlement fee when the backing returns to the depositor (purchaser keeps or relists):
-  // the events carry the depositor payout net of the cut, so gross the fee back up.
-  const settleBps = BigInt(ownerSettlementFeeBps);
+  // Every protocol accrual emits OwnerFeesAccrued in the transaction that produced it, so accruals
+  // are attributed by the settlement or allocation event sharing their transaction hash. This
+  // avoids reading fee rates that the owner can change.
+  const txsOf = (logs: any[]) => new Set(logs.map((log: any) => log.transactionHash));
+  const settlementTxs = txsOf([...nftKept, ...nftRelisted]);
+  const discountedTxs = txsOf([...bidAccepted, ...bidAcceptedAsTokens]);
   let settlementFees = 0n;
-  nftKept.forEach((log: any) => { settlementFees += BigInt(log.backing) * settleBps / (BPS - settleBps); });
-  nftRelisted.forEach((log: any) => { settlementFees += BigInt(log.toDepositor) * settleBps / (BPS - settleBps); });
-  dailyFees.addGasToken(settlementFees, METRICS.SettlementFees);
-
-  // Backing retained when the purchaser takes the discounted settlement instead of the basket.
-  // Protocol revenue when retainedToProtocol, otherwise shared among active depositors.
-  let retained = 0n;
-  bidAccepted.forEach((log: any) => { retained += BigInt(log.retained); });
-  bidAcceptedAsTokens.forEach((log: any) => { retained += BigInt(log.retained); });
-  dailyFees.addGasToken(retained, METRICS.RetainedSettlements);
-  if (!retainedToProtocol) dailySupplySideRevenue.addGasToken(retained, METRICS.RetainedSettlements);
-
-  // OwnerFeesAccrued covers every protocol accrual, so the protocol's cut of acquisition fees is
-  // what remains after the settlement-side accruals above.
-  let totalOwnerFees = 0n;
-  ownerFees.forEach((log: any) => { totalOwnerFees += BigInt(log.amount); });
-  let acquisitionCut = totalOwnerFees - settlementFees - (retainedToProtocol ? retained : 0n);
-  if (acquisitionCut < 0n) acquisitionCut = 0n;
+  let retainedToProtocol = 0n;
+  let acquisitionCut = 0n;
+  ownerFees.forEach((log: any) => {
+    const amount = BigInt(log.args.amount);
+    if (settlementTxs.has(log.transactionHash)) settlementFees += amount;
+    else if (discountedTxs.has(log.transactionHash)) retainedToProtocol += amount;
+    else acquisitionCut += amount;
+  });
   if (acquisitionCut > acquisitionFees) acquisitionCut = acquisitionFees;
 
-  // The rest of the acquisition fee goes to depositors: a share to the top-backed listing's pot,
-  // the remainder split equally across active listings.
-  let topListingShare = 0n;
-  topListingFunded.forEach((log: any) => { topListingShare += BigInt(log.amount); });
+  // Settlement fee when the backing returns to the depositor (purchaser keeps or relists).
+  dailyFees.addGasToken(settlementFees, METRICS.SettlementFees);
+  dailyRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
+  dailyProtocolRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
+
+  // Backing retained when the purchaser takes the discounted settlement instead of the basket.
+  // Kept by the protocol by default; the remainder, if any, was shared among active depositors.
+  const retained = sumBy(bidAccepted, 'retained') + sumBy(bidAcceptedAsTokens, 'retained');
+  dailyFees.addGasToken(retained, METRICS.RetainedSettlements);
+  dailyRevenue.addGasToken(retainedToProtocol, METRICS.RetainedSettlements);
+  dailyProtocolRevenue.addGasToken(retainedToProtocol, METRICS.RetainedSettlements);
+  if (retained > retainedToProtocol) dailySupplySideRevenue.addGasToken(retained - retainedToProtocol, METRICS.RetainedSettlements);
+
+  // The protocol's cut of acquisition fees; the rest goes to depositors as a share to the
+  // top-backed listing's pot and an equal split across active listings.
+  dailyRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
+  dailyProtocolRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
+  const topListingShare = sumBy(topListingFunded, 'amount');
   let depositorShare = acquisitionFees - acquisitionCut - topListingShare;
   if (depositorShare < 0n) depositorShare = 0n;
   dailySupplySideRevenue.addGasToken(depositorShare, METRICS.AcquisitionFees);
   dailySupplySideRevenue.addGasToken(topListingShare, METRICS.TopListingReward);
 
-  dailyRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
-  dailyRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
-  dailyProtocolRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
-  dailyProtocolRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
-  if (retainedToProtocol) {
-    dailyRevenue.addGasToken(retained, METRICS.RetainedSettlements);
-    dailyProtocolRevenue.addGasToken(retained, METRICS.RetainedSettlements);
-  }
-
   // Accrued protocol fees are paid out later; a protocolFeeToTokenBps slice can go to RIP buybacks
   // at that time. Recorded as holders revenue when the payout happens.
-  feesToToken.forEach((log: any) => { dailyHoldersRevenue.addGasToken(log.amount, METRICS.TokenBuyBack); });
+  feesToToken.forEach((log: any) => { dailyHoldersRevenue.addGasToken(log.args.amount, METRICS.TokenBuyBack); });
 
   // Hook swap fees. Sells pay in ETH (feeAmount0). Buys pay in RIP (feeAmount1), which the hook
   // swaps to ETH inside the same afterSwap call without emitting the amount, so it is valued at
@@ -159,7 +148,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Volume: "Gross ETH paid by purchasers for acquisitions (rips), excluding refunded, expired, or slippage-cancelled requests.",
-  Fees: "Acquisition fees paid by basket purchasers (net of the slice returned to them as RIP buying power), settlement fees and retained penalties taken from listing backings, plus the 1% hook fee on every ETH/RIP swap.",
+  Fees: "Acquisition fees paid by basket purchasers (net of the slice credited back to them as RIP buying power), settlement fees and retained backing taken from listings, plus the 1% hook fee on every ETH/RIP swap.",
   Revenue: "The protocol's cut of acquisition and settlement fees, retained settlement penalties, and hook swap fees.",
   ProtocolRevenue: "Revenue paid to the protocol treasury.",
   HoldersRevenue: "Protocol fees diverted to RIP buybacks.",
@@ -169,14 +158,14 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRICS.AcquisitionFees]: "ETH paid by purchasers to acquire a random basket from the pool, net of the slice credited back to the purchaser as RIP buying power.",
-    [METRICS.SettlementFees]: "1% of the listing backing, charged when a settlement returns the backing to the depositor (purchaser keeps or relists the basket).",
+    [METRICS.SettlementFees]: "Fee on the listing backing, charged when a settlement returns the backing to the depositor (purchaser keeps or relists the basket).",
     [METRICS.RetainedSettlements]: "The share of the listing backing retained when a purchaser takes the discounted settlement instead of the basket.",
     [METRICS.SwapFees]: "1% hook fee on every ETH/RIP swap: taken in ETH on sells, and in RIP on buys, which the hook converts to ETH in the same transaction (valued at the swap's pool price).",
   },
   Revenue: {
-    [METRICS.AcquisitionFees]: "Protocol cut (1%) of acquisition fees.",
+    [METRICS.AcquisitionFees]: "Protocol cut of acquisition fees.",
     [METRICS.SettlementFees]: "Settlement fees accrue entirely to the protocol.",
-    [METRICS.RetainedSettlements]: "Retained settlement penalties accrue to the protocol.",
+    [METRICS.RetainedSettlements]: "Retained settlement backing kept by the protocol.",
     [METRICS.SwapFees]: "Hook swap fees accrue entirely to the protocol.",
   },
   ProtocolRevenue: {
