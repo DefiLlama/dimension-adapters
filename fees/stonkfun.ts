@@ -98,7 +98,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "StonkFun's share of trading fees from the locked Raydium CLMM positions behind each launch, read on-chain as the quote-token transfers Raydium's Burn & Earn program pays to the platform's operator wallet.",
-  Revenue: "Same as fees. Every dollar counted was harvested into the treasury.",
+  Revenue: "Same as fees (StonkFun's share of the locked Raydium CLMM positions behind each launch). Every dollar counted was harvested into the treasury.",
   HoldersRevenue:
     "Quote assets spent buying STONK on Jupiter, identified on-chain as swaps that returned STONK to the operator wallet. Measured at the amount spent, not the value of the tokens later burned.",
 };
@@ -109,7 +109,7 @@ const breakdownMethodology = {
       "Quote-token fees harvested from the permanently locked launch positions.",
   },
   Revenue: {
-    "Locked LP Trading Fees": "Retained by the protocol.",
+    "Locked LP Trading Fees": "Quote-token fees retained by the protocol.",
   },
   HoldersRevenue: {
     "STONK Buyback And Burn": "Revenue spent buying the platform token back and burning it.",
