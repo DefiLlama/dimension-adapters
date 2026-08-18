@@ -11,6 +11,8 @@ const REWARDS = "0x91D032555CB90A8B2792eEaB5F192c41A6a647eF";
 // Uniswap v4 hook on the ETH/RIP pool: 1% fee on every swap, paid to the protocol treasury
 const HOOK = "0xf295127365a2C3055FdfBa01b0596dA56DCFa444";
 const Q192 = 1n << 192n;
+const BPS = 10_000n;
+const HOOK_FEE_BIPS = 100n;
 
 const METRICS = {
   AcquisitionFees: 'Acquisition Fees',
@@ -120,22 +122,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // Hook swap fees. Sells pay in ETH (feeAmount0). Buys pay in RIP (feeAmount1), which the hook
   // swaps to ETH inside the same afterSwap call without emitting the amount, so it is valued at
-  // the pool price on that swap's Trade event (currency0 = ETH, currency1 = RIP). The hook serves
-  // one pool and afterSwap emits HookFee then Trade for each swap, so a swap's Trade is the first
-  // one after its HookFee in the same transaction.
-  const tradesByTx = new Map<string, any[]>();
+  // the pool price on that swap's Trade event (currency0 = ETH, currency1 = RIP). A buy's Trade
+  // is identified in the same transaction by its RIP output: the fee is a flat 1% of it.
+  const buyTradesByTx = new Map<string, any[]>();
   trades.forEach((log: any) => {
-    const list = tradesByTx.get(log.transactionHash) ?? [];
+    if (BigInt(log.args.tokenAmount) <= 0n) return;
+    const list = buyTradesByTx.get(log.transactionHash) ?? [];
     list.push(log);
-    tradesByTx.set(log.transactionHash, list);
+    buyTradesByTx.set(log.transactionHash, list);
   });
   let swapFees = 0n;
   hookFees.forEach((log: any) => {
     swapFees += BigInt(log.args.feeAmount0);
     const ripFee = BigInt(log.args.feeAmount1);
     if (ripFee === 0n) return;
-    const trade = (tradesByTx.get(log.transactionHash) ?? []).find((t: any) => Number(t.logIndex) > Number(log.logIndex));
-    if (!trade) return;
+    const candidates = buyTradesByTx.get(log.transactionHash) ?? [];
+    const i = candidates.findIndex((t: any) => BigInt(t.args.tokenAmount) * HOOK_FEE_BIPS / BPS === ripFee);
+    if (i < 0) return;
+    const [trade] = candidates.splice(i, 1);
     const sqrtPriceX96 = BigInt(trade.args.sqrtPriceX96);
     swapFees += ripFee * Q192 / (sqrtPriceX96 * sqrtPriceX96);
   });
