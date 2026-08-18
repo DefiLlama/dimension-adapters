@@ -4,15 +4,19 @@ import { ChainApi } from "@defillama/sdk";
 
 // StockRip: depositors list a basket NFT (tokenized stocks) with ETH backing, purchasers pay an
 // acquisition fee to be allocated one at random, then keep it, relist it, or take a discounted
-// settlement of its backing.
+// settlement of its backing. Contracts are verified on Robinhood Chain Blockscout.
+// StockRip core: https://robinhoodchain.blockscout.com/address/0x32E8D5b0b8643dC002864a2F5e4481E59eb714CB
 const CORE = "0x32E8D5b0b8643dC002864a2F5e4481E59eb714CB";
-// Rewards module: credits part of each acquisition fee back to the purchaser as RIP buying power
+// StockRipRewards, credits part of each acquisition fee back to the purchaser as RIP buying power:
+// https://robinhoodchain.blockscout.com/address/0x91D032555CB90A8B2792eEaB5F192c41A6a647eF
 const REWARDS = "0x91D032555CB90A8B2792eEaB5F192c41A6a647eF";
-// Uniswap v4 hook on the ETH/RIP pool: 1% fee on every swap, paid to the protocol treasury
+// StockRipTokenHook, Uniswap v4 hook on the ETH/RIP pool, fee paid to the protocol treasury:
+// https://robinhoodchain.blockscout.com/address/0xf295127365a2C3055FdfBa01b0596dA56DCFa444
 const HOOK = "0xf295127365a2C3055FdfBa01b0596dA56DCFa444";
-const Q192 = 1n << 192n;
-const BPS = 10_000n;
+// StockRipTokenHook.FEE_BIPS: flat 1% on every swap in both directions (constant in the verified source above)
 const HOOK_FEE_BIPS = 100n;
+const BPS = 10_000n;
+const Q192 = 1n << 192n;
 
 const METRICS = {
   AcquisitionFees: 'Acquisition Fees',
