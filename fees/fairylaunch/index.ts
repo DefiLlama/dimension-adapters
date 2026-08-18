@@ -24,7 +24,11 @@ const methodology = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, getLogs, fromBlock, toBlock } = options;
+  const { createBalances, getLogs } = options;
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
