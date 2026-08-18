@@ -1,7 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ChainApi } from "@defillama/sdk";
-import { ethers } from "ethers";
 
 // StockRip: depositors list a basket NFT (tokenized stocks) with ETH backing, purchasers pay an
 // acquisition fee to be allocated one at random, then keep it, relist it, or take a discounted
@@ -45,7 +43,6 @@ const EVENTS = {
 };
 const ACQUISITIONS_ABI = "function acquisitions(uint256) view returns (address purchaser, uint256 requestBlock, uint256 priceEscrowed, uint256 listingId, uint8 status)";
 
-const iface = new ethers.Interface(Object.values(EVENTS));
 const sumBy = (logs: any[], field: string | number) => logs.reduce((acc: bigint, log: any) => acc + BigInt(log.args[field]), 0n);
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -56,31 +53,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  // One log query per contract, keyed by event name after decoding, to stay within the public
-  // RPC's rate limit.
-  const byEvent: Record<string, any[]> = {};
-  Object.keys(EVENTS).forEach((name) => { byEvent[name] = []; });
-  const fetchLogs = async (target: string, names: string[]) => {
-    const topics = names.map((name) => iface.getEvent(name)!.topicHash);
-    const raw = await options.getLogs({ target, topics: [topics] as any, entireLog: true });
-    raw.forEach((log: any) => {
-      const parsed = iface.parseLog(log);
-      if (parsed) byEvent[parsed.name].push({ args: parsed.args, transactionHash: log.transactionHash, logIndex: Number(log.logIndex ?? log.index) });
-    });
-  };
-  await Promise.all([
-    fetchLogs(CORE, ['NFTAllocated', 'TopListingFunded', 'NFTKept', 'NFTRelisted', 'DepositorBidAccepted', 'DepositorBidAcceptedAsTokens', 'OwnerFeesAccrued', 'ProtocolFeesToToken']),
-    fetchLogs(REWARDS, ['AcquisitionTokenAccrued']),
-    fetchLogs(HOOK, ['HookFee', 'Trade']),
-  ]);
-  const { NFTAllocated: allocated, TopListingFunded: topListingFunded, NFTKept: nftKept, NFTRelisted: nftRelisted, DepositorBidAccepted: bidAccepted, DepositorBidAcceptedAsTokens: bidAcceptedAsTokens, OwnerFeesAccrued: ownerFees, ProtocolFeesToToken: feesToToken, AcquisitionTokenAccrued: slices, HookFee: hookFees, Trade: trades } = byEvent;
+  const allocated = await options.getLogs({ target: CORE, eventAbi: EVENTS.NFTAllocated, entireLog: true, parseLog: true });
+  const topListingFunded = await options.getLogs({ target: CORE, eventAbi: EVENTS.TopListingFunded, entireLog: true, parseLog: true });
+  const nftKept = await options.getLogs({ target: CORE, eventAbi: EVENTS.NFTKept, entireLog: true, parseLog: true });
+  const nftRelisted = await options.getLogs({ target: CORE, eventAbi: EVENTS.NFTRelisted, entireLog: true, parseLog: true });
+  const bidAccepted = await options.getLogs({ target: CORE, eventAbi: EVENTS.DepositorBidAccepted, entireLog: true, parseLog: true });
+  const bidAcceptedAsTokens = await options.getLogs({ target: CORE, eventAbi: EVENTS.DepositorBidAcceptedAsTokens, entireLog: true, parseLog: true });
+  const ownerFees = await options.getLogs({ target: CORE, eventAbi: EVENTS.OwnerFeesAccrued, entireLog: true, parseLog: true });
+  const feesToToken = await options.getLogs({ target: CORE, eventAbi: EVENTS.ProtocolFeesToToken, entireLog: true, parseLog: true });
+  const slices = await options.getLogs({ target: REWARDS, eventAbi: EVENTS.AcquisitionTokenAccrued, entireLog: true, parseLog: true });
+  const hookFees = await options.getLogs({ target: HOOK, eventAbi: EVENTS.HookFee, entireLog: true, parseLog: true });
+  const trades = await options.getLogs({ target: HOOK, eventAbi: EVENTS.Trade, entireLog: true, parseLog: true });
 
   // Acquisition fees are booked when the request is allocated. NFTAllocated does not carry the
   // fee, so the escrowed price is read from the acquisition record, which is never modified after
   // the request. Robinhood Chain's public RPC is not an archive node, so it is read at the latest
   // block. Refunded, expired and slippage-cancelled requests never allocate and are excluded.
-  const api = new ChainApi({ chain: options.chain });
-  const acquisitions = await api.multiCall({ abi: ACQUISITIONS_ABI, target: CORE, calls: allocated.map((log: any) => log.args.requestId.toString()) });
+  const acquisitions = await options.api.multiCall({ abi: ACQUISITIONS_ABI, target: CORE, calls: allocated.map((log: any) => log.args.requestId.toString()) });
   const acquisitionVolume = acquisitions.reduce((acc: bigint, acq: any) => acc + BigInt(acq.priceEscrowed), 0n);
   // The slice credited back to the purchaser as RIP buying power is netted out. It is emitted by
   // the rewards module in the allocation transaction.
