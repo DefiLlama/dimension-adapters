@@ -1,11 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Factory contract on BSC Mainnet
-// Deployed at block 116127972
-// Source: https://bscscan.com/address/0x28163d7943AA6715a9559D468B29c0343412E236
-const FACTORY = '0x28163d7943AA6715a9559D468B29c0343412E236';
-
 // FeeManager contract on BSC Mainnet
 // Source: https://bscscan.com/address/0xb6A7D47596D2202676822531F56EFeCeac309775
 const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
@@ -19,21 +14,9 @@ const BONDING_CURVE_FACTORY = '0x12959266beada47f0dce13a3a0e54ecfe4fddb29';
 // Source: Transaction 0x83c59454a1ab8d8e522d6a6af749cbe0cf63208239f1e51622370ebcfea5d7be
 const FACTORY_DEPLOYMENT_BLOCK = 116127972;
 
-// Batch size for processing bonding curves
-// BSC RPC endpoints can handle ~50 addresses per getLogs call without timeout
-const BATCH_SIZE = 50;
-
-// Cache for bonding curve addresses (persists across calls)
+// Cache for bonding curve addresses
 let cachedCurves: Set<string> | null = null;
-
-// Track the last block we've scanned for new curves
 let lastScannedBlock = FACTORY_DEPLOYMENT_BLOCK;
-
-// Cache for known bonding curves to avoid re-scanning
-// This is the first known curve (FAIRYDOGE)
-const KNOWN_CURVES = new Set<string>([
-  '0x3014646079673048abAa2D84c9a197eefCDE7b9b'.toLowerCase(), // FAIRYDOGE
-]);
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -42,15 +25,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Initialize cache with known curves
+  const currentBlock = await options.getToBlock();
+
+  // Initialize cache
   if (!cachedCurves) {
-    cachedCurves = new Set<string>(KNOWN_CURVES);
+    cachedCurves = new Set<string>();
   }
 
-  const currentBlock = await options.getToBlock();
-  
-  // Only scan for new curves every 100 blocks (avoid rate limits)
-  if (currentBlock > lastScannedBlock + 100) {
+  // Discover curves from CurveCreated events
+  // Only scan if we haven't scanned recently (avoid rate limits)
+  if (cachedCurves.size === 0 || currentBlock > lastScannedBlock + 100) {
     const curveCreatedLogs = await options.getLogs({
       target: BONDING_CURVE_FACTORY,
       eventAbi: 'event CurveCreated(address indexed curve, uint256 indexed launchId)',
@@ -83,8 +67,8 @@ const fetch = async (options: FetchOptions) => {
     };
   }
 
-  // Process buys and sells - combine all curves into single getLogs call
-  // This reduces RPC calls and avoids rate limits
+  // Get Buy and Sell events from the bonding curves themselves
+  // Use targets array with discovered curves
   const [buyLogs, sellLogs] = await Promise.all([
     options.getLogs({
       targets: uniqueCurves,
