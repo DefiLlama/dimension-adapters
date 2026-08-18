@@ -29,6 +29,12 @@ let cachedCurves: Set<string> | null = null;
 // Track the last block we've scanned for new curves
 let lastScannedBlock = FACTORY_DEPLOYMENT_BLOCK;
 
+// Cache for known bonding curves to avoid re-scanning
+// This is the first known curve (FAIRYDOGE)
+const KNOWN_CURVES = new Set<string>([
+  '0x3014646079673048abAa2D84c9a197eefCDE7b9b'.toLowerCase(), // FAIRYDOGE
+]);
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -36,17 +42,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const currentBlock = await options.getToBlock();
-  
-  // Initialize cache if needed
+  // Initialize cache with known curves
   if (!cachedCurves) {
-    cachedCurves = new Set<string>();
-    lastScannedBlock = FACTORY_DEPLOYMENT_BLOCK;
+    cachedCurves = new Set<string>(KNOWN_CURVES);
   }
 
-  // Discover new bonding curves from CurveCreated events
-  // This automatically finds ALL curves (past and future)
-  if (currentBlock > lastScannedBlock) {
+  const currentBlock = await options.getToBlock();
+  
+  // Only scan for new curves every 100 blocks (avoid rate limits)
+  if (currentBlock > lastScannedBlock + 100) {
     const curveCreatedLogs = await options.getLogs({
       target: BONDING_CURVE_FACTORY,
       eventAbi: 'event CurveCreated(address indexed curve, uint256 indexed launchId)',
@@ -54,7 +58,6 @@ const fetch = async (options: FetchOptions) => {
       toBlock: currentBlock,
     });
 
-    // Add all discovered bonding curves to cache
     for (const log of curveCreatedLogs) {
       if (
         log.curve &&
@@ -65,7 +68,6 @@ const fetch = async (options: FetchOptions) => {
       }
     }
 
-    // Update last scanned block
     lastScannedBlock = currentBlock;
   }
 
@@ -81,72 +83,69 @@ const fetch = async (options: FetchOptions) => {
     };
   }
 
-  // Process buys and sells in batches for all discovered curves
-  for (let i = 0; i < uniqueCurves.length; i += BATCH_SIZE) {
-    const batch = uniqueCurves.slice(i, i + BATCH_SIZE);
+  // Process buys and sells - combine all curves into single getLogs call
+  // This reduces RPC calls and avoids rate limits
+  const [buyLogs, sellLogs] = await Promise.all([
+    options.getLogs({
+      targets: uniqueCurves,
+      eventAbi: 'event Buy(address indexed buyer, uint256 indexed launchId, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
+    }),
+    options.getLogs({
+      targets: uniqueCurves,
+      eventAbi: 'event Sell(address indexed seller, uint256 indexed launchId, uint256 tokenAmount, uint256 ethAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
+    }),
+  ]);
 
-    const [buyLogs, sellLogs] = await Promise.all([
-      options.getLogs({
-        targets: batch,
-        eventAbi: 'event Buy(address indexed buyer, uint256 indexed launchId, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
-      }),
-      options.getLogs({
-        targets: batch,
-        eventAbi: 'event Sell(address indexed seller, uint256 indexed launchId, uint256 tokenAmount, uint256 ethAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
-      }),
-    ]);
+  // Process Buy events
+  for (const log of buyLogs) {
+    const ethAmount = BigInt(log.ethAmount || 0);
+    const totalFee = BigInt(log.fee || 0);
 
-    // Process Buy events
-    for (const log of buyLogs) {
-      const ethAmount = BigInt(log.ethAmount || 0);
-      const totalFee = BigInt(log.fee || 0);
+    if (ethAmount > 0n) {
+      dailyVolume.addGasToken(ethAmount, 'Buy Volume');
+    }
 
-      if (ethAmount > 0n) {
-        dailyVolume.addGasToken(ethAmount, 'Buy Volume');
+    if (totalFee > 0n) {
+      dailyFees.addGasToken(totalFee, 'Trading Fees');
+      
+      // Fee split is 50/50 per FeeManager._recordFee()
+      // Source: https://bscscan.com/address/0xb6A7D47596D2202676822531F56EFeCeac309775#code
+      const creatorShare = totalFee / 2n;
+      const treasuryShare = totalFee - creatorShare;
+      
+      if (treasuryShare > 0n) {
+        dailyProtocolRevenue.addGasToken(treasuryShare, 'Treasury Trading Fees');
       }
+      if (creatorShare > 0n) {
+        dailySupplySideRevenue.addGasToken(creatorShare, 'Creator Trading Fees');
+      }
+    }
+  }
 
-      if (totalFee > 0n) {
-        dailyFees.addGasToken(totalFee, 'Trading Fees');
-        
-        // Fee split is 50/50 per FeeManager._recordFee()
-        // Source: https://bscscan.com/address/0xb6A7D47596D2202676822531F56EFeCeac309775#code
-        const creatorShare = totalFee / 2n;
-        const treasuryShare = totalFee - creatorShare;
-        
-        if (treasuryShare > 0n) {
-          dailyProtocolRevenue.addGasToken(treasuryShare, 'Treasury Trading Fees');
-        }
-        if (creatorShare > 0n) {
-          dailySupplySideRevenue.addGasToken(creatorShare, 'Creator Trading Fees');
-        }
+  // Process Sell events
+  for (const log of sellLogs) {
+    const netEthAmount = BigInt(log.ethAmount || 0);
+    const totalFee = BigInt(log.fee || 0);
+
+    if (totalFee > 0n) {
+      dailyFees.addGasToken(totalFee, 'Trading Fees');
+      
+      const creatorShare = totalFee / 2n;
+      const treasuryShare = totalFee - creatorShare;
+      
+      if (treasuryShare > 0n) {
+        dailyProtocolRevenue.addGasToken(treasuryShare, 'Treasury Trading Fees');
+      }
+      if (creatorShare > 0n) {
+        dailySupplySideRevenue.addGasToken(creatorShare, 'Creator Trading Fees');
       }
     }
 
-    // Process Sell events
-    for (const log of sellLogs) {
-      const netEthAmount = BigInt(log.ethAmount || 0);
-      const totalFee = BigInt(log.fee || 0);
-
-      if (totalFee > 0n) {
-        dailyFees.addGasToken(totalFee, 'Trading Fees');
-        
-        const creatorShare = totalFee / 2n;
-        const treasuryShare = totalFee - creatorShare;
-        
-        if (treasuryShare > 0n) {
-          dailyProtocolRevenue.addGasToken(treasuryShare, 'Treasury Trading Fees');
-        }
-        if (creatorShare > 0n) {
-          dailySupplySideRevenue.addGasToken(creatorShare, 'Creator Trading Fees');
-        }
-      }
-
-      // Volume = net ETH received + fee (gross volume)
-      const grossEthVolume = netEthAmount + totalFee;
-      
-      if (grossEthVolume > 0n) {
-        dailyVolume.addGasToken(grossEthVolume, 'Sell Volume');
-      }
+    // Volume = net ETH received + fee (gross volume)
+    const grossEthVolume = netEthAmount + totalFee;
+    
+    if (grossEthVolume > 0n) {
+      dailyVolume.addGasToken(grossEthVolume, 'Sell Volume');
     }
   }
 
