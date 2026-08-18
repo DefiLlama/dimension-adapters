@@ -48,6 +48,7 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
     fromBlock: lastFetchedBlock,
     toBlock: toBlock,
+    maxBlockRange: 20000,
   });
 
   for (const log of launchLogs) {
