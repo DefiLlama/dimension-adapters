@@ -116,28 +116,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailySupplySideRevenue.addGasToken(depositorShare, METRICS.AcquisitionFees);
   dailySupplySideRevenue.addGasToken(topListingShare, METRICS.TopListingReward);
 
-  // A protocolFeeToTokenBps slice of the protocol take can go to RIP buybacks at payout time
-  // (holders revenue); the rest is paid to the treasury.
-  const protocolTake = acquisitionCut + settlementFees + (retainedToProtocol ? retained : 0n);
-  let toTokenBuyback = 0n;
-  feesToToken.forEach((log: any) => { toTokenBuyback += BigInt(log.amount); });
-  if (toTokenBuyback > protocolTake) toTokenBuyback = protocolTake;
-  const treasuryShare = protocolTake - toTokenBuyback;
-  const proRata = (amount: bigint, share: bigint) => protocolTake > 0n ? amount * share / protocolTake : 0n;
-  const components: [bigint, string][] = [
-    [acquisitionCut, METRICS.AcquisitionFees],
-    [settlementFees, METRICS.SettlementFees],
-    [retainedToProtocol ? retained : 0n, METRICS.RetainedSettlements],
-  ];
-  components.forEach(([amount, label]) => {
-    dailyRevenue.addGasToken(amount, label);
-    dailyProtocolRevenue.addGasToken(proRata(amount, treasuryShare), label);
-  });
-  dailyHoldersRevenue.addGasToken(toTokenBuyback, METRICS.TokenBuyBack);
+  dailyRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
+  dailyRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
+  dailyProtocolRevenue.addGasToken(acquisitionCut, METRICS.AcquisitionFees);
+  dailyProtocolRevenue.addGasToken(settlementFees, METRICS.SettlementFees);
+  if (retainedToProtocol) {
+    dailyRevenue.addGasToken(retained, METRICS.RetainedSettlements);
+    dailyProtocolRevenue.addGasToken(retained, METRICS.RetainedSettlements);
+  }
+
+  // Accrued protocol fees are paid out later; a protocolFeeToTokenBps slice can go to RIP buybacks
+  // at that time. Recorded as holders revenue when the payout happens.
+  feesToToken.forEach((log: any) => { dailyHoldersRevenue.addGasToken(log.amount, METRICS.TokenBuyBack); });
 
   // Hook swap fees. Sells pay in ETH (feeAmount0). Buys pay in RIP (feeAmount1), which the hook
-  // swaps to ETH in the same transaction without emitting the amount, so it is valued at the pool
-  // price on the swap's Trade event (currency0 = ETH, currency1 = RIP).
+  // swaps to ETH inside the same afterSwap call without emitting the amount, so it is valued at
+  // the pool price on that swap's Trade event (currency0 = ETH, currency1 = RIP). The hook serves
+  // one pool and afterSwap emits HookFee then Trade for each swap, so a swap's Trade is the first
+  // one after its HookFee in the same transaction.
   const tradesByTx = new Map<string, any[]>();
   trades.forEach((log: any) => {
     const list = tradesByTx.get(log.transactionHash) ?? [];
@@ -167,7 +163,7 @@ const methodology = {
   Revenue: "The protocol's cut of acquisition and settlement fees, retained settlement penalties, and hook swap fees.",
   ProtocolRevenue: "Revenue paid to the protocol treasury.",
   HoldersRevenue: "Protocol fees diverted to RIP buybacks.",
-  SupplySideRevenue: "Share of acquisition fees distributed to basket depositors (equal split across active listings plus the top-listing pot).",
+  SupplySideRevenue: "Share of acquisition fees distributed to basket depositors (equal split across active listings plus the top-listing pot), plus retained settlement backing when it is configured to go to depositors instead of the protocol.",
 };
 
 const breakdownMethodology = {
