@@ -1,16 +1,18 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
+import { queryClickhouse } from "../helpers/indexer";
 
 const BONDING_CURVE_FEES = "Bonding Curve Fees";
 const NATIVE_TOKEN = ADDRESSES.null;
 
 // Source: https://docs.flap.sh/flap/developers/deployed-contract-addresses
-const chainConfig: Record<string, { start: string; portal: string; fromBlock: number }> = {
+const chainConfig: Record<string, { start: string; portal: string; fromBlock: number; useIndexer?: boolean }> = {
   [CHAIN.BSC]: {
     start: "2024-06-27",
     portal: "0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0",
     fromBlock: 39980228,
+    useIndexer: true,
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-08",
@@ -21,11 +23,13 @@ const chainConfig: Record<string, { start: string; portal: string; fromBlock: nu
     start: "2025-08-18",
     portal: "0xb30D8c4216E1f21F27444D2FfAee3ad577808678",
     fromBlock: 31165559,
+    useIndexer: true,
   },
   [CHAIN.MONAD]: {
     start: "2025-10-30",
     portal: "0x30e8ee7b5881bf2E158A0514f2150aabe2c68b23",
     fromBlock: 32284042,
+    useIndexer: true,
   },
 };
 
@@ -35,15 +39,78 @@ const eventAbis = {
   tokenQuoteSet: "event TokenQuoteSet(address token, address quoteToken)",
 };
 
+const TOKEN_BOUGHT_TOPIC0 = "0xa800a2038683844fac66747f771bfdfae862eb28b16bcfa387afa9fbacce8ff7";
+const TOKEN_SOLD_TOPIC0 = "0x03a4693e592f5e75dc7c136acb39b146d2b4966c0e509c34f362dee02b3b861a";
+const TOKEN_QUOTE_SET_TOPIC0 = "0x3ceb902d3c555c21c3415b6aa839104b18e4825b2f8324011ff979089a507a8c";
+
+const shortAddrOf = (addr: string) => addr.substring(0, 10).toLowerCase();
+
 const BLOCKS_PER_BATCH = 10000;
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { portal, fromBlock } = chainConfig[options.chain];
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+type TradeTotals = {
+  volumeByToken: Record<string, string | bigint>;
+  feesByToken: Record<string, string | bigint>;
+  quoteByToken: Record<string, string>;
+};
 
+// ClickHouse path: aggregate the day's trades per token server-side, then map
+// each traded token to its quote via the full-history TokenQuoteSet logs
+// TokenBought and TokenSold share the same data layout:
+// ts | token | actor | amount | eth | fee | postPrice
+const getTradesFromIndexer = async (options: FetchOptions, portal: string): Promise<TradeTotals> => {
+  const chainId = Number(options.api.chainId);
+  const target = portal.toLowerCase();
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  const trades = await queryClickhouse<any>(`
+    SELECT
+      concat('0x', substring(data, 91, 40)) AS token,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 259, 64)))))) AS volume,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 323, 64)))))) AS fees
+    FROM evm_indexer.logs
+    PREWHERE chain = ${chainId}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 IN ('${TOKEN_BOUGHT_TOPIC0.substring(0, 10)}', '${TOKEN_SOLD_TOPIC0.substring(0, 10)}')
+      AND address = '${target}'
+      AND topic0 IN ('${TOKEN_BOUGHT_TOPIC0}', '${TOKEN_SOLD_TOPIC0}')
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+    GROUP BY token
+  `);
+
+  const volumeByToken: Record<string, string> = {};
+  const feesByToken: Record<string, string> = {};
+  trades.forEach((row: any) => {
+    volumeByToken[row.token] = row.volume;
+    feesByToken[row.token] = row.fees;
+  });
+
+  // No time filter: quotes are set once at creation and never change.
+  const quoteByToken: Record<string, string> = {};
+  if (trades.length) {
+    const tokenList = trades.map((row: any) => `'${row.token.slice(2)}'`).join(",");
+    const quotes = await queryClickhouse<any>(`
+      SELECT
+        concat('0x', substring(data, 27, 40)) AS token,
+        concat('0x', substring(data, 91, 40)) AS quote
+      FROM evm_indexer.logs
+      PREWHERE chain = ${chainId}
+        AND short_address = '${shortAddrOf(target)}'
+        AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+        AND address = '${target}'
+        AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+        AND substring(data, 27, 40) IN (${tokenList})
+    `, undefined, { max_query_size: 4194304 });
+    quotes.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  }
+
+  return { volumeByToken, feesByToken, quoteByToken };
+};
+
+const getTradesFromLogs = async (options: FetchOptions, portal: string, fromBlock: number): Promise<TradeTotals> => {
   const [dayFromBlock, dayToBlock] = await Promise.all([
     options.getFromBlock(),
     options.getToBlock(),
@@ -58,26 +125,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     toBlock: dayToBlock,
     cacheInCloud: true,
   });
-  const quoteTokens = quoteLogs.reduce((acc, log) => {
-    acc[log.token.toLowerCase()] = log.quoteToken.toLowerCase();
-    return acc;
-  }, {} as Record<string, string>);
+  const quoteByToken: Record<string, string> = {};
+  quoteLogs.forEach((log: any) => { quoteByToken[log.token.toLowerCase()] = log.quoteToken.toLowerCase(); });
 
+  const volumeByToken: Record<string, bigint> = {};
+  const feesByToken: Record<string, bigint> = {};
   const processTradeLogs = (logs: any[]) => {
     logs.forEach((log) => {
-      const quoteToken = quoteTokens[log.token.toLowerCase()];
-      if(!quoteToken) return;
-      if (quoteToken === NATIVE_TOKEN) {
-        dailyVolume.addGasToken(log.eth);
-        dailyFees.addGasToken(log.fee, BONDING_CURVE_FEES);
-        dailyRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
-        dailyProtocolRevenue.addGasToken(log.fee, BONDING_CURVE_FEES);
-      } else {
-        dailyVolume.add(quoteToken, log.eth);
-        dailyFees.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-        dailyRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-        dailyProtocolRevenue.add(quoteToken, log.fee, BONDING_CURVE_FEES);
-      }
+      const token = log.token.toLowerCase();
+      volumeByToken[token] = (volumeByToken[token] ?? 0n) + BigInt(log.eth);
+      feesByToken[token] = (feesByToken[token] ?? 0n) + BigInt(log.fee);
     });
   };
 
@@ -94,6 +151,36 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     processTradeLogs(buyLogs);
     processTradeLogs(sellLogs);
   }
+
+  return { volumeByToken, feesByToken, quoteByToken };
+};
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { portal, fromBlock, useIndexer } = chainConfig[options.chain];
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
+  const { volumeByToken, feesByToken, quoteByToken } = useIndexer
+    ? await getTradesFromIndexer(options, portal)
+    : await getTradesFromLogs(options, portal, fromBlock);
+
+  Object.keys(volumeByToken).forEach((token) => {
+    const quoteToken = quoteByToken[token]
+    if (!quoteToken) return;
+    if (quoteToken === NATIVE_TOKEN) {
+      dailyVolume.addGasToken(volumeByToken[token]);
+      dailyFees.addGasToken(feesByToken[token], BONDING_CURVE_FEES);
+      dailyRevenue.addGasToken(feesByToken[token], BONDING_CURVE_FEES);
+      dailyProtocolRevenue.addGasToken(feesByToken[token], BONDING_CURVE_FEES);
+    } else {
+      dailyVolume.add(quoteToken, volumeByToken[token]);
+      dailyFees.add(quoteToken, feesByToken[token], BONDING_CURVE_FEES);
+      dailyRevenue.add(quoteToken, feesByToken[token], BONDING_CURVE_FEES);
+      dailyProtocolRevenue.add(quoteToken, feesByToken[token], BONDING_CURVE_FEES);
+    }
+  });
 
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
