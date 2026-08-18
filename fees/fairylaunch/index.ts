@@ -105,8 +105,9 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addGasToken(creatorReward);
   }
 
+  // CORRECCIÓN: dailyRevenue SOLO incluye protocol revenue (treasury)
+  // NO incluye dailySupplySideRevenue (creator fees)
   dailyRevenue.addBalances(dailyProtocolRevenue);
-  dailyRevenue.addBalances(dailySupplySideRevenue);
 
   return {
     dailyVolume,
