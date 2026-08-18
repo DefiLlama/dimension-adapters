@@ -58,10 +58,10 @@ const adapter: SimpleAdapter = {
   start: RUJIRA_START_DATE,
   fetch,
   methodology: {
-    Fees: "FIN app-layer fees, the 0.50% RUJI Swap affiliate fee, and gross THORChain bonding rewards earned by bRUNE.",
-    Revenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission.",
-    ProtocolRevenue: "Realized Rujira revenue routed to protocol-owned liquidity.",
-    HoldersRevenue: "Realized revenue distributed to RUJI stakers.",
+    Fees: "Scoped Rujira adapter covering FIN app-layer fees, the 0.50% RUJI Swap affiliate fee, and gross THORChain bonding rewards earned by bRUNE. Ghost, money market, liquidation, and Index revenue are excluded until supported data sources are available.",
+    Revenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission for the covered products.",
+    ProtocolRevenue: "bRUNE protocol commission plus realized Rujira revenue routed to protocol-owned liquidity for the covered products.",
+    HoldersRevenue: "Realized revenue distributed to RUJI stakers from the RUJI staking-distribution bucket.",
     SupplySideRevenue: "The FIN fee share paid to THORChain and the 90% of bRUNE bonding rewards distributed to bRUNE users.",
   },
   breakdownMethodology: {
