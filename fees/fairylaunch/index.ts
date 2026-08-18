@@ -11,6 +11,10 @@ const FACTORY_DEPLOY_BLOCK = 116127983;
 // Repartición de comisiones: 50% Protocolo (Treasury), 50% Creador
 const TREASURY_SHARE_PERCENT = 50n;
 
+// Acumulador en memoria para evitar re-escaneo redundante en ejecuciones horarias
+let cachedCurves: string[] = [];
+let lastFetchedBlock = FACTORY_DEPLOY_BLOCK;
+
 const methodology = {
   Volume: 'ethAmount from Buy events + gross ethAmount (ethAmount + fee) from Sell events across all BondingCurves',
   Fees: 'Total trading fees from Buy/Sell events + Graduation rewards',
@@ -20,7 +24,7 @@ const methodology = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, getLogs, toBlock } = options;
+  const { createBalances, getLogs, fromBlock, toBlock } = options;
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -28,25 +32,33 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  // 1. Obtener TODAS las BondingCurves creadas desde el despliegue del Factory hasta la fecha evaluada
+  // Si la prueba corre fuera de orden o reinicia rangos, reseteamos la memoria
+  if (fromBlock && fromBlock < lastFetchedBlock) {
+    lastFetchedBlock = FACTORY_DEPLOY_BLOCK;
+    cachedCurves = [];
+  }
+
+  // 1. Búsqueda incremental de BondingCurves creadas entre el último bloque procesado y toBlock
   const launchLogs = await getLogs({
     target: FACTORY,
     eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
-    fromBlock: FACTORY_DEPLOY_BLOCK,
+    fromBlock: lastFetchedBlock,
     toBlock: toBlock,
   });
 
-  const bondingCurves: string[] = [];
-
   for (const log of launchLogs) {
     if (log.bondingCurve && log.bondingCurve !== '0x0000000000000000000000000000000000000000') {
-      bondingCurves.push(log.bondingCurve.toLowerCase());
+      cachedCurves.push(log.bondingCurve.toLowerCase());
     }
   }
 
-  const uniqueCurves = [...new Set(bondingCurves)];
+  if (toBlock) {
+    lastFetchedBlock = toBlock;
+  }
 
-  // 2. Procesar compras y ventas ocurridas en la ventana de 24h para todas las curvas registradas
+  const uniqueCurves = [...new Set(cachedCurves)];
+
+  // 2. Procesar compras y ventas correspondientes al rango de la hora evaluada
   if (uniqueCurves.length > 0) {
     const buyLogs = await getLogs({
       targets: uniqueCurves,
@@ -88,7 +100,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 3. Procesar Recompensas de Graduación del FeeManager en la ventana de 24h
+  // 3. Procesar Recompensas de Graduación emitidas en la hora evaluada
   const rewardLogs = await getLogs({
     target: FEE_MANAGER,
     eventAbi: 'event GraduationRewardRecorded(address indexed creator, uint256 creatorReward, uint256 treasuryReward)',
@@ -117,7 +129,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: true,
   chains: [CHAIN.BSC],
   start: 1786752000,
   fetch,
