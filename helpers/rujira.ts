@@ -15,8 +15,6 @@ const MAX_PAGES = 100;
 // Daily bin queries request a small window so the adapter can select the exact UTC bin from GraphQL edges.
 const DAILY_BIN_LIMIT = 3;
 
-// Staking pool address returned by the public staking.pools query:
-// https://analytics.rujira.network/api/graphiql
 const BRUNE_STAKING_POOL = "thor179fex2rxd45caedmz4hxsnu42sw20lu0djyh4yukyh965sq8muuqptru2g";
 
 type Point = {
