@@ -111,7 +111,7 @@ const fetch = async (options: FetchOptions) => {
     const pool = books.get(bookId.toLowerCase());
     if (!pool) return;
     const amount = pool.volumeSide === "token0" ? token0Amount : token1Amount;
-    dailyVolume.add(pool.volumeToken, amount, pool.label);
+    dailyVolume.add(pool.volumeToken, amount);
   };
   const addNode = (bookId: string, node: string, restingIsBid: boolean) => {
     const { quantity, quoteAmount } = matchedNodeAmounts(node, restingIsBid);
@@ -149,13 +149,19 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(protocolFees, "Fees to STATE vault");
   dailyRevenue.addBalances(frontendFees, "Official interface fees");
 
+  const dailyHoldersRevenue = options.createBalances();
+  dailyHoldersRevenue.addBalances(protocolFees, "Fees to STATE vault");
+
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(frontendFees, "Official interface fees");
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: protocolFees,
-    dailyProtocolRevenue: frontendFees,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue: 0,
   };
 };
@@ -173,9 +179,23 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    "NVDA/USDG": "USDG notional matched in the permissionless NVDA/USDG order book.",
-    "DEEP/USDG": "USDG notional matched in the permissionless DEEP/USDG order book.",
+  Fees: {
+    "Protocol fees": "Governance-configured taker fee transferred by the router to the STATE vault.",
+    "Interface fees": "Call-scoped integrator fee charged by the official Deepstate interface.",
+  },
+  UserFees: {
+    "Protocol fees": "Governance-configured taker fee deducted from matched taker output.",
+    "Interface fees": "Official-interface integrator fee deducted independently from matched taker output.",
+  },
+  Revenue: {
+    "Fees to STATE vault": "Protocol fees sent to the STATE vault.",
+    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipient.",
+  },
+  HoldersRevenue: {
+    "Fees to STATE vault": "Protocol fees sent to the STATE vault for pro-rata redemption by STATE holders.",
+  },
+  ProtocolRevenue: {
+    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipient.",
   },
 };
 
