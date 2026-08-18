@@ -1,21 +1,27 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// BSC Mainnet contracts
+// BSC Mainnet Contracts
+// Factory: https://bscscan.com/address/0x28163d7943AA6715a9559D468B29c0343412E236
 const FACTORY = '0x28163d7943AA6715a9559D468B29c0343412E236';
+
+// FeeManager: https://bscscan.com/address/0xb6A7D47596D2202676822531F56EFeCeac309775
 const FEE_MANAGER = '0xb6A7D47596D2202676822531F56EFeCeac309775';
 
-// Bloque de despliegue del Factory en BSC Mainnet
+// Factory Deployment Block on BSC Mainnet
 const FACTORY_DEPLOY_BLOCK = 
-116127983; // Ajusta con el número de bloque exacto del despliegue
+116127983;
 
+// Repartición de comisiones: 50% Protocolo (Treasury), 50% Creador del token
 const TREASURY_SHARE_PERCENT = 50n;
+
+// Registro persistente en memoria para almacenar las bonding curves descubiertas
 const cachedCurves = new Set<string>();
 
 const methodology = {
   Volume: 'ethAmount from Buy events + gross ethAmount (ethAmount + fee) from Sell events across all BondingCurves',
-  Fees: 'Total trading fees from Buy/Sell events + Graduation rewards',
-  Revenue: 'Treasury fees + Treasury portion of graduation rewards',
+  Fees: 'Total trading fees (1% per trade) + Graduation rewards',
+  Revenue: 'Treasury portion of trading fees (0.5%) + Treasury portion of graduation rewards',
   ProtocolRevenue: 'Treasury fees (50% of trading fees) + Treasury portion of graduation rewards',
   SupplySideRevenue: 'Creator fees (50% of trading fees) + Creator portion of graduation rewards',
 };
@@ -27,11 +33,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // 1. Obtener TODAS las curvas creadas desde el despliegue del Factory
+  // 1. Descubrimiento de curvas: consulta histórica en cold start, o incremental en slots posteriores
   const launchLogs = await options.getLogs({
     target: FACTORY,
-    fromBlock: FACTORY_DEPLOY_BLOCK,
+    fromBlock: cachedCurves.size === 0 ? FACTORY_DEPLOY_BLOCK : undefined,
+    toBlock: options.getToBlock(),
     eventAbi: 'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
+    maxBlockRange: 20000,
   });
 
   for (const log of launchLogs) {
@@ -42,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
   const uniqueCurves = Array.from(cachedCurves);
 
-  // 2. Consultar compras/ventas de las curvas ÚNICAMENTE dentro del rango del slot actual
+  // 2. Procesamiento de trades solo si existen curvas registradas
   if (uniqueCurves.length > 0) {
     const buyLogs = await options.getLogs({
       targets: uniqueCurves,
@@ -84,7 +92,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 3. Consultar graduaciones del slot actual
+  // 3. Recompensas de graduación en FeeManager
   const rewardLogs = await options.getLogs({
     target: FEE_MANAGER,
     eventAbi: 'event GraduationRewardRecorded(address indexed creator, uint256 creatorReward, uint256 treasuryReward)',
@@ -115,7 +123,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BSC],
-  start: 1786752000,
+  start: 1786752000, // 2026-08-17 00:00:00 UTC
   fetch,
   methodology,
   breakdownMethodology: methodology,
