@@ -5,20 +5,11 @@ import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const DOOAR_PROGRAM_ID = "Dooar9JkhdZ7J3LHN3A7YCuoGRUggXhQaG4kijfLGU2j";
 
-// 1% swap fee: 0.3% LPs, 0.6% ecosystem (buybacks/burns/events), 0.1% development
+// 1% swap fee. Whitepaper splits it 0.3% LPs / 0.6% ecosystem / 0.1% development,
+// but the ecosystem share mixes GMT buybacks, NFT burns, and events, so the
+// revenue / supply-side / holders attribution is not clear enough to report.
 // https://whitepaper.stepn.com/other-modules/decentralized-exchange
 const FEE_RATE = 0.01;
-const LP_SHARE = 0.3;
-const ECOSYSTEM_SHARE = 0.6;
-const DEV_SHARE = 0.1;
-
-const feeConfig = {
-  fees: FEE_RATE,
-  userFeesRatio: 1,
-  revenueRatio: ECOSYSTEM_SHARE + DEV_SHARE,
-  protocolRevenueRatio: DEV_SHARE,
-  holdersRevenueRatio: ECOSYSTEM_SHARE,
-};
 
 const chainConfig: Record<string, { start: string; factory?: string }> = {
   [CHAIN.BSC]: {
@@ -36,34 +27,12 @@ const chainConfig: Record<string, { start: string; factory?: string }> = {
 
 const LABEL = {
   SWAP_FEES: "Token Swap Fees",
-  LP_FEES: "Swap Fees To Liquidity Providers",
-  PROTOCOL_FEES: "Swap Fees To Protocol",
-  ECOSYSTEM_FEES: "Swap Fees To Ecosystem",
 };
 
-const feeBreakdownFromVolume = (options: FetchOptions, volumeUsd: number) => {
+const feesFromVolume = (options: FetchOptions, volumeUsd: number) => {
   const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  const feesUsd = volumeUsd * FEE_RATE;
-  dailyFees.addUSDValue(feesUsd, LABEL.SWAP_FEES);
-  dailySupplySideRevenue.addUSDValue(feesUsd * LP_SHARE, LABEL.LP_FEES);
-  dailyProtocolRevenue.addUSDValue(feesUsd * DEV_SHARE, LABEL.PROTOCOL_FEES);
-  dailyHoldersRevenue.addUSDValue(feesUsd * ECOSYSTEM_SHARE, LABEL.ECOSYSTEM_FEES);
-  dailyRevenue.addUSDValue(feesUsd * DEV_SHARE, LABEL.PROTOCOL_FEES);
-  dailyRevenue.addUSDValue(feesUsd * ECOSYSTEM_SHARE, LABEL.ECOSYSTEM_FEES);
-
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailyRevenue,
-  };
+  dailyFees.addUSDValue(volumeUsd * FEE_RATE, LABEL.SWAP_FEES);
+  return { dailyFees, dailyUserFees: dailyFees };
 };
 
 const fetchSolana = async (options: FetchOptions) => {
@@ -79,7 +48,7 @@ const fetchSolana = async (options: FetchOptions) => {
   `);
 
   const dailyVolume = Number(data[0]?.daily_volume ?? 0);
-  return { dailyVolume, ...feeBreakdownFromVolume(options, dailyVolume) };
+  return { dailyVolume, ...feesFromVolume(options, dailyVolume) };
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -88,41 +57,24 @@ const fetch = async (options: FetchOptions) => {
   const results = await getUniV2LogAdapter({
     factory: chainConfig[options.chain].factory,
     allowReadPairs: true,
-    ...feeConfig,
+    fees: FEE_RATE,
+    userFeesRatio: 1,
   })(options);
 
   const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
   dailyFees.add(results.dailyFees, LABEL.SWAP_FEES);
-  dailySupplySideRevenue.add(results.dailyFees.clone(LP_SHARE), LABEL.LP_FEES);
-  dailyProtocolRevenue.add(results.dailyFees.clone(DEV_SHARE), LABEL.PROTOCOL_FEES);
-  dailyHoldersRevenue.add(results.dailyFees.clone(ECOSYSTEM_SHARE), LABEL.ECOSYSTEM_FEES);
-  dailyRevenue.add(results.dailyFees.clone(DEV_SHARE), LABEL.PROTOCOL_FEES);
-  dailyRevenue.add(results.dailyFees.clone(ECOSYSTEM_SHARE), LABEL.ECOSYSTEM_FEES);
 
   return {
     dailyVolume: results.dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-    dailyRevenue,
   };
 };
 
 const methodology = {
   Volume: "Swap volume from UniV2 pair Swap events on BSC and Polygon, and from Allium solana.dex.trades for the DOOAR/STEPN token-swap program on Solana.",
-  Fees: "Users pay a 1% swap fee.",
+  Fees: "Users pay a 1% swap fee. The whitepaper splits this across LPs, ecosystem (buybacks/burns/events), and development, but the exact attribution is not reported.",
   UserFees: "Users pay a 1% swap fee.",
-  SupplySideRevenue: "0.3% of swap volume is paid to liquidity providers.",
-  Revenue: "0.7% of swap volume: 0.6% to the STEPN ecosystem and 0.1% to development.",
-  HoldersRevenue: "0.6% of swap volume is held for ecosystem use (GMT buybacks, NFT burns, events).",
-  ProtocolRevenue: "0.1% of swap volume funds future development.",
 };
 
 const breakdownMethodology = {
@@ -131,19 +83,6 @@ const breakdownMethodology = {
   },
   UserFees: {
     [LABEL.SWAP_FEES]: "1% swap fee paid by traders.",
-  },
-  SupplySideRevenue: {
-    [LABEL.LP_FEES]: "0.3% of swap volume paid to liquidity providers.",
-  },
-  Revenue: {
-    [LABEL.PROTOCOL_FEES]: "0.1% of swap volume funds future development.",
-    [LABEL.ECOSYSTEM_FEES]: "0.6% of swap volume held for ecosystem use (GMT buybacks, NFT burns, events).",
-  },
-  ProtocolRevenue: {
-    [LABEL.PROTOCOL_FEES]: "0.1% of swap volume funds future development.",
-  },
-  HoldersRevenue: {
-    [LABEL.ECOSYSTEM_FEES]: "0.6% of swap volume held for ecosystem use (GMT buybacks, NFT burns, events).",
   },
 };
 
@@ -156,6 +95,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  skipBreakdownValidation: true, // ecosystem share mixes buybacks, burns, and events; no clean revenue / LP / holders split
 };
 
 export default adapter;
