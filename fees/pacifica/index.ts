@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
 // Pacifica is a Solana perpetuals DEX with an off-chain matching engine, so
@@ -24,7 +25,14 @@ const MAX_PAGES = 1000;
 interface Fill {
   event_type: string;
   fee: string;
+  cause?: string;
 }
+
+const LIQUIDATION_CAUSES = new Set([
+  "market_liquidation",
+  "backstop_liquidation",
+  "insolvency_liquidation",
+]);
 
 interface HistoryPage {
   success?: boolean;
@@ -63,9 +71,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const endMs = options.endTimestamp * 1000;
 
   // A fill's `fee` is signed: positive when the trader paid the fee, negative
-  // when they received a maker rebate. Track the two sides so gross fees and
-  // the rebates paid out to makers (the supply side) can be reported apart.
-  let grossFees = 0;
+  // when they received a maker rebate. Split positive fees by cause so trading
+  // vs liquidation can be reported apart, and keep rebates as supply-side.
+  let tradingFees = 0;
+  let liquidationFees = 0;
   let rebates = 0;
   let cursor: string | null = null;
 
@@ -84,15 +93,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       if (!Number.isFinite(fee)) {
         throw new Error(`Pacifica: non-numeric fee ${fill.fee}`);
       }
-      if (fee >= 0) grossFees += fee;
-      else rebates += -fee;
+      if (fee < 0) {
+        rebates += -fee;
+      } else if (fill.cause && LIQUIDATION_CAUSES.has(fill.cause)) {
+        liquidationFees += fee;
+      } else {
+        tradingFees += fee;
+      }
     }
     if (has_more === false) {
+      const dailyFees = options.createBalances();
+      dailyFees.addUSDValue(tradingFees, METRIC.TRADING_FEES);
+      dailyFees.addUSDValue(liquidationFees, METRIC.LIQUIDATION_FEES);
+
+      const dailyRevenue = options.createBalances();
+      dailyRevenue.addUSDValue(tradingFees - rebates, METRIC.TRADING_FEES);
+      dailyRevenue.addUSDValue(liquidationFees, METRIC.LIQUIDATION_FEES);
+
+      const dailySupplySideRevenue = options.createBalances();
+      dailySupplySideRevenue.addUSDValue(rebates, "Maker Rebates");
+
       return {
-        dailyFees: grossFees,
-        dailyUserFees: grossFees,
-        dailySupplySideRevenue: rebates,
-        dailyRevenue: grossFees - rebates,
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailySupplySideRevenue,
+        dailyRevenue,
       };
     }
     // has_more is true (or malformed): a real next page needs a cursor, so a
@@ -107,10 +132,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Gross trading fees paid on Pacifica's perpetual markets, summed from the positive per-fill fees in the protocol-wide trade-history feed (actual fees, not a volume-based estimate).",
-  UserFees: "Gross trading fees paid by the traders.",
+  Fees: "Gross trading and liquidation fees paid on Pacifica's perpetual markets, summed from the positive per-fill fees in the protocol-wide trade-history feed (actual fees, not a volume-based estimate).",
+  UserFees: "Gross trading and liquidation fees paid by the traders.",
   SupplySideRevenue: "Maker rebates paid back to liquidity providers (the negative per-fill fees).",
-  Revenue: "Trading fees kept by the protocol, i.e. gross fees minus the maker rebates. Affiliate fee-share is not exposed by the API, so it is not deducted here.",
+  Revenue: "Fees kept by the protocol, i.e. gross fees minus the maker rebates. Affiliate fee-share is not exposed by the API, so it is not deducted here.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Maker/taker fees on regular perpetual fills (and other non-liquidation causes such as RFQ or settlement).",
+    [METRIC.LIQUIDATION_FEES]: "Fees paid on market, backstop, and insolvency liquidations.",
+  },
+  UserFees: {
+    [METRIC.TRADING_FEES]: "Maker/taker fees on regular perpetual fills (and other non-liquidation causes such as RFQ or settlement).",
+    [METRIC.LIQUIDATION_FEES]: "Fees paid on market, backstop, and insolvency liquidations.",
+  },
+  SupplySideRevenue: {
+    "Maker Rebates": "Maker rebates paid back to liquidity providers (the negative per-fill fees).",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Trading fees kept by the protocol after maker rebates.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation fees kept by the protocol.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -120,6 +163,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2025-06-09', // earliest Pacifica trade-history data
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
