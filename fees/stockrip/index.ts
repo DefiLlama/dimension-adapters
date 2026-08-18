@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { ChainApi } from "@defillama/sdk";
 
 // StockRip: depositors list a basket NFT (tokenized stocks) with ETH backing, purchasers pay an
 // acquisition fee to be allocated one at random, then keep it, relist it, or take a discounted
@@ -55,12 +56,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.getLogs({ target: HOOK, eventAbi: ABIS.Trade, onlyArgs: false }),
   ]);
 
-  // The core went live on 2026-07-27. The adapter starts a day earlier so the launch day is fully
-  // covered by hourly windows; windows before deployment have nothing to read.
-  const coreEvents = nftKept.length + nftRelisted.length + bidAccepted.length + bidAcceptedAsTokens.length + ownerFees.length;
-  const [ownerSettlementFeeBps, retainedToProtocol] = coreEvents === 0 ? [0, true] : await Promise.all([
-    options.api.call({ target: CORE, abi: 'uint256:ownerSettlementFeeBps' }),
-    options.api.call({ target: CORE, abi: 'bool:retainedToProtocol' }),
+  // Robinhood Chain's public RPC is not an archive node, so state is read at the latest block.
+  // Acquisition records are immutable once written and the fee config has not changed since launch.
+  const api = new ChainApi({ chain: options.chain });
+  const [ownerSettlementFeeBps, retainedToProtocol] = await Promise.all([
+    api.call({ target: CORE, abi: 'uint256:ownerSettlementFeeBps' }),
+    api.call({ target: CORE, abi: 'bool:retainedToProtocol' }),
   ]);
 
   // Acquisition fees are booked when the request is allocated. NFTAllocated does not carry the
@@ -68,8 +69,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // Refunded, expired and slippage-cancelled requests never allocate, so they are excluded.
   const requestIds = allocated.map((log: any) => log.requestId.toString());
   const [acquisitions, slices] = await Promise.all([
-    options.api.multiCall({ abi: ABIS.acquisitions, target: CORE, calls: requestIds }),
-    options.api.multiCall({ abi: ABIS.acquisitionTokenSlice, target: CORE, calls: requestIds }),
+    api.multiCall({ abi: ABIS.acquisitions, target: CORE, calls: requestIds }),
+    api.multiCall({ abi: ABIS.acquisitionTokenSlice, target: CORE, calls: requestIds }),
   ]);
   let acquisitionVolume = 0n;
   let acquisitionFees = 0n;
