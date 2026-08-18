@@ -1,6 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
+import { ethers } from "ethers";
 
 // StockRip: depositors list a basket NFT (tokenized stocks) with ETH backing, purchasers pay an
 // acquisition fee to be allocated one at random, then keep it, relist it, or take a discounted
@@ -15,7 +16,9 @@ const REWARDS = "0x91D032555CB90A8B2792eEaB5F192c41A6a647eF";
 const HOOK = "0xf295127365a2C3055FdfBa01b0596dA56DCFa444";
 // StockRipTokenHook.FEE_BIPS: flat 1% on every swap in both directions (constant in the verified source above)
 const HOOK_FEE_BIPS = 100n;
+// Basis-point denominator
 const BPS = 10_000n;
+// Uniswap sqrtPriceX96 is a Q64.96 fixed-point square root, so price = sqrtPriceX96^2 / 2^192
 const Q192 = 1n << 192n;
 
 const METRICS = {
@@ -27,7 +30,7 @@ const METRICS = {
   TokenBuyBack: 'RIP Buyback',
 };
 
-const ABIS = {
+const EVENTS = {
   NFTAllocated: "event NFTAllocated(uint256 indexed requestId, uint256 indexed listingId, address indexed purchaser, address depositor, uint256 value, uint256 randomWord)",
   TopListingFunded: "event TopListingFunded(uint256 indexed listingId, uint256 amount, uint256 newPot)",
   NFTKept: "event NFTKept(uint256 indexed listingId, address indexed purchaser, address indexed depositor, uint256 backing)",
@@ -39,9 +42,10 @@ const ABIS = {
   AcquisitionTokenAccrued: "event AcquisitionTokenAccrued(address indexed purchaser, uint256 indexed requestId, uint256 slice)",
   HookFee: "event HookFee(bytes32 indexed id, address indexed sender, uint128 feeAmount0, uint128 feeAmount1)",
   Trade: "event Trade(uint160 sqrtPriceX96, int128 ethAmount, int128 tokenAmount)",
-  acquisitions: "function acquisitions(uint256) view returns (address purchaser, uint256 requestBlock, uint256 priceEscrowed, uint256 listingId, uint8 status)",
 };
+const ACQUISITIONS_ABI = "function acquisitions(uint256) view returns (address purchaser, uint256 requestBlock, uint256 priceEscrowed, uint256 listingId, uint8 status)";
 
+const iface = new ethers.Interface(Object.values(EVENTS));
 const sumBy = (logs: any[], field: string | number) => logs.reduce((acc: bigint, log: any) => acc + BigInt(log.args[field]), 0n);
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -52,27 +56,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const getLogs = (target: string, eventAbi: string) => options.getLogs({ target, eventAbi, onlyArgs: false });
-  const [allocated, topListingFunded, nftKept, nftRelisted, bidAccepted, bidAcceptedAsTokens, ownerFees, feesToToken, slices, hookFees, trades] = await Promise.all([
-    getLogs(CORE, ABIS.NFTAllocated),
-    getLogs(CORE, ABIS.TopListingFunded),
-    getLogs(CORE, ABIS.NFTKept),
-    getLogs(CORE, ABIS.NFTRelisted),
-    getLogs(CORE, ABIS.DepositorBidAccepted),
-    getLogs(CORE, ABIS.DepositorBidAcceptedAsTokens),
-    getLogs(CORE, ABIS.OwnerFeesAccrued),
-    getLogs(CORE, ABIS.ProtocolFeesToToken),
-    getLogs(REWARDS, ABIS.AcquisitionTokenAccrued),
-    getLogs(HOOK, ABIS.HookFee),
-    getLogs(HOOK, ABIS.Trade),
+  // One log query per contract, keyed by event name after decoding, to stay within the public
+  // RPC's rate limit.
+  const byEvent: Record<string, any[]> = {};
+  Object.keys(EVENTS).forEach((name) => { byEvent[name] = []; });
+  const fetchLogs = async (target: string, names: string[]) => {
+    const topics = names.map((name) => iface.getEvent(name)!.topicHash);
+    const raw = await options.getLogs({ target, topics: [topics] as any, entireLog: true });
+    raw.forEach((log: any) => {
+      const parsed = iface.parseLog(log);
+      if (parsed) byEvent[parsed.name].push({ args: parsed.args, transactionHash: log.transactionHash, logIndex: Number(log.logIndex ?? log.index) });
+    });
+  };
+  await Promise.all([
+    fetchLogs(CORE, ['NFTAllocated', 'TopListingFunded', 'NFTKept', 'NFTRelisted', 'DepositorBidAccepted', 'DepositorBidAcceptedAsTokens', 'OwnerFeesAccrued', 'ProtocolFeesToToken']),
+    fetchLogs(REWARDS, ['AcquisitionTokenAccrued']),
+    fetchLogs(HOOK, ['HookFee', 'Trade']),
   ]);
+  const { NFTAllocated: allocated, TopListingFunded: topListingFunded, NFTKept: nftKept, NFTRelisted: nftRelisted, DepositorBidAccepted: bidAccepted, DepositorBidAcceptedAsTokens: bidAcceptedAsTokens, OwnerFeesAccrued: ownerFees, ProtocolFeesToToken: feesToToken, AcquisitionTokenAccrued: slices, HookFee: hookFees, Trade: trades } = byEvent;
 
   // Acquisition fees are booked when the request is allocated. NFTAllocated does not carry the
   // fee, so the escrowed price is read from the acquisition record, which is never modified after
   // the request. Robinhood Chain's public RPC is not an archive node, so it is read at the latest
   // block. Refunded, expired and slippage-cancelled requests never allocate and are excluded.
   const api = new ChainApi({ chain: options.chain });
-  const acquisitions = await api.multiCall({ abi: ABIS.acquisitions, target: CORE, calls: allocated.map((log: any) => log.args.requestId.toString()) });
+  const acquisitions = await api.multiCall({ abi: ACQUISITIONS_ABI, target: CORE, calls: allocated.map((log: any) => log.args.requestId.toString()) });
   const acquisitionVolume = acquisitions.reduce((acc: bigint, acq: any) => acc + BigInt(acq.priceEscrowed), 0n);
   // The slice credited back to the purchaser as RIP buying power is netted out. It is emitted by
   // the rewards module in the allocation transaction.
