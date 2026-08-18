@@ -22,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // 1. Descubrimiento incremental de curvas vía RPC multicall
+  // 1. Descubrimiento incremental de curvas vÃ­a RPC multicall
   try {
     const totalLaunchesBN = await options.api.call({
       target: FACTORY,
@@ -49,11 +49,12 @@ const fetch = async (options: FetchOptions) => {
         }
       }
 
-      // Actualizar cursor solo tras éxito en el recorrido
+      // Actualizar cursor solo tras Ã©xito en el recorrido
       discoveredLaunchCount = totalLaunches;
     }
-  } catch {
-    // Fallback con fromTimestamp explícito si falla la llamada RPC directa
+  } catch (error) {
+    console.warn('Fairylaunch RPC curve discovery failed; using LaunchCreated fallback', error);
+    // Fallback con fromTimestamp explÃ­cito si falla la llamada RPC directa
     const launchLogs = await options.getLogs({
       target: FACTORY,
       eventAbi:
@@ -142,7 +143,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 3. Recompensas de graduación desde FeeManager
+  // 3. Recompensas de graduaciÃ³n desde FeeManager
   const graduationRewardLogs = await options.getLogs({
     target: FEE_MANAGER,
     eventAbi:
