@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 // Factory contract on BSC Mainnet: https://bscscan.com/address/0x28163d7943AA6715a9559D468B29c0343412E236
 const FACTORY = '0x28163d7943AA6715a9559D468B29c0343412E236';
@@ -23,123 +24,100 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   // 1. Descubrimiento incremental de curvas vía RPC multicall
-  try {
-    const totalLaunchesBN = await options.api.call({
+  const totalLaunchesBN = await options.api.call({
+    target: FACTORY,
+    abi: 'function totalLaunches() view returns (uint256)',
+  });
+
+  const totalLaunches = Number(totalLaunchesBN || 0);
+
+  if (totalLaunches > discoveredLaunchCount) {
+    const newLaunchIds = Array.from(
+      { length: totalLaunches - discoveredLaunchCount },
+      (_, i) => discoveredLaunchCount + i + 1
+    );
+
+    const launches = await options.api.multiCall({
       target: FACTORY,
-      abi: 'function totalLaunches() view returns (uint256)',
+      abi: 'function getLaunch(uint256 launchId) view returns ((uint256 launchId, address creator, address treasury, address token, address bondingCurve, bool graduated, uint256 createdAt, uint256 graduatedAt, string name, string symbol, string metadataUri))',
+      calls: newLaunchIds.map((id) => ({ params: [id] })),
     });
 
-    const totalLaunches = Number(totalLaunchesBN || 0);
+    for (const launch of launches) {
+      if (launch?.bondingCurve && launch.bondingCurve !== ADDRESSES.null) {
+        cachedCurves.add(launch.bondingCurve.toLowerCase());
+      }
+    }
 
-    if (totalLaunches > discoveredLaunchCount) {
-      const newLaunchIds = Array.from(
-        { length: totalLaunches - discoveredLaunchCount },
-        (_, i) => discoveredLaunchCount + i + 1
-      );
+    // Actualizar cursor solo tras éxito en el recorrido
+    discoveredLaunchCount = totalLaunches;
+  }
 
-      const launches = await options.api.multiCall({
-        target: FACTORY,
-        abi: 'function getLaunch(uint256 launchId) view returns ((uint256 launchId, address creator, address treasury, address token, address bondingCurve, bool graduated, uint256 createdAt, uint256 graduatedAt, string name, string symbol, string metadataUri))',
-        calls: newLaunchIds.map((id) => ({ params: [id] })),
-      });
+  const uniqueCurves = Array.from(cachedCurves);
 
-      for (const launch of launches) {
-        if (launch?.bondingCurve && launch.bondingCurve !== '0x0000000000000000000000000000000000000000') {
-          cachedCurves.add(launch.bondingCurve.toLowerCase());
-        }
+  // 2. Procesar compras y ventas por lotes
+  const [buyLogs, sellLogs] = await Promise.all([
+    options.getLogs({
+      targets: uniqueCurves,
+      eventAbi:
+        'event Buy(address indexed buyer, uint256 indexed launchId, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
+      flatten: true,
+    }),
+    options.getLogs({
+      targets: uniqueCurves,
+      eventAbi:
+        'event Sell(address indexed seller, uint256 indexed launchId, uint256 tokenAmount, uint256 ethAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
+      flatten: true,
+    }),
+  ]);
+
+  for (const log of buyLogs) {
+    const ethAmount = BigInt(log.ethAmount || 0);
+    const totalFee = BigInt(log.fee || 0);
+
+    if (ethAmount > 0n) {
+      dailyVolume.addGasToken(ethAmount);
+    }
+
+    if (totalFee > 0n) {
+      dailyFees.addGasToken(totalFee, 'Trading Fees');
+
+      const treasuryFee = (totalFee * TREASURY_SHARE_PERCENT) / SHARE_DENOMINATOR;
+      const creatorFee = totalFee - treasuryFee;
+
+      if (treasuryFee > 0n) {
+        dailyProtocolRevenue.addGasToken(treasuryFee, 'Treasury Trading Fees');
       }
 
-      // Actualizar cursor solo tras éxito en el recorrido
-      discoveredLaunchCount = totalLaunches;
-    }
-  } catch (error) {
-    console.warn('Fairylaunch RPC curve discovery failed; using LaunchCreated fallback', error);
-    // Fallback con fromTimestamp explícito si falla la llamada RPC directa
-    const launchLogs = await options.getLogs({
-      target: FACTORY,
-      eventAbi:
-        'event LaunchCreated(uint256 indexed launchId, address indexed creator, address indexed token, address bondingCurve, string name, string symbol, string metadataUri)',
-      fromTimestamp: 1786838400,
-    });
-
-    for (const log of launchLogs) {
-      if (
-        log.bondingCurve &&
-        log.bondingCurve !== '0x0000000000000000000000000000000000000000'
-      ) {
-        cachedCurves.add(log.bondingCurve.toLowerCase());
+      if (creatorFee > 0n) {
+        dailySupplySideRevenue.addGasToken(creatorFee, 'Creator Trading Fees');
       }
     }
   }
 
-  const uniqueCurves = Array.from(cachedCurves);
-  const BATCH_SIZE = 50;
+  for (const log of sellLogs) {
+    const netEthAmount = BigInt(log.ethAmount || 0);
+    const totalFee = BigInt(log.fee || 0);
 
-  // 2. Procesar compras y ventas por lotes
-  for (let i = 0; i < uniqueCurves.length; i += BATCH_SIZE) {
-    const batch = uniqueCurves.slice(i, i + BATCH_SIZE);
+    if (totalFee > 0n) {
+      dailyFees.addGasToken(totalFee, 'Trading Fees');
 
-    const [buyLogs, sellLogs] = await Promise.all([
-      options.getLogs({
-        targets: batch,
-        eventAbi:
-          'event Buy(address indexed buyer, uint256 indexed launchId, uint256 ethAmount, uint256 tokenAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
-      }),
-      options.getLogs({
-        targets: batch,
-        eventAbi:
-          'event Sell(address indexed seller, uint256 indexed launchId, uint256 tokenAmount, uint256 ethAmount, uint256 fee, uint256 priceAfter, uint256 ethReserveAfter, uint256 timestamp)',
-      }),
-    ]);
+      const treasuryFee = (totalFee * TREASURY_SHARE_PERCENT) / SHARE_DENOMINATOR;
+      const creatorFee = totalFee - treasuryFee;
 
-    for (const log of buyLogs) {
-      const ethAmount = BigInt(log.ethAmount || 0);
-      const totalFee = BigInt(log.fee || 0);
-
-      if (ethAmount > 0n) {
-        dailyVolume.addGasToken(ethAmount, 'Buy Volume');
+      if (treasuryFee > 0n) {
+        dailyProtocolRevenue.addGasToken(treasuryFee, 'Treasury Trading Fees');
       }
 
-      if (totalFee > 0n) {
-        dailyFees.addGasToken(totalFee, 'Trading Fees');
-
-        const treasuryFee = (totalFee * TREASURY_SHARE_PERCENT) / SHARE_DENOMINATOR;
-        const creatorFee = totalFee - treasuryFee;
-
-        if (treasuryFee > 0n) {
-          dailyProtocolRevenue.addGasToken(treasuryFee, 'Treasury Trading Fees');
-        }
-
-        if (creatorFee > 0n) {
-          dailySupplySideRevenue.addGasToken(creatorFee, 'Creator Trading Fees');
-        }
+      if (creatorFee > 0n) {
+        dailySupplySideRevenue.addGasToken(creatorFee, 'Creator Trading Fees');
       }
     }
 
-    for (const log of sellLogs) {
-      const netEthAmount = BigInt(log.ethAmount || 0);
-      const totalFee = BigInt(log.fee || 0);
+    const grossEthVolume = netEthAmount + totalFee;
 
-      if (totalFee > 0n) {
-        dailyFees.addGasToken(totalFee, 'Trading Fees');
-
-        const treasuryFee = (totalFee * TREASURY_SHARE_PERCENT) / SHARE_DENOMINATOR;
-        const creatorFee = totalFee - treasuryFee;
-
-        if (treasuryFee > 0n) {
-          dailyProtocolRevenue.addGasToken(treasuryFee, 'Treasury Trading Fees');
-        }
-
-        if (creatorFee > 0n) {
-          dailySupplySideRevenue.addGasToken(creatorFee, 'Creator Trading Fees');
-        }
-      }
-
-      const grossEthVolume = netEthAmount + totalFee;
-
-      if (grossEthVolume > 0n) {
-        dailyVolume.addGasToken(grossEthVolume, 'Sell Volume');
-      }
+    if (grossEthVolume > 0n) {
+      dailyVolume.addGasToken(grossEthVolume);
     }
   }
 
@@ -193,10 +171,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    'Buy Volume': 'BNB value from Buy events.',
-    'Sell Volume': 'Gross BNB value from Sell events.',
-  },
   Fees: {
     'Trading Fees': '1% trading fee collected on buys and sells.',
     'Graduation Rewards': 'Rewards recorded when tokens graduate.',
@@ -219,10 +193,10 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BSC],
-  start: 1786838400, // August 16, 2026 00:00:00 UTC
+  start: '2026-08-16',
   fetch,
   methodology,
   breakdownMethodology,
 };
 
-export default adapter;
+export default adapter; 
