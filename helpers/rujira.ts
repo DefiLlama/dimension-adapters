@@ -15,7 +15,13 @@ const MAX_PAGES = 100;
 // Daily bin queries request a small window so the adapter can select the exact UTC bin from GraphQL edges.
 const DAILY_BIN_LIMIT = 3;
 
+// Source for bRUNE staking contract: Rujira analytics GraphQL `staking.pools { edges { node { address symbol } } }`.
+// https://analytics.rujira.network/api/graphiql
 const BRUNE_STAKING_POOL = "thor179fex2rxd45caedmz4hxsnu42sw20lu0djyh4yukyh965sq8muuqptru2g";
+// Rujira docs: bRUNE charges a 10% fee on bonding yield, with the remaining 90% distributed to staked bRUNE holders.
+// https://docs.rujira.network/core-products/brune-liquid-bonded-rune
+const BRUNE_PROTOCOL_FEE_SHARE = new BigNumber(10);
+const BRUNE_USER_REWARD_SHARE = new BigNumber(90);
 
 type Point = {
   value: string;
@@ -251,8 +257,8 @@ export async function fetchRujiraDailyFees(startTimestamp: number): Promise<Ruji
   const brune = getDailyBin(response.staking.brune, startTimestamp);
 
   const bruneStakerRewards = amountToUsd(brune?.totalRevenue.value);
-  // totalRevenue is the net 90% user share; protocolRevenue is transfer-timed, so accrue the 10% fee from net rewards.
-  const bruneProtocolFee = bruneStakerRewards.div(9);
+  // totalRevenue is the net user share; protocolRevenue is transfer-timed, so accrue the fee from net rewards.
+  const bruneProtocolFee = bruneStakerRewards.times(BRUNE_PROTOCOL_FEE_SHARE).div(BRUNE_USER_REWARD_SHARE);
 
   return {
     bruneGrossRewardsUsd: asNumber(bruneStakerRewards.plus(bruneProtocolFee), "bRUNE gross rewards"),

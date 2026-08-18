@@ -25,11 +25,13 @@ const fetch = async (options: FetchOptions) => {
   addUsd(dailyFees, data.finGrossFeesUsd, FIN);
   addUsd(dailyUserFees, data.finGrossFeesUsd, FIN);
   addUsd(dailyRevenue, data.finRujiraRevenueUsd, FIN_TO_RUJIRA);
+  addUsd(dailyProtocolRevenue, data.finRujiraRevenueUsd, FIN_TO_RUJIRA);
   addUsd(dailySupplySideRevenue, data.finThorchainRevenueUsd, FIN_TO_THORCHAIN);
 
   addUsd(dailyFees, data.swapAffiliateFeesUsd, SWAP_AFFILIATE_FEES);
   addUsd(dailyUserFees, data.swapAffiliateFeesUsd, SWAP_AFFILIATE_FEES);
   addUsd(dailyRevenue, data.swapAffiliateFeesUsd, SWAP_AFFILIATE_FEES);
+  addUsd(dailyProtocolRevenue, data.swapAffiliateFeesUsd, SWAP_AFFILIATE_FEES);
 
   addUsd(dailyFees, data.bruneGrossRewardsUsd, BRUNE);
   addUsd(dailyRevenue, data.bruneProtocolFeeUsd, BRUNE_PROTOCOL_FEE);
@@ -53,7 +55,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Scoped Rujira adapter covering FIN app-layer fees, the 0.50% RUJI Swap affiliate fee, and gross THORChain bonding rewards earned by bRUNE. Ghost, money market, liquidation, and Index revenue are excluded until supported data sources are available.",
     Revenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission for the covered products.",
-    ProtocolRevenue: "The 10% bRUNE protocol commission for the covered products.",
+    ProtocolRevenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission for the covered products.",
     SupplySideRevenue: "The FIN fee share paid to THORChain and the 90% of bRUNE bonding rewards distributed to bRUNE users.",
   },
   breakdownMethodology: {
@@ -68,6 +70,8 @@ const adapter: SimpleAdapter = {
       [BRUNE_PROTOCOL_FEE]: "The 10% Rujira commission on bRUNE bonding rewards.",
     },
     ProtocolRevenue: {
+      [FIN_TO_RUJIRA]: "The Rujira destination amount from FIN fees.",
+      [SWAP_AFFILIATE_FEES]: "The RUJI Swap affiliate fee retained as Rujira revenue.",
       [BRUNE_PROTOCOL_FEE]: "The 10% Rujira commission on bRUNE bonding rewards.",
     },
     SupplySideRevenue: {
