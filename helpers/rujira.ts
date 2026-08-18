@@ -4,10 +4,16 @@ import request, { gql } from "graphql-request";
 export const RUJIRA_START_DATE = "2026-01-01";
 
 const GRAPHQL_ENDPOINT = "https://analytics.rujira.network/api/graphiql";
+// Rujira analytics API amounts are fixed-point USD values with 1e8 precision, confirmed by the Rujira API team.
 const AMOUNT_SCALE = new BigNumber(1e8);
 const DAY_SECONDS = 24 * 60 * 60;
+// Rujira's public GraphQL endpoint exposes Relay-style pagination (`first`/`after`) for finV3.pairs.
+// https://analytics.rujira.network/api/graphiql
 const PAGE_SIZE = 100;
+// Safety guard for the paginated pair scan; 100 pages at PAGE_SIZE covers up to 10,000 FIN pairs.
 const MAX_PAGES = 100;
+// Daily bin queries request a small window so the adapter can select the exact UTC bin from GraphQL edges.
+const DAILY_BIN_LIMIT = 3;
 
 // Staking pool addresses returned by the public staking.pools query:
 // https://analytics.rujira.network/api/graphiql
@@ -95,7 +101,7 @@ export type RujiraDailyFees = {
 };
 
 const finPairsQuery = gql`
-  query RujiraFinPairs($from: Timestamp!, $to: Timestamp!, $after: String, $first: Int!) {
+  query RujiraFinPairs($from: Timestamp!, $to: Timestamp!, $after: String, $first: Int!, $binFirst: Int!) {
     finV3 {
       pairs(first: $first, after: $after, sortBy: NAME, sortDir: ASC) {
         edges {
@@ -105,7 +111,7 @@ const finPairsQuery = gql`
               to: $to
               resolution: "1D"
               period: 1
-              first: 3
+              first: $binFirst
             ) {
               edges {
                 node {
@@ -239,6 +245,7 @@ export async function fetchRujiraDailyVolumeUsd(startTimestamp: number): Promise
     const response: FinPairsResponse = await request(GRAPHQL_ENDPOINT, finPairsQuery, {
       ...range,
       after,
+      binFirst: DAILY_BIN_LIMIT,
       first: PAGE_SIZE,
     });
 
@@ -261,7 +268,7 @@ export async function fetchRujiraDailyFees(startTimestamp: number): Promise<Ruji
   const range = dailyRange(startTimestamp);
   const response: DailyFeesResponse = await request(GRAPHQL_ENDPOINT, dailyFeesQuery, {
     ...range,
-    first: 3,
+    first: DAILY_BIN_LIMIT,
     period: 1,
     resolution: "1D",
   });
