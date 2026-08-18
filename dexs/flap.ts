@@ -133,8 +133,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     let safe: string | undefined = config.safe;
     try {
       safe = await options.api.call({ target: portal, abi: "address:FEE_RECEIVER" });
-    } catch {
-      // keep chain fallback
+    } catch (e) {
+      const msg = String((e as any)?.message ?? e);
+      const missingGetter = /execution reverted|returned no data|FUNCTION_SELECTOR_NOT_RECOGNIZED/i.test(msg);
+      if (!missingGetter) throw e;
+      if (!config.safe) {
+        console.log(`flap: FEE_RECEIVER missing on ${options.chain}, skipping treasury fees`);
+        return;
+      }
+      console.log(`flap: FEE_RECEIVER() unsupported on ${options.chain}, using fallback ${config.safe}`);
+      safe = config.safe;
     }
     if (!safe) {
       console.log(`flap: FEE_RECEIVER missing on ${options.chain}, skipping treasury fees`);
