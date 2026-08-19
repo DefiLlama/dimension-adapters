@@ -1038,7 +1038,13 @@ function getTristeroFillTransactions(
   const cached = fillTransactionCache.get(cacheKey);
   if (cached) return cached;
 
-  const pending = fetchTristeroFillTransactions(options, addresses);
+  // Only successful discoveries stay cached. Retaining a rejected promise would make every
+  // later request for the same chain and window fail instantly for the lifetime of the worker,
+  // defeating the retry that a transient provider failure needs.
+  const pending = fetchTristeroFillTransactions(options, addresses).catch((error) => {
+    fillTransactionCache.delete(cacheKey);
+    throw error;
+  });
   fillTransactionCache.set(cacheKey, pending);
   return pending;
 }
