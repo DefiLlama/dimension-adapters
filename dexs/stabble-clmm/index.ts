@@ -229,7 +229,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-12-12',
