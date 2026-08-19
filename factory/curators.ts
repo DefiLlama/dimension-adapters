@@ -411,6 +411,18 @@ const configs: Record<string, CuratorConfig> = {
         morpho: ['0x6137dcfdd3c83fe2922b1cba4105d2e92b327a06'],
         start: '2026-03-22',
       },
+      [CHAIN.SOLANA]: {
+        // Kamino kvaults curated by RockawayX. Both share vaultAdminAuthority
+        // 5WodE5oHa6Uy16zg4eTep9t6DqJKx7jFN6bomAm7bVQv, which owns exactly these
+        // two: "RWA USDC" (DWSX...) and "RockawayX SOL" (Hoff...). The third vault
+        // listed under RockawayX on the TVL side ("Marinade USD", 2TNC...) has a
+        // different admin authority, so it is not attributed here.
+        kaminoVaults: [
+          'DWSXb18xZApz29vnQpgR2m6MynCT7PznaXt7Ut7M7KaP',
+          'HoffqVZUNGGpEAhE42E1DqNYSwJjCkorfgiBN6NpT2or',
+        ],
+        start: '2026-01-13',
+      },
     },
   },
   "seamless-vaults": {

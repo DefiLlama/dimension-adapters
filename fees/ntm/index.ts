@@ -19,14 +19,34 @@ const fetchFeesAndRevenues = async (options: FetchOptions) => {
   const endTime = new Date(options.endTimestamp * 1000)
     .toISOString()
     .split(".")[0];
-  const res = await httpGet(
-    `${endpoint}start_date=${startTime}&end_date=${endTime}&chain=${options.chain}`,
-  );
+  const url = `${endpoint}start_date=${startTime}&end_date=${endTime}&chain=${options.chain}`;
+  const res = await httpGet(url);
+
+  // Reject anything that is not a real number before it reaches addCGToken.
+  // Number(undefined) is NaN and Number(null)/Number("")/Number(" ")/Number([])
+  // are all a finite 0, so a non-JSON body or a changed field name would
+  // otherwise land as a silent zero or an unreadable NaN instead of an error
+  // naming the endpoint. Only a number or a non-blank string is accepted.
+  const readAmount = (raw: unknown, field: string): number => {
+    const usable =
+      typeof raw === "number" || (typeof raw === "string" && raw.trim() !== "");
+    if (!usable) {
+      throw new Error(`ntm: missing or non-numeric ${field} (${JSON.stringify(raw)}) from ${url}`);
+    }
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`ntm: unusable ${field} (${JSON.stringify(raw)}) from ${url}`);
+    }
+    return value;
+  };
+
   const token = chainToken[options.chain];
+  if (!token) throw new Error(`ntm: no coingecko id mapped for chain ${options.chain}`);
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  dailyFees.addCGToken(token, res.fees_total);
-  dailyRevenue.addCGToken(token, res.revenue_total);
+  dailyFees.addCGToken(token, readAmount(res?.fees_total, "fees_total"));
+  dailyRevenue.addCGToken(token, readAmount(res?.revenue_total, "revenue_total"));
 
   return { dailyFees, dailyRevenue };
 };
