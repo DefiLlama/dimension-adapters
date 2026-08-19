@@ -1,6 +1,7 @@
 import { formatAddress } from "../utils/utils";
 import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
+import BulkDexTokensBlacklisted from "./dexTokensBlacklisted.json";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
@@ -122,20 +123,23 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   ],
 };
 
+// dexTokensBlacklisted.json ({chain: {address: note}}) comes from a dune screen
+// over dex.trades full history on major dexs: pairs with >=$20M lifetime volume
+// whose flow is too concentrated to be organic, token not CG-listed (now or at
+// its mid-life), not a core asset, and without material organic volume elsewhere.
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
-  return DefaultDexTokensBlacklisted[chain]
-    ? DefaultDexTokensBlacklisted[chain].map((item) => formatAddress(item))
-    : [];
+  const manual = DefaultDexTokensBlacklisted[chain] ?? [];
+  const bulk = Object.keys((BulkDexTokensBlacklisted as Record<string, Record<string, string>>)[chain] ?? {});
+  return [...new Set([...manual, ...bulk].map((item) => formatAddress(item)))];
 }
 
 export function getAllDexTokensBlacklisted(): Array<string> {
-  let bl: Array<string> = [];
-
-  for (const tokens of Object.values(DefaultDexTokensBlacklisted)) {
-    bl = bl.concat(tokens.map((item) => formatAddress(item)));
+  const chains = new Set([...Object.keys(DefaultDexTokensBlacklisted), ...Object.keys(BulkDexTokensBlacklisted)]);
+  const bl = new Set<string>();
+  for (const chain of chains) {
+    for (const token of getDefaultDexTokensBlacklisted(chain)) bl.add(token);
   }
-
-  return bl;
+  return [...bl];
 }
 
 interface ChainTokenConfig {
