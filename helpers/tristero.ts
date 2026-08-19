@@ -1026,7 +1026,7 @@ function toTransferTopic(address: string): string {
   return `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
 }
 
-type TristeroFillTransaction = { hash: string; input: string; from: string };
+type TristeroFillTransaction = { hash: string; input: string; from: string; to: string };
 
 // dexs, aggregators and fees each ask for the same fills over the same window, so the log scan
 // and the transaction fetch behind it are memoised per chain and block range.
@@ -1041,16 +1041,19 @@ function getTristeroFillTransactions(
   options: FetchOptions,
   addresses: string[],
 ): Promise<TristeroFillTransaction[]> {
-  if (!addresses.length) return Promise.resolve([]);
+  // Callers pass router addresses in mixed case, so they are normalised once here. That also
+  // makes the cache key stable, so the volume and fee adapters share one discovery per window.
+  const routers = [...new Set(addresses.map(normalizeAddress))].sort();
+  if (!routers.length) return Promise.resolve([]);
 
-  const cacheKey = `${options.chain}-${options.fromTimestamp}-${options.toTimestamp}-${[...addresses].sort().join(",")}`;
+  const cacheKey = `${options.chain}-${options.fromTimestamp}-${options.toTimestamp}-${routers.join(",")}`;
   const cached = fillTransactionCache.get(cacheKey);
   if (cached) return cached;
 
   // Only successful discoveries stay cached. Retaining a rejected promise would make every
   // later request for the same chain and window fail instantly for the lifetime of the worker,
   // defeating the retry that a transient provider failure needs.
-  const pending = fetchTristeroFillTransactions(options, addresses).catch((error) => {
+  const pending = fetchTristeroFillTransactions(options, routers).catch((error) => {
     fillTransactionCache.delete(cacheKey);
     throw error;
   });
@@ -1060,9 +1063,9 @@ function getTristeroFillTransactions(
 
 async function fetchTristeroFillTransactions(
   options: FetchOptions,
-  addresses: string[],
+  routers: string[],
 ): Promise<TristeroFillTransaction[]> {
-  const logsPerAddress = await Promise.all(addresses.map((address) => options.getLogs({
+  const logsPerAddress = await Promise.all(routers.map((address) => options.getLogs({
     noTarget: true,
     // Match on the recipient only. The sdk accepts a positional null to skip topic1; the
     // wrapper type declares string[], hence the cast.
@@ -1079,13 +1082,25 @@ async function fetchTristeroFillTransactions(
   if (!txHashes.length) return [];
 
   const transactions = await getTransactionsWithRetry(options.chain, txHashes);
+
+  // An unresolved transaction is missing input, not an empty one. Dropping it would silently
+  // lose the volume and gas abstraction it carried.
+  const missingIndex = transactions.findIndex((tx) => !tx);
+  if (missingIndex >= 0) {
+    throw new Error(`Unable to load Tristero fill transaction on ${options.chain}: ${txHashes[missingIndex]}`);
+  }
+
+  // A transfer into the router only proves tokens moved, not that the router was the callee -
+  // an unrelated contract could be called with calldata that happens to share the selector. Only
+  // transactions sent to a configured router are decoded.
   return transactions
     .map((tx: any, index: number) => ({
       hash: tx?.hash ? normalizeAddress(tx.hash) : txHashes[index],
       from: normalizeAddress(tx?.from),
+      to: normalizeAddress(tx?.to),
       input: String(tx?.data ?? tx?.input ?? ""),
     }))
-    .filter(({ input }) => input.length > 2);
+    .filter(({ to, input }) => routers.includes(to) && input.length > 2);
 }
 
 async function addV3RouterOpenVolume(options: FetchOptions, buckets: TristeroVolumeBuckets) {
