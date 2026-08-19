@@ -12,29 +12,32 @@ const chainConfig: Record<string, {
   start: string;
   portal: string;
   fromBlock: number;
-  safe?: string;
+  // Fee Safe — portals do not expose address:FEE_RECEIVER
+  safe: string;
 }> = {
   [CHAIN.BSC]: {
     start: "2024-06-27",
     portal: "0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0",
     fromBlock: 39980228,
-    // FEE_RECEIVER fallback  (BSC treasury Safe)
-    safe: "0x8a08d98cbb218fceb318ecf3abc1ba43d8a7ab0e",
+    safe: "0x8a08D98CBB218fceB318Ecf3aBc1BA43D8A7aB0E",
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-08",
     portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
     fromBlock: 4180724,
+    safe: "0xa4A727E0918cf9B39639Fc4cB7D742d39C5352a4",
   },
   [CHAIN.XLAYER]: {
     start: "2025-08-18",
     portal: "0xb30D8c4216E1f21F27444D2FfAee3ad577808678",
     fromBlock: 31165559,
+    safe: "0xAC4f9Ba4E48cAafBa17164FBCb078091651Ae361",
   },
   [CHAIN.MONAD]: {
     start: "2025-10-30",
     portal: "0x30e8ee7b5881bf2E158A0514f2150aabe2c68b23",
     fromBlock: 32284042,
+    safe: "0xA77dc19CF7CB7ab50b661Ce5AB6D37954F8022f4",
   },
 };
 
@@ -128,27 +131,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   })();
 
-  // Fees match : every quote-token inflow to the fee Safe, any sender.
+  // Fees: every quote-token inflow to the fee Safe, any sender.
+  // Safe is hardcoded per chain — Portal has no address:FEE_RECEIVER view.
   const feePrep = (async () => {
-    let safe: string | undefined = config.safe;
-    try {
-      safe = await options.api.call({ target: portal, abi: "address:FEE_RECEIVER" });
-    } catch (e) {
-      const msg = String((e as any)?.message ?? e);
-      const missingGetter = /execution reverted|returned no data|FUNCTION_SELECTOR_NOT_RECOGNIZED/i.test(msg);
-      if (!missingGetter) throw e;
-      if (!config.safe) {
-        console.log(`flap: FEE_RECEIVER missing on ${options.chain}, skipping treasury fees`);
-        return;
-      }
-      console.log(`flap: FEE_RECEIVER() unsupported on ${options.chain}, using fallback ${config.safe}`);
-      safe = config.safe;
-    }
-    if (!safe) {
-      console.log(`flap: FEE_RECEIVER missing on ${options.chain}, skipping treasury fees`);
-      return;
-    }
-    safe = safe.toLowerCase();
+    const safe = config.safe.toLowerCase();
 
     const configLogs = await options.getLogs({
       target: portal,
