@@ -1180,6 +1180,7 @@ const methodologyMap: Record<string, any> = {
 
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
+  "capx": '2026-07-31',
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",
@@ -1700,7 +1701,9 @@ for (const [name, config] of Object.entries(configs)) {
 
 // Build subgraph dex protocols
 for (const [name, config] of Object.entries(subgraphConfigs)) {
-  protocols[name] = buildSubgraphAdapter(config)
+  const adapter = buildSubgraphAdapter(config)
+  if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
+  protocols[name] = adapter
 }
 
 // Build fees protocols
@@ -1709,6 +1712,7 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   const adapter = uniV2Exports(config)
   adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
+  if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   feesProtocols[name] = adapter
 }
 
