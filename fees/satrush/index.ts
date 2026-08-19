@@ -29,9 +29,9 @@ const TREASURY_PDA = "FP7MRz61w5HEhFa3s4ifn26A3yQGHVdvPjhqu34jfQPt";
 // any fee rate change will be preceded by a timestamp update in that account.
 // Ordered most recent first; `from` is the blockTime of the config update tx.
 const SAT_STRIKE_FEE_SCHEDULE = [
-  // VhfQdM5peym4ceKzSyTC6FGSj8sTUb2QjG7LyGVrahES3N67BGs54BwQU4oXAMDLAZgm2n16B4dVXpM4gwoUP4d
+  // https://solscan.io/tx/VhfQdM5peym4ceKzSyTC6FGSj8sTUb2QjG7LyGVrahES3N67BGs54BwQU4oXAMDLAZgm2n16B4dVXpM4gwoUP4d
   { from: 1786633366, bps: 294 },
-  // 4Ljdn8QsPGBUX9UJLr7o6Qkgz7NZcoPewTt3vmbtBDQRbW3posSfXT5LX8v8ax9QLG18MUaHxsFoFN3uNpqrAGrZ
+  // https://solscan.io/tx/4Ljdn8QsPGBUX9UJLr7o6Qkgz7NZcoPewTt3vmbtBDQRbW3posSfXT5LX8v8ax9QLG18MUaHxsFoFN3uNpqrAGrZ
   { from: 1786488229, bps: 280 },
   { from: 0, bps: 264 },
 ];
