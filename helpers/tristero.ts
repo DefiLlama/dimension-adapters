@@ -164,8 +164,16 @@ const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
   [CHAIN.BASE]: ["https://mainnet.base.org"],
 };
 
-// Ethereum, Base and Arbitrum all use WETH as the wrapped native asset, which
-// normalizeVolumeToken already resolves from coreAssets - no per-chain overrides needed.
+// Wrapped native token per chain, for orders whose src asset is the zero address. Optimism's
+// canonical WETH is the WETH_1 key in coreAssets and polygon's canonical WMATIC is WMATIC_2.
+const WRAPPED_NATIVE_TOKENS: Record<string, string> = {
+  [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
+  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
+  [CHAIN.BASE]: ADDRESSES.base.WETH,
+  [CHAIN.POLYGON]: ADDRESSES.polygon.WMATIC_2,
+  [CHAIN.AVAX]: ADDRESSES.avax.WAVAX,
+  [CHAIN.OPTIMISM]: ADDRESSES.optimism.WETH_1,
+};
 
 const ORDER_ROUTER_INTERFACE = new Interface([
   "function send((address sender, (address srcAsset, address dstAsset, uint256 srcQuantity, uint256 dstQuantity, uint256 minQuantity, uint128 darkSalt) parameters, uint256 deadline, address target, address filler, string orderType, bytes customData) order, (uint256 nonce, bytes signature) payload, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb, uint256 minOut, (address vault, ((address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature) v)"
@@ -858,8 +866,9 @@ function normalizeVolumeToken(chain: string, tokenAddress?: string | null): stri
   if (!normalized) return null;
 
   if (normalized === '0x0000000000000000000000000000000000000000' || normalized === 'native') {
-    const wrappedToken = (ADDRESSES as Record<string, { WETH?: string } | undefined>)[chain]?.WETH;
-    return wrappedToken?.toLowerCase() ?? null;
+    const wrappedToken = WRAPPED_NATIVE_TOKENS[chain];
+    if (!wrappedToken) throw new Error(`Missing wrapped native token mapping for ${chain}`);
+    return wrappedToken.toLowerCase();
   }
 
   return normalized;
@@ -1136,10 +1145,8 @@ export async function fetchTristeroGasAbstractionFees(options: FetchOptions): Pr
 
   feeBearing.forEach(({ hash, from, orders }, index) => {
     const receipt = receipts[index];
-    if (!receipt) {
-      sdk.log(`Skipping Tristero gas abstraction on ${options.chain} tx ${hash}: missing receipt`);
-      return;
-    }
+    // Missing input data, not an empty day: skipping would under-report fees silently.
+    if (!receipt) throw new Error(`Missing Tristero gas abstraction receipt for ${options.chain} tx ${hash}`);
 
     const darkpoolSrcTokens = new Set(orders.filter(({ isDarkpool }) => isDarkpool).map(({ srcToken }) => normalizeAddress(srcToken)));
 
