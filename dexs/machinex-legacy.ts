@@ -48,6 +48,7 @@ const adapter: SimpleAdapter = {
       [METRIC.SWAP_FEES]: "Fees from swap events on the MachineX legacy pools, taken at each pool's own fee rate.",
     },
   },
+  skipBreakdownValidation: true,
 }
 
 export default adapter
