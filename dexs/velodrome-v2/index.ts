@@ -92,7 +92,7 @@ const collectGaugesAndBribes = async (options: FetchOptions, cfg: ChainCfg) => {
       const pool = e.pool.toLowerCase()
         ; (poolToGauges[pool] = poolToGauges[pool] || new Set()).add(gauge)
     }
-    if (e[bribeField] && e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
+    if (e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
   })
   if (bribeContracts.size > 0) {
     const logs = await getLogs({ targets: [...bribeContracts], eventAbi: notifyRewardFull })
