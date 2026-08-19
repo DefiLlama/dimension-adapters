@@ -16,7 +16,12 @@ import { addOneToken } from "../../helpers/prices";
   // [HECO]: "https://n10.hg.network/subgraphs/name/dodoex-mine-v3-heco/heco",
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */
-const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
+// api.dodoex.io needs an API key and the one this adapter carried now comes back
+// 403 "request deny" (a bogus key gets 401 "Invalid API key", so it is recognised
+// and refused, not mistyped). gateway.dodoex.io serves the same
+// FetchDashboardDailyData query with no key and is the host fees/dodo-fees.ts
+// already uses.
+const dailyEndpoint = "https://gateway.dodoex.io/graphql?opname=FetchDashboardDailyData"
 const chains = [
   CHAIN.ARBITRUM,
   CHAIN.BSC,

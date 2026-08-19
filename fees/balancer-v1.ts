@@ -2,27 +2,47 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { SimpleAdapter, FetchOptions } from "../adapters/types"
-import BigNumber from "bignumber.js";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
     sdk.graph.modifyEndpoint('93yusydMYauh7cfe9jEfoGABmwnX4GffHd7in8KJi1XB'),
 }
 
+const LABELS = {
+  SwapFees: 'Token Swap Fees',
+  SwapFeesToLPs: 'Token Swap Fees To LPs',
+}
+
 const methodology = {
-  UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
-  Fees: "All trading fees collected (includes swap and  yield fee)",
-  Revenue: "Protocol revenue from all fees collected",
-  ProtocolRevenue: "Balancer V2 protocol fees are set to 50%",
-  SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
+  UserFees: "Trading fees paid by users, set per pool by the pool creator (0.0001% to 10%)",
+  Fees: "All swap fees collected from trades across Balancer V1 pools",
+  Revenue: "Balancer V1 takes no protocol fee, so protocol revenue is zero",
+  ProtocolRevenue: "Balancer V1 takes no protocol fee, so protocol revenue is zero",
+  SupplySideRevenue: "All swap fees are distributed to pool liquidity providers",
+}
+
+const breakdownMethodology = {
+  UserFees: {
+    [LABELS.SwapFees]: "Swap fees paid by users on each trade",
+  },
+  Fees: {
+    [LABELS.SwapFees]: "All swap fees collected from trades across Balancer V1 pools",
+  },
+  SupplySideRevenue: {
+    [LABELS.SwapFeesToLPs]: "100% of swap fees are distributed to pool liquidity providers",
+  },
 }
 
 const adapter: SimpleAdapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: async ({ getFromBlock, getToBlock }: FetchOptions) => {
+      fetch: async ({ getFromBlock, getToBlock, createBalances }: FetchOptions) => {
+        const dailyFees = createBalances();
+        const dailySupplySideRevenue = createBalances();
+        
         const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
         const graphQuery = gql
@@ -36,19 +56,21 @@ const adapter: SimpleAdapter = {
         }`;
 
         const graphRes = await request(v1Endpoints[CHAIN.ETHEREUM], graphQuery);
-        const dailyFee = (new BigNumber(graphRes["today"]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"])))
+        const swapFees = Number(graphRes["today"]["totalSwapFee"]) - Number(graphRes["yesterday"]["totalSwapFee"])
+        dailyFees.addUSDValue(swapFees, LABELS.SwapFees)
+        dailySupplySideRevenue.addUSDValue(swapFees, LABELS.SwapFeesToLPs)
 
         return {
-          dailyFees: dailyFee,
-          dailyUserFees: dailyFee,
+          dailyFees,
+          dailyUserFees: dailyFees,
           dailyRevenue: "0",
           dailyProtocolRevenue: "0",
-          dailySupplySideRevenue: dailyFee,
+          dailySupplySideRevenue,
         } as any
       },
       start: '2020-02-27',
     },
-  }
+  },
 }
 
 export default adapter;

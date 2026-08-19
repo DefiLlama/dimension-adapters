@@ -35,6 +35,8 @@ const contracts = {
   CONDITIONAL_TOKENS: "0xC9c98965297Bc527861c898329Ee280632B76e18",
   FEE_RECIPIENT: "0x88eaf31f9fE392002e0E818527f8259af92287b1",
 
+  // batch distributor that pays maker rebates, LP rewards and creator fees to traders
+  REWARDS_DISTRIBUTOR: "0xE895CaE6B705d584b03cd82Fdd57cf7F8c52FaDB",
 };
 
 const abi = {
@@ -47,6 +49,7 @@ const abi = {
 const FEE_LABELS = {
   ORDERBOOK: 'Orderbook Fees',
   AMM: 'AMM Fees',
+  TRADER_REWARDS: 'Trader Rewards',
 };
 
 async function fetch(options: FetchOptions) {
@@ -118,7 +121,7 @@ async function fetch(options: FetchOptions) {
   await addTokensReceived({
     options,
     balances: orderbookFees,
-    fromAdddesses: [contracts.CONDITIONAL_TOKENS, contracts.FEE_MODULE, contracts.FEE_MODULE_V2, contracts.FEE_MODULE_V3, contracts.FEE_MODULE_V4, contracts.WRAPPED_COLLATERAL_1,contracts.WRAPPED_COLLATERAL_2, contracts.WRAPPED_COLLATERAL_3, contracts.NEG_RISK_FEE_MODULE, contracts.NEG_RISK_FEE_MODULE_V2, contracts.NEG_RISK_FEE_MODULE_V3, contracts.NEG_RISK_FEE_MODULE_V4],
+    fromAdddesses: [contracts.CONDITIONAL_TOKENS, contracts.FEE_MODULE, contracts.FEE_MODULE_V2, contracts.FEE_MODULE_V3, contracts.FEE_MODULE_V4, contracts.WRAPPED_COLLATERAL_1, contracts.WRAPPED_COLLATERAL_2, contracts.WRAPPED_COLLATERAL_3, contracts.NEG_RISK_FEE_MODULE, contracts.NEG_RISK_FEE_MODULE_V2, contracts.NEG_RISK_FEE_MODULE_V3, contracts.NEG_RISK_FEE_MODULE_V4],
     target: contracts.FEE_RECIPIENT,
     token: ADDRESSES.base.USDC
   });
@@ -126,21 +129,43 @@ async function fetch(options: FetchOptions) {
   dailyFees.addBalances(orderbookFees, FEE_LABELS.ORDERBOOK);
   dailyFees.addBalances(ammFees, FEE_LABELS.AMM);
 
+  // Taker fees swept to the treasury are forwarded in full to traders as maker
+  // rebates, LP rewards and creator fees. Count that as supply side, not revenue.
+  const traderRewards = await addTokensReceived({
+    options,
+    fromAdddesses: [contracts.REWARDS_DISTRIBUTOR],
+    token: ADDRESSES.base.USDC,
+  });
+
+  const orderbookRevenue = orderbookFees.clone();
+  orderbookRevenue.subtract(traderRewards);
+
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(traderRewards, FEE_LABELS.TRADER_REWARDS);
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(orderbookRevenue, FEE_LABELS.ORDERBOOK);
+  dailyRevenue.addBalances(ammFees, FEE_LABELS.AMM);
+
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue: 0,
     dailyNotionalVolume,
   };
 }
 
 const methodology = {
-  Volume: "Limitless exchange orderbook and fpmm volume",
-  Fees: "Orderbook and fpmm fee post fee refunds",
-  Revenue: "Orderbook and fpmm trading fees that go to the protocol treasury",
-  ProtocolRevenue: "Orderbook and fpmm trading fees that go to the protocol treasury",
+  Volume: "USDC value of every trade, counting the orderbook and the AMM markets once each",
+  NotionalVolume: "Number of outcome shares changing hands, counted at one share per trade",
+  Fees: "Trading fees paid by takers. Only takers pay: the orderbook charges 0.40%-3.00% on buys and 0.42%-1.50% on sells depending on the price, and maker fees are refunded in full. AMM markets charge a flat 0.40%.",
+  SupplySideRevenue: "Maker rebates, liquidity provider rewards and market creator fees, paid out to traders in USDC every day",
+  Revenue: "Trading fees left over after the daily payouts to makers, liquidity providers and market creators",
+  ProtocolRevenue: "Trading fees left over after the daily payouts to makers, liquidity providers and market creators",
+  HoldersRevenue: "Zero. No portion of trading fees reaches LMTS holders on-chain today.",
 };
 
 const breakdownMethodology = {
@@ -149,23 +174,28 @@ const breakdownMethodology = {
     [FEE_LABELS.AMM]: "FPMM (AMM) trading fees from FPMMBuy and FPMMSell events",
   },
   Revenue: {
-    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees that go to the protocol treasury",
-    [FEE_LABELS.AMM]: "FPMM (AMM) trading fees that go to the protocol treasury",
+    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees left over after the daily payouts to makers, liquidity providers and market creators",
+    [FEE_LABELS.AMM]: "AMM trading fees, which the protocol keeps in full because it is the only liquidity provider in those markets",
   },
   ProtocolRevenue: {
-    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees that go to the protocol treasury",
-    [FEE_LABELS.AMM]: "FPMM (AMM) trading fees that go to the protocol treasury",
+    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees left over after the daily payouts to makers, liquidity providers and market creators",
+    [FEE_LABELS.AMM]: "AMM trading fees, which the protocol keeps in full because it is the only liquidity provider in those markets",
+  },
+  SupplySideRevenue: {
+    [FEE_LABELS.TRADER_REWARDS]: "Maker rebates, liquidity provider rewards and market creator fees, paid out to traders in USDC every day",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   methodology,
   breakdownMethodology,
-  start: '2024-04-23'
+  start: '2024-04-23',
+  // payouts are batched daily and can exceed the fees swept on the same day
+  allowNegativeValue: true,
 };
 
 export default adapter;

@@ -152,11 +152,6 @@ const configs: Record<string, Record<string, any>> = {
   "squadswap-v3": {
     [CHAIN.BSC]: { factory: '0x009c4ef7C0e0Dd6bd1ea28417c01Ea16341367c3', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
-  "9mm": {
-    [CHAIN.PULSECHAIN]: { factory: '0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68' },
-    [CHAIN.BASE]: { factory: '0x7b72C4002EA7c276dd717B96b20f4956c5C904E7' },
-    [CHAIN.SONIC]: { factory: '0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5' },
-  },
   "maia-v3": {
     [CHAIN.METIS]: { factory: '0xf5fd18Cd5325904cC7141cB9Daca1F2F964B9927', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0, start: "2023-04-01" },
   },
@@ -290,7 +285,7 @@ const configs: Record<string, Record<string, any>> = {
   "reservoir-tools-clmm": {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
-    [CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    //[CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.REDSTONE]: { factory: '0xece75613Aa9b1680f0421E5B2eF376DF68aa83Bb', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "shapeswap-v3": {
@@ -418,12 +413,12 @@ const configs: Record<string, Record<string, any>> = {
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
-
+  "brownfi-clamm": {
+    [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
+  },
 }
 
-const optionsMap: Record<string, any> = {
-  "9mm": { swapEvent: protocolFeesSwapEvent, },
-}
+const optionsMap: Record<string, any> = {}
 
 const methodologyMap: Record<string, any> = {
   "betterswap-v3": {

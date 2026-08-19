@@ -9,6 +9,7 @@ const alliumFeesConfigs: Record<string, { chain: CHAIN; start: string }> = {
   "linea": { chain: CHAIN.LINEA, start: "2025-02-05" },
   "ronin": { chain: CHAIN.RONIN, start: "2025-02-05" },
   "sonic": { chain: CHAIN.SONIC, start: "2025-02-05" },
+  "xlayer": { chain: CHAIN.XLAYER, start: "2024-03-30" },
 };
 
 const rpcFeesConfigKeys = ["core"] as const;

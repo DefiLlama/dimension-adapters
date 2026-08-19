@@ -31,12 +31,22 @@ const PLATFORM_FEE_WALLET = "0x5bF5805e4809A447a61621f8698CEdeA2D1fC5f0"; // CLA
 const PLATFORM_SHARE = 0.32;
 const CREATOR_SHARE = 0.63;
 const DOPPLER_SHARE = 0.05;
-// Trading: 0.40% in-app swap fee, paid by Relay to a DEDICATED app-fee recipient
-// (RELAY_APP_FEE_RECIPIENT) — a different wallet from the launch-fee treasury. Paid
-// mostly as WETH straight from Relay's Base settlement contract, plus occasional USDC
-// from Relay's claim contract. Filtered to those two senders so only fee inflows
-// count (the wallet also sees stray unrelated tokens). AGNT keeps 100%. Base only.
-const TRADING_FEE_WALLET = "0x585b685414D6ff141Ed1A4A0dD0837423e440598"; // RELAY_APP_FEE_RECIPIENT
+// Trading: 0.40% in-app swap fee, paid by Relay to the app-fee recipient
+// (RELAY_APP_FEE_RECIPIENT). Paid mostly as WETH straight from Relay's Base
+// settlement contract, plus occasional USDC from Relay's claim contract. Filtered
+// to those two senders so only fee inflows count (the wallets also see stray
+// unrelated tokens). AGNT keeps 100%. Base only.
+//
+// The app-fee recipient was REPOINTED mid-2026 from the original wallet to the
+// launch-fee treasury wallet, so trading fees have landed at BOTH over time. Count
+// both to capture the full history + all ongoing fees. Filtering by the Relay
+// senders means the launch-fee wallet's Relay inflows are still counted here as
+// trading fees while its Doppler-initializer inflows remain the launchpad leg — no
+// double counting, since the two use disjoint fromAdddesses sets.
+const TRADING_FEE_WALLETS = [
+  "0x585b685414D6ff141Ed1A4A0dD0837423e440598", // original RELAY_APP_FEE_RECIPIENT (pre-repoint)
+  "0x5bF5805e4809A447a61621f8698CEdeA2D1fC5f0", // current RELAY_APP_FEE_RECIPIENT (post-repoint; == launch-fee wallet)
+];
 const RELAY_SETTLEMENT = "0xc7F712b7e7A561eFEe674955125BD2f0243200C4"; // Relay Base settlement (pays WETH app fee)
 const RELAY_CLAIM_CONTRACT = "0xf70da97812cb96acdf810712aa562db8dfa3dbef"; // Relay claim (occasional USDC)
 
@@ -82,14 +92,15 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addBalances(revenue.clone(CREATOR_SHARE / PLATFORM_SHARE), "Launchpad Fees to Creators");
   dailySupplySideRevenue.addBalances(revenue.clone(DOPPLER_SHARE / PLATFORM_SHARE), "Launchpad Fees to Doppler");
 
-  // Trading fees — Base only. Relay pays the 0.40% app fee to the dedicated app-fee
-  // recipient: WETH from its settlement contract, occasional USDC from its claim
-  // contract. Both senders whitelisted so unrelated inflows don't count. AGNT keeps
-  // 100%, so trading fees == trading revenue.
+  // Trading fees — Base only. Relay pays the 0.40% app fee to the app-fee recipient
+  // wallet(s): WETH from its settlement contract, occasional USDC from its claim
+  // contract. Both senders whitelisted so unrelated inflows don't count. Counts both
+  // the pre- and post-repoint recipient wallets. AGNT keeps 100%, so trading fees ==
+  // trading revenue.
   if (options.chain === CHAIN.BASE) {
     const tradingFees = await addTokensReceived({
       options,
-      targets: [TRADING_FEE_WALLET],
+      targets: TRADING_FEE_WALLETS,
       tokens: [CoreAssets.base.WETH, CoreAssets.base.USDC],
       fromAdddesses: [RELAY_SETTLEMENT, RELAY_CLAIM_CONTRACT],
     });
@@ -113,7 +124,7 @@ const adapter: SimpleAdapter = {
   start: "2026-07-15",
   methodology: {
     Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH leg only — conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet.",
-    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient 0x585b6854…0598).",
+    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint).",
     ProtocolRevenue: "Same as Revenue — all AGNT launchpad fees accrue to the platform treasury.",
     SupplySideRevenue: "The 68% of launchpad pool fees paid to third-party token creators (63%) and the Doppler protocol (~5%), estimated from the observed platform WETH share.",
   },

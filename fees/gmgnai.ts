@@ -31,6 +31,15 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.SOLANA]: {
     start: '2024-03-20'
   },
+  [CHAIN.XLAYER]: {
+    start: '2026-06-23'
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-03'
+  },
+  [CHAIN.ARBITRUM]: {
+    start: '2026-08-19'
+  },
 }
 
 // GMGN's nine Solana fee-collection wallets. Verified on-chain (2026-06) to be
@@ -60,6 +69,9 @@ const EVM_CHAINS: Record<string, { dune: string; usdc?: string }> = {
   [CHAIN.MONAD]: { dune: 'monad', usdc: (ADDRESSES as any).monad?.USDC },
   [CHAIN.HYPERLIQUID]: { dune: 'hyperevm', usdc: (ADDRESSES as any).hyperliquid?.USDC },
   [CHAIN.MEGAETH]: { dune: 'megaeth' },
+  // usdg is the main stablecoin on robinhood
+  [CHAIN.ROBINHOOD]: { dune: 'robinhood', usdc: ADDRESSES.robinhood.USDG },
+  [CHAIN.XLAYER]: { dune: 'xlayer' },
 };
 
 // Solana referral-distribution wallets: GMGN funds these (mainly from BCNsHAH28…)
