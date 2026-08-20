@@ -5,9 +5,10 @@
 // through the token contract, which splits them between the platform, the token's creator, an
 // optional referrer, and the people who funded the launch.
 //
-// Everything below is read from logs rather than lifetime-counter deltas, because Robinhood
-// Chain's public RPC serves no archive state — a historical eth_call at the period-start block
-// fails. The only eth_calls made are at the latest block, against values fixed at deployment.
+// Everything below is read from event logs rather than lifetime-counter deltas or contract reads,
+// because Robinhood Chain's public RPC serves no archive state — any historical eth_call fails
+// with "metadata is not found". The adapter makes no contract calls at all: even each token's
+// service charge rate is reconstructed from the factory's own event history.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
