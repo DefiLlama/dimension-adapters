@@ -4,6 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "./env";
 
 export const GATE_SWAP_API_URL = "https://web3-biz-swapapi-prod.w3-api.com/web3api/v3/transaction/defillama/dimensions";
+export const GATE_SWAP_BRIDGE_API_URL = "https://web3-biz-swapapi-prod.w3-api.com/web3api/v3/transaction/defillama/bridge-dimensions";
 
 export type GateSwapDimensions = {
   chainId: number | string;
@@ -16,6 +17,12 @@ export type GateSwapDimensions = {
   supplySideRevenueUsd: number;
 };
 
+export type GateSwapBridgeDimensions = {
+  chainId: number | string;
+  chain: string;
+  volumeUsd: number;
+};
+
 type GateSwapResponse = {
   data: Array<Omit<GateSwapDimensions, "volumeUsd" | "feesUsd" | "userFeesUsd" | "revenueUsd" | "protocolRevenueUsd" | "supplySideRevenueUsd"> & {
     volumeUsd: number | string;
@@ -25,6 +32,10 @@ type GateSwapResponse = {
     protocolRevenueUsd: number | string;
     supplySideRevenueUsd: number | string;
   }>;
+};
+
+type GateSwapBridgeResponse = {
+  data: Array<Omit<GateSwapBridgeDimensions, "volumeUsd"> & { volumeUsd: number | string }>;
 };
 
 export const gateSwapChainConfig: Record<string, { start: string; chainId: string }> = {
@@ -49,19 +60,23 @@ export const gateSwapChainConfig: Record<string, { start: string; chainId: strin
 
 const USD_FIELDS = ["volumeUsd", "feesUsd", "userFeesUsd", "revenueUsd", "protocolRevenueUsd", "supplySideRevenueUsd"] as const;
 
-/** Fetches and validates Gate Swap dimension rows for one hourly adapter window. */
-export async function prefetchGateSwapDimensions(options: FetchOptions): Promise<any> {
+async function fetchGateSwapApi(url: string, options: FetchOptions): Promise<unknown> {
   const query = new URLSearchParams({
     startTimestamp: options.startTimestamp.toString(),
     endTimestamp: options.endTimestamp.toString(),
   });
-  const response = await httpGet(`${GATE_SWAP_API_URL}?${query}`, {
+  return httpGet(`${url}?${query}`, {
     timeout: 30_000,
     headers: {
       Accept: "application/json",
       "X-DefiLlama-Api-Key": getEnv("GATESWAP_DEFILLAMA_API_KEY"),
     },
-  }) as GateSwapResponse;
+  });
+}
+
+/** Fetches and validates Gate Swap dimension rows for one hourly adapter window. */
+export async function prefetchGateSwapDimensions(options: FetchOptions): Promise<any> {
+  const response = await fetchGateSwapApi(GATE_SWAP_API_URL, options) as GateSwapResponse;
 
   if (!Array.isArray(response?.data) || response.data.length === 0) throw new Error("Gate Swap API returned an invalid data payload");
   return response.data.map((row) => {
@@ -75,6 +90,22 @@ export async function prefetchGateSwapDimensions(options: FetchOptions): Promise
       normalized[field] = value;
     }
     return normalized;
+  });
+}
+
+/** Fetches and validates Gate Swap bridge-aggregator volume rows for one hourly adapter window. */
+export async function prefetchGateSwapBridgeDimensions(options: FetchOptions): Promise<any> {
+  const response = await fetchGateSwapApi(GATE_SWAP_BRIDGE_API_URL, options) as GateSwapBridgeResponse;
+
+  // The bridge API returns an empty data array for windows without activity.
+  if (!Array.isArray(response?.data)) throw new Error("Gate Swap bridge API returned an invalid data payload");
+  return response.data.map((row) => {
+    const volume = row.volumeUsd === "" || row.volumeUsd === null || row.volumeUsd === undefined
+      ? undefined
+      : Number(row.volumeUsd);
+    if (volume === undefined || !Number.isFinite(volume))
+      throw new Error(`Gate Swap bridge API returned an invalid volumeUsd value for chain ${row.chain}`);
+    return { chainId: row.chainId, chain: row.chain, volumeUsd: volume };
   });
 }
 
@@ -96,4 +127,15 @@ export function getGateSwapChainData(options: FetchOptions): GateSwapDimensions 
     protocolRevenueUsd: 0,
     supplySideRevenueUsd: 0,
   };
+}
+
+export function getGateSwapBridgeData(options: FetchOptions): GateSwapBridgeDimensions {
+  const rows = options.preFetchedResults as GateSwapBridgeDimensions[] | undefined;
+  if (!Array.isArray(rows)) throw new Error("Gate Swap bridge API prefetch results are unavailable");
+
+  const chainId = gateSwapChainConfig[options.chain]?.chainId;
+  if (!chainId) throw new Error(`Gate Swap has no API chain mapping for ${options.chain}`);
+  const row = rows.find((item) => item.chain === options.chain || String(item.chainId) === chainId);
+  // The API only emits chains with activity in the requested window.
+  return row ?? { chainId, chain: options.chain, volumeUsd: 0 };
 }
