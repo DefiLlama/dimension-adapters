@@ -37,7 +37,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: '0.3% Uniswap V2 swap fee on the WISE/ETH pair.',
   },
   SupplySideRevenue: {
-    [METRIC.LP_FEES]: 'All swap fees accrue to LPs; the pool has no admin/team fee switch to divert a protocol cut.',
+    [METRIC.LP_FEES]: 'All swap fees accrue to LPs; the pool has LP tokens burned to divert a protocol cut.',
   },
 }
 
