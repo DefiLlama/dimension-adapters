@@ -53,7 +53,12 @@ const logPosition = (log: any) => {
   // every rate change to every launch instead of throwing.
   if (!Number.isFinite(blockNumber))
     throw new Error("token-select: log has no blockNumber - getLogs needs onlyArgs: false");
-  return blockNumber * LOG_INDEX_SCALE + Number(log.logIndex ?? log.index ?? 0);
+  const logIndex = Number(log.logIndex ?? log.index);
+  // Same reasoning. Defaulting a missing index to 0 would collapse the within-block ordering, so a
+  // rate change could look like it preceded a launch that actually came first in the same block.
+  if (!Number.isFinite(logIndex))
+    throw new Error("token-select: log has no logIndex - getLogs needs onlyArgs: false");
+  return blockNumber * LOG_INDEX_SCALE + logIndex;
 };
 const REWARD_FEES_UPDATED =
   "event RewardFeesUpdated(uint256 oldServiceRate, uint256 oldCreatorWithReferrerRate, uint256 oldCreatorNoReferrerRate, uint256 oldReferrerRate, uint256 newServiceRate, uint256 newCreatorFeeWithReferrer, uint256 newCreatorFeeNoReferrer, uint256 newReferrerFee)";
