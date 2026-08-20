@@ -18,6 +18,12 @@ const FACTORY = "0xA94AA60e9c7f193BF678608D5837F0FD51794635";
 const FROM_BLOCK = 27657019; // first NewTokenSelectToken, 2026-08-04
 const BASIS_POINTS = 10_000;
 
+// The platform's cut of gross pool fees, in bps. Set per token at deployment and immutable
+// thereafter; every token launched to date reads 2000 (20%), e.g. $GOOD:
+// https://robinhoodchain.blockscout.com/address/0x5f62C57e5C537887117EeF828b7E3Ad41C009FEb?tab=read_contract
+// Used as the fallback when the on-chain read is unavailable — see the note in fetch().
+const DEFAULT_SERVICE_CHARGE_RATE = 2000;
+
 // Emitted by the factory once per launch. deploymentFee and migrationFee are the platform's
 // charges for this token, denominated in ETH and fixed at deployment.
 const NEW_TOKEN =
@@ -61,8 +67,11 @@ async function fetch(options: FetchOptions) {
   const tokens = allLaunches.map((log: any) => log.tokenAddress);
   if (!tokens.length) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
-  // serviceChargeRate is set at deployment and never changes, so reading it at the latest block
-  // is valid for any historical day. It is the platform's share of gross pool fees, in bps.
+  // serviceChargeRate is the platform's share of gross pool fees, in bps. options.api is pinned
+  // to the period's end block, and Robinhood Chain's public RPC serves no archive state, so this
+  // read fails for any historical period ("metadata is not found") and permitFailure yields null.
+  // The value is fixed per token at deployment, so fall back to the deployed rate rather than
+  // letting a failed read book the platform's cut as 0%.
   const serviceChargeRates = await options.api.multiCall({
     calls: tokens,
     abi: "uint256:serviceChargeRate",
@@ -71,8 +80,10 @@ async function fetch(options: FetchOptions) {
   const rateByToken: Record<string, number> = {};
   tokens.forEach((token: string, i: number) => {
     const rate = Number(serviceChargeRates[i]);
-    if (Number.isFinite(rate) && rate >= 0 && rate < BASIS_POINTS) {
+    if (Number.isFinite(rate) && rate > 0 && rate < BASIS_POINTS) {
       rateByToken[token.toLowerCase()] = rate;
+    } else {
+      rateByToken[token.toLowerCase()] = DEFAULT_SERVICE_CHARGE_RATE;
     }
   });
 
