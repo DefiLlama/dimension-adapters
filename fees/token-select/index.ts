@@ -16,13 +16,16 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // https://robinhoodchain.blockscout.com/address/0xA94AA60e9c7f193BF678608D5837F0FD51794635
 const FACTORY = "0xA94AA60e9c7f193BF678608D5837F0FD51794635";
 const FROM_BLOCK = 27657019; // first NewTokenSelectToken, 2026-08-04
+const FACTORY_DEPLOY_BLOCK = 25259405; // proxy creation, tx 0x55b14c29316153eacc527eedb3936c4834b2a7e6e951c9b1a3c01a4f6274355d
 const BASIS_POINTS = 10_000;
 
-// The platform's cut of gross pool fees, in bps. Set per token at deployment and immutable
-// thereafter; every token launched to date reads 2000 (20%), e.g. $GOOD:
-// https://robinhoodchain.blockscout.com/address/0x5f62C57e5C537887117EeF828b7E3Ad41C009FEb?tab=read_contract
-// Used as the fallback when the on-chain read is unavailable — see the note in fetch().
-const DEFAULT_SERVICE_CHARGE_RATE = 2000;
+// INITIAL_SERVICE_CHARGE_RATE in TokenSelectFactory — the platform's cut of gross pool fees in bps,
+// set in the initializer. The factory's rate is mutable (setRewardFees, which emits
+// RewardFeesUpdated); whatever it holds when a token launches is copied into that token and is
+// immutable there. So this constant is only the starting point of the rate history, not the rate.
+const INITIAL_SERVICE_CHARGE_RATE = 2000;
+const REWARD_FEES_UPDATED =
+  "event RewardFeesUpdated(uint256 oldServiceRate, uint256 oldCreatorWithReferrerRate, uint256 oldCreatorNoReferrerRate, uint256 oldReferrerRate, uint256 newServiceRate, uint256 newCreatorFeeWithReferrer, uint256 newCreatorFeeNoReferrer, uint256 newReferrerFee)";
 
 // Emitted by the factory once per launch. deploymentFee and migrationFee are the platform's
 // charges for this token, denominated in ETH and fixed at deployment.
@@ -71,25 +74,40 @@ async function fetch(options: FetchOptions) {
   const tokens = allLaunches.map((log: any) => log.tokenAddress);
   if (!tokens.length) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
-  // serviceChargeRate is the platform's share of gross pool fees, in bps. options.api is pinned
-  // to the period's end block, and Robinhood Chain's public RPC serves no archive state, so this
-  // read fails for any historical period ("metadata is not found") and permitFailure yields null.
-  // The value is fixed per token at deployment, so fall back to the deployed rate rather than
-  // letting a failed read book the platform's cut as 0%.
-  const serviceChargeRates = await options.api.multiCall({
-    calls: tokens,
-    abi: "uint256:serviceChargeRate",
-    permitFailure: true,
-  });
-  const rateByToken: Record<string, number> = {};
-  tokens.forEach((token: string, i: number) => {
-    const rate = Number(serviceChargeRates[i]);
-    if (Number.isFinite(rate) && rate > 0 && rate < BASIS_POINTS) {
-      rateByToken[token.toLowerCase()] = rate;
-    } else {
-      rateByToken[token.toLowerCase()] = DEFAULT_SERVICE_CHARGE_RATE;
+  // Each token's serviceChargeRate is the factory's rate copied in at launch and immutable on the
+  // token afterwards. It cannot be read back per token for a historical period: options.api is
+  // pinned to the period's end block and Robinhood Chain's public RPC serves no archive state, so
+  // the call fails with "metadata is not found". Reconstruct it from the factory's own history
+  // instead — start at the initializer's rate and apply every RewardFeesUpdated in block order,
+  // giving each launch the rate in force at its block. Same approach as fees/kasu.ts. A rate of 0
+  // is legitimate (the platform can waive its cut) and is preserved rather than treated as absent.
+  const rateChanges = (
+    await options.getLogs({
+      target: FACTORY,
+      eventAbi: REWARD_FEES_UPDATED,
+      fromBlock: FACTORY_DEPLOY_BLOCK,
+      cacheInCloud: true,
+    })
+  )
+    .map((log: any) => ({ blockNumber: Number(log.blockNumber), rate: Number(log.newServiceRate) }))
+    .sort((a: any, b: any) => a.blockNumber - b.blockNumber);
+
+  const rateAtBlock = (blockNumber: number) => {
+    let rate = INITIAL_SERVICE_CHARGE_RATE;
+    for (const change of rateChanges) {
+      if (change.blockNumber > blockNumber) break;
+      rate = change.rate;
     }
-  });
+    return rate;
+  };
+
+  const rateByToken: Record<string, number> = {};
+  for (const log of allLaunches) {
+    const rate = rateAtBlock(Number(log.blockNumber));
+    // A rate at or above 100% would make the gross-up below divide by zero or go negative.
+    if (!Number.isFinite(rate) || rate < 0 || rate >= BASIS_POINTS) continue;
+    rateByToken[log.tokenAddress.toLowerCase()] = rate;
+  }
 
   // Fees pulled from the pools during the period, one set of logs per launched token.
   const feeLogs = await options.getLogs({
