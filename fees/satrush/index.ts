@@ -27,8 +27,26 @@ const TREASURY_PDA = "FP7MRz61w5HEhFa3s4ifn26A3yQGHVdvPjhqu34jfQPt";
 // Share of miner deployments that stays on the board as the Sat Strike prize pool.
 // Sourced from the on-chain config account 5pJUG7jjfQxQ8jmrbdpNNCZrNmqXXkppKPNMs4Twfyfc;
 // any fee rate change will be preceded by a timestamp update in that account.
-const SAT_STRIKE_FEE_BPS = 264;
+// Ordered most recent first; `from` is the blockTime of the config update tx.
+const SAT_STRIKE_FEE_SCHEDULE = [
+  // https://solscan.io/tx/VhfQdM5peym4ceKzSyTC6FGSj8sTUb2QjG7LyGVrahES3N67BGs54BwQU4oXAMDLAZgm2n16B4dVXpM4gwoUP4d
+  { from: 1786633366, bps: 294 },
+  // https://solscan.io/tx/4Ljdn8QsPGBUX9UJLr7o6Qkgz7NZcoPewTt3vmbtBDQRbW3posSfXT5LX8v8ax9QLG18MUaHxsFoFN3uNpqrAGrZ
+  { from: 1786488229, bps: 280 },
+  { from: 0, bps: 264 },
+];
 const BPS_DENOMINATOR = 10000;
+
+// SQL expression resolving the Sat Strike fee BPS in effect at a transfer's
+// block_timestamp, so windows straddling a rate change stay accurate.
+const SAT_STRIKE_BPS_SQL = `CASE ${SAT_STRIKE_FEE_SCHEDULE.slice(0, -1)
+  .map(
+    ({ from, bps }) =>
+      `WHEN block_timestamp >= TO_TIMESTAMP_NTZ(${from}) THEN ${bps}`
+  )
+  .join(" ")} ELSE ${
+  SAT_STRIKE_FEE_SCHEDULE[SAT_STRIKE_FEE_SCHEDULE.length - 1].bps
+} END`;
 
 const MINER_DEPLOYMENTS = "Miner deployments";
 const SAT_STRIKE_FEES = "Mining fees to Sat Strike";
@@ -50,10 +68,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   // counted only when they come from outside the tracked accounts.
   // The outer_program_id filter keeps only transfers executed by Satrush
   // program instructions, ignoring direct/arbitrary transfers into the PDAs.
-  const rows: { to_address: string; amount: number }[] = await queryAllium(`
+  const rows: {
+    to_address: string;
+    amount: number;
+    strike_fee_amount: number;
+  }[] = await queryAllium(`
     SELECT
       to_address,
-      SUM(raw_amount) AS amount
+      SUM(raw_amount) AS amount,
+      SUM(raw_amount * (${SAT_STRIKE_BPS_SQL})) / ${BPS_DENOMINATOR} AS strike_fee_amount
     FROM solana.assets.transfers
     WHERE mint = '${USDC_MINT}'
       AND (
@@ -68,12 +91,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   `);
 
   const inflows: Record<string, number> = {};
+  const strikeFeesByAddress: Record<string, number> = {};
   rows.forEach((row) => {
     inflows[row.to_address] = Number(row.amount) || 0;
+    strikeFeesByAddress[row.to_address] = Number(row.strike_fee_amount) || 0;
   });
 
   const boardInflow = inflows[BOARD_PDA] ?? 0;
-  const strikeFees = (boardInflow * SAT_STRIKE_FEE_BPS) / BPS_DENOMINATOR;
+  const strikeFees = strikeFeesByAddress[BOARD_PDA] ?? 0;
   const epochFees = inflows[EPOCH_VAULT_PDA] ?? 0;
   const oneBtcFees = inflows[ONE_BTC_VAULT_PDA] ?? 0;
   const protocolFees = inflows[TREASURY_PDA] ?? 0;
