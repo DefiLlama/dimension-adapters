@@ -14,6 +14,14 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 
 // TokenSelectFactory (ERC1967 proxy — stable across implementation upgrades)
 // https://robinhoodchain.blockscout.com/address/0xA94AA60e9c7f193BF678608D5837F0FD51794635
+//
+// Scope: an earlier deployment of this same codebase exists at
+// 0xB7351ba8347fc464946CC89e3Ddf2c3f7a94b381, with 104 launches from block 17615598 (~10M blocks
+// before production). That is token.select's own pre-production test deployment and is
+// deliberately excluded. Its fee parameters are 1000x smaller than production's on every one of
+// its launches — 0.000003 ETH deployment fee against 0.003, 0.0001 ETH migration fee against 0.1 —
+// and it has its own treasury and its own $SELECT-equivalent pairing token. Only the production
+// factory below is in scope, and no production launch predates FROM_BLOCK.
 const FACTORY = "0xA94AA60e9c7f193BF678608D5837F0FD51794635";
 const FROM_BLOCK = 27657019; // first NewTokenSelectToken, 2026-08-04
 const FACTORY_DEPLOY_BLOCK = 25259405; // proxy creation, tx 0x55b14c29316153eacc527eedb3936c4834b2a7e6e951c9b1a3c01a4f6274355d
