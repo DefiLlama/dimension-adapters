@@ -42,8 +42,9 @@ const INITIAL_SERVICE_CHARGE_RATE = 2000;
 
 // A single ordering key for a log: block number, then position within the block. Rate changes and
 // launches can share a block (~0.1s block time on this chain), so block number alone is not enough
-// to say which happened first. The multiplier is far above any realistic per-block log count, and
-// the largest value this produces stays well inside a safe integer.
+// to say which happened first. The multiplier supports up to 1,000,000 logs in one block, far above
+// any realistic count, and at the current height of ~28M blocks the largest key it produces is
+// ~2.8e13, well inside Number.MAX_SAFE_INTEGER (~9.0e15).
 const LOG_INDEX_SCALE = 1e6;
 const logPosition = (log: any) => {
   const blockNumber = Number(log.blockNumber);
