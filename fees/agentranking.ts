@@ -45,7 +45,7 @@ async function loadExport(): Promise<FeesExport> {
   const now = Date.now();
   if (cachedExport && now - cachedExport.at < 10 * 60 * 1000) return cachedExport.data;
   try {
-    const res = await fetch(EXPORT_URL);
+    const res = await globalThis.fetch(EXPORT_URL);
     if (!res.ok) return {};
     const data = (await res.json()) as FeesExport;
     cachedExport = { at: now, data };
@@ -55,18 +55,21 @@ async function loadExport(): Promise<FeesExport> {
   }
 }
 
-async function fetchSolana(options: FetchOptions) {
+async function collectSolana(options: FetchOptions) {
   const data = await loadExport();
   const treasury = data.chains?.solana?.treasury || FALLBACK_SOLANA_TREASURY;
-  const dailyRevenue = options.createBalances();
+  const received = options.createBalances();
   await getSolanaReceived({
     options,
-    balances: dailyRevenue,
+    balances: received,
     target: treasury,
     mints: [data.chains?.solana?.wsol || WSOL],
     blacklist_mints: data.chains?.solana?.blacklistMints || [AR_MINT],
   });
-  const dailyFees = dailyRevenue.clone();
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(received, LABEL_PUMP_CREATOR_SHARE);
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(received, LABEL_PUMP_CREATOR_SHARE);
   return {
     dailyFees,
     dailyRevenue,
@@ -74,7 +77,7 @@ async function fetchSolana(options: FetchOptions) {
   };
 }
 
-async function fetchRobinhood(options: FetchOptions) {
+async function collectRobinhood(options: FetchOptions) {
   const data = await loadExport();
   const splitters = (data.chains?.robinhood?.splitters || []).filter(Boolean);
   const dailyFees = options.createBalances();
@@ -116,10 +119,10 @@ async function fetchRobinhood(options: FetchOptions) {
   };
 }
 
-const fetch = async (options: FetchOptions) => {
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
-  return fetchRobinhood(options);
-};
+async function collect(options: FetchOptions) {
+  if (options.chain === CHAIN.SOLANA) return collectSolana(options);
+  return collectRobinhood(options);
+}
 
 const methodology = {
   Fees:
@@ -157,7 +160,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
+  fetch: collect,
   adapter: {
     [CHAIN.SOLANA]: { start: "2026-07-01" },
     [CHAIN.ROBINHOOD]: { start: "2026-07-15" },
