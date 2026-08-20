@@ -3,8 +3,14 @@ import { CHAIN } from '../../helpers/chains'
 import { isCoreAsset } from '../../helpers/prices'
 import { filterPools, getEstablishedTokens } from '../../helpers/uniswap'
 
+// Canonical SwitchX V4Factory deployment on PulseChain:
+// https://scan.pulsechain.com/address/0xeF72cbCcF4A807DfA1fbecd61DdB488fF8a05fa3
 const FACTORY = '0xeF72cbCcF4A807DfA1fbecd61DdB488fF8a05fa3'
+// Production launch block containing the first canonical factory activity:
+// https://scan.pulsechain.com/block/26521466
 const FACTORY_FROM_BLOCK = 26521466
+// Ignore economically empty/spam pools while retaining small live markets.
+const MIN_POOL_LIQUIDITY_USD = 200
 
 const STANDARD_POOL_CREATED = 'event Pool(address indexed token0, address indexed token1, address pool)'
 const CUSTOM_POOL_CREATED = 'event CustomPool(address indexed deployer, address indexed token0, address indexed token1, address pool)'
@@ -63,8 +69,10 @@ const fetch = async (options: FetchOptions) => {
     api: options.api,
     pairs: priceablePairs,
     createBalances: options.createBalances,
-    minUSDValue: 200,
-    maxPairSize: 500,
+    minUSDValue: MIN_POOL_LIQUIDITY_USD,
+    // Do not truncate permissionless markets. options.getLogs handles
+    // multi-target retrieval with bounded concurrency when RPC fallback is used.
+    maxPairSize: Number.POSITIVE_INFINITY,
   })
   const pools = Object.keys(filteredPairs)
   if (!pools.length) return { dailyVolume }
