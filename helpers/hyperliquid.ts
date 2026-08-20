@@ -555,6 +555,23 @@ interface HypurrscanSpotAuction {
 const HYPURRSCAN_SPOT_AUCTIONS_API =
   "https://api.hypurrscan.io/pastAuctions";
 
+// Enforce the endpoint's Unix-millisecond contract: 13-digit timestamps
+// reject accidental seconds (< 1e12) and microseconds (>= 1e13).
+const MIN_PLAUSIBLE_UNIX_TIMESTAMP_MS = 1_000_000_000_000;
+const MAX_PLAUSIBLE_UNIX_TIMESTAMP_MS = 10_000_000_000_000;
+
+/**
+ * Fetches successful HIP-1 token-deployment auctions from Hypurrscan and
+ * returns HYPE burned within the half-open
+ * [options.startTimestamp, options.endTimestamp) interval.
+ *
+ * The endpoint returns Unix timestamps in milliseconds. Legacy deployment
+ * payments are non-negative, while HYPE burns are negative deployer balance
+ * changes whose positive magnitudes are summed.
+ *
+ * @throws If the response is malformed, timestamps have implausible units, or
+ * the historical deployment-payment sign convention is missing or changes.
+ */
 export async function queryHypurrscanSpotAuctionBurns(
   options: FetchOptions,
 ): Promise<Balances> {
@@ -566,17 +583,29 @@ export async function queryHypurrscanSpotAuctionBurns(
   }
 
   const auctions: HypurrscanSpotAuction[] = response
-    .map((item: any, index: number) => {
-      const time = Number(item?.time);
-      const rawDeployGas = item?.deployGas;
-
+    .map((item: unknown, index: number) => {
       if (
-        !Number.isSafeInteger(time) ||
-        time < 1_000_000_000_000 ||
-        time >= 10_000_000_000_000
+        typeof item !== "object" ||
+        item === null ||
+        Array.isArray(item)
       ) {
         throw new Error(
-          `Invalid Hypurrscan spot auction timestamp at index ${index}: ${item?.time}`,
+          `Invalid Hypurrscan spot auction record at index ${index}`,
+        );
+      }
+
+      const record = item as Record<string, unknown>;
+      const rawTime = record.time;
+      const rawDeployGas = record.deployGas;
+
+      if (
+        typeof rawTime !== "number" ||
+        !Number.isSafeInteger(rawTime) ||
+        rawTime < MIN_PLAUSIBLE_UNIX_TIMESTAMP_MS ||
+        rawTime >= MAX_PLAUSIBLE_UNIX_TIMESTAMP_MS
+      ) {
+        throw new Error(
+          `Invalid Hypurrscan spot auction timestamp at index ${index}: ${String(rawTime)}`,
         );
       }
 
@@ -587,18 +616,21 @@ export async function queryHypurrscanSpotAuctionBurns(
           rawDeployGas.trim() === "")
       ) {
         throw new Error(
-          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${rawDeployGas}`,
+          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${String(rawDeployGas)}`,
         );
       }
 
       const deployGas = Number(rawDeployGas);
       if (!Number.isFinite(deployGas)) {
         throw new Error(
-          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${rawDeployGas}`,
+          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${String(rawDeployGas)}`,
         );
       }
 
-      return { time, deployGas };
+      return {
+        time: rawTime,
+        deployGas,
+      };
     })
     .sort((a, b) => a.time - b.time);
 

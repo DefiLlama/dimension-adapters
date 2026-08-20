@@ -13,9 +13,9 @@ const SPOT_DEPLOYMENT_AUCTION_BURNS = "Spot Deployment Auction Burns";
 
 const methodology = {
   Fees: "Include spot trading fees, unit protocol fees, and HYPE burned in successful HIP-1 token-deployment auctions, excluding perps fees.",
-  Revenue: "99% of spot trading fees go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees; HYPE paid in successful HIP-1 token-deployment auctions is burned.",
+  Revenue: "97% of spot trading fees before 30 Aug 2025 and 99% thereafter go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees; HYPE paid in successful HIP-1 token-deployment auctions is burned.",
   ProtocolRevenue: "Protocol doesn't keep any fees.",
-  HoldersRevenue: "99% of spot trading fees go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees; HYPE paid in successful HIP-1 token-deployment auctions is permanently burned.",
+  HoldersRevenue: "97% of spot trading fees before 30 Aug 2025 and 99% thereafter go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees; HYPE paid in successful HIP-1 token-deployment auctions is permanently burned.",
   SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3% + fees for unit protocol.",
 }
 
@@ -26,7 +26,7 @@ const breakdownMethodology = {
     [SPOT_DEPLOYMENT_AUCTION_BURNS]: 'HYPE paid and permanently burned in successful HIP-1 token-deployment auctions.',
   },
   Revenue: {
-    'Spot Fees': '99% of spot trade fees, excluding perp fees and unit protocol fees.',
+    'Spot Fees': '97% of spot trade fees before 30 Aug 2025 and 99% thereafter, excluding perp fees and unit protocol fees.',
     [SPOT_DEPLOYMENT_AUCTION_BURNS]: 'HIP-1 token-deployment auction payments permanently burned rather than retained or distributed.',
   },
   SupplySideRevenue: {
@@ -34,7 +34,7 @@ const breakdownMethodology = {
     'HLP': '1% of the spot fees go to HLP vault (used to be 3% before 30 Aug 2025)',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "99% of spot trade fees (excluding perp fees and unit protocol fees) for buy back HYPE tokens.",
+    [METRIC.TOKEN_BUY_BACK]: "97% of spot trade fees before 30 Aug 2025 and 99% thereafter, excluding perp fees and unit protocol fees, for buying back HYPE tokens.",
     [SPOT_DEPLOYMENT_AUCTION_BURNS]: 'HYPE permanently removed from supply through successful HIP-1 token-deployment auctions.',
   },
 }
