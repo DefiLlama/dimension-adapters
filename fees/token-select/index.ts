@@ -32,6 +32,14 @@ const BASIS_POINTS = 10_000;
 // RewardFeesUpdated); whatever it holds when a token launches is copied into that token and is
 // immutable there. So this constant is only the starting point of the rate history, not the rate.
 const INITIAL_SERVICE_CHARGE_RATE = 2000;
+
+// A single ordering key for a log: block number, then position within the block. Rate changes and
+// launches can share a block (~0.1s block time on this chain), so block number alone is not enough
+// to say which happened first. The multiplier is far above any realistic per-block log count, and
+// the largest value this produces stays well inside a safe integer.
+const LOG_INDEX_SCALE = 1e6;
+const logPosition = (log: any) =>
+  Number(log.blockNumber) * LOG_INDEX_SCALE + Number(log.logIndex ?? log.index ?? 0);
 const REWARD_FEES_UPDATED =
   "event RewardFeesUpdated(uint256 oldServiceRate, uint256 oldCreatorWithReferrerRate, uint256 oldCreatorNoReferrerRate, uint256 oldReferrerRate, uint256 newServiceRate, uint256 newCreatorFeeWithReferrer, uint256 newCreatorFeeNoReferrer, uint256 newReferrerFee)";
 
@@ -97,13 +105,15 @@ async function fetch(options: FetchOptions) {
       cacheInCloud: true,
     })
   )
-    .map((log: any) => ({ blockNumber: Number(log.blockNumber), rate: Number(log.newServiceRate) }))
-    .sort((a: any, b: any) => a.blockNumber - b.blockNumber);
+    .map((log: any) => ({ position: logPosition(log), rate: Number(log.newServiceRate) }))
+    .sort((a: any, b: any) => a.position - b.position);
 
-  const rateAtBlock = (blockNumber: number) => {
+  // Only a rate change that strictly precedes the launch applies to it. Comparing block numbers
+  // alone would wrongly apply a change that landed later in the same block as the launch.
+  const rateAtPosition = (position: number) => {
     let rate = INITIAL_SERVICE_CHARGE_RATE;
     for (const change of rateChanges) {
-      if (change.blockNumber > blockNumber) break;
+      if (change.position > position) break;
       rate = change.rate;
     }
     return rate;
@@ -111,7 +121,7 @@ async function fetch(options: FetchOptions) {
 
   const rateByToken: Record<string, number> = {};
   for (const log of allLaunches) {
-    const rate = rateAtBlock(Number(log.blockNumber));
+    const rate = rateAtPosition(logPosition(log));
     // A rate at or above 100% would make the gross-up below divide by zero or go negative.
     if (!Number.isFinite(rate) || rate < 0 || rate >= BASIS_POINTS) continue;
     rateByToken[log.tokenAddress.toLowerCase()] = rate;
