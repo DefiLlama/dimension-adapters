@@ -141,10 +141,16 @@ async function fetch(options: FetchOptions) {
 
   const rateByToken: Record<string, number> = {};
   for (const log of allLaunches) {
+    const token = log.args.tokenAddress.toLowerCase();
     const rate = rateAtPosition(logPosition(log));
-    // A rate at or above 100% would make the gross-up below divide by zero or go negative.
-    if (!Number.isFinite(rate) || rate < 0 || rate >= BASIS_POINTS) continue;
-    rateByToken[log.args.tokenAddress.toLowerCase()] = rate;
+    // A rate at or above 100% would make the gross-up below divide by zero or go negative, and a
+    // non-finite one would poison every figure derived from it. Throw rather than skip the token:
+    // silently dropping it would omit all of its fees and revenue with nothing to signal the loss.
+    if (!Number.isFinite(rate) || rate < 0 || rate >= BASIS_POINTS)
+      throw new Error(
+        `token-select: reconstructed serviceChargeRate ${rate} bps is out of range for ${token}`
+      );
+    rateByToken[token] = rate;
   }
 
   // Fees pulled from the pools during the period, one set of logs per launched token.
@@ -157,7 +163,10 @@ async function fetch(options: FetchOptions) {
   feeLogs.forEach((logs: any[], i: number) => {
     const token = tokens[i].toLowerCase();
     const rate = rateByToken[token];
-    if (rate === undefined) return;
+    // Every launch got a rate above or the loop threw, so this cannot normally happen. Throw
+    // rather than return: skipping here would drop the token's fees with nothing to signal it.
+    if (rate === undefined)
+      throw new Error(`token-select: no serviceChargeRate resolved for ${token}`);
 
     // The event carries the net; gross is what the pool actually charged.
     const grossMultiplier = BASIS_POINTS / (BASIS_POINTS - rate);
