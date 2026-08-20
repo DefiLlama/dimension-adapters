@@ -1,7 +1,8 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { isCoreAsset } from '../../helpers/prices'
-import { filterPools, getEstablishedTokens } from '../../helpers/uniswap'
+import { filterPools } from '../../helpers/uniswap'
+import { httpGet } from '../../utils/fetchURL'
 
 // Canonical SwitchX V4Factory deployment on PulseChain:
 // https://scan.pulsechain.com/address/0xeF72cbCcF4A807DfA1fbecd61DdB488fF8a05fa3
@@ -16,6 +17,30 @@ const STANDARD_POOL_CREATED = 'event Pool(address indexed token0, address indexe
 const CUSTOM_POOL_CREATED = 'event CustomPool(address indexed deployer, address indexed token0, address indexed token1, address pool)'
 const SWAP =
   'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
+
+async function getHistoricalPriceableTokens(chain: string, tokens: string[], timestamp: number) {
+  const priceable = new Set<string>()
+  const unknown = new Set<string>()
+  for (const token of tokens.map((token) => token.toLowerCase())) {
+    if (isCoreAsset(chain, token)) priceable.add(token)
+    else unknown.add(token)
+  }
+
+  const pending = [...unknown]
+  for (let i = 0; i < pending.length; i += 100) {
+    const keys = pending
+      .slice(i, i + 100)
+      .map((token) => `${chain}:${token}`)
+      .join(',')
+    const { coins } = await httpGet(
+      `https://coins.llama.fi/prices/historical/${timestamp}/${keys}?searchWidth=6h`,
+    )
+    for (const [key, info] of Object.entries(coins ?? {}) as [string, any][]) {
+      if ((info?.confidence ?? 0) >= 0.9) priceable.add(key.split(':')[1].toLowerCase())
+    }
+  }
+  return priceable
+}
 
 export function selectVolumeSide(chain: string, token0: string, token1: string, establishedTokens: Set<string>) {
   const token0IsPriceable = establishedTokens.has(token0.toLowerCase())
@@ -56,7 +81,13 @@ const fetch = async (options: FetchOptions) => {
   // DefiLlama price system recognizes as a core or high-confidence asset.
   // This also makes the selected volume side explicit instead of relying on
   // addOneToken's static token1 fallback for non-core token0 assets.
-  const establishedTokens = await getEstablishedTokens(options.chain, Object.values(pairs).flat())
+  // Use the measured window's prices so later listing/coverage changes cannot
+  // alter which side is selected when replaying historical volume.
+  const establishedTokens = await getHistoricalPriceableTokens(
+    options.chain,
+    Object.values(pairs).flat(),
+    options.endTimestamp - 1,
+  )
   const priceablePairs = Object.fromEntries(
     Object.entries(pairs).filter(([, tokens]) => tokens.some((token) => establishedTokens.has(token.toLowerCase()))),
   )
@@ -105,7 +136,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Volume:
-      'Sum one explicitly priceable token side from every on-chain Swap event in economically active standard and custom pools created by the canonical SwitchX factory on PulseChain, so each trade is counted once. Pools without a PulseChain core asset or high-confidence DefiLlama-priced side are excluded.',
+      "Sum one explicitly priceable token side from every on-chain Swap event in economically active standard and custom pools created by the canonical SwitchX factory on PulseChain, so each trade is counted once. Pools without a PulseChain core asset or a high-confidence DefiLlama-priced side for the measured window are excluded.",
   },
 }
 
