@@ -104,6 +104,19 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // reporting ~$20k fees/day. Same vault-level share-price corruption.
     vault: '0x749794E985Af5a9A384B9cEe6D88DaB4CE1576A1',
     from: '2026-04-01',
+  }, {
+    // Apostro Resolv USDC (aprUSDC) - allocated to Resolv USR/RLP markets that froze at 100%
+    // utilization after the 2026-03-22 Resolv incident. Share price is ~15.74 USDC/share
+    // (started at 1.0) and Morpho still reports ~298,000% APY, so the vault-level share-price
+    // read treats a ~2% real day as a ~34% fee print (~$108k/day on ~$341k TVL).
+    vault: '0x214B47C50057eFaa7adc1B1C2608C3751Cd77D78',
+    from: '2026-03-22',
+  }],
+  [CHAIN.BASE]: [{
+    // Apostro Resolv USDC (aprUSDC) - same Resolv freeze as the ethereum twin. Share price
+    // ~12.26 USDC/share, Morpho APY ~298,000%, reporting ~$46k/day on ~$185k TVL.
+    vault: '0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3',
+    from: '2026-03-22',
   }],
 }
 
