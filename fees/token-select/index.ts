@@ -44,11 +44,15 @@ const MIGRATION =
 // token ordering, which is the two addresses sorted ascending.
 const SELECT_POOL_FEES =
   "event SelectPoolFeesCollected(address indexed tokenAddress, uint256 amount0, uint256 amount1)";
+// $SELECT, the protocol token every launch is paired against in its second pool. Deployed through
+// this same factory (first NewTokenSelectToken at block 27830592):
+// https://robinhoodchain.blockscout.com/address/0xFc39e99e78524d7c891669F70d5aa92aB1041eb6
 const SELECT_TOKEN = "0xFc39e99e78524d7c891669F70d5aa92aB1041eb6";
 
 const SWAP_FEES = "Trading Fees";
 const SWAP_FEES_PROTOCOL = "Trading Fees to Protocol";
 const SWAP_FEES_SUPPLY = "Trading Fees to Contributors and Creators";
+const SELECT_POOL_SWAP_FEES = "Token/$SELECT Pool Trading Fees";
 const DEPLOY_FEES = "Token Deployment Fees";
 const MIGRATION_FEES = "Migration Fees";
 
@@ -142,7 +146,11 @@ async function fetch(options: FetchOptions) {
     dailyRevenue.add(ADDRESSES.null, log.migrationFeeTransferred, MIGRATION_FEES);
   }
 
-  // Fees harvested from the token/$SELECT side pools.
+  // Fees harvested from the token/$SELECT side pools. Unlike the token/WETH pool, these are not
+  // split: collectSelectPoolFees transfers amount0 and amount1 in full to the treasury
+  // ("all fees go to treasury" in TokenSelectFactory), so every unit is protocol revenue and none
+  // of it reaches creators or contributors. Amounts are passed through untouched — no service
+  // charge to reconstruct, so no floating-point arithmetic here.
   const selectPoolFees = await options.getLogs({
     target: FACTORY,
     eventAbi: SELECT_POOL_FEES,
@@ -153,16 +161,11 @@ async function fetch(options: FetchOptions) {
       token < SELECT_TOKEN.toLowerCase()
         ? [token, SELECT_TOKEN.toLowerCase()]
         : [SELECT_TOKEN.toLowerCase(), token];
-    const rate = rateByToken[token];
-    if (rate === undefined) continue;
-    const protocolShare = rate / BASIS_POINTS;
 
-    dailyFees.add(token0, log.amount0, SWAP_FEES);
-    dailyFees.add(token1, log.amount1, SWAP_FEES);
-    dailyRevenue.add(token0, Number(log.amount0) * protocolShare, SWAP_FEES_PROTOCOL);
-    dailyRevenue.add(token1, Number(log.amount1) * protocolShare, SWAP_FEES_PROTOCOL);
-    dailySupplySideRevenue.add(token0, Number(log.amount0) * (1 - protocolShare), SWAP_FEES_SUPPLY);
-    dailySupplySideRevenue.add(token1, Number(log.amount1) * (1 - protocolShare), SWAP_FEES_SUPPLY);
+    dailyFees.add(token0, log.amount0, SELECT_POOL_SWAP_FEES);
+    dailyFees.add(token1, log.amount1, SELECT_POOL_SWAP_FEES);
+    dailyRevenue.add(token0, log.amount0, SELECT_POOL_SWAP_FEES);
+    dailyRevenue.add(token1, log.amount1, SELECT_POOL_SWAP_FEES);
   }
 
   return {
@@ -177,26 +180,28 @@ const methodology = {
   Fees:
     "Gross 1% Uniswap V3 trading fees on every token launched through token.select, plus a flat ETH deployment fee per launch and a migration fee charged when a launch graduates to a live pool.",
   Revenue:
-    "The platform's share of pool trading fees (serviceChargeRate on each token, currently 20%), plus all deployment and migration fees.",
+    "The platform's share of token/WETH pool trading fees (serviceChargeRate on each token, currently 20%), the whole of every token/$SELECT pool fee harvest, which the factory transfers in full to the treasury, plus all deployment and migration fees.",
   ProtocolRevenue:
-    "The platform's share of pool trading fees, plus all deployment and migration fees. token.select has no token buyback.",
+    "The platform's share of token/WETH pool trading fees, the whole of every token/$SELECT pool fee harvest, plus all deployment and migration fees. token.select has no token buyback.",
   SupplySideRevenue:
-    "Pool trading fees paid out to the token's creator, its referrer where one is attached, and the contributors who funded the launch.",
+    "Token/WETH pool trading fees paid out to the token's creator, its referrer where one is attached, and the contributors who funded the launch. Token/$SELECT pool fees are excluded: they accrue entirely to the treasury.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [SWAP_FEES]: "Gross 1% trading fees on both pools every launch creates — the token/WETH pool and the token/$SELECT pool.",
+    [SWAP_FEES]: "Gross 1% trading fees on the token/WETH pool every launch creates.",
+    [SELECT_POOL_SWAP_FEES]: "1% trading fees harvested from the token/$SELECT pool every launch creates.",
     [DEPLOY_FEES]: "Flat ETH fee charged when a token is deployed.",
     [MIGRATION_FEES]: "Fixed ETH fee plus a percentage of contributed ETH, charged on graduation.",
   },
   Revenue: {
-    [SWAP_FEES_PROTOCOL]: "Platform share of pool trading fees, read per token from serviceChargeRate.",
+    [SWAP_FEES_PROTOCOL]: "Platform share of token/WETH pool trading fees, read per token from serviceChargeRate.",
+    [SELECT_POOL_SWAP_FEES]: "Token/$SELECT pool fees in full — collectSelectPoolFees transfers both amounts to the treasury, with no creator, referrer or contributor split.",
     [DEPLOY_FEES]: "Flat ETH fee charged when a token is deployed.",
     [MIGRATION_FEES]: "Fixed ETH fee plus a percentage of contributed ETH, charged on graduation.",
   },
   SupplySideRevenue: {
-    [SWAP_FEES_SUPPLY]: "Trading fees routed to creators, referrers and launch contributors.",
+    [SWAP_FEES_SUPPLY]: "Token/WETH pool trading fees routed to creators, referrers and launch contributors.",
   },
 };
 
