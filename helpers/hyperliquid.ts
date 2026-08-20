@@ -547,6 +547,99 @@ export async function queryHypurrscanApi(
   return result;
 }
 
+interface HypurrscanSpotAuction {
+  time: number;
+  deployGas: number;
+}
+
+const HYPURRSCAN_SPOT_AUCTIONS_API =
+  "https://api.hypurrscan.io/pastAuctions";
+
+export async function queryHypurrscanSpotAuctionBurns(
+  options: FetchOptions,
+): Promise<Balances> {
+  const dailyBurns = options.createBalances();
+  const response = await httpGet(HYPURRSCAN_SPOT_AUCTIONS_API);
+
+  if (!Array.isArray(response)) {
+    throw new Error("Invalid Hypurrscan spot auctions response: expected array");
+  }
+
+  const auctions: HypurrscanSpotAuction[] = response
+    .map((item: any, index: number) => {
+      const time = Number(item?.time);
+      const rawDeployGas = item?.deployGas;
+
+      if (
+        !Number.isSafeInteger(time) ||
+        time < 1_000_000_000_000 ||
+        time >= 10_000_000_000_000
+      ) {
+        throw new Error(
+          `Invalid Hypurrscan spot auction timestamp at index ${index}: ${item?.time}`,
+        );
+      }
+
+      if (
+        (typeof rawDeployGas !== "string" &&
+          typeof rawDeployGas !== "number") ||
+        (typeof rawDeployGas === "string" &&
+          rawDeployGas.trim() === "")
+      ) {
+        throw new Error(
+          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${rawDeployGas}`,
+        );
+      }
+
+      const deployGas = Number(rawDeployGas);
+      if (!Number.isFinite(deployGas)) {
+        throw new Error(
+          `Invalid Hypurrscan spot auction deployGas at index ${index}: ${rawDeployGas}`,
+        );
+      }
+
+      return { time, deployGas };
+    })
+    .sort((a, b) => a.time - b.time);
+
+  let hasSeenHypeAuction = false;
+  let hypeBurned = 0;
+  const startTimeMs = options.startTimestamp * 1000;
+  const endTimeMs = options.endTimestamp * 1000;
+
+  for (const auction of auctions) {
+    if (auction.deployGas < 0) {
+      hasSeenHypeAuction = true;
+    } else if (auction.deployGas > 0 && hasSeenHypeAuction) {
+      throw new Error(
+        "Invalid Hypurrscan spot auction history: positive deployGas after HYPE-denominated auctions began",
+      );
+    }
+
+    // Hypurrscan records legacy USDC-denominated deployment payments as
+    // positive values and HYPE burns as negative deployer balance changes.
+    if (
+      auction.deployGas < 0 &&
+      auction.time >= startTimeMs &&
+      auction.time < endTimeMs
+    ) {
+      hypeBurned -= auction.deployGas;
+    }
+  }
+
+  if (!hasSeenHypeAuction) {
+    throw new Error(
+      "Invalid Hypurrscan spot auction history: no HYPE-denominated negative deployGas records",
+    );
+  }
+
+  if (hypeBurned > 0) {
+    dailyBurns.addCGToken("hyperliquid", hypeBurned);
+  }
+
+  return dailyBurns;
+}
+
 export const fetchHIP3DeployerData = async ({
   options,
   hip3DeployerId,
