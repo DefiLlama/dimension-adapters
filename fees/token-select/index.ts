@@ -38,8 +38,15 @@ const INITIAL_SERVICE_CHARGE_RATE = 2000;
 // to say which happened first. The multiplier is far above any realistic per-block log count, and
 // the largest value this produces stays well inside a safe integer.
 const LOG_INDEX_SCALE = 1e6;
-const logPosition = (log: any) =>
-  Number(log.blockNumber) * LOG_INDEX_SCALE + Number(log.logIndex ?? log.index ?? 0);
+const logPosition = (log: any) => {
+  const blockNumber = Number(log.blockNumber);
+  // Fail loudly rather than return NaN. options.getLogs defaults onlyArgs to true, which strips
+  // blockNumber; a NaN position compares false against everything, which would silently apply
+  // every rate change to every launch instead of throwing.
+  if (!Number.isFinite(blockNumber))
+    throw new Error("token-select: log has no blockNumber - getLogs needs onlyArgs: false");
+  return blockNumber * LOG_INDEX_SCALE + Number(log.logIndex ?? log.index ?? 0);
+};
 const REWARD_FEES_UPDATED =
   "event RewardFeesUpdated(uint256 oldServiceRate, uint256 oldCreatorWithReferrerRate, uint256 oldCreatorNoReferrerRate, uint256 oldReferrerRate, uint256 newServiceRate, uint256 newCreatorFeeWithReferrer, uint256 newCreatorFeeNoReferrer, uint256 newReferrerFee)";
 
@@ -81,31 +88,37 @@ async function fetch(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
 
   // Every token ever launched. Cached in cloud because this walks from the factory's first block.
+  // onlyArgs: false because the rate history below needs each launch's blockNumber and logIndex,
+  // and options.getLogs defaults onlyArgs to true, which returns the decoded arguments alone.
+  // Decoded values therefore come from log.args here.
   const allLaunches = await options.getLogs({
     target: FACTORY,
     eventAbi: NEW_TOKEN,
     fromBlock: FROM_BLOCK,
     cacheInCloud: true,
+    onlyArgs: false,
   });
-  const tokens = allLaunches.map((log: any) => log.tokenAddress);
+  const tokens = allLaunches.map((log: any) => log.args.tokenAddress);
   if (!tokens.length) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
   // Each token's serviceChargeRate is the factory's rate copied in at launch and immutable on the
   // token afterwards. It cannot be read back per token for a historical period: options.api is
   // pinned to the period's end block and Robinhood Chain's public RPC serves no archive state, so
   // the call fails with "metadata is not found". Reconstruct it from the factory's own history
-  // instead — start at the initializer's rate and apply every RewardFeesUpdated in block order,
-  // giving each launch the rate in force at its block. Same approach as fees/kasu.ts. A rate of 0
-  // is legitimate (the platform can waive its cut) and is preserved rather than treated as absent.
+  // instead — start at the initializer's rate and apply every RewardFeesUpdated in order, giving
+  // each launch the rate in force at its position. A rate of 0 is legitimate (the platform can
+  // waive its cut) and is preserved rather than treated as absent. onlyArgs: false for the same
+  // reason as above: the ordering needs blockNumber and logIndex, not just the decoded arguments.
   const rateChanges = (
     await options.getLogs({
       target: FACTORY,
       eventAbi: REWARD_FEES_UPDATED,
       fromBlock: FACTORY_DEPLOY_BLOCK,
       cacheInCloud: true,
+      onlyArgs: false,
     })
   )
-    .map((log: any) => ({ position: logPosition(log), rate: Number(log.newServiceRate) }))
+    .map((log: any) => ({ position: logPosition(log), rate: Number(log.args.newServiceRate) }))
     .sort((a: any, b: any) => a.position - b.position);
 
   // Only a rate change that strictly precedes the launch applies to it. Comparing block numbers
@@ -124,7 +137,7 @@ async function fetch(options: FetchOptions) {
     const rate = rateAtPosition(logPosition(log));
     // A rate at or above 100% would make the gross-up below divide by zero or go negative.
     if (!Number.isFinite(rate) || rate < 0 || rate >= BASIS_POINTS) continue;
-    rateByToken[log.tokenAddress.toLowerCase()] = rate;
+    rateByToken[log.args.tokenAddress.toLowerCase()] = rate;
   }
 
   // Fees pulled from the pools during the period, one set of logs per launched token.
