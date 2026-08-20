@@ -24,8 +24,14 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // and it has its own treasury and its own $SELECT-equivalent pairing token. Only the production
 // factory below is in scope, and no production launch predates FROM_BLOCK.
 const FACTORY = "0xA94AA60e9c7f193BF678608D5837F0FD51794635";
-const FROM_BLOCK = 27657019; // first NewTokenSelectToken, 2026-08-04
-const FACTORY_DEPLOY_BLOCK = 25259405; // proxy creation, tx 0x55b14c29316153eacc527eedb3936c4834b2a7e6e951c9b1a3c01a4f6274355d
+// First NewTokenSelectToken emitted by the production factory, 2026-08-04. Launches before this
+// block belong to the test deployment described above and are out of scope.
+// https://robinhoodchain.blockscout.com/block/27657019
+const FROM_BLOCK = 27657019;
+// Creation of the factory proxy. Rate history is walked from here rather than FROM_BLOCK so that a
+// rate change made between deployment and the first launch is not missed.
+// https://robinhoodchain.blockscout.com/tx/0x55b14c29316153eacc527eedb3936c4834b2a7e6e951c9b1a3c01a4f6274355d
+const FACTORY_DEPLOY_BLOCK = 25259405;
 const BASIS_POINTS = 10_000;
 
 // INITIAL_SERVICE_CHARGE_RATE in TokenSelectFactory — the platform's cut of gross pool fees in bps,
