@@ -5,6 +5,7 @@ import {decodeReserveConfig} from "./helper";
 import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
+import { cache } from "@defillama/sdk";
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -247,7 +248,13 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         let dailyProtocolRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        const aaveInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/aave.json`;
+        const insolventMarketsDetails = await cache.readCache(aaveInsolventMarketsCacheKey, { readFromR2Cache: true });
+        const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+
         for (const pool of config.pools) {
+          if (stuckMarkets.includes(pool.lendingPoolProxy.toLowerCase()) || insolventMarkets.includes(pool.lendingPoolProxy.toLowerCase())) continue;
           await getPoolFees(pool, options, {
             dailyFees,
             dailySupplySideRevenue,
@@ -529,28 +536,6 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             dataProvider: '0x96086C25d13943C80Ff9a19791a40Df6aFC08328',
           },
         ],
-      },
-    },
-  },
-  'neverland': {
-    config: {
-      [CHAIN.MONAD]: {
-        start: '2025-11-23',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585',
-            dataProvider: '0xfd0b6b6F736376F7B99ee989c749007c7757fDba',
-          },
-        ],
-      },
-    },
-    global: {
-      methodology: {
-        Fees: 'Interest paid by borrowers, flashloan fees, and liquidation fees.',
-        Revenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
-        SupplySideRevenue: 'Portion of interest distributed to lenders.',
-        ProtocolRevenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
       },
     },
   },

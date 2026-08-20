@@ -34,7 +34,7 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
     pairObject[pair] = [tokens0[i], tokens1[i]]
   })
 
-  // filter out the pairs with less than 1000 USD pooled value
+  // keep pairs with at least 200 USD pooled (filterPools default), capped at the top 42 by pooled value
   const filteredPairs = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances })
   await Promise.all(Object.keys(filteredPairs).map(async (pair) => {
     const [tokenX, tokenY] = pairObject[pair]
@@ -50,7 +50,7 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 
       dailyFees.add(tokenX, totalFeesX, METRIC.SWAP_FEES)
       dailyFees.add(tokenY, totalFeesY, METRIC.SWAP_FEES)
-      // protocol share (<= 25%) is carved out of totalFees; the rest stays with LPs.
+      // protocol share (25% on every pair) is carved out of totalFees; the rest stays with LPs.
       dailyRevenue.add(tokenX, protocolFeesX, METRIC.PROTOCOL_FEES)
       dailyRevenue.add(tokenY, protocolFeesY, METRIC.PROTOCOL_FEES)
 
@@ -73,11 +73,11 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "Swap fees paid by traders on every swap, ranging from ~0.25% up to a 10% cap depending on the pool and market volatility.",
+  Fees: "Swap fees paid by traders, from 0.05% on stablecoin pairs to 0.8% on volatile pairs, rising further while the market is volatile.",
   UserFees: "Swap fees paid by traders on every swap.",
-  Revenue: "The protocol share of swap fees (up to 25% of fees).",
-  SupplySideRevenue: "The share of swap fees that stays with liquidity providers (at least 75% of fees).",
-  HoldersRevenue: "The protocol share of swap fees, routed to the Magic LUM staking pool and paid to LUM stakers.",
+  Revenue: "25% of swap fees, the protocol's share on every pool.",
+  SupplySideRevenue: "The other 75% of swap fees, which stays with liquidity providers.",
+  HoldersRevenue: "The protocol's 25% share of swap fees, routed to the Magic LUM staking pool and paid out to MLUM stakers in USDC.",
 }
 
 const breakdownMethodology = {
@@ -85,7 +85,7 @@ const breakdownMethodology = {
   UserFees: { [METRIC.SWAP_FEES]: "Total swap fees charged to traders." },
   Revenue: { [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees." },
   SupplySideRevenue: { [METRIC.LP_FEES]: "Swap fees paid to liquidity providers." },
-  HoldersRevenue: { [METRIC.STAKING_REWARDS]: "Protocol share of swap fees paid to LUM stakers." },
+  HoldersRevenue: { [METRIC.STAKING_REWARDS]: "Protocol share of swap fees paid to MLUM stakers." },
 }
 
 const adapter: SimpleAdapter = {
@@ -93,7 +93,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.IOTAEVM],
-  start: '2023-04-10',
+  start: '2024-04-10',
   methodology,
   breakdownMethodology,
 };

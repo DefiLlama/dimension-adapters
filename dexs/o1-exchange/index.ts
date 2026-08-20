@@ -115,6 +115,7 @@ const adapter: SimpleAdapter = {
   },
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
+  doublecounted: true,
 };
 
 export default adapter;

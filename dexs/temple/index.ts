@@ -2,38 +2,45 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const TICKERS_URL = "https://api.templedigitalgroup.com/api/exchange/tickers";
-
-const MAKER_FEE_BPS = 1;
-const TAKER_FEE_BPS = 2;
+const API_BASE_URL = "https://api.templedigitalgroup.com/api/exchange";
+const SETTLED_VOLUME_URL = `${API_BASE_URL}/settled_volume`;
+const MAKER_FEE_BPS = 0.5;
+const TAKER_FEE_BPS = 1;
 const BPS = 10000;
 
-type TempleTicker = {
-  ticker_id: string;
-  base_currency: string;
-  target_currency: string;
-  target_volume: string;
+type SettledVolumeResponse = {
+  start_time: string;
+  end_time: string;
+  total_volume_usd: number;
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const tickers: TempleTicker[] = await fetchURL(TICKERS_URL);
-  if (!Array.isArray(tickers) || tickers.length === 0)
-    throw new Error("Temple tickers response empty or malformed");
-
-  const dailyVolume = tickers.reduce((sum, ticker) => {
-    if (ticker.target_currency !== "USDA")
-      throw new Error(`Unexpected non-USDA quote for ticker ${ticker.ticker_id}: ${ticker.target_currency}`);
-
-    const volume = Number(ticker.target_volume);
-    if (!Number.isFinite(volume))
-      throw new Error(`Invalid target_volume for ticker ${ticker.ticker_id}: ${ticker.target_volume}`);
-
-    return sum + volume;
-  }, 0);
+  // DefiLlama v2 supplies an inclusive `toTimestamp` and derives
+  // `startTimestamp` as end - 1 day - 1 second. The Temple endpoint accepts
+  // half-open windows capped at exactly 24 hours, so normalize the lower bound.
+  const requestStartTimestamp = options.startTimestamp + 1;
+  const startTime = new Date(requestStartTimestamp * 1000).toISOString();
+  const endTime = new Date(options.endTimestamp * 1000).toISOString();
+  const params = new URLSearchParams({
+    start_time: startTime,
+    end_time: endTime,
+  });
+  const response: SettledVolumeResponse = await fetchURL(
+    `${SETTLED_VOLUME_URL}?${params}`,
+  );
+  const dailyVolume = Number(response?.total_volume_usd);
+  if (
+    !response ||
+    Date.parse(response.start_time) !== requestStartTimestamp * 1000 ||
+    Date.parse(response.end_time) !== options.endTimestamp * 1000 ||
+    !Number.isFinite(dailyVolume) ||
+    dailyVolume < 0
+  )
+    throw new Error("Temple settled volume response malformed or mismatched");
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees")
-  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees")
+  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees");
+  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees");
 
   return {
     dailyVolume,
@@ -46,34 +53,35 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const methodology = {
   Volume:
-    "24h spot orderbook volume across all USDA-quoted Temple markets, summing each ticker's quote-side target_volume from Temple's public exchange-listing API. USDA is a fiat-backed 1:1 USD stablecoin, so quote volume is treated as USD; non-USDA markets are rejected.",
-  Fees: "Trading fees charged by the Temple orderbook: 1 bps maker + 2 bps taker = 3 bps applied to daily volume.",
-  Revenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
-  ProtocolRevenue: "All trading fees (1 bps maker + 2 bps taker) are retained by the protocol; there is no fee rebate to market makers.",
-  SupplySideRevenue:
-    "Zero. No trading-fee share is paid to liquidity providers or market makers; the monthly Canton Coin leaderboard is a separately-funded incentive, not a fee redistribution.",
+    "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Temple aggregates current and legacy markets for the requested half-open time window.",
+  Fees: "Trading fees charged by the Temple orderbook: 0.5 bps maker + 1 bp taker = 1.5 bps applied to settled volume.",
+  Revenue: "All trading fees are retained by the protocol.",
+  ProtocolRevenue: "All trading fees are retained by the protocol.",
+  SupplySideRevenue: "Zero. No trading-fee share is paid to liquidity providers or market makers.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
   Revenue: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
   ProtocolRevenue: {
-    "Maker Fees": "1 bps maker fee applied to daily volume.",
-    "Taker Fees": "2 bps taker fee applied to daily volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
-}
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  runAtCurrTime: true,
+  start: "2025-12-18",
+  // One bounded aggregate request is made for each daily backfill window.
+  pullHourly: false,
   methodology,
   breakdownMethodology,
 };

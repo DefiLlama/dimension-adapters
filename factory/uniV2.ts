@@ -490,7 +490,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.APECHAIN]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-10-15', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     [CHAIN.ARBITRUM]: { factory: '0x6EcCab422D763aC031210895C81787E87B43A652', start: '2022-11-22', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     [CHAIN.GRAVITY]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-07-04', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
-    [CHAIN.RARI]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-05', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    // [CHAIN.RARI]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-05', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     [CHAIN.REYA]: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     // sanko: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-04-17', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
   },
@@ -728,7 +728,7 @@ const configs: Record<string, Record<string, any>> = {
   "reservoir-tools-amm": {
     [CHAIN.ABSTRACT]: { factory: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
-    [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    // [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "shapeswap-v2": {
     [CHAIN.SHAPE]: { factory: '0xb411eAF2f2070822B26E372E3Ea63c5060BA45E6', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
@@ -1590,14 +1590,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     factoriesName: "legacyFactories",
     totalFeesField: "totalFeeUSD",
     deadFrom: "2026-01-15",
-  },
-  "ramses-exchange-v2": {
-    endpoints: {
-      [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATQTt3wRTgXy4canCh6t1yeczAz4ZuEkFQL2mrLXEMyQ'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    start: '2023-05-31',
   },
   "thena-integral": {
     endpoints: {

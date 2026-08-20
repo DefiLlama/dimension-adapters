@@ -20,7 +20,7 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
     // https://bow.fun/docs.html#deployed-contracts
     start: "2026-07-11",
     factory: "0xC70E510E14710Ea535CAB7b2414860aF63FEab79",
-    fromBlock: 17158095,
+    fromBlock: 7158095,
     weth: ADDRESSES.robinhood.WETH,
   },
 };

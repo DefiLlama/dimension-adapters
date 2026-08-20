@@ -19,7 +19,7 @@ const queryWithdrawals = `
         ) { valueWithdrawn }
       }`
 
-const CONFIG = {
+const CONFIG : Record<string, { endpoint: string, torosManagerAddress: string }> = {
   [CHAIN.OPTIMISM]: {
     endpoint: sdk.graph.modifyEndpoint("A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD"),
     torosManagerAddress: "0x813123a13d01d3f07d434673fdc89cbba523f14d",
@@ -41,7 +41,7 @@ const CONFIG = {
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
   [CHAIN.HYPERLIQUID]: {
-    endpoint: 'https://api.subgraph.ormilabs.com/api/public/a5914000-d7d2-47be-b0cb-6719f6678ff0/subgraphs/dhedge/v0.0.3/gn',
+    endpoint: 'https://api.goldsky.com/api/public/project_cmkxyxmvlm2ta01w16jst63i3/subgraphs/dhedge-v2-hyperevm/v0.0.12/gn',
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
 };
@@ -49,7 +49,7 @@ const CONFIG = {
 const fetchSubgraphData = async (chainId: CHAIN, query: string, dataField: string, startTimestamp: number, endTimestamp: number) => {
   const { endpoint, torosManagerAddress } = CONFIG[chainId];
 
-  let allData = [];
+  let allData: any[] = [];
   let skip = 0;
   const batchSize = 1000;
 
@@ -70,7 +70,7 @@ const fetchSubgraphData = async (chainId: CHAIN, query: string, dataField: strin
       skip += batchSize;
 
       if (entries.length < batchSize) break;
-    } catch (e) {
+    } catch (e: any) {
       throw new Error(`Error fetching data for chain ${chainId}: ${e.message}`);
     }
   }

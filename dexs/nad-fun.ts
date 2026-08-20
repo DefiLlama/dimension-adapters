@@ -401,20 +401,25 @@ async function getV2PairMetadata(options: FetchOptions) {
     };
   });
 
-  // Drop dust pairs: keep only those whose pooled token value clears the
-  // default filterPools threshold ($200), matching the uniswap-fork helpers.
+  // Drop dust pairs from the swap-log targets: keep only those whose pooled
+  // token value clears the default filterPools threshold ($200), matching the
+  // uniswap-fork helpers.
+  //
+  // The metadata map is deliberately NOT filtered. NadFunPair is deployed by
+  // BondingCurve._create at token creation and only seeded with liquidity at
+  // graduation, so every token still on the curve has a pair holding nothing.
+  // Those pairs still emit Collect, and the fee loop reads its rates out of
+  // this map: dropping them there leaves creatorFeeRate and the protocol rates
+  // at 0, which trips the `totalRate === 0` early return and discards the fees
+  // entirely while revenue, which does not come through here, still counts.
   const filteredPairs = await filterPools({
     api: options.api,
     pairs: pairTokens,
     createBalances: options.createBalances,
   });
   const keptPairs = pairs.filter((pair: string) => filteredPairs[pair] !== undefined);
-  const keptPairMeta: Record<string, V2PairMeta> = {};
-  keptPairs.forEach((pair: string) => {
-    keptPairMeta[pair] = pairMeta[pair];
-  });
 
-  return { pairs: keptPairs, pairMeta: keptPairMeta };
+  return { pairs: keptPairs, pairMeta };
 }
 
 async function getV2TokenQuoteMap(options: FetchOptions, tokens: string[]) {

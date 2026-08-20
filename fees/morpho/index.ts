@@ -2,6 +2,7 @@ import { request } from "graphql-request";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { cache } from "@defillama/sdk";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -18,6 +19,13 @@ const blacklistedMarketIds: Record<string, Array<any>> = {
   [CHAIN.ETHEREUM]: [{
     from: "2026-07-21",
     id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
+  }],
+  [CHAIN.BASE]: [{
+    from: "2026-07-22",
+    id: '0xa4ec527128b425ee3fcb7f60eca37677b63b3d003345ec2a72ef6a2e72da53fc' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
+  }, {
+    from: "2026-08-04",
+    id: '0x41c08085ddcfd1dc1c5eb82d7dc031593d1a1a831958380e8b60469c45bf7d88' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
   }],
 }
 
@@ -176,6 +184,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",
     start: "2026-01-01",
   },
+  [CHAIN.MORPH]: {
+    // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
+    blue: "0xAd10d07901Dc3195c3cb5e78E061F4EA8D9B4905",
+    fromBlock: 23180020,
+    start: "2026-05-22",
+  },
   // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
   // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
@@ -332,7 +346,13 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id) ?? [];
+  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+
+  const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
+
+  const insolventMarketsDetails = await cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
+  const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+  const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
 
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
@@ -341,7 +361,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if (blacklistedIds.includes(log.id)) interest = 0;
+    if (blacklistedIds.includes(log.id.toLowerCase()) || stuckMarkets.includes(log.id.toLowerCase()) || insolventMarkets.includes(log.id.toLowerCase())) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),

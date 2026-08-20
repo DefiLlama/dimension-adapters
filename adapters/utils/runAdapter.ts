@@ -95,6 +95,7 @@ export function isPlainDateArg(rawTimeArg?: string) {
 
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
+  onlyChains?: Set<string>, // if set, run only these chains, used for chain level refills
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -137,6 +138,7 @@ async function _runAdapter({
   isTest = false,
   withMetadata = false,
   deadChains = new Set(),
+  onlyChains,
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
   metadata = {},
 }: AdapterRunOptions) {
@@ -200,6 +202,7 @@ async function _runAdapter({
       else
         console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
     }
+    if (onlyChains && !onlyChains.has(chain)) return false // chain level refill, skip chains that were not asked for
     return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 

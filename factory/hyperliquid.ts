@@ -30,6 +30,17 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "whale-ag": {
+    addresses: ["0xfa4a0d1ca5288478f2c515d5574d53631e7fa711"],
+    start: "2026-04-23",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades executed through whale.ag's non-custodial copy-trading platform and perps terminal.",
+      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid perpetual trades executed through whale.ag.",
+      Revenue: "Builder code fees collected by whale.ag from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by whale.ag from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "signalview": {
     addresses: [
       "0x7c7f5fab1e78a08274a2f2a36c4e7dd3557c9cfa",
@@ -40,6 +51,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Builder code fees paid by users whose Hyperliquid perpetual trades are executed through Signalview.",
       Revenue: "Builder code fees collected by Signalview from Hyperliquid perpetual trades.",
       ProtocolRevenue: "Builder code fees collected by Signalview from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
+  "sogo-terminal": {
+    addresses: ["0x980adfdcb7655198ea69d2e19eb7daca594a9e67"],
+    start: "2026-07-12",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades routed through SOGO Terminal's non-custodial Telegram interface.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades executed through SOGO Terminal.",
+      Revenue: "Builder code fees collected by SOGO Terminal from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by SOGO Terminal from Hyperliquid perpetual trades.",
     },
     breakdownFees: true,
   },
@@ -65,6 +87,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
       ProtocolRevenue: "Builder code fees collected by hypeRank from Hyperliquid perps trades.",
     },
+  },
+  "hypersight": {
+    addresses: ["0xc9200c6d0e876d5f63c76618f2c57e5d6a080927"],
+    start: "2026-07-01",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Hypersight.",
+      Fees: "Builder code fees paid by users on trades executed through Hypersight (0.05% on perps, 0.025% on HIP-4 prediction-market closes).",
+      Revenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
+    },
+    breakdownFees: true,
   },
   "ohayo-perps": {
     addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
@@ -107,6 +140,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       HoldersRevenue: "No fees distributed to SUSHI token holders",
     },
     extraReturnFields: { dailyHoldersRevenue: "0" },
+    breakdownFees: true,
   },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
@@ -116,6 +150,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "axiom-perps": {
     addresses: ["0x1cc34f6af34653c515b47a83e1de70ba9b0cda1f"],
@@ -137,6 +172,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
       ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
     },
+    breakdownFees: true,
   },
   "defi-saver-perps": {
     addresses: ["0x40e9d9fEBa3Df27E1fB9a924264Bf775230D5260"],
@@ -539,15 +575,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Portion of fees collected by XTrade",
     },
   },
-  "taco-trade": {
-    addresses: ["0xf5b79dea3d8cf3efa95e8176ebd885634d869f51"],
-    start: "2025-11-19",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
   "silhouette-naked": {
     addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"],
     start: "2026-01-16",
@@ -808,6 +835,35 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Owly.fi from Hyperliquid perps trades.",
     },
   },
+  "trending-trading": {
+    addresses: ["0xde579b19e57fa3e83305ebb50033b25c7f6ea2e8"],
+    start: "2026-07-21",
+    methodology: {
+      Fees: "Trading fees paid by users when executing perps through the Trending interface on Hyperliquid.",
+      Revenue: "Builder fees collected by Trending for trades executed through its non-custodial interface.",
+      ProtocolRevenue: "Builder fees collected by Trending for trades executed through its non-custodial interface.",
+    },
+    breakdownFees: true,
+  },
+  "midas-perps": {
+    // Midas (midasmarkets.xyz) builder code, lowercased to match HL's builder_fills files.
+    addresses: ["0x990a91cb54c6db7037d3f8105e848c635d4d909f"],
+    // First day with builder fills for this code, verified against
+    // stats-data.hyperliquid.xyz/Mainnet/builder_fills (nothing before this date).
+    start: "2026-01-15",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 equity markets) routed through Midas' AI trading app.",
+      // Rate is descriptive only: fees are summed from the per-fill `builder_fee`
+      // column, not computed from this number. 0.05% is the rate observed across
+      // every fill in the builder_fills data, and sits under Hyperliquid's builder
+      // cap of 0.1% perps / 1% spot
+      // (https://hyperliquid.gitbook.io/hyperliquid-docs/trading/builder-codes).
+      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid trades executed through Midas.",
+      Revenue: "Builder code fees collected by Midas from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
+    },
+    breakdownFees: true,
+  }
 };
 
 

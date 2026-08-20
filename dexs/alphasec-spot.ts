@@ -14,6 +14,15 @@ const fetch = async (options: FetchOptions) => {
   const data = await httpGet(url);
   const stats = data.result;
 
+  if (!stats || Number(stats.updatedAt) <= Number(stats.timestamp))
+    throw new Error(
+      `alphasec-spot: api.alphasec.trade has not finalised ${options.startOfDay} yet (volume ${stats?.dailyVolume}, timestamp ${stats?.timestamp}, updatedAt ${stats?.updatedAt})`,
+    );
+
+  const dailyVolume = Number(stats.dailyVolume);
+  if (!Number.isFinite(dailyVolume))
+    throw new Error(`alphasec-spot: api.alphasec.trade returned no usable volume (${stats.dailyVolume}) for ${options.startOfDay}`);
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -23,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(stats.dailySupplySideRevenue, metrics.TradingRebatesAndCommissions);
 
   return {
-    dailyVolume: stats.dailyVolume,
+    dailyVolume,
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,

@@ -99,7 +99,7 @@ const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) 
 const chainDetails = {
   ltc: getLitecoinMiningRewards,
   doge: getDogeMiningRewards,
-  rvn: getRavenMiningRewards,
+  // rvn: getRavenMiningRewards,
   bch: getBchMiningRewards
 };
 
