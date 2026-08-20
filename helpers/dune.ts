@@ -28,9 +28,11 @@ function getAxiosDune() {
   return _axiosDune;
 }
 
+type DuneRow = Record<string, unknown>
+
 type DuneResultsPage = {
   next_uri?: string | null
-  result: { rows: any[] }
+  result: { rows: DuneRow[] }
 }
 
 async function getPaginatedRows(firstPage: DuneResultsPage) {
