@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // ─────────────────────────────────────────────
 // Lyra Market — RWA trading interface
@@ -22,7 +23,7 @@ const DEPLOY_BLOCK = 25544021; // 2026-07-16
 
 // Canonical Ethereum USDC — every trade has USDC on one side, and the
 // interface fee is always denominated in it.
-const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const USDC = ADDRESSES.ethereum.USDC;
 
 const INTERFACE_FEE_EVENT =
   "event InterfaceFeeCollected(address indexed token, address indexed trader, uint256 feeUsdc, bool isBuy)";
@@ -102,9 +103,9 @@ const methodology = {
     "USDC notional of swaps routed through LyraSwapRouter into Uniswap v2/v3/v4 pools, reconstructed from each InterfaceFeeCollected event by dividing the collected fee by the fee rate in effect at that block. The fee is charged on the gross USDC leg of every trade, so this reproduces the traded notional exactly. As with any aggregator, this volume also executes on Uniswap and is counted there under Uniswap's own adapter.",
   Fees: "The interface fee LyraSwapRouter charges on the USDC leg of each routed swap (0.20% since deploy), taken from the InterfaceFeeCollected event. Uniswap's LP fee is excluded — it is paid to Uniswap LPs and Lyra cannot capture it.",
   Revenue:
-    "Equal to fees. There is no supply side: Lyra provides no liquidity for this product, so nothing is shared with LPs.",
+    "Equal to fees (0.20% of the swap's notional value). There is no supply side: Lyra provides no liquidity for this product, so nothing is shared with LPs.",
   ProtocolRevenue:
-    "All interface fees are sent to the Lyra fee collector. No token exists and no share is paid to holders.",
+    "All interface fees (0.20% of the swap's notional value) are sent to the Lyra fee collector. No token exists and no share is paid to holders.",
   UserFees: "The full interface fee is paid by the trader on each swap.",
 };
 
@@ -115,13 +116,13 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.TRADING_FEES]:
-      "The interface fee is retained in full — no liquidity providers to share it with.",
+      "The interface fee (0.20% of the swap's notional value) is retained in full — no liquidity providers to share it with.",
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: "Interface fees accrue to the Lyra fee collector.",
+    [METRIC.TRADING_FEES]: "Interface fees (0.20% of the swap's notional value) accrue to the Lyra fee collector.",
   },
   UserFees: {
-    [METRIC.TRADING_FEES]: "Interface fee paid by the trader on each swap.",
+    [METRIC.TRADING_FEES]: "Interface fee (0.20% of the swap's notional value) paid by the trader on each swap.",
   },
 };
 
