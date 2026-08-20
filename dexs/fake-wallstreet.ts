@@ -151,6 +151,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   allowNegativeValue: true, // depositors' net pack take goes negative when the cold-pool allowance rebate is maxed
   fetch,
   chains: [CHAIN.ROBINHOOD],
