@@ -7,12 +7,21 @@ import { request, gql } from "graphql-request";
 // Twitter: https://x.com/hypersurfaceX
 // Category: Options
 
-// Subgraph endpoints (same as analytics dashboard uses)
-const SUBGRAPH_URLS: { [chain: string]: string } = {
-  [CHAIN.HYPERLIQUID]:
+// Subgraph endpoints (same as the protocol's analytics dashboard uses).
+// Each collateral pool is indexed by its own subgraph, so a chain can have
+// several: HyperEVM runs a USDT0-collateral pool and a USDC-collateral pool
+// side by side, and both must be summed to get the chain's real volume.
+const SUBGRAPH_URLS: { [chain: string]: string[] } = {
+  [CHAIN.HYPERLIQUID]: [
+    // USDT0-collateral pool
     "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-sh-subgraph/latest/gn",
-  [CHAIN.BASE]:
+    // USDC-collateral pool
+    "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-usdc-subgraph/latest/gn",
+  ],
+  [CHAIN.BASE]: [
+    // USDC-collateral pool
     "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-base-subgraph/latest/gn",
+  ],
 };
 
 // GraphQL query to fetch trades within a time range
@@ -81,8 +90,8 @@ async function fetchAllTrades(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const subgraphUrl = SUBGRAPH_URLS[options.chain];
-  if (!subgraphUrl) {
+  const subgraphUrls = SUBGRAPH_URLS[options.chain];
+  if (!subgraphUrls) {
     throw new Error(`No subgraph URL found for chain: ${options.chain}`);
   }
 
@@ -90,16 +99,15 @@ const fetch = async (options: FetchOptions) => {
   const startTimestamp = options.startOfDay;
   const endTimestamp = options.startOfDay + 86400; // Next day
 
-  // Fetch all trades in the time range
-  const trades = await fetchAllTrades(subgraphUrl, startTimestamp, endTimestamp);
-
-  if (trades.length === 0) {
-    return {
-      dailyNotionalVolume: 0,
-      dailyPremiumVolume: 0,
-      dailyFees: 0,
-    };
-  }
+  // Fetch all trades in the time range, across every pool on this chain.
+  // Pools are separate deployments with disjoint trade sets, so summing
+  // them cannot double count.
+  const tradesPerPool = await Promise.all(
+    subgraphUrls.map((url) =>
+      fetchAllTrades(url, startTimestamp, endTimestamp)
+    )
+  );
+  const trades = tradesPerPool.flat();
 
   // Calculate volumes from trades
   let dailyNotionalVolume = 0;
@@ -107,7 +115,8 @@ const fetch = async (options: FetchOptions) => {
   let dailyFees = 0;
 
   for (const trade of trades) {
-    // Premium and fee are stored in 6 decimals (USDC precision)
+    // Premium and fee are stored in the pool's collateral decimals.
+    // Every collateral in use (USDT0, USDC) is 6 decimals.
     dailyPremiumVolume += Number(trade.totalPremium) / 1e6;
     dailyFees += Number(trade.totalFee) / 1e6;
 
@@ -125,7 +134,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
@@ -137,11 +146,12 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    NotionalVolume:
-      "Sum of the notional value (in USD) of all options traded on the protocol each day. Calculated as sum of |leg.amount| × oracle_price_at_trade_time for each trade leg.",
-    PremiumVolume:
-      "Sum of all premiums paid for options traded on the protocol each day.",
-    Fees: "Sum of all fees collected by the protocol each day.",
+    dailyNotionalVolume:
+      "Sum of the notional value (in USD) of all options traded on the protocol each day, across every collateral pool on the chain. Calculated as sum of |leg.amount| × oracle_price_at_trade_time for each trade leg.",
+    dailyPremiumVolume:
+      "Sum of all premiums paid for options traded on the protocol each day, across every collateral pool on the chain.",
+    dailyFees:
+      "Sum of all fees collected by the protocol each day, across every collateral pool on the chain.",
   },
 };
 
