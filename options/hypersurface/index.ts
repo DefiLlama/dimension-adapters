@@ -7,20 +7,37 @@ import { request, gql } from "graphql-request";
 // Twitter: https://x.com/hypersurfaceX
 // Category: Options
 
+// Breakdown labels, one per collateral pool.
+const USDT0_POOL = "USDT0-collateral pool";
+const USDC_POOL = "USDC-collateral pool";
+
 // Subgraph endpoints (same as the protocol's analytics dashboard uses).
+interface Pool {
+  label: string;
+  url: string;
+}
+
 // Each collateral pool is indexed by its own subgraph, so a chain can have
 // several: HyperEVM runs a USDT0-collateral pool and a USDC-collateral pool
 // side by side, and both must be summed to get the chain's real volume.
-const SUBGRAPH_URLS: { [chain: string]: string[] } = {
+// The label is carried through to the returned balances so the per-pool
+// breakdown can be populated.
+const POOLS: { [chain: string]: Pool[] } = {
   [CHAIN.HYPERLIQUID]: [
-    // USDT0-collateral pool
-    "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-sh-subgraph/latest/gn",
-    // USDC-collateral pool
-    "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-usdc-subgraph/latest/gn",
+    {
+      label: USDT0_POOL,
+      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-sh-subgraph/latest/gn",
+    },
+    {
+      label: USDC_POOL,
+      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-usdc-subgraph/latest/gn",
+    },
   ],
   [CHAIN.BASE]: [
-    // USDC-collateral pool
-    "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-base-subgraph/latest/gn",
+    {
+      label: USDC_POOL,
+      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-base-subgraph/latest/gn",
+    },
   ],
 };
 
@@ -90,8 +107,8 @@ async function fetchAllTrades(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const subgraphUrls = SUBGRAPH_URLS[options.chain];
-  if (!subgraphUrls) {
+  const pools = POOLS[options.chain];
+  if (!pools) {
     throw new Error(`No subgraph URL found for chain: ${options.chain}`);
   }
 
@@ -100,17 +117,16 @@ const fetch = async (options: FetchOptions) => {
   // never double count a trade.
   const { startTimestamp, endTimestamp } = options;
 
-  // Fetch all trades in the time range, across every pool on this chain.
-  // Pools are separate deployments with disjoint trade sets, so summing
-  // them cannot double count.
+  const dailyNotionalVolume = options.createBalances();
+  const dailyPremiumVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
   // Each pool is settled independently so that one unreachable subgraph does
   // not discard the pools that did respond. If every pool fails the error is
   // propagated, since that indicates a systemic failure rather than one flaky
   // endpoint.
   const results = await Promise.allSettled(
-    subgraphUrls.map((url) =>
-      fetchAllTrades(url, startTimestamp, endTimestamp)
-    )
+    pools.map((pool) => fetchAllTrades(pool.url, startTimestamp, endTimestamp))
   );
 
   const failures = results.filter(
@@ -119,45 +135,42 @@ const fetch = async (options: FetchOptions) => {
   if (failures.length === results.length) {
     throw failures[0].reason;
   }
-  for (const failure of failures) {
-    console.error(
-      `hypersurface: skipping unreachable pool subgraph on ${options.chain}:`,
-      failure.reason
-    );
-  }
 
-  const trades = results
-    .filter(
-      (r): r is PromiseFulfilledResult<Trade[]> => r.status === "fulfilled"
-    )
-    .flatMap((r) => r.value);
+  results.forEach((result, i) => {
+    const { label } = pools[i];
+    if (result.status === "rejected") {
+      console.error(
+        `hypersurface: skipping unreachable ${label} subgraph on ${options.chain}:`,
+        result.reason
+      );
+      return;
+    }
 
-  // Calculate volumes from trades
-  let dailyNotionalVolume = 0;
-  let dailyPremiumVolume = 0;
-  let dailyFees = 0;
+    for (const trade of result.value) {
+      // Premium and fee are stored in the pool's collateral decimals.
+      // Every collateral in use (USDT0, USDC) is 6 decimals and dollar pegged.
+      dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6, label);
+      dailyFees.addUSDValue(Number(trade.totalFee) / 1e6, label);
 
-  for (const trade of trades) {
-    // Premium and fee are stored in the pool's collateral decimals.
-    // Every collateral in use (USDT0, USDC) is 6 decimals.
-    dailyPremiumVolume += Number(trade.totalPremium) / 1e6;
-    dailyFees += Number(trade.totalFee) / 1e6;
+      // totalNotionalUSD is pre-calculated in the subgraph as:
+      // (totalNotional x underlyingPrice) / 1e16
+      // The division already happened in the subgraph, so this value is in whole USD
+      dailyNotionalVolume.addUSDValue(Number(trade.totalNotionalUSD), label);
+    }
+  });
 
-    // totalNotionalUSD is pre-calculated in the subgraph as:
-    // (totalNotional × underlyingPrice) / 1e16
-    // The division already happened in the subgraph, so this value is in whole USD
-    dailyNotionalVolume += Number(trade.totalNotionalUSD);
-  }
-
-  // Protocol fees accrue entirely to the protocol; there is no supply-side
-  // payout from the fee, so dailyFees = dailyRevenue + dailySupplySideRevenue
-  // holds with the supply side at zero.
+  // The protocol fee switch is currently off, so every fee component is zero.
+  // When it is enabled the referrer share becomes dailySupplySideRevenue and
+  // the buyback share becomes dailyHoldersRevenue; the remainder is protocol
+  // revenue. dailyFees = dailyRevenue + dailySupplySideRevenue holds today
+  // with the supply side at zero.
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue: 0,
     dailySupplySideRevenue: 0,
   };
 };
@@ -181,26 +194,28 @@ const adapter: SimpleAdapter = {
     PremiumVolume:
       "Sum of all premiums paid for options traded on the protocol during the period, across every collateral pool on the chain.",
     Fees:
-      "Protocol fees charged on trades during the period, across every collateral pool on the chain.",
+      "Protocol fees charged on trades, across every collateral pool on the chain. The fee is min(3bps of notional, 12.5% of premium). The fee switch is currently off, so this is zero.",
     Revenue:
-      "All protocol fees charged on trades. Hypersurface pays no share of the trade fee to liquidity providers, so revenue equals fees.",
+      "Protocol fees kept by the protocol, i.e. fees minus the referrer share. Zero while the fee switch is off.",
     ProtocolRevenue:
-      "All protocol fees charged on trades, which accrue to the protocol.",
+      "Protocol fees accruing to the protocol rather than to referrers. Zero while the fee switch is off.",
+    HoldersRevenue:
+      "Protocol fees routed to the HYPE buyback, which accrues to token holders. Zero while the fee switch is off.",
     SupplySideRevenue:
-      "Zero. Liquidity providers earn from the option premium and the pool's hedging performance, not from a share of the protocol trade fee.",
+      "Referrer share of the protocol fee. Liquidity providers are not paid from the trade fee, they earn from option premium and the pool's hedging performance, so only referrers count here. Zero while the fee switch is off.",
   },
   breakdownMethodology: {
     NotionalVolume: {
-      "USDT0 pool": "Notional traded against the USDT0-collateral pool on HyperEVM, from its subgraph.",
-      "USDC pool": "Notional traded against the USDC-collateral pool (HyperEVM and Base), from its subgraph.",
+      [USDT0_POOL]: "Notional traded against the USDT0-collateral pool on HyperEVM, from its subgraph.",
+      [USDC_POOL]: "Notional traded against the USDC-collateral pools on HyperEVM and Base, from their subgraphs.",
     },
     PremiumVolume: {
-      "USDT0 pool": "Premium paid on trades against the USDT0-collateral pool on HyperEVM.",
-      "USDC pool": "Premium paid on trades against the USDC-collateral pool (HyperEVM and Base).",
+      [USDT0_POOL]: "Premium paid on trades against the USDT0-collateral pool on HyperEVM.",
+      [USDC_POOL]: "Premium paid on trades against the USDC-collateral pools on HyperEVM and Base.",
     },
     Fees: {
-      "USDT0 pool": "Protocol fees charged on trades against the USDT0-collateral pool on HyperEVM.",
-      "USDC pool": "Protocol fees charged on trades against the USDC-collateral pool (HyperEVM and Base).",
+      [USDT0_POOL]: "Protocol fees charged on trades against the USDT0-collateral pool on HyperEVM.",
+      [USDC_POOL]: "Protocol fees charged on trades against the USDC-collateral pools on HyperEVM and Base.",
     },
   },
 };
