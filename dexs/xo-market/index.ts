@@ -200,6 +200,11 @@ const breakdownMethodology = {
     [FEE_LABELS.MARKET_CREATION]: "Fees paid to the treasury when a conviction market is created",
     [FEE_LABELS.AMM_PROTOCOL]: "Protocol fees charged on AMM market trades",
   },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Fees charged on CLOB order fills, on the current exchange generation",
+    [FEE_LABELS.MARKET_CREATION]: "Fees paid to the treasury when a conviction market is created",
+    [FEE_LABELS.AMM_PROTOCOL]: "Protocol fees charged on AMM market trades",
+  },
   SupplySideRevenue: {
     [FEE_LABELS.AMM_CREATOR]: "Fees paid to market creators on AMM market trades",
     [FEE_LABELS.AMM_RESOLVER]: "Fees paid to resolvers when an AMM market resolves",
