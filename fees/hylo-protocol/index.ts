@@ -1,5 +1,6 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
 import { httpGet } from "../../utils/fetchURL";
 
 // Hylo Protocol — protocol revenue from the public API.
@@ -51,7 +52,7 @@ const OPERATION_LABELS: Record<string, string> = {
   HarvestBorrowRate: "Yield Fees",
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetchFromApi = async (options: FetchOptions) => {
   const date = options.dateString;
   const [feesRes, digestRes] = await Promise.all([
     httpGet(`${FEES_URL}?from=${date}&to=${date}`),
@@ -89,6 +90,109 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+// --- Dune fallback ---------------------------------------------------------
+// Used when the Hylo API is unavailable. Sums token transfers into the
+// protocol fee authority PDAs (the owners of the fee token accounts), one per
+// fee token, plus the hyUSD minted to the stability pool on yield harvests.
+const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
+const XSOL_MINT = "4sWNB8zGWHkh6UnmwiEtzNxL4XrN7uK9tosbESbJFfVs";
+const STABILITY_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
+
+const FEE_ACCOUNTS: { owner: string; mint: string; label: string }[] = [
+  { owner: "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS", mint: HYUSD_MINT, label: "hyUSD" },
+  { owner: "FpLaqELxKRm6S3bjfNSknwZu43TL89VYkwuMDwsRMj59", mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", label: "JitoSOL" },
+  { owner: "925PhdF3ZXqEEWvgnSQDSSHZVoS3rhMLEfBot2cWmgpu", mint: "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT", label: "HyloSOL" },
+  // Hylo v2 exo pairs
+  { owner: "39ACqviD7R5XyGBcwwV1YVru4uvSmz5Pgt7S9RxPRPkL", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", label: "USDC" },
+  { owner: "BqhiD7AdKeYfR6mex2zYhhheoEXpPTfsYG6vnTJ9ERk2", mint: "cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij", label: "cbBTC" },
+  { owner: "8Xrf6qAvuH3kXfVWJGT49aBLSEUGHyG8ETuvvnu5VRSr", mint: "98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g", label: "HYPE" },
+];
+
+const fetchFromDune = async (options: FetchOptions) => {
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  const feeFilter = FEE_ACCOUNTS
+    .map((a) => `(to_owner = '${a.owner}' AND token_mint_address = '${a.mint}')`)
+    .join("\n        OR ");
+
+  const query = `
+    WITH revenue_data AS (
+      SELECT
+        token_mint_address,
+        SUM(amount) AS total_fees,
+        'revenue' AS data_type
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND (
+        ${feeFilter}
+        )
+      GROUP BY token_mint_address
+    ),
+    stability_pool_yields AS (
+      SELECT tx_id, token_mint_address, amount
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND to_owner = '${STABILITY_POOL_HYUSD_OWNER}'
+        AND token_mint_address = '${HYUSD_MINT}'
+        AND from_owner IS NULL  -- Only actual mints
+    ),
+    xsol_transfer_txs AS (
+      SELECT DISTINCT tx_id
+      FROM tokens_solana.transfers
+      WHERE TIME_RANGE
+        AND token_mint_address = '${XSOL_MINT}'
+        AND amount > 0
+    ),
+    yields_data AS (
+      -- Stability pool operations also mint/burn hyUSD to this wallet; a tx with
+      -- xSOL movement is a swap, not a yield distribution, so exclude those.
+      SELECT
+        s.token_mint_address,
+        SUM(s.amount) AS total_fees,
+        'yield' AS data_type
+      FROM stability_pool_yields s
+      LEFT JOIN xsol_transfer_txs x ON s.tx_id = x.tx_id
+      WHERE x.tx_id IS NULL
+      GROUP BY s.token_mint_address
+    )
+    SELECT * FROM revenue_data
+    UNION ALL
+    SELECT * FROM yields_data
+  `;
+  const rows = await queryDuneSql(options, query);
+
+  rows.forEach((row: any) => {
+    const amount = Number(row.total_fees) || 0;
+    if (row.data_type === "revenue") {
+      if (row.token_mint_address === HYUSD_MINT) dailyRevenue.addUSDValue(amount / 1e6); // hyUSD is pegged to $1 (6 decimals)
+      else dailyRevenue.add(row.token_mint_address, amount);
+    } else if (row.data_type === "yield" && row.token_mint_address === HYUSD_MINT) {
+      dailySupplySideRevenue.addUSDValue(amount / 1e6);
+    }
+  });
+
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailySupplySideRevenue);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+};
+
+const fetch = async (options: FetchOptions) => {
+  try {
+    return await fetchFromApi(options);
+  } catch (e) {
+    console.error("Hylo API failed, falling back to Dune", e);
+    return await fetchFromDune(options);
+  }
+};
+
 const methodology = {
   Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees) plus the yield paid to stability pool depositors (api.hylo.so/v1/protocol/digest).",
   Revenue: "Protocol fees: mint/redeem fees, hyUSD/levercoin swap fees, stability pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
@@ -114,6 +218,8 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2025-04-01",
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
 };
