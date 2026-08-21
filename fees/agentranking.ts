@@ -19,51 +19,34 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { getConfig } from "../helpers/cache";
 
 const EXPORT_URL = "https://agentranking.io/api/public/defillama/fees";
 const FALLBACK_SOLANA_TREASURY = "J5QG8T3vqCSmFhE92VBwtHCQnAphzZynZAccBCP8iqqc";
-const WSOL = "So11111111111111111111111111111111111111112";
+const WSOL = ADDRESSES.solana.SOL;
 const AR_MINT = "92eXvBFGBAXwgmPf6t6CUCNJH2xChsCJuWzaGPjyPUmP";
 
 const FEES_DISTRIBUTED =
   "event FeesDistributed(address indexed token, address indexed creator, address indexed arTreasury, uint256 creatorAmount, uint256 arAmount)";
 
 const LABEL_PUMP_CREATOR_SHARE = "Pump Creator-Fee Share";
+const LABEL_LAUNCHPAD_FEES = "Launchpad Fees";
 const LABEL_SPLITTER_PROTOCOL = "Launchpad Fees To AgentRanking";
 const LABEL_SPLITTER_CREATOR = "Launchpad Fees To Creators";
 
-type FeesExport = {
-  chains?: {
-    solana?: { treasury?: string; wsol?: string; blacklistMints?: string[] };
-    robinhood?: { treasury?: string; weth?: string; splitters?: string[] };
-  };
-};
-
-let cachedExport: { at: number; data: FeesExport } | null = null;
-
-async function loadExport(): Promise<FeesExport> {
-  const now = Date.now();
-  if (cachedExport && now - cachedExport.at < 10 * 60 * 1000) return cachedExport.data;
-  try {
-    const res = await globalThis.fetch(EXPORT_URL);
-    if (!res.ok) return {};
-    const data = (await res.json()) as FeesExport;
-    cachedExport = { at: now, data };
-    return data;
-  } catch {
-    return {};
-  }
+async function prefetch(): Promise<any> {
+  return getConfig('agentranking', EXPORT_URL);
 }
 
-async function collectSolana(options: FetchOptions) {
-  const data = await loadExport();
+async function fetchSolana(options: FetchOptions) {
+  const data = options.preFetchedResults;
   const treasury = data.chains?.solana?.treasury || FALLBACK_SOLANA_TREASURY;
   const received = options.createBalances();
   await getSolanaReceived({
     options,
     balances: received,
     target: treasury,
-    mints: [data.chains?.solana?.wsol || WSOL],
+    mints: [WSOL],
     blacklist_mints: data.chains?.solana?.blacklistMints || [AR_MINT],
   });
   const dailyRevenue = options.createBalances();
@@ -74,16 +57,17 @@ async function collectSolana(options: FetchOptions) {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: 0,
   };
 }
 
-async function collectRobinhood(options: FetchOptions) {
-  const data = await loadExport();
+async function fetchRobinhood(options: FetchOptions) {
+  const data = options.preFetchedResults;
   const splitters = (data.chains?.robinhood?.splitters || []).filter(Boolean);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const weth = data.chains?.robinhood?.weth || ADDRESSES.robinhood?.WETH;
+  const weth = ADDRESSES.robinhood.WETH;
 
   if (splitters.length === 0) {
     return {
@@ -102,11 +86,11 @@ async function collectRobinhood(options: FetchOptions) {
   for (const log of logs) {
     const token = log.token || weth;
     if (log.arAmount && log.arAmount !== "0") {
-      dailyFees.add(token, log.arAmount, LABEL_SPLITTER_PROTOCOL);
+      dailyFees.add(token, log.arAmount, LABEL_LAUNCHPAD_FEES);
       dailyRevenue.add(token, log.arAmount, LABEL_SPLITTER_PROTOCOL);
     }
     if (log.creatorAmount && log.creatorAmount !== "0") {
-      dailyFees.add(token, log.creatorAmount, LABEL_SPLITTER_CREATOR);
+      dailyFees.add(token, log.creatorAmount, LABEL_LAUNCHPAD_FEES);
       dailySupplySideRevenue.add(token, log.creatorAmount, LABEL_SPLITTER_CREATOR);
     }
   }
@@ -119,9 +103,9 @@ async function collectRobinhood(options: FetchOptions) {
   };
 }
 
-async function collect(options: FetchOptions) {
-  if (options.chain === CHAIN.SOLANA) return collectSolana(options);
-  return collectRobinhood(options);
+async function fetch(options: FetchOptions) {
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
+  return fetchRobinhood(options);
 }
 
 const methodology = {
@@ -139,33 +123,33 @@ const breakdownMethodology = {
   Fees: {
     [LABEL_PUMP_CREATOR_SHARE]:
       "Solana — WSOL received by the launch-fee treasury from Pump creator-fee sharing.",
-    [LABEL_SPLITTER_PROTOCOL]:
-      "Robinhood — 30% of swept creator LP fees sent to the AgentRanking treasury.",
-    [LABEL_SPLITTER_CREATOR]:
-      "Robinhood — 70% of swept creator LP fees sent to token creators.",
+    [LABEL_LAUNCHPAD_FEES]:
+      "Robinhood — 30% of swept creator LP fees sent to the AgentRanking treasury and 70% to token creators",
   },
   Revenue: {
     [LABEL_PUMP_CREATOR_SHARE]: "Solana platform share retained by AgentRanking.",
-    [LABEL_SPLITTER_PROTOCOL]: "Robinhood platform share retained by AgentRanking.",
+    [LABEL_SPLITTER_PROTOCOL]: "Robinhood platform share(30%) retained by AgentRanking.",
   },
   ProtocolRevenue: {
     [LABEL_PUMP_CREATOR_SHARE]: "Solana platform share retained by AgentRanking.",
-    [LABEL_SPLITTER_PROTOCOL]: "Robinhood platform share retained by AgentRanking.",
+    [LABEL_SPLITTER_PROTOCOL]: "Robinhood platform share(30%) retained by AgentRanking.",
   },
   SupplySideRevenue: {
-    [LABEL_SPLITTER_CREATOR]: "Robinhood creator share of splitter sweeps.",
+    [LABEL_SPLITTER_CREATOR]: "Robinhood creator share(70%) of splitter sweeps.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch: collect,
+  prefetch,
+  fetch,
   adapter: {
     [CHAIN.SOLANA]: { start: "2026-07-01" },
     [CHAIN.ROBINHOOD]: { start: "2026-07-15" },
   },
   dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   doublecounted: true,
