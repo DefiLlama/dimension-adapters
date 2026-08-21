@@ -38,13 +38,14 @@ const fetch = async (options: FetchOptions) => {
 
     const trades = await options.getLogs({
         target: TRADING,
+        onlyArgs: false,
         eventAbi:
             "event TakerOrderExecuted(uint256 indexed orderId, address indexed portfolio, uint256 indexed instId, uint8 side, uint8 orderKind, uint256 executionPrice, uint256 orderbookVolume, uint256 vaultVolume)",
     });
     const fillRatioByTx: Record<string, number> = {};
     trades.forEach((t: any) => {
-        const ob = BigInt(t.orderbookVolume);
-        const amm = BigInt(t.vaultVolume);
+        const ob = BigInt(t.args.orderbookVolume);
+        const amm = BigInt(t.args.vaultVolume);
         const total = ob + amm;
         if (total > 0n)
             fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
@@ -52,20 +53,23 @@ const fetch = async (options: FetchOptions) => {
 
     const transfers = await options.getLogs({
         target: COMMON_HELPER,
+        onlyArgs: false,
         eventAbi:
             "event AssetTransferred(address indexed _portfolio, uint8 _actionType, int256 _amountIn)",
     });
 
     transfers.forEach((tr: any) => {
         if (
-            tr._actionType !== COMMISSION_FEE &&
-            tr._actionType !== MARGIN_CHANGE_FEE
+            tr.args._actionType !== COMMISSION_FEE &&
+            tr.args._actionType !== MARGIN_CHANGE_FEE
         )
             return;
         const amt =
-            tr._amountIn < 0n ? -BigInt(tr._amountIn) : BigInt(tr._amountIn);
+            tr.args._amountIn < 0n
+                ? -BigInt(tr.args._amountIn)
+                : BigInt(tr.args._amountIn);
 
-        if (tr._actionType === MARGIN_CHANGE_FEE) {
+        if (tr.args._actionType === MARGIN_CHANGE_FEE) {
             dailyFees.add(AUSD, amt, METRIC.MARGIN_FEES);
             dailySupplySideRevenue.add(AUSD, amt, METRIC.MARGIN_FEES);
             return;
