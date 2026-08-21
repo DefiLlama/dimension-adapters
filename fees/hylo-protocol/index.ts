@@ -3,16 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { httpGet } from "../../utils/fetchURL";
 
-// Hylo Protocol — protocol revenue from the public API.
 // Docs: https://api.hylo.so/docs
-// GET /v1/protocol/fees returns the indexer's daily fee rollup, broken down by
-// token and by operation. Every row is a fee that accrued to the protocol
-// (mint/redeem/swap fees, stability-pool withdrawal fees, and the protocol's
-// share of harvested yield and borrow rate). Amounts are exact decimal strings
-// and come with a USD valuation at the time of the event.
-// GET /v1/protocol/digest returns the daily activity digest; per market it
-// carries `yieldToPool`, the yield (in hyUSD) paid out to stability pool
-// depositors. That is supply-side revenue, not protocol revenue.
 const FEES_URL = "https://api.hylo.so/v1/protocol/fees";
 const DIGEST_URL = "https://api.hylo.so/v1/protocol/digest";
 
@@ -25,13 +16,13 @@ interface FeeRow {
 }
 
 interface FeeDay {
-  date: string; // UTC day, YYYY-MM-DD
+  date: string;
   byToken: { token: string; fee: string; usd: string }[];
   byOperation: FeeRow[];
 }
 
 interface DigestDay {
-  date: string; // UTC day, YYYY-MM-DD
+  date: string;
   markets: { market: string; yieldToPool?: { token: string; amount: string; usd: string } }[];
 }
 
@@ -90,10 +81,7 @@ const fetchFromApi = async (options: FetchOptions) => {
   };
 };
 
-// --- Dune fallback ---------------------------------------------------------
-// Used when the Hylo API is unavailable. Sums token transfers into the
-// protocol fee authority PDAs (the owners of the fee token accounts), one per
-// fee token, plus the hyUSD minted to the stability pool on yield harvests.
+// Dune fallback: transfers into the fee authority PDAs + hyUSD minted to the stability pool on harvests.
 const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
 const XSOL_MINT = "4sWNB8zGWHkh6UnmwiEtzNxL4XrN7uK9tosbESbJFfVs";
 const STABILITY_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
@@ -102,7 +90,6 @@ const FEE_ACCOUNTS: { owner: string; mint: string; label: string }[] = [
   { owner: "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS", mint: HYUSD_MINT, label: "hyUSD" },
   { owner: "FpLaqELxKRm6S3bjfNSknwZu43TL89VYkwuMDwsRMj59", mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", label: "JitoSOL" },
   { owner: "925PhdF3ZXqEEWvgnSQDSSHZVoS3rhMLEfBot2cWmgpu", mint: "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT", label: "HyloSOL" },
-  // Hylo v2 exo pairs
   { owner: "39ACqviD7R5XyGBcwwV1YVru4uvSmz5Pgt7S9RxPRPkL", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", label: "USDC" },
   { owner: "BqhiD7AdKeYfR6mex2zYhhheoEXpPTfsYG6vnTJ9ERk2", mint: "cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij", label: "cbBTC" },
   { owner: "8Xrf6qAvuH3kXfVWJGT49aBLSEUGHyG8ETuvvnu5VRSr", mint: "98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g", label: "HYPE" },
@@ -166,7 +153,7 @@ const fetchFromDune = async (options: FetchOptions) => {
   rows.forEach((row: any) => {
     const amount = Number(row.total_fees) || 0;
     if (row.data_type === "revenue") {
-      if (row.token_mint_address === HYUSD_MINT) dailyRevenue.addUSDValue(amount / 1e6); // hyUSD is pegged to $1 (6 decimals)
+      if (row.token_mint_address === HYUSD_MINT) dailyRevenue.addUSDValue(amount / 1e6);
       else dailyRevenue.add(row.token_mint_address, amount);
     } else if (row.data_type === "yield" && row.token_mint_address === HYUSD_MINT) {
       dailySupplySideRevenue.addUSDValue(amount / 1e6);
