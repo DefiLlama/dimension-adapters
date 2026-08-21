@@ -69,6 +69,33 @@ interface Trade {
   totalNotionalUSD: string;
 }
 
+// The subgraphs are served by Goldsky, whose shared rate limit resets every
+// ten seconds. Retry with backoff so a burst does not fail the whole run.
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function requestWithRetry(
+  subgraphUrl: string,
+  variables: Record<string, string | number>,
+  attempts = 5
+): Promise<{ trades: Trade[] }> {
+  let lastError: any;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await request<{ trades: Trade[] }>(
+        subgraphUrl,
+        TRADES_QUERY,
+        variables
+      );
+    } catch (error: any) {
+      lastError = error;
+      const isRateLimited = String(error?.message ?? "").includes("429");
+      if (!isRateLimited && attempt > 0) break;
+      await sleep(2000 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
 // Fetch all trades in the time range with pagination
 async function fetchAllTrades(
   subgraphUrl: string,
@@ -80,15 +107,11 @@ async function fetchAllTrades(
   const batchSize = 1000;
 
   while (true) {
-    const response = await request<{ trades: Trade[] }>(
-      subgraphUrl,
-      TRADES_QUERY,
-      {
-        startTimestamp: startTimestamp.toString(),
-        endTimestamp: endTimestamp.toString(),
-        skip,
-      }
-    );
+    const response = await requestWithRetry(subgraphUrl, {
+      startTimestamp: startTimestamp.toString(),
+      endTimestamp: endTimestamp.toString(),
+      skip,
+    });
 
     if (!response.trades || response.trades.length === 0) {
       break;
@@ -177,7 +200,11 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // Hourly pulls would issue 24 windows x one query per collateral pool against
+  // the same Goldsky endpoint, which exceeds its shared rate limit and fails the
+  // run. Daily granularity is sufficient here, and the fetch honours whatever
+  // window it is given via startTimestamp/endTimestamp.
+  pullHourly: false,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
