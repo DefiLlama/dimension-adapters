@@ -17,28 +17,31 @@ interface Pool {
   url: string;
 }
 
+const SUBGRAPH = (name: string) =>
+  `https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/${name}/latest/gn`;
+
+// One entry per chain, holding both the adapter config and the pools to query.
 // Each collateral pool is indexed by its own subgraph, so a chain can have
 // several: HyperEVM runs a USDT0-collateral pool and a USDC-collateral pool
 // side by side, and both must be summed to get the chain's real volume.
 // The label is carried through to the returned balances so the per-pool
 // breakdown can be populated.
-const POOLS: { [chain: string]: Pool[] } = {
-  [CHAIN.HYPERLIQUID]: [
-    {
-      label: USDT0_POOL,
-      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-sh-subgraph/latest/gn",
-    },
-    {
-      label: USDC_POOL,
-      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-usdc-subgraph/latest/gn",
-    },
-  ],
-  [CHAIN.BASE]: [
-    {
-      label: USDC_POOL,
-      url: "https://api.goldsky.com/api/public/project_clysuc3c7f21y01ub6hd66nmp/subgraphs/hypersurface-base-subgraph/latest/gn",
-    },
-  ],
+const chainConfig: {
+  [chain: string]: { start: string; pools: Pool[]; fetch: any };
+} = {
+  [CHAIN.HYPERLIQUID]: {
+    start: "2025-09-16", // First trade on HyperEVM
+    pools: [
+      { label: USDT0_POOL, url: SUBGRAPH("hypersurface-sh-subgraph") },
+      { label: USDC_POOL, url: SUBGRAPH("hypersurface-usdc-subgraph") },
+    ],
+    fetch: undefined,
+  },
+  [CHAIN.BASE]: {
+    start: "2025-10-01", // First trade on Base
+    pools: [{ label: USDC_POOL, url: SUBGRAPH("hypersurface-base-subgraph") }],
+    fetch: undefined,
+  },
 };
 
 // GraphQL query to fetch trades within a time range
@@ -90,6 +93,7 @@ async function requestWithRetry(
       lastError = error;
       const isRateLimited = String(error?.message ?? "").includes("429");
       if (!isRateLimited && attempt > 0) break;
+      if (attempt === attempts - 1) break; // no point sleeping before throwing
       await sleep(2000 * (attempt + 1));
     }
   }
@@ -130,10 +134,11 @@ async function fetchAllTrades(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const pools = POOLS[options.chain];
-  if (!pools) {
+  const config = chainConfig[options.chain];
+  if (!config) {
     throw new Error(`No subgraph URL found for chain: ${options.chain}`);
   }
+  const { pools } = config;
 
   // Use the v2 fetch window so the adapter is correct for any run length,
   // including hourly runs. The range is half-open, so consecutive windows
@@ -198,6 +203,10 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+Object.values(chainConfig).forEach((c) => {
+  c.fetch = fetch;
+});
+
 const adapter: SimpleAdapter = {
   version: 2,
   // Hourly pulls would issue 24 windows x one query per collateral pool against
@@ -205,16 +214,7 @@ const adapter: SimpleAdapter = {
   // run. Daily granularity is sufficient here, and the fetch honours whatever
   // window it is given via startTimestamp/endTimestamp.
   pullHourly: false,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: "2025-09-16", // First trade on HyperEVM
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2025-10-01", // First trade on Base
-    },
-  },
+  adapter: chainConfig,
   methodology: {
     NotionalVolume:
       "Sum of the notional value (in USD) of all options traded on the protocol during the period, across every collateral pool on the chain. Calculated as sum of |leg.amount| x oracle_price_at_trade_time for each trade leg.",
