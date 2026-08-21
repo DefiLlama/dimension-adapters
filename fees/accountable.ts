@@ -103,6 +103,7 @@ const MANAGER = "Fees To Vault Manager";
 const PROTOCOL = "Fees To Protocol";
 
 const big = (v: any) => (v === null || v === undefined ? 0n : BigInt(v));
+const bigMax = (a: bigint, b: bigint) => (a > b ? a : b);
 
 const listStrategies = async (options: FetchOptions): Promise<string[]> => {
   const api = options.toApi;
@@ -505,7 +506,12 @@ const fetch = async (options: FetchOptions) => {
           `Accountable: could not read the manager split of ${strategies[priced[k]]} on ${options.chain}`,
         );
 
-      const depositors = big(closeAssets[k]) - big(openAssets[k]);
+      // A NAV write-down is a loss, not a negative fee: floor the
+      // depositors' share-price-appreciation leg at zero so a dip never
+      // pushes gross (and therefore the fee split) negative, and never gets
+      // netted against an unrelated same-day fee-share mint (which would
+      // otherwise silently understate a real crystallization).
+      const depositors = bigMax(0n, big(closeAssets[k]) - big(openAssets[k]));
       const gross = depositors + big(mintedAssets[k]);
 
       // The fee is booked as it accrues, from the rates the FeeManager holds
