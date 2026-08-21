@@ -133,7 +133,7 @@ const fetchFromDune = async (options: FetchOptions) => {
         AND amount > 0
     ),
     yields_data AS (
-      -- Stability pool operations also mint/burn hyUSD to this wallet; a tx with
+      -- Earn pool operations also mint/burn hyUSD to this wallet; a tx with
       -- xSOL movement is a swap, not a yield distribution, so exclude those.
       SELECT
         s.token_mint_address,
