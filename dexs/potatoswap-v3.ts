@@ -12,6 +12,34 @@ const methodology = {
   SupplySideRevenue: "The portion of swap fees distributed to Liquidity Providers (LPs). This is (Total Fees - Protocol Revenue) for each pool.",
 };
 
+// Labels kept identical to the ones getUniV3LogAdapter emits, so the breakdown
+// is consistent whether the API path (recent) or the on-chain log path (older)
+// runs for a given day.
+const LABELS = {
+  SwapFees: 'Token Swap Fees',
+  TradingFees: 'Trading fees',
+  ProtocolFees: 'Protocol fees',
+  LPFees: 'LP fees',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [LABELS.SwapFees]: "Swap fees paid by users, per the pool's fee tier.",
+  },
+  UserFees: {
+    [LABELS.TradingFees]: "Swap fees paid by users (same as Fees).",
+  },
+  Revenue: {
+    [LABELS.ProtocolFees]: "Per-pool protocol share of swap fees (from on-chain feeProtocol).",
+  },
+  ProtocolRevenue: {
+    [LABELS.ProtocolFees]: "Per-pool protocol share of swap fees (from on-chain feeProtocol).",
+  },
+  SupplySideRevenue: {
+    [LABELS.LPFees]: "Swap fees distributed to liquidity providers (Total Fees - Protocol Revenue).",
+  },
+};
+
 // Uniswap V3 standard ABI for slot0. Selector: 0x3850c7bd
 const SLOT0_ABI = "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)";
 
@@ -84,14 +112,22 @@ async function fetch(options: FetchOptions) {
 
     const dailySupplySideRevenue = dailyFees.minus(dailyRevenue)
 
-    // Return the final values as strings
+    // Convert to labeled balances so the fees breakdown matches the log-path labels.
+    const dailyFeesBalances = options.createBalances();
+    const dailyRevenueBalances = options.createBalances();
+    const dailySupplySideRevenueBalances = options.createBalances();
+
+    dailyFeesBalances.addUSDValue(dailyFees.toNumber(), LABELS.SwapFees);
+    dailyRevenueBalances.addUSDValue(dailyRevenue.toNumber(), LABELS.ProtocolFees);
+    dailySupplySideRevenueBalances.addUSDValue(dailySupplySideRevenue.toNumber(), LABELS.LPFees);
+
     return {
       dailyVolume: dailyVolume.toString(),
-      dailyFees: dailyFees.toString(),
-      dailyUserFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
-      dailyProtocolRevenue: dailyRevenue.toString(),
-      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+      dailyFees: dailyFeesBalances,
+      dailyUserFees: dailyFeesBalances.clone(1, LABELS.TradingFees),
+      dailyRevenue: dailyRevenueBalances,
+      dailyProtocolRevenue: dailyRevenueBalances,
+      dailySupplySideRevenue: dailySupplySideRevenueBalances,
     }
   }
   return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), userFeesRatio: 1, revenueRatio: 1 / 5, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 5 })(options)
@@ -100,6 +136,7 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
+  breakdownMethodology,
   fetch,
   chains: [CHAIN.XLAYER],
   start: '2025-10-20',
