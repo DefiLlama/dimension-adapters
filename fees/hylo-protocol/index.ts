@@ -9,7 +9,11 @@ import { httpGet } from "../../utils/fetchURL";
 // (mint/redeem/swap fees, stability-pool withdrawal fees, and the protocol's
 // share of harvested yield and borrow rate). Amounts are exact decimal strings
 // and come with a USD valuation at the time of the event.
+// GET /v1/protocol/digest returns the daily activity digest; per market it
+// carries `yieldToPool`, the yield (in hyUSD) paid out to stability pool
+// depositors. That is supply-side revenue, not protocol revenue.
 const FEES_URL = "https://api.hylo.so/v1/protocol/fees";
+const DIGEST_URL = "https://api.hylo.so/v1/protocol/digest";
 
 interface FeeRow {
   operation: string;
@@ -23,6 +27,11 @@ interface FeeDay {
   date: string; // UTC day, YYYY-MM-DD
   byToken: { token: string; fee: string; usd: string }[];
   byOperation: FeeRow[];
+}
+
+interface DigestDay {
+  date: string; // UTC day, YYYY-MM-DD
+  markets: { market: string; yieldToPool?: { token: string; amount: string; usd: string } }[];
 }
 
 const OPERATION_LABELS: Record<string, string> = {
@@ -44,28 +53,47 @@ const OPERATION_LABELS: Record<string, string> = {
 
 const fetch = async (options: FetchOptions) => {
   const date = options.dateString;
-  const res = await httpGet(`${FEES_URL}?from=${date}&to=${date}`);
-  const day: FeeDay | undefined = (res?.daily || []).find((d: FeeDay) => d.date === date);
-  if (!day) throw new Error(`Hylo API returned no fee data for ${date}`);
+  const [feesRes, digestRes] = await Promise.all([
+    httpGet(`${FEES_URL}?from=${date}&to=${date}`),
+    httpGet(`${DIGEST_URL}?from=${date}&to=${date}`),
+  ]);
+  const feeDay: FeeDay | undefined = (feesRes?.daily || []).find((d: FeeDay) => d.date === date);
+  if (!feeDay) throw new Error(`Hylo API returned no fee data for ${date}`);
+  const digestDay: DigestDay | undefined = (digestRes?.daily || []).find((d: DigestDay) => d.date === date);
+  if (!digestDay) throw new Error(`Hylo API returned no digest data for ${date}`);
 
-  const dailyFees = options.createBalances();
-  for (const row of day.byOperation) {
+  const dailyRevenue = options.createBalances();
+  for (const row of feeDay.byOperation) {
     const usd = Number(row.usd);
     if (!Number.isFinite(usd)) throw new Error(`Hylo API returned a bad usd value for ${date}: ${JSON.stringify(row)}`);
-    dailyFees.addUSDValue(usd, OPERATION_LABELS[row.operation] ?? "Other Fees");
+    dailyRevenue.addUSDValue(usd, OPERATION_LABELS[row.operation] ?? "Other Fees");
   }
+
+  const dailySupplySideRevenue = options.createBalances();
+  for (const market of digestDay.markets || []) {
+    if (!market.yieldToPool) continue;
+    const usd = Number(market.yieldToPool.usd);
+    if (!Number.isFinite(usd)) throw new Error(`Hylo API returned a bad yieldToPool value for ${date}: ${JSON.stringify(market)}`);
+    dailySupplySideRevenue.addUSDValue(usd, "Stability Pool Yield");
+  }
+
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailySupplySideRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Protocol fees collected from users, from the Hylo public API (api.hylo.so/v1/protocol/fees): mint/redeem fees, hyUSD/xSOL (and exo pair) swap fees, stability pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
-  Revenue: "All collected fees accrue to the protocol.",
-  ProtocolRevenue: "All collected fees accrue to the protocol.",
+  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees) plus the yield paid to stability pool depositors (api.hylo.so/v1/protocol/digest).",
+  Revenue: "Protocol fees: mint/redeem fees, hyUSD/levercoin swap fees, stability pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
+  ProtocolRevenue: "Same as Revenue; all protocol fees accrue to the protocol.",
+  SupplySideRevenue: "Harvested LST yield and borrow rate (in hyUSD) distributed to stability pool depositors.",
 };
 
 const breakdownMethodology = {
@@ -74,6 +102,10 @@ const breakdownMethodology = {
     "Swap Fees": "Fees on swaps between hyUSD and levercoins, and on LST swaps.",
     "Stability Pool Withdrawal Fees": "Fees on withdrawals from the hyUSD stability pool.",
     "Yield Fees": "Protocol share of harvested LST yield and exo pair borrow rate.",
+    "Stability Pool Yield": "Harvested LST yield and borrow rate paid out to stability pool depositors.",
+  },
+  SupplySideRevenue: {
+    "Stability Pool Yield": "Harvested LST yield and borrow rate paid out to stability pool depositors.",
   },
 };
 
