@@ -12,8 +12,10 @@
  *   - Gbot Telegram Trading Bot (@groypfi_bot)
  *
  * All of these fees settle into the GroypFi house fee wallets below.
- * 65–80% of collected revenue is used for $GROYP buybacks, executed from
+ * A share of collected revenue is used for $GROYP buybacks, executed from
  * the buyback wallet UQCnkAaVs7fNpub-w3NfFVYmQtVUldPc7RZj2_CMiKoXfikn.
+ * Holders revenue is derived from the buybacks actually observed on-chain in
+ * the reporting window, never from a budget target.
  *
  * Website: https://groypfi.io
  * Twitter: https://x.com/groypfi
@@ -23,6 +25,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import PromisePool from "@supercharge/promise-pool";
 
 // House fee wallets (all inflows are protocol fees)
 const FEE_WALLETS: string[] = [
@@ -36,32 +39,53 @@ const FEE_WALLETS: string[] = [
   "0:f3ffa1f2aead8080c216c384b9c4f1fd38131c69ead1a75e32f784fe711262b2",
 ];
 
-// Share of revenue routed into $GROYP buybacks (65–80%, conservative midpoint)
-const BUYBACK_SHARE = 0.725;
+// $GROYP buyback wallet — TON sent from the fee wallets to this address is the
+// budget actually spent on buybacks (= holders revenue) in the window.
+const BUYBACK_WALLET =
+  "0:a7900695b3b7cda6e6fec3735f15562642d55495d3dced1663dbf08c88aa177e";
 
 const TON_API = "https://tonapi.io/v2";
+
+// TonAPI public tier allows ~1 request / 4s without authorization.
+const REQUEST_INTERVAL_MS = 4_100;
+let nextSlot = 0;
+
+async function rateLimitedGet<T>(url: string): Promise<T> {
+  const now = Date.now();
+  const runAt = Math.max(now, nextSlot);
+  nextSlot = runAt + REQUEST_INTERVAL_MS;
+  const wait = runAt - now;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  return httpGet(url);
+}
+
+interface TonMessage {
+  value?: number | string;
+  msg_type?: string;
+  source?: { address: string };
+  destination?: { address: string };
+}
 
 interface TonTransaction {
   hash: string;
   lt: string;
   utime: number;
   success: boolean;
-  in_msg?: {
-    value: number;
-    msg_type: string;
-    source?: { address: string };
-  };
+  in_msg?: TonMessage;
+  out_msgs?: TonMessage[];
 }
 
 interface TxPage {
   transactions: TonTransaction[];
 }
 
-interface RatesResponse {
-  rates: Record<string, { prices: Record<string, number> }>;
+function normalize(addr?: string): string {
+  return (addr ?? "").toLowerCase();
 }
 
-async function fetchDayTransactions(
+const BUYBACK_WALLET_LC = normalize(BUYBACK_WALLET);
+
+async function fetchWindowTransactions(
   account: string,
   startTs: number,
   endTs: number,
@@ -72,18 +96,16 @@ async function fetchDayTransactions(
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    let url = `${TON_API}/blockchain/accounts/${account}/transactions?limit=${limit}&sort_order=desc`;
+    let url = `${TON_API}/blockchain/accounts/${account}/transactions?limit=${limit}&sort_order=desc&start_date=${startTs}&end_date=${endTs}`;
     if (beforeLt) url += `&before_lt=${beforeLt}`;
 
-    const page: TxPage = await httpGet(url);
+    const page: TxPage = await rateLimitedGet(url);
     const txs = page.transactions ?? [];
     if (txs.length === 0) break;
 
     for (const tx of txs) {
       if (tx.utime < startTs) return collected;
-      if (tx.utime < endTs && tx.utime >= startTs) {
-        collected.push(tx);
-      }
+      if (tx.utime < endTs && tx.utime >= startTs) collected.push(tx);
     }
 
     beforeLt = txs[txs.length - 1].lt;
@@ -93,86 +115,108 @@ async function fetchDayTransactions(
   return collected;
 }
 
-async function getTonPrice(): Promise<number> {
-  const ratesUrl = `${TON_API}/rates?tokens=ton&currencies=usd`;
-  const rates: RatesResponse = await httpGet(ratesUrl);
-  const price = rates.rates?.TON?.prices?.USD;
-
-  if (price === undefined || price === null || price <= 0) {
-    throw new Error("groypfi: Unable to fetch TON/USD price from TonAPI");
-  }
-
-  return price;
-}
-
-function nanoToTon(nano: bigint): number {
-  const whole = nano / 1_000_000_000n;
-  const remainder = nano % 1_000_000_000n;
-  return Number(whole) + Number(remainder) / 1e9;
-}
-
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp } = options;
+  const { startTimestamp, endTimestamp, createBalances } = options;
 
-  try {
-    const tonPrice = await getTonPrice();
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
-    const perWallet = await Promise.all(
-      FEE_WALLETS.map((w) =>
-        fetchDayTransactions(w, startTimestamp, endTimestamp),
-      ),
+  // Sequential, rate-limited collection. Any failure propagates so the day is
+  // retried instead of being published as zero fees.
+  const { results, errors } = await PromisePool.withConcurrency(1)
+    .for(FEE_WALLETS)
+    .process((wallet: string) =>
+      fetchWindowTransactions(wallet, startTimestamp, endTimestamp),
     );
 
-    let feeNano = 0n;
+  if (errors.length)
+    throw new Error(`groypfi: TonAPI transaction fetch failed: ${errors[0]}`);
 
-    for (const txs of perWallet) {
-      for (const tx of txs) {
-        if (!tx.success) continue;
-        if (tx.in_msg && tx.in_msg.value > 0) {
-          feeNano += BigInt(tx.in_msg.value);
+  let feeNano = 0n;
+  let buybackNano = 0n;
+
+  for (const txs of results) {
+    for (const tx of txs) {
+      if (!tx.success) continue;
+
+      // Inflows to the house wallets = platform fees collected.
+      if (tx.in_msg && Number(tx.in_msg.value) > 0) {
+        const from = normalize(tx.in_msg.source?.address);
+        // Ignore internal transfers between our own wallets (no new fee).
+        if (!FEE_WALLETS.some((w) => normalize(w) === from)) {
+          feeNano += BigInt(tx.in_msg.value ?? 0);
         }
       }
+
+      // Outflows to the buyback wallet = $GROYP buybacks executed that day.
+      for (const out of tx.out_msgs ?? []) {
+        if (normalize(out.destination?.address) !== BUYBACK_WALLET_LC) continue;
+        if (Number(out.value) > 0) buybackNano += BigInt(out.value ?? 0);
+      }
     }
-
-    const feeTon = nanoToTon(feeNano);
-    const dailyFeesUSD = feeTon * tonPrice;
-
-    return {
-      dailyFees: dailyFeesUSD,
-      dailyUserFees: dailyFeesUSD,
-      dailyRevenue: dailyFeesUSD,
-      dailyHoldersRevenue: dailyFeesUSD * BUYBACK_SHARE,
-    };
-  } catch (error) {
-    console.error("groypfi fees fetch error:", error);
-    return {
-      dailyFees: 0,
-      dailyUserFees: 0,
-      dailyRevenue: 0,
-      dailyHoldersRevenue: 0,
-    };
   }
+
+  dailyFees.addGasToken(feeNano, "Platform fees collected at house wallets");
+  dailyRevenue.addGasToken(feeNano, "Protocol revenue accrued to house wallets");
+  dailyHoldersRevenue.addGasToken(buybackNano, "$GROYP buybacks executed");
+
+  const retained = feeNano > buybackNano ? feeNano - buybackNano : 0n;
+  dailyProtocolRevenue.addGasToken(retained, "Revenue retained by the protocol");
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  };
 };
 
 const methodology = {
-  Fees: "All the inflows to protocol wallets is considered as fees. Fees are collected across every GroypFi product: DEX Aggregator, Trading Terminal, Cross-Chain Swap, NFT Aggregator, Token Launchpad, Perpetuals Platform and the Gbot Telegram Trading Bot.",
+  Fees: "All inflows to the GroypFi house fee wallets are counted as fees. Fees are collected across every GroypFi product: DEX Aggregator, Trading Terminal, Cross-Chain Swap, NFT Aggregator, Token Launchpad, Perpetuals Platform and the Gbot Telegram Trading Bot. Transfers between the house wallets themselves are excluded.",
   UserFees:
     "Users pay a platform fee on every trade routed through any GroypFi product.",
   Revenue:
     "100% of collected fees are protocol revenue, accrued to the GroypFi house fee wallets.",
+  ProtocolRevenue:
+    "Revenue retained by the protocol: fees collected minus the TON actually sent to the $GROYP buyback wallet in the same window.",
   HoldersRevenue:
-    "65-80% of protocol revenue is used for $GROYP buybacks, executed from the buyback wallet UQCnkAaVs7fNpub-w3NfFVYmQtVUldPc7RZj2_CMiKoXfikn (72.5% midpoint applied).",
+    "TON actually transferred from the house fee wallets to the $GROYP buyback wallet UQCnkAaVs7fNpub-w3NfFVYmQtVUldPc7RZj2_CMiKoXfikn during the window and used to buy back $GROYP. A subset of Revenue; buybacks may land on a different day than the fees that funded them.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Platform fees collected at house wallets":
+      "Sum of successful TON inflows to the four GroypFi house fee wallets, excluding transfers between those wallets.",
+  },
+  UserFees: {
+    "Platform fees collected at house wallets":
+      "Same inflows, all of which are paid by users on their trades.",
+  },
+  Revenue: {
+    "Protocol revenue accrued to house wallets":
+      "100% of the collected platform fees.",
+  },
+  ProtocolRevenue: {
+    "Revenue retained by the protocol":
+      "Collected fees minus the TON sent to the $GROYP buyback wallet in the window.",
+  },
+  HoldersRevenue: {
+    "$GROYP buybacks executed":
+      "TON sent from the house fee wallets to the $GROYP buyback wallet in the window.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.TON]: {
-      fetch,
-      start: "2025-11-01",
-      meta: { methodology },
-    },
-  },
+  fetch,
+  chains: [CHAIN.TON],
+  start: "2025-11-01",
+  pullHourly: true,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
