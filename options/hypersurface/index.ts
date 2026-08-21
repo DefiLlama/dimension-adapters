@@ -58,7 +58,6 @@ const TRADES_QUERY = gql`
       id
       createdTimestamp
       totalPremium
-      totalFee
       totalNotionalUSD
     }
   }
@@ -68,7 +67,6 @@ interface Trade {
   id: string;
   createdTimestamp: string;
   totalPremium: string;
-  totalFee: string;
   totalNotionalUSD: string;
 }
 
@@ -147,7 +145,6 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   // Each pool is settled independently so that one unreachable subgraph does
   // not discard the pools that did respond. If every pool fails the error is
@@ -175,10 +172,9 @@ const fetch = async (options: FetchOptions) => {
     }
 
     for (const trade of result.value) {
-      // Premium and fee are stored in the pool's collateral decimals.
+      // Premium is stored in the pool's collateral decimals.
       // Every collateral in use (USDT0, USDC) is 6 decimals and dollar pegged.
       dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6, label);
-      dailyFees.addUSDValue(Number(trade.totalFee) / 1e6, label);
 
       // totalNotionalUSD is pre-calculated in the subgraph as:
       // (totalNotional x underlyingPrice) / 1e16
@@ -187,19 +183,9 @@ const fetch = async (options: FetchOptions) => {
     }
   });
 
-  // The protocol fee switch is currently off, so every fee component is zero.
-  // When it is enabled the referrer share becomes dailySupplySideRevenue and
-  // the buyback share becomes dailyHoldersRevenue; the remainder is protocol
-  // revenue. dailyFees = dailyRevenue + dailySupplySideRevenue holds today
-  // with the supply side at zero.
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: 0,
-    dailySupplySideRevenue: 0,
   };
 };
 
@@ -220,16 +206,6 @@ const adapter: SimpleAdapter = {
       "Sum of the notional value (in USD) of all options traded on the protocol during the period, across every collateral pool on the chain. Calculated as sum of |leg.amount| x oracle_price_at_trade_time for each trade leg.",
     PremiumVolume:
       "Sum of all premiums paid for options traded on the protocol during the period, across every collateral pool on the chain.",
-    Fees:
-      "Protocol fees charged on trades, across every collateral pool on the chain. The fee is min(3bps of notional, 12.5% of premium). The fee switch is currently off, so this is zero.",
-    Revenue:
-      "Protocol fees kept by the protocol, i.e. fees minus the referrer share. Zero while the fee switch is off.",
-    ProtocolRevenue:
-      "Protocol fees accruing to the protocol rather than to referrers. Zero while the fee switch is off.",
-    HoldersRevenue:
-      "Protocol fees routed to the HYPE buyback, which accrues to token holders. Zero while the fee switch is off.",
-    SupplySideRevenue:
-      "Referrer share of the protocol fee. Liquidity providers are not paid from the trade fee, they earn from option premium and the pool's hedging performance, so only referrers count here. Zero while the fee switch is off.",
   },
   breakdownMethodology: {
     NotionalVolume: {
@@ -239,10 +215,6 @@ const adapter: SimpleAdapter = {
     PremiumVolume: {
       [USDT0_POOL]: "Premium paid on trades against the USDT0-collateral pool on HyperEVM.",
       [USDC_POOL]: "Premium paid on trades against the USDC-collateral pools on HyperEVM and Base.",
-    },
-    Fees: {
-      [USDT0_POOL]: "Protocol fees charged on trades against the USDT0-collateral pool on HyperEVM.",
-      [USDC_POOL]: "Protocol fees charged on trades against the USDC-collateral pools on HyperEVM and Base.",
     },
   },
 };
