@@ -188,7 +188,14 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         const response: GardenApiResponse = await fetchURL(
             `${baseUrl}?page=${currentPage}&per_page=200&status=completed`
         );
+        // Same reasoning as fees/garden: an empty first page is a source failure,
+        // not a zero-volume day, and letting it through publishes a real 0.
         if (response.status !== "Ok" || !response.result.data.length) {
+            if (currentPage === 1) {
+                throw new Error(
+                    `garden bridge: orders endpoint returned no usable data on page 1 (status ${response.status}, ${response.result?.data?.length ?? "no"} rows)`
+                );
+            }
             break;
         }
         for (const tx of response.result.data) {

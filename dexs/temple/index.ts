@@ -4,8 +4,8 @@ import fetchURL from "../../utils/fetchURL";
 
 const API_BASE_URL = "https://api.templedigitalgroup.com/api/exchange";
 const SETTLED_VOLUME_URL = `${API_BASE_URL}/settled_volume`;
-const MAKER_FEE_BPS = 1;
-const TAKER_FEE_BPS = 2;
+const MAKER_FEE_BPS = 0.5;
+const TAKER_FEE_BPS = 1;
 const BPS = 10000;
 
 type SettledVolumeResponse = {
@@ -51,7 +51,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const methodology = {
   Volume:
     "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Temple aggregates current and legacy markets for the requested half-open time window.",
-  Fees: "Trading fees charged by the Temple orderbook: 1 bps maker + 2 bps taker = 3 bps applied to settled volume.",
+  Fees: "Trading fees charged by the Temple orderbook: 0.5 bps maker + 1 bp taker = 1.5 bps applied to settled volume.",
   Revenue: "All trading fees are retained by the protocol.",
   ProtocolRevenue: "All trading fees are retained by the protocol.",
   SupplySideRevenue: "Zero. No trading-fee share is paid to liquidity providers or market makers.",
@@ -59,16 +59,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Maker Fees": "1 bps maker fee applied to settled volume.",
-    "Taker Fees": "2 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
   Revenue: {
-    "Maker Fees": "1 bps maker fee applied to settled volume.",
-    "Taker Fees": "2 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
   ProtocolRevenue: {
-    "Maker Fees": "1 bps maker fee applied to settled volume.",
-    "Taker Fees": "2 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
   },
 };
 

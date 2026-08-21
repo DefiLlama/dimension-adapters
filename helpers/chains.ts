@@ -191,6 +191,7 @@ export enum CHAIN {
   SKALE_EUROPA = "europa",
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
+  ZIGCHAIN = "zigchain",
   DEXALOT = "dexalot",
   IMMUTABLEX = "imx",
   CHAINFLIP = "chainflip",
@@ -395,5 +396,6 @@ export enum CHAIN {
   ROBINHOOD = "robinhood",
   JUPNET = "jupnet",
   INTUITION= "intuition",
+  SIS = "sis",
   ASTER = "aster"
 }

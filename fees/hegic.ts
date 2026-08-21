@@ -1,74 +1,48 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { loadPositions, getDailyPayoffs, USDCE, HEGIC_HERGE_START } from "../options/hegic";
 
-import {
-  analyticsEndpoint
-} from "../options/hegic";
-import fetchURL from "../utils/fetchURL";
-
-interface HegicPosition {
-  isActive: boolean;
-  closeDate: string | null;
-  premiumPaid: number;
-  payOff: number;
-}
-
-
-function dateStringToTimestamp(dateString: string) {
-  return new Date(dateString).getTime() / 1000;
-}
-
+// The Stake & Cover pool is the counterparty on both sides of the book, so fees are netted
+// at the treasury cash level.
 async function fetch(options: FetchOptions): Promise<FetchResultFees> {
-  const dailyFees = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const data = await fetchURL(analyticsEndpoint)
-  const dayData = data.positions.filter((position: HegicPosition) => {
-    if (!position.closeDate) return false
-    const closeDate = dateStringToTimestamp(position.closeDate)
-    return !position.isActive && closeDate >= options.startTimestamp && closeDate < options.endTimestamp
-  })
-  dailyFees.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.premiumPaid), 0), "Options premiums")
-  dailySupplySideRevenue.addUSDValue(dayData.reduce((acc: number, position: HegicPosition) => acc + Number(position.payOff), 0), "Options payoffs")
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.subtract(dailySupplySideRevenue, "Options premiums")
+  const positions = await loadPositions(options);
+
+  const dailyFees = options.createBalances();
+  for (const p of positions) dailyFees.add(USDCE, p.positivepnl, "Net Options Premiums");
+
+  const payoffs = await getDailyPayoffs(options);
+  dailyFees.subtract(payoffs, "Net Options Premiums");
 
   return {
     dailyFees,
-    dailySupplySideRevenue,
-    dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   methodology: {
-    Fees: 'All premiums paid by users to purchase options and strategies on Hegic.',
-    SupplySideRevenue: 'Payoffs paid out to options holders who exercised their contracts.',
-    Revenue: 'Net premiums retained by the Hegic Stake & Cover pool (premiums minus payoffs).',
-    HoldersRevenue: '100% of net premiums distributed pro-rata to HEGIC Stake & Cover pool participants.',
+    Fees: "Net premiums retained by the Hegic Stake & Cover pool: everything users pay into the Operational Treasury to open options/strategies, minus everything the treasury pays out on settlement.",
+    Revenue: "The same as Fees, the Stake & Cover pool keeps all of its net premiums.",
+    HoldersRevenue: "100% of net premiums accrue to HEGIC Stake & Cover pool participants.",
   },
   breakdownMethodology: {
     Fees: {
-      'Options premiums': 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
-    },
-    SupplySideRevenue: {
-      'Options payoffs': 'Payoffs paid out to options holders who exercised their contracts.',
+      "Net Options Premiums": "Premiums paid in to open options/strategies, minus payoffs paid out on settlement.",
     },
     Revenue: {
-      'Options premiums': 'Net premiums retained by the Hegic Stake & Cover pool after paying out exercised options.',
+      "Net Options Premiums": "Premiums paid in to open options/strategies, minus payoffs paid out on settlement.",
     },
     HoldersRevenue: {
-      'Options premiums': '100% of net premiums distributed to HEGIC Stake & Cover pool participants.',
-
+      "Net Options Premiums": "Net premiums distributed to HEGIC Stake & Cover pool participants.",
     },
   },
-  allowNegativeValue: true, // payoffs can exceed premiums paid
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: "2022-10-25",
-    },
-  },
+  allowNegativeValue: true, // the pool books a loss on periods where payoffs exceed premiums
+  chains: [CHAIN.ARBITRUM],
+  fetch,
+  start: HEGIC_HERGE_START,
+  pullHourly: true,
 };
 
 export default adapter;

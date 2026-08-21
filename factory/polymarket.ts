@@ -29,6 +29,8 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "wager-up-pilot": { builder: "WagerUpPilot", start: "2026-04-07", builderCode: "0xbc37cc54237a06aa0d380814fadf2f5b6d20483300833f381e4727f1066845fb" },
   "yeno": { builder: "yeno-markets", start: "2026-06-26", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f" },
   "smartx": { builder: "SmartX", start: "2026-02-27", builderCode: "0x58d3820045831c879b218ec64514dc191eebadf31a4641670293fddf542643c3" },
+  "virae": { builder: "Virae.ai", start: "2026-05-02", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc" },
+  "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string }> = {
@@ -43,6 +45,7 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
   "yeno": { builderName: "yeno-markets", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f", start: "2026-06-26" },
   "smartx": { builderName: "SmartX", builderCode: "0x58d3820045831c879b218ec64514dc191eebadf31a4641670293fddf542643c3", start: "2026-04-28" },
+  "virae": { builderName: "Virae.ai", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc", start: "2026-04-28" },
 }
 
 const dexsProtocols: Record<string, any> = {};

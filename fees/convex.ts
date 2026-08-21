@@ -67,7 +67,7 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
 // ─── Methodology ──────────────────────────────────────────────────────────────
 const methodology = {
   UserFees: "No user fees",
-  Fees: "CRV and FXS earned by cvxCRV/cvxFXS stakers and CVX lockers from Convex's fee take, plus reUSD locker revenue and Votium bribes. Supply-side LP CRV rewards excluded from dailyFees.",
+  Fees: "All CRV and FXS harvested through Convex: the protocol's own fee take (cvxCRV/cvxFXS stakers and CVX lockers) plus the LP share passed through to pool stakers, plus reUSD locker revenue and Votium bribes.",
   HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers, plus Votium bribes",
   Revenue: "Sum of protocol revenue and holders' revenue",
   ProtocolRevenue: "reUSD revenue directed to Convex treasury",
@@ -76,7 +76,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "CRV Revenue": "CRV flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive)",
+    "CRV Revenue": "CRV harvested through Convex: the fee take flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive), plus the LP share passed through to pool stakers",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
     "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers and LP providers via Convex's Frax-side fee contracts",
     "Others Revenue": "reUSD locker revenue",
@@ -272,7 +272,16 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
   dailyHoldersRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
 
-  // LP supply-side CRV (extrapolated)
+  // LP supply-side CRV (extrapolated).
+  //
+  // This also belongs in dailyFees. fees/GUIDELINES.md defines dailyFees as
+  // "All fees from ALL sources - total value flow into protocol ecosystem" and
+  // requires dailyFees = dailyRevenue + dailySupplySideRevenue to hold within
+  // the same period. Leaving the LP leg out of fees broke that badly: the
+  // adapter was reporting 25.40k of supply-side revenue paid out of 4.44k of
+  // total fees. The FXS gauge leg below already books its supply-side amount
+  // into both, so this is also what makes the adapter consistent with itself.
+  dailyFees.addBalances(supplySideCRV, "CRV Revenue");
   dailySupplySideRevenue.addBalances(supplySideCRV, "CRV Revenue");
 
   // FXS claimed by cvxFXS stakers / CVX lockers (STKFXS_STAKING) → fees + revenue + holders

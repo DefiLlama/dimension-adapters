@@ -12,8 +12,13 @@ const methodology = {
 const fetch = async () => {
   const response = await httpGet('https://marketapi.verus.services/getdefichaininfo');
 
+  const results = response.data.results;
+  if (!results.some((result: any) => typeof result.lp_volume === "number")) {
+    throw new Error("verus market api returned no lp_volume for any of its pools");
+  }
+
   let dailyVolume = 0;
-  for (const result of response.data.results) {
+  for (const result of results) {
     dailyVolume += Number(result.lp_volume);
   }
 

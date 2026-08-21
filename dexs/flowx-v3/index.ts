@@ -1,10 +1,12 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 import { getObject } from "../../helpers/sui";
 
 const SWAP_EVENT =
   "0x25929e7f29e0a30eb4e692952ba1b5b65a3a4d65ab5f2a32e1ba3edcb587f26d::pool::Swap";
+const FEE_DENOMINATOR = 1_000_000n;
 
 function parsePoolType(type: string): { coinX: string; coinY: string } {
   const start = type.indexOf("<");
@@ -26,7 +28,32 @@ function parsePoolType(type: string): { coinX: string; coinY: string } {
   throw new Error(`Cannot find type separator in pool type: ${type}`);
 }
 
-const poolCache: Record<string, { coinX: string; coinY: string }> = {};
+function toBigInt(value: any): bigint {
+  if (value == null || value === "") return 0n;
+  const s = String(value);
+  const dot = s.indexOf(".");
+  const intPart = (dot === -1 ? s : s.slice(0, dot)).replace(/[^\d]/g, "");
+  return intPart ? BigInt(intPart) : 0n;
+}
+
+type PoolInfo = {
+  coinX: string;
+  coinY: string;
+  swapFeeRate: bigint;
+  protocolFeeRate: number;
+};
+
+const poolCache: Record<string, PoolInfo> = {};
+
+function parsePool(obj: any): PoolInfo {
+  const coins = parsePoolType(obj.type);
+  const fields = obj.fields ?? obj;
+  return {
+    ...coins,
+    swapFeeRate: toBigInt(fields.swap_fee_rate),
+    protocolFeeRate: Number(fields.protocol_fee_rate ?? 0),
+  };
+}
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const query = `
@@ -49,8 +76,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const results: any[] = await queryDuneSql(options, query);
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  // Resolve pool types for uncached pools via Sui RPC
   const newPoolIds = results
     .map((r: any) => r.pool_id)
     .filter((id: string) => id && !poolCache[id]);
@@ -63,7 +92,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const result = poolResults[i];
       if (result.status === "fulfilled" && result.value?.type) {
         try {
-          poolCache[id] = parsePoolType(result.value.type);
+          poolCache[id] = parsePool(result.value);
         } catch (e: any) {
           console.error(`[flowx-v3] Failed to parse pool type for ${id}: ${e?.message}`);
         }
@@ -71,14 +100,40 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     });
   }
 
+  const addSwapFees = (
+    token: string,
+    volume: bigint,
+    swapFeeRate: bigint,
+    protocolNibble: number,
+  ) => {
+    if (volume <= 0n || swapFeeRate <= 0n) return;
+    const fees = (volume * swapFeeRate) / FEE_DENOMINATOR;
+    if (fees <= 0n) return;
+    const protocol = protocolNibble > 0 ? fees / BigInt(protocolNibble) : 0n;
+    dailyFees.add(token, fees.toString(), METRIC.SWAP_FEES);
+    if (protocol > 0n) dailyRevenue.add(token, protocol.toString(), METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.add(token, (fees - protocol).toString(), METRIC.LP_FEES);
+  };
+
   for (const row of results) {
     const pool = poolCache[row.pool_id];
     if (!pool) continue;
-    if (row.volume_x > 0) dailyVolume.add(pool.coinX, String(row.volume_x));
-    if (row.volume_y > 0) dailyVolume.add(pool.coinY, String(row.volume_y));
+    const volumeX = toBigInt(row.volume_x);
+    const volumeY = toBigInt(row.volume_y);
+    if (volumeX > 0n) dailyVolume.add(pool.coinX, volumeX.toString());
+    if (volumeY > 0n) dailyVolume.add(pool.coinY, volumeY.toString());
+    addSwapFees(pool.coinX, volumeX, pool.swapFeeRate, pool.protocolFeeRate % 16);
+    addSwapFees(pool.coinY, volumeY, pool.swapFeeRate, pool.protocolFeeRate >> 4);
   }
 
-  return { dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -88,6 +143,27 @@ const adapter: SimpleAdapter = {
   start: "2024-05-10",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Swap fees paid by traders on FlowX CLMM. Computed as input volume × pool swap_fee_rate / 1e6.",
+    UserFees: "Same as Fees. Traders pay the pool swap fee on the input token.",
+    Revenue: "Protocol share of swap fees. On-chain protocol_fee_rate is a denominator (typically 6), so protocol fees = swap fees / nibble. Only pools with a non-zero protocol fee charge this.",
+    ProtocolRevenue: "Protocol share of swap fees. On-chain protocol_fee_rate is a denominator (typically 6), so protocol fees = swap fees / nibble. Only pools with a non-zero protocol fee charge this.",
+    SupplySideRevenue: "Swap fees remaining after the protocol cut, accrued to CLMM liquidity providers.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: "Input-token volume times each pool's swap_fee_rate (millionths, e.g. 3000 = 0.3%).",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "protocol_fee_rate nibble of the input token (X: rate % 16, Y: rate >> 4). Zero when the nibble is 0.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "protocol_fee_rate nibble of the input token (X: rate % 16, Y: rate >> 4). Zero when the nibble is 0.",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]: "Swap fees minus the protocol share.",
+    },
+  },
 };
 
 export default adapter;
