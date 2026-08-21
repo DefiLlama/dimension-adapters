@@ -38,7 +38,7 @@ const OPERATION_LABELS: Record<string, string> = {
   SwapStableToLeverExo: "Swap Fees",
   SwapLeverToStableExo: "Swap Fees",
   SwapLst: "Swap Fees",
-  UserWithdraw: "Stability Pool Withdrawal Fees",
+  UserWithdraw: "Earn Pool Withdrawal Fees",
   HarvestYield: "Yield Fees",
   HarvestBorrowRate: "Yield Fees",
 };
@@ -66,7 +66,7 @@ const fetchFromApi = async (options: FetchOptions) => {
     if (!market.yieldToPool) continue;
     const usd = Number(market.yieldToPool.usd);
     if (!Number.isFinite(usd)) throw new Error(`Hylo API returned a bad yieldToPool value for ${date}: ${JSON.stringify(market)}`);
-    dailySupplySideRevenue.addUSDValue(usd, "Stability Pool Yield");
+    dailySupplySideRevenue.addUSDValue(usd, "Earn Pool Yield");
   }
 
   const dailyFees = options.createBalances();
@@ -81,10 +81,10 @@ const fetchFromApi = async (options: FetchOptions) => {
   };
 };
 
-// Dune fallback: transfers into the fee authority PDAs + hyUSD minted to the stability pool on harvests.
+// Dune fallback: transfers into the fee authority PDAs + hyUSD minted to the earn pool on harvests.
 const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
 const XSOL_MINT = "4sWNB8zGWHkh6UnmwiEtzNxL4XrN7uK9tosbESbJFfVs";
-const STABILITY_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
+const EARN_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
 
 const FEE_ACCOUNTS: { owner: string; mint: string; label: string }[] = [
   { owner: "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS", mint: HYUSD_MINT, label: "hyUSD" },
@@ -117,11 +117,11 @@ const fetchFromDune = async (options: FetchOptions) => {
         )
       GROUP BY token_mint_address
     ),
-    stability_pool_yields AS (
+    earn_pool_yields AS (
       SELECT tx_id, token_mint_address, amount
       FROM tokens_solana.transfers
       WHERE TIME_RANGE
-        AND to_owner = '${STABILITY_POOL_HYUSD_OWNER}'
+        AND to_owner = '${EARN_POOL_HYUSD_OWNER}'
         AND token_mint_address = '${HYUSD_MINT}'
         AND from_owner IS NULL  -- Only actual mints
     ),
@@ -139,7 +139,7 @@ const fetchFromDune = async (options: FetchOptions) => {
         s.token_mint_address,
         SUM(s.amount) AS total_fees,
         'yield' AS data_type
-      FROM stability_pool_yields s
+      FROM earn_pool_yields s
       LEFT JOIN xsol_transfer_txs x ON s.tx_id = x.tx_id
       WHERE x.tx_id IS NULL
       GROUP BY s.token_mint_address
@@ -181,22 +181,22 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees) plus the yield paid to stability pool depositors (api.hylo.so/v1/protocol/digest).",
-  Revenue: "Protocol fees: mint/redeem fees, hyUSD/levercoin swap fees, stability pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
+  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees) plus the yield paid to earn pool depositors (api.hylo.so/v1/protocol/digest).",
+  Revenue: "Protocol fees: mint/redeem fees, hyUSD/levercoin swap fees, earn pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
   ProtocolRevenue: "Same as Revenue; all protocol fees accrue to the protocol.",
-  SupplySideRevenue: "Harvested LST yield and borrow rate (in hyUSD) distributed to stability pool depositors.",
+  SupplySideRevenue: "Harvested LST yield and borrow rate (in hyUSD) distributed to earn pool depositors.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Mint/Redeem Fees": "Fees on minting and redeeming hyUSD and levercoins (xSOL, xBTC, ...) against the collateral vaults.",
     "Swap Fees": "Fees on swaps between hyUSD and levercoins, and on LST swaps.",
-    "Stability Pool Withdrawal Fees": "Fees on withdrawals from the hyUSD stability pool.",
+    "Earn Pool Withdrawal Fees": "Fees on withdrawals from the hyUSD earn pool.",
     "Yield Fees": "Protocol share of harvested LST yield and exo pair borrow rate.",
-    "Stability Pool Yield": "Harvested LST yield and borrow rate paid out to stability pool depositors.",
+    "Earn Pool Yield": "Harvested LST yield and borrow rate paid out to earn pool depositors.",
   },
   SupplySideRevenue: {
-    "Stability Pool Yield": "Harvested LST yield and borrow rate paid out to stability pool depositors.",
+    "Earn Pool Yield": "Harvested LST yield and borrow rate paid out to earn pool depositors.",
   },
 };
 
