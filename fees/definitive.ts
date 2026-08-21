@@ -39,6 +39,7 @@ const CHAIN_TO_DUNE_MAPPING: Record<string, string> = {
   [CHAIN.AVAX]: 'avalanche_c',
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.BSC]: 'bnb',
+  [CHAIN.ROBINHOOD]: 'robinhood',
 };
 
 const chainConfig = {
@@ -49,6 +50,7 @@ const chainConfig = {
   [CHAIN.AVAX]: { start: '2022-01-01' },
   [CHAIN.OPTIMISM]: { start: '2022-01-01' },
   [CHAIN.BSC]: { start: '2022-01-01' },
+  [CHAIN.ROBINHOOD]: { start: '2026-07-11' },
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
