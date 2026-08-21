@@ -83,7 +83,6 @@ const fetchFromApi = async (options: FetchOptions) => {
 
 // Dune fallback: transfers into the fee authority PDAs + hyUSD minted to the earn pool on harvests.
 const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
-const XSOL_MINT = "4sWNB8zGWHkh6UnmwiEtzNxL4XrN7uK9tosbESbJFfVs";
 const EARN_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
 
 const FEE_ACCOUNTS: { owner: string; mint: string; label: string }[] = [
@@ -125,22 +124,23 @@ const fetchFromDune = async (options: FetchOptions) => {
         AND token_mint_address = '${HYUSD_MINT}'
         AND from_owner IS NULL  -- Only actual mints
     ),
-    xsol_transfer_txs AS (
+    other_token_txs AS (
       SELECT DISTINCT tx_id
       FROM tokens_solana.transfers
       WHERE TIME_RANGE
-        AND token_mint_address = '${XSOL_MINT}'
+        AND tx_id IN (SELECT tx_id FROM earn_pool_yields)
+        AND token_mint_address <> '${HYUSD_MINT}'
         AND amount > 0
     ),
     yields_data AS (
-      -- Earn pool operations also mint/burn hyUSD to this wallet; a tx with
-      -- xSOL movement is a swap, not a yield distribution, so exclude those.
+      -- Swaps, rebalances and pool deposits also mint hyUSD to the pool; only
+      -- harvests touch hyUSD alone, so drop txs that move any other token.
       SELECT
         s.token_mint_address,
         SUM(s.amount) AS total_fees,
         'yield' AS data_type
       FROM earn_pool_yields s
-      LEFT JOIN xsol_transfer_txs x ON s.tx_id = x.tx_id
+      LEFT JOIN other_token_txs x ON s.tx_id = x.tx_id
       WHERE x.tx_id IS NULL
       GROUP BY s.token_mint_address
     )
