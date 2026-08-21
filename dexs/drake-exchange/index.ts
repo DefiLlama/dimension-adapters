@@ -23,7 +23,8 @@ const fetch = async (options: FetchOptions) => {
 
 export default {
     version: 2,
-    adapter: {
-        [CHAIN.MONAD]: { fetch, start: 1783409183 },
-    },
+    pullHourly: true,
+    chains: [CHAIN.MONAD],
+    start: 1783409183,
+    fetch,
 } as SimpleAdapter;
