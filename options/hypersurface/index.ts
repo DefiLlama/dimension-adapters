@@ -26,21 +26,17 @@ const SUBGRAPH = (name: string) =>
 // side by side, and both must be summed to get the chain's real volume.
 // The label is carried through to the returned balances so the per-pool
 // breakdown can be populated.
-const chainConfig: {
-  [chain: string]: { start: string; pools: Pool[]; fetch: any };
-} = {
+const chainConfig: { [chain: string]: { start: string; pools: Pool[] } } = {
   [CHAIN.HYPERLIQUID]: {
     start: "2025-09-16", // First trade on HyperEVM
     pools: [
       { label: USDT0_POOL, url: SUBGRAPH("hypersurface-sh-subgraph") },
       { label: USDC_POOL, url: SUBGRAPH("hypersurface-usdc-subgraph") },
     ],
-    fetch: undefined,
   },
   [CHAIN.BASE]: {
     start: "2025-10-01", // First trade on Base
     pools: [{ label: USDC_POOL, url: SUBGRAPH("hypersurface-base-subgraph") }],
-    fetch: undefined,
   },
 };
 
@@ -189,10 +185,6 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-Object.values(chainConfig).forEach((c) => {
-  c.fetch = fetch;
-});
-
 const adapter: SimpleAdapter = {
   version: 2,
   // Hourly pulls would issue 24 windows x one query per collateral pool against
@@ -200,7 +192,8 @@ const adapter: SimpleAdapter = {
   // run. Daily granularity is sufficient here, and the fetch honours whatever
   // window it is given via startTimestamp/endTimestamp.
   pullHourly: false,
-  adapter: chainConfig,
+  fetch,
+  adapter: chainConfig, // start dates and pools are read from chainConfig per chain
   methodology: {
     NotionalVolume:
       "Sum of the notional value (in USD) of all options traded on the protocol during the period, across every collateral pool on the chain. Calculated as sum of |leg.amount| x oracle_price_at_trade_time for each trade leg.",
