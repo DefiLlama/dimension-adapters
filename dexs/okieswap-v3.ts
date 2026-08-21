@@ -1,72 +1,56 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import request from 'graphql-request'
+import { uniV3Exports, UniGetRevenueRatioProps } from "../helpers/uniswap";
 
-const v3Endpoints: { [key: string]: string } = {
-  [CHAIN.XLAYER]: "https://subgraph.okiedokie.fun/subgraphs/name/okieswap-v3",
-};
+const FACTORY = "0x3cEA59ae7CD3C1BEa32Ccc80F68Dd47576662c90";
 
-const invalidSpikes: Record<string, Set<string>> = {
- '2026-06-18': new Set(['0x7f566d2dff0eb5450126624f6c6f75daecb2196b']), // 15K liquidity had 18M in volume
+const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
+
+//It is PancakeSwap V3 direct fork so the revenue ratio is the same (confirmed via calling slot0())
+const getProtocolRevenueRatio = (fee: number): number => {
+  if (fee === 0.0001) return 0.33;
+  if (fee === 0.0005) return 0.34;
+  if (fee === 0.0025) return 0.32;
+  if (fee === 0.01) return 0.32;
+  return 0.32;
 }
 
-const fetch = async (options: FetchOptions) => {
-  const endpoint = v3Endpoints[options.chain];
-  const toBlock = await options.getToBlock();
-  const fromBlock = await options.getFromBlock();
-  const query = `
-  {
-    todayPools: pools(block:{number:${toBlock}}, orderBy: totalValueLockedUSD, orderDirection: desc, first: 100) {
-      id
-      volumeUSD
-      feesUSD
-      protocolFeesUSD
-    }
-    yesterdayPools: pools(block:{number:${fromBlock}}, orderBy: totalValueLockedUSD, orderDirection: desc, first: 100) {
-      id
-      volumeUSD
-      feesUSD
-      protocolFeesUSD
-    }
-  }
-  `
-  const data = await request(endpoint, query)
-  const blacklistedPools = new Set(['0x4e6c7d221b5fa285aabdd8c7fa692bc0c79e7d8b'])
+const blacklistPools = ['0x4e6c7d221b5fa285aabdd8c7fa692bc0c79e7d8b']
 
-  const sumFields = (pools: any[]) => {
-    return pools.reduce(
-      (acc, pool) => {
-        if (blacklistedPools.has(pool.id) || invalidSpikes[options.dateString]?.has(pool.id)) return acc
-        acc.volumeUSD += Number(pool.volumeUSD) || 0
-        acc.feesUSD += Number(pool.feesUSD) || 0
-        acc.protocolFeesUSD += Number(pool.protocolFeesUSD) || 0
-        return acc
-      },
-      { volumeUSD: 0, feesUSD: 0, protocolFeesUSD: 0 }
-    )
-  }
-
-  const today = sumFields(data.todayPools)
-  const yesterday = sumFields(data.yesterdayPools)
-
-  const dailyVolume = today.volumeUSD - yesterday.volumeUSD
-  const dailyFees = today.feesUSD - yesterday.feesUSD
-  const dailyProtocolRevenue = today.protocolFeesUSD - yesterday.protocolFeesUSD
-  const dailyRevenue = dailyProtocolRevenue
-  const dailySupplySideRevenue = dailyFees - dailyProtocolRevenue
-
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
+const METRIC = {
+  SWAP_FEES: 'Token Swap Fees',
+  TRADING_FEES: 'Trading fees',
+  PROTOCOL_FEES: 'Protocol fees',
+  LP_FEES: 'LP fees',
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  adapter: {
-    [CHAIN.XLAYER]: {
-      fetch,
-      start: '2025-08-17',
+const methodology = {
+  Volume: 'Swap volume from all OkieSwap V3 pools deployed by the V3 factory.',
+  Fees: "Traders pay each pool's configured fee tier on every swap.",
+  UserFees: 'Equals total swap fees paid by traders.',
+  Revenue: 'Share of the swap fee the pool keeps for the protocol, set from its fee tier: 33% on the 0.01% tier, 34% on 0.05%, 32% on 0.25% and 1%.',
+  ProtocolRevenue: 'All of the revenue stays with the protocol; OkieSwap has no token holder distribution.',
+  SupplySideRevenue: 'The rest of the swap fee, kept by the liquidity providers.',
+}
+
+const breakdownMethodology = {
+  Fees: { [METRIC.SWAP_FEES]: "Swap fees charged at each pool's configured fee tier." },
+  UserFees: { [METRIC.TRADING_FEES]: 'Swap fees paid by traders.' },
+  Revenue: { [METRIC.PROTOCOL_FEES]: 'Share of the swap fee kept for the protocol.' },
+  ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: 'Share of the swap fee kept for the protocol.' },
+  SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees kept by the liquidity providers.' },
+}
+
+const adapter = uniV3Exports({
+  [CHAIN.XLAYER]: {
+    factory: FACTORY,
+    start: '2025-08-17',
+    userFeesRatio: 1,
+    blacklistPools,
+    getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
+      const _revenueRatio = getProtocolRevenueRatio(poolFeeTier);
+      return { _revenueRatio, _protocolRevenueRatio: _revenueRatio };
     },
   },
-};
+}, { swapEvent: poolSwapEvent, methodology, breakdownMethodology });
 
 export default adapter;
