@@ -129,6 +129,9 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
+  // The router is an interface on top of Uniswap: every swap it reports executes in a
+  // Uniswap v2/v3/v4 pool that Uniswap's own adapter already counts.
+  doublecounted: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2026-07-16",
