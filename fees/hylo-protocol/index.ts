@@ -6,6 +6,7 @@ import { httpGet } from "../../utils/fetchURL";
 // Docs: https://api.hylo.so/docs
 const FEES_URL = "https://api.hylo.so/v1/protocol/fees";
 const DIGEST_URL = "https://api.hylo.so/v1/protocol/digest";
+const VALIDATOR_URL = "https://api.hylo.so/v1/validator/revenue";
 
 interface FeeRow {
   operation: string;
@@ -25,6 +26,23 @@ interface DigestDay {
   date: string;
   markets: { market: string; yieldToPool?: { token: string; amount: string; usd: string } }[];
 }
+
+interface ValidatorDay {
+  date: string;
+  total?: string; // SOL
+}
+
+// Hylo validator: inflation commission + Jito tips + block rewards, in SOL.
+// Inflation and Jito settle once per epoch; days with no activity are omitted.
+const addValidatorRevenue = async (options: FetchOptions, balances: any) => {
+  const date = options.dateString;
+  const res = await httpGet(`${VALIDATOR_URL}?from=${date}&to=${date}`);
+  const day: ValidatorDay | undefined = (res?.daily || []).find((d: ValidatorDay) => d.date === date);
+  if (!day) return;
+  const sol = Number(day.total ?? 0);
+  if (!Number.isFinite(sol)) throw new Error(`Hylo API returned a bad validator total for ${date}: ${JSON.stringify(day)}`);
+  balances.addCGToken("solana", sol, "Validator Revenue");
+};
 
 const OPERATION_LABELS: Record<string, string> = {
   MintStablecoin: "Mint/Redeem Fees",
@@ -69,6 +87,8 @@ const fetchFromApi = async (options: FetchOptions) => {
     dailySupplySideRevenue.addUSDValue(usd, "Earn Pool Yield");
   }
 
+  await addValidatorRevenue(options, dailyRevenue);
+
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailySupplySideRevenue);
@@ -84,6 +104,7 @@ const fetchFromApi = async (options: FetchOptions) => {
 // Dune fallback: transfers into the fee authority PDAs + hyUSD minted to the earn pool on harvests.
 const HYUSD_MINT = "5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E";
 const EARN_POOL_HYUSD_OWNER = "5YrRAQag9BbJkauDtJkd1vsTquXT6N46oU8rJ66GDxHd";
+const VALIDATOR_IDENTITY = "hy1oMaD3ViyJ8i6w1xjP79zAWBBaRd1zWdTW8zYXnwu";
 
 const FEE_ACCOUNTS: { owner: string; mint: string; label: string }[] = [
   { owner: "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS", mint: HYUSD_MINT, label: "hyUSD" },
@@ -143,10 +164,25 @@ const fetchFromDune = async (options: FetchOptions) => {
       LEFT JOIN other_token_txs x ON s.tx_id = x.tx_id
       WHERE x.tx_id IS NULL
       GROUP BY s.token_mint_address
+    ),
+    validator_data AS (
+      -- Block fee rewards credited to the validator identity. Inflation
+      -- commission is 0% and Jito tips are claimed via merkle proofs, so
+      -- solana.rewards does not carry them.
+      SELECT
+        'SOL' AS token_mint_address,
+        CAST(SUM(lamports) AS DOUBLE) AS total_fees,
+        'validator' AS data_type
+      FROM solana.rewards
+      WHERE TIME_RANGE
+        AND recipient = '${VALIDATOR_IDENTITY}'
+        AND reward_type = 'Fee'
     )
     SELECT * FROM revenue_data
     UNION ALL
     SELECT * FROM yields_data
+    UNION ALL
+    SELECT * FROM validator_data
   `;
   const rows = await queryDuneSql(options, query);
 
@@ -157,6 +193,8 @@ const fetchFromDune = async (options: FetchOptions) => {
       else dailyRevenue.add(row.token_mint_address, amount);
     } else if (row.data_type === "yield" && row.token_mint_address === HYUSD_MINT) {
       dailySupplySideRevenue.addUSDValue(amount / 1e6);
+    } else if (row.data_type === "validator") {
+      dailyRevenue.addCGToken("solana", amount / 1e9, "Validator Revenue");
     }
   });
 
@@ -181,8 +219,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees) plus the yield paid to earn pool depositors (api.hylo.so/v1/protocol/digest).",
-  Revenue: "Protocol fees: mint/redeem fees, hyUSD/levercoin swap fees, earn pool withdrawal fees, and the protocol's share of harvested LST yield and borrow rate.",
+  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees), Hylo validator revenue (api.hylo.so/v1/validator/revenue), plus the yield paid to earn pool depositors (api.hylo.so/v1/protocol/digest).",
+  Revenue: "Protocol fees (mint/redeem, hyUSD/levercoin swaps, earn pool withdrawals, protocol share of harvested LST yield and borrow rate) and Hylo validator revenue (inflation commission, Jito tips, block rewards).",
   ProtocolRevenue: "Same as Revenue; all protocol fees accrue to the protocol.",
   SupplySideRevenue: "Harvested LST yield and borrow rate (in hyUSD) distributed to earn pool depositors.",
 };
@@ -193,6 +231,7 @@ const breakdownMethodology = {
     "Swap Fees": "Fees on swaps between hyUSD and levercoins, and on LST swaps.",
     "Earn Pool Withdrawal Fees": "Fees on withdrawals from the hyUSD earn pool.",
     "Yield Fees": "Protocol share of harvested LST yield and exo pair borrow rate.",
+    "Validator Revenue": "Hylo validator inflation commission, Jito tips and block rewards (SOL).",
     "Earn Pool Yield": "Harvested LST yield and borrow rate paid out to earn pool depositors.",
   },
   SupplySideRevenue: {
