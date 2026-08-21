@@ -49,6 +49,10 @@ const NATIVE = "0x0000000000000000000000000000000000000000";
 // recur. Excluded by hash rather than by rule for that reason — a heuristic
 // would outlive the defect it guards against.
 const EXCLUDED_TX = new Set([
+  // https://robinhoodchain.blockscout.com/tx/0xd7f5db626f84477bd4d3c7dded329c809e1b6e63dda4afe1a39b672b23a30ee7
+  // The receipt carries the ProfitCurrencyDistribute event next to the
+  // transfers it is meant to describe: the largest USDG movement in the
+  // transaction is 1,256, and the recipient's only credit is 0.00000878 WETH.
   "0xd7f5db626f84477bd4d3c7dded329c809e1b6e63dda4afe1a39b672b23a30ee7",
 ]);
 
