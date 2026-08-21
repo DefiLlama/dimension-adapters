@@ -31,12 +31,12 @@ function splitAt(schedule: SplitSchedule, block: number): FeeSplit {
     return split;
 }
 
-const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const dailySupplySideRevenue = createBalances();
+const fetch = async (options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
-    const trades = await getLogs({
+    const trades = await options.getLogs({
         target: TRADING,
         eventAbi:
             "event TakerOrderExecuted(uint256 indexed orderId, address indexed portfolio, uint256 indexed instId, uint8 side, uint8 orderKind, uint256 executionPrice, uint256 orderbookVolume, uint256 vaultVolume)",
@@ -50,7 +50,7 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
             fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
     });
 
-    const transfers = await getLogs({
+    const transfers = await options.getLogs({
         target: COMMON_HELPER,
         eventAbi:
             "event AssetTransferred(address indexed _portfolio, uint8 _actionType, int256 _amountIn)",
@@ -91,7 +91,7 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
         );
     });
 
-    const fbFees = await getLogs({
+    const fbFees = await options.getLogs({
         target: PLATFORM_MANAGER, // confirm emitting contract — see TL;DR
         eventAbi:
             "event PositionPendingFBFeeCharged(address indexed portfolio, int256 totalFBFee)",
