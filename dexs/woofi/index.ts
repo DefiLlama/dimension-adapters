@@ -18,10 +18,8 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint('FbGJ32HNCStF9df3M1GXQCs4MUsSY4tAPh3MZyKMV2M5'),
   [CHAIN.LINEA]: sdk.graph.modifyEndpoint('4TN6UVFc77yYu3YdUxFv6wkFXkNEeueWi8oGrAg8BcfM'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('EHcBkzfegM51XJmxb26DcB6RmvhNTaoY692aiNHC9Bm5'),
-  [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
   [CHAIN.BERACHAIN]: sdk.graph.modifyEndpoint('FGF5X13mGLYu2GN7pK4LYuMeS95WENHAgPDP8JDCJyTy'),
-  [CHAIN.HYPERLIQUID]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-hyperevm",
   [CHAIN.MONAD]: sdk.graph.modifyEndpoint('B5oecz9PHofaQmUMP8ws2iYsNTxXhEtcghsA2jMSsJAP'),
 };
 
@@ -75,8 +73,14 @@ const fetchVolume = async (options: FetchOptions) => {
   }
 }
 
-const fetchSolanaVolume = async (options: FetchOptions) => {
-  const apiURL = "https://api.woofi.com/stat?period=all&network=solana";
+const apiNetworks: Record<Chain, string> = {
+  [CHAIN.SOLANA]: "solana",
+  [CHAIN.MANTLE]: "mantle",
+  [CHAIN.HYPERLIQUID]: "hyperevm",
+};
+
+const fetchApiVolume = async (options: FetchOptions) => {
+  const apiURL = `https://api.woofi.com/stat?period=all&network=${apiNetworks[options.chain]}`;
   const response = await httpGet(apiURL);
 
   const startOfDayUTC = getTimestampAtStartOfDayUTC(options.toTimestamp);
@@ -99,10 +103,12 @@ const volume = Object.keys(endpoints).reduce(
   {}
 );
 
-volume[CHAIN.SOLANA] = {
-  fetch: fetchSolanaVolume,
-  start: startTime[CHAIN.SOLANA],
-}
+Object.keys(apiNetworks).forEach((chain) => {
+  volume[chain] = {
+    fetch: fetchApiVolume,
+    start: startTime[chain],
+  };
+});
 
 const adapter: SimpleAdapter = {
   version: 1,
