@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
+import PromisePool from "@supercharge/promise-pool";
 
 // Hypersurface Protocol - DeFi Structured Products Platform
 // Website: https://hypersurface.io
@@ -142,27 +143,27 @@ const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
 
+  // The pools share one Goldsky project and therefore one rate limit, so they
+  // are queried one at a time rather than concurrently.
   // Every pool on the chain is required to compute that chain's total, so a
   // pool that cannot be read is fatal for the chain rather than skipped.
   // Skipping one would publish a silently understated volume as if it were the
   // real figure; throwing leaves no datapoint, which is visible and refillable.
-  // requestWithRetry already absorbs transient rate limits, so a rejection here
+  // requestWithRetry already absorbs transient rate limits, so a failure here
   // is a sustained outage.
-  const results = await Promise.allSettled(
-    pools.map((pool) => fetchAllTrades(pool.url, startTimestamp, endTimestamp))
-  );
+  const { results, errors } = await PromisePool.withConcurrency(1)
+    .for(pools)
+    .process(async (pool) => ({
+      label: pool.label,
+      trades: await fetchAllTrades(pool.url, startTimestamp, endTimestamp),
+    }));
 
-  const failures = results.filter(
-    (r): r is PromiseRejectedResult => r.status === "rejected"
-  );
-  if (failures.length) {
-    throw failures[0].reason;
+  if (errors.length) {
+    throw errors[0].raw ?? errors[0];
   }
 
-  (results as PromiseFulfilledResult<Trade[]>[]).forEach((result, i) => {
-    const { label } = pools[i];
-
-    for (const trade of result.value) {
+  results.forEach(({ label, trades }) => {
+    for (const trade of trades) {
       // Premium is stored in the pool's collateral decimals.
       // Every collateral in use (USDT0, USDC) is 6 decimals and dollar pegged.
       dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6, label);
