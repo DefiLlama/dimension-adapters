@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains";
 import { uniV3Exports, UniGetRevenueRatioProps } from "../helpers/uniswap";
 
+// https://www.oklink.com/x-layer/evm/address/0x3cea59ae7cd3c1bea32ccc80f68dd47576662c90/contract
 const FACTORY = "0x3cEA59ae7CD3C1BEa32Ccc80F68Dd47576662c90";
 
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
@@ -26,7 +27,6 @@ const METRIC = {
 const methodology = {
   Volume: 'Swap volume from all OkieSwap V3 pools deployed by the V3 factory.',
   Fees: "Traders pay each pool's configured fee tier on every swap.",
-  UserFees: 'Equals total swap fees paid by traders.',
   Revenue: 'Share of the swap fee the pool keeps for the protocol, set from its fee tier: 33% on the 0.01% tier, 34% on 0.05%, 32% on 0.25% and 1%.',
   ProtocolRevenue: 'All of the revenue stays with the protocol; OkieSwap has no token holder distribution.',
   SupplySideRevenue: 'The rest of the swap fee, kept by the liquidity providers.',
