@@ -142,10 +142,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
 
-  // Each pool is settled independently so that one unreachable subgraph does
-  // not discard the pools that did respond. If every pool fails the error is
-  // propagated, since that indicates a systemic failure rather than one flaky
-  // endpoint.
+  // Every pool on the chain is required to compute that chain's total, so a
+  // pool that cannot be read is fatal for the chain rather than skipped.
+  // Skipping one would publish a silently understated volume as if it were the
+  // real figure; throwing leaves no datapoint, which is visible and refillable.
+  // requestWithRetry already absorbs transient rate limits, so a rejection here
+  // is a sustained outage.
   const results = await Promise.allSettled(
     pools.map((pool) => fetchAllTrades(pool.url, startTimestamp, endTimestamp))
   );
@@ -153,19 +155,12 @@ const fetch = async (options: FetchOptions) => {
   const failures = results.filter(
     (r): r is PromiseRejectedResult => r.status === "rejected"
   );
-  if (failures.length === results.length) {
+  if (failures.length) {
     throw failures[0].reason;
   }
 
-  results.forEach((result, i) => {
+  (results as PromiseFulfilledResult<Trade[]>[]).forEach((result, i) => {
     const { label } = pools[i];
-    if (result.status === "rejected") {
-      console.error(
-        `hypersurface: skipping unreachable ${label} subgraph on ${options.chain}:`,
-        result.reason
-      );
-      return;
-    }
 
     for (const trade of result.value) {
       // Premium is stored in the pool's collateral decimals.
@@ -187,10 +182,14 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // Hourly pulls would issue 24 windows x one query per collateral pool against
-  // the same Goldsky endpoint, which exceeds its shared rate limit and fails the
-  // run. Daily granularity is sufficient here, and the fetch honours whatever
-  // window it is given via startTimestamp/endTimestamp.
+  // pullHourly was set to true initially and CI failed on a Goldsky 429
+  // ("surpassed your query allowance", run 32430744115): hourly runs issue 24
+  // windows x one query per collateral pool against a rate limit that is shared
+  // across the whole Goldsky project, so available headroom depends on other
+  // consumers rather than on a fixed threshold. Kept false for that reason; the
+  // fetch itself honours whatever window it is given via
+  // startTimestamp/endTimestamp, so this can be flipped back if the endpoint is
+  // moved to a dedicated plan.
   pullHourly: false,
   fetch,
   adapter: chainConfig, // start dates and pools are read from chainConfig per chain
