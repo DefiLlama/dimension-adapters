@@ -703,6 +703,9 @@ const configs: Record<string, Record<string, any>> = {
   "revoswap": {
     [CHAIN.XLAYER]: { factory: '0xa38498983e7b31DE851e36090bc9D1D8fB96BE5E', start: 1713225600, userFeesRatio: 1 },
   },
+  "okieswap-v2": {
+    [CHAIN.XLAYER]: { factory: '0xF1cBfB1b12408dEDbA6Dcd7BB57730bAef6584fB', start: '2025-08-17', allowReadPairs: true, fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 0.08 / 0.25, protocolRevenueRatio: 0.08 / 0.25 },
+  },
   "spartacus-exchange": {
     [CHAIN.FANTOM]: { factory: '0x535646cf57E4155Df723bb24625f356d98ae9D2F', start: 1650883041 },
   },
