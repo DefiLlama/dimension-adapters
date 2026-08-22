@@ -15,7 +15,8 @@ const abi = {
   tokenExchange: 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)',
 }
 
-const fetch = async ({ api, getLogs, createBalances, chain }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const { api, getLogs, createBalances, chain } = options
   const pairLength = await api.call({ target: FACTORY, abi: abi.pairLength })
   const pools: string[] = await api.multiCall({
     target: FACTORY,
