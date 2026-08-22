@@ -24,9 +24,11 @@ const service_fees_paid_event = 'event ServiceFeesPaid(address loan_, uint256 de
 const management_fees_paid_event = 'event ManagementFeesPaid(address indexed loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_)';
 const strategy_fees_paid_event = 'event StrategyFeesCollected (uint256 fees)';
 // Fixed-term loans have shipped three PaymentMade signatures. interestPaid_ is always the second
-// argument; the trailing fee arguments are the same fees the fee manager reports, so only the
-// interest is read here. Matching just the two-argument version silently dropped every fixed-term
-// payment from 2022-12 on.
+// argument. Matching only the two-argument version silently dropped every fixed-term payment from
+// 2022-09 on. The three-argument fees_ is the same fee MapleLoanFeeManager reports (checked: all
+// 94 of those payments carry a fee-manager event in the same tx), so it is ignored here; the
+// four-argument delegate/treasury fees predate the fee manager and are reported nowhere else, so
+// they are counted. Both are charged on top of the interest, not taken out of it.
 const interest_paid_events = [
   'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_)',
   'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 fees_)',
@@ -143,6 +145,13 @@ const fetch = async (options: FetchOptions) => {
         const asset = fixed_term_loan_to_asset[e.address?.toLowerCase()]
         dailyFees.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
         dailySupplySideRevenue.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
+
+        if (e.args.treasuryFeePaid_ !== undefined) {
+          dailyFees.add(asset, e.args.delegateFeePaid_, METRIC.SERVICE_FEES)
+          dailyFees.add(asset, e.args.treasuryFeePaid_, METRIC.SERVICE_FEES)
+          dailyRevenue.add(asset, e.args.delegateFeePaid_, METRIC.SERVICE_FEES)
+          dailyRevenue.add(asset, e.args.treasuryFeePaid_, METRIC.SERVICE_FEES)
+        }
       })
     }
 
