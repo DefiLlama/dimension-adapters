@@ -1,10 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const TRADING = "0xE6dfD064F1CFf4F62236fC862A2543EA98380F32";
 const COMMON_HELPER = "0x4939AEf78CD2Dc2bAE5bf9DA51C61A113Cae909a";
-const AUSD = "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a";
+const AUSD = ADDRESSES.mantle.AUSD;
 const PLATFORM_MANAGER = "0x7940575377C3c2ABdA23813c123b4C880E217d6d";
 
 const COMMISSION_FEE = 3;
@@ -32,6 +33,7 @@ function splitAt(schedule: SplitSchedule, block: number): FeeSplit {
 }
 
 const fetch = async (options: FetchOptions) => {
+    const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -47,6 +49,7 @@ const fetch = async (options: FetchOptions) => {
         const ob = BigInt(t.args.orderbookVolume);
         const amm = BigInt(t.args.vaultVolume);
         const total = ob + amm;
+        dailyVolume.add(AUSD, total);
         if (total > 0n)
             fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
     });
@@ -96,7 +99,7 @@ const fetch = async (options: FetchOptions) => {
     });
 
     const fbFees = await options.getLogs({
-        target: PLATFORM_MANAGER, // confirm emitting contract — see TL;DR
+        target: PLATFORM_MANAGER,
         eventAbi:
             "event PositionPendingFBFeeCharged(address indexed portfolio, int256 totalFBFee)",
     });
@@ -106,7 +109,7 @@ const fetch = async (options: FetchOptions) => {
         dailySupplySideRevenue.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
     });
 
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const breakdownMethodology = {
@@ -129,7 +132,7 @@ export default {
     version: 2,
     pullHourly: true,
     chains: [CHAIN.MONAD],
-    start: 1783409183,
+    start: '2026-07-07',
     fetch,
     methodology: {
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
