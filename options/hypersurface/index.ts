@@ -162,16 +162,16 @@ const fetch = async (options: FetchOptions) => {
     throw errors[0].raw ?? errors[0];
   }
 
-  results.forEach(({ label, trades }) => {
+  results.forEach(({ trades }) => {
     for (const trade of trades) {
       // Premium is stored in the pool's collateral decimals.
       // Every collateral in use (USDT0, USDC) is 6 decimals and dollar pegged.
-      dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6, label);
+      dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6);
 
       // totalNotionalUSD is pre-calculated in the subgraph as:
       // (totalNotional x underlyingPrice) / 1e16
       // The division already happened in the subgraph, so this value is in whole USD
-      dailyNotionalVolume.addUSDValue(Number(trade.totalNotionalUSD), label);
+      dailyNotionalVolume.addUSDValue(Number(trade.totalNotionalUSD));
     }
   });
 
@@ -183,15 +183,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly was set to true initially and CI failed on a Goldsky 429
-  // ("surpassed your query allowance", run 32430744115): hourly runs issue 24
-  // windows x one query per collateral pool against a rate limit that is shared
-  // across the whole Goldsky project, so available headroom depends on other
-  // consumers rather than on a fixed threshold. Kept false for that reason; the
-  // fetch itself honours whatever window it is given via
-  // startTimestamp/endTimestamp, so this can be flipped back if the endpoint is
-  // moved to a dedicated plan.
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   adapter: chainConfig, // start dates and pools are read from chainConfig per chain
   methodology: {
@@ -199,16 +191,6 @@ const adapter: SimpleAdapter = {
       "Sum of the notional value (in USD) of all options traded on the protocol during the period, across every collateral pool on the chain. Calculated as sum of |leg.amount| x oracle_price_at_trade_time for each trade leg.",
     PremiumVolume:
       "Sum of all premiums paid for options traded on the protocol during the period, across every collateral pool on the chain.",
-  },
-  breakdownMethodology: {
-    NotionalVolume: {
-      [USDT0_POOL]: "Notional traded against the USDT0-collateral pool on HyperEVM, from its subgraph.",
-      [USDC_POOL]: "Notional traded against the USDC-collateral pools on HyperEVM and Base, from their subgraphs.",
-    },
-    PremiumVolume: {
-      [USDT0_POOL]: "Premium paid on trades against the USDT0-collateral pool on HyperEVM.",
-      [USDC_POOL]: "Premium paid on trades against the USDC-collateral pools on HyperEVM and Base.",
-    },
   },
 };
 
