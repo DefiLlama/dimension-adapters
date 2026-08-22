@@ -130,6 +130,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     fromBlock: FACTORY_FROM_BLOCK,
     cacheInCloud: true,
     entireLog: true,
+    parseLog: true,
   });
 
   const pairObject: Record<string, string[]> = {};
@@ -160,12 +161,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       eventAbi: SWAP_EVENT,
       flatten: false,
       entireLog: true,
+      parseLog: true,
     }),
     options.getLogs({
       targets: pairIds,
       eventAbi: SYNC_EVENT,
       flatten: false,
       entireLog: true,
+      parseLog: true,
     }),
   ]);
 
