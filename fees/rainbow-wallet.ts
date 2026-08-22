@@ -78,14 +78,14 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
       FROM dex.trades
       WHERE blockchain IN (${duneChainList})
         AND block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND block_date <= date(from_unixtime(${options.toTimestamp}))
         AND TIME_RANGE
       UNION ALL
       SELECT blockchain, tx_hash, tx_to, amount_usd, block_date
       FROM dex_aggregator.trades
       WHERE blockchain IN (${duneChainList})
         AND block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND block_date <= date(from_unixtime(${options.toTimestamp}))
         AND TIME_RANGE
   ),
   eoa_router_trades AS (
@@ -114,7 +114,7 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
         AND tf.tx_from = tf.tx_to
         AND tf.block_date >= DATE '${SMART_WALLET_START}'
         AND tf.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND tf.block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND tf.block_date <= date(from_unixtime(${options.toTimestamp}))
         AND TIME_RANGE
   ),
 

@@ -137,9 +137,9 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
 
-            if (!insideDateRange && txTimestamp > endTimestamp) continue;
+            if (!insideDateRange && txTimestamp >= endTimestamp) continue;
 
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
+            if (txTimestamp < endTimestamp && txTimestamp >= startTimestamp) {
                 insideDateRange = true;
                 const { source_swap, destination_swap } = tx;
                 const sourceChain = source_swap.chain;

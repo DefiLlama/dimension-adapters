@@ -34,9 +34,9 @@ const adapter: SimpleAdapter = {
             where blockchain = 'ethereum'
               and tx_to = 0xc662c410c0ecf747543f5ba90660f6abebd9c8c4
               and block_time >= from_unixtime(${options.startTimestamp})
-              and block_time <= from_unixtime(${options.endTimestamp - 1})
+              and block_time <= from_unixtime(${options.toTimestamp})
               and block_date >= date(from_unixtime(${options.startTimestamp}))
-              and block_date <= date(from_unixtime(${options.endTimestamp}))
+              and block_date <= date(from_unixtime(${options.toTimestamp}))
           )
           select * from l2_fees
           union all

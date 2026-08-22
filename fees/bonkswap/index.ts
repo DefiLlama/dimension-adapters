@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
       WHERE executing_account = '${PROGRAM_ID}'
         AND bytearray_substring(data, 1, 8) IN (${DISCRIMINATORS.swap}, ${DISCRIMINATORS.createPool}, ${DISCRIMINATORS.createCustomPool}, ${DISCRIMINATORS.createPoolConfig}, ${DISCRIMINATORS.updatePoolConfig}, ${DISCRIMINATORS.updateFees})
         AND block_time >= TIMESTAMP '2023-04-12 00:00:00'
-        AND block_time <= from_unixtime(${options.endTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
         AND tx_success = true
     ),
     custom_pools AS (

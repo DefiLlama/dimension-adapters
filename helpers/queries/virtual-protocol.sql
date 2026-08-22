@@ -12,7 +12,7 @@ WITH
         )
         AND topic0 = 0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
         AND block_time >= timestamp '2024-08-30'
-        AND block_time <= from_unixtime({{endTimestamp}})
+        AND block_time < from_unixtime({{endTimestamp}})
     ),
 
     -- Base chain trading transactions
@@ -44,7 +44,7 @@ WITH
             OR "to" IN (SELECT treasury_add FROM agent_treasury_add)
         )
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time <= from_unixtime({{endTimestamp}})
+        AND evt_block_time < from_unixtime({{endTimestamp}})
     ),
 
     -- Base revenue transactions with fun/app categorization (only legacy and prototype)
@@ -72,7 +72,7 @@ WITH
             FROM trading_txns a
             LEFT JOIN base.transactions b ON a.evt_tx_hash = b.hash
                 AND b.block_time >= from_unixtime({{startTimestamp}})
-                AND b.block_time <= from_unixtime({{endTimestamp}})
+                AND b.block_time < from_unixtime({{endTimestamp}})
         ) categorized
         WHERE category1 IN ('legacy', 'prototype')
     ),
@@ -85,7 +85,7 @@ WITH
         WHERE "from" = 0x7E26173192D72fd6D75A759F888d61c2cdbB64B1
         AND contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time <= from_unixtime({{endTimestamp}})
+        AND evt_block_time < from_unixtime({{endTimestamp}})
     ),
 
     -- Ethereum revenue (already split into 70% dev, 30% ecosystem)
@@ -96,7 +96,7 @@ WITH
         WHERE "to" = 0xB754597FDf090B6C860cB1deB63585aA3f19C163
         AND contract_address = 0x44ff8620b8cA30902395A7bD3F2407e1A091BF73
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time <= from_unixtime({{endTimestamp}})
+        AND evt_block_time < from_unixtime({{endTimestamp}})
     ),
 
     -- Base: new 1% platform fee in USDC, measured at the tax manager (dev + ecosystem =
@@ -108,7 +108,7 @@ WITH
         WHERE "to" = 0x7E26173192D72fd6D75A759F888d61c2cdbB64B1
         AND contract_address = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time <= from_unixtime({{endTimestamp}})
+        AND evt_block_time < from_unixtime({{endTimestamp}})
     ),
 
     -- Robinhood: 1% platform fee in USDG (6 decimals), measured at the Robinhood tax
@@ -120,7 +120,7 @@ WITH
         WHERE "to" = 0x6d80b81d9fc56a7a839b1af9006eb49151961ce7
         AND contract_address = 0x5fc5360d0400a0fd4f2af552add042d716f1d168
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time <= from_unixtime({{endTimestamp}})
+        AND evt_block_time < from_unixtime({{endTimestamp}})
     )
 
     -- -- Solana contracts for agent tokens
@@ -135,10 +135,10 @@ WITH
     --             WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
     --             AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
     --             AND block_time >= timestamp '2024-08-30'
-    --             AND block_time <= from_unixtime({{endTimestamp}})
+    --             AND block_time < from_unixtime({{endTimestamp}})
     --         )
     --         AND block_time >= timestamp '2024-08-30'
-    --         AND block_time <= from_unixtime({{endTimestamp}})
+    --         AND block_time < from_unixtime({{endTimestamp}})
     --         AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
     --         AND token_mint_address LIKE '%virt%'
     --     ) agent_tokens
@@ -165,7 +165,7 @@ WITH
     --         )
     --     )
     --     AND block_time >= from_unixtime({{startTimestamp}})
-    --     AND block_time <= from_unixtime({{endTimestamp}})
+    --     AND block_time < from_unixtime({{endTimestamp}})
     -- ),
 
     -- -- Solana prototype fees (starts from 2024-08-30)
@@ -175,7 +175,7 @@ WITH
     --     FROM tokens_solana.transfers
     --     WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
     --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2024-08-30')
-    --     AND block_time <= from_unixtime({{endTimestamp}})
+    --     AND block_time < from_unixtime({{endTimestamp}})
     --     AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
     -- )
 

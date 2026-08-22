@@ -34,7 +34,7 @@ const prefetch = async (options: FetchOptions) => {
 			SELECT DISTINCT hash FROM evms.transactions 
 			WHERE
 				block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+				AND block_time < FROM_UNIXTIME(${options.endTimestamp})
 				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
 		)
 		GROUP BY 1
@@ -48,7 +48,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
 			FROM evms.transactions
 			WHERE blockchain = 'robinhood'
 				AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+				AND block_time < FROM_UNIXTIME(${options.endTimestamp})
 				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
 		),
 		robinhood_trades AS (
@@ -61,7 +61,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
 			INNER JOIN opensea_txs os ON t.tx_hash = os.hash
 			WHERE t.blockchain = 'robinhood'
 				AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+				AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
 		)
 		SELECT SUM(t.amount_usd) AS dailyVolume
 		FROM robinhood_trades t

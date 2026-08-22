@@ -205,7 +205,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		FROM gas.fees
 		WHERE blockchain = '${chainName}'
 			AND block_time >= from_unixtime(${options.startTimestamp})
-			AND block_time <= from_unixtime(${options.endTimestamp})
+			AND block_time < from_unixtime(${options.endTimestamp})
 		),
 		l1_fees_cte AS (
 			SELECT

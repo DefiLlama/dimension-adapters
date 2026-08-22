@@ -6,7 +6,7 @@ const GRAPHQL_ENDPOINT = 'https://api.studio.thegraph.com/query/93681/zarban-sub
 
 const getRevenueQuery = (startTimestamp: number, endTimestamp: number) => `
 query {
-  financialsDailySnapshots(where: {timestamp_gte: ${startTimestamp.toString()}, timestamp_lte: ${endTimestamp.toString()}}) {
+  financialsDailySnapshots(where: {timestamp_gte: ${startTimestamp.toString()}, timestamp_lt: ${endTimestamp.toString()}}) {
     dailyTotalRevenueUSD
     dailySupplySideRevenueUSD
     dailyProtocolSideRevenueUSD

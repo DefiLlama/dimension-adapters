@@ -25,7 +25,7 @@ WITH
             0x6ed5dc54f1333f448f2cdf7a6efc675343f880035d6f647fb7f6e9cbf8959718
         )
         AND block_time >= timestamp '2024-10-01'
-        AND block_time <= from_unixtime({{endTimestamp}})
+        AND block_time < from_unixtime({{endTimestamp}})
 
         UNION  -- distinct pairs across both factory generations
 
@@ -40,7 +40,7 @@ WITH
         )
         AND topic0 = 0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9
         AND block_time >= timestamp '2024-10-01'
-        AND block_time <= from_unixtime({{endTimestamp}})
+        AND block_time < from_unixtime({{endTimestamp}})
     ),
     rh_pairs AS (
         SELECT DISTINCT varbinary_substring(topic2, 13, 20) as pair
@@ -50,7 +50,7 @@ WITH
             0x6ed5dc54f1333f448f2cdf7a6efc675343f880035d6f647fb7f6e9cbf8959718
         )
         AND block_time >= timestamp '2026-07-01'
-        AND block_time <= from_unixtime({{endTimestamp}})
+        AND block_time < from_unixtime({{endTimestamp}})
     ),
 
     base_bonding AS (
@@ -62,7 +62,7 @@ WITH
         JOIN base_pairs p ON l.contract_address = p.pair
         WHERE l.topic0 = 0x298c349c742327269dc8de6ad66687767310c948ea309df826f5bd103e19d207
         AND l.block_time >= from_unixtime({{startTimestamp}})
-        AND l.block_time <= from_unixtime({{endTimestamp}})
+        AND l.block_time < from_unixtime({{endTimestamp}})
     ),
     rh_bonding AS (
         SELECT COALESCE(SUM(
@@ -73,7 +73,7 @@ WITH
         JOIN rh_pairs p ON l.contract_address = p.pair
         WHERE l.topic0 = 0x298c349c742327269dc8de6ad66687767310c948ea309df826f5bd103e19d207
         AND l.block_time >= from_unixtime({{startTimestamp}})
-        AND l.block_time <= from_unixtime({{endTimestamp}})
+        AND l.block_time < from_unixtime({{endTimestamp}})
     )
 
 SELECT 'base' as chain, (SELECT virtual_volume FROM base_bonding) as virtual_volume

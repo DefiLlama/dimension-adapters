@@ -106,7 +106,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE t.to_address = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
       AND t.block_timestamp <= TIMESTAMP '2025-02-16 23:59:59'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
 
     UNION ALL
     
@@ -116,7 +116,7 @@ const fetch = async (options: FetchOptions) => {
       AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
       AND t.block_timestamp >= TIMESTAMP '2025-02-17 00:00:00'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
 
   const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);

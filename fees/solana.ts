@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
             SUM(fee) AS total_fees,
             (COUNT(*) * 5000) AS total_base_fees
         FROM solana.raw.transactions
-        WHERE block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
     SELECT
         f.total_fees,
