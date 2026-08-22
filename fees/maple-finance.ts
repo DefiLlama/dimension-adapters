@@ -25,12 +25,16 @@ const service_fees_paid_event = 'event ServiceFeesPaid(address loan_, uint256 de
 const strategy_fees_paid_event = 'event StrategyFeesCollected (uint256 fees)';
 const interest_paid_event = 'event PaymentMade (uint256 principalPaid_, uint256 interestPaid_)';
 
+// Share of revenue spent buying back SYRUP. Each rate is confirmed against the monthly
+// buybacks published on https://maple.finance/transparency (buyback / revenue, same month).
+// ponytail: MIP-021 is tiered on MONTHLY revenue (10% under $1.5m, 20% to $2m, 30% above) and a
+// daily fetch cannot see the month, so 10% is hardcoded - Maple has run $1.0-1.4m/month all of
+// 2026. Revisit if a month clears $1.5m, or when MIP-021's 6-month term ends (Jan 2027).
 function getHoldersRevenueShare(date: number): number {
-  if (date < 1761955200) { // 2025-11-01
-    return 0
-  } else {
-    return 0.25;
-  }
+  if (date < 1735689600) return 0     // no buyback before 2025-01-01
+  if (date < 1751328000) return 0.2   // MIP-013 / MIP-016, Q1+Q2 2025
+  if (date < 1782950400) return 0.25  // MIP-019 Syrup Strategic Fund, 2025-07-01 -> 2026-06-30
+  return 0.1                          // MIP-021 tiered buyback, from 2026-07-01
 }
 
 const STRATEGY_FEES = 'Strategy Fees';
@@ -39,18 +43,18 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.chain === CHAIN.OFF_CHAIN) {
     const duneQuery = `
-    select coalesce(otc_revenue, 0) as otc_fees from dune."maple-finance".dataset_maple_otc_by_day where timestamp = ${options.toTimestamp}`;
+    select coalesce(otc_revenue, 0) as otc_fees from dune."maple-finance".dataset_maple_otc_by_day where timestamp >= ${options.startOfDay} and timestamp < ${options.startOfDay + 86400}`;
     const duneData = await queryDuneSql(options, duneQuery);
 
-    const dailyFees = options.createBalances();
-    dailyFees.addUSDValue(duneData?.[0]?.otc_fees || 0, METRIC.MANAGEMENT_FEES);
     const holdersShare = getHoldersRevenueShare(options.startOfDay);
+    const dailyFees = options.createBalances();
+    dailyFees.addUSDValue(Number(duneData?.[0]?.otc_fees || 0), METRIC.MANAGEMENT_FEES);
 
     return {
       dailyFees,
       dailyRevenue: dailyFees,
       dailyProtocolRevenue: dailyFees.clone(1 - holdersShare),
-      dailyHoldersRevenue: dailyFees.clone(holdersShare),
+      dailyHoldersRevenue: dailyFees.clone(holdersShare, METRIC.TOKEN_BUY_BACK),
       dailySupplySideRevenue: 0
     }
   }
@@ -59,9 +63,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
   const holdersShare = getHoldersRevenueShare(options.startOfDay);
 
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
@@ -103,6 +104,7 @@ const fetch = async (options: FetchOptions) => {
         targets: fixed_term_loans,
         eventAbi: interest_paid_event,
         entireLog: true,
+        parseLog: true,
       })
 
       logs_origination_fees.forEach((e: any) => {
@@ -112,12 +114,6 @@ const fetch = async (options: FetchOptions) => {
 
         dailyRevenue.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
         dailyRevenue.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
-
-        dailyProtocolRevenue.add(asset, Number(e.delegateOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-        dailyProtocolRevenue.add(asset, Number(e.platformOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-
-        dailyHoldersRevenue.add(asset, Number(e.delegateOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
-        dailyHoldersRevenue.add(asset, Number(e.platformOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
 
       })
 
@@ -133,15 +129,6 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
         dailyRevenue.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
 
-        dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-        dailyProtocolRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-        dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-        dailyProtocolRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-
-        dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-        dailyHoldersRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-        dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-        dailyHoldersRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
       })
 
       logs_interest_paid.forEach((e: any) => {
@@ -152,15 +139,15 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  if (toBlock < 17372608) {
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailySupplySideRevenue,
-      dailyProtocolRevenue,
-      dailyHoldersRevenue,
-    }
-  }
+  const splitRevenue = () => ({
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(1 - holdersShare),
+    dailyHoldersRevenue: dailyRevenue.clone(holdersShare, METRIC.TOKEN_BUY_BACK),
+  })
+
+  if (toBlock < 17372608) return splitRevenue()
 
   const logs_open_term_loan_manager_deployed = await getLogs({
     target: openTermLoanManagerFactory,
@@ -204,15 +191,6 @@ const fetch = async (options: FetchOptions) => {
       dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
       dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
 
-      dailyProtocolRevenue.add(asset, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-      dailyProtocolRevenue.add(asset, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-      dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-      dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-
-      dailyHoldersRevenue.add(asset, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-      dailyHoldersRevenue.add(asset, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-      dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-      dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
     })
   }
 
@@ -248,18 +226,10 @@ const fetch = async (options: FetchOptions) => {
 
       dailyFees.add(asset, e.args.fees, STRATEGY_FEES)
       dailyRevenue.add(asset, e.args.fees, STRATEGY_FEES)
-      dailyProtocolRevenue.add(asset, Number(e.args.fees) * (1 - holdersShare), STRATEGY_FEES)
-      dailyHoldersRevenue.add(asset, Number(e.args.fees) * holdersShare, METRIC.TOKEN_BUY_BACK)
     })
   }
 
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-  }
+  return splitRevenue()
 }
 
 const adapters: SimpleAdapter = {
@@ -274,16 +244,16 @@ const adapters: SimpleAdapter = {
     }
   },
   methodology: {
-    Fees: "Total interest and fees paid by borrowers on both fixed-term and open-term loans, including net interest, management fees, service fees, strategy fees and origination fees.",
+    Fees: "Total interest and fees paid by borrowers on both fixed-term and open-term loans, including net interest, management fees, service fees, strategy fees and origination fees, plus off-chain OTC desk revenue.",
     Revenue: "Total revenue flowing to Maple protocol and delegates, including management fees, service fees, strategy fees and origination fees from both fixed-term and open-term loans.",
-    ProtocolRevenue: "Revenue flowing to Maple protocol treasuries (75% of total revenue, with 25% allocated to SYRUP token buybacks from MIP-019).",
+    ProtocolRevenue: "Revenue flowing to Maple protocol treasuries, i.e. total revenue less the share allocated to SYRUP buybacks.",
     SupplySideRevenue: "Net interest earned by liquidity providers/depositors in Maple pools from both fixed-term and open-term loan payments.",
-    HoldersRevenue: "25% of protocol revenue used to buy back SYRUP tokens from MIP-019 (starting Nov 2025).",
+    HoldersRevenue: "Share of revenue used to buy back SYRUP tokens: 20% from Jan 2025 (MIP-013/016), 25% from Jul 2025 (MIP-019), 10% from Jul 2026 (MIP-021). Matched against the monthly buybacks published on https://maple.finance/transparency.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.BORROW_INTEREST]: 'Net interest paid by borrowers on open-term loans.',
-      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans and origination fees from fixed-term loans, paid to protocol and delegates.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans, origination fees from fixed-term loans, and off-chain OTC desk revenue, paid to protocol and delegates.',
       [METRIC.SERVICE_FEES]: 'Service fees from both fixed-term and open-term loans, paid to protocol and delegates.',
       [STRATEGY_FEES]: 'Aave/sky Strategy fees paid to protocol.',
     },
@@ -301,7 +271,7 @@ const adapters: SimpleAdapter = {
       [STRATEGY_FEES]: 'Aave/sky Strategy fees share to Maple protocol.',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: '25% of all protocol revenue used for SYRUP token buybacks (from MIP-019, starting Nov 2025).',
+      [METRIC.TOKEN_BUY_BACK]: 'Share of revenue used for SYRUP token buybacks: 20% from Jan 2025, 25% from Jul 2025 (MIP-019), 10% from Jul 2026 (MIP-021).',
     },
   },
   dependencies: [Dependencies.DUNE],
