@@ -23,7 +23,8 @@ type ChainCfg = {
   maxPairSize?: number
   gaugeCreated?: GaugeCreatedSrc
   badToken?: string
-}
+  deadFrom?: string
+  }
 // Bob/Mode beta gauges are plain Synthetix stakers (no feesVotingReward), so no
 // swap fees reach voters. Bob has no leaf Voter — all its fees stay supply-side.
 
@@ -62,7 +63,7 @@ const config: Record<string, ChainCfg> = {
     gaugeCreated: { voter: LEAF_VOTER, fromBlock: 9387000, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
   },
   [CHAIN.SWELLCHAIN]: {
-    factory: LEAF_FACTORY, start: '2025-02-21',
+    factory: LEAF_FACTORY, start: '2025-02-21', deadFrom: '2026-06-30', // swellchain stopped operations
     gaugeCreated: { voter: LEAF_VOTER, fromBlock: 3717934, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
   },
   [CHAIN.CELO]: {
@@ -188,7 +189,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { fetch, start: c.start }])),
+  fetch,
+  adapter: config,
   methodology: {
     Volume: 'Swap volume across Velodrome v2 (non-CL) pools, counted once per swap from the core-asset side.',
     Fees: 'Per-pool swap fee read from PoolFactory.getFee (default vAMM 0.30% / sAMM 0.05%, customizable per pool) applied to each swap, plus external bribes deposited by third parties to voter-incentive contracts.',
