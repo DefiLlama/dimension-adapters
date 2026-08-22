@@ -3,12 +3,6 @@
 // Programs (mainnet): Full Launch ETVtC29T7ExxYyWSkpzKPxzrL3SRyrGPRhZe3FwXmFAo
 //                    Idea Mode 2ww3589FBTgwbCd9sbpBjosiDszsigoqArh5xuc7F2Ve
 //
-// Draft for dimension-adapters/fees/keep.ts.
-// Keep has had no successful launch at the time this adapter was staged, so
-// historical output is currently zero. The non-zero path is still entirely
-// on-chain: platform receipts are read from the platform USDC ATA and the
-// project-owner share is decoded from Keep's FeesHarvested event.
-//
 // Where Keep's fees come from (verified from the program source):
 //   1. Success platform fee — PLATFORM_FEE_BPS = 500 (5%) of each successful
 //      raise, swept to the platform fee receiver in settle_success.rs.
@@ -25,11 +19,11 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // USDC mint (mainnet) — every Keep fee is USDC.
-const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-// Platform fee-receiver USDC ATA = ATA(USDC, factory_config.platform_fee_receiver Fe7w5…).
-// Verified in the mainnet fingerprint (owner == platform_fee_receiver, mint == USDC).
+const USDC = ADDRESSES.solana.USDC;
+// Platform fee-receiver USDC ATA (owner Fe7w5EnNJDphnSseonEPt2BSZhi9gosFvecZ6mSrqzMB).
 const PLATFORM_FEE_USDC_ATA = "93CuxAXjjAExKJY2uNHidR9UrVSBJmgjng8NMQHnVzfB";
 
 const KEEP_PROGRAMS = [
@@ -37,46 +31,35 @@ const KEEP_PROGRAMS = [
   "2ww3589FBTgwbCd9sbpBjosiDszsigoqArh5xuc7F2Ve", // Idea Mode
 ];
 
-async function getPlatformFees(options: FetchOptions) {
-  const platformFees = options.createBalances();
-  const rows = await queryDuneSql(options, `
-    SELECT
-      token_mint_address AS mint,
-      SUM(amount) AS amount
-    FROM tokens_solana.transfers
-    WHERE to_owner = '${PLATFORM_FEE_USDC_ATA}'
-      AND token_mint_address = '${USDC}'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
-    GROUP BY token_mint_address
-  `, { extraUIDKey: "keep-fees-platform" });
-  const amount = rows?.[0]?.amount;
-  if (amount != null && Number(amount) > 0) {
-    platformFees.add(USDC, Number(amount));
-  }
-  return platformFees;
-}
-
 // Anchor's first eight event bytes, base64-encoded. The complete event payload
 // is decoded below; the prefix is only used to select FeesHarvested log lines.
 const FEES_HARVESTED_PREFIX = "Huy2vk3+TAo";
 
 /**
- * Read the project-owner share from Keep's on-chain FeesHarvested events.
+ * One Dune call: USDC inflows to the platform ATA (protocol revenue) plus the
+ * project-owner share decoded from FeesHarvested events (supply-side).
  *
  * Event layout is Anchor discriminator (8 bytes), launchpad (32), project
  * owner (32), harvested_usdc (u64), project_amount (u64), platform_amount
  * (u64), tokens_burned (u64). Borsh integers are little-endian, hence the
  * byte reversal before Dune's numeric conversion.
+ *
+ * Filter the ATA with to_token_account, not to_owner — to_owner is the
+ * platform fee-receiver wallet, not this token account.
  */
-const getProjectFees = async (options: FetchOptions) => {
-  const projectFees = options.createBalances();
+const getKeepFees = async (options: FetchOptions) => {
   const programs = KEEP_PROGRAMS.map((program) => `'${program}'`).join(", ");
   const rows = await queryDuneSql(options, `
-    WITH fee_events AS (
+    WITH platform AS (
+      SELECT COALESCE(SUM(amount), 0) AS amount
+      FROM tokens_solana.transfers
+      WHERE to_token_account = '${PLATFORM_FEE_USDC_ATA}'
+        AND token_mint_address = '${USDC}'
+        AND TIME_RANGE
+    ),
+    fee_events AS (
       SELECT DISTINCT
         i.tx_id,
-        i.block_time,
         substr(log_message, 15) AS payload
       FROM solana.instruction_calls i
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
@@ -84,27 +67,30 @@ const getProjectFees = async (options: FetchOptions) => {
         AND i.outer_executing_account IN (${programs})
         AND TIME_RANGE
         AND starts_with(log_message, 'Program data: ${FEES_HARVESTED_PREFIX}')
+    ),
+    project AS (
+      SELECT COALESCE(SUM(
+        varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 81, 8)))
+      ), 0) AS amount
+      FROM fee_events
     )
     SELECT
-      COALESCE(SUM(
-        varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 81, 8)))
-      ), 0) AS project_amount
-    FROM fee_events
-  `, { extraUIDKey: "keep-fees-harvested" });
+      (SELECT amount FROM platform) AS platform_amount,
+      (SELECT amount FROM project) AS project_amount
+  `);
 
-  const amount = rows?.[0]?.project_amount;
-  if (amount != null && Number(amount) > 0) {
-    projectFees.add(USDC, Number(amount));
-  }
-  return projectFees;
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const platformAmount = Number(rows?.[0]?.platform_amount);
+  const projectAmount = Number(rows?.[0]?.project_amount);
+  if (platformAmount > 0) dailyRevenue.add(USDC, platformAmount);
+  if (projectAmount > 0) dailySupplySideRevenue.add(USDC, projectAmount);
+  return { dailyRevenue, dailySupplySideRevenue };
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dailyRevenue = await getPlatformFees(options);
-  // USDC received by the platform fee ATA on this day = protocol's fee take
-  // (success/failure raise fee slices + harvested platform_amount).
+  const { dailyRevenue, dailySupplySideRevenue } = await getKeepFees(options);
 
-  const dailySupplySideRevenue = await getProjectFees(options);
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
   dailyFees.addBalances(dailySupplySideRevenue, METRIC.CREATOR_FEES);
@@ -119,8 +105,10 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2026-01-01",
+  start: "2026-08-20",
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  doublecounted: true, // raydium
   methodology: {
     Fees: "All Keep USDC fees: the platform fee-receiver inflows plus the project-owner share of harvested Raydium trading fees. The refundable raise principal and LP liquidity are excluded.",
     Revenue: "The platform portion of Keep fees, received by the platform fee-receiver USDC account. The project-owner share is reported as Supply Side Revenue.",
