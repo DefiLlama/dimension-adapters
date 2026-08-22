@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { METRIC } from '../helpers/metrics';
 import { queryDuneSql } from "../helpers/dune";
+import { httpGet } from "../utils/fetchURL";
 
 const feeManager = '0xFeACa6A5703E6F9DE0ebE0975C93AE34c00523F2'
 
@@ -49,16 +50,60 @@ function getHoldersRevenueShare(date: number): number {
 
 const STRATEGY_FEES = 'Strategy Fees';
 
+// Maple stopped updating their daily OTC dataset on Dune after 2025-10-09 (all October rows are
+// null), so from 2025-10-01 the off-chain number is recovered from what they still publish: the
+// monthly total revenue on https://maple.finance/transparency (which includes OTC) minus our own
+// on-chain revenue for that month, spread evenly over the month's days. The monthly residual
+// reconciles with the real OTC dataset where both exist (2025-06: residual $797k vs dataset
+// $813k) and with inverting their published buybacks (buyback / rate matches revenue to ~0.15%).
+const OTC_DATASET_STALE_TS = 1759276800 // 2025-10-01
+
+async function getOtcFromDuneDataset(options: FetchOptions): Promise<number> {
+  const duneQuery = `
+    select coalesce(otc_revenue, 0) as otc_fees from dune."maple-finance".dataset_maple_otc_by_day where timestamp >= ${options.startOfDay} and timestamp < ${options.startOfDay + 86400}`;
+  const duneData = await queryDuneSql(options, duneQuery);
+  return Number(duneData?.[0]?.otc_fees || 0)
+}
+
+async function getOtcResidualFromTransparency(options: FetchOptions): Promise<number> {
+  const day = new Date(options.startOfDay * 1000)
+  const monthStartMs = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1)
+  const daysInMonth = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate()
+
+  // monthly total revenue (incl. OTC), server-rendered into the transparency page
+  const html: string = await httpGet('https://maple.finance/transparency', { headers: { 'User-Agent': 'Mozilla/5.0' } })
+  const propsMatch = html.match(/RevChartInner[^>]*props="([^"]*)"/)
+  if (!propsMatch) throw new Error('maple transparency page: RevChartInner props not found')
+  const props = JSON.parse(propsMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'))
+  const monthRow = props.datasets[1].ALL[1].find((r: any) => r[1].ts[1] === monthStartMs)
+  if (!monthRow) return 0 // month not published yet
+  const publishedMonthRevenue = monthRow[1].revenueUsd[1]
+
+  // our on-chain revenue for the same month, from the served series (the ethereum leg of this
+  // adapter; stable for these dates - none of the ethereum-side history fixes touch post-2025-09)
+  const summary = await httpGet('https://api.llama.fi/summary/fees/maple-finance?dataType=dailyRevenue')
+  let onchainMonthRevenue = 0
+  for (const [ts, byChain] of summary.totalDataChartBreakdown ?? []) {
+    const d = new Date(ts * 1000)
+    if (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) !== monthStartMs) continue
+    onchainMonthRevenue += Object.entries(byChain as Record<string, Record<string, number>>)
+      .filter(([chain]) => chain !== 'Off Chain')
+      .reduce((sum, [, byProtocol]) => sum + Object.values(byProtocol).reduce((a, b) => a + b, 0), 0)
+  }
+
+  return Math.max(0, publishedMonthRevenue - onchainMonthRevenue) / daysInMonth
+}
+
 const fetch = async (options: FetchOptions) => {
 
   if (options.chain === CHAIN.OFF_CHAIN) {
-    const duneQuery = `
-    select coalesce(otc_revenue, 0) as otc_fees from dune."maple-finance".dataset_maple_otc_by_day where timestamp >= ${options.startOfDay} and timestamp < ${options.startOfDay + 86400}`;
-    const duneData = await queryDuneSql(options, duneQuery);
+    const otcFees = options.startOfDay < OTC_DATASET_STALE_TS
+      ? await getOtcFromDuneDataset(options)
+      : await getOtcResidualFromTransparency(options)
 
     const holdersShare = getHoldersRevenueShare(options.startOfDay);
     const dailyFees = options.createBalances();
-    dailyFees.addUSDValue(Number(duneData?.[0]?.otc_fees || 0), METRIC.MANAGEMENT_FEES);
+    dailyFees.addUSDValue(otcFees, METRIC.MANAGEMENT_FEES);
 
     return {
       dailyFees,
@@ -307,7 +352,7 @@ const adapters: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.BORROW_INTEREST]: 'Net interest paid by borrowers on open-term loans.',
-      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term and fixed-term loans, origination fees from fixed-term loans, and off-chain OTC desk revenue, paid to protocol and delegates.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term and fixed-term loans, origination fees from fixed-term loans, and off-chain OTC desk revenue (from Oct 2025 estimated as Maple published monthly revenue minus on-chain revenue, spread over the month), paid to protocol and delegates.',
       [METRIC.SERVICE_FEES]: 'Service fees from both fixed-term and open-term loans, paid to protocol and delegates.',
       [STRATEGY_FEES]: 'Aave/sky Strategy fees paid to protocol.',
     },
