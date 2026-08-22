@@ -7,7 +7,6 @@ import { httpGet } from "../../utils/fetchURL";
 const FEES_URL = "https://api.hylo.so/v1/protocol/fees";
 const DIGEST_URL = "https://api.hylo.so/v1/protocol/digest";
 const VALIDATOR_URL = "https://api.hylo.so/v1/validator/revenue";
-const LEGACY_URL = "https://api.hylo.so/activity/volumes";
 
 const OPERATION_LABELS: Record<string, string> = {
   MintStablecoin: "Mint/Redeem Fees",
@@ -43,17 +42,9 @@ const fetchFromApi = async (options: FetchOptions) => {
   }
 
   const dailySupplySideRevenue = options.createBalances();
-  if (date < "2025-12-06") {
-    // digest yieldToPool returns the protocol cut instead of the pool share before the Dec 2025 earn pool migration
-    const to = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10);
-    const legacyRes = await httpGet(`${LEGACY_URL}?from=${date}&to=${to}`);
-    const legacyDay = legacyRes.volumes.find((v: any) => v.date === date);
-    dailySupplySideRevenue.addUSDValue(Number(legacyDay.yield_harvested_usd), "Earn Pool Yield");
-  } else {
-    const digestDay = digestRes.daily.find((d: any) => d.date === date);
-    for (const market of digestDay.markets) {
-      if (market.yieldToPool) dailySupplySideRevenue.addUSDValue(Number(market.yieldToPool.usd), "Earn Pool Yield");
-    }
+  const digestDay = digestRes.daily.find((d: any) => d.date === date);
+  for (const market of digestDay.markets) {
+    if (market.yieldToPool) dailySupplySideRevenue.addUSDValue(Number(market.yieldToPool.usd), "Earn Pool Yield");
   }
 
   // validator income settles per epoch, days without a payout are omitted
