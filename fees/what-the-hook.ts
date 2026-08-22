@@ -34,6 +34,28 @@ const profitDistributeAbi =
 // v4 uses the zero address for native ETH; pools also settle in WETH and USDG.
 const NATIVE = "0x0000000000000000000000000000000000000000";
 
+// One historical distribution the hook reported in a currency it did not pay
+// in. A newer arbitrage executor could return profit to the hook in WETH and
+// USDG together, and the event carried the sum of the two under a single
+// currency — USDG — without normalising the eighteen-decimal leg to USDG's
+// six. Read as written, 0xd7f5db62… (block 42136833) claims a rebate of
+// 35,112,763 USDG, nine per cent of all USDG in existence, in a transaction
+// whose recipient received 0.00000878 WETH. Left in, this single event takes
+// the adapter from roughly $750 a day to $87M, and reports the protocol as
+// having distributed more than it has ever turned over.
+//
+// The executor has since been patched: mixed profit is now normalised to the
+// trigger pool's base currency before the event is emitted, so this cannot
+// recur. Excluded by hash rather than by rule for that reason — a heuristic
+// would outlive the defect it guards against.
+const EXCLUDED_TX = new Set([
+  // https://robinhoodchain.blockscout.com/tx/0xd7f5db626f84477bd4d3c7dded329c809e1b6e63dda4afe1a39b672b23a30ee7
+  // The receipt carries the ProfitCurrencyDistribute event next to the
+  // transfers it is meant to describe: the largest USDG movement in the
+  // transaction is 1,256, and the recipient's only credit is 0.00000878 WETH.
+  "0xd7f5db626f84477bd4d3c7dded329c809e1b6e63dda4afe1a39b672b23a30ee7",
+]);
+
 const LABEL = {
   captured: METRIC.MEV_REWARDS,
   toTraders: "MEV Rewards To Traders",
@@ -56,17 +78,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     else bal.add(currency, amount, label);
   };
 
-  const logs = await getLogs({ target: HOOK, eventAbi: profitDistributeAbi });
+  // entireLog keeps the transaction hash, which onlyArgs — the default —
+  // discards; the decoded fields then live under log.args
+  const logs = await getLogs({
+    target: HOOK,
+    eventAbi: profitDistributeAbi,
+    entireLog: true,
+    parseLog: true,
+  });
   for (const log of logs) {
-    const currency = String(log.currency);
+    if (EXCLUDED_TX.has(String(log.transactionHash).toLowerCase())) continue;
+    const currency = String(log.args.currency);
     // Fees is what the hook captured; both legs of the split are supply-side,
     // booked under their own destination labels so the breakdowns line up
     // without a late subtract. Revenue is left empty: fees minus supply side
     // is zero here, and the balances above confirm nothing is retained.
-    add(dailyFees, currency, log.swapperAmount, LABEL.captured);
-    add(dailyFees, currency, log.lpAmount, LABEL.captured);
-    add(dailySupplySideRevenue, currency, log.swapperAmount, LABEL.toTraders);
-    add(dailySupplySideRevenue, currency, log.lpAmount, LABEL.toLPs);
+    add(dailyFees, currency, log.args.swapperAmount, LABEL.captured);
+    add(dailyFees, currency, log.args.lpAmount, LABEL.captured);
+    add(dailySupplySideRevenue, currency, log.args.swapperAmount, LABEL.toTraders);
+    add(dailySupplySideRevenue, currency, log.args.lpAmount, LABEL.toLPs);
   }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyUserFees };
