@@ -52,7 +52,7 @@ async function getPlatformFees(options: FetchOptions) {
   `, { extraUIDKey: "keep-fees-platform" });
   const amount = rows?.[0]?.amount;
   if (amount != null && Number(amount) > 0) {
-    platformFees.add(USDC, Number(amount), METRIC.PROTOCOL_FEES);
+    platformFees.add(USDC, Number(amount));
   }
   return platformFees;
 }
@@ -94,7 +94,7 @@ const getProjectFees = async (options: FetchOptions) => {
 
   const amount = rows?.[0]?.project_amount;
   if (amount != null && Number(amount) > 0) {
-    projectFees.add(USDC, Number(amount), METRIC.CREATOR_FEES);
+    projectFees.add(USDC, Number(amount));
   }
   return projectFees;
 };
