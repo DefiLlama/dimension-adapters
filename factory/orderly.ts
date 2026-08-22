@@ -155,6 +155,16 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
+  "rwaperp": {
+    broker_id: "rwaperp_xyz",
+    start: "2026-08-19",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the RWA Perp.xyz interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  }
 }
 
 const feesProtocols: Record<string, any> = {};
