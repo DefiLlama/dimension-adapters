@@ -24,7 +24,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-import { getSolanaReceived } from "../helpers/token";
 import { METRIC } from "../helpers/metrics";
 
 // USDC mint (mainnet) — every Keep fee is USDC.
@@ -37,6 +36,26 @@ const KEEP_PROGRAMS = [
   "ETVtC29T7ExxYyWSkpzKPxzrL3SRyrGPRhZe3FwXmFAo", // Full Launch
   "2ww3589FBTgwbCd9sbpBjosiDszsigoqArh5xuc7F2Ve", // Idea Mode
 ];
+
+async function getPlatformFees(options: FetchOptions) {
+  const platformFees = options.createBalances();
+  const rows = await queryDuneSql(options, `
+    SELECT
+      token_mint_address AS mint,
+      SUM(amount) AS amount
+    FROM tokens_solana.transfers
+    WHERE to_owner = '${PLATFORM_FEE_USDC_ATA}'
+      AND token_mint_address = '${USDC}'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time <= from_unixtime(${options.endTimestamp})
+    GROUP BY token_mint_address
+  `, { extraUIDKey: "keep-fees-platform" });
+  const amount = rows?.[0]?.amount;
+  if (amount != null && Number(amount) > 0) {
+    platformFees.add(USDC, Number(amount), METRIC.PROTOCOL_FEES);
+  }
+  return platformFees;
+}
 
 // Anchor's first eight event bytes, base64-encoded. The complete event payload
 // is decoded below; the prefix is only used to select FeesHarvested log lines.
@@ -81,15 +100,9 @@ const getProjectFees = async (options: FetchOptions) => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dailyRevenue = options.createBalances();
+  const dailyRevenue = await getPlatformFees(options);
   // USDC received by the platform fee ATA on this day = protocol's fee take
   // (success/failure raise fee slices + harvested platform_amount).
-  await getSolanaReceived({
-    options,
-    balances: dailyRevenue,
-    target: PLATFORM_FEE_USDC_ATA,
-    mints: [USDC],
-  });
 
   const dailySupplySideRevenue = await getProjectFees(options);
   const dailyFees = options.createBalances();
