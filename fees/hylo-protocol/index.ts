@@ -1,4 +1,4 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { httpGet } from "../../utils/fetchURL";
@@ -7,42 +7,7 @@ import { httpGet } from "../../utils/fetchURL";
 const FEES_URL = "https://api.hylo.so/v1/protocol/fees";
 const DIGEST_URL = "https://api.hylo.so/v1/protocol/digest";
 const VALIDATOR_URL = "https://api.hylo.so/v1/validator/revenue";
-
-interface FeeRow {
-  operation: string;
-  token: string;
-  market?: string;
-  fee: string;
-  usd: string;
-}
-
-interface FeeDay {
-  date: string;
-  byToken: { token: string; fee: string; usd: string }[];
-  byOperation: FeeRow[];
-}
-
-interface DigestDay {
-  date: string;
-  markets: { market: string; yieldToPool?: { token: string; amount: string; usd: string } }[];
-}
-
-interface ValidatorDay {
-  date: string;
-  total?: string; // SOL
-}
-
-// Hylo validator: inflation commission + Jito tips + block rewards, in SOL.
-// Inflation and Jito settle once per epoch; days with no activity are omitted.
-const addValidatorRevenue = async (options: FetchOptions, balances: any) => {
-  const date = options.dateString;
-  const res = await httpGet(`${VALIDATOR_URL}?from=${date}&to=${date}`);
-  const day: ValidatorDay | undefined = (res?.daily || []).find((d: ValidatorDay) => d.date === date);
-  if (!day) return;
-  const sol = Number(day.total ?? 0);
-  if (!Number.isFinite(sol)) throw new Error(`Hylo API returned a bad validator total for ${date}: ${JSON.stringify(day)}`);
-  balances.addCGToken("solana", sol, "Validator Revenue");
-};
+const LEGACY_URL = "https://api.hylo.so/activity/volumes";
 
 const OPERATION_LABELS: Record<string, string> = {
   MintStablecoin: "Mint/Redeem Fees",
@@ -57,20 +22,18 @@ const OPERATION_LABELS: Record<string, string> = {
   SwapLeverToStableExo: "Swap Fees",
   SwapLst: "Swap Fees",
   UserWithdraw: "Earn Pool Withdrawal Fees",
-  HarvestYield: "Yield Fees",
-  HarvestBorrowRate: "Yield Fees",
+  HarvestYield: "LST Yield Share",
+  HarvestBorrowRate: "Borrow Rate Fees",
 };
 
 const fetchFromApi = async (options: FetchOptions) => {
   const date = options.dateString;
-  const [feesRes, digestRes] = await Promise.all([
+  const [feesRes, digestRes, validatorRes] = await Promise.all([
     httpGet(`${FEES_URL}?from=${date}&to=${date}`),
     httpGet(`${DIGEST_URL}?from=${date}&to=${date}`),
+    httpGet(`${VALIDATOR_URL}?from=${date}&to=${date}`),
   ]);
-  const feeDay: FeeDay | undefined = (feesRes?.daily || []).find((d: FeeDay) => d.date === date);
-  if (!feeDay) throw new Error(`Hylo API returned no fee data for ${date}`);
-  const digestDay: DigestDay | undefined = (digestRes?.daily || []).find((d: DigestDay) => d.date === date);
-  if (!digestDay) throw new Error(`Hylo API returned no digest data for ${date}`);
+  const feeDay = feesRes.daily.find((d: any) => d.date === date);
 
   const dailyRevenue = options.createBalances();
   for (const row of feeDay.byOperation) {
@@ -80,14 +43,22 @@ const fetchFromApi = async (options: FetchOptions) => {
   }
 
   const dailySupplySideRevenue = options.createBalances();
-  for (const market of digestDay.markets || []) {
-    if (!market.yieldToPool) continue;
-    const usd = Number(market.yieldToPool.usd);
-    if (!Number.isFinite(usd)) throw new Error(`Hylo API returned a bad yieldToPool value for ${date}: ${JSON.stringify(market)}`);
-    dailySupplySideRevenue.addUSDValue(usd, "Earn Pool Yield");
+  if (date < "2025-12-06") {
+    // digest yieldToPool returns the protocol cut instead of the pool share before the Dec 2025 earn pool migration
+    const to = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10);
+    const legacyRes = await httpGet(`${LEGACY_URL}?from=${date}&to=${to}`);
+    const legacyDay = legacyRes.volumes.find((v: any) => v.date === date);
+    dailySupplySideRevenue.addUSDValue(Number(legacyDay.yield_harvested_usd), "Earn Pool Yield");
+  } else {
+    const digestDay = digestRes.daily.find((d: any) => d.date === date);
+    for (const market of digestDay.markets) {
+      if (market.yieldToPool) dailySupplySideRevenue.addUSDValue(Number(market.yieldToPool.usd), "Earn Pool Yield");
+    }
   }
 
-  await addValidatorRevenue(options, dailyRevenue);
+  // validator income settles per epoch, days without a payout are omitted
+  const validatorDay = validatorRes.daily.find((d: any) => d.date === date);
+  if (validatorDay) dailyRevenue.addCGToken("solana", Number(validatorDay.total), "Validator Revenue");
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue);
@@ -209,20 +180,17 @@ const fetchFromDune = async (options: FetchOptions) => {
   };
 };
 
-const fetch = async (options: FetchOptions) => {
-  try {
-    return await fetchFromApi(options);
-  } catch (e) {
-    console.error("Hylo API failed, falling back to Dune", e);
-    return await fetchFromDune(options);
-  }
+const fetch: any = async (options: FetchOptions) => {
+  return fetchFromApi(options);
+  // kept for on-chain verification of the API numbers
+  return fetchFromDune(options);
 };
 
 const methodology = {
-  Fees: "Protocol fees collected from users (api.hylo.so/v1/protocol/fees), Hylo validator revenue (api.hylo.so/v1/validator/revenue), plus the yield paid to earn pool depositors (api.hylo.so/v1/protocol/digest).",
-  Revenue: "Protocol fees (mint/redeem, hyUSD/levercoin swaps, earn pool withdrawals, protocol share of harvested LST yield and borrow rate) and Hylo validator revenue (inflation commission, Jito tips, block rewards).",
-  ProtocolRevenue: "Same as Revenue; all protocol fees accrue to the protocol.",
-  SupplySideRevenue: "Harvested LST yield and borrow rate (in hyUSD) distributed to earn pool depositors.",
+  Fees: "Fees users pay to mint, redeem and swap hyUSD and levercoins (xSOL, xBTC), earn pool withdrawal fees, the staking yield and exo market borrow rate harvested from the collateral reserves, and the income of the Hylo validator.",
+  Revenue: "The portion kept by the protocol: all user-paid fees, the protocol's share of harvested yield and borrow rate, and Hylo validator income (block rewards, Jito tips, inflation commission).",
+  ProtocolRevenue: "Same as Revenue; Hylo has no token, all revenue accrues to the protocol.",
+  SupplySideRevenue: "The share of harvested yield and borrow rate paid to hyUSD depositors in the earn pool.",
 };
 
 const breakdownMethodology = {
@@ -230,9 +198,11 @@ const breakdownMethodology = {
     "Mint/Redeem Fees": "Fees on minting and redeeming hyUSD and levercoins (xSOL, xBTC, ...) against the collateral vaults.",
     "Swap Fees": "Fees on swaps between hyUSD and levercoins, and on LST swaps.",
     "Earn Pool Withdrawal Fees": "Fees on withdrawals from the hyUSD earn pool.",
-    "Yield Fees": "Protocol share of harvested LST yield and exo pair borrow rate.",
+    "LST Yield Share": "Protocol share of the staking yield harvested from the SOL LST collateral (JitoSOL, HyloSOL).",
+    "Borrow Rate Fees": "Protocol share of the borrow rate charged on exo pair markets (USDC, cbBTC, HYPE).",
     "Validator Revenue": "Hylo validator inflation commission, Jito tips and block rewards (SOL).",
     "Earn Pool Yield": "Harvested LST yield and borrow rate paid out to earn pool depositors.",
+    "Other Fees": "Protocol fees from operations not yet categorized above.",
   },
   SupplySideRevenue: {
     "Earn Pool Yield": "Harvested LST yield and borrow rate paid out to earn pool depositors.",
@@ -240,12 +210,10 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // the Hylo API only serves daily aggregates
   fetch,
-  start: "2025-04-01",
+  start: "2025-04-13", // first day with data on the Hylo API
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
 };
