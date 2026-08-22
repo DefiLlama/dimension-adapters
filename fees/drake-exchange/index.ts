@@ -5,7 +5,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 
 const TRADING = "0xE6dfD064F1CFf4F62236fC862A2543EA98380F32";
 const COMMON_HELPER = "0x4939AEf78CD2Dc2bAE5bf9DA51C61A113Cae909a";
-const AUSD = ADDRESSES.mantle.AUSD;
+const AUSD = ADDRESSES.monad.AUSD;
 const PLATFORM_MANAGER = "0x7940575377C3c2ABdA23813c123b4C880E217d6d";
 
 const COMMISSION_FEE = 3;
@@ -109,7 +109,7 @@ const fetch = async (options: FetchOptions) => {
         dailySupplySideRevenue.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
     });
 
-    return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const breakdownMethodology = {
@@ -119,6 +119,9 @@ const breakdownMethodology = {
         [METRIC.BORROW_INTEREST]: "Net borrowing and imbalance funding fees charged to traders.",
     },
     Revenue: {
+        [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
+    },
+    ProtocolRevenue: {
         [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
     },
     SupplySideRevenue: {
@@ -138,6 +141,7 @@ export default {
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
         Revenue:
             "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
+        ProtocolRevenue: "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
         SupplySideRevenue:
             "Share routed to the Liquidity Vault per the orderbook and AMM splits in effect at that block, plus 100% of margin-change and borrowing/funding fees.",
     },
