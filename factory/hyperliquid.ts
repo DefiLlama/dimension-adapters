@@ -350,6 +350,16 @@ const builderConfigs: Record<string, BuilderConfig> = {
     start: "2026-05-13",
     market: "hip4",
   },
+  "resolvium": {
+    // Protocol: https://www.resolvium.xyz/
+    // Builder verified from Resolvium's Hyperliquid Mainnet
+    // approveBuilderFee action.
+    // Historical fills:
+    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x90536b9d94d65c9fabd372002bdfc2ef012231b2/20260527.csv.lz4
+    addresses: ["0x90536b9d94d65c9fabd372002bdfc2ef012231b2"],
+    start: "2026-05-27",
+    market: "hip4",
+  },
   "pear-interface": {
     addresses: ["0xa47d4d99191db54a4829cdf3de2417e527c3b042"],
     start: "2025-07-08",
