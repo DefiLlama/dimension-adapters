@@ -230,6 +230,8 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Swaps are read from per-transaction logs, so the window can be any length.
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-12-12',
