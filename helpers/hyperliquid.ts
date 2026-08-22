@@ -547,6 +547,34 @@ export async function queryHypurrscanApi(
   return result;
 }
 
+const HYPURRSCAN_SPOT_AUCTIONS_API =
+  "https://api.hypurrscan.io/pastAuctions";
+
+export async function queryHypurrscanSpotAuctionBurns(
+  options: FetchOptions,
+): Promise<Balances> {
+  const dailyBurns = options.createBalances();
+  const response = await httpGet(HYPURRSCAN_SPOT_AUCTIONS_API);
+  const startTimeMs = options.startTimestamp * 1000;
+  const endTimeMs = options.endTimestamp * 1000;
+
+  // Negative deployGas is HYPE burned; positive is pre-HYPE-era proceeds collected in USDC-> Assistance Fund.
+  let hypeBurned = 0;
+  let usdcCollected = 0;
+  for (const item of response) {
+    if (item.time >= startTimeMs && item.time < endTimeMs) {
+      const deployGas = Number(item.deployGas);
+      if (deployGas < 0) hypeBurned += Math.abs(deployGas);
+      else usdcCollected += deployGas;
+    }
+  }
+
+  if (hypeBurned) dailyBurns.addCGToken("hyperliquid", hypeBurned);
+  if (usdcCollected) dailyBurns.addCGToken("usd-coin", usdcCollected);
+
+  return dailyBurns;
+}
+
 export const fetchHIP3DeployerData = async ({
   options,
   hip3DeployerId,
