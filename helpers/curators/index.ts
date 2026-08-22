@@ -369,11 +369,16 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
     const perfFeeRate = Number(state.performanceFeeBps ?? 0) / 1e4
     const mgmtFeeRate = Number(state.managementFeeBps ?? 0) / 1e4
 
-    // History is requested with a ±1 day pad (API is date-grained); keep only
-    // snapshots that fall inside this fetch window.
+    // History is requested with a ±1 day pad; keep only snapshots inside this
+    // fetch window. Snapshots are hourly and land on the hour, so the upper
+    // bound has to be endTimestamp (the window's closing midnight) and not
+    // toTimestamp (23:59:59). Bounding at toTimestamp drops the closing
+    // snapshot, leaving a 00:00 -> 23:00 delta that misses the window's last
+    // hour, and since the next window starts at its own 00:00 that hour is
+    // never counted by any window.
     const points: any[] = (Array.isArray(history) ? history : history?.history ?? [])
       .map((p: any) => ({ ...p, _ts: Date.parse(p.timestamp ?? p.date ?? '') / 1000 }))
-      .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.toTimestamp)
+      .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.endTimestamp)
       .sort((a: any, b: any) => a._ts - b._ts)
 
     let grossInterest = 0
