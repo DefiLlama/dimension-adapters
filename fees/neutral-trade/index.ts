@@ -10,7 +10,7 @@ const REGISTRY = "https://cdn.jsdelivr.net/gh/neutral-trade/sdk@main/src/registr
 const V1 = "BUNDDh4P5XviMm1f3gCvnq2qKx6TGosAGnoUK12e7cXU";
 const V2 = "BUNDeH5A4c47bcEoAjBhN3sCjLgYnRsmt9ibMztqVkC9";
 const YEAR = 365 * 24 * 3600;
-const U128 = 2 ** 64; // for safe u128 → number conversion
+const U64 = 2 ** 64; // for u128 → number conversion (values stay well below 2^53 after combining)
 
 // --- Base58 ---
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -62,17 +62,18 @@ function derivePDA(seeds: Buffer[], prog: Buffer): Buffer {
 
 // --- Parse Bundle account (Anchor Borsh) ---
 function parseBundle(data: Buffer, isV2: boolean) {
+  const u128 = (o: number) => Number(data.readBigUInt64LE(o)) + Number(data.readBigUInt64LE(o + 8)) * U64;
   let o = 8 + 32 + 96;
-  const vl = data.readUInt32LE(o); o += 4 + vl * 32;
-  const bal = Number(data.readBigUInt64LE(o)); o += 8 + 8;
+  const vl = data.readUInt32LE(o); o += 4 + vl * 32; // allocatedReceivers vec
+  const bal = Number(data.readBigUInt64LE(o)); o += 8 + 8; // bundleUnderlyingBalance + maxDepositAmount
   if (isV2) o += 8;
   o += 8 + 4; // wdDelay + perfFee
   const mgmtBps = data.readUInt32LE(o); o += 4 + 4 + 4; // mgmtBps + depFee + wdFee
-  const pfee = Number(data.readBigUInt64LE(o)) + Number(data.readBigUInt64LE(o + 8)) * U128;
-  o += 16 + 4 + 8; // pfeeShares + allocBps + oracleBuf
-  if (isV2) o += 16;
-  const ts = Number(data.readBigUInt64LE(o)) + Number(data.readBigUInt64LE(o + 8)) * U128;
-  return { bal, mgmtBps, pfee, shares: ts };
+  const pfeeShares = u128(o); o += 16 + 4 + 8; // pfeeShares + allocBps + oracleBuf
+  if (isV2) o += 16; 
+  const shares = u128(o); o += 16 + 8; // totalShares + assetPrecision
+  const mint = b58encode(data.subarray(o, o + 32)); // assetAddress
+  return { bal, mgmtBps, pfeeShares, shares, mint };
 }
 
 // --- Main fetch ---
@@ -102,10 +103,10 @@ const fetch = async (options: FetchOptions) => {
 
   const timespan = options.toTimestamp - options.fromTimestamp;
 
-  // Load cached state for yield + performance fee delta computation
-  const cached: Record<string, { pps: number; pfee: number }> =
-    (await getCache("neutral-trade", "pps-cache")) ?? {};
-  const current: Record<string, { pps: number; pfee: number }> = {};
+  // Both cached values are cumulative, so deltas span missed runs without losing data:
+  // managerPfeeShares only ever grows, and price per share carries yield (and losses) forward.
+  const cached: Record<string, { pfee: number; pps?: number }> = await getCache("neutral-trade", "pfee-cache");
+  const current: Record<string, { pfee: number; pps: number }> = { ...cached } as any;
 
   for (let i = 0; i < bundles.length; i++) {
     const v = bundles[i];
@@ -113,80 +114,76 @@ const fetch = async (options: FetchOptions) => {
     const oBuf = accounts[i * 2 + 1]?.data?.[0];
     if (!bBuf) continue;
 
-    const { bal, mgmtBps, pfee, shares } = parseBundle(Buffer.from(bBuf, "base64"), v.bundleProgramId === V2);
+    const { bal, mgmtBps, pfeeShares, shares, mint } = parseBundle(Buffer.from(bBuf, "base64"), v.bundleProgramId === V2);
     const equity = oBuf ? Number(Buffer.from(oBuf, "base64").readBigUInt64LE(8)) : 0;
-    const dec = v.depositToken === "SOL" ? 1e9 : 1e6;
-    const aum = (bal + equity) / dec;
+    const aum = bal + equity; // raw units of the deposit token
     if (aum <= 0 || shares <= 0) continue;
 
-    const pps = aum / shares;
-    current[v.vaultAddress] = { pps, pfee };
-
-    // Management fees: deterministic from AUM × mgmtBps × time
+    // Management fees: deterministic accrual from AUM × mgmtBps × time
     if (mgmtBps > 0) {
-      const fee = aum * (mgmtBps / 10_000) * (timespan / YEAR);
-      dailyFees.addUSDValue(fee, METRIC.MANAGEMENT_FEES);
-      dailyRevenue.addUSDValue(fee, METRIC.MANAGEMENT_FEES);
+      const mgmtFee = aum * (mgmtBps / 10_000) * (timespan / YEAR);
+      dailyFees.add(mint, mgmtFee, METRIC.MANAGEMENT_FEES);
+      dailyRevenue.add(mint, mgmtFee, METRIC.MANAGEMENT_FEES);
     }
 
+    const pps = aum / shares;
     const prev = cached[v.vaultAddress];
-    if (!prev || prev.pps <= 0) continue;
+    current[v.vaultAddress] = { pfee: pfeeShares, pps };
+    if (!prev) continue;
 
-    // Depositor yield: actual PPS growth × total shares
-    const ppsDelta = pps - prev.pps;
-    if (ppsDelta > 0) {
-      const yieldAmt = ppsDelta * shares;
-      dailyFees.addUSDValue(yieldAmt, METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.addUSDValue(yieldAmt, METRIC.ASSETS_YIELDS);
+    // Performance fees: newly minted manager fee shares valued at current price per share
+    if (pfeeShares > prev.pfee) {
+      const perfFee = (pfeeShares - prev.pfee) * pps;
+      dailyFees.add(mint, perfFee, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(mint, perfFee, METRIC.PERFORMANCE_FEES);
     }
 
-    // Performance fees: delta of managerPfeeShares × PPS
-    const pfeeDelta = Math.max(0, pfee - prev.pfee);
-    if (pfeeDelta > 0) {
-      const perfFeeValue = pfeeDelta * pps;
-      dailyFees.addUSDValue(perfFeeValue, METRIC.PERFORMANCE_FEES);
-      dailyRevenue.addUSDValue(perfFeeValue, METRIC.PERFORMANCE_FEES);
+    // Depositor yield: price-per-share growth × total shares, unclamped so losses
+    // count as negative yield
+    if (prev.pps && prev.pps > 0) {
+      const yieldAmt = (pps - prev.pps) * shares;
+      dailyFees.add(mint, yieldAmt, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(mint, yieldAmt, METRIC.ASSETS_YIELDS);
     }
   }
 
-  await setCache("neutral-trade", "pps-cache", current);
+  await setCache("neutral-trade", "pfee-cache", current);
 
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
-  Fees:
-    "Total yield generated by Neutral Trade vaults: management fees (annual AUM fee) + performance fees (commission on profits above HWM) + depositor yield from PPS growth.",
-  SupplySideRevenue:
-    "Depositor yield from vault strategy returns, computed as PPS growth × total shares between consecutive runs.",
-  Revenue:
-    "Management fees (annual AUM fee from mgmtBps) + performance fees (from managerPfeeShares delta × PPS).",
+  Fees: "Total value generated by Neutral Trade vaults: depositor yield from price-per-share growth plus management and performance fees.",
+  SupplySideRevenue: "Depositor yield from vault strategy returns, measured as price-per-share growth times total shares between runs.",
+  Revenue: "All management and performance fees accrue to the vault managers and protocol.",
+  ProtocolRevenue: "All management and performance fees accrue to the vault managers and protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: "Depositor yield from PPS growth × total shares.",
-    [METRIC.MANAGEMENT_FEES]: "Management fees (annual AUM fee) from on-chain mgmtBps parameter.",
-    [METRIC.PERFORMANCE_FEES]: "Performance fees from managerPfeeShares delta × PPS.",
+    [METRIC.ASSETS_YIELDS]: "Depositor yield from price-per-share growth times total shares, net of fees; negative on losing days.",
+    [METRIC.MANAGEMENT_FEES]: "Management fees accrued as annual bps (on-chain mgmtBps) on vault AUM.",
+    [METRIC.PERFORMANCE_FEES]: "Performance fees charged by minting vault shares to the manager (managerPfeeShares growth), valued at the current price per share.",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Depositor yield from vault strategy returns (PPS growth × shares).",
+    [METRIC.ASSETS_YIELDS]: "Depositor yield from vault strategy returns (price-per-share growth times total shares).",
   },
   Revenue: {
-    [METRIC.MANAGEMENT_FEES]: "Management fees retained by protocol.",
-    [METRIC.PERFORMANCE_FEES]: "Performance fees retained by protocol.",
+    [METRIC.MANAGEMENT_FEES]: "Management fees retained by vault managers and protocol.",
+    [METRIC.PERFORMANCE_FEES]: "Performance fees retained by vault managers and protocol.",
   },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: { [CHAIN.SOLANA]: { fetch, start: "2024-11-01" } },
+  runAtCurrTime: true,
+  allowNegativeValue: true, // depositor yield goes negative on losing days
   methodology,
   breakdownMethodology,
 };
