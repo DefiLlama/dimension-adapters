@@ -24,6 +24,8 @@ type DailyFeesRow = {
 
 const FEES_ENDPOINT = "https://stats-api.derive.xyz/fees";
 
+const toDayString = (timestamp: number) => new Date(timestamp * 1000).toISOString().slice(0, 10);
+
 const fetch = (instrument: string) => async (options: FetchOptions) => {
   const durationSeconds = Math.max(0, options.endTimestamp - options.startTimestamp);
   const endTimeIso = new Date(options.endTimestamp * 1000).toISOString();
@@ -41,11 +43,18 @@ const fetch = (instrument: string) => async (options: FetchOptions) => {
   if (!rows || rows.length === 0)
     throw new Error(`No data returned from Derive fees endpoint for url: ${url}`);
 
+  // The endpoint returns (duration / 86400) + 1 daily rows: it includes the day
+  // that endTime falls on as well as the full requested range. Summing every row
+  // therefore counts an extra day, which doubles the totals on a daily run.
+  // Keep only the days that fall inside [startTimestamp, endTimestamp).
+  const firstDay = toDayString(options.startTimestamp);
+  const lastDay = toDayString(options.endTimestamp - 1);
 
   let grossFeesUsd = 0;
   let grossRevenueUsd = 0;
 
   for (const r of rows) {
+    if (r.day < firstDay || r.day > lastDay) continue;
     grossFeesUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0);
     grossRevenueUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0) - (Number(r.makerRebates) || 0) - (Number(r.takerRebates) || 0);
   }
