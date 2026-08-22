@@ -20,6 +20,7 @@
 
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
 const STATS_API = "https://gyihzeiwelsuikfrschp.supabase.co/functions/v1/defillama";
@@ -35,18 +36,28 @@ interface DayStats {
   dailyHoldersRevenue: number;
 }
 
-// The source only exposes full UTC days, so this is a version 1 (daily) adapter.
+const LAUNCH_FEES = "Launch Fees";
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const date = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const date = options.dateString;
 
   const stats: DayStats = await httpGet(`${STATS_API}?date=${date}`);
+  const volume = Number(stats.dailyVolume);
+  const fees = Number(stats.dailyFees) || 0;
+  // Bonding-curve trades are 1%. Anything above that cap is token launch fees.
+  const tradingFees = Math.min(fees, volume * 0.01);
+  const launchFees = Math.max(0, fees - tradingFees);
+
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(tradingFees, METRIC.TRADING_FEES);
+  dailyFees.addUSDValue(launchFees, LAUNCH_FEES);
 
   return {
-    dailyVolume: stats.dailyVolume,
-    dailyFees: stats.dailyFees,
-    dailyUserFees: stats.dailyUserFees,
-    dailyRevenue: stats.dailyRevenue,
-    dailyProtocolRevenue: stats.dailyProtocolRevenue ?? stats.dailyRevenue,
+    dailyVolume: volume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
     dailySupplySideRevenue: 0,
     dailyHoldersRevenue: 0,
   };
@@ -54,43 +65,36 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const methodology = {
   Volume:
-    "USD notional of all buys and sells executed on topblast.lol bonding curves on TON, derived from collected fees at the 1% fee rate (volume = fees / 0.01).",
-  Fees: "Trading fees on every bonding-curve buy/sell plus token launch fees, collected on-chain at the two topblast.lol fee wallets (UQClgkR0eLgWAR0tZh8YbQyDqa-Jn5wUP1XHPLDB6RmAPySF and UQDu4AiT__JKuqT0Znje0RoXIQMPcj4uIGYZme3UK4hFlE_Q). Wallet-to-wallet transfers and failed transactions are excluded.",
+    "USD notional of all buys and sells executed on topblast.lol bonding curves on TON.",
+  Fees: "Trading fees on every bonding-curve buy/sell plus token launch fees, collected on-chain at the two topblast.lol fee wallets (UQClgkR0eLgWAR0tZh8YbQyDqa-Jn5wUP1XHPLDB6RmAPySF and UQDu4AiT__JKuqT0Znje0RoXIQMPcj4uIGYZme3UK4hFlE_Q). Wallet-to-wallet transfers and failed transactions are excluded. Trading fees are capped at 1% of volume; any remainder is launch fees.",
   UserFees: "Same as Fees — traders pay the fee on every bonding-curve buy/sell, and creators pay the launch fee.",
   Revenue:
-    "100% of collected fees are retained by the protocol. Creator and deployer fees are claimed directly on-chain by those wallets and never reach the protocol fee wallets, so they are not counted.",
+    "100% of collected fees(trading fees + launch fees) are retained by the protocol. Creator and deployer fees are claimed directly on-chain by those wallets and never reach the protocol fee wallets, so they are not counted.",
   ProtocolRevenue:
-    "100% of collected fees. Discretionary downstream spending of that revenue (Parabola and Topblast Friday tournament prize pools) is not a holder or LP distribution.",
+    "100% of collected fees(trading fees + launch fees). Discretionary downstream spending of that revenue (Parabola and Topblast Friday tournament prize pools) is not a holder or LP distribution.",
   SupplySideRevenue: "0 — bonding-curve venue, no fees are shared with liquidity providers.",
   HoldersRevenue: "0 — no fees are distributed to token holders.",
 };
 
+const feeBreakdown = {
+  [METRIC.TRADING_FEES]: "1% fee on every bonding-curve buy and sell, capped at 1% of daily volume.",
+  [LAUNCH_FEES]: "Remainder of collected fees above 1% of daily volume, paid by creators when deploying a token.",
+};
+
 const breakdownMethodology = {
-  Volume: {
-    "Bonding curve trades": "Buys and sells on topblast.lol bonding curves on TON.",
-  },
-  Fees: {
-    "Trading fees": "1% fee on every bonding-curve buy and sell.",
-    "Launch fees": "Fees paid by creators when deploying a token.",
-  },
-  Revenue: {
-    "Protocol revenue": "100% of trading and launch fees retained by topblast.lol.",
-  },
-  ProtocolRevenue: {
-    "Protocol revenue": "100% of trading and launch fees retained by topblast.lol.",
-  },
+  Fees: feeBreakdown,
+  UserFees: feeBreakdown,
+  Revenue: feeBreakdown,
+  ProtocolRevenue: feeBreakdown,
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.TON]: {
-      fetch,
-      // topblast.lol went live 1 May 2026 — no protocol fees exist before this date.
-      start: "2026-05-01",
-      meta: { methodology, breakdownMethodology },
-    },
-  },
+  fetch,
+  chains: [CHAIN.TON],
+  start: "2026-05-01",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
