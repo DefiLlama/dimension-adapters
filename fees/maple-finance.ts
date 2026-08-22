@@ -12,7 +12,7 @@ const claimed_funds_distributed_event = 'event ClaimedFundsDistributed(address i
 const loan_manager_deployed_event = 'event InstanceDeployed(uint256 indexed version_, address indexed instance_, bytes initializationArguments_)'
 
 // Fixed-Term Loan
-// const fixedTermLoanManagerFactory = '0x1551717AE4FdCB65ed028F7fB7abA39908f6A7A6'
+const fixedTermLoanManagerFactory = '0x1551717AE4FdCB65ed028F7fB7abA39908f6A7A6'
 const fixedTermLoanFactoryV1 = '0x36a7350309B2Eb30F3B908aB0154851B5ED81db0'
 const fixedTermLoanFactoryV2 = '0xeA067DB5B32CE036Ee5D8607DBB02f544768dBC6'
 
@@ -21,9 +21,17 @@ const aaveStrategyFactory = '0x01ab799f77F9a9f4dd0D2b6E7C83DCF3F48D5650'
 
 const origination_fees_paid_event = 'event OriginationFeesPaid(address loan_, uint256 delegateOriginationFee_, uint256 platformOriginationFee_)';
 const service_fees_paid_event = 'event ServiceFeesPaid(address loan_, uint256 delegateServiceFee_, uint256 partialRefinanceDelegateServiceFee_, uint256 platformServiceFee_, uint256 partialRefinancePlatformServiceFee_)'
-//const management_fees_paid_event = 'event ManagementFeesPaid(address loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_)';
+const management_fees_paid_event = 'event ManagementFeesPaid(address indexed loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_)';
 const strategy_fees_paid_event = 'event StrategyFeesCollected (uint256 fees)';
-const interest_paid_event = 'event PaymentMade (uint256 principalPaid_, uint256 interestPaid_)';
+// Fixed-term loans have shipped three PaymentMade signatures. interestPaid_ is always the second
+// argument; the trailing fee arguments are the same fees the fee manager reports, so only the
+// interest is read here. Matching just the two-argument version silently dropped every fixed-term
+// payment from 2022-12 on.
+const interest_paid_events = [
+  'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_)',
+  'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 fees_)',
+  'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_)',
+]
 
 // Share of revenue spent buying back SYRUP. Each rate is confirmed against the monthly
 // buybacks published on https://maple.finance/transparency (buyback / revenue, same month).
@@ -100,12 +108,12 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: service_fees_paid_event,
       })
 
-      const logs_interest_paid = await getLogs({
+      const logs_interest_paid = (await Promise.all(interest_paid_events.map(eventAbi => getLogs({
         targets: fixed_term_loans,
-        eventAbi: interest_paid_event,
+        eventAbi,
         entireLog: true,
         parseLog: true,
-      })
+      })))).flat()
 
       logs_origination_fees.forEach((e: any) => {
         const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
@@ -135,6 +143,43 @@ const fetch = async (options: FetchOptions) => {
         const asset = fixed_term_loan_to_asset[e.address?.toLowerCase()]
         dailyFees.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
         dailySupplySideRevenue.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
+      })
+    }
+
+    // Fixed-term management fees are a cut of the interest above (12.5% on the pools seen), not an
+    // extra charge, so they are revenue and have to come back off the supply side. The open-term
+    // leg already gets this right by booking netInterest_.
+    const logs_fixed_term_loan_manager_deployed = await getLogs({
+      target: fixedTermLoanManagerFactory,
+      eventAbi: loan_manager_deployed_event,
+      fromBlock: 16155123, // Dec-11-2022, first manager
+      cacheInCloud: true,
+    })
+    const fixed_term_loan_managers: string[] = logs_fixed_term_loan_manager_deployed.map(e => e.instance_);
+
+    if (fixed_term_loan_managers.length) {
+      const manager_assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: fixed_term_loan_managers })
+
+      const manager_to_asset: Record<string, string> = {};
+      fixed_term_loan_managers.forEach((manager, i) => {
+        manager_to_asset[manager.toLowerCase()] = manager_assets[i];
+      })
+
+      const logs_management_fees = await getLogs({
+        targets: fixed_term_loan_managers,
+        eventAbi: management_fees_paid_event,
+        entireLog: true,
+        parseLog: true,
+      })
+
+      logs_management_fees.forEach((t: any) => {
+        const e = t.args;
+        const asset = manager_to_asset[t.address?.toLowerCase()]
+        dailyRevenue.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+        dailyRevenue.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+
+        dailySupplySideRevenue.add(asset, -Number(e.delegateManagementFee_), METRIC.BORROW_INTEREST)
+        dailySupplySideRevenue.add(asset, -Number(e.platformManagementFee_), METRIC.BORROW_INTEREST)
       })
     }
   }
@@ -247,18 +292,18 @@ const adapters: SimpleAdapter = {
     Fees: "Total interest and fees paid by borrowers on both fixed-term and open-term loans, including net interest, management fees, service fees, strategy fees and origination fees, plus off-chain OTC desk revenue.",
     Revenue: "Total revenue flowing to Maple protocol and delegates, including management fees, service fees, strategy fees and origination fees from both fixed-term and open-term loans.",
     ProtocolRevenue: "Revenue flowing to Maple protocol treasuries, i.e. total revenue less the share allocated to SYRUP buybacks.",
-    SupplySideRevenue: "Net interest earned by liquidity providers/depositors in Maple pools from both fixed-term and open-term loan payments.",
+    SupplySideRevenue: "Net interest earned by liquidity providers/depositors in Maple pools from both fixed-term and open-term loan payments, after the management fee the pool takes out of that interest.",
     HoldersRevenue: "Share of revenue used to buy back SYRUP tokens: 20% from Jan 2025 (MIP-013/016), 25% from Jul 2025 (MIP-019), 10% from Jul 2026 (MIP-021). Matched against the monthly buybacks published on https://maple.finance/transparency.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.BORROW_INTEREST]: 'Net interest paid by borrowers on open-term loans.',
-      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans, origination fees from fixed-term loans, and off-chain OTC desk revenue, paid to protocol and delegates.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term and fixed-term loans, origination fees from fixed-term loans, and off-chain OTC desk revenue, paid to protocol and delegates.',
       [METRIC.SERVICE_FEES]: 'Service fees from both fixed-term and open-term loans, paid to protocol and delegates.',
       [STRATEGY_FEES]: 'Aave/sky Strategy fees paid to protocol.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Net interest distributed to liquidity providers.',
+      [METRIC.BORROW_INTEREST]: 'Interest distributed to liquidity providers, net of the management fee taken out of it.',
     },
     Revenue: {
       [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans and origination fees from fixed-term loans.',
