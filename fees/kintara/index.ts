@@ -1,6 +1,6 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
 
 // These are all self-researched addresses as kintara dont have publicy mentioned addresses.
 // KINS mint comes from kintara.gg/api/token/blimp-stats; Jupiter confirms it as Token-2022 KINS.
@@ -17,12 +17,16 @@ const chainConfig: Record<string, { start: string; mint: string; treasuryAta: st
 
 const LABELS = {
   PAID_SPINNER: "Paid Spinner",
+  SPINNER_BURN: "Spinner Burn",
   MARKETPLACE_TOKEN_SALES: "Marketplace Token Sales",
 } as const;
 
 // Marketplace quote code documents 95% to seller and 5% to treasury, so seller amount should be ~19x treasury.
 const MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO = 18;
 const MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO = 20;
+// Spinner splits the payment 50/50 between burn and treasury (verified on-chain: legs match to 1 raw unit).
+const SPINNER_BURN_TO_TREASURY_MIN_RATIO = 0.95;
+const SPINNER_BURN_TO_TREASURY_MAX_RATIO = 1.05;
 
 const fetch = async (options: FetchOptions) => {
   const { mint, treasuryAta } = chainConfig[options.chain];
@@ -30,13 +34,13 @@ const fetch = async (options: FetchOptions) => {
     Query shape:
     1. Start from KINS transfers into the confirmed treasury ATA, the narrow fee/revenue candidate set.
     2. Join only same-tx, same-source KINS companion legs: spinner burn or marketplace seller transfer.
-    3. Count volume as the full product payment and ignore unmatched treasury inflows.
-    4. Fees to treasury as per docs 5% of marketplace, 50% of spinner
+    3. Classify by documented split ratios (spinner burn ≈ treasury, marketplace seller ≈ 19x treasury)
+       and ignore unmatched treasury inflows.
+    4. Fees per docs: spinner = 50% burn (holders) + 50% treasury; marketplace = 5% of sale to treasury.
   */
   const rows: {
-    spinner_volume: string;
     spinner_fees: string;
-    marketplace_volume: string;
+    spinner_burn: string;
     marketplace_fees: string;
   }[] = await queryDuneSql(options, `
     WITH treasury_transfers AS (
@@ -71,36 +75,51 @@ const fetch = async (options: FetchOptions) => {
       GROUP BY 1, 2, 3
     )
     SELECT
-      CAST(COALESCE(SUM(CASE WHEN burn_amount > 0 THEN treasury_amount + burn_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_volume,
-      CAST(COALESCE(SUM(CASE WHEN burn_amount > 0 THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_fees,
-      CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO} THEN treasury_amount + seller_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_volume,
+      CAST(COALESCE(SUM(CASE WHEN burn_amount BETWEEN treasury_amount * ${SPINNER_BURN_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${SPINNER_BURN_TO_TREASURY_MAX_RATIO} THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_fees,
+      CAST(COALESCE(SUM(CASE WHEN burn_amount BETWEEN treasury_amount * ${SPINNER_BURN_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${SPINNER_BURN_TO_TREASURY_MAX_RATIO} THEN burn_amount ELSE 0 END), 0) AS VARCHAR) AS spinner_burn,
       CAST(COALESCE(SUM(CASE WHEN burn_amount = 0 AND seller_amount BETWEEN treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MIN_RATIO} AND treasury_amount * ${MARKETPLACE_SELLER_TO_TREASURY_MAX_RATIO} THEN treasury_amount ELSE 0 END), 0) AS VARCHAR) AS marketplace_fees
     FROM classified
   `);
 
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   const row = rows[0];
-  dailyVolume.add(mint, row.spinner_volume);
-  dailyVolume.add(mint, row.marketplace_volume);
   dailyFees.add(mint, row.spinner_fees, LABELS.PAID_SPINNER);
+  dailyFees.add(mint, row.spinner_burn, LABELS.SPINNER_BURN);
   dailyFees.add(mint, row.marketplace_fees, LABELS.MARKETPLACE_TOKEN_SALES);
+  dailyProtocolRevenue.add(mint, row.spinner_fees, LABELS.PAID_SPINNER);
+  dailyProtocolRevenue.add(mint, row.marketplace_fees, LABELS.MARKETPLACE_TOKEN_SALES);
+  dailyHoldersRevenue.add(mint, row.spinner_burn, LABELS.SPINNER_BURN);
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const methodology = {
-  Volume: "Paid spinner game volume and marketplace volume.",
-  Fees: "Includes $KINS paid to Kintara treasury.",
-  Revenue: "$KINS retained by treasury.",
-  ProtocolRevenue: "$KINS retained by treasury.",
+  Fees: "$KINS paid by players: full paid-spinner payments (50% burned, 50% to treasury) plus the 5% treasury fee on marketplace gold-for-$KINS sales.",
+  Revenue: "All fees accrue to the protocol side: burned $KINS plus $KINS retained by treasury.",
+  HoldersRevenue: "50% of every paid spinner payment is burned, reducing $KINS supply.",
+  ProtocolRevenue: "$KINS retained by treasury (50% of spins and 5% of marketplace sales).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.PAID_SPINNER]: "Paid spinner treasury fees.",
-    [LABELS.MARKETPLACE_TOKEN_SALES]: "Marketplace treasury fees.",
+    [LABELS.PAID_SPINNER]: "Treasury half of paid spinner payments.",
+    [LABELS.SPINNER_BURN]: "Burned half of paid spinner payments.",
+    [LABELS.MARKETPLACE_TOKEN_SALES]: "5% treasury fee on marketplace gold-for-$KINS sales.",
+  },
+  Revenue: {
+    [LABELS.PAID_SPINNER]: "Treasury half of paid spinner payments.",
+    [LABELS.SPINNER_BURN]: "Burned half of paid spinner payments.",
+    [LABELS.MARKETPLACE_TOKEN_SALES]: "5% treasury fee on marketplace gold-for-$KINS sales.",
+  },
+  ProtocolRevenue: {
+    [LABELS.PAID_SPINNER]: "Treasury half of paid spinner payments.",
+    [LABELS.MARKETPLACE_TOKEN_SALES]: "5% treasury fee on marketplace gold-for-$KINS sales.",
+  },
+  HoldersRevenue: {
+    [LABELS.SPINNER_BURN]: "Burned half of paid spinner payments.",
   },
 };
 
