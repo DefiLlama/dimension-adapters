@@ -30,8 +30,13 @@ const OFF = {
   borrowingRate: 1384,
 };
 
-// Rates are stored as APR scaled by 1e8.
-const RATE_SCALE = 1e8;
+// Rates are u32 fractions of u32::MAX, where the full range spans 1000% APR.
+// Verified against the banks' own accrued interest: dividing
+// `accumulated_since_last_update` by borrows over `interest_accumulated_for`
+// seconds reproduces this scale and not a plain 1e8 one.
+const U32_MAX = 4294967295;
+const MAX_RATE = 10;
+const toApr = (raw: number) => (raw / U32_MAX) * MAX_RATE;
 
 // WrappedI80F48 is a little endian i128 with 48 fractional bits.
 function readI80F48(buf: Buffer, offset: number): number {
@@ -94,8 +99,8 @@ const fetch = async (options: FetchOptions) => {
     const deposited = readI80F48(bank, OFF.totalAssetShares) * readI80F48(bank, OFF.assetShareValue);
     if (!(borrowed > 0) || !isFinite(borrowed) || !isFinite(deposited)) continue;
 
-    const borrowingRate = bank.readUInt32LE(OFF.borrowingRate) / RATE_SCALE;
-    const lendingRate = bank.readUInt32LE(OFF.lendingRate) / RATE_SCALE;
+    const borrowingRate = toApr(bank.readUInt32LE(OFF.borrowingRate));
+    const lendingRate = toApr(bank.readUInt32LE(OFF.lendingRate));
 
     // Interest paid by borrowers is the fee; the part of it that reaches
     // depositors is supply side, and marginfi keeps the spread.
