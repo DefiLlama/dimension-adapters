@@ -107,7 +107,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-01-01",
-  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: "All Keep USDC fees: the platform fee-receiver inflows plus the project-owner share of harvested Raydium trading fees. The refundable raise principal and LP liquidity are excluded.",
     Revenue: "The platform portion of Keep fees, received by the platform fee-receiver USDC account. The project-owner share is reported as Supply Side Revenue.",
