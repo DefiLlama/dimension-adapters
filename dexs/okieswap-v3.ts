@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import request from 'graphql-request'
 
 const v3Endpoints: { [key: string]: string } = {
-  [CHAIN.XLAYER]: "https://subgraph.okiedokie.fun/subgraphs/name/okieswap-v3",
+  [CHAIN.XLAYER]: "https://api.goldsky.com/api/public/project_cms4wle9fbisu01sk4z7i9om2/subgraphs/okieswap-v3/0.4.0/gn",
 };
 
 const invalidSpikes: Record<string, Set<string>> = {
