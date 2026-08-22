@@ -41,6 +41,7 @@ const DEFAULTS: any = {
   HYDRADX_BLOCK_LOW: '7036666',
   DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
   DEBUG_BREAKDOWN_FEES: true,
+  SUI_GRAPH_RPC: 'https://graphql.mainnet.sui.io/graphql',
 }
 
 export const ENV_KEYS = new Set([

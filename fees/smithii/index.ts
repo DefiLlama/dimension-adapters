@@ -1,8 +1,9 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
+import axios from "axios";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getEnv } from "../../helpers/env";
 import { getSolanaReceived } from "../../helpers/token";
-import { postURL } from "../../utils/fetchURL";
 
 const config: Record<string, { contract: string, start: string }> = {
   [CHAIN.ETHEREUM]: {
@@ -37,8 +38,11 @@ const config: Record<string, { contract: string, start: string }> = {
 
 const ServicePaidEvent = "event ServicePaid (bytes32 projectId, address contractAddress, bytes32 serviceId, address user, uint256 amount, uint256 timestamp)";
 
-const SUI_RPC_URL = "https://fullnode.mainnet.sui.io:443";
 const SUI_ADDRESS = "0x3a20341455dbb7ed10e414b4a054096c22b0e6c41da1571093e9d7fd36ee0a24";
+
+// normalize a GraphQL padded type repr (0x0000..02::sui::SUI) to the short form (0x2::sui::SUI)
+const shortenSuiType = (repr: string) =>
+  repr.replace(/0x0*([0-9a-fA-F])/g, "0x$1").replace(/0x([0-9a-fA-F]{63})(?![0-9a-fA-F])/g, "0x0$1");
 
 const solanaFetch: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
@@ -53,65 +57,49 @@ const solanaFetch: any = async (options: FetchOptions) => {
 };
 
 const suiFetch = async (options: FetchOptions) => {
-  const fromTimestamp = options.fromTimestamp;
-  const toTimestamp = options.toTimestamp;
-  let cursor = null;
-  let hasNextPage = true;
-  let stopFetching = false;
+  const { fromTimestamp, toTimestamp } = options;
   const dailyFees = options.createBalances();
-  let total = 0;
 
-  while (hasNextPage && !stopFetching) {
-    const body = {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "suix_queryTransactionBlocks",
-      params: [
-        {
-          filter: { ToAddress: SUI_ADDRESS },
-          options: {
-            showInput: true,
-            showEffects: true,
-            showEvents: true,
-            showBalanceChanges: true,
-          },
-        },
-        cursor,
-        100,
-        true,
-      ],
-    };
-
-    const data = await postURL(SUI_RPC_URL, body);
-
-    if (data.result && data.result.data) {
-      for (const tx of data.result.data) {
-        const ts = Number(tx.timestampMs) / 1000;
-        if (ts < fromTimestamp) {
-          stopFetching = true;
-          break;
+  let before: string | null = null;
+  do {
+    const res = await axios.post(getEnv("SUI_GRAPH_RPC"), {
+      query: `query ($before: String) {
+        transactions(last: 50, before: $before, filter: { affectedAddress: "${SUI_ADDRESS}" }) {
+          pageInfo { hasPreviousPage startCursor }
+          nodes { effects { timestamp balanceChanges { nodes { owner { address } amount coinType { repr } } } } }
         }
-        if (ts > toTimestamp) continue;
+      }`,
+      variables: { before },
+    }, { timeout: 60_000 });
 
-        if (tx.balanceChanges) {
-          for (const change of tx.balanceChanges) {
-            if (
-              change.owner?.AddressOwner === SUI_ADDRESS &&
-              change.coinType === ADDRESSES.sui.SUI &&
-              Number(change.amount) > 0
-            ) {
-              total += Number(change.amount);
-              dailyFees.add(ADDRESSES.sui.SUI, Number(change.amount));
-            }
-          }
+    const payload: any = res.data ?? {};
+    if (payload.errors?.length || !payload.data)
+      throw new Error(`Failed to fetch sui data: ${payload.errors?.[0]?.message ?? "no data returned"}`);
+    const conn = payload.data.transactions;
+    if (!conn) break;
+    const nodes = conn.nodes; // ascending (oldest -> newest)
+    before = conn.pageInfo.hasPreviousPage ? conn.pageInfo.startCursor : null;
+
+    for (const tx of nodes) {
+      const eff = tx.effects;
+      if (!eff?.timestamp) continue;
+      const ts = Date.parse(eff.timestamp) / 1000;
+      if (ts < fromTimestamp || ts > toTimestamp) continue;
+      for (const change of eff.balanceChanges.nodes) {
+        if (
+          change.owner?.address === SUI_ADDRESS &&
+          shortenSuiType(change.coinType.repr) === ADDRESSES.sui.SUI &&
+          Number(change.amount) > 0
+        ) {
+          dailyFees.add(ADDRESSES.sui.SUI, Number(change.amount));
         }
       }
-      hasNextPage = data.result.hasNextPage;
-      cursor = data.result.nextCursor;
-    } else {
-      hasNextPage = false;
     }
-  }
+    
+    const oldest = nodes[0]?.effects?.timestamp;
+    if (!nodes.length || (oldest && Date.parse(oldest) / 1000 < fromTimestamp)) before = null;
+  } while (before);
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
