@@ -1,6 +1,7 @@
 import { BaseAdapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 
 // Fables — a dynamic-fee ve(3,3) DEX built on Uniswap v4 on Robinhood Chain.
@@ -11,9 +12,9 @@ import { isCoreAsset } from "../helpers/prices";
 // the only place Fables swap volume is counted, and it does not overlap with the Uniswap v4 adapter.
 //
 // Pools are enumerated from the on-chain FablesPoolRegistry (activePools), so registering or
-// retiring a pool there automatically starts or stops tracking here — no pool is hardcoded. Each
-// pool's swaps are read directly by its indexed pool id, rather than scanning the whole PoolManager
-// (which carries every other protocol's Robinhood v4 traffic too).
+// retiring a pool there automatically starts or stops tracking here — no pool is hardcoded. Swaps
+// are read in one PoolManager getLogs call, with topic1 OR'd across every registered pool id so
+// other Robinhood v4 traffic is not pulled in.
 
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951"; // Uniswap v4 PoolManager on Robinhood
 const REGISTRY = "0x159a113e012593d9b3cc63ad45e30f0467e13ef3"; // FablesPoolRegistry
@@ -27,40 +28,46 @@ const ActivePoolsAbi =
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const pools = await options.api.call({ target: REGISTRY, abi: ActivePoolsAbi });
+  if (!pools.length) {
+    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue: 0, dailyProtocolRevenue: 0 };
+  }
 
+  const byId = new Map<string, { token: string; useToken0: boolean }>();
   for (const p of pools) {
     const currency0 = String(p.key.currency0);
     const currency1 = String(p.key.currency1);
-
-    // Only this pool's swaps: the pool id is topic1 of the indexed Swap event.
-    const logs = await options.getLogs({
-      target: POOL_MANAGER,
-      eventAbi: SwapEvent,
-      topics: [SWAP_TOPIC, p.id],
-    });
-    if (!logs.length) continue;
-
     // Price on the native / core-asset leg where possible so a thin-liquidity token can't set value.
     const useToken0 =
       currency0 === ADDRESSES.null ||
       isCoreAsset(options.chain, currency0) ||
       !isCoreAsset(options.chain, currency1);
-    const token = useToken0 ? currency0 : currency1;
+    byId.set(String(p.id).toLowerCase(), { token: useToken0 ? currency0 : currency1, useToken0 });
+  }
 
-    for (const log of logs) {
-      const amount = Math.abs(Number(useToken0 ? log.amount0 : log.amount1));
-      dailyVolume.add(token, amount);
-      dailyFees.add(token, (amount * Number(log.fee)) / 1e6); // dynamic fee carried in each Swap event
-    }
+  const logs = await options.getLogs({
+    target: POOL_MANAGER,
+    eventAbi: SwapEvent,
+    topics: [SWAP_TOPIC, [...byId.keys()]] as any,
+  });
+
+  for (const log of logs) {
+    const pool = byId.get(String(log.id).toLowerCase());
+    if (!pool) continue;
+    const amount = Math.abs(Number(pool.useToken0 ? log.amount0 : log.amount1));
+    dailyVolume.add(pool.token, amount);
+    const fee = (amount * Number(log.fee)) / 1e6; // dynamic fee carried in each Swap event
+    dailyFees.add(pool.token, fee, METRIC.SWAP_FEES);
+    dailySupplySideRevenue.add(pool.token, fee, METRIC.LP_FEES);
   }
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees, // fees accrue to LPs; no protocol fee switch yet
+    dailySupplySideRevenue, // fees accrue to LPs; no protocol fee switch yet
     dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   };
@@ -76,14 +83,26 @@ const methodology = {
   ProtocolRevenue: "No protocol fee is enabled yet.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Dynamic swap fees paid by traders, taken from each Uniswap v4 Swap event.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Dynamic swap fees paid by traders, taken from each Uniswap v4 Swap event.",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "All swap fees accrue to liquidity providers; Fables takes no protocol fee yet.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ROBINHOOD]: { start: "2026-08-15" },
-  } as BaseAdapter,
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-08-15",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
