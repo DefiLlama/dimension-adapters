@@ -23,7 +23,8 @@ type ChainCfg = {
   maxPairSize?: number
   gaugeCreated?: GaugeCreatedSrc
   badToken?: string
-}
+  deadFrom?: string
+  }
 // Bob/Mode beta gauges are plain Synthetix stakers (no feesVotingReward), so no
 // swap fees reach voters. Bob has no leaf Voter — all its fees stay supply-side.
 
@@ -61,6 +62,14 @@ const config: Record<string, ChainCfg> = {
     factory: LEAF_FACTORY, start: '2025-02-22',
     gaugeCreated: { voter: LEAF_VOTER, fromBlock: 9387000, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
   },
+  [CHAIN.SWELLCHAIN]: {
+    factory: LEAF_FACTORY, start: '2025-02-21', deadFrom: '2026-06-30', // swellchain stopped operations
+    gaugeCreated: { voter: LEAF_VOTER, fromBlock: 3717934, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
+  },
+  [CHAIN.CELO]: {
+    factory: LEAF_FACTORY, start: '2025-04-01',
+    gaugeCreated: { voter: LEAF_VOTER, fromBlock: 31609112, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
+  },
 }
 
 // Map pool -> gauge(s) for the staked share, and collect external bribes.
@@ -79,12 +88,12 @@ const collectGaugesAndBribes = async (options: FetchOptions, cfg: ChainCfg) => {
   const bribeContracts = new Set<string>()
   gaugeLogs.forEach((e: any) => {
     if (e.poolFactory.toLowerCase() !== factory) return
-    const gauge = e.gauge?.toLowerCase()
-    if (gauge && gauge !== ZERO) {
+    const gauge = e.gauge.toLowerCase()
+    if (gauge !== ZERO) {
       const pool = e.pool.toLowerCase()
         ; (poolToGauges[pool] = poolToGauges[pool] || new Set()).add(gauge)
     }
-    if (e[bribeField] && e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
+    if (e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
   })
   if (bribeContracts.size > 0) {
     const logs = await getLogs({ targets: [...bribeContracts], eventAbi: notifyRewardFull })
@@ -156,10 +165,13 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const totalFees = createBalances()
+  const totalUserFees = createBalances()
   const totalHoldersRevenue = createBalances()
   const totalSupplySide = createBalances()
   totalFees.add(dailyFees, 'Token Swap Fees')
   totalFees.add(dailyBribes, 'External Bribes Rewards')
+  // bribes are deposited by third parties, not charged to traders, so they stay out of UserFees
+  totalUserFees.add(dailyFees, 'Token Swap Fees')
   totalHoldersRevenue.add(dailyHoldersFees, 'Staked-LP Swap Fees')
   totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
   totalSupplySide.add(dailySupplySideRevenue, 'Unstaked-LP Swap Fees')
@@ -167,6 +179,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees: totalFees,
+    dailyUserFees: totalUserFees,
     dailyRevenue: totalHoldersRevenue,
     dailyHoldersRevenue: totalHoldersRevenue,
     dailySupplySideRevenue: totalSupplySide,
@@ -176,10 +189,12 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { fetch, start: c.start }])),
+  fetch,
+  adapter: config,
   methodology: {
     Volume: 'Swap volume across Velodrome v2 (non-CL) pools, counted once per swap from the core-asset side.',
     Fees: 'Per-pool swap fee read from PoolFactory.getFee (default vAMM 0.30% / sAMM 0.05%, customizable per pool) applied to each swap, plus external bribes deposited by third parties to voter-incentive contracts.',
+    UserFees: 'Swap fees paid by traders only. External bribes are deposited by third parties to influence votes, so they are excluded here even though they count towards Fees.',
     Revenue: 'veVELO voters’ take: staked-LP swap fees forwarded to voters plus external bribes. Equals HoldersRevenue — Velodrome keeps no treasury cut of swap fees.',
     HoldersRevenue: 'Swap fees from staked LPs (fee × pool.balanceOf(gauge) / pool.totalSupply), forwarded to veVELO voters, plus external bribes.',
     SupplySideRevenue: 'Swap fees kept by unstaked LPs (fee × (1 − stakedShare)). LPs who stake in the gauge forgo these fees in exchange for VELO emissions.',
@@ -188,6 +203,9 @@ const adapter: SimpleAdapter = {
     Fees: {
       'Token Swap Fees': 'Swap fees paid by traders, per-pool rate from PoolFactory.getFee applied to each swap amount.',
       'External Bribes Rewards': 'External incentives deposited by third parties to the voter bribe/incentive contracts (NotifyReward events).',
+    },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by traders, per-pool rate from PoolFactory.getFee applied to each swap amount.',
     },
     Revenue: {
       'Staked-LP Swap Fees': 'Staked-LP share of swap fees, forwarded to veVELO voters.',
