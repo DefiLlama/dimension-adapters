@@ -227,6 +227,14 @@ const config: Record<string, Record<string, TokenConfig>> = {
 				"0x9BF00b7CFC00D6A7a2e2C994DB8c8dCa467ee359",
 			],
 		},
+		mGLO: {
+			address: "0xFCc9Cc1209651Ed8867332d6F664CF82743A2584",
+			oracle: "0x6B593a5FAbb90F36e125562Db833f761d274fcBC",
+			vaults: [
+				"0x2B7e9c9a72a31e4299F735D6e13445B320701Df1",
+				"0xA80F9BfFff91CBC13314fEfD05560032aF018F18",
+			],
+		}
 	},
 	[CHAIN.OPTIMISM]: {
 		mRe7ETH: {
@@ -427,6 +435,16 @@ const config: Record<string, Record<string, TokenConfig>> = {
 			],
 		},
 	},
+	[CHAIN.ROBINHOOD]: {
+		mGLO: {
+			address: "0xFEd493F38c1aAcb4EA4e6A11F8b9287849EE0096",
+			oracle: "0x49D9Dd1Fa6EA3709aB8A5d5f16a1cf207eb91dd0",
+			vaults: [
+				"0x2A3b139EA78CC54290C672162e2b6A8c486f4791",
+				"0x89db0aA579F0b136A295C427e8C0D35A3dcD0a2e",
+			],
+		},
+	},
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -577,6 +595,7 @@ const adapter: SimpleAdapter = {
 		// [CHAIN.TAC]: { fetch, start: "2026-01-09" },
 		// [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-01" },
 		// [CHAIN.OG]: { fetch, start: "2025-09-16" },
+		[CHAIN.ROBINHOOD]: { fetch, start: "2026-06-30" },
 	},
 	allowNegativeValue: true,
 	methodology: {

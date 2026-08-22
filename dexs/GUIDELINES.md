@@ -79,10 +79,19 @@ If this adapter also tracks fees/revenue dimensions, follow the guidelines in `f
 - `dailySupplySideRevenue` - LP's portion of fees
 - Appropriate breakdown labels and `breakdownMethodology`
 
+## Trading-bot / router adapters
+
+- Don't add both the buy leg and the sell leg of the same trade - that double-counts volume (a recurring JAM/aggregator-router bug).
+- Trades and their fee transfers often live in **different transactions** - don't assume one tx hash covers both when matching trade volume to fees.
+- For EVM trading bots, prefer on-chain logs over a backend API.
+
 ## Common Mistakes to Avoid
 
-1. Double-counting volume (counting both sides of a swap, or both taker+maker in perps)
+1. Double-counting volume (counting both sides of a swap, both buy+sell legs, or both taker+maker in perps)
 2. Not filtering out wash trading
 3. Missing multi-chain support when protocol exists on multiple chains
 4. Not using helper functions when available (uniV2Exports, uniV3Exports)
 5. Counting maker+taker volume for perpetuals instead of just taker volume
+6. Using raw `topics` instead of a readable `eventAbi`
+7. `methodology` keys using code field names (`dailyVolume`) instead of display names (`Volume`)
+8. Missing fee/revenue breakdown + `breakdownMethodology` when the adapter also tracks fees

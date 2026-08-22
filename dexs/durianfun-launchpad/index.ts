@@ -13,7 +13,7 @@
  * liquidity is migrated to a `DurianAMM` pool (covered by a separate
  * adapter, `durian-amm`).
  *
- * Two generations of the factory are LIVE and indexed together so the
+ * Four generations of the factory are LIVE and indexed together so the
  * volume series is continuous:
  *
  *   V4.5   — `0xdf4f3dB298A9aDe853191F58b4b2a322D47EC005` (deploy
@@ -23,8 +23,46 @@
  *            block 31,393,573). Same event ABIs; adds referral
  *            routing but trade-side events are byte-for-byte
  *            identical to V4.5.
+ *   V4.6.7 — `0x0480017E51dC813a0fad8aA73EAb2f8476ac0e8F` (deploy
+ *            block 32,196,516 / 2026-05-31). Dual graduation:
+ *            in-contract Durian AMM or an external KUBLERX V3 pool.
+ *            TokensBought / TokensSold are byte-identical to V4.5 /
+ *            V4.6.6; only `TokenCreated` differs (appends
+ *            `uint8 graduationTarget`), so V4.6.7 markets are
+ *            discovered with an 8-arg ABI.
+ *   V5     — `0xE3861e300043d8c20A927340cbA6379D0BECb793` (deploy
+ *            block 34,014,875 / 2026-08-12). Current production
+ *            launchpad. Every new coin launches here. Trade events and
+ *            `TokenCreated` are byte-identical to V4.6.7 (same event
+ *            hashes), but the FEE SCHEDULE is different — see below —
+ *            so V5 markets are summed in their own pass.
  *
- * ── Event ABIs (confirmed identical V4.5 ⇄ V4.6.6) ─────────────────
+ * ── Fee schedules ──────────────────────────────────────────────────
+ *
+ *   V4.5 / V4.6.6 / V4.6.7 : 1.0 % of gross notional
+ *                            → 90 % treasury, 10 % creator.
+ *
+ *   V5                     : 1.167 % of gross notional (11 670 ppm,
+ *                            read back on-chain from
+ *                            `market.totalFeePpm()`), split by the
+ *                            contract as
+ *                              treasury 10 000 ppm  (85.69 % of the fee)
+ *                              referral  1 000 ppm  ( 8.57 % of the fee)
+ *                              creator     670 ppm  ( 5.74 % of the fee)
+ *                            The referral slice is routed to the
+ *                            TREASURY unless the on-chain volume
+ *                            registry marks the trade's referrer
+ *                            eligible, in which case the market emits
+ *                            `ReferralPaid`. So protocol revenue is
+ *                            `fee − creatorPart − Σ ReferralPaid`, and
+ *                            we sum `ReferralPaid` rather than assuming
+ *                            either extreme.
+ *
+ * The adapter never hardcodes a rate against the volume — it reads the
+ * `fee` field emitted by each trade — the ppm constants are only used
+ * to split an already-collected fee between recipients.
+ *
+ * ── Event ABIs (trade events identical V4.5 → V5) ──────────────────
  *
  *   Factory.TokenCreated(
  *       address indexed token,
@@ -37,7 +75,7 @@
  *       address indexed buyer,
  *       uint256 kubIn,        ← gross KUB spent (includes fee)
  *       uint256 tokensOut,
- *       uint256 fee,          ← treasury + creator share, in KUB
+ *       uint256 fee,          ← treasury + creator (+ referral on V5), in KUB
  *       uint256 newKubRaised,
  *       uint256 price)
  *
@@ -45,14 +83,19 @@
  *       address indexed seller,
  *       uint256 tokensIn,
  *       uint256 kubOut,       ← NET KUB the user received (fee already taken)
- *       uint256 fee,          ← treasury + creator share, in KUB
+ *       uint256 fee,          ← treasury + creator (+ referral on V5), in KUB
  *       uint256 newKubRaised,
  *       uint256 price)
+ *
+ *   Market.ReferralPaid(     ← V5 only, emitted in the same tx as the trade
+ *       address indexed user,
+ *       address indexed referrer,
+ *       uint256 amount)      ← KUB actually paid out to an external referrer
  *
  * ── Why we enumerate markets via TokenCreated ──────────────────────
  *
  * Each BCM is a fresh contract; we discover them by scanning every
- * `TokenCreated` log emitted by either factory since genesis (NOT
+ * `TokenCreated` log emitted by each factory since its deploy block (NOT
  * limited to the daily window — DefiLlama's `getLogs` with no
  * fromBlock fetches the per-day window for the trade events, but we
  * need ALL historical markets so trades in surviving (pre-grad)
@@ -65,19 +108,44 @@ import { METRIC } from "../../helpers/metrics"
 
 const FACTORY_V45  = "0xdf4f3dB298A9aDe853191F58b4b2a322D47EC005";
 const FACTORY_V466 = "0x89b6b73BD18dbEA0e2218c25c1963fd5FBaB3c87";
+const FACTORY_V467 = "0x0480017E51dC813a0fad8aA73EAb2f8476ac0e8F";
+const FACTORY_V5   = "0xE3861e300043d8c20A927340cbA6379D0BECb793"; // current prod launchpad (2026-08-12)
 
 // KKUB (wrapped KUB) — the priced token DefiLlama's Bitkub oracle
 // resolves. Native-KUB amounts are credited to this address.
 const KKUB = "0x67eBD850304c70d983B2d1b93ea79c7CD6c3F6b5";
 
+const ZERO = "0x0000000000000000000000000000000000000000";
+
 const TOKEN_CREATED_ABI =
   "event TokenCreated(address indexed token, address indexed market, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp)";
+
+// V4.6.7 appends a trailing `uint8 graduationTarget`, changing the TokenCreated
+// event hash — its markets must be discovered with this 8-arg ABI (the 7-arg ABI
+// above matches zero V4.6.7 events). V5 emits the byte-identical event, so it
+// shares this ABI. The TRADE events (TokensBought/TokensSold) are byte-identical
+// across all four generations and reuse the ABIs below.
+const TOKEN_CREATED_ABI_V467 =
+  "event TokenCreated(address indexed token, address indexed market, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp, uint8 graduationTarget)";
 
 const TOKENS_BOUGHT_ABI =
   "event TokensBought(address indexed buyer, uint256 kubIn, uint256 tokensOut, uint256 fee, uint256 newKubRaised, uint256 price)";
 
 const TOKENS_SOLD_ABI =
   "event TokensSold(address indexed seller, uint256 tokensIn, uint256 kubOut, uint256 fee, uint256 newKubRaised, uint256 price)";
+
+// V5 only — the referral slice actually paid out to an external referrer.
+const REFERRAL_PAID_ABI =
+  "event ReferralPaid(address indexed user, address indexed referrer, uint256 amount)";
+
+// V5 fee split, in ppm of the 11 670 ppm total fee (see header).
+const V5_TOTAL_FEE_PPM   = 11670n;
+const V5_CREATOR_FEE_PPM = 670n;
+
+const toMarkets = (logs: any[]): string[] =>
+  logs
+    .map((l: any) => (l.market ?? l[1]) as string)
+    .filter((a) => a && a !== ZERO);
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs } = options;
@@ -86,20 +154,27 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue   = createBalances();
 
-  // 1) Enumerate every BCM market spawned by either factory.
-  const factoryLogs = await Promise.all([
-    getLogs({ target: FACTORY_V45,  eventAbi: TOKEN_CREATED_ABI, onlyArgs: true, entireLog: false, fromBlock: 30_999_992, cacheInCloud: true }),
-    getLogs({ target: FACTORY_V466, eventAbi: TOKEN_CREATED_ABI, onlyArgs: true, entireLog: false, fromBlock: 31_393_573, cacheInCloud: true }),
+  // 1) Enumerate every BCM market spawned by each factory. V5 is kept in its
+  //    own list because its fee split differs from the earlier generations.
+  const [logsV45, logsV466, logsV467, logsV5] = await Promise.all([
+    getLogs({ target: FACTORY_V45,  eventAbi: TOKEN_CREATED_ABI,      onlyArgs: true, entireLog: false, fromBlock: 30_999_992, cacheInCloud: true }),
+    getLogs({ target: FACTORY_V466, eventAbi: TOKEN_CREATED_ABI,      onlyArgs: true, entireLog: false, fromBlock: 31_393_573, cacheInCloud: true }),
+    getLogs({ target: FACTORY_V467, eventAbi: TOKEN_CREATED_ABI_V467, onlyArgs: true, entireLog: false, fromBlock: 32_196_516, cacheInCloud: true }),
+    getLogs({ target: FACTORY_V5,   eventAbi: TOKEN_CREATED_ABI_V467, onlyArgs: true, entireLog: false, fromBlock: 34_014_875, cacheInCloud: true }),
   ]);
-  const markets: string[] = factoryLogs
-    .flat()
-    .map((l: any) => (l.market ?? l[1]) as string)
-    .filter((a) => a && a !== "0x0000000000000000000000000000000000000000");
+  const markets   = toMarkets([...logsV45, ...logsV466, ...logsV467]);
+  const marketsV5 = toMarkets(logsV5);
 
-  // 2) Pull TokensBought + TokensSold from every market in the daily
-  const [buys, sells] = await Promise.all([
-    getLogs({ targets: markets, eventAbi: TOKENS_BOUGHT_ABI }),
-    getLogs({ targets: markets, eventAbi: TOKENS_SOLD_ABI }),
+  // 2) Pull TokensBought + TokensSold from every market in the daily window.
+  //    V5 additionally needs ReferralPaid to know how much of the fee left the
+  //    treasury. The V5 lists are empty for days before its deploy block.
+  const none: any[] = [];
+  const [buys, sells, buysV5, sellsV5, referralsV5] = await Promise.all([
+    markets.length   ? getLogs({ targets: markets,   eventAbi: TOKENS_BOUGHT_ABI }) : none,
+    markets.length   ? getLogs({ targets: markets,   eventAbi: TOKENS_SOLD_ABI })   : none,
+    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: TOKENS_BOUGHT_ABI }) : none,
+    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: TOKENS_SOLD_ABI })   : none,
+    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: REFERRAL_PAID_ABI }) : none,
   ]);
 
   for (const log of buys) {
@@ -124,6 +199,43 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(KKUB, fee - treasury, METRIC.CREATOR_FEES);
   }
 
+  // 3) V5 pass — same event shapes, different split. Accumulated as bigints
+  //    first so the referral subtraction never has to add a negative balance.
+  let v5Volume = 0n;
+  let v5Fees   = 0n;
+  let v5Creator = 0n;
+
+  for (const log of buysV5) {
+    const kubIn = BigInt((log as any).kubIn);
+    const fee   = BigInt((log as any).fee);
+    v5Volume  += kubIn;                                          // `kubIn` is gross
+    v5Fees    += fee;
+    v5Creator += (fee * V5_CREATOR_FEE_PPM) / V5_TOTAL_FEE_PPM;  // mirrors the contract's integer math
+  }
+
+  for (const log of sellsV5) {
+    const kubOut = BigInt((log as any).kubOut);
+    const fee    = BigInt((log as any).fee);
+    v5Volume  += kubOut + fee;                                   // `kubOut` is NET
+    v5Fees    += fee;
+    v5Creator += (fee * V5_CREATOR_FEE_PPM) / V5_TOTAL_FEE_PPM;
+  }
+
+  // The referral slice defaults to the treasury; only the amounts in
+  // ReferralPaid actually left the protocol.
+  let v5Referral = 0n;
+  for (const log of referralsV5) v5Referral += BigInt((log as any).amount);
+
+  if (v5Fees > 0n) {
+    let v5Protocol = v5Fees - v5Creator - v5Referral;
+    if (v5Protocol < 0n) v5Protocol = 0n;                        // defensive: window-edge ReferralPaid
+    dailyVolume.add(KKUB, v5Volume);
+    dailyFees.add(KKUB, v5Fees, METRIC.SWAP_FEES);
+    dailyRevenue.add(KKUB, v5Protocol, METRIC.SWAP_FEES);
+    dailySupplySideRevenue.add(KKUB, v5Creator, METRIC.CREATOR_FEES);
+    if (v5Referral > 0n) dailySupplySideRevenue.add(KKUB, v5Referral, METRIC.OPERATORS_FEES);
+  }
+
   return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
@@ -138,19 +250,20 @@ const adapter: Adapter = {
   },
   methodology: {
     Volume: `Sum of gross KUB notional from every TokensBought / TokensSold event emitted by BondingCurveMarket contracts`,
-    Fees: "1% fee on every swap",
-    Revenue: "90% of the 1% fee is kept by the protocol",
-    SupplySideRevenue: "10% of the 1% fee goes to token creators",
+    Fees: "1% fee on every swap (1.167% on the V5 launchpad)",
+    Revenue: "90% of the 1% fee is kept by the protocol (on V5: 85.7% of the 1.167% fee, plus the 8.6% referral slice whenever no eligible referrer is paid)",
+    SupplySideRevenue: "10% of the 1% fee goes to token creators (on V5: 5.7% to creators and up to 8.6% to referrers)",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.SWAP_FEES]:    "1% fee on every swap.",
+      [METRIC.SWAP_FEES]:    "1% fee on every swap; 1.167% on markets launched by the V5 factory.",
     },
     Revenue: {
-      [METRIC.SWAP_FEES]:    "90% of the 1% trading fee is kept by the protocol.",
+      [METRIC.SWAP_FEES]:    "90% of the 1% trading fee is kept by the protocol. On V5 the protocol keeps the fee minus the creator share, minus any referral actually paid out.",
     },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: "10% of the 1% trading fee goes to token creators.",
+      [METRIC.CREATOR_FEES]: "10% of the 1% trading fee goes to token creators; 5.7% of the 1.167% fee on V5.",
+      [METRIC.OPERATORS_FEES]: "V5 only: the 8.6% referral slice of the trading fee, when an eligible referrer is paid (otherwise it is routed to the treasury and counted as revenue).",
     },
   },
 };

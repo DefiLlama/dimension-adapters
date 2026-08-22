@@ -7,7 +7,7 @@ import { METRIC } from "../../helpers/metrics";
 
 
 // Foxify API-based fetch implementation using existing Foxify API
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     // Fetch data from Foxify's existing API endpoint
     const apiResponse = await fetchURL("https://api.foxify.trade/FoxifyStats");
 
@@ -71,15 +71,12 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
+    fetch,
+    chains: [CHAIN.SONIC],
+    start: '2025-04-24',
     methodology,
     breakdownMethodology,
     runAtCurrTime: true,
-    adapter: {
-        [CHAIN.SONIC]: {
-            fetch,
-            start: "2025-04-24",
-        },
-    },
 };
 
 export default adapter;

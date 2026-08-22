@@ -19,14 +19,16 @@ const adapter: SimpleAdapter = {
     const dailyProtocolRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
+    // Kodiak V3 swap fees split: 65% to LPs, 35% kept by the protocol as revenue
     dailyFees.addBalances(result.dailyFees, 'Swap Fees');
     dailySupplySideRevenue.addBalances(result.dailyFees.clone(0.65), 'Swap Fees To LPs');
     dailyRevenue.addBalances(result.dailyFees.clone(0.35), 'Swap Fees Collected As Revenue');
 
     if (options.startOfDay >= 1767225600) {
-      dailySupplySideRevenue.addBalances(result.dailyFees.clone(0.35 * 0.3), 'Swap Fees To Protocol-Owned Liquidity');
-      dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35 * 0.1), 'Swap Fees To Protocol');
-      dailyHoldersRevenue.addBalances(result.dailyFees.clone(0.35 * 0.6), 'Token Buy Back');
+      // From 2026-01-01 the 35% protocol revenue is allocated: 60% KDK buyback, 30% POL, 10% treasury
+      dailyHoldersRevenue.addBalances(result.dailyFees.clone(0.35 * 0.6), 'KDK Buyback');
+      dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35 * 0.3), 'Swap Fees To Protocol-Owned Liquidity');
+      dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35 * 0.1), 'Swap Fees To Treasury');
     } else {
       dailyProtocolRevenue.addBalances(result.dailyFees.clone(0.35), 'Swap Fees To Protocol');
     }
@@ -42,26 +44,30 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-    Fees: 'Swap fees paid by users.',
-    UserFees: 'Swap fees paid by users.',
-    Revenue: 'There are 35% swap fees are collected as revenue.',
-    SupplySideRevenue: 'There are 65% swap fees are collected as revenue + 30% of revenue share to Protocol-Owned Liquidity from 01-01-2026.',
-    ProtocolRevenue: 'There are 10% revenue collected by Kodiak protocol, it was 100% before 01-01-2026.',
-    HoldersRevenue: 'From 01-01-2026, there are 60% revenue are used to by back $KDK.',
+    Fees: 'Swap fees paid by traders on Kodiak V3 pools.',
+    UserFees: 'Swap fees paid by traders.',
+    Revenue: 'The 35% of swap fees the protocol keeps. The other 65% is paid to liquidity providers.',
+    SupplySideRevenue: '65% of swap fees paid to liquidity providers.',
+    ProtocolRevenue: 'The protocol\'s share of the 35% revenue that it retains. Before 2026-01-01 the protocol kept the full 35%. From 2026-01-01 the protocol retains 40% of that 35% (10% to the treasury and 30% deployed as Kodiak-owned liquidity); the remaining 60% funds a $KDK buyback.',
+    HoldersRevenue: 'From 2026-01-01, 60% of the 35% protocol revenue is used to buy $KDK on the open market (the Kodiak Reserve). Zero before 2026-01-01.',
   },
   breakdownMethodology: {
     Fees: {
-      'Swap Fees': 'Swap fees paid by users.',
+      'Swap Fees': 'Swap fees paid by traders (pool fee tier times the amount swapped).',
     },
     SupplySideRevenue: {
-      'Swap Fees To LPs': 'Share of 65% swap fees to LPs.',
-      'Swap Fees To Protocol-Owned Liquidity': '30% of revenue to Protocol-Owned Liquidity.',
+      'Swap Fees To LPs': '65% of swap fees distributed to liquidity providers.',
     },
     Revenue: {
-      'Swap Fees Collected As Revenue': 'There are 35% swap fees are collected as revenue.',
+      'Swap Fees Collected As Revenue': 'The 35% of swap fees kept by the protocol.',
+    },
+    ProtocolRevenue: {
+      'Swap Fees To Protocol': 'Full 35% of swap fees kept by the protocol (before 2026-01-01).',
+      'Swap Fees To Protocol-Owned Liquidity': 'From 2026-01-01, 30% of the 35% protocol revenue deployed as Kodiak-owned liquidity.',
+      'Swap Fees To Treasury': 'From 2026-01-01, 10% of the 35% protocol revenue kept by the treasury.',
     },
     HoldersRevenue: {
-      'Token Buy Back': 'From 01-01-2026, there are 60% revenue are used to by back $KDK.',
+      'KDK Buyback': 'From 2026-01-01, 60% of the 35% protocol revenue used to buy $KDK on the open market.',
     },
   },
 };

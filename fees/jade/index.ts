@@ -10,7 +10,7 @@ const FEE_COLLECTOR = "FW4UFt5nDKE2DLVNj979rXjFkjCdmzs9344JetX8hY9P";
 // JADE buyback-and-burn: 90% of bought JADE is burned, 10% paid to JADE stakers.
 const TREASURY_PDA = "F4Uwd5sQT8go5r6iiejrVc2iurYSc2dA4RKvX3cLB8e3";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyProtocolRevenue = await oreHelperCountSolBalanceDiff(options, FEE_COLLECTOR);
   const dailyHoldersRevenue = await oreHelperCountSolBalanceDiff(options, TREASURY_PDA);
 

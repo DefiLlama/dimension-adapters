@@ -179,9 +179,9 @@ async function fetch(options: FetchOptions) {
 
   // 2. Compute per-pool volume, fees, and revenue split
   const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const dailySupplySideRevenue = createBalances();
-  const dailyProtocolRevenue = createBalances();
+  const fees = createBalances();
+  const supplySideRevenue = createBalances();
+  const protocolRevenue = createBalances();
 
   const perPoolLogs = await Promise.all(
     pools.map((pool) => getLogs({ target: pool, eventAbi: swapAbi }).catch(() => []))
@@ -199,9 +199,9 @@ async function fetch(options: FetchOptions) {
 
     dailyVolume.addBalances(poolVolume);
     const poolFees = poolVolume.clone(hr);
-    dailyFees.addBalances(poolFees);
-    dailySupplySideRevenue.addBalances(poolFees.clone(lpRatio));
-    dailyProtocolRevenue.addBalances(poolFees.clone(1 - lpRatio));
+    fees.addBalances(poolFees);
+    supplySideRevenue.addBalances(poolFees.clone(lpRatio));
+    protocolRevenue.addBalances(poolFees.clone(1 - lpRatio));
   }
 
   // 5. Bribes: OnReward events from BribeV2 contracts (via Voter)
@@ -257,14 +257,32 @@ async function fetch(options: FetchOptions) {
     }
   }
 
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  
+  dailyFees.add(fees, 'Token Swap Fees');
+  dailyFees.add(dailyBribesRevenue, 'Bribes Rewards');
+
+  dailyRevenue.add(protocolRevenue, 'Token Swap Fees To Protocol')
+  dailyRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
+
+  dailyProtocolRevenue.add(protocolRevenue, 'Token Swap Fees To Protocol')
+
+  dailySupplySideRevenue.add(supplySideRevenue, 'Token Swap Fees To LPs')
+
+  dailyHoldersRevenue.add(dailyBribesRevenue, 'Bribes Revenue')
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyBribesRevenue,
+    dailyRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -274,12 +292,35 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: Object.keys(config),
   methodology: {
-    Fees: "Swap fees paid by users (haircutRate applied to each swap).",
-    UserFees: "Same as Fees — all swap fees are paid by the user.",
-    SupplySideRevenue: "Share of fees distributed to LPs, determined by the pool's lpDividendRatio.",
-    ProtocolRevenue: "Share of fees retained by the protocol (tip bucket + feeTo), i.e. 1 - lpDividendRatio.",
-    HoldersRevenue: "Not applicable.",
-    Revenue: "Same as ProtocolRevenue.",
+    Fees: "Swap fees paid by users plus bribes rewards deposited for Wombat gauges.",
+    UserFees: "Swap fees paid by users plus bribes rewards deposited for Wombat gauges.",
+    Revenue: "Protocol share of swap fees plus bribes revenue distributed to WOM voters.",
+    ProtocolRevenue: "Protocol share of swap fees, computed as 1 - lpDividendRatio.",
+    HoldersRevenue: "Bribes revenue distributed to WOM voters.",
+    SupplySideRevenue: "LP share of swap fees, determined by each pool's lpDividendRatio.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': "Swap fees paid by users, computed from each pool's haircutRate applied to swap volume.",
+      'Bribes Rewards': 'Bribes rewards deposited into Wombat bribe contracts.',
+    },
+    UserFees: {
+      'Token Swap Fees': "Swap fees paid by users, computed from each pool's haircutRate applied to swap volume.",
+      'Bribes Rewards': 'Bribes rewards deposited into Wombat bribe contracts.',
+    },
+    Revenue: {
+      'Token Swap Fees To Protocol': "Protocol share of swap fees, computed as 1 - each pool's lpDividendRatio.",
+      'Bribes Revenue': 'Bribes revenue distributed to WOM voters.',
+    },
+    ProtocolRevenue: {
+      'Token Swap Fees To Protocol': "Protocol share of swap fees, computed as 1 - each pool's lpDividendRatio.",
+    },
+    HoldersRevenue: {
+      'Bribes Revenue': 'Bribes revenue distributed to WOM voters.',
+    },
+    SupplySideRevenue: {
+      'Token Swap Fees To LPs': "LP share of swap fees, determined by each pool's lpDividendRatio.",
+    },
   },
 };
 

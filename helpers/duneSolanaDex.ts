@@ -3,7 +3,7 @@ import { CHAIN } from "./chains";
 import { queryDuneSql } from "./dune";
 
 export function duneSolanaDexTrades(project: string, start: string) {
-    const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const fetch = async (options: FetchOptions) => {
         const now = Date.now()
         const tenHoursAgo = now - (10 * 60 * 60 * 1000)
         if ((options.toTimestamp * 1000) > tenHoursAgo) {

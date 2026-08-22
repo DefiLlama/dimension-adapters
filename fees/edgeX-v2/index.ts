@@ -14,7 +14,7 @@ interface EdgeXFeeResponse {
   }[];
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const apiUrl = `${API_ENDPOINT}?filterBeginKlineTimeInclusive=${(options.fromTimestamp - 800) * 1000}&filterEndKlineTimeExclusive=${options.toTimestamp * 1000}`;
   const { data }: EdgeXFeeResponse = await fetchURL(apiUrl);
   const startOfDayUTC = options.startOfDay * 1000;

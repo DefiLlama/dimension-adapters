@@ -9,7 +9,7 @@ export default {
 }
 
 
-async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+async function fetch({ startOfDay }: FetchOptions) {
   const yesterday = startOfDay - 86400
   const endpoint = 'https://api.subgraph.somnia.network/api/public/962dcbf6-75ff-4e54-b778-6b5816c05e7d/subgraphs/somnia-perp/v1.0.0/gn'
   const query = `{
@@ -29,8 +29,12 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
   }`
 
   const res = await request(endpoint, query)
-  if (!res.today.length || !res.yesterday.length || res.today[0].snap.length !== 1 || res.yesterday[0].snap.length !== 1)
+  if (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
     throw new Error("Error: No data")
+
+  if (!res.today.length || res.today[0].snap.length !== 1) { // somedays have 0 volume, doesnt mean adapter is broken, if broken subgraph query itself would fail
+    return { dailyVolume: 0, dailyFees: 0, }
+  }
 
   const volToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
   const volYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)

@@ -3,11 +3,20 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 
+const chainConfig: Record<string, { API: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: {
+    API: "https://mainnet.zklighter.elliot.ai/api/v1",
+    start: "2025-12-06", // earliest candlestick data available
+  },
+  [CHAIN.ROBINHOOD]: {
+    API: "https://api.rh.lighter.xyz/api/v1",
+    start: "2026-06-26",
+  },
+}
 
-const API = "https://mainnet.zklighter.elliot.ai/api/v1";
-
-const fetch = async (_1: any, _2: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyVolume = 0;
+  const { API } = chainConfig[options.chain];
   const start = options.startOfDay;
 
   // Get all markets
@@ -46,8 +55,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.ZK_LIGHTER],
-  start: "2025-12-06",       // earliest candlestick data available
+  adapter: chainConfig,
   methodology,
 };
 

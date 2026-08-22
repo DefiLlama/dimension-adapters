@@ -21,7 +21,7 @@ async function getRows(days: number) {
   return response.trim().split("\n").filter(Boolean).map((row) => JSON.parse(row));
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const days = Math.ceil((Date.now() / 1000 - options.startOfDay) / DAY) + 1;
   const rows = await getRows(days);
   const row = rows.find((item) => Date.parse(`${item.traded_at_day} UTC`) / 1000 === options.startOfDay);

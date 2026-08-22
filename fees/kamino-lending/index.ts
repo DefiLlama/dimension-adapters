@@ -1,4 +1,4 @@
-import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -8,7 +8,7 @@ const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-
 const ORIGINATION_FEES = 'Origination Fees';
 
 // Function to make the GET request
-const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
     const historicalFeesRes = await fetchURL(AllezLabsKaminoFeeEndpoint)
     const record = historicalFeesRes['data'].find((row: any) => row.day === options.dateString)
 
@@ -71,12 +71,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-10-12',
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2023-10-12',
     methodology,
     breakdownMethodology,
 }

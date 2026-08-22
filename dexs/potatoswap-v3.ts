@@ -1,4 +1,4 @@
-import { FetchOptions } from '../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getUniV3LogAdapter } from '../helpers/uniswap';
 import { httpGet } from '../utils/fetchURL';
@@ -15,7 +15,7 @@ const methodology = {
 // Uniswap V3 standard ABI for slot0. Selector: 0x3850c7bd
 const SLOT0_ABI = "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)";
 
-async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   // Initialize all accumulators as BigNumber objects
   let dailyVolume = new BigNumber(0);
   let dailyFees = new BigNumber(0);
@@ -97,13 +97,12 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
   return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), userFeesRatio: 1, revenueRatio: 1 / 5, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 5 })(options)
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
   methodology,
-  adapter: {
-    [CHAIN.XLAYER]: {
-      fetch: fetch,
-      start: '2025-10-20',
-    },
-  },
+  fetch,
+  chains: [CHAIN.XLAYER],
+  start: '2025-10-20',
 };
+
+export default adapter;

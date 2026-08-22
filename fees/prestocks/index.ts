@@ -24,6 +24,8 @@ async function getMeteoraDLMMPositions(owner: string) {
             METEORA_DLMM_PROGRAM_ID,
             {
                 encoding: "base64",
+                // slice only lbPair (offset 8, 32 bytes) — memcmp still runs on full data
+                dataSlice: { offset: 8, length: 32 },
                 filters: [
                     {
                         memcmp: {
@@ -36,11 +38,15 @@ async function getMeteoraDLMMPositions(owner: string) {
         ]
     });
 
-    const accounts = response?.result || [];
-    return accounts.map((acc: any) => extractPubkey(acc.account.data[0], 8));
+    if (!Array.isArray(response?.result)) {
+        throw new Error(`getProgramAccounts failed for ${owner}: ${JSON.stringify(response)}`);
+    }
+
+    // lbPair is at offset 0 of the sliced data
+    return response.result.map((acc: any) => extractPubkey(acc.account.data[0], 0));
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();

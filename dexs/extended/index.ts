@@ -32,7 +32,7 @@ const chainConfig: any = {
   }
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const config = chainConfig[options.chain];
 
   if (config.deadFrom && config.deadFrom <= options.startOfDay)

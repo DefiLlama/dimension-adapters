@@ -17,7 +17,7 @@ interface QubicBurnData {
   price: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: QubicBurnData[] = await fetchURL(API_ENDPOINT);
 
   const dailyQubicBurnt = data.reduce((totalBurnt: number, item: any) => {

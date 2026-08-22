@@ -21,7 +21,7 @@ const calculateteHolderRevenue = (stats: Pool[]) => {
   return holderRevenue;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const timestamp = options.startOfDay;
   const targetDate = options.dateString;
 

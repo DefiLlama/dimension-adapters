@@ -5,7 +5,7 @@ import fetchURL from "../utils/fetchURL";
 const adapter: Adapter = {
   adapter: {
     [CHAIN.MOVE]: {
-      fetch: (async (_: any, __: any, options: FetchOptions) => {
+      fetch: (async (options: FetchOptions) => {
         const { startOfDay, createBalances } = options
 
         const dailyFees = createBalances()

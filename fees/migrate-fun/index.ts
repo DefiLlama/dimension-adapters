@@ -9,7 +9,7 @@ const event = "event EvmInboundFeesAccrued(bytes16 indexed projectId, uint256 gr
 const MIGRATION_FEES = "Migration Fees"
 const BRIDGE_FEES = "Bridge Fees"
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const query = `
     SELECT
       SUM(usd_amount) as total_usd_amount
@@ -28,7 +28,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailySupplySideRevenue: 0, dailyProtocolRevenue: dailyFees, dailyUserFees: dailyFees }
 }
 
-const fetchEth = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchEth = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()

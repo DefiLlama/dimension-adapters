@@ -2,10 +2,11 @@ import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { queryHyperliquidIndexer } from '../../helpers/hyperliquid';
 
-const fetch = async (_: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const result = await queryHyperliquidIndexer(options)
 
   return {
+    dailyVolume: result.dailyUnitVolume,
     dailyFees: result.dailyUnitRevenue,
     dailyRevenue: result.dailyUnitRevenue,
     dailyProtocolRevenue: result.dailyUnitRevenue,
@@ -15,6 +16,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
 
 
 const methodology = {
+  Volume: 'Hyperlqiudi spot trading volume from tokens were deployed by Unit protocol.',
   Fees: 'Trading fees from spot token volume where Hyperunit is the deployer of the token.',
   Revenue: 'Trading fees from spot token volume where Hyperunit is the deployer of the token.',
   ProtocolRevenue: 'Trading fees from spot token volume where Hyperunit is the deployer of the token.',

@@ -99,7 +99,7 @@ const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) 
 const chainDetails = {
   ltc: getLitecoinMiningRewards,
   doge: getDogeMiningRewards,
-  rvn: getRavenMiningRewards,
+  // rvn: getRavenMiningRewards,
   bch: getBchMiningRewards
 };
 
@@ -115,7 +115,7 @@ const getQuaiBurnDetails = async (options: FetchOptions, dailyHoldersRevenue: Ba
   dailyHoldersRevenue.subtract(fromApi.getBalancesV2(), METRIC.TOKEN_BUY_BACK)
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 

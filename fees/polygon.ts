@@ -3,7 +3,7 @@ import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/t
 import { queryDuneSql } from "../helpers/dune";
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
 
     const query = `

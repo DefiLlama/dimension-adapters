@@ -9,6 +9,36 @@ import { METRIC } from "../helpers/metrics"
 const JUP_BUY_BACK_START_TIME = 1739750400;
 export const jupBuybackRatioFromRevenue = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 0;
 
+// Jupiter program authorities that accumulate Swap V2 fees before they are
+// swept to the central revenue wallet. Exported so product adapters can use
+// the same canonical set when attributing a subset of aggregator fees.
+export const JUPITER_FEE_AUTHORITIES = [
+  'BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV',
+  '2MFoS3MPtvyQ4Wh4M9pdfPjz6UhVoNbFbGJAskCPCj3h',
+  'HU23r7UoZbqTUuh3vA7emAGztFtqwTeVips789vqxxBw',
+  '3CgvbiM3op4vjrrjH2zcrQUwsqh5veNVRjFCB9N6sRoD',
+  '6LXutJvKUw8Q5ue2gCgKHQdAN4suWW8awzFVC6XCguFx',
+  'CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps',
+  'GGztQqQ6pCPaJQnNpXBgELr5cs3WwDakRbh1iEMzjgSJ',
+  '9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8',
+  '3LoAYHuSd7Gh8d7RTFnhvYtiTiefdZ5ByamU42vkzd76',
+  'DSN3j1ykL3obAVNv7ZX49VsFCPe4LqzxHnmtLiPwY6xg',
+  '69yhtoJR4JYPPABZcSNkzuqbaFbwHsCkja1sP1Q2aVT5',
+  '6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB',
+  '7iWnBRRhBCiNXXPhqiGzvvBkKrvFSWqqmxRyu9VyYBxE',
+  '4xDsmeTWPNjgSVSS1VTfzFq3iHZhp77ffPkAmkZkdu71',
+  'GP8StUXNYSZjPikyRsvkTbvRV1GBxMErb59cpeCJnDf1',
+  'HFqp6ErWHY6Uzhj8rFyjYuDya2mXUpYEk8VW75K9PSiY',
+  '6zQecXhjYTifDGYxbW7vRTQBrBYsi1Uac6BEJ4WzefWS',
+  'GgY8theL9n9hQPoz2keQM8y6z8T6G6BH9FPLjBtkF9Hd',
+  'G4FUwFD1h4tb4R6jkZXuoyst7YNbYTcJH3MvCUguss6E',
+  'F2Xjd4ZJYz6SfszyUVGzLUzAHRRhfU2iJacCfW5GCJHM',
+  '3cHRcBKWbJeL2qyjgQ8wdSYxmRYW1ZyC2nVqTakAj57G',
+  '6Ugimjtgk7rk5SbZNzcYvZiM3P6ki4Uq3QGtTHWNn8co',
+  '4QKRxAfawktf6szGUP456AqBvaKSnmuGy91QnqdBDSke',
+  '9kiYqGSb1nbYMc5xxZQHhKvJR57LLAHVyDvSQ3FHjDPK',
+]
+
 export const JUPITER_METRICS = {
   // Aggregator
   AggSwapFees: 'Aggregator Swap Fees',
@@ -50,6 +80,7 @@ export const JUPITER_METRICS = {
 
   // DCA
   JupDCAFees: 'Jup DCA Trading Fees',
+  JupTriggerV2Fees: 'Trigger V2 Fees',
 
   // Studio
   JupStudioFees: 'Jup Studio Trading Fees',
@@ -60,35 +91,13 @@ export const JUPITER_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const feeAuthorityRows = JUPITER_FEE_AUTHORITIES.map((address) => `('${address}')`).join(',\n        ')
   const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
       SELECT addr
       FROM (VALUES
-        ('BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV'),
-        ('2MFoS3MPtvyQ4Wh4M9pdfPjz6UhVoNbFbGJAskCPCj3h'),
-        ('HU23r7UoZbqTUuh3vA7emAGztFtqwTeVips789vqxxBw'),
-        ('3CgvbiM3op4vjrrjH2zcrQUwsqh5veNVRjFCB9N6sRoD'),
-        ('6LXutJvKUw8Q5ue2gCgKHQdAN4suWW8awzFVC6XCguFx'),
-        ('CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps'),
-        ('GGztQqQ6pCPaJQnNpXBgELr5cs3WwDakRbh1iEMzjgSJ'),
-        ('9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8'),
-        ('3LoAYHuSd7Gh8d7RTFnhvYtiTiefdZ5ByamU42vkzd76'),
-        ('DSN3j1ykL3obAVNv7ZX49VsFCPe4LqzxHnmtLiPwY6xg'),
-        ('69yhtoJR4JYPPABZcSNkzuqbaFbwHsCkja1sP1Q2aVT5'),
-        ('6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB'),
-        ('7iWnBRRhBCiNXXPhqiGzvvBkKrvFSWqqmxRyu9VyYBxE'),
-        ('4xDsmeTWPNjgSVSS1VTfzFq3iHZhp77ffPkAmkZkdu71'),
-        ('GP8StUXNYSZjPikyRsvkTbvRV1GBxMErb59cpeCJnDf1'),
-        ('HFqp6ErWHY6Uzhj8rFyjYuDya2mXUpYEk8VW75K9PSiY'),
-        ('6zQecXhjYTifDGYxbW7vRTQBrBYsi1Uac6BEJ4WzefWS'),
-        ('GgY8theL9n9hQPoz2keQM8y6z8T6G6BH9FPLjBtkF9Hd'),
-        ('G4FUwFD1h4tb4R6jkZXuoyst7YNbYTcJH3MvCUguss6E'),
-        ('F2Xjd4ZJYz6SfszyUVGzLUzAHRRhfU2iJacCfW5GCJHM'),
-        ('3cHRcBKWbJeL2qyjgQ8wdSYxmRYW1ZyC2nVqTakAj57G'),
-        ('6Ugimjtgk7rk5SbZNzcYvZiM3P6ki4Uq3QGtTHWNn8co'),
-        ('4QKRxAfawktf6szGUP456AqBvaKSnmuGy91QnqdBDSke'),
-        ('9kiYqGSb1nbYMc5xxZQHhKvJR57LLAHVyDvSQ3FHjDPK')
+        ${feeAuthorityRows}
       ) AS v(addr)
     )
     

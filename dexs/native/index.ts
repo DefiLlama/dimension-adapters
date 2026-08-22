@@ -1,29 +1,24 @@
 import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const routers = {
-  [CHAIN.BSC]: {
-    address: "0xC6a5cD6C5f56D8BaAa58be5c516Bb889059651a3",
-    startBlock: 46101475
-  },
-  [CHAIN.ETHEREUM]: {
-    address: "0x5c0abf0f651613696a5c57efafc6ab59a460b32d",
-    startBlock: 21627898
-  },
-  [CHAIN.ARBITRUM]: {
-    address: "0x5C0aBf0F651613696A5c57efafC6ab59A460B32d",
-    startBlock: 297460493
-  },
-  [CHAIN.BASE]: {
-    address: "0x5C0aBf0F651613696A5c57efafC6ab59A460B32d",
-    startBlock: 25970577
-  }
+const chainConfig: Record<string, { start: number }> = {
+  [CHAIN.BSC]: { start: 46101475 },
+  [CHAIN.ETHEREUM]: { start: 21627898 },
+  [CHAIN.ARBITRUM]: { start: 297460493 },
+  [CHAIN.BASE]: { start: 25970577 },
+  [CHAIN.XLAYER]: { start: 61994385 },
+  [CHAIN.ROBINHOOD]: { start: 60423 },
 };
 
 const RFQ_TRADE_EVENT = 'event RFQTrade(address recipient, address sellerToken, address buyerToken, uint256 sellerTokenAmount, uint256 buyerTokenAmount, bytes16 quoteId, address signer)';
 
+// Unofficial adapter contracts that sat as RFQ recipient for the Jul-Aug 2026 BSC volume spike. Not Binance or Native. Same deployer rotated 0x309fcd -> 0x23e2b374.
+const SKIP_RECIPIENTS = new Set([
+  '0x309fcdd159c15e6305f1b02489a14e870e4df052',
+  '0x23e2b37415ee3b9cfe1ae522e42e2b66fd2d9494',
+]);
+
 const fetch: FetchV2 = async (options: FetchOptions) => {
-  const address = routers[options.chain].address;
   const { getLogs, createBalances } = options;
   const dailyVolume = createBalances();
 
@@ -34,6 +29,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   });
 
   logs.forEach((log: any) => {
+    if (SKIP_RECIPIENTS.has(String(log.recipient).toLowerCase())) return;
     dailyVolume.add(log.buyerToken, log.buyerTokenAmount);
   });
 
@@ -42,20 +38,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   };
 }
 
+const methodology = {
+  Volume: 'Value of the tokens traders receive from each swap quoted by a Native market maker.',
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.keys(routers).reduce((acc, chain) => {
-    const { startBlock } = routers[chain];
-
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        start: startBlock,
-      },
-    };
-  }, {}),
+  fetch,
+  methodology,
+  adapter: chainConfig as any,
 };
 
 export default adapter;

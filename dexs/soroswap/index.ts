@@ -7,7 +7,7 @@ import { METRIC } from "../../helpers/metrics";
 // https://docs.soroswap.finance/additional-resources/01-concepts/01-fees
 const FEE_RATE = 0.003;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -54,12 +54,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.STELLAR]: {
-      fetch,
-      start: "2024-03-11",
-    },
-  },
+  fetch,
+  chains: [CHAIN.STELLAR],
+  start: "2024-03-11",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,

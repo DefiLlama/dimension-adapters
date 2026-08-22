@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   function toDateQuery(timestmap: number): string {
     return new Date(timestmap * 1000).toISOString();
@@ -23,7 +23,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
   `;
 
-  const queryResult = await request("https://orca-main-aggr-indx.indexer.hydration.cloud/graphql", query);
+  const queryResult = await request("https://orca-prod-pool-02.catfish.hydration.cloud/graphql", query);
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();

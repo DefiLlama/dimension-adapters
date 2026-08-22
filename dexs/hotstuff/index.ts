@@ -6,7 +6,7 @@ import { sleep } from "../../utils/utils";
 
 const HOTSTUFF_API_URL = "https://api.hotstuff.trade/info";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
     const marketsInfo = await postURL(HOTSTUFF_API_URL, {
@@ -41,9 +41,9 @@ const methodology = { Volume: "Daily perps trading volume is taken from Hotstuff
 
 const adapter: SimpleAdapter = {
     fetch,
-    methodology,
     chains: [CHAIN.HOTSTUFF],
-    start: "2026-02-06"
+    start: "2026-02-06",
+    methodology,
 }
 
 export default adapter;

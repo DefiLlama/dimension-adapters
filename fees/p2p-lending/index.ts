@@ -68,7 +68,7 @@ const getMetricsFromSubgraph = async (timestamp: number) => {
   }
 };
 
-const fetch = async (_: number, _t: any, { startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {
   const timestamp = startOfDay;
   const metrics = await getMetricsFromSubgraph(timestamp);
 
@@ -89,17 +89,14 @@ const fetch = async (_: number, _t: any, { startOfDay, createBalances }: FetchOp
 };
 
 const adapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: "2025-05-22",
   methodology: {
     Fees: "Protocol fees are given by interests paid in credit Tokens by Borrowers to Lenders, cumulated with the amount of SDEX burned at Proposal creation.",
     Revenue: "Protocol revenue is the total amount of SDEX burned at each new Proposal creation.",
   },
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2025-05-22",
-    },
-  },
-  version: 1,
 };
 
 export default adapter;

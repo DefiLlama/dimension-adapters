@@ -149,6 +149,7 @@ Object.keys(config).forEach(
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: adapter_agg.adapter,
 };
 

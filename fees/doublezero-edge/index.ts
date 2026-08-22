@@ -9,7 +9,7 @@ const PROTOCOL_CLIENT_TEAMS = "Protocol Client Teams";
 const PROTOCOL_SECURITY_BURN = "Protocol Security Burn";
 const EDGE_SHRED_SUBSCRIPTIONS = "Edge Shred Subscriptions";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const query = `
     WITH settlement_ix AS (

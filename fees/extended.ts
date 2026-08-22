@@ -10,7 +10,7 @@ interface IData {
   daily_liquidation_fees: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const dailyFees = options.createBalances()
 
 	const data: Array<IData> = await queryDuneSql(options, `

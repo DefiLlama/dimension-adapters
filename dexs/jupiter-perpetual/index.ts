@@ -9,7 +9,7 @@ const list_of_mints: string[] = [
   "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
 ]
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
   const header_user = {
     "accept": "*/*",
     "accept-language": "en-US,en;q=0.9",

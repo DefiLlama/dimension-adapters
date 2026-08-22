@@ -1,0 +1,24 @@
+import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
+
+const openInterestEndpoint = "https://edgex-prod-v2.edgex.exchange/api/v2/public/quote/getTicketSummary?period=LAST_DAY_1"
+
+const fetch = async (options: FetchOptions) => {
+    const openInterest = await fetchURL(openInterestEndpoint);
+    const openInterestAtEnd = openInterest?.data?.tickerSummary?.openInterest;
+    if (openInterestAtEnd === undefined || openInterestAtEnd === null || openInterestAtEnd === '') {
+        throw new Error(`No open interest data found for ${options.dateString} in edgeX v2 response`);
+    }
+    return { openInterestAtEnd };
+}
+
+const adapter: SimpleAdapter = {
+    version: 2,
+    chains: [CHAIN.EDGEX],
+    fetch,
+    start: "2026-05-12",
+    runAtCurrTime: true,
+}
+
+export default adapter;

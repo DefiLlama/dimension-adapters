@@ -10,29 +10,22 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
     eventAbi: 'event RoundClearable(uint256 indexed roundId, uint256 clearingPrice, uint256 totalPot, uint256 bidderCount)',
   });
 
+  const dailyVolume = createBalances();
   const dailyFees = createBalances();
-  const dailyRevenue = createBalances();
-  const dailyProtocolRevenue = createBalances();
-  const dailySupplySideRevenue = createBalances();
 
   for (const log of logs) {
     const totalPot = log.totalPot;
     if (!totalPot || totalPot === BigInt(0)) continue;
     
-    dailyFees.add(WETH, totalPot);
-    
-    const protocolShare = totalPot * BigInt(15) / BigInt(100);
-    dailyProtocolRevenue.add(WETH, protocolShare);
-    dailyRevenue.add(WETH, protocolShare);
-    
-    dailySupplySideRevenue.add(WETH, totalPot * BigInt(85) / BigInt(100));
+    dailyVolume.add(WETH, totalPot);
+    const fees = totalPot * BigInt(15) / BigInt(100);
+    dailyFees.add(WETH, fees);
   }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -45,13 +38,14 @@ const adapter: SimpleAdapter = {
       start: '2025-12-19',
     },
   },
+  deadFrom: "2026-03-11",
 };
 
 adapter.methodology = {
-  Fees: "Total ETH bid into Dutch auctions (100% of pot)",
-  Revenue: "Protocol revenue only - 15% of auction pot sent to Treasury for permanent LP",
-  ProtocolRevenue: "15% of auction pot converted to permanently locked Uniswap V3 liquidity",
-  SupplySideRevenue: "85% distributed to participants: 80% to Boss Bakers, 5% Street Fees, 0.1% Settler",
+  Volume: "Total ETH bid into Dutch auctions (100% of pot)",
+  Fees: "15% of auction pot sent to Treasury for permanent LP",
+  Revenue: "15% of auction pot sent to Treasury for permanent LP",
+  ProtocolRevenue: "15% of auction pot sent to Treasury for permanent LP",
 };
 
 export default adapter;

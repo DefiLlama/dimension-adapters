@@ -38,7 +38,7 @@ interface IGraphResponse {
   }>;
 }
 
-const fetch = async (_timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyData: IGraphResponse = await request(chainConfig[options.chain].endpoint, query, {
     id: "daily:" + String(options.startOfDay),
     timestamp: options.startOfDay,

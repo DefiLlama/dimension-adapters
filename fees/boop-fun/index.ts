@@ -21,7 +21,7 @@ const BOOP_ADDRESS = 'boopkpWqe68MSxLqBGogs8ZbUDN4GXaLhFwNP7mpP1i';
 const BOOP_CG_ID = 'boop-4';
 const NATIVE_SOL_MINT_ADDRESS = ADDRESSES.solana.SOL;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
         WITH graduation_events AS (
             SELECT

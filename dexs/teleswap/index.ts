@@ -32,6 +32,15 @@ interface WrapAndSwapV2Event {
   fees: [number, number, number, number, number];
 }
 
+type Balances = ReturnType<FetchOptions["createBalances"]>;
+
+interface Accumulators {
+  dailyVolume: Balances;
+  dailyFees: Balances;
+  dailySupplySideRevenue: Balances;
+  dailyProtocolRevenue: Balances;
+}
+
 // Configuration
 const CHAIN_CONFIGS: Partial<Record<CHAIN, ChainConfig>> = {
   [CHAIN.POLYGON]: {
@@ -75,16 +84,37 @@ const EVENT_SIGNATURES = {
     "event NewWrap(bytes32 bitcoinTxId,bytes indexed lockerLockingScript,address lockerTargetAddress,address indexed user,address teleporter,uint256[2] amounts,uint256[4] fees,uint256 thirdPartyId,uint256 destinationChainId)",
 } as const;
 
+// Every event's fee array: index 1 = Locker fee and index 3 = referral fee (both
+// supply-side), index 2 = protocol fee (treasury). index 0 (network/bitcoin) and
+// index 4 (bridge) are passthrough. Verified on the deployed routers.
 const FEE_INDICES = {
   LOCKER_FEE: 1,
   PROTOCOL_FEE: 2,
+  THIRD_PARTY_FEE: 3,
 } as const;
+
+function recordFees(
+  acc: Accumulators,
+  teleBTC: string,
+  fees: readonly number[]
+): void {
+  const lockerFee = fees[FEE_INDICES.LOCKER_FEE];
+  const protocolFee = fees[FEE_INDICES.PROTOCOL_FEE];
+  const thirdPartyFee = fees[FEE_INDICES.THIRD_PARTY_FEE];
+  acc.dailyFees.add(teleBTC, lockerFee, "Locker Fees");
+  acc.dailyFees.add(teleBTC, protocolFee, "Protocol Fees");
+  acc.dailyFees.add(teleBTC, thirdPartyFee, "Third Party Fees");
+
+  acc.dailyProtocolRevenue.add(teleBTC, protocolFee, "Protocol Fees");
+  
+  acc.dailySupplySideRevenue.add(teleBTC, lockerFee, "Locker Fees");
+  acc.dailySupplySideRevenue.add(teleBTC, thirdPartyFee, "Third Party Fees");
+}
 
 async function processUnwrapEvents(
   options: FetchOptions,
   config: ChainConfig,
-  dailyVolume: ReturnType<FetchOptions["createBalances"]>,
-  dailyFees: ReturnType<FetchOptions["createBalances"]>
+  acc: Accumulators
 ): Promise<void> {
   const unwrapLogs = await options.getLogs({
     target: config.burnRouter,
@@ -95,20 +125,16 @@ async function processUnwrapEvents(
     const event = unwrapLog as UnwrapEvent;
 
     // Add volume from input token amount
-    dailyVolume.add(event.inputToken, event.amounts[0]);
+    acc.dailyVolume.add(event.inputToken, event.amounts[0]);
 
-    // Add fees (BTC fees at indices 1 and 2)
-    const btcFees =
-      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
-    dailyFees.add(config.teleBTC as string, btcFees);
+    recordFees(acc, config.teleBTC, event.fees);
   }
 }
 
 async function processWrapAndSwapEvents(
   options: FetchOptions,
   config: ChainConfig,
-  dailyVolume: ReturnType<FetchOptions["createBalances"]>,
-  dailyFees: ReturnType<FetchOptions["createBalances"]>
+  acc: Accumulators
 ): Promise<void> {
   const [v1Logs, v2Logs] = await Promise.all([
     options.getLogs({
@@ -123,26 +149,21 @@ async function processWrapAndSwapEvents(
 
   for (const log of v1Logs) {
     const event = log as WrapAndSwapV1Event;
-    dailyVolume.add(event.inputAndOutputToken[0], event.inputAndOutputAmount[0]);
-    const fees =
-      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
-    dailyFees.add(config.teleBTC as string, fees);
+    acc.dailyVolume.add(event.inputAndOutputToken[0], event.inputAndOutputAmount[0]);
+    recordFees(acc, config.teleBTC, event.fees);
   }
 
   for (const log of v2Logs) {
     const event = log as WrapAndSwapV2Event;
-    dailyVolume.add(config.teleBTC, event.inputIntermediaryOutputAmount[0]);
-    const fees =
-      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
-    dailyFees.add(config.teleBTC as string, fees);
+    acc.dailyVolume.add(config.teleBTC, event.inputIntermediaryOutputAmount[0]);
+    recordFees(acc, config.teleBTC, event.fees);
   }
 }
 
 async function processWrapEvents(
   options: FetchOptions,
   config: ChainConfig,
-  dailyVolume: ReturnType<FetchOptions["createBalances"]>,
-  dailyFees: ReturnType<FetchOptions["createBalances"]>
+  acc: Accumulators
 ): Promise<void> {
   const wrapLogs = await options.getLogs({
     target: config.transferRouter,
@@ -153,18 +174,19 @@ async function processWrapEvents(
     const event = wrapLog as WrapEvent;
 
     // Add volume from input token (teleBTC) amount
-    dailyVolume.add(config.teleBTC, event.amounts[0]);
+    acc.dailyVolume.add(config.teleBTC, event.amounts[0]);
 
-    // Add fees (BTC fees at indices 1 and 2)
-    const btcFees =
-      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
-    dailyFees.add(config.teleBTC as string, btcFees);
+    recordFees(acc, config.teleBTC, event.fees);
   }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
+  const acc: Accumulators = {
+    dailyVolume: options.createBalances(),
+    dailyFees: options.createBalances(),
+    dailySupplySideRevenue: options.createBalances(),
+    dailyProtocolRevenue: options.createBalances(),
+  };
 
   const config = CHAIN_CONFIGS[options.chain as keyof typeof CHAIN_CONFIGS];
   if (!config) {
@@ -172,30 +194,51 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   }
 
   await Promise.all([
-    processUnwrapEvents(options, config, dailyVolume, dailyFees),
-    processWrapAndSwapEvents(options, config, dailyVolume, dailyFees),
-    processWrapEvents(options, config, dailyVolume, dailyFees),
+    processUnwrapEvents(options, config, acc),
+    processWrapAndSwapEvents(options, config, acc),
+    processWrapEvents(options, config, acc),
   ]);
 
   return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyVolume: acc.dailyVolume,
+    dailyFees: acc.dailyFees,
+    dailyRevenue: acc.dailyProtocolRevenue,
+    dailySupplySideRevenue: acc.dailySupplySideRevenue,
+    dailyProtocolRevenue: acc.dailyProtocolRevenue,
   };
 }
 
 const methodology = {
-  Volume: "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
-  Fees: "Total of the protocol fee and Locker fee collected during bridging.",
-  Revenue: "Total of the protocol fee and Locker fee collected during bridging.",
-  ProtocolRevenue: "Total of the protocol fee and Locker fee collected during bridging.",
+  Volume: "Total value of Bitcoin moved through the bridge — wrapping BTC into teleBTC on EVM chains and unwrapping teleBTC back to BTC.",
+  Fees: "The Locker fee, protocol fee, and referral fee charged on every bridge transaction.",
+  Revenue: "The protocol fee only. The Locker fee and referral fee are paid out to others, so they are not revenue for the protocol.",
+  SupplySideRevenue: "The Locker fee plus any referral fee — paid to Lockers (who lock up collateral to back teleBTC and process each bridge transaction) and to third parties that refer users.",
+  ProtocolRevenue: "The protocol fee, which goes to the TeleSwap treasury.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Locker Fees": "Fees Paid to the Locker that custodies the BTC and mints teleBTC",
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+    "Third Party Fees": "Fee for an integrating third party (referrer/frontend), sent to that party's address",
+  },
+  Revenue: {
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+  },
+  ProtocolRevenue: {
+    "Protocol Fees": "Fees Paid to the TeleSwap protocol",
+  },
+  SupplySideRevenue: {
+    "Locker Fees": "Fees Paid to the Locker that custodies the BTC and mints teleBTC",
+    "Third Party Fees": "Fee for an integrating third party (referrer/frontend), sent to that party's address",
+  },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
+  breakdownMethodology,
   adapter: {}
 };
 

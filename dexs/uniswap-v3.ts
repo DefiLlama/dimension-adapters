@@ -1,410 +1,361 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { BaseAdapter, Dependencies, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
-import { httpPost } from "../utils/fetchURL";
-import { filterPools, getUniV3LogAdapter } from "../helpers/uniswap";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
 import { queryDune } from "../helpers/dune";
-import { formatAddress } from "../utils/utils";
+import { httpPost } from "../utils/fetchURL";
+import {
+  getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
+  WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+} from "../helpers/uniswap";
 
-const v3Endpoints = {
-  // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
-  // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
-  // [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
-  // [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3V7ZY6muhxaQL5qvntX1CFXJ32W7BxXZTGTwmpH5J4t3'),
-  // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
-  // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
-  // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
-  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
-  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
-  // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX'),
-  //[CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
-};
-
-type TStartTime = {
-  [key: string]: number;
-}
-const startTimeV3: TStartTime = {
-  [CHAIN.ETHEREUM]: 1620172800,
-  [CHAIN.OPTIMISM]: 1636675200,
-  [CHAIN.ARBITRUM]: 1630368000,
-  [CHAIN.POLYGON]: 1640044800,
-  [CHAIN.CELO]: 1657324800,
-  [CHAIN.BSC]: 1678665600,
-  [CHAIN.AVAX]: 1689033600,
-  [CHAIN.BASE]: 1691280000,
-  [CHAIN.ERA]: 1693440000,
-  [CHAIN.XLAYER]: 1767571200,
-}
+// Hybrid variant of old dexs/uniswap-v3.ts.
+// Each chain is described once in chainConfig { blockchain, start, fetch }:
+//  - fetchFromDune: pulls raw per-pool token amounts from Dune dex.trades and
+//    prices them with DefiLlama (stores token breakdown; DefiLlama's <$10k-TVL
+//    rule drops scam/unpriceable tokens, guarding against price manipulation).
+//  - fetchFromOku: long-tail chains Dune lacks, via the Oku API.
+// `blockchain` is the source's own chain slug (Dune name / Oku slug), so both
+// fetchers just read config.blockchain. Buyback/holders-revenue is shared with
+// the on-chain adapter.
 
 const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.ETHEREUM]: "2025-12-29",
   [CHAIN.OPTIMISM]: "2026-03-08",
   [CHAIN.ARBITRUM]: "2026-03-08",
   [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-03-08",
+  [CHAIN.CELO]: "2026-06-02",
   [CHAIN.WC]: "2026-03-08",
   [CHAIN.ZORA]: "2026-03-08",
   [CHAIN.XLAYER]: "2026-03-08",
+  [CHAIN.BSC]: "2026-06-02",
+  [CHAIN.POLYGON]: "2026-06-02",
+  [CHAIN.ROBINHOOD]: "2026-07-27",
 }
 
-const v3Graphs = getGraphDimensions2({
-  graphUrls: v3Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0 // Revenue is 100% of collected fees
+const FIREPIT : Record<string, string> = {
+  [CHAIN.ETHEREUM]: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721',
+  [CHAIN.UNICHAIN]: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB',
+  [CHAIN.WC]: '0x455e844D286631566cF98D6cb2996149734618C6',
+  [CHAIN.CELO]: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25',
+  [CHAIN.ZORA]: '0x2f98eD4D04e633169FbC941BFCc54E785853b143',
+  [CHAIN.XLAYER]: '0xe122E231cb52aea99690963Fd73E91e33E97468f',
+  [CHAIN.ARBITRUM]: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427',
+  [CHAIN.OPTIMISM]: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD',
+  [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
+  [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+  [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
+  [CHAIN.ROBINHOOD]: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B',
+}
+
+const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
+const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)'
+
+async function fetchHoldersRevenue(options: FetchOptions) {
+  const dailyHoldersRevenue = options.createBalances()
+  const firepit = FIREPIT[options.chain]
+  if (!firepit || !FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) {
+    return dailyHoldersRevenue
   }
-});
 
-const uniLogAdapterConfig = {
-  userFeesRatio: 1,
-  revenueRatio: 0,
-  protocolRevenueRatio: 0,
-  holdersRevenueRatio: 0,
+  const [releaseLogs, threshold] = await Promise.all([
+    options.getLogs({ target: firepit, eventAbi: RELEASED_EVENT_ABI }),
+    options.api.call({ target: firepit, abi: THRESHOLD_FUNCTION_ABI }),
+  ])
+
+  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
+
+  const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
+  dailyHoldersRevenue.addCGToken("uniswap", amount)
+  return dailyHoldersRevenue
 }
 
-interface IOkuResponse {
-  volume: number;
-  fees: number;
-}
-const fetchFromOku = async (options: FetchOptions) => {
-  try {
-    const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
-    const body = {
-      "params": [
-        options.startTimestamp * 1000, //start
-        options.endTimestamp * 1000, //end
-        3600000 //interval
-      ]
-    }
-    const response: IOkuResponse[] = (await httpPost(url, body)).result
-    const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
-    const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
-      dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
-    }
-  } catch (e) {
-    console.error(options.chain, e)
-    return {}
-  }
-}
-const mappingChain = (chain: string) => {
-  if (chain === CHAIN.ERA) return "zksync"
-  if (chain === CHAIN.ROOTSTOCK) return "rootstock"
-  if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
-  if (chain === CHAIN.XDAI) return "gnosis"
-  if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
-  if (chain === CHAIN.SONIC) return "sonic"
-  if (chain === CHAIN.ETHERLINK) return "etherlink"
-  if (chain === CHAIN.NIBIRU) return "nibiru"
-  if (chain === CHAIN.MONAD) return "monad"
-  return chain
-}
-
-const methodology = {
-  Fees: "Swap fees from paid by users.",
-  UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
-  ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
-}
-
-const adapter: SimpleAdapter = {
-  version: 1,
-  methodology,
-  dependencies: [Dependencies.DUNE],
-  adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
-    acc[chain] = {
-      fetch: async (_t: any, _tb: any, options: FetchOptions) => v3Graphs(options),
-      start: startTimeV3[chain],
-    }
-    return acc
-  }, {} as BaseAdapter)
-};
-
-const okuChains = [
-  //CHAIN.OPTIMISM,
-  CHAIN.POLYGON,
-  CHAIN.ERA,
-  CHAIN.SEI,
-  CHAIN.UNICHAIN,
-  CHAIN.TAIKO,
-  CHAIN.SCROLL,
-  CHAIN.ROOTSTOCK,
-  CHAIN.FILECOIN,
-  CHAIN.BOBA,
-  CHAIN.MANTLE,
-  CHAIN.LINEA,
-  CHAIN.XDAI,
-  CHAIN.BOB,
-  CHAIN.CORN,
-  CHAIN.GOAT,
-  CHAIN.HEMI,
-  CHAIN.XDC,
-  CHAIN.LIGHTLINK_PHOENIX,
-  CHAIN.TELOS,
-  //CHAIN.CELO,
-  CHAIN.NIBIRU,
-  CHAIN.MONAD,
-  CHAIN.SONIC,
-  CHAIN.ETHERLINK,
-  CHAIN.SAGA,
-  CHAIN.LENS,
-  
-  // CHAIN.ETHEREUM,
-  // CHAIN.BSC,
-
-  // CHAIN.BLAST,
-  // CHAIN.LISK,
-  // CHAIN.MOONBEAM,
-  // CHAIN.POLYGON_ZKEVM,
-  // CHAIN.MANTA,
-]
-
-
-
-okuChains.forEach(chain => {
-  (adapter.adapter as BaseAdapter)[chain] = {
-    fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
-  }
-});
-
-
-(adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
-    const response = await adapter(options)
-    return response;
-  },
-};
-
-const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
-const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
-
-async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number, options: FetchOptions) => number, onlyWhitelisedTokens?: boolean }) {
-  const { options, factory, fromBlock, getRevenueShare, onlyWhitelisedTokens } = props;
-  
-  const whitelistedTokens: Array<string> | undefined = onlyWhitelisedTokens ? await getDefaultDexTokensWhitelisted({ chain: options.chain }) : undefined;
-  const poolCreatedLogs = await props.options.getLogs({
-    target: factory,
-    eventAbi: poolCreatedEvent,
-    fromBlock: fromBlock,
-    cacheInCloud: true,
-  })
-  
-  const pairObject: IJSON<string[]> = {}
-  const fees: any = {}
-  const revenueShares: any = {}
-
-  poolCreatedLogs.forEach((log: any) => {
-    // filter out pools without whitelisted tokens
-    if (whitelistedTokens && (!whitelistedTokens.includes(formatAddress(log.token0)) || !whitelistedTokens.includes(formatAddress(log.token1)))) return;
-    
-    pairObject[log.pool] = [log.token0, log.token1]
-    fees[log.pool] = (log.fee?.toString() || 0) / 1e6
-    revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6, options) : 0
-  })
-  
-  const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
-  
-  const dailyVolume = options.createBalances()
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-
-  const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
-  allLogs.map((logs: any, index) => {
-    if (!logs.length) return;
-    const pair = Object.keys(filteredPairs)[index]
-    const [token0, token1] = pairObject[pair]
-    const fee = fees[pair]
-    const revenueRatio = revenueShares[pair]
-    logs.forEach((log: any) => {
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
-      addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio })
-      addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
-    })
-  })
-
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue }
-}
-
-function getRevenueShare(fee: number, options: FetchOptions): number {
-  if (!FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) return 0;
-  if (fee === 0.0001) return 0.000025;
-  if (fee === 0.0005) return 0.000125;
-  if (fee === 0.003) return 0.0005;
-  if (fee === 0.01) return 0.001666;
-  return 0;
-}
-
-(adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await customUniswapGetLogsAdapter({
-      options,
-      factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-      fromBlock: 12369621,
-      getRevenueShare,
-    })
-  },
-};
-
-(adapter.adapter as BaseAdapter)[CHAIN.BSC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await customUniswapGetLogsAdapter({
-      options,
-      factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
-      fromBlock: 26324014,
-      onlyWhitelisedTokens: true,
-    })
-  },
-};
-
-export const UNISWAP_V3_QUERY = async (options: FetchOptions) => {
-  const tokens = await getDefaultDexTokensWhitelisted({ chain: options.chain });
-  const cleanVolumeExpr = tokens.length === 0
-    ? 'amount_usd'
-    : `CASE 
-              WHEN token_sold_address IN (${tokens.toString()})
-              AND token_bought_address IN (${tokens.toString()})
-              THEN amount_usd
-              ELSE 0
-          END`;
+// raw per-pool, per-token traded amount from dex.trades, for one or more Dune
+// blockchains. UNNEST explodes each swap's bought + sold legs into one row each,
+// so SUM per token gives that token's total traded amount; addOneToken later
+// counts one (priceable) side as volume. No token whitelist: DefiLlama pricing
+// (+ <$10k-TVL rule) drops unpriceable tokens, and fetchWashPools drops pools
+// whose flow is too concentrated to be organic.
+function buildQuery(blockchains: string[], options: FetchOptions): string {
+  const inList = blockchains.map((b) => `'${b}'`).join(',');
   return `
-    SELECT
-        project_contract_address AS pool
-        , SUM(${cleanVolumeExpr}) AS clean_volume_usd
-        , SUM(amount_usd) AS total_volume_usd 
+    SELECT blockchain, project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
     FROM dex.trades
-    WHERE blockchain = '${options.chain}'
+    CROSS JOIN UNNEST(
+      ARRAY[token_bought_address, token_sold_address],
+      ARRAY[token_bought_amount_raw, token_sold_amount_raw]
+    ) AS t (token, amount)
+    WHERE blockchain IN (${inList})
       AND project = 'uniswap'
       AND version = '3'
-      AND block_time >= FROM_UNIXTIME(${options.fromTimestamp})
-      AND block_time <= FROM_UNIXTIME(${options.toTimestamp})
-    GROUP BY
-      project_contract_address
-  `;
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY blockchain, project_contract_address, t.token`;
 }
 
-async function fetchDune(options: FetchOptions) {
+// Same wash test the v4 adapter runs (see there). v3 is barely exposed - 0.4% of
+// volume vs 19.1% - but it's one extra Dune query and stops the scam factories
+// migrating here once v4 is filtered. Measured over the whole UTC day.
+async function fetchWashPools(blockchains: string[], options: FetchOptions): Promise<Record<string, Set<string>>> {
+  const inList = blockchains.map((b) => `'${b}'`).join(',');
+  const dayStart = washDayStart(options);
+  // v3 pools are their own contracts, so project_contract_address is the pool
+  // and amount_usd is on the same rows - no join needed, unlike v4.
+  const fullQuery = `
+    SELECT blockchain, project_contract_address AS pool
+    FROM dex.trades
+    WHERE blockchain IN (${inList})
+      AND project = 'uniswap'
+      AND version = '3'
+      AND block_time >= from_unixtime(${dayStart})
+      AND block_time < from_unixtime(${dayStart + 86400})
+    GROUP BY blockchain, project_contract_address
+    HAVING ((
+      COUNT(*) >= ${WASH_MIN_TRADES}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+    ) OR (
+      COALESCE(SUM(amount_usd), 0) >= ${WASH_MIN_USD}
+      AND COALESCE(SUM(amount_usd), 0) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_PER_EOA}
+      AND COUNT(*) / CAST(COUNT(DISTINCT tx_from) AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+    ))
+    -- priced-but-dust pools are noise either way; NULL usd (unpriceable) stays flagged
+    AND NOT (SUM(amount_usd) IS NOT NULL AND SUM(amount_usd) < ${WASH_DUST_USD})`;
+
+  // extraUIDKey keeps DUNE_BULK_MODE from UNION ALLing this 2-column query with
+  // the 4-column volume query of the same module - the shapes don't match
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options, { extraUIDKey: 'wash' });
+  const washPools: Record<string, Set<string>> = {};
+  for (const row of rows) {
+    if (!row.blockchain || !row.pool) continue;
+    (washPools[row.blockchain] ??= new Set()).add(String(row.pool).toLowerCase());
+  }
+  return washPools;
+}
+
+// queryDune fetches at most this many rows; a combined query at/over the cap is
+// probably truncated, so we bail and let each chain query its own slice.
+const DUNE_ROW_LIMIT = 32000;
+
+// Pull every Dune chain in one query so a run makes a single Dune call instead
+// of ~24. Result is grouped per chain and handed to each fetch via
+// options.preFetchedResults. Returns null (→ per-chain fallback) if truncated.
+const prefetch: any = async (options: FetchOptions) => {
+  const blockchains = Object.values(chainConfig)
+    .filter((c) => c.fetch === fetchFromDune)
+    .map((c) => c.blockchain);
+  const [rows, washPools] = await Promise.all([
+    queryDune('3996608', { fullQuery: buildQuery(blockchains, options) }, options) as Promise<any[]>,
+    fetchWashPools(blockchains, options),
+  ]);
+  if (rows.length >= DUNE_ROW_LIMIT) {
+    console.error(`uniswap-v3: prefetch returned ${rows.length} rows (>= ${DUNE_ROW_LIMIT} cap), falling back to per-chain queries`);
+    // null byChain sends each chain to its own query; the wash list still applies
+    return { byChain: null, washPools };
+  }
+  const byChain: Record<string, any[]> = {};
+  for (const r of rows) {
+    if (!r.blockchain) continue;
+    (byChain[r.blockchain] ??= []).push(r);
+  }
+  return { byChain, washPools };
+}
+
+async function fetchFromDune(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
-  const poolsAndVolumes = await queryDune('3996608', {
-    fullQuery: await UNISWAP_V3_QUERY(options),
-  }, options);
-  const poolFees = await options.api.multiCall({
-    abi: 'uint256:fee',
-    calls: poolsAndVolumes.map((item: any) => item.pool)
-  })
-  for (let i = 0; i < poolsAndVolumes.length; i++) {
-    if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
-      const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
-      const revenueRatio = getRevenueShare(fee, options)
-      // add clean volume, exclude blacklist token
-      dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
-      dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
-      dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * revenueRatio)
+  const { blockchain } = chainConfig[options.chain];
+  // use the prefetched all-chains result when present, else query just this chain
+  const byChain = options.preFetchedResults?.byChain;
+  const rows: any[] = byChain
+    ? (byChain[blockchain] ?? [])
+    : await queryDune('3996608', { fullQuery: buildQuery([blockchain], options) }, options);
+
+  // group by pool -> its (up to 2) tokens and their summed raw amounts
+  const byPool: Record<string, { tokens: string[]; amounts: string[] }> = {};
+  for (const r of rows) {
+    if (!r.pool || !r.token || !r.amount) continue;
+    const p = (byPool[r.pool] ??= { tokens: [], amounts: [] });
+    p.tokens.push(r.token);
+    p.amounts.push(r.amount);
+  }
+
+  // drop wash pools, except ones where both sides are established (core asset
+  // or CoinGecko-listed) - see getEstablishedTokens. Done after grouping
+  // because it needs both sides; one batched price lookup for all flagged pools.
+  const washPools: Set<string> = options.preFetchedResults?.washPools?.[blockchain] ?? new Set();
+  const flagged = Object.keys(byPool).filter((pool) => washPools.has(pool.toLowerCase()));
+  if (flagged.length) {
+    const established = await getEstablishedTokens(options.chain, flagged.flatMap((pool) => byPool[pool].tokens));
+    for (const pool of flagged) {
+      const { tokens } = byPool[pool];
+      if (tokens.length >= 2 && tokens.every((t) => established.has(t.toLowerCase()))) continue;
+      delete byPool[pool];
     }
   }
 
-  const dailySupplySideRevenue = dailyFees.clone()
-  dailySupplySideRevenue.subtract(dailyRevenue)
+  const pools = Object.keys(byPool);
+
+  // permitFailure doesn't cover a fully-dead-RPC chunk (sdk multiCall throws on it),
+  // so guard: without fee tiers we keep volume and report 0 fees for this chain.
+  let poolFees: any[] = await options.api.multiCall({ abi: 'uint256:fee', calls: pools, permitFailure: true });
+
+  pools.forEach((pool, i) => {
+    const { tokens, amounts } = byPool[pool];
+    const token0 = tokens[0];
+    const token1 = tokens[1] ?? tokens[0];
+    const amount0 = amounts[0];
+    const amount1 = amounts[1] ?? '0';
+    // one priceable side = swap volume (mirrors the on-chain adapter)
+    addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 });
+    const fee = poolFees[i] ? Number(poolFees[i]) / 1e6 : 0;
+    if (fee) addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee });
+  });
+
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
+  const dailySupplySideRevenue = (await dailyFees.getUSDValue()) - dailyRevenue;
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   }
 }
 
-(adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+interface IOkuResponse { volume: number; fees: number; }
 
-(adapter.adapter as BaseAdapter)[CHAIN.BASE] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+async function fetchFromOku(options: FetchOptions) {
+  const { blockchain } = chainConfig[options.chain];
+  const url = `https://omni.icarus.tools/${blockchain}/cush/analyticsProtocolHistoric`;
+  const body = { params: [options.startTimestamp * 1000, options.endTimestamp * 1000, 3600000] };
+  let response: IOkuResponse[] | undefined;
+  try {
+    response = (await httpPost(url, body))?.result;
+  } catch (e) {
+    console.error(`uniswap-v3-dune: Oku request failed on ${options.chain}`, (e as any)?.message);
+  }
+  // Oku returns no `result` for some windows/chains; degrade to empty instead of crashing.
+  if (!Array.isArray(response)) return {};
 
-(adapter.adapter as BaseAdapter)[CHAIN.OPTIMISM] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+  const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
+  const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
 
-(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees - dailyRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue,
+  }
+}
 
-(adapter.adapter as BaseAdapter)[CHAIN.ZORA] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+const factoryConfig: Record<string, string> ={
+  [CHAIN.OG]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+}
 
-(adapter.adapter as BaseAdapter)[CHAIN.CELO] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+async function fetchFromLogs(options: FetchOptions) {
+  const factory = factoryConfig[options.chain];
+  if (!factory) {
+    throw new Error(`uniswap-v3: factory not found for chain ${options.chain}`);
+  }
 
-(adapter.adapter as BaseAdapter)[CHAIN.XLAYER] = {
-  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-    return await fetchDune(options);
-  },
-};
+  const { dailyVolume, dailyFees, dailyUserFees } = await getUniV3LogAdapter({
+    factory,
+    userFeesRatio: 1,
+    revenueRatio: 0,
+    protocolRevenueRatio: 0,
+  })(options);
+
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+  const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(feesToLps, "LP fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
+}
+
+// One entry per chain. blockchain = the source's own slug (Dune dex.trades name
+// or Oku slug). start = first uni-v3 data on that source:
+//  - Dune rows: MIN(block_time) in dex.trades
+//  - Oku rows:  first month with volume in analyticsProtocolHistoric
+const chainConfig: Record<string, { blockchain: string; start: string; fetch: FetchV2 }> = {
+  // Dune dex.trades
+  [CHAIN.ETHEREUM]: { blockchain: 'ethereum', start: '2021-05-04', fetch: fetchFromDune },
+  [CHAIN.ARBITRUM]: { blockchain: 'arbitrum', start: '2021-06-01', fetch: fetchFromDune },
+  [CHAIN.OPTIMISM]: { blockchain: 'optimism', start: '2021-11-11', fetch: fetchFromDune },
+  [CHAIN.POLYGON]: { blockchain: 'polygon', start: '2021-12-20', fetch: fetchFromDune },
+  [CHAIN.CELO]: { blockchain: 'celo', start: '2023-01-20', fetch: fetchFromDune },
+  [CHAIN.BSC]: { blockchain: 'bnb', start: '2023-02-16', fetch: fetchFromDune },
+  [CHAIN.AVAX]: { blockchain: 'avalanche_c', start: '2023-06-21', fetch: fetchFromDune },
+  [CHAIN.BASE]: { blockchain: 'base', start: '2023-07-31', fetch: fetchFromDune },
+  [CHAIN.ERA]: { blockchain: 'zksync', start: '2023-08-31', fetch: fetchFromDune },
+  [CHAIN.SCROLL]: { blockchain: 'scroll', start: '2023-10-14', fetch: fetchFromDune },
+  [CHAIN.LINEA]: { blockchain: 'linea', start: '2023-11-11', fetch: fetchFromDune },
+  [CHAIN.XDAI]: { blockchain: 'gnosis', start: '2023-11-28', fetch: fetchFromDune },
+  [CHAIN.BLAST]: { blockchain: 'blast', start: '2024-03-05', fetch: fetchFromDune },
+  [CHAIN.ZORA]: { blockchain: 'zora', start: '2024-03-26', fetch: fetchFromDune },
+  [CHAIN.MANTLE]: { blockchain: 'mantle', start: '2024-05-16', fetch: fetchFromDune },
+  [CHAIN.WC]: { blockchain: 'worldchain', start: '2024-08-28', fetch: fetchFromDune },
+  [CHAIN.INK]: { blockchain: 'ink', start: '2024-12-20', fetch: fetchFromDune },
+  [CHAIN.SONIC]: { blockchain: 'sonic', start: '2024-12-27', fetch: fetchFromDune },
+  [CHAIN.UNICHAIN]: { blockchain: 'unichain', start: '2025-01-24', fetch: fetchFromDune },
+  [CHAIN.PLASMA]: { blockchain: 'plasma', start: '2025-09-12', fetch: fetchFromDune },
+  [CHAIN.MONAD]: { blockchain: 'monad', start: '2025-11-07', fetch: fetchFromDune },
+  [CHAIN.XLAYER]: { blockchain: 'xlayer', start: '2026-01-05', fetch: fetchFromDune },
+  [CHAIN.TEMPO]: { blockchain: 'tempo', start: '2026-03-23', fetch: fetchFromDune },
+  [CHAIN.ROBINHOOD]: { blockchain: 'robinhood', start: '2026-05-22', fetch: fetchFromDune },
+
+  // Oku API (chains Dune has no uni-v3 data for)
+  [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromOku },
+  [CHAIN.ROOTSTOCK]: { blockchain: 'rootstock', start: '2023-11-19', fetch: fetchFromOku },
+  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOku },
+  [CHAIN.SEI]: { blockchain: 'sei', start: '2024-05-17', fetch: fetchFromOku },
+  [CHAIN.BOB]: { blockchain: 'bob', start: '2024-08-15', fetch: fetchFromOku },
+  [CHAIN.GOAT]: { blockchain: 'goat', start: '2025-02-11', fetch: fetchFromOku },
+  [CHAIN.HEMI]: { blockchain: 'hemi', start: '2025-02-11', fetch: fetchFromOku },
+  [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
+  [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
+  [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
+  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+
+  // On-chain logs (no Dune dex.trades or Oku API coverage)
+  [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
+}
+
+const methodology = {
+  Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
+  Fees: "Swap fees from paid by users.",
+  UserFees: "User pays fees on each swap.",
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  methodology,
+  adapter: chainConfig,
+  prefetch,
+  // supply side can be negative on days revenue (v2+v3 buyback) exceeds v3 fees
+  allowNegativeValue: true,
+}
 
 export default adapter;

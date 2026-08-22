@@ -9,7 +9,7 @@ interface IChartItem {
   value: number
 }
 
-const fetch = async (timestamp: number, _at: any, { startOfDay, dateString }: FetchOptions) => {
+const fetch = async ({ startOfDay, dateString }: FetchOptions) => {
 
   const hours36 = 36 * 60 * 60
   const now = Math.floor(Date.now() / 1000)
@@ -26,12 +26,9 @@ const fetch = async (timestamp: number, _at: any, { startOfDay, dateString }: Fe
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.OSMOSIS]: {
-      fetch,
-      start: "2022-04-15",
-    },
-  },
+  fetch,
+  chains: [CHAIN.OSMOSIS],
+  start: "2022-04-15",
 };
 
 export default adapter;

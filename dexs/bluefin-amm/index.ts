@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 
-const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
     const allPools: any[] = [];
     let page = 1;
     let hasMore = true;
@@ -32,13 +32,10 @@ const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch,
-            start: '2024-11-19',
-            runAtCurrTime: true
-        },
-    },
+    fetch,
+    chains: [CHAIN.SUI],
+    start: '2024-11-19',
+    runAtCurrTime: true,
 };
 
 export default adapter;

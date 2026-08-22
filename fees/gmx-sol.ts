@@ -4,7 +4,7 @@ import { METRIC } from "../helpers/metrics";
 import request, { gql } from "graphql-request";
 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targetDate = new Date(options.startOfDay * 1000).toISOString();
 
   const feeStructureChangeTimestamp = 1768521600 // 2026-01-16

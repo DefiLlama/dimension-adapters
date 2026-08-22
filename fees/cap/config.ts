@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 
-export const capConfig = {
+export const capConfig: any = {
 	[CHAIN.ETHEREUM]: {
 		fromBlock: 22867447,
 		fromTime: 1751892887,
@@ -63,6 +63,10 @@ export const capABI = {
 	Delegation: {
 		DistributeReward:
 			"event DistributeReward(address agent, address asset, uint256 amount)",
+	},
+	FractionalReserve: {
+		InterestRealizedEvent:
+			"event FractionalReserveInterestRealized(address indexed asset, uint256 amount)",
 	},
 } as const;
 

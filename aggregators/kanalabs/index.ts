@@ -22,7 +22,7 @@ export enum KanaChainID {
   "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options: FetchOptions) => {
+const fetch = (chain: KanaChainID) => async (options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
@@ -32,7 +32,7 @@ const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options:
   };
 };
 
-const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
+const fetchAptos = async (options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
   const query = gql`
     query getTransactionVolumesForTransactions($timestamp: Float!, $chainId: Float!) {
@@ -81,12 +81,7 @@ const adapter: SimpleAdapter = {
       start: start,
     },
     [CHAIN.APTOS]: {
-      fetch: async (timestamp: number, t: any, options: FetchOptions) => {
-        const swap = await fetchAptos(options.startOfDay, t, options);
-        return {
-          dailyVolume: swap.dailyVolume.toString(),
-        };
-      },
+      fetch: fetchAptos,
       start: start,
     },
     [CHAIN.SUI]: {

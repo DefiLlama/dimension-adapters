@@ -14,7 +14,7 @@ interface DailyFeesResponse {
   timestamp: number
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: DailyFeesResponse = await httpGet(
     `${API_BASE}/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   )

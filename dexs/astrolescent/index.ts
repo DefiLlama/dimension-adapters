@@ -1,18 +1,15 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
 interface AstrolescentStats {
   volumeUSD:	number;
 }
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-  const response: AstrolescentStats = (await fetchURL(`https://api.astrolescent.com/stats/history?timestamp=${timestamp}`));
+const fetchVolume = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const response: AstrolescentStats = (await fetchURL(`https://api.astrolescent.com/stats/history?timestamp=${options.toTimestamp}`));
   const dailyVolume = Number(response?.volumeUSD);
 
   return {
-    dailyVolume,
-    timestamp
-  }
+    dailyVolume,}
 }
 
 const adapters: SimpleAdapter = {

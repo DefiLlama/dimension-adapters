@@ -73,7 +73,7 @@ const prefetch = async (options: FetchOptions) => {
   return queryDuneSql(options, sql);
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = options.preFetchedResults[0];
   const cols = chainColumnMap[options.chain];
 
@@ -115,6 +115,7 @@ const adapter: SimpleAdapter = {
   },
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
+  doublecounted: true,
 };
 
 export default adapter;

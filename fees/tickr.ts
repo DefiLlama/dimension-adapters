@@ -81,7 +81,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   // Tickr factory deploy block on Ethereum mainnet.
-  start: 24994342,
+  start: '2024-08-30',
   methodology: {
     Fees: "2% flat fee charged by the Tickr hook on the ETH leg of every swap.",
     UserFees:

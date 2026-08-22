@@ -5,10 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const rateURL = "https://api-v2.ariesmarkets.xyz/reserve.rateHistory?input=";
 const reserveURL = "https://api-v2.ariesmarkets.xyz/reserve.current";
-const USDTReserveKey = "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::fa_to_coin_wrapper::WrappedUSDT";
-const USDCReserveKey = "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::wrapped_coins::WrappedUSDC";
 
-const STABLE_COIN_DECIMAL = 6;
 const DAY_IN_YEARS = 365;
 
 const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
@@ -20,40 +17,37 @@ const getRateHistoryURL = (timestamp: number, reserveKey: string) => {
   return `${rateURL}${input}`;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const reserves = (await fetchURL(reserveURL)).result.data.stats;
-
-  let df = 0;
-  for (const reserveKey of [USDTReserveKey, USDCReserveKey]) {
-    const dayFeesQuery = (await fetchURL(getRateHistoryURL(options.startOfDay, reserveKey))).result.data[0];
-
-    const matchingReserve = reserves.find(
-      (reserve) => reserve.key === reserveKey
-    );
-    const borrowApr = Number(dayFeesQuery?.borrowApr);
-    const totalBorrowed = Number(matchingReserve?.value?.total_borrowed);
-
-    if (isNaN(borrowApr) || isNaN(totalBorrowed)) {
-      throw new Error(`Invalid data for date ${options.dateString}`);
-    }
-
-    df +=
-      borrowApr *
-      totalBorrowed /
-      10 ** STABLE_COIN_DECIMAL /
-      DAY_IN_YEARS;
-  }
-
-  const dpr = df * 0.2;
-  const dssr = df * 0.8;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(df, METRIC.BORROW_INTEREST);
-  dailyRevenue.addUSDValue(dpr, METRIC.PROTOCOL_FEES);
-  dailySupplySideRevenue.addUSDValue(dssr, METRIC.BORROW_INTEREST);
+  // Aries lists every borrowable market in reserve.current; charge interest on
+  // all of them (the coin type is the reserve key, priced by the framework so
+  // each market's own decimals/price are applied).
+  for (const reserve of reserves) {
+    const reserveKey = reserve.key;
+    const totalBorrowed = Number(reserve?.value?.total_borrowed);
+    if (!totalBorrowed) continue;
+
+    const rateHistory = (await fetchURL(getRateHistoryURL(options.startOfDay, reserveKey))).result.data[0];
+    const borrowApr = Number(rateHistory?.borrowApr);
+    if (isNaN(borrowApr)) continue;
+
+    // Each reserve keeps a different cut of borrow interest for the protocol
+    // (reserve_ratio, in percent); the rest accrues to lenders. Confirmed
+    // against the reserve's supplyApr/borrowApr/utilization.
+    const reserveRatio = Number(reserve?.value?.reserve_config?.reserve_ratio) / 100;
+    if (isNaN(reserveRatio)) continue;
+
+    const dailyInterest = borrowApr * totalBorrowed / DAY_IN_YEARS;
+
+    dailyFees.add(reserveKey, dailyInterest, METRIC.BORROW_INTEREST);
+    dailyRevenue.add(reserveKey, dailyInterest * reserveRatio, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.add(reserveKey, dailyInterest * (1 - reserveRatio), METRIC.BORROW_INTEREST);
+  }
 
   return {
     dailyFees,
@@ -64,24 +58,24 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Interest paid by borrowers across all lending markets (USDT and USDC).",
-  Revenue: "Portion of borrow interest kept by Aries Markets (20% of total interest).",
-  SupplySideRevenue: "Interest distributed to lenders who supply assets (80% of total interest).",
-  ProtocolRevenue: "Portion of borrow interest kept by Aries Markets treasury (20% of total interest).",
+  Fees: "Interest paid by borrowers across all Aries lending markets.",
+  Revenue: "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.",
+  SupplySideRevenue: "Interest distributed to lenders who supply assets (the remainder of each market's interest).",
+  ProtocolRevenue: "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.BORROW_INTEREST]: 'Interest accrued from borrowers on USDT and USDC reserves, calculated from daily borrow APR and total borrowed amounts',
+    [METRIC.BORROW_INTEREST]: 'Interest accrued from borrowers across all reserves, calculated from each reserve daily borrow APR and total borrowed amount',
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+    [METRIC.PROTOCOL_FEES]: `Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.`,
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+    [METRIC.PROTOCOL_FEES]: `Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.`,
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: 'Lenders receive 80% of borrow interest as yield on their supplied assets',
+    [METRIC.BORROW_INTEREST]: `Interest distributed to lenders who supply assets (the remainder of each market's interest).`,
   },
 };
 

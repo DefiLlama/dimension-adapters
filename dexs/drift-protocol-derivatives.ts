@@ -11,7 +11,7 @@ type DimentionResult = {
 };
 
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<DimentionResult> {
+async function fetch(options: FetchOptions): Promise<DimentionResult> {
   const sql = getSqlFromFile('helpers/queries/drift-protocol.sql', {
     start: options.startTimestamp,
     end: options.endTimestamp

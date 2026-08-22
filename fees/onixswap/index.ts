@@ -22,20 +22,20 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
-  Revenue: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
-  ProtocolRevenue: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+  Fees: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+  Revenue: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+  ProtocolRevenue: "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
   },
   Revenue: {
-    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
   },
   ProtocolRevenue: {
-    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the OnixSwap fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
+    'Platform Fees': "0.3% platform fee collected on every swap, filtered to USDC/USDT/SOL inflows to the Onix.Finance fee wallet. Swaps route through Jupiter v6, Raydium, Orca, and Meteora.",
   },
 }
 

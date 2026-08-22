@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { getBlock } from "../helpers/getBlock";
 import {
   getTimestampAtStartOfDayUTC,
@@ -15,9 +15,9 @@ const endpoint =
   sdk.graph.modifyEndpoint('FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1');
 
 const getFees = () => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
+  return async (options: FetchOptions): Promise<FetchResultFees> => {
+    const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
+    const yesterdaysTimestamp = getTimestampAtStartOfPreviousDayUTC(options.toTimestamp);
     const todaysBlock = await getBlock(
       todaysTimestamp,
       "bsc",
@@ -59,7 +59,6 @@ const getFees = () => {
     }
 
     return {
-      timestamp,
       dailyFees: dailyFee.toString(),
       dailyRevenue: dailyFee.toString(),
       dailyHoldersRevenue: dailyFee.toString(),

@@ -96,7 +96,7 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const results = options.preFetchedResults || [];
   const chainData = results.find(item => item.chain === options.chain);

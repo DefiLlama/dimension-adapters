@@ -51,7 +51,7 @@ const KYROS_ADDRESSES = {
 
 const JITOSOL_MINT = ADDRESSES.solana.JitoSOL
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const [kyrosJitosolBalance, jitosolTotalSupply] = await Promise.all([
     getTokenBalance(JITOSOL_MINT, KYROS_ADDRESSES.KYSOL_VAULT),
     getTokenSupply(JITOSOL_MINT),

@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
-const fetchFees = async (_t: any, _b: any, options: FetchOptions) => {
+const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const data = await httpGet(
     `https://grelfswap.com/api/defillama/fees?startTimestamp=${options.startTimestamp}`

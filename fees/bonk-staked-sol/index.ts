@@ -7,14 +7,15 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "9LcmMfufi8YUcx83RALwF9Y9BPWZ7SqGy4D9VLe2n
 const LST_FEE_TOKEN_ACCOUNT = "2azKdTLTd7xBF3mKjVBrrpj5jgJHoCRXLNpFjhfgzXwv";
 const LST_MINT = 'BonK1YhkXEGLZzwtcvRTip3gAL9nCeQD7ppZBLXhtTs';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: "AND action!='mint'"
   });
 
   const results = await queryDuneSql(options, query);

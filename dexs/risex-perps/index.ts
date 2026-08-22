@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { PromisePool } from "@supercharge/promise-pool";
 import { sleep } from "../../utils/utils";
 
@@ -9,8 +10,8 @@ const RISEX_API_URL = "https://api.rise.trade/api/v1";
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const NANOSECONDS_IN_SECOND = 1000000000;
 
-const fetch = async (_: any, __: any, options: FetchOptions) => {
-    const marketsResponse = await fetchURL(`${RISEX_API_URL}/markets`);
+const fetch = async (options: FetchOptions) => {
+    const marketsResponse = await getConfig('risex-perps/markets', `${RISEX_API_URL}/markets`);
 
     const marketIds = marketsResponse.data.markets.map((market: any) => Number(market.market_id));
 

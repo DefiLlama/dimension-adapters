@@ -67,37 +67,40 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
 // ─── Methodology ──────────────────────────────────────────────────────────────
 const methodology = {
   UserFees: "No user fees",
-  Fees: "CRV and FXS earned by cvxCRV/cvxFXS stakers and CVX lockers from Convex's fee take, plus reUSD locker revenue. Votium bribes are protocol revenue only (not gross fees). Supply-side LP CRV rewards excluded from dailyFees.",
-  HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers",
+  Fees: "All CRV and FXS harvested through Convex: the protocol's own fee take (cvxCRV/cvxFXS stakers and CVX lockers) plus the LP share passed through to pool stakers, plus reUSD locker revenue and Votium bribes.",
+  HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers, plus Votium bribes",
   Revenue: "Sum of protocol revenue and holders' revenue",
-  ProtocolRevenue: "Votium bribes and reUSD revenue directed to Convex treasury",
+  ProtocolRevenue: "reUSD revenue directed to Convex treasury",
   SupplySideRevenue: "CRV rewards received by LP stakers on Convex pools",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "CRV Revenue": "CRV flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive)",
+    "CRV Revenue": "CRV harvested through Convex: the fee take flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive), plus the LP share passed through to pool stakers",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
     "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers and LP providers via Convex's Frax-side fee contracts",
-    "Others Revenue": "reUSD locker revenue (Votium bribes are revenue/protocol only, not gross fees)",
+    "Others Revenue": "reUSD locker revenue",
+    "Bribes Rewards": "Votium bribes",
   },
   Revenue: {
     "CRV Revenue": "CRV to cvxCRV stakers and CVX lockers",
     "CVX Revenue": "CVX emissions to cvxCRV stakers",
     "FXS Revenue": "FXS distributed to cvxFXS stakers and CVX lockers",
-    "Others Revenue": "Votium bribes and reUSD revenue",
+    "Others Revenue": "reUSD revenue",
+    "Bribes Revenue": "Votium bribes",
   },
   HoldersRevenue: {
     "CRV Revenue": "CRV directed to cvxCRV stakers and CVX lockers",
     "CVX Revenue": "CVX emissions to cvxCRV stakers",
     "FXS Revenue": "FXS directed to cvxFXS stakers and CVX lockers",
+    "Bribes Revenue": "Votium bribes",
   },
   SupplySideRevenue: {
     "CRV Revenue": "CRV rewards to LP stakers via Convex pool reward contracts",
     "FXS Revenue": "FXS rewards to LP providers via Convex's Frax gauge integration",
   },
   ProtocolRevenue: {
-    "Others Revenue": "Votium bribe income and reUSD yield retained by the treasury",
+    "Others Revenue": "reUSD yield retained by the treasury",
   },
 };
 
@@ -269,7 +272,16 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
   dailyHoldersRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
 
-  // LP supply-side CRV (extrapolated)
+  // LP supply-side CRV (extrapolated).
+  //
+  // This also belongs in dailyFees. fees/GUIDELINES.md defines dailyFees as
+  // "All fees from ALL sources - total value flow into protocol ecosystem" and
+  // requires dailyFees = dailyRevenue + dailySupplySideRevenue to hold within
+  // the same period. Leaving the LP leg out of fees broke that badly: the
+  // adapter was reporting 25.40k of supply-side revenue paid out of 4.44k of
+  // total fees. The FXS gauge leg below already books its supply-side amount
+  // into both, so this is also what makes the adapter consistent with itself.
+  dailyFees.addBalances(supplySideCRV, "CRV Revenue");
   dailySupplySideRevenue.addBalances(supplySideCRV, "CRV Revenue");
 
   // FXS claimed by cvxFXS stakers / CVX lockers (STKFXS_STAKING) → fees + revenue + holders
@@ -285,14 +297,15 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(FXS_TOKEN, fxsDistribAmount, "FXS Revenue");
   }
 
-  // reUSD revenue → protocol treasury
+  // reUSD revenue -> protocol treasury
   dailyFees.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
   dailyRevenue.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
   dailyProtocolRevenue.addUSDValue(reUSDRevenue.toNumber(), "Others Revenue");
 
-  // Votium bribes → protocol revenue
-  dailyRevenue.addUSDValue(dailyBribeRevenue, "Others Revenue");
-  dailyProtocolRevenue.addUSDValue(dailyBribeRevenue, "Others Revenue");
+  // Votium bribes -> flow to vlCVX lockers (token holders), not the treasury
+  dailyFees.addUSDValue(dailyBribeRevenue, "Bribes Rewards");
+  dailyRevenue.addUSDValue(dailyBribeRevenue, "Bribes Revenue");
+  dailyHoldersRevenue.addUSDValue(dailyBribeRevenue, "Bribes Revenue");
 
   return {
     dailyFees,
@@ -301,13 +314,17 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue: dailyBribeRevenue,
   };
 };
 
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 const adapter: Adapter = {
   version: 2,
+  // Must stay daily: Votium bribe revenue (fetchBribesUSDForDay) is only available as
+  // whole-day epochs keyed by `epoch.end === dayStart`. Running hourly makes every one of
+  // the day's 24 slots match the same epoch and add the full daily bribe total, counting
+  // bribe revenue ~24x. Do not set pullHourly: true here.
+  pullHourly: false,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

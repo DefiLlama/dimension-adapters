@@ -26,14 +26,26 @@ const feeWallets = [
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
 
-const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+const bscOldTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+const bscNewTradeContract = '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d';
+const BSC_CONTRACT_SWITCH_DATE = '2026-06-29';
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
-async function fetchSolana(options: FetchOptions) {
-  const formattedFeeWallets = formatAddresses(feeWallets);
+// Dune lags ~10h; skip days whose end is too recent to avoid undercounting.
+const assertIndexed = (options: FetchOptions) => {
+  const tenHoursAgo = Date.now() - 10 * 60 * 60 * 1000;
+  if (options.toTimestamp * 1000 > tenHoursAgo) {
+    throw new Error('End timestamp is less than 10 hours ago, skipping due to dune indexing delay');
+  }
+};
 
-  const result = await queryDuneSql(options, `
+const prefetch = async (options: FetchOptions) => {
+  assertIndexed(options);
+  const formattedFeeWallets = formatAddresses(feeWallets);
+  const bscTradeContract = options.dateString >= BSC_CONTRACT_SWITCH_DATE ? bscNewTradeContract : bscOldTradeContract;
+
+  return queryDuneSql(options, `
     WITH axiom_txs AS (
       SELECT tx_id
       FROM solana.account_activity
@@ -47,63 +59,48 @@ async function fetchSolana(options: FetchOptions) {
         t.tx_id,
         t.trader_id,
         t.amount_usd,
-        t.token_bought_symbol,
-        t.token_sold_symbol,
+        -- one leg per trade: prefer the SOL leg as the notional, else the largest leg
         ROW_NUMBER() OVER (
           PARTITION BY t.tx_id, t.trader_id
           ORDER BY
-            CASE WHEN t.token_bought_symbol = 'WSOL' OR t.token_sold_symbol = 'WSOL' THEN 0 ELSE 1 END,
+            CASE WHEN t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
+                   OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}' THEN 0 ELSE 1 END,
             t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
       JOIN axiom_txs a ON t.tx_id = a.tx_id
       WHERE TIME_RANGE
         AND t.trader_id NOT IN (${formattedFeeWallets})
-        AND (
-          t.token_bought_symbol = 'WSOL'
-          OR t.token_sold_symbol = 'WSOL'
-          OR t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
-          OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
-        )
     )
-    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
+    SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
-  `);
-
-  return { dailyVolume: result[0].total_volume };
-}
-
-async function fetchBsc(options: FetchOptions) {
-  const result = await queryDuneSql(options, `
-    SELECT COALESCE(SUM(amount_usd), 0) AS total_volume
+    UNION ALL
+    SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM dex.trades
     WHERE blockchain = 'bnb'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+      AND TIME_RANGE
       AND tx_to = ${bscTradeContract}
   `);
+};
 
-  return { dailyVolume: result[0].total_volume };
-}
+const fetch: any = async (options: FetchOptions) => {
+  assertIndexed(options);
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const now = Date.now()
-  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
-  }
+  const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
+  const row = options.preFetchedResults.find((r: any) => r.chain === target);
+  if (!row) throw new Error(`Axiom: no prefetched Dune result for ${target}`);
 
-  if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
-  return fetchBsc(options);
+  return { dailyVolume: row.total_volume };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
   fetch,
+  prefetch,
   methodology: {
-    Volume: 'Total USD trading volume of spot swaps routed through Axiom.',
+    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor.",
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },

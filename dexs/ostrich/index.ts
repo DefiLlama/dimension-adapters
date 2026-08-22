@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 
@@ -10,23 +10,18 @@ interface IAPIResponse {
   last24HourVolume: string;
   totalVolume: string;
 }
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { last24HourVolume, }: IAPIResponse = (
-    await fetchURL(`${URLEndpoint}${timestamp}`)
+    await fetchURL(`${URLEndpoint}${options.toTimestamp}`)
   );
   return {
-    dailyVolume: last24HourVolume,
-    timestamp: timestamp
-  };
+    dailyVolume: last24HourVolume,};
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: startTimestamp,
-    },
-  }
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: startTimestamp,
 };
 
 export default adapter;

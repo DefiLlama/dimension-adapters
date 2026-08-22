@@ -1,5 +1,5 @@
 import { postURL } from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const V2_GQL = "https://gql-v2.alexlab.co/v1/graphql";
@@ -134,8 +134,8 @@ async function fetchLegacy(dayStart: number): Promise<number> {
   return totalUSD;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayStart = startOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions) => {
+  const dayStart = startOfDayUTC(options.toTimestamp);
 
   let dailyVolume: number;
   if (dayStart >= V2_DAILY_START) {

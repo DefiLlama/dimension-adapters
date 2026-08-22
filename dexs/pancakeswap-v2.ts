@@ -36,7 +36,7 @@ enum DataSource {
 }
 
 interface BaseChainConfig {
-  start: number | string;
+  start: string;
   dataSource: DataSource;
 }
 
@@ -100,6 +100,11 @@ const PROTOCOL_CONFIG: Record<string, ChainConfig> = {
   },
   [CHAIN.MONAD]: {
     start: '2025-11-23',
+    dataSource: DataSource.LOGS,
+    factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-06-30',
     dataSource: DataSource.LOGS,
     factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
   },
@@ -388,20 +393,9 @@ const fetchAptosVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBal
   const dailyVolume = createBalances();
   dailyVolume.addUSDValue(await balances.getUSDString());
   
-  const dailyFees = dailyVolume.clone(FEE_CONFIG.Fees);
-  const dailyRevenue = dailyVolume.clone(FEE_CONFIG.Revenue);
-  const dailyProtocolRevenue = dailyVolume.clone(FEE_CONFIG.ProtocolRevenue);
-  const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.SupplySideRevenue);
-  const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.HoldersRevenue);
-
   return {
     dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-    dailyHoldersRevenue,
+    ...calculateFeesBalances(dailyVolume),
   }
 }
 
@@ -420,7 +414,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
 
 // --- Main fetch function ---
 
-const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
+const fetchV2 = async (options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG[options.chain];
 
   let v2Stats: any = {};
@@ -490,7 +484,6 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
-    [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'LPs receive 0.17% of the fees.',

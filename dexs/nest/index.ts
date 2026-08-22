@@ -209,7 +209,7 @@ const chainConfig: any = {
   },
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (!options || !options.chain) {
     throw new Error('Invalid options: chain is required');
   }

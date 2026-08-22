@@ -11,7 +11,7 @@ interface HyperswapResponse {
   timestamp: string;
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dateString = options.dateString;
   const url = `https://api-perps.hyperswap.exchange/api/defillama/daily-stats?date=${dateString}`;
   

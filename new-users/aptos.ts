@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adap
 import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const alliumQuery = `
     WITH first_seen AS (
         SELECT

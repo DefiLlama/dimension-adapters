@@ -3,11 +3,12 @@ import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../ada
 import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 import { CHAIN } from "../../helpers/chains";
 
-const inflatedVolumes = {
-  [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19", "2026-04-28"],
+const inflatedVolumes: { [key: string]: string[] } = {
+  [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19", "2026-04-28", "2026-06-02"],
+  [CHAIN.BSC]: ["2026-06-03", "2026-06-04", "2026-06-17"],
 }
 
-const fetch = async (_t: number, _: ChainBlocks, { chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {
   if (inflatedVolumes[chain] && inflatedVolumes[chain].includes(dateString)) {
     return {
       dailyVolume: 0,
@@ -149,6 +150,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.TELOS]: {
       fetch,
       start: '2026-04-01',
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch,
+      start: '2026-07-01',
     },
   },
 };

@@ -13,6 +13,7 @@ const SYNTHS = {
     "0x8b4F8aD3801B4015Dea6DA1D36f063Cbf4e231c7",
     "0xab5eB14c09D416F0aC63661E57EDB7AEcDb9BEfA",
     "0x64351fC9810aDAd17A690E4e1717Df5e7e085160",
+    "0x7cebe35b46b8078e7ffbf754eec4a48653c47524"
   ],
   [CHAIN.BASE]: [
     "0x7Ba6F01772924a82D9626c126347A28299E98c98",
@@ -69,12 +70,21 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
   ],
   [CHAIN.BASE]: [
     {
+      // Old MetBasis msUSD/msETH gauge (retired; kept for history).
       label: METBASIS_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
       tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO from MetBasis gauge
       fromAddressFilter: "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765",
     },
     {
+      // New MetBasis msUSD/msETH gauge, live since the pool migration.
+      label: METBASIS_LABEL,
+      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO from MetBasis gauge
+      fromAddressFilter: "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514",
+    },
+    {
+      // Old MetBasis msUSD/msETH pool (retired; kept for history).
       label: METBASIS_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
       tokens: [
@@ -84,10 +94,23 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
       fromAddressFilter: "0x8845126640B36df1D24bf3dF9B2903fD4c730FE6",
     },
     {
+      // New MetBasis msUSD/msETH pool, live since the pool migration.
+      label: METBASIS_LABEL,
+      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      tokens: [
+        "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d", // msUSD
+        "0x7Ba6F01772924a82D9626c126347A28299E98c98", // msETH
+      ],
+      fromAddressFilter: "0x00145e8Fc9F06a0b71bd57fEfBF451ec1dB9D69f",
+    },
+    {
       label: AERO_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
       tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO
-      excludeFromAddresses: ["0x019a8a996B6cb2e2e12fe95997FA9ef733c99765"], // exclude MetBasis gauge
+      excludeFromAddresses: [
+        "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765", // old MetBasis gauge
+        "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514", // new MetBasis gauge
+      ],
     },
   ],
   [CHAIN.ETHEREUM]: [
@@ -165,6 +188,26 @@ const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; 
     },
   ],
 };
+
+// Treasury-internal transfers wrongly counted as revenue (e.g. minting synths against
+// own collateral and moving them to another treasury wallet). Excluded by tx hash.
+const BLACKLISTED_TXS: Record<string, Set<string>> = {
+  [CHAIN.ETHEREUM]: new Set([
+    "0x3765921580dfcbb65202e2d00dcc3b20f9d52214fb2cdd2381ee03e6120bbd70".toLowerCase(),
+    // 2025-07-31: c0ffeebabe.eth returned ~900 msETH to the Metronome treasury after
+    // it was recovered from the Curve exploit. This is a recovery transfer, not interest revenue.
+    "0x7c4ba39dad59ad91f9f0102de833fbc5a8f40122d796e73022ec57c6d29e439f".toLowerCase(),
+  ]),
+};
+
+// logFilter excluding blacklisted txs. Handles both the indexer (`transaction_hash`)
+// and the getLogs fallback (`transactionHash`) field names.
+function txBlacklistFilter(chain: string): ((log: any) => boolean) | undefined {
+  const blacklist = BLACKLISTED_TXS[chain];
+  if (!blacklist?.size) return undefined;
+  return (log: any) =>
+    !blacklist.has(String(log.transaction_hash ?? log.transactionHash ?? "").toLowerCase());
+}
 
 async function fetchUniV3Fees(options: FetchOptions): Promise<Record<string, ReturnType<FetchOptions["createBalances"]>>> {
   const result: Record<string, ReturnType<FetchOptions["createBalances"]>> = {};
@@ -277,6 +320,7 @@ const fetch = async (options: FetchOptions) => {
       options,
       tokens: SYNTHS[options.chain],
       targets: [TREASURY[options.chain]],
+      logFilter: txBlacklistFilter(options.chain),
     });
     synthInflows.subtract(amoBalances);
     synthInflows.subtract(swapFees);
@@ -361,7 +405,7 @@ const adapter: SimpleAdapter = {
     },
   },
   adapter: {
-    [CHAIN.ETHEREUM]: { start: '2023-05-11' },
+    [CHAIN.ETHEREUM]: { start: '2022-12-27' },
     [CHAIN.BASE]: { start: '2023-05-11'},
     [CHAIN.OPTIMISM]: { start: '2023-05-11'},
     [CHAIN.PLASMA]: { start: '2025-09-29'},

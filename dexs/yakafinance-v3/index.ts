@@ -31,7 +31,7 @@ const fetchPools = async () => {
   return pools;
 };
 
-const fetch = async (_a: any, _b: any, _: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
   const pools = await fetchPools();
   let dailyVolume = 0;
   let dailyFees = 0;

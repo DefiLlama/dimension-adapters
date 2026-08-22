@@ -21,6 +21,7 @@ interface Ifactory {
   address: string;
   start: string;
   blacklistTokens?: Array<string>;
+  deadFrom?: string;
 }
 
 const factories: {[key: string]: Ifactory} = {
@@ -33,11 +34,12 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.POLYGON_ZKEVM]: {
-    start: '2023-06-08',
+    start: '2023-06-29',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+    deadFrom: "2026-07-02"
   },
   [CHAIN.ERA]: {
-    start: '2023-07-24',
+    start: '2024-01-01',
     address: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
   },
   [CHAIN.ARBITRUM]: {
@@ -49,15 +51,19 @@ const factories: {[key: string]: Ifactory} = {
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.BASE]: {
-    start: '2023-08-21',
+    start: '2023-09-01',
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
   },
   [CHAIN.OP_BNB]: {
-    start: '2023-08-31',
+    start: '2024-01-01',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
   },
   [CHAIN.MONAD]: {
     start: '2025-11-23',
+    address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-06-30',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
   }
 }
@@ -187,6 +193,9 @@ const fetchBsc = async (options: FetchOptions) => {
   const whitelist = new Set(
     (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase()),
   );
+  const blacklist = new Set([
+    '0x95e7c70b58790a1cbd377bc403cd7e9be7e0afb1', // YSL old token
+  ]);
 
   const rows = await queryClickhouse<BscV3Row>(
     buildBscV3DataSql(
@@ -212,6 +221,8 @@ const fetchBsc = async (options: FetchOptions) => {
       dailyVolume.add(token0, amount0In);
       dailyVolume.add(token1, amount1In);
     }
+
+    if (blacklist.has(token0) || blacklist.has(token1)) continue;
 
     // Fees / revenue: count ALL pools (mirrors the old `total_volume_usd * fee`
     // path). Per-pool fee_tier × revenue ratio derived from PancakeSwap's
@@ -278,10 +289,10 @@ const blacklistPools = [
 const fetchSolanaV3 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  let dailyRevenue = options.createBalances();
-  let dailyProtocolRevenue = options.createBalances();
-  let dailyHoldersRevenue = options.createBalances();
-  let dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   let page = 1;
   let allPools: Array<any> = [];
@@ -329,12 +340,10 @@ const fetchSolanaV3 = async (options: FetchOptions) => {
     const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
     const supplySideRevenueRatio = 1 - revenueRatio;
 
-    dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
-    dailySupplySideRevenue = dailyFees.clone(supplySideRevenueRatio)
-    
-    dailyRevenue = dailyProtocolRevenue.clone(1)
-    dailyRevenue.add(dailyHoldersRevenue)
+    dailyRevenue.addUSDValue(fee * revenueRatio);
+    dailyProtocolRevenue.addUSDValue(fee * protocolRevenueRatio);
+    dailyHoldersRevenue.addUSDValue(fee * holdersRevenueRatio);
+    dailySupplySideRevenue.addUSDValue(fee * supplySideRevenueRatio);
   }
 
   return {
@@ -348,7 +357,7 @@ const fetchSolanaV3 = async (options: FetchOptions) => {
   }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   let v2Stats: any = {};
   
   const dailyVolume = options.createBalances();
@@ -369,12 +378,16 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
   dailyVolume.add(v2Stats.dailyVolume);
   dailyFees.add(v2Stats.dailyFees, METRIC.SWAP_FEES);
-  dailyUserFees.add(v2Stats.dailyUserFees, METRIC.SWAP_FEES);
-  dailyRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
-  dailyRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.HOLDERS_REVENUE);
-  dailyProtocolRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
-  dailySupplySideRevenue.add(v2Stats.dailySupplySideRevenue, METRIC.LP_REVENUE);
-  dailyHoldersRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.BUY_BACK_AND_BURN);
+  if (v2Stats.dailyUserFees) dailyUserFees.add(v2Stats.dailyUserFees, METRIC.SWAP_FEES);
+  if (v2Stats.dailyProtocolRevenue) {
+    dailyRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
+    dailyProtocolRevenue.add(v2Stats.dailyProtocolRevenue, METRIC.PROTOCOL_REVENUE);
+  }
+  if (v2Stats.dailyHoldersRevenue) {
+    dailyRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.HOLDERS_REVENUE);
+    dailyHoldersRevenue.add(v2Stats.dailyHoldersRevenue, METRIC.BUY_BACK_AND_BURN);
+  }
+  if (v2Stats.dailySupplySideRevenue) dailySupplySideRevenue.add(v2Stats.dailySupplySideRevenue, METRIC.LP_REVENUE);
   
   return {
     dailyVolume,
@@ -406,7 +419,6 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
-    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',
@@ -434,6 +446,7 @@ for (const [chain, config] of Object.entries(factories)) {
     fetch,
     start: config.start,
   }
+  if (config.deadFrom) (adapter.adapter as BaseAdapter)[chain].deadFrom = config.deadFrom
 }
 
 export default adapter;

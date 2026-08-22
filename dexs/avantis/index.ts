@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { FetchResultVolume } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -18,8 +18,8 @@ interface IData {
 
 const API_URL = "https://api.avantisfi.com/v1";
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-	const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+	const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 	const date = new Date(todaysTimestamp * 1000);
 	const dateStr = date.toISOString().split("T")[0];
 

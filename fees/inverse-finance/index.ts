@@ -3,6 +3,7 @@ import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../..
 import { CHAIN, } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { secondsInDay } from "../../utils/date";
 import { METRIC } from "../../helpers/metrics";
 
@@ -73,7 +74,7 @@ const breakdownMethodology = {
 
 const getMarkets = async () => {
   const url = "https://www.inverse.finance/api/defillama/simple-market-list"
-  const data = await fetchURL(url, 3);
+  const data = await getConfig('inverse-finance/markets', url);
   return data.markets;
 }
 
@@ -227,6 +228,7 @@ const fetch = async ({ chain, toTimestamp, createBalances, getLogs, getFromBlock
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM],
   fetch,
   start: '2022-12-11',

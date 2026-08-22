@@ -1,8 +1,7 @@
-import { Fetch, FetchOptions, SimpleAdapter } from '../../adapters/types'
-import { CHAIN } from '../../helpers/chains'
+import { FetchOptions, SimpleAdapter, FetchV2 } from '../../adapters/types';import { CHAIN } from '../../helpers/chains'
 import { fetchNeonyStats } from '../../helpers/neony'
 
-const fetch: Fetch = async (_timestamp, _chainBlocks, options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const stats = await fetchNeonyStats(options)
   const dailyVolume = options.createBalances()
   dailyVolume.addCGToken('usd-coin', stats.perpDailyVolumeUsd)

@@ -1,58 +1,50 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
+import { getETHReceived } from "../helpers/token";
+import { queryAllium } from "../helpers/allium";
 
 const PROTOCOL_FEE_LABEL = "Protocol fees";
 const ROYALTY_FEE_LABEL = "Creator royalties";
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const FACTORY = '0xa020d57ab0448ef74115c112d18a9c231cc86000';
+// NewPair(address poolAddress) emitted by the factory on pool creation
+const NEW_PAIR_TOPIC = '0xe8e1cee58c33f242c87d563bbc00f2ac82eb90f10a252b0ba8498ae6c1dc241a';
+
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const eth_transfer_logs: any = await queryIndexer(`
-      SELECT
-        sum("value") AS eth_value
-      FROM
-        ethereum.traces
-      WHERE
-        block_number > 17309203
-        AND to_address = '\\xA020d57aB0448Ef74115c112D18a9C231CC86000'
-        AND block_time BETWEEN llama_replace_date_range;
-        `, options);
-  const royalties: any = await queryIndexer(`
-        WITH MinValues AS (
-          SELECT
-            transaction_hash,
-            from_address,
-            MIN("value") AS min_value
-          FROM
-            ethereum.traces
-          WHERE
-            block_number > 17309203
-            AND block_time BETWEEN llama_replace_date_range
-            AND from_address IN (
-              SELECT
-              SUBSTRING(topic_1 FROM 13 FOR 20)::bytea AS extracted_bytea
-            FROM
-              ethereum.event_logs
-            WHERE
-              block_number > 17309203
-              AND contract_address = '\\xA020d57aB0448Ef74115c112D18a9C231CC86000'
-              AND topic_0 = '\\xe8e1cee58c33f242c87d563bbc00f2ac82eb90f10a252b0ba8498ae6c1dc241a'
-              )
-            AND to_address != '\\xA020d57aB0448Ef74115c112D18a9C231CC86000'
-            and value > 0
-            GROUP BY transaction_hash, from_address
-            HAVING COUNT(transaction_hash) > 1
-        )
-        SELECT
-          SUM(min_value) AS royalties_fees
-        FROM MinValues;
-        `, options);
 
-  dailyFees.addGasToken(eth_transfer_logs[0]?.eth_value ?? 0, PROTOCOL_FEE_LABEL)
-  dailyFees.addGasToken(royalties[0].royalties_fees ?? 0, ROYALTY_FEE_LABEL)
-  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value ?? 0, PROTOCOL_FEE_LABEL)
-  return { dailyFees, dailyRevenue, timestamp }
+  const protocolFees = await getETHReceived({ options, target: FACTORY });
+
+  // Creator royalties: within a sale transaction a pool pays out multiple ETH
+  // transfers (seller proceeds + royalty); the smallest one is the royalty.
+  // Same heuristic as the old indexa query, on Allium tables.
+  const [royalties] = await queryAllium(`
+    WITH pools AS (
+      SELECT DISTINCT '0x' || SUBSTR(topic1, 27) AS pool
+      FROM ethereum.raw.logs
+      WHERE address = '${FACTORY}'
+        AND topic0 = '${NEW_PAIR_TOPIC}'
+    ),
+    min_values AS (
+      SELECT t.transaction_hash, t.from_address, MIN(t.raw_amount) AS min_value
+      FROM ethereum.assets.native_token_transfers t
+      JOIN pools p ON t.from_address = p.pool
+      WHERE t.transfer_type = 'value_transfer'
+        AND t.to_address != '${FACTORY}'
+        AND t.raw_amount > 0
+        AND t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      GROUP BY t.transaction_hash, t.from_address
+      HAVING COUNT(*) > 1
+    )
+    SELECT SUM(min_value) AS royalties_fees FROM min_values
+  `);
+
+  dailyFees.addBalances(protocolFees, PROTOCOL_FEE_LABEL)
+  dailyFees.addGasToken(royalties.royalties_fees ?? 0, ROYALTY_FEE_LABEL)
+  dailyRevenue.addBalances(protocolFees, PROTOCOL_FEE_LABEL)
+  return { dailyFees, dailyRevenue, }
 }
 
 const methodology = {
@@ -71,12 +63,9 @@ const breakdownMethodology = {
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch as any,
-      start: '2023-05-21'
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-05-21',
   methodology,
   breakdownMethodology
 };

@@ -41,15 +41,15 @@ const config: Record<string, { fees: (endTimestamp: number, timeframe: string) =
 const sumValues = (data: IVolumeall[]) => 
   data.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
     
-const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const dayFeesQuery = (await fetchURL(config[options.chain].fees(timestamp, "1D")))?.data;
+  const dayFeesQuery = (await fetchURL(config[options.chain].fees(options.toTimestamp, "1D")))?.data;
   const feesValue = sumValues(dayFeesQuery);
   dailyFees.addUSDValue(Number(feesValue), 'Lending Fees');
 
-  const dayRevenueQuery = (await fetchURL(config[options.chain].revenue(timestamp, "1D")))?.data;
+  const dayRevenueQuery = (await fetchURL(config[options.chain].revenue(options.toTimestamp, "1D")))?.data;
   const revenueValue = sumValues(dayRevenueQuery);
   dailyRevenue.addUSDValue(Number(revenueValue), 'Protocol Share');
 

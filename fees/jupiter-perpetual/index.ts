@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,

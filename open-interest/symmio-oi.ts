@@ -1,5 +1,5 @@
 import request from "graphql-request";
-import { Adapter, Fetch } from "../adapters/types";
+import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { config as symmioConfig } from "../helpers/symmio";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
@@ -29,11 +29,11 @@ const solverDailyHistoriesQuery = `
   }
 `
 
-const fetch: Fetch = async (timestamp, _cb, { chain }) => {
+const fetch = async ({ chain, toTimestamp }: FetchOptions) => {
   const endpoint = symmioConfig[chain];
   if (!endpoint) return {};
 
-  const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+  const startOfDay = getTimestampAtStartOfDayUTC(toTimestamp);
   const day = String(Math.floor(startOfDay / 86400));
   const { dailyHistories = [] } = await request(endpoint, dailyHistoriesQuery, { day })
     .catch((error) => {

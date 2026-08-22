@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
     const rate = priceToday - priceYesterday;
 
     const dailyFees = options.createBalances();
-    dailyFees.addUSDValue(totalSupply * rate > 0 ? rate : 0);
+    dailyFees.addUSDValue(totalSupply * rate > 0 ? totalSupply * rate : 0);
 
     const dailyRevenue = options.createBalances();
     const oneYear = 365 * 24 * 60 * 60;
@@ -52,8 +52,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "Total Yields from Superstate USCC basis trading",
-    Revenue: "0.75% Annual Management fee collected by superstate",
+    Fees: "Total Yields from Bitwise USCC basis trading",
+    Revenue: "0.75% Annual Management fee collected by Bitwise",
 };
 
 const adapter: SimpleAdapter = {

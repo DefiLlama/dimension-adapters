@@ -1,38 +1,42 @@
-import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
 
-const API_URL = "https://titan.exchange/public/hourly-volume";
+const TITAN_PROGRAM = "T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT";
 
-//https://dune.com/queries/5450215/8891846
-const badDataDays = [
-  {
-    date: "2026-04-26",
-    realVolume: 56900000
+const fetch = async (options: FetchOptions) => {
+  const tenHoursAgo = Date.now() - 10 * 60 * 60 * 1000;
+  if (options.toTimestamp * 1000 > tenHoursAgo) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   }
-]
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const realVolume = badDataDays.find(day => day.date === options.dateString)?.realVolume;
-  if (realVolume) {
-    return { dailyVolume: realVolume };
-  }
-  const url = `${API_URL}?start_timestamp=${options.startTimestamp}&end_timestamp=${options.endTimestamp}`;
-  const result = await fetchURL(url);
-  
-  // Sum hourly volumes for the exact timestamp range
-  const totalVolume = result.data.reduce((sum: number, hour: any) => {
-    return sum + Number(hour.volume_usd);
-  }, 0);
-  
-  return { dailyVolume: totalVolume };
+  const data = await queryDuneSql(
+    options,
+    `
+    SELECT
+      COALESCE(SUM(amount_usd), 0) AS volume
+    FROM dex_solana.trades
+    WHERE TIME_RANGE
+      AND trade_source = '${TITAN_PROGRAM}'
+  `,
+  );
+
+  const row = data[0];
+  if (!row) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
+  return { dailyVolume: row.volume };
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  start: '2025-09-18',
+  start: "2025-09-18",
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Volume:
+      "USD volume of swaps routed through Titan Exchange on Solana, sourced from dex_solana.trades where trade_source is the Titan program.",
+  },
 };
 
 export default adapter;

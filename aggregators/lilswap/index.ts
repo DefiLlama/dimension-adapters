@@ -16,17 +16,25 @@ const chainAliases: Record<string, string> = {
 
 const BASE_URL = 'https://api.lilswap.xyz/v1/metrics/daily';
 
+const badSpikes: Record<string, string[]> = {
+  [CHAIN.BASE]: ["2026-08-17"],
+}
+
 const LABELS = {
     FEES: "Explicit Swap Fees",
     REVENUE: "Explicit Swap Fees To Protocol",
     SUPPLY_SIDE: "Explicit Swap Fees To External Partners",
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyVolume = options.createBalances();
+
+    if (badSpikes[options.chain]?.includes(options.dateString)) {
+        return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+    }
 
     const chainAlias = chainAliases[options.chain];
 

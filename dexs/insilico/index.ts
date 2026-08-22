@@ -7,7 +7,7 @@ const LIGHTER_API_BASE_URL = 'https://mainnet.zklighter.elliot.ai/api/v1/partner
 const HL_BUILDER_ADDRESS = "0x2868fc0d9786a740b491577a43502259efa78a39";
 const LIGHTER_ACCOUNT_INDEX = 721785;
 
-const fetch = async (_t: number, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -64,13 +64,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch,
       start: "2024-10-27",
     },
     [CHAIN.ZK_LIGHTER]: {
-      fetch,
       start: "2026-05-13",
     },
   },

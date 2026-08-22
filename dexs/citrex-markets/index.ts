@@ -1,7 +1,7 @@
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
 const URL = "https://api.citrex.markets/v1/ticker/24hr";
 
@@ -21,10 +21,8 @@ interface ResponseItem {
   volume: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const response: ResponseItem[] = await httpGet(URL);
-
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
   // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
   const baseUnit = new BigNumber(10).pow(18);
@@ -40,20 +38,15 @@ const fetch = async (timestamp: number) => {
   return {
     dailyVolume: dailyVolume.div(baseUnit),
     openInterestAtEnd: openInterestAtEnd.div(baseUnit),
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter = {
   version: 1,
-  methodology:
-    "The daily volume is calculated by querying the Citrex Markets API for the 24-hour volume of all USDC perpetual contracts.",
-  adapter: {
-    [CHAIN.SEI]: {
-      fetch,
-      runAtCurrTime: true,
-      start: "2025-02-18",
-    },
-  },
+  fetch,
+  chains: [CHAIN.SEI],
+  start: "2025-02-18",
+  runAtCurrTime: true,
 };
+
 export default adapter;

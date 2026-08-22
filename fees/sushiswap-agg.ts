@@ -77,6 +77,7 @@ const ROUTE_RP9_EVENT = 'event Route(address indexed from, address to, address i
 
 // https://etherscan.io/tx/0x2124a56218f4b7b1675fab0ece6c2cd6adee55bcc3e2bfb4dc1fc88db6bc91ee
 const FLAT_FEE = 0.002;
+const LABEL = 'DEX Aggregator Fees';
 
 const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
@@ -93,10 +94,10 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
   for (const log of logs) {
     if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
     if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
-      dailyFees.addGasToken(Number(log.amountIn) * FLAT_FEE)
+      dailyFees.addGasToken(Number(log.amountIn) * FLAT_FEE, LABEL)
     }
     else {
-      dailyFees.add(log.tokenIn, Number(log.amountIn) * FLAT_FEE)
+      dailyFees.add(log.tokenIn, Number(log.amountIn) * FLAT_FEE, LABEL)
     }
   }
 
@@ -108,13 +109,26 @@ const info = {
     Fees: 'Trading fees paid by users while using Sushi Aggregator Routers.',
     Revenue: 'Trading fees collected by Sushi.',
     ProtocolRevenue: 'Trading fees collected by Sushi.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [LABEL]: 'Trading fees paid by users while using Sushi Aggregator Routers.',
+    },
+    Revenue: {
+      [LABEL]: 'Trading fees collected by Sushi.',
+    },
+    ProtocolRevenue: {
+      [LABEL]: 'Trading fees collected by Sushi.',
+    },
+  },
 }
 
 export default {
-  fetch, methodology: info.methodology,
+  fetch,
   version: 2,
   pullHourly: true,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-07-04', },
     [CHAIN.ARBITRUM]: { start: '2025-07-04', },

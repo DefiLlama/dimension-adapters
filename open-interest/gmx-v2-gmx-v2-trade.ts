@@ -25,7 +25,7 @@ const fetchOpenInterest = async (options: FetchOptions) => {
   return longOI + shortOI
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = await fetchOpenInterest(options) / (10 ** 30)
   return { openInterestAtEnd }
 }

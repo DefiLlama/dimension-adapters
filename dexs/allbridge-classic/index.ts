@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter } from '../../adapters/types';
+import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter, FetchOptions } from '../../adapters/types';
 import fetchURL from '../../utils/fetchURL';
 
 interface ChainData {
@@ -16,25 +16,17 @@ const getVolume = async (chainCode: string, fromDate: string, toDate: string): P
   return chainData?.volume ?? 0;
 }
 
-const getVolumeFunction = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
-    const chainCode = chainCodeMap[chain];
-    const dateString = formatTimestampAsIsoDate(timestamp);
-    const dailyVolume = await getVolume(chainCode, dateString, dateString);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  if (options.chain === CHAIN.HECO) { return {} } // skip HECO for now
+  const chainCode = chainCodeMap[options.chain];
+  const dailyVolume = await getVolume(chainCode, options.dateString, options.dateString);
 
-    return {
-      timestamp,
-      dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
-    } as FetchResultVolume;
-  }
+  return {
+    dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
+  } as FetchResultVolume;
 }
 
-function formatTimestampAsIsoDate(timestamp: number) {
-  return new Date(timestamp * 1000).toISOString().split("T")[0];
-}
-
-const chainCodeMap: {[key: Chain]: string} = {
+const chainCodeMap: { [key: Chain]: string } = {
   [CHAIN.ETHEREUM]: "ETH",
   [CHAIN.BSC]: "BSC",
   [CHAIN.TERRA]: "TRA",
@@ -80,7 +72,7 @@ const startTimes = {
 const adapter: SimpleAdapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: getVolumeFunction(chain),
+      fetch,
       start: startTimes[chain],
     };
     return acc;

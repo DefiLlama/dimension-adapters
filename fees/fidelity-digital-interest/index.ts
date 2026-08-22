@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpPost } from "../../utils/fetchURL";
@@ -29,7 +29,7 @@ async function getPricing(dateString: string) {
   };
 }
 
-const fetch = async (_: any, _1: any, options: any) => {
+const fetch = async (options: FetchOptions) => {
   const pricing = await getPricing(options.dateString);
 
   if (pricing.milRate === undefined) {
@@ -87,14 +87,11 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: "2025-08-04",
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2025-08-04",
-    },
-  },
 };
 
 export default adapter;

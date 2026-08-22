@@ -24,7 +24,7 @@ export const TipPaymentAddresses = [
   "nozxNBgWohjR75vdspfxR5H9ceC7XXH99xpxhVGt3Bb",
 ]
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const receivedBalances = await getSolanaReceived({ options, targets: TipPaymentAddresses })
   
   // These tips compensate the Jito tip and pay validators for staked connections.

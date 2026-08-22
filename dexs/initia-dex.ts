@@ -16,14 +16,38 @@ async function fetch() {
     })
   } while (paginationKey)
 
-  return { dailyFees, dailyVolume }
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
+  }
 }
+
+const methodology = {
+  Volume:
+    "Daily swap volume across all initia pools, including Weighted (Balancer), StableSwap, CLAMM, and Minitswap pools.",
+
+  Fees:
+    "Daily swap fees.",
+
+  Revenue:
+    "Zero. Initia does not retain any portion of swap fees. All swap fees remain within their respective liquidity pools.",
+
+  ProtocolRevenue:
+    "Zero. No share of swap fees is directed to the Initia protocol or treasury.",
+
+  SupplySideRevenue:
+    "All fees accrue to liquidity providers by increasing the value of assets held in each pool.",
+};
 
 export default {
   adapter: {
-      [CHAIN.INITIA]: {
-        fetch,
-        runAtCurrTime: true,
-      },
+    [CHAIN.INITIA]: {
+      fetch,
+      runAtCurrTime: true,
+    },
   },
+  methodology,
 }

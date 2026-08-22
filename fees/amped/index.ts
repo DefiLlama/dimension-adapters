@@ -62,7 +62,7 @@ interface IGraphResponse {
 
 const HoldersStartDate = 1753401600 // After TGE "2025-07-25" stakers are receiving revenue
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { startOfDay, chain, createBalances } = options;
   const dayTimestamp = startOfDay;
   const chainInfo = chainConfig[chain];

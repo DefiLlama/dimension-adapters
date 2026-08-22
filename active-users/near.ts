@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const CHARTS_URL = "https://api.nearblocks.io/v1/charts";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const apiResponse = await fetchURL(CHARTS_URL);
   const charts = apiResponse.charts;
   if (!charts?.length) throw new Error("Missing Nearblocks charts data");

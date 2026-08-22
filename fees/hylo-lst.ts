@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const STAKE_POOL_RESERVE_ACCOUNT = "rz5G8P4tMbUS9NjwJbbbWMZqrCWEZGV3VmkNdNSn7s9";
   const STAKE_POOL_WITHDRAW_AUTHORITY = "2C9aTiNL6VyrPhFKspZC8BY9JeL3j4RtkPP2e4PrVAwP";
   const LST_FEE_TOKEN_ACCOUNT = "9mh4Y84YRaaT3EWdoEpkjZ2EVGycYmxvjuJ9krvGzAQx";
@@ -14,7 +14,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
-    lst_mint: LST_MINT
+    lst_mint: LST_MINT,
+    exclude_mints_filter: ""
   });
 
   const results = await queryDuneSql(options, query);
@@ -27,6 +28,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+    } else if (row.metric_type === 'dailyUserFees') {
+      dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
 
@@ -41,7 +44,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT_PLUS,
     stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY_PLUS,
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT_PLUS,
-    lst_mint: LST_MINT_PLUS
+    lst_mint: LST_MINT_PLUS,
+    exclude_mints_filter: ""
   });
 
   const results_plus = await queryDuneSql(options, query_plus);
@@ -51,6 +55,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
+    } else if (row.metric_type === 'dailyUserFees') {
+      dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
     }
   });
 

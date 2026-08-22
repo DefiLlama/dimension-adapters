@@ -154,7 +154,14 @@ async function queryOkxApi(timestamp:string, path:string){
   return data
 }
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const invalidSpikes = {
+  [CHAIN.TRON]: ["2026-06-24"],
+}
+
+const fetch = async (options: FetchOptions) => {
+  if (invalidSpikes[options.chain]?.includes(options.dateString)) {
+    return { dailyVolume: 0 }
+  }
   if (SwapRouters[options.chain]) {
     const dailyVolume = options.createBalances()
     

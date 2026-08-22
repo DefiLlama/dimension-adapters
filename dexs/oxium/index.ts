@@ -37,6 +37,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Fees are collected by the DAO on the token bought during market orders.",
   },
+  deadFrom: "2026-08-01",
 };
 
 export default adapter;

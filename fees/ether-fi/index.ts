@@ -1,18 +1,10 @@
 // https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
-import * as sdk from "@defillama/sdk";
-import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers } from "ethers";
 import ADDRESSES from '../../helpers/coreAssets.json';
-import { queryDuneSql } from '../../helpers/dune';
 import { METRIC } from "../../helpers/metrics";
 
-const EETH = ADDRESSES.ethereum.EETH;
-const EIGEN = ADDRESSES.ethereum.EIGEN;
-const LIQUIDITY_POOL = "0x308861A430be4cce5502d0A12724771Fc6DaF216";
 const STETH = ADDRESSES.ethereum.STETH;
-const SSV = "0x9D65fF81a3c488d585bBfb0Bfe3c7707c7917f54";
-const OBOL = "0x0B010000b7624eb9B3DfBC279673C76E9D29D5F7";
 const YEAR = 365;
 
 const accountStateV1Abi = 'function accountantState() view returns (address payoutAddress, uint96 highwaterMark, uint128 feesOwedInBase, uint128 totalSharesLastUpdate, uint96 exchangeRate, uint16 allowedExchangeRateChangeUpper, uint16 allowedExchangeRateChangeLower, uint64 lastUpdateTimestamp, bool isPaused, uint24 minimumUpdateDelayInSeconds, uint16 platformFee, uint16)';
@@ -52,14 +44,8 @@ const LIQUID_VAULTS = {
 }
 
 const MetricLabels = {
-  WITHDRAW_FEES: 'Vault Withdraw Fees',
   MANAGEMENT_FEES: METRIC.MANAGEMENT_FEES,
-  stETH_STAKING_REWARDS: 'stETH Staking Rewards',
-  EIGEN_STAKING_REWARDS: 'EigenLayer Staking Rewards',
-  SSV_STAKING_REWARDS: 'SSV Staking Rewards',
-  OBOL_STAKING_REWARDS: 'Obol Staking Rewards',
-  ETH_STAKING_REWARDS: 'Core ETH Staking Rewards',
-  TOKEN_BUY_BACK: METRIC.TOKEN_BUY_BACK,
+  stETH_STAKING_REWARDS: 'Liquid Vaults stETH Staking Rewards',
 }
 
 const getTotalSupply = async (options: FetchOptions, target: string) => {
@@ -89,7 +75,6 @@ const getTotalSteth = async (options: FetchOptions) => {
   const STETH = ADDRESSES.ethereum.STETH
   const KARAK_WSTETH = "0xa3726beDFD1a8AA696b9B4581277240028c4314b"
   const SYMBIOTIC_WSTETH = "0xC329400492c6ff2438472D4651Ad17389fCb843a"
-  const DEVAMP = "0x9FFDF407cDe9a93c47611799DA23924Af3EF764F"
   const WEETHS = "0x917ceE801a67f933F2e6b33fC0cD1ED2d5909D88"
   const WEETHK = "0x7223442cad8e9cA474fC40109ab981608F8c4273"
   const WEETHK_HOLDER = "0xFdc479a18d06e2721d17024b549f3f6173a68805"
@@ -100,7 +85,7 @@ const getTotalSteth = async (options: FetchOptions) => {
     params: [1000000000],
   }));
 
-  const STETH_HOLDERS = [DEVAMP, WEETHS, WEETHK]
+  const STETH_HOLDERS = [WEETHS, WEETHK]
   var totalSteth = BigInt(0);
   for (const holder of STETH_HOLDERS) {
     const stethHolding = await options.api.call({
@@ -151,172 +136,23 @@ const getPayoutDetails = async (options: FetchOptions, target: string) => {
   return [asset_eth, rate_eth];
 };
 
-const getSsvRevenue = async (options: FetchOptions) => {
-  const logs = await options.getLogs({
-    target: SSV,
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
-  })
-  // Transfers from the dedicated fee recipient are 100% protocol;
-  // everything else has an 80% protocol cut (4/5 in integer math).
-  return logs.reduce((acc: bigint, log: any) => {
-    const value = BigInt(log.value);
-    const fromFeeRecipient = log.from.toLowerCase() === "0x8fb66F38cF86A3d5e8768f8F1754A24A6c661Fb8".toLowerCase();
-    return acc + (fromFeeRecipient ? value : (value * 4n) / 5n);
-  }, 0n);
-}
-
-const getObolRevenue = async (options: FetchOptions) => {
-  const logs = await options.getLogs({
-    target: OBOL,
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
-  })
-  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
-}
-
-const getWithdrawalFees = async (options: FetchOptions) => {
-  const logs = await options.getLogs({
-    target: EETH,
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", ethers.zeroPadValue("0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c", 32), ethers.zeroPadValue("0x2f5301a3D59388c509C65f8698f521377D41Fd0F", 32)],
-  })
-  return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
-}
-
-const getMiscStakingRevenue = async (options: FetchOptions) => {
-  const logs = await options.getLogs({
-    target: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", //eETH as WETH
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
-  });
-  const logs2 = await options.getLogs({
-    target: EIGEN,
-    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
-  });
-
-  const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
-  const eigenRevenue = logs2.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
-  return { wethRevenue, eigenRevenue };
-}
-
-const getAdditionalRevenueStreams = async (options: FetchOptions) => {
-  const query = `
-     select
-         sum(amount_usd) as revenue_usd
-     from (
-         select
-             amount_usd
-         from
-         dex_aggregator.trades
-         where blockchain = 'ethereum'
-         and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F
-         and TIME_RANGE
-
-         union all
-
-         select
-             amount_usd
-         from (
-             values
-                 ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
-                 ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
-                 ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
-                 ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
-                 ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
-                 ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
-                 ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
-                 ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
-                 ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
-                 ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
-         ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
-         where block_time >= from_unixtime(${options.startTimestamp})
-         and block_time < from_unixtime(${options.endTimestamp})
-     )`;
-
-  const result = await queryDuneSql(options, query);
-  return { buybacks: Number(result?.[0]?.revenue_usd || 0) };
-}
-
 /**
- * EtherFi Revenue Stream Categories:
- * 
- * STAKING_REWARDS: Consolidated category including:
- *   - Core ETH staking protocol fees (10% to protocol, 90% to stakers)
- *   - Eigenlayer restaking rewards from L2 claims (~11% to protocol, rest to stakers) 
- *   - Restaking rewards from stETH holdings in restaker contracts (protocol only)
- *   - Lido stETH rebasing rewards (2.5% to protocol, rest to stakers)
- *   - SSV/OBOL rewards for running validators (protocol only)
- *   - Direct token transfers and miscellaneous earnings (protocol only)
- * 
+ * EtherFi Liquid Revenue Stream Categories:
+ *
  * LIQUID_VAULT_FEES: Management fees from vault products (protocol only)
- * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)  
- * TOKEN_BUY_BACK: ETHFI buybacks benefiting token holders (holders revenue)
- * 
+ * stETH_STAKING_REWARDS: Lido stETH rebasing rewards on vault holdings
+ *   (2.5% to protocol, rest to vault depositors)
+ *
  * Note: Different revenue streams have different protocol vs supply side splits
  */
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const totalSteth = await getTotalSteth(options);
-
-  // get total staking fees earned
-  let totalStakeFees = BigInt(0);
-  const protocolFeesLog = await options.getLogs({
-    target: LIQUIDITY_POOL,
-    eventAbi: "event ProtocolFeePaid(uint128 protocolFees)",
-  });
-
-  for (const log of protocolFeesLog) {
-    totalStakeFees += log.protocolFees;
-  }
   const stethFees = await getStethFees(options, totalSteth);
   const stethRevenue = totalSteth * 3.5 / 100 * 0.025 / 365
-
-  // Eigenlayer restaking rewards claimed weekly on Optimism L2
-  const optimismApi = new sdk.ChainApi({ chain: 'optimism', timestamp: options.toTimestamp });
-  const restakingRewardsEigen = BigInt(await optimismApi.call({
-    target: '0xAB7590CeE3Ef1A863E9A5877fBB82D9bE11504da',
-    abi: 'function categoryTVL(string _category) view returns (uint256)',
-    params: [EIGEN]
-  }));
-  const eigenFeesTotal = restakingRewardsEigen / BigInt(7); // Convert weekly to daily
-  const eigenRevenueShare = restakingRewardsEigen / BigInt(7 * 90) * BigInt(10); // ~11% protocol share
-  dailyFees.add(EIGEN, eigenFeesTotal, MetricLabels.EIGEN_STAKING_REWARDS);
-  dailyRevenue.add(EIGEN, eigenRevenueShare, MetricLabels.EIGEN_STAKING_REWARDS);
-  dailySupplySideRevenue.add(EIGEN, eigenFeesTotal - eigenRevenueShare, MetricLabels.EIGEN_STAKING_REWARDS);
-
-  // SSV token rewards for running SSV-based validators
-  const ssvRevenue = await getSsvRevenue(options);
-  dailyFees.add(SSV, ssvRevenue, MetricLabels.SSV_STAKING_REWARDS);
-  dailyRevenue.add(SSV, ssvRevenue, MetricLabels.SSV_STAKING_REWARDS);
-
-  // OBOL token rewards for running OBOL-based validators
-  const obolRevenue = await getObolRevenue(options);
-  dailyFees.add(OBOL, obolRevenue, MetricLabels.OBOL_STAKING_REWARDS);
-  dailyRevenue.add(OBOL, obolRevenue, MetricLabels.OBOL_STAKING_REWARDS);
-
-  // add withdrawal fees
-  const withdrawalFees = await getWithdrawalFees(options);
-  dailyFees.add(EETH, withdrawalFees, MetricLabels.WITHDRAW_FEES);
-  dailyRevenue.add(EETH, withdrawalFees, MetricLabels.WITHDRAW_FEES);
-
-  const { wethRevenue, eigenRevenue } = await getMiscStakingRevenue(options);
-  dailyRevenue.add(EETH, wethRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
-  dailyFees.add(EETH, wethRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
-  dailyRevenue.add(EIGEN, eigenRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
-  dailyFees.add(EIGEN, eigenRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
-
-  const additionalRevenues = await getAdditionalRevenueStreams(options);
-
-  // ether.fi buybacks (counted as holders revenue)
-  const dailyHoldersRevenue = options.createBalances();
-  if (additionalRevenues.buybacks > 0) {
-    dailyHoldersRevenue.addUSDValue(additionalRevenues.buybacks, METRIC.TOKEN_BUY_BACK);
-  }
 
   // liquid earnings
   for (const vault of Object.values(LIQUID_VAULTS)) {
@@ -350,22 +186,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
   }
 
-  // stETH holding rewards from Lido rebasing (protocol keeps revenue portion, stakers get fees)
+  // stETH holding rewards from Lido rebasing (protocol keeps revenue portion, vault depositors get fees)
   dailyFees.add(STETH, stethFees + stethRevenue, MetricLabels.stETH_STAKING_REWARDS);
   dailyRevenue.add(STETH, stethRevenue, MetricLabels.stETH_STAKING_REWARDS); // Protocol share (2.5%)
-  dailySupplySideRevenue.add(STETH, stethFees, MetricLabels.stETH_STAKING_REWARDS); // Staker share (rebasing rewards)
-
-  // Core staking protocol fees from eETH staking operations  
-  dailyRevenue.add(EETH, totalStakeFees, MetricLabels.ETH_STAKING_REWARDS);
-  dailyFees.add(EETH, totalStakeFees * BigInt(10), MetricLabels.ETH_STAKING_REWARDS); // 10x for total staking rewards
-  dailySupplySideRevenue.add(EETH, totalStakeFees * BigInt(9), MetricLabels.ETH_STAKING_REWARDS); // ~90% to stakers
+  dailySupplySideRevenue.add(STETH, stethFees, MetricLabels.stETH_STAKING_REWARDS); // Depositor share (rebasing rewards)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue,
   };
 };
 
@@ -373,27 +203,24 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ETHEREUM],
-  dependencies: [Dependencies.DUNE],
   start: '2024-03-13',
   methodology: {
-    Fees: "Total rewards generated from all ether.fi services: ETH staking, Eigenlayer restaking, validator operations, liquid vaults",
-    Revenue: "Protocol's share of fees including management fees from staking/restaking, validator operations rewards, liquid vault management fees",
+    Fees: "Total rewards generated from ether.fi liquid vaults: management fees and staking rewards on vault holdings",
+    Revenue: "Protocol's share of fees including liquid vault management fees",
     ProtocolRevenue: "Same as Revenue - all protocol earnings retained by ether.fi.",
-    SupplySideRevenue: "Portion of fees distributed to stakers, users, and liquidity providers.",
-    HoldersRevenue: "Token buybacks executed by ether.fi benefiting ETHFI token holders.",
+    SupplySideRevenue: "Portion of fees distributed to vault depositors.",
   },
   breakdownMethodology: {
     Fees: {
-      [MetricLabels.ETH_STAKING_REWARDS]: 'All rewards from core ETH staking',
-      [MetricLabels.EIGEN_STAKING_REWARDS]: 'All rewards from EigenLayer staking & restaking.',
-      [MetricLabels.stETH_STAKING_REWARDS]: 'All rewards from stETH holding.',
-      [MetricLabels.SSV_STAKING_REWARDS]: 'All rewards from SSV network staking.',
-      [MetricLabels.OBOL_STAKING_REWARDS]: 'All rewards from Obol network staking.',
-      [MetricLabels.MANAGEMENT_FEES]: 'Management fees from liquid vault products',
-      [MetricLabels.WITHDRAW_FEES]: 'Withdrawal fees from vault operations',
+      [MetricLabels.MANAGEMENT_FEES]: 'Annualized management fees charged on the TVL of the liquid vaults, prorated daily.',
+      [MetricLabels.stETH_STAKING_REWARDS]: 'Lido rebasing rewards accrued on the stETH/wstETH held by the weETHs and weETHk vaults, including their restaked wstETH positions.',
     },
-    HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
+    Revenue: {
+      [MetricLabels.MANAGEMENT_FEES]: 'All liquid vault management fees are retained by the protocol.',
+      [MetricLabels.stETH_STAKING_REWARDS]: 'Protocol keeps a 2.5% share of the stETH staking rewards on vault holdings.',
+    },
+    SupplySideRevenue: {
+      [MetricLabels.stETH_STAKING_REWARDS]: 'stETH rebasing rewards passed on to vault depositors (everything above the 2.5% protocol share).',
     },
   }
 };

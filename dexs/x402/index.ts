@@ -49,7 +49,7 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
-async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const chain = DUNE_CHAIN_MAP[options.chain] ? DUNE_CHAIN_MAP[options.chain] : options.chain
   const results = options.preFetchedResults
   const dailyVolume = options.createBalances()

@@ -25,7 +25,7 @@ const breakdownMethodology = {
   }
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   throw Error('WIP')
   
   const dailyFees = await getSolanaReceivedDune({

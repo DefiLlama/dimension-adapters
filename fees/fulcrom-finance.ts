@@ -19,9 +19,9 @@ const ratios = {
   supplySideRevenue: 0.6
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
   const searchTimestamp = "daily:" + todaysTimestamp;
 
   const graphQuery = gql`{

@@ -48,7 +48,7 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (config.deadFrom) {
     const deadFromTimestamp = Date.parse(config.deadFrom) / 1000;
@@ -76,7 +76,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: chainConfig
+  adapter: chainConfig,
+  deadFrom: "2026-06-05", //sunset
 }
 
 export default adapter
