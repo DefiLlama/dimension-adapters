@@ -7,7 +7,6 @@ export const SARCOPHAGUS_HOLDERS_REVENUE_LABEL = "Fees funded to Sarcophagus";
 
 type SarcophagusPoolType = "CL" | "LEGACY" | "DLMM";
 
-const pageSize = 1000;
 const query = gql`
   query sarcophagusFunding(
     $chainId: Int!
@@ -52,9 +51,9 @@ export async function fetchSarcophagusFundingUSD({
     const data = await request<{ SarcophagusFunding: { amountUSD: string }[] }>(endpoint, query, {
       chainId,
       poolType,
-      from: String(startTimestamp),
+      from: String(startTimestamp + 1),
       to: String(endTimestamp),
-      limit: pageSize,
+      limit: subgraphQueryLimit,
       offset,
     });
     const rows = data.SarcophagusFunding;
@@ -67,8 +66,8 @@ export async function fetchSarcophagusFundingUSD({
       total += amountUSD;
     }
 
-    if (rows.length < pageSize) return total;
-    offset += pageSize;
+    if (rows.length < subgraphQueryLimit) return total;
+    offset += subgraphQueryLimit;
   }
 }
 
