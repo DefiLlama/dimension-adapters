@@ -449,10 +449,10 @@ const fetch = createFetchHandler('cl');
 
 export const methodology = {
   Fees: "Includes swap fees and bribes paid by protocols",
-  Revenue: "Protocol and holder swap-fee revenue plus holder bribes; Sarcophagus funding is reported only as holder revenue.",
+  Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Swap fees going to the protocol",
-  HoldersRevenue: "Swap fees and bribes distributed to holders, plus the event-time USD value of fees funded to Sarcophagus.",
+  HoldersRevenue: "Swap fees distributed to holders and all the bribes go to holders",
   SupplySideRevenue: "Swap fees distributed to LPs (from gauged pools).",
 };
 
