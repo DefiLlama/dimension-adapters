@@ -1,58 +1,64 @@
-import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const URL = 'https://routerv2.akka.finance';
+const swapEvent =
+  "event Swap(address indexed _from, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
 
-interface IAPIResponse {
-  dailyVolume: string;
-  totalVolume: string;
-}
-
-const chainIds = {
-  [CHAIN.CORE]: 1116,
-  [CHAIN.XDC]: 50,
-  [CHAIN.BITLAYER]: 200901,
-  [CHAIN.BSQUARED]: 223,
+const config: Record<string, { routers: string[]; start: string; deadFrom?: string }> = {
+  hyperliquid: {
+    routers: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
+    start: "2026-01-20",
+  },
+  [CHAIN.XDC]: {
+    routers: ["0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3"],
+    start: "2024-10-29",
+  },
+  [CHAIN.CORE]: {
+    routers: [
+      "0x7C5Af181D9e9e91B15660830B52f7B7076Be0d64",
+      "0x5f3B7b49c5763045a6571dEe9A2b13ccd2407daA",
+      "0x0cfedb22dbda450077dc64d21f58ad8ff3646036",
+    ],
+    start: "2023-11-19",
+    deadFrom: "2026-05-14",
+  },
+  [CHAIN.BITLAYER]: {
+    routers: ["0x4822b754118e066bf9dccf8b8f105f8b47bb4502"],
+    start: "2024-10-29",
+    deadFrom: "2026-01-13",
+  },
+  [CHAIN.BSQUARED]: {
+    routers: ["0x70D80feb53005272E81F3493a69177911D458CbA"],
+    start: "2024-10-29",
+    deadFrom: "2026-01-26",
+  },
 };
 
-const startTimestamps = {
-  [CHAIN.CORE]: 1717200000,// 6/1/2024
-  [CHAIN.XDC]: 1730160000,// 29/10/2024
-  [CHAIN.BITLAYER]: 1730160000,// 29/10/2024
-  [CHAIN.BSQUARED]: 1730160000,// 29/10/2024
-};
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const { routers } = config[options.chain];
 
-const fetch = async (timestamp: number, _: any, { chain }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const chainId = chainIds[chain];
+  const logs = await options.getLogs({
+    targets: routers,
+    eventAbi: swapEvent,
+  });
+  for (const log of logs) {
+    dailyVolume.add(log.tokenIn, log.amountIn);
+    dailyFees.add(log.tokenOut, log.fee, "Swap Fees");
+    dailyRevenue.add(log.tokenOut, log.fee, "Swap fees to protocol");
+  }
 
-  const endpoint = `/v2/${ chainId }/statistics/dappradar`;
-  const response = await fetchURL(`${ URL }${ endpoint }`);
-
-  const { dailyVolume, totalVolume }: IAPIResponse = response;
-
-  return {
-    dailyVolume,
-    totalVolume,
-    timestamp: dayTimestamp,
-  };
+  return { timestamp: options.toTimestamp, dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: Object.keys(chainIds).reduce((acc, chain) => {
-    const startTimestamp = startTimestamps[chain];
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        runAtCurrTime: true,
-        start: startTimestamp,
-      },
-    };
-  }, {}),
+  version: 2,
+  adapter: Object.entries(config).reduce((acc, [chain, chainConfig]) => ({
+    ...acc,
+    [chain]: { ...chainConfig, fetch },
+  }), {}),
 };
 
 export default adapter;
