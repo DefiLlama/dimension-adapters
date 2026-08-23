@@ -32,6 +32,7 @@ const protocolChainMap: Record<string, string> = {
   "kcc": CHAIN.KCC,
   "lightlink": CHAIN.LIGHTLINK_PHOENIX,
   "lisk": CHAIN.LISK,
+  "merlin-chain": CHAIN.MERLIN,
   "metis": CHAIN.METIS,
   "mixin": CHAIN.MIXIN,
   "mode": CHAIN.MODE,

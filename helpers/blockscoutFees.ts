@@ -137,6 +137,7 @@ export const chainConfigMap: any = {
   [CHAIN.MEGAETH]: { CGToken: 'ethereum', explorer: 'https://megaeth.blockscout.com/' },
   [CHAIN.KATANA]: { CGToken: 'ethereum', explorer: 'https://explorer.katanarpc.com/' },
   [CHAIN.COTI]: { CGToken: 'coti', explorer: 'https://mainnet.cotiscan.io/' },
+  [CHAIN.MERLIN]: { CGToken: 'bitcoin', explorer: 'https://scan.merlinchain.io', start: '2024-10-03' },
   [CHAIN.MEZO]: { CGToken: 'bitcoin', explorer: 'https://api.explorer.mezo.org', start: '2025-05-06' },
   [CHAIN.WORLD_MOBILE]: { CGToken: 'world-mobile-token', explorer: 'https://explorer.worldmobile.io', start: '2025-06-01' },
   [CHAIN.RISE]: { CGToken: 'ethereum', explorer: 'https://explorer.risechain.com', start: '2026-01-01' },
