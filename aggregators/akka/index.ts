@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const swapEvent =
@@ -15,11 +15,21 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const { routers } = chainConfig[options.chain];
+  const { deadFrom, routers } = chainConfig[options.chain];
+
+  const deadFromTimestamp = deadFrom ? Math.floor(new Date(`${deadFrom}T00:00:00Z`).getTime() / 1000) : undefined;
+  if (deadFromTimestamp !== undefined && options.startTimestamp >= deadFromTimestamp) {
+    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  }
+
+  const toBlock = deadFromTimestamp !== undefined && options.endTimestamp > deadFromTimestamp
+    ? await options.getBlock(deadFromTimestamp - 1, options.chain, {} as ChainBlocks)
+    : undefined;
 
   const logs = await options.getLogs({
     targets: routers,
     eventAbi: swapEvent,
+    toBlock,
   });
   for (const log of logs) {
     dailyVolume.add(log.tokenIn, log.amountIn, "AKKA Volume");
