@@ -22,9 +22,9 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: swapEvent,
   });
   for (const log of logs) {
-    (dailyVolume as any).add(log.tokenIn, log.amountIn, "AKKA Volume");
-    (dailyFees as any).add(log.tokenOut, log.fee, "Swap Fees");
-    (dailyRevenue as any).add(log.tokenOut, log.fee, "Swap fees to protocol");
+    dailyVolume.add(log.tokenIn, log.amountIn, "AKKA Volume");
+    dailyFees.add(log.tokenOut, log.fee, "Swap Fees");
+    dailyRevenue.add(log.tokenOut, log.fee, "Swap fees to protocol");
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
@@ -95,7 +95,7 @@ export const breakdownMethodology = {
   },
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: chainConfig,
