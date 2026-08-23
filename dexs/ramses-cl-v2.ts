@@ -5,7 +5,7 @@ import { METRIC } from "../helpers/metrics";
 import {
   fetchSarcophagusFundingUSD,
   SARCOPHAGUS_HOLDERS_REVENUE_LABEL,
-} from "./ramses-sarcophagus";
+} from "./ramses-dlmm";
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";

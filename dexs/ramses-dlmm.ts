@@ -2,10 +2,75 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
-import {
-  fetchSarcophagusFundingUSD,
-  SARCOPHAGUS_HOLDERS_REVENUE_LABEL,
-} from "./ramses-sarcophagus";
+
+export const SARCOPHAGUS_HOLDERS_REVENUE_LABEL = "Fees funded to Sarcophagus";
+
+type SarcophagusPoolType = "CL" | "LEGACY" | "DLMM";
+
+const pageSize = 1000;
+const query = gql`
+  query sarcophagusFunding(
+    $chainId: Int!
+    $poolType: String!
+    $from: String!
+    $to: String!
+    $limit: Int!
+    $offset: Int!
+  ) {
+    SarcophagusFunding(
+      limit: $limit
+      offset: $offset
+      where: {
+        chainId: { _eq: $chainId }
+        poolType: { _eq: $poolType }
+        timestamp: { _gte: $from, _lt: $to }
+      }
+      order_by: { id: asc }
+    ) {
+      amountUSD
+    }
+  }
+`;
+
+export async function fetchSarcophagusFundingUSD({
+  endpoint,
+  chainId,
+  poolType,
+  startTimestamp,
+  endTimestamp,
+}: {
+  endpoint: string;
+  chainId: number;
+  poolType: SarcophagusPoolType;
+  startTimestamp: number;
+  endTimestamp: number;
+}) {
+  let offset = 0;
+  let total = 0;
+
+  while (true) {
+    const data = await request<{ SarcophagusFunding: { amountUSD: string }[] }>(endpoint, query, {
+      chainId,
+      poolType,
+      from: String(startTimestamp),
+      to: String(endTimestamp),
+      limit: pageSize,
+      offset,
+    });
+    const rows = data.SarcophagusFunding;
+
+    for (const row of rows) {
+      const amountUSD = Number(row.amountUSD);
+      if (!Number.isFinite(amountUSD)) {
+        throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
+      }
+      total += amountUSD;
+    }
+
+    if (rows.length < pageSize) return total;
+    offset += pageSize;
+  }
+}
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
