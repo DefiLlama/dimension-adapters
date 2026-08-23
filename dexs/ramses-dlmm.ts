@@ -2,6 +2,10 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
+import {
+  fetchSarcophagusFundingUSD,
+  SARCOPHAGUS_HOLDERS_REVENUE_LABEL,
+} from "./ramses-sarcophagus";
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
@@ -343,7 +347,16 @@ async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const stats = await fetchDlmmStats(options);
+  const [stats, sarcophagusFundingUSD] = await Promise.all([
+    fetchDlmmStats(options),
+    fetchSarcophagusFundingUSD({
+      endpoint: dlmmSubgraphEndpoints[options.chain],
+      chainId: chainIds[options.chain],
+      poolType: "DLMM",
+      startTimestamp: options.startTimestamp,
+      endTimestamp: options.endTimestamp,
+    }),
+  ]);
   const dailyVolume = stats.dlmmVolumeUSD;
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -361,6 +374,7 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
   dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, 'Swap Fees to holders');
   dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
+  dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_HOLDERS_REVENUE_LABEL);
 
   dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
   dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
@@ -380,10 +394,10 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Includes swap fees and bribes paid by protocols",
-  Revenue: "Revenue going to the protocol + Token holder Revenue.",
+  Revenue: "Protocol and holder swap-fee revenue plus holder bribes; Sarcophagus funding is reported only as holder revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Swap fees going to the protocol",
-  HoldersRevenue: "Swap fees distributed to holders and all the bribes go to holders",
+  HoldersRevenue: "Swap fees and bribes distributed to holders, plus the event-time USD value of fees funded to Sarcophagus.",
   SupplySideRevenue: "Swap fees distributed to LPs (from gauged pools).",
 };
 
@@ -409,6 +423,7 @@ const breakdownMethodology = {
   HoldersRevenue: {
     ["Swap Fees to holders"]: "User fees are distributed among holders.",
     ["Bribes to holders"]: "Bribes paid by protocols to holders",
+    [SARCOPHAGUS_HOLDERS_REVENUE_LABEL]: "Event-time USD value of fees funded to Sarcophagus.",
   },
 };
 
