@@ -22,9 +22,14 @@ const fetch = async (options: FetchOptions) => {
     return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
   }
 
-  const toBlock = deadFromTimestamp !== undefined && options.endTimestamp > deadFromTimestamp
-    ? await options.getBlock(deadFromTimestamp - 1, options.chain, {} as ChainBlocks)
-    : undefined;
+  let toBlock: number | undefined;
+  if (deadFromTimestamp !== undefined && options.endTimestamp > deadFromTimestamp) {
+    const resolvedToBlock = await options.getBlock(deadFromTimestamp - 1, options.chain, {} as ChainBlocks);
+    if (!Number.isFinite(resolvedToBlock)) {
+      return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+    }
+    toBlock = resolvedToBlock;
+  }
 
   const logs = await options.getLogs({
     targets: routers,
