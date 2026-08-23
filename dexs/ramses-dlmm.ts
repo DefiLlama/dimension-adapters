@@ -51,6 +51,7 @@ export async function fetchSarcophagusFundingUSD({
     const data = await request<{ SarcophagusFunding: { amountUSD: string }[] }>(endpoint, query, {
       chainId,
       poolType,
+      // FetchOptions starts one second before the requested window.
       from: String(startTimestamp + 1),
       to: String(endTimestamp),
       limit: subgraphQueryLimit,
