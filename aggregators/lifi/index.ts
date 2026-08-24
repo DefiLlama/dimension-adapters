@@ -6,11 +6,11 @@ import { formatAddress } from "../../utils/utils";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
-const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
-    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators, [], 'same-chain');
+    // count all integrators, including Jumper
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], [], 'same-chain');
     return {
       dailyVolume: dailyVolume
     };
@@ -34,9 +34,8 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   }
 
   logs.forEach((log: any) => {
-    if (!integrators.includes(log.integrator)) {
-      dailyVolume.add(log.fromAssetId, log.fromAmount);
-    }
+    // count all integrators, including Jumper
+    dailyVolume.add(log.fromAssetId, log.fromAmount);
   });
 
   return { dailyVolume } as any;

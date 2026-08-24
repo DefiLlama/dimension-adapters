@@ -4,11 +4,11 @@ import { fetchVolumeFromLIFIAPI, LifiDiamonds } from "../../helpers/aggregators/
 
 
 const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)"
-const exclude_integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
-    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], exclude_integrators, 'cross-chain');
+    // count all integrators, including Jumper
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], [], 'cross-chain');
     return {
       dailyBridgeVolume: dailyVolume
     };
@@ -21,10 +21,9 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   });
 
   logs.forEach((e: any) => {
-    const { bridgeData: { integrator, sendingAssetId, minAmount } } = e;
-    if (!exclude_integrators.includes(integrator)) {
-      dailyVolume.add(sendingAssetId, minAmount);
-    }
+    const { bridgeData: { sendingAssetId, minAmount } } = e;
+    // count all integrators, including Jumper
+    dailyVolume.add(sendingAssetId, minAmount);
   });
 
   return { dailyBridgeVolume: dailyVolume } as any;
