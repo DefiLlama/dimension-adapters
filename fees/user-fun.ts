@@ -108,7 +108,7 @@ const CREATOR_TRADING_FEE_PERCENTAGE = 25;
 const metrics = {
   PlatformFees: METRIC.TRADING_FEES,
   CreatorFees: METRIC.CREATOR_FEES,
-  ProtocolFees: METRIC.PROTOCOL_FEES,
+  ProtocolFees: 'Protocol Fees to Meteora',
   ReferralFees: 'Referral Fees',
 };
 
@@ -265,12 +265,13 @@ const adapter: SimpleAdapter = {
   // the account that every pool is created against.
   start: '2026-07-31',
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "1.50% of every bonding curve trade, charged on the quote side. Covers all four legs the curve program reports: the user.fun partner share, the coin creator share, Meteora's protocol share and the referral share paid to whichever interface hosted the swap.",
     UserFees: 'The same 1.50%. It is the whole of what a trader pays on a user.fun trade.',
     Revenue:
       "The user.fun partner share only, which is 0.90% of a trade: the 1.20% the curve accumulates after Meteora's protocol share, less the coin creator's 25% of it. user.fun's own configuration records an effective rate of 0.96%, which is this 0.90% plus the 0.06% referral leg Meteora returns to whichever interface hosted the swap. That leg is counted in Fees and not here, because the swap event does not name the referral account and so cannot show which trades it was ours to claim.",
-    ProtocolRevenue: 'Same as Revenue. user.fun has no separate holder or treasury leg on chain.',
+    ProtocolRevenue: 'Same as Revenue (0.9% of the trade). user.fun has no separate holder or treasury leg on chain.',
     SupplySideRevenue:
       "Everything user.fun does not keep, which is 0.60% of a trade: the coin creator's 25% of the 1.20% curve fee, plus Meteora's 0.30% protocol share and the referral leg inside it paid to whichever interface hosted the swap.",
   },
