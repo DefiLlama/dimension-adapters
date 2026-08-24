@@ -863,6 +863,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
     },
     breakdownFees: true,
+  },
+  "quote": {
+    addresses: ["0x459b632f49023881cd45d8f0003297ebe16a13d6"],
+    start: "2026-07-30",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 markets) executed through Quote.",
+      Fees: "Builder code fees paid by users on Hyperliquid trades executed through Quote.",
+      Revenue: "Builder code fees collected by Quote from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Quote from Hyperliquid trades.",
+    },
+    breakdownFees: true,
   }
 };
 
