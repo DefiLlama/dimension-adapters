@@ -21,6 +21,7 @@ export const chainMap: ChainMapping = {
   [CHAIN.BLAST]: 'blast',
   [CHAIN.CELO]: 'celo',
   [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.CORE]: 'core',
   [CHAIN.SONIC]: 'sonic',
   [CHAIN.MANTLE]: 'mantle',
   [CHAIN.LINEA]: 'linea',
