@@ -26,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
   if (deadFromTimestamp !== undefined && options.endTimestamp > deadFromTimestamp) {
     const resolvedToBlock = await options.getBlock(deadFromTimestamp - 1, options.chain, {} as ChainBlocks);
     if (!Number.isFinite(resolvedToBlock)) {
+      console.error(`Unable to resolve Akka deadFrom block for ${options.chain}: cutoff=${deadFromTimestamp}, resolvedToBlock=${resolvedToBlock}`);
       return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
     }
     toBlock = resolvedToBlock;
