@@ -35,13 +35,14 @@ import { addTokensReceived } from "../../helpers/token";
  *    StonkBrokers (Directed Clock In + jackpot pot).
  * 9. Token vesting locker (StonkVestingLocker): 0.01% (1 bps) deposit fee.
  *
- * Volume (protocol volume chart):
+ * Volume (protocol volume chart — same dailyVolume feeds the dexs/stonkbrokers listing):
  * - NFT AMM notional (ethFeePaid ÷ fee bps)
  * - Broker Box ticket notional (PullOpened.ticketWei)
  * - Certificate Counter stock purchase (CertificateBought.spendWei)
  * - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
  * - Anti-snipe launch buys (WallBought.ethIn)
- * - Safe Launch / Stonklauncher window trades across every pad generation
+ * - Safe Launch / Stonklauncher window buys AND sells on every pad generation
+ *   (buy = tax-inclusive quote in; sell = net quote out + tax)
  * - StonkCurvePool Trade.quoteAmount (bonding-curve launcher)
  */
 
