@@ -26,6 +26,11 @@ const chainConfig: Record<string, { factory: string, pairConfig: string, start: 
     pairConfig: "0xEf83E21b3C45e75cC29ae6aC493dB3821eD87B83",
     start: '2026-06-22',
   },
+  [CHAIN.ROBINHOOD]: {
+    factory: "0x831880Bd3b331249DF63bacC6e21495e5e8f1eAA",
+    pairConfig: "0xD3F729D909a7E84669A35c3F25b37b4AC3487784",
+    start: '2026-07-29',
+  },
 };
 
 const brownfiV3SwapEvent = "event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,uint amount0OutRequested,uint amount1OutRequested,uint pythPrice0,uint pythPrice1,uint ammPrice,uint adjPrice,uint sPrice0,uint sPrice1,address indexed to)"
