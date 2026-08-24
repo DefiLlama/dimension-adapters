@@ -1,11 +1,5 @@
 import { Balances, ChainApi, util } from '@defillama/sdk';
 
-declare module '@defillama/sdk' {
-  interface Balances {
-    add(token: string | string[], balance: any, source?: string): void;
-  }
-}
-
 const { blocks: { getChainBlocks } } = util
 
 export type ChainBlocks = Awaited<ReturnType<typeof getChainBlocks>>
@@ -75,7 +69,7 @@ export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapter = {
   [chain: string]: {
-    start?: IStartTimestamp | number | string
+    start?: IStartTimestamp | number
     fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
     customBackfill?: Fetch | FetchV2;
@@ -99,9 +93,6 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
-  pullHourly?: boolean;
-  methodology?: Record<string, string>;
-  breakdownMethodology?: Record<string, Record<string, string>>;
 }
 
 export type SimpleAdapter = AdapterBase & {
