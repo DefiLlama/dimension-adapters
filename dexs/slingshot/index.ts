@@ -59,5 +59,6 @@ const adapters: SimpleAdapter = {
   fetch,
   chains: Object.keys(contract_address),
   start: '2023-05-09',
+  deadFrom: '2025-04-18',
 }
 export default adapters;
