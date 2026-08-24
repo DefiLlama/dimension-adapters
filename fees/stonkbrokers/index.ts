@@ -563,18 +563,37 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
 
   // ── Safe Launch / Stonklauncher pads (V1 ETH + quoted + V2 + r2) ────────
-  // Window buys AND sells pay the same decaying tax. Volume is gross quote
-  // notional (SafeBuy.ethIn includes the tax; SafeSell.ethOut is net of it —
-  // field names are legacy; quoted lanes carry quote-token amounts).
-  // Split per launch snapshot: 16.5% creator / 16.5% protocol / 50% locked-LP
-  // reserve (or ICO Bonus kickstarter on degen modes) / 17% via the Clock In
-  // Card. Only the protocol leg is revenue; LP/ICO is supply-side.
-  // LpFeeBonded at bond re-settles already-counted tax (never re-added here).
+  // Window buys AND sells pay the same decaying tax.
+  // Volume (mirrors HoodMint ethGross discipline):
+  //   buy  → quoteIn / ethIn (tax-inclusive gross)
+  //   sell → quoteOut/ethOut + taxPaid (gross quote leaving the curve)
+  // Field names differ by generation (ethIn on V1, quoteIn on V2) but are
+  // positional twins — read both. Process buys/sells separately so a decoder
+  // that zeroes missing fields cannot collapse sell volume to 0 via ethIn=0.
+  // Fee split per launch snapshot: 16.5% creator / 16.5% protocol / 50%
+  // locked-LP (or ICO Bonus on degen) / 17% Clock In Card. Protocol leg =
+  // revenue; LP/ICO = supply-side. LpFeeBonded re-settles already-counted tax.
   for (const batch of safeLogBatches) {
-    for (const log of [...batch.buys, ...batch.sells]) {
-      const tax = BigInt(log.taxPaid);
-      const gross =
-        log.ethIn !== undefined ? BigInt(log.ethIn) : BigInt(log.ethOut) + tax;
+    for (const log of batch.buys) {
+      const tax = BigInt(log.taxPaid ?? 0);
+      const gross = BigInt(log.ethIn ?? log.quoteIn ?? 0);
+      if (gross > 0n) addSafeQuote(dailyVolume, batch.quote, gross);
+      if (tax <= 0n) continue;
+      const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
+      const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
+      const toLp = (tax * SAFE_LP_BPS) / 10_000n;
+      const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
+      addSafeQuote(dailyFees, batch.quote, tax, LABELS.SAFE_TAX);
+      addSafeQuote(dailyRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailyProtocolRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailySupplySideRevenue, batch.quote, toCreator, LABELS.SAFE_TAX_CREATOR);
+      addSafeQuote(dailySupplySideRevenue, batch.quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
+      addSafeQuote(dailySupplySideRevenue, batch.quote, toLp, LABELS.SAFE_TAX_LP);
+    }
+    for (const log of batch.sells) {
+      const tax = BigInt(log.taxPaid ?? 0);
+      const netOut = BigInt(log.ethOut ?? log.quoteOut ?? 0);
+      const gross = netOut + tax;
       if (gross > 0n) addSafeQuote(dailyVolume, batch.quote, gross);
       if (tax <= 0n) continue;
       const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
@@ -714,7 +733,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "ETH notional of StonkBrokers NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box ticket notional (PullOpened.ticketWei) + Certificate Counter stock purchases (spendWei) + Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut) + anti-snipe launch-curve buys (WallBought.ethIn) + Safe Launch / Stonklauncher window trades across every pad generation (V1 ETH + V1 quoted + V2 + r2; quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
+      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
       "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); and StonkVestingLocker 0.01% deposit fees.",
     Revenue:
@@ -727,6 +746,18 @@ const adapter: SimpleAdapter = {
       "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%).",
   },
   breakdownMethodology: {
+    Volume: {
+      [LABELS.AMM_FEES]:
+        "NFT AMM trade notional implied from ethFeePaid ÷ fee bps (10% random / 15% specific).",
+      [LABELS.GACHA_FEES]:
+        "Broker Box PullOpened.ticketWei + SoldBack/SoldBackUsdg payouts + Certificate Counter spendWei.",
+      [LABELS.LAUNCH_TAX]:
+        "Anti-snipe one-off launch buys (WallBought.ethIn).",
+      [LABELS.SAFE_TAX]:
+        "Safe Launch / Stonklauncher window buy+sell notional on every pad (V1 ETH + V1 quoted + V2 + r2). Buys = tax-inclusive quote in; sells = net quote out + tax.",
+      [LABELS.CURVE_FEES]:
+        "StonkCurvePool Trade.quoteAmount (bonding-curve launcher residual volume).",
+    },
     Fees: {
       [LABELS.AMM_FEES]: "ETH trade fees on buyRandomNFT / buySpecificNFT / sellNFT.",
       [LABELS.LOAN_FEES]: "Upfront ETH borrow fees on NFT-backed loans.",
