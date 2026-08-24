@@ -15,7 +15,7 @@ const METRICS = {
   RFQ: "RFQ Bridge Fees",
 };
 
-const bridgeConfig: Record<string, { bridge: string; start: string }> = {
+const bridgeConfig: Record<string, { bridge: string; start: string; deadFrom?: string }> = {
   [CHAIN.ETHEREUM]: { bridge: "0x2796317b0fF8538F253012862c06787Adfb8cEb6", start: "2021-08-16" },
   [CHAIN.OPTIMISM]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2021-11-12" },
   [CHAIN.CRONOS]: { bridge: "0xE27BFf97CE92C3e1Ff7AA9f86781FDd6D48F5eE9", start: "2022-02-20" },
@@ -24,15 +24,15 @@ const bridgeConfig: Record<string, { bridge: string; start: string }> = {
   [CHAIN.FANTOM]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2021-10-07" },
   [CHAIN.BOBA]: { bridge: "0x432036208d2717394d2614d6697c46DF3Ed69540", start: "2021-11-12" },
   [CHAIN.METIS]: { bridge: "0x06Fea8513FF03a0d3f61324da709D4cf06F42A5c", start: "2022-02-27" },
-  [CHAIN.MOONBEAM]: { bridge: "0x84A420459cd31C3c34583F67E0f0fB191067D32f", start: "2022-01-11" },
-  [CHAIN.MOONRIVER]: { bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE", start: "2021-11-12" },
+  [CHAIN.MOONBEAM]: { bridge: "0x84A420459cd31C3c34583F67E0f0fB191067D32f", start: "2022-01-11", deadFrom: "2026-08-11" },
+  [CHAIN.MOONRIVER]: { bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE", start: "2021-11-12", deadFrom: "2026-08-11" },
   [CHAIN.KLAYTN]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2022-06-18" },
   [CHAIN.ARBITRUM]: { bridge: "0x6F4e8eBa4D337f874Ab57478AcC2Cb5BACdc19c9", start: "2021-09-12" },
   [CHAIN.AVAX]: { bridge: "0xC05e61d0E7a63D27546389B7aD62FdFf5A91aACE", start: "2021-08-25" },
   [CHAIN.DFK]: { bridge: "0xE05c976d3f045D0E6E7A6f61083d98A15603cF6A", start: "2022-03-25" },
   [CHAIN.AURORA]: { bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE", start: "2021-12-27" },
   [CHAIN.HARMONY]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2021-10-25" },
-  [CHAIN.CANTO]: { bridge: "0xDde5BEC4815E1CeCf336fb973Ca578e8D83606E0", start: "2022-10-05" },
+  //[CHAIN.CANTO]: { bridge: "0xDde5BEC4815E1CeCf336fb973Ca578e8D83606E0", start: "2022-10-05", deadFrom: "2026-08-11" },
   [CHAIN.BASE]: { bridge: "0xf07d1C752fAb503E47FEF309bf14fbDD3E867089", start: "2023-08-01" },
 };
 
@@ -236,7 +236,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: Object.entries(bridgeConfig).reduce<BaseAdapter>((acc, [chain, { start }]) => ({ ...acc, [chain]: { start } }), {}),
+  adapter: Object.entries(bridgeConfig).reduce<BaseAdapter>((acc, [chain, { start, deadFrom }]) => ({ ...acc, [chain]: { start, deadFrom } }), {}),
   methodology: {
     UserFees: "Bridge, AMM, flash loan, CCTP, RFQ, and messaging fees paid by users and emitted by Synapse contracts.",
     Fees: "Bridge, AMM, flash loan, CCTP, RFQ, and messaging fees paid by users and emitted by Synapse contracts.",
