@@ -148,7 +148,17 @@ const curveFeesSQL = `
     )
     SELECT
         quote_mint,
-        SUM(COALESCE(trading_fee, 0)) AS trading_fee,
+        -- The curve program floors the creator share on every individual swap,
+        -- so the day's creator fee is the sum of those floors and not the floor
+        -- of the sum. Splitting here keeps each swap's rounding intact; doing it
+        -- after the SUM would hand the creator up to one lamport per swap that
+        -- the chain never paid. splitCurveTradingFee below is the same rule in
+        -- TypeScript and is what the adapter's test pins.
+        SUM(FLOOR(COALESCE(trading_fee, 0) * {{creatorPercentage}} / 100)) AS creator_fee,
+        SUM(
+            COALESCE(trading_fee, 0)
+            - FLOOR(COALESCE(trading_fee, 0) * {{creatorPercentage}} / 100)
+        ) AS platform_fee,
         SUM(COALESCE(protocol_fee, 0)) AS protocol_fee,
         SUM(COALESCE(referral_fee, 0)) AS referral_fee
     FROM curve_swaps
@@ -164,7 +174,8 @@ const getSqlFromString = (sql: string, variables: Record<string, any> = {}): str
 
 type CurveFeeRow = {
   quote_mint: string;
-  trading_fee: number;
+  creator_fee: number;
+  platform_fee: number;
   protocol_fee: number;
   referral_fee: number;
 };
@@ -198,6 +209,7 @@ const fetch = async (options: FetchOptions) => {
     config: DBC_CONFIG,
     program: DBC_PROGRAM,
     quoteMint: QUOTE_MINT_DEFAULT,
+    creatorPercentage: CREATOR_TRADING_FEE_PERCENTAGE,
     start: options.startTimestamp,
     end: options.endTimestamp,
   });
@@ -208,11 +220,10 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   rows.forEach((row) => {
-    const tradingFee = Number(row.trading_fee ?? 0);
+    const creatorFee = Number(row.creator_fee ?? 0);
+    const platformFee = Number(row.platform_fee ?? 0);
     const protocolFee = Number(row.protocol_fee ?? 0);
     const referralFee = Number(row.referral_fee ?? 0);
-
-    const { creatorFee, platformFee } = splitCurveTradingFee(tradingFee);
 
     dailyFees.add(row.quote_mint, platformFee, metrics.PlatformFees);
     dailyFees.add(row.quote_mint, creatorFee, metrics.CreatorFees);
@@ -241,6 +252,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  // Dune queries run once a day. A version 2 adapter runs hourly and would
+  // re-run this same query twenty four times for one day of fees.
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   // The day the DBC config was created on Mainnet, in UTC. Sourced rather than
