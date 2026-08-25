@@ -15,6 +15,11 @@ const MARGIN_CHANGE_FEE = 4;
 // notional (AUSD base units) = size * executionPrice / SIZE_SCALE.
 const SIZE_SCALE = 10_000n;
 
+// dailyVolume breakdown labels: taker fills are matched against the orderbook, the
+// liquidity vault (AMM), or both in one fill.
+const ORDERBOOK_VOLUME = "Orderbook Volume";
+const AMM_VOLUME = "AMM Volume";
+
 type FeeSplit = { vault: number; treasury: number };
 type SplitSchedule = Array<{ fromBlock: number } & FeeSplit>;
 
@@ -53,11 +58,12 @@ const fetch = async (options: FetchOptions) => {
         const ob = BigInt(t.args.orderbookVolume);
         const amm = BigInt(t.args.vaultVolume);
         const totalSize = ob + amm;
+        const price = BigInt(t.args.executionPrice);
 
-        dailyVolume.add(
-            AUSD,
-            (totalSize * BigInt(t.args.executionPrice)) / SIZE_SCALE,
-        );
+        if (ob > 0n)
+            dailyVolume.add(AUSD, (ob * price) / SIZE_SCALE, ORDERBOOK_VOLUME);
+        if (amm > 0n)
+            dailyVolume.add(AUSD, (amm * price) / SIZE_SCALE, AMM_VOLUME);
         // Venue split is a size ratio (both legs share the same execution price).
         if (totalSize > 0n)
             fillRatioByTx[t.transactionHash] = Number(ob) / Number(totalSize);
@@ -132,6 +138,12 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const breakdownMethodology = {
+    Volume: {
+        [ORDERBOOK_VOLUME]:
+            "Notional (size x execution price, in AUSD) of taker fills matched against the orderbook.",
+        [AMM_VOLUME]:
+            "Notional (size x execution price, in AUSD) of taker fills matched against the liquidity vault (AMM).",
+    },
     Fees: {
         [METRIC.TRADING_FEES]: "Trading commission on orderbook and AMM fills.",
         [METRIC.MARGIN_FEES]: "Isolated margin add/reduce fees.",
@@ -163,6 +175,7 @@ export default {
     start: "2026-07-07",
     fetch,
     methodology: {
+        Volume: "Notional taker volume (size x execution price, in AUSD) across orderbook and AMM fills.",
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
         Revenue:
             "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
