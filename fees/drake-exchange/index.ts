@@ -48,7 +48,9 @@ const fetch = async (options: FetchOptions) => {
     trades.forEach((t: any) => {
         const ob = BigInt(t.args.orderbookVolume);
         const amm = BigInt(t.args.vaultVolume);
-        const total = ob + amm;
+
+        const total =
+            ((ob + amm) * BigInt(t.args.executionPrice)) / BigInt(1e4);
         dailyVolume.add(AUSD, total);
         if (total > 0n)
             fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
@@ -106,28 +108,44 @@ const fetch = async (options: FetchOptions) => {
     fbFees.forEach((f: any) => {
         if (f.totalFBFee <= 0n) return;
         dailyFees.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
-        dailySupplySideRevenue.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue.add(
+            AUSD,
+            BigInt(f.totalFBFee),
+            METRIC.BORROW_INTEREST,
+        );
     });
 
-    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
+    };
 };
 
 const breakdownMethodology = {
     Fees: {
         [METRIC.TRADING_FEES]: "Trading commission on orderbook and AMM fills.",
         [METRIC.MARGIN_FEES]: "Isolated margin add/reduce fees.",
-        [METRIC.BORROW_INTEREST]: "Net borrowing and imbalance funding fees charged to traders.",
+        [METRIC.BORROW_INTEREST]:
+            "Net borrowing and imbalance funding fees charged to traders.",
     },
     Revenue: {
-        [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.TRADING_FEES]:
+            "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
     },
     ProtocolRevenue: {
-        [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.TRADING_FEES]:
+            "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
     },
     SupplySideRevenue: {
-        [METRIC.TRADING_FEES]: "Liquidity vault share of trading commission per the orderbook and AMM splits in effect at that block.",
-        [METRIC.MARGIN_FEES]: "100% of isolated margin add/reduce fees routed to the liquidity vault.",
-        [METRIC.BORROW_INTEREST]: "100% of borrowing and funding fees routed to the liquidity vault.",
+        [METRIC.TRADING_FEES]:
+            "Liquidity vault share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.MARGIN_FEES]:
+            "100% of isolated margin add/reduce fees routed to the liquidity vault.",
+        [METRIC.BORROW_INTEREST]:
+            "100% of borrowing and funding fees routed to the liquidity vault.",
     },
 };
 
@@ -135,13 +153,14 @@ export default {
     version: 2,
     pullHourly: true,
     chains: [CHAIN.MONAD],
-    start: '2026-07-07',
+    start: "2026-07-07",
     fetch,
     methodology: {
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
         Revenue:
             "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
-        ProtocolRevenue: "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
+        ProtocolRevenue:
+            "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
         SupplySideRevenue:
             "Share routed to the Liquidity Vault per the orderbook and AMM splits in effect at that block, plus 100% of margin-change and borrowing/funding fees.",
     },
