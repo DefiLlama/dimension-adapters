@@ -76,10 +76,11 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.SOLANA],
-  start: '2026-08-17',
+  start: '2026-08-16',
   doublecounted: true, // creator fees are already counted by pump.fun
   dependencies: [Dependencies.ALLIUM],
   breakdownMethodology,
