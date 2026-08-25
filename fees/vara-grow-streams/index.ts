@@ -1,13 +1,19 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
+import { PromisePool } from "@supercharge/promise-pool";
 
+// Vara RPC — public Gear node, also used by DefiLlama TVL adapters (see projects/vara-ethereum-bridge/index.js:7, projects/vara-rivrdex/index.js:3)
 const VARA_RPC = "https://rpc.vara.network";
+// StreamCore Sails program — on-chain streaming state machine (StreamService). Source: GrowStreams_IDL_Files/stream-core.idl + explorer https://idea.gear-tech.io/programs/0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659?node=wss%3A%2F%2Frpc.vara.network ; verified via GetConfig fee_bps=250 at 2026-08-25
 const STREAM_CORE = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
+// wVARA VFT — underlying token for streams (token field in StreamCreated events). Source: growstreams.xyz + vara-rivrdex TVL & GrowStreams_IDL_Files/wvara.idl ; all 2,200 streams observed use this token
 const WVARA = "0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d";
 const WVARA_HEX = WVARA.slice(2).toLowerCase();
 const ZERO_ACCOUNT = "0x" + "0".repeat(64);
+// Gas limit for gear_calculateReplyForHandle — 750B covers Sails query decoding (see projects/vara-ethereum-bridge/index.js:10, projects/vara-rivrdex/index.js:5)
 const GAS_LIMIT = 750000000000;
+// VARA has 12 decimals (1 VARA = 1e12 planck) — used for CG pricing. Source: Vara docs / projects/vara-grow-streams/index.js:7 (VARA_DECIMALS=1e12)
 const VARA_DECIMALS = 1e12;
 
 const STREAMING_FEES = "Streaming Fees";
@@ -168,43 +174,30 @@ function getSnapshot(): Promise<Snapshot> {
       const activeStreams = decodeActiveStreams(activeBuf);
       const config = decodeConfig(configBuf);
 
-      // fetch all streams in parallel with limited concurrency
-      // Stream ids are dense from 1 .. nextStreamId-1; TotalStreams may be slightly lower than that if some ids were never used
+      // fetch all streams — ids are dense 1..nextStreamId-1; TotalStreams may lag nextStreamId.
+      // Historical note: GrowStreams never physically deletes a Stream; Stop/Pause only flips StreamStatus
+      // (Active 0 / Paused 1 / Stopped 2) — see stream-core.idl. So GetStream returning None (opt 0) means
+      // never-created id, not a deleted historical stream. Reading current state + filtering by start_time
+      // therefore preserves history without needing archival block queries or event replay. If deletion
+      // were introduced, this must switch to events or historical `at` block queries (gear_calculateReplyForHandle supports `at`).
       const upper = Math.max(totalStreams, config.nextStreamId - 1);
       const ids = Array.from({ length: upper }, (_, i) => i + 1); // ids start at 1; 0 is None
       const allStreams: Stream[] = [];
 
-      // filter out gaps where GetStream returns None (id 0 or deleted)
-      // Chunked fetching to respect Vara RPC rate limits (429)
-      const CHUNK_SIZE = 10;
-      const allResults: (Stream | null)[] = [];
-      let chunkErrors = 0;
-      for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-        const chunk = ids.slice(i, i + CHUNK_SIZE);
-        const resultsChunk = await Promise.all(
-          chunk.map(async (id) => {
-            const idBuf = Buffer.alloc(8);
-            idBuf.writeBigUInt64LE(BigInt(id), 0);
-            const p = "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex");
-            try {
-              const buf = await rpcCall(STREAM_CORE, p);
-              return decodeStream(buf);
-            } catch (e) {
-              chunkErrors++;
-              console.warn(`vara-grow-streams: GetStream ${id} failed: ${(e as any)?.message ?? e}`);
-              return null;
-            }
-          })
-        );
-        allResults.push(...resultsChunk);
-        if (i + CHUNK_SIZE < ids.length) await sleep(120);
-      }
-      const results = allResults;
-      const errors: any[] = chunkErrors ? [{ message: `${chunkErrors} GetStream calls failed in chunks` }] : [];
+      // Bounded PromisePool for non-EVM Vara RPC reads (respects 429 via rpcCall backoff + per-call jitter)
+      const { results, errors } = await PromisePool.withConcurrency(10).for(ids).process(async (id) => {
+        await sleep(40 + Math.random() * 80); // spread load to avoid burst 429 (replaces manual chunk sleep)
+        const idBuf = Buffer.alloc(8);
+        idBuf.writeBigUInt64LE(BigInt(id), 0);
+        const p = "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex");
+        const buf = await rpcCall(STREAM_CORE, p); // throws on failure — do not swallow, so cache invalidation triggers
+        return decodeStream(buf); // null for never-created id, Stream for existing (including Stopped)
+      });
 
       if (errors.length > 0) {
-        // log but don't hard fail unless all failed
-        console.warn(`vara-grow-streams: ${errors.length}/${ids.length} GetStream calls failed`, (errors[0] as any)?.message ?? errors[0]);
+        // System-level failure: do not cache partial data — propagate so outer catch invalidates cachedSnapshot
+        // and caller receives no financial metrics rather than under-reported values.
+        throw new Error(`vara-grow-streams: ${errors.length}/${ids.length} GetStream calls failed: ${String((errors[0] as any)?.message ?? errors[0])}`);
       }
       for (const s of results as (Stream | null)[]) if (s) allStreams.push(s);
 
@@ -264,12 +257,9 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.addCGToken("vara-network", volumeVara, STREAMING_VOLUME);
   }
 
-  // Log per-day diagnostics (useful for backfills)
-  // Includes current global stats so dashboards can reference them in methodology
-  if (options.startOfDay % 86400 === 0) {
-    // only log once per day invocation to avoid spam in hourly mode
+  if (volumePlancks > 0n) {
     console.info(
-      `vara-grow-streams day ${options.dateString}: volumePlancks=${volumePlancks} feesBps=${feeBps} totalStreams=${snap.totalStreams} activeStreams=${snap.activeStreams} wvaraDepositedTotal=${Number(snap.totalDepositedAll) / VARA_DECIMALS}`
+      `vara-grow-streams ${options.dateString} ${options.fromTimestamp}->${options.toTimestamp}: volume=${Number(volumePlancks) / VARA_DECIMALS} VARA fees=${Number((volumePlancks * BigInt(feeBps)) / 10000n) / VARA_DECIMALS} VARA totalStreams=${snap.totalStreams}`
     );
   }
 
@@ -304,9 +294,10 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   chains: [CHAIN.VARA],
-  start: "2026-06-21",
+  start: "2026-06-20",
   fetch,
   methodology,
   breakdownMethodology,
