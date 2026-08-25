@@ -84,14 +84,24 @@ const fetch = async (options: FetchOptions) => {
     LEFT JOIN payouts p ON p.txn_id = f.txn_id AND p.vault = f.vault
   `;
 
-  // Everything the fee wallet receives. Whatever the settlements above do not account for is the
-  // trade opening fee, which the frontend sends as a plain SPL transfer outside the program.
+  // What the fee wallet receives in transactions that use the Trade Executor program. Whatever the
+  // settlements above do not account for is the trade opening fee, which the frontend sends as a
+  // plain SPL transfer outside the program. `create_intent` runs as a CPI so it has no outer
+  // instruction to match on, but the program is still in the transaction's account keys.
   const inflowQuery = `
-    SELECT SUM(raw_amount) AS amount
-    FROM solana.assets.transfers
-    WHERE to_address = '${FEE_WALLET}'
-      AND from_address != '${FEE_WALLET}'
-      AND mint = '${ADDRESSES.solana.USDC}'
+    WITH ride_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions
+      WHERE success = true
+        AND ARRAY_CONTAINS('${TRADE_EXECUTOR}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
+        AND ${timeRange}
+    )
+    SELECT COALESCE(SUM(t.raw_amount), 0) AS amount
+    FROM solana.assets.transfers t
+    JOIN ride_txs r ON r.txn_id = t.txn_id
+    WHERE t.to_address = '${FEE_WALLET}'
+      AND t.from_address != '${FEE_WALLET}'
+      AND t.mint = '${ADDRESSES.solana.USDC}'
       AND ${timeRange}
   `;
 
@@ -138,7 +148,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Trade Opening Fees": "Charged when a trade is opened, based on its volume. Taken by the frontend as a direct USDC transfer to the fee wallet, outside the Trade Executor program.",
+    "Trade Opening Fees": "Charged when a trade is opened, based on its volume. Taken by the frontend as a direct USDC transfer to the fee wallet, outside the Trade Executor program, so it is counted only in transactions that use that program and only for what the settlement fees do not already account for.",
     "Settlement Fees": "Charged by the Trade Executor program when a trade settles: 0.7% of the USDC returned to the treasury, plus a cut of the caller's profit share.",
     "Caller Profit Share": "Paid out of the treasury's realised profit to the caller who deployed the trade, at a rate the DAO sets. The protocol sets and enforces this rate but does not receive it.",
   },
