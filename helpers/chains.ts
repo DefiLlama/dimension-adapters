@@ -92,6 +92,7 @@ export enum CHAIN {
   ULTRON = "ultron",
   STELLAR = "stellar",
   ALGORAND = "algorand",
+  ALEO = "aleo",
   TELOS = "telos",
   TOMOCHAIN = "tomochain",
   BITGERT = "bitgert",
